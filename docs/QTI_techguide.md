@@ -45,6 +45,7 @@ the QTI 2.1 certification line in 2023–2024; only 2.2 and 3.0 are certifiable.
   - [7.1 Conformance Profiles](#71-conformance-profiles)
   - [7.2 Common Implementation Issues](#72-common-implementation-issues)
   - [7.3 Best Practices](#73-best-practices)
+  - [7.4 Deviations from the QTI Specification](#74-deviations-from-the-qti-specification)
 - [Conclusion](#conclusion)
 
 ---
@@ -808,16 +809,23 @@ It is omitted on a `record` declaration because every record field declares its 
 | `pair` | Two unordered identifiers | Associate interactions |
 | `directedPair` | Two ordered identifiers | Match interactions |
 | `file` | File reference | Upload, drawing |
-| `duration` | Time interval | Built-in duration tracking |
+| `duration` | Time interval in seconds, a float (`xsd:double`), fractional allowed | Built-in duration tracking |
 | `uri` | URI reference | External resources |
 
 ### Built-in Variables
 
 These variables are automatically available in every item session:
 
-- **numAttempts** (integer): Number of attempts made
-- **duration** (float): Time spent on item in seconds
-- **completionStatus** (identifier): not_attempted, unknown, incomplete, completed
+- **numAttempts** (response variable, integer): Number of attempts made
+- **duration** (response variable, base-type `duration`): accumulated time on the item in seconds,
+  fractional and truncated, excluding time the session was suspended. QTI requires a resolution of at
+  least 1 s (0.1 s or finer recommended); this player keeps milliseconds. Expressions compare it with
+  seconds, e.g. `<durationLT><variable identifier="duration"/><baseValue baseType="duration">60</baseValue></durationLT>`.
+- **completionStatus** (outcome variable, identifier): not_attempted, unknown, incomplete, completed
+
+At test level, `duration` is the time spent on the whole test, and `PART.duration` / `SECTION.duration`
+the time spent in a test part or section, also in seconds. Both QTI versions report all of them in
+Results Reporting as `responseVariable` elements.
 
 ## 4.2 Standard Response Processing Templates
 
@@ -1544,6 +1552,61 @@ QTI 3.0 introduces its own certification program with additional conformance lev
 - **1EdTech online validator** (members only) — Official certification testing
 - **QTIWorks validator** — Public alternative validation for QTI 2.x
 - **Official XSD schemas** — Available at imsglobal.org
+
+## 7.4 Deviations from the QTI Specification
+
+These are deliberate choices in this project's scoring engine (`@pie-qti/qti-processing`) and item
+player (`@pie-qti/item-player`) where behavior differs from, or goes beyond, the letter of QTI 2.2
+and 3.0. Each one only widens what is accepted or compared equal for content in ordinary use; none
+changes the result for ASCII text or for durations written as the specification writes them.
+
+### Unicode folding in string comparison
+
+QTI defines `match`, `member` and `contains` on `string` values as exact equality, `stringMatch` as
+equality up to the case rule it names, and `equal` on numeric base types only. This engine compares
+`string` values in a folded form in all of them, so the same answer typed in another script or
+encoding compares equal (`runtime/normalize.ts`, `normalizeResponse`, applied by
+`eval/evaluator.ts` and by mapping-entry lookup in `mapResponse`):
+
+- every Unicode decimal digit (`\p{Nd}`, e.g. Arabic-Indic `٣`) folds to its ASCII digit;
+- the Arabic decimal and thousands separators (`٫`, `٬`) fold to the content language's marks;
+- bidirectional controls and tatweel are removed, Arabic presentation forms fold to base letters,
+  and the text is NFC-normalized.
+
+Case folding still happens only where QTI asks for it (`stringMatch caseSensitive="false"`,
+case-insensitive mapping entries). An ASCII string compares exactly as the specification says.
+
+### Duration units and lexical forms
+
+QTI defines a duration as a float of seconds (`xsd:double`). The engine stores every duration as a
+number of seconds, including the built-in `duration` variable, and additionally:
+
+- reads ISO 8601 / `xsd:duration` literals such as `PT1M30S` as seconds (a year counts as 365 days,
+  a month as 30), next to the specified `90` / `90.5` form;
+- compares durations by their seconds in `match`, `equal`, `member` and `contains`, which QTI says
+  must not be used on durations (`match`, `member`, `contains`) or are defined for numeric base
+  types only (`equal`); `durationLT` / `durationGTE` are the specified comparisons;
+- keeps the built-in `duration` up to date for items that are not `timeDependent`, where QTI says it
+  must not be used in expressions (it is still reported, as Results Reporting asks).
+
+The player's host-facing `duration` fields — `SerializedItemSessionState.duration`,
+`ItemSessionActionResult.duration`, `ItemSessionView.duration`, and the assessment player's
+`timing` totals — are **milliseconds**. The QTI variable values (`contextVariables.duration`,
+`outcomeValues.duration`, and every duration in Results Reporting output) are **seconds**.
+
+### matchGroup in response validation
+
+QTI defines `matchGroup` as the identifiers of the choices, gaps or hotspots a choice may be
+matched with. Content, and this project's default renderers, also use the tokens as shared group
+labels. Response validation refuses a pairing only when neither reading allows it, so it never
+rejects a response the delivered interface lets a candidate build.
+
+### Compliance checks without an XSD engine
+
+`strictQtiCompliance` does not run the QTI XSDs. It checks the item's QTI namespace, its element
+names against the XSD-verified QTI 2.2 / 3.0 vocabulary, and the response binding and
+extractability of every interaction; attributes, content models and value spaces are not checked.
+See [`packages/item-player/docs/QTI-COMPLIANCE.md`](../packages/item-player/docs/QTI-COMPLIANCE.md#strict-mode).
 
 ---
 

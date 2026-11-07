@@ -86,7 +86,7 @@
         <baseValue baseType="point">10 20</baseValue>
       </match>
     </setOutcomeValue>
-    <!-- duration is stored as milliseconds -->
+    <!-- durations compare in seconds: PT1H is 3600 -->
     <setOutcomeValue identifier="OK_DUR">
       <equal>
         <variable identifier="DUR"/>

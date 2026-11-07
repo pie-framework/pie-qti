@@ -27,6 +27,7 @@ import type {
 } from '../types/index.js';
 import { createComponentRegistry } from './ComponentRegistry.js';
 import type { ComponentRegistry } from './ComponentRegistry.js';
+import type { QtiItemDiagnostic } from './compliance.js';
 import { preparePlayerDefinitionInternal } from './Player.js';
 import {
 	LiveItemSession,
@@ -91,6 +92,13 @@ export interface AssessmentItemDefinitionConfig {
 
 export interface AssessmentItemDefinition {
 	readonly identifier: string;
+	/**
+	 * QTI compliance findings from compiling the item: version assumptions, element names outside
+	 * the item's QTI vocabulary, interactions bound to no response declaration, and interactions no
+	 * registered extractor renders. Errors under `strictQtiCompliance.enabled`, warnings otherwise;
+	 * empty when the item compiled cleanly. See `QTIComplianceConfig`.
+	 */
+	readonly diagnostics: readonly QtiItemDiagnostic[];
 	openSession(options?: OpenItemSessionOptions): ItemSession;
 }
 
@@ -105,6 +113,7 @@ export function createAssessmentItemDefinition(
 
 class CompiledAssessmentItemDefinition implements AssessmentItemDefinition {
 	readonly identifier: string;
+	readonly diagnostics: readonly QtiItemDiagnostic[];
 	private readonly playerConfig: Readonly<ItemSessionEngineConfig>;
 	private readonly prepared: unknown;
 	private readonly rngFactory?: () => () => number;
@@ -128,6 +137,7 @@ class CompiledAssessmentItemDefinition implements AssessmentItemDefinition {
 		);
 		this.prepared = preparePlayerDefinitionInternal({ ...config });
 		this.identifier = readPreparedIdentifier(this.prepared);
+		this.diagnostics = readPreparedDiagnostics(this.prepared);
 		this.playerConfig = config;
 		Object.freeze(this);
 	}
@@ -162,6 +172,12 @@ function readPreparedIdentifier(prepared: unknown): string {
 		throw new Error('AssessmentItemDefinition compilation did not produce an identifier');
 	}
 	return prepared.identifier;
+}
+
+function readPreparedDiagnostics(prepared: unknown): readonly QtiItemDiagnostic[] {
+	const diagnostics =
+		prepared && typeof prepared === 'object' && 'diagnostics' in prepared ? prepared.diagnostics : undefined;
+	return Array.isArray(diagnostics) ? (diagnostics as readonly QtiItemDiagnostic[]) : Object.freeze([]);
 }
 
 function resolveNameMappers(config: Readonly<ItemSessionEngineConfig>) {

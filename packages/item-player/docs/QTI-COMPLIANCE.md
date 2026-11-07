@@ -52,21 +52,43 @@ Do not treat backward compatibility with the QTI 2.2 vocabulary as complete 2.1 
 
 ## Strict mode
 
-`strictQtiCompliance` provides version/extension checks and diagnostic logging. It is not an XSD
-validator and does not close the behavioral gaps listed above.
+Compliance checks run once, when an item definition compiles. They are not an XSD validator and do
+not close the behavioral gaps listed above. Every item is checked for:
+
+- a QTI namespace on its root (an unversioned or unknown-namespace root is read as QTI 2.2, with a
+  `version-assumed` finding);
+- element names outside the item version's vocabulary — unknown elements in the QTI namespace, and
+  unknown `qti-` elements in QTI 3.0 — checked against the XSD-verified QTI 2.2 / 3.0 vocabulary in
+  `@pie-qti/qti-common` (`isQtiVocabularyElement`); the contents of `customInteraction` (and HTML
+  `template` in QTI 3.0), which the schemas leave open, are not checked;
+- interactions whose `responseIdentifier` names no `responseDeclaration`, QTI interactions with no
+  `responseIdentifier`, and response-bound elements no registered extractor renders (extraction
+  skips those).
+
+Findings are listed on `AssessmentItemDefinition.diagnostics` and logged unless `logDeviations` is
+`false`. They are warnings by default. With `enabled: true` they are errors, and items in versions
+other than QTI 2.2 and 3.0 (the certifiable versions) are findings too; adding
+`rejectUnknownExtensions: true` makes compilation throw a `QtiComplianceError` that carries them.
+Independently of strict mode, a `responseProcessing` that only references an unsupported template
+fails compilation with `UnsupportedResponseProcessingTemplateError`.
 
 ```typescript
-import { createAssessmentItemDefinition } from '@pie-qti/item-player';
+import { createAssessmentItemDefinition, QtiComplianceError } from '@pie-qti/item-player';
 
-const definition = createAssessmentItemDefinition({
-  itemXml: qtiXml,
-  strictQtiCompliance: {
-    enabled: true,
-    rejectUnknownExtensions: true,
-    logDeviations: true
-  }
-});
-const session = definition.openSession();
+try {
+  const definition = createAssessmentItemDefinition({
+    itemXml: qtiXml,
+    strictQtiCompliance: {
+      enabled: true,
+      rejectUnknownExtensions: true,
+      logDeviations: true
+    }
+  });
+  const session = definition.openSession();
+} catch (error) {
+  if (error instanceof QtiComplianceError) console.table(error.diagnostics);
+  else throw error;
+}
 ```
 
 ## Verification

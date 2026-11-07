@@ -60,8 +60,7 @@ export function toNumber(v: QtiValue): number {
 	const raw = (v as any).value;
 	if (typeof raw === 'number') return raw;
 	if (v.kind === 'value' && v.baseType === 'duration' && typeof raw === 'string') {
-		const ms = parseXsdDurationToMilliseconds(raw);
-		return ms === null ? NaN : ms;
+		return parseDurationSeconds(raw) ?? NaN;
 	}
 	return Number(raw);
 }
@@ -72,15 +71,58 @@ export function toStringValue(v: QtiValue): string {
 	return String((v as any).value);
 }
 
-function parseXsdDurationToMilliseconds(text: string): number | null {
-	// xs:duration lexical space is ISO 8601 duration, e.g. "P3DT4H30M", "PT0.5S"
-	// NOTE: years/months are variable-length in reality; we approximate:
+/** The xsd:double lexical space, without INF and NaN: neither is a usable duration. */
+const DECIMAL_SECONDS = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
+
+/**
+ * The seconds a QTI duration literal denotes, or null when it is not one.
+ *
+ * QTI 2.x and 3.0 define a duration as "a single float that records time in seconds", bound to
+ * xsd:double, so `30` and `2.5` are the specified lexical forms (QTI 2.2 and 3.0 ASI information
+ * models, baseType `duration`). ISO 8601 / xsd:duration literals such as `PT30S` are accepted as
+ * well, as a documented leniency for content that writes durations that way; a year counts as
+ * 365 days and a month as 30.
+ */
+export function parseDurationSeconds(text: string): number | null {
+	const t = text.trim();
+	if (DECIMAL_SECONDS.test(t)) {
+		const seconds = Number(t);
+		return Number.isFinite(seconds) ? seconds : null;
+	}
+	return parseIsoDurationSeconds(t);
+}
+
+/**
+ * The seconds of a runtime duration value: a number of seconds, or a duration literal. Null for
+ * anything else, so a malformed duration can never compare as a number.
+ */
+export function durationSeconds(raw: unknown): number | null {
+	if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null;
+	if (typeof raw === 'string') return parseDurationSeconds(raw);
+	return null;
+}
+
+/**
+ * A QTI duration, in seconds, from elapsed milliseconds. QTI truncates durations rather than
+ * rounding them, so the result is the elapsed time truncated to whole milliseconds; negative and
+ * non-finite input reads as no time at all.
+ */
+export function durationSecondsFromMilliseconds(milliseconds: number): number {
+	if (!Number.isFinite(milliseconds) || milliseconds <= 0) return 0;
+	return Math.floor(milliseconds) / 1000;
+}
+
+function parseIsoDurationSeconds(text: string): number | null {
+	// xs:duration lexical space is ISO 8601 duration, e.g. "P3DT4H30M", "PT0.5S".
+	// Years and months are variable-length in reality; we approximate:
 	// - 1 year = 365 days
 	// - 1 month = 30 days
-	const t = text.trim();
 	const m =
-		/^(-)?P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/.exec(t);
+		/^(-)?P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/.exec(text);
 	if (!m) return null;
+	// xs:duration needs at least one component, and a time component after its `T`.
+	if (!m.slice(2).some((part) => part !== undefined)) return null;
+	if (text.includes('T') && m[5] === undefined && m[6] === undefined && m[7] === undefined) return null;
 	const sign = m[1] ? -1 : 1;
 	const years = m[2] ? Number(m[2]) : 0;
 	const months = m[3] ? Number(m[3]) : 0;
@@ -91,7 +133,7 @@ function parseXsdDurationToMilliseconds(text: string): number | null {
 	if (![years, months, days, hours, minutes, seconds].every(Number.isFinite)) return null;
 	const totalSeconds =
 		(((years * 365 + months * 30 + days) * 24 + hours) * 60 + minutes) * 60 + seconds;
-	return sign * totalSeconds * 1000;
+	return sign * totalSeconds;
 }
 
 /**
@@ -135,10 +177,10 @@ export function coerceBaseValue(baseType: BaseType, text: string, language?: str
 			return qtiValue('point', 'single', `${parts[0]} ${parts[1]}`);
 		}
 		case 'duration': {
-			const ms = parseXsdDurationToMilliseconds(t);
-			if (ms === null) return qtiInvalid(`invalid duration: ${t}`, 'duration', 'single');
-			// Store milliseconds as a number to make comparisons/lt/gt work naturally.
-			return qtiValue('duration', 'single', ms);
+			const seconds = parseDurationSeconds(t);
+			if (seconds === null) return qtiInvalid(`invalid duration: ${t}`, 'duration', 'single');
+			// QTI durations are seconds; stored as a number so comparisons work on the value.
+			return qtiValue('duration', 'single', seconds);
 		}
 		case 'file':
 			// Minimal representation for now: a string reference (e.g. file name, URI, etc).

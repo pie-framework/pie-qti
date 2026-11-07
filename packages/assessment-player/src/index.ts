@@ -17,6 +17,8 @@ export {
 export { toCanonicalQtiName } from './core/testStructure.js';
 // Backend integration API + reference adapter
 export * from './integration/index.js';
+// QTI Results Reporting (assessmentResult) output
+export * from './reporting/index.js';
 // Public UI/data types
 export type {
 	AssessmentResults,

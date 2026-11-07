@@ -9,12 +9,15 @@ import {
 	coerceBaseValue,
 	DeclarationContext,
 	type DeclarationMap,
+	durationSecondsFromMilliseconds,
 	evalExpr,
 	execProgram,
+	findAssessmentItem,
 	findDescendants,
 	findFirstDescendant,
 	getAttr,
 	OperatorRegistry,
+	parseXml,
 	type ProcessingProgram,
 	type QtiValue,
 	qtiNull,
@@ -33,7 +36,9 @@ import {
 	Qti3ElementNameMapper,
 	Qti3AttributeNameMapper,
 	detectQtiVersion,
+	detectQtiVersionDetailed,
 	isShownByIdentifier,
+	type QtiVersionDetection,
 } from '@pie-qti/qti-common';
 import type {
 	AssessmentItemDocument,
@@ -72,7 +77,17 @@ import type { BaseInteractionData } from '../interactions/shared/types.js';
 import type { ResponseValidationResult } from '../types/responseValidation.js';
 import type { ComponentRegistry } from './ComponentRegistry.js';
 import { createComponentRegistry } from './ComponentRegistry.js';
+import { collectItemDiagnostics, type QtiItemDiagnostic, reportItemDiagnostics } from './compliance.js';
+import {
+	findMatchGroupViolations,
+	type MatchGroupConstraints,
+	readMatchGroupConstraints,
+} from './matchGroups.js';
 import { createSeededRng } from './random.js';
+import {
+	resolveResponseProcessingTemplate,
+	UnsupportedResponseProcessingTemplateError,
+} from './responseProcessingTemplates.js';
 import { sanitizeHtml } from './sanitizer.js';
 import { toTrustedHtml } from './trustedTypes.js';
 import { sanitizeResourceUrl } from './urlPolicy.js';
@@ -117,6 +132,8 @@ interface PreparedPlayerDefinition {
 	readonly outcomeProcessingProgram: ProcessingProgram | null;
 	readonly catalogIndex: CatalogIndex;
 	readonly stimulusCatalogIndexes: Map<string, CatalogIndex>;
+	readonly diagnostics: readonly QtiItemDiagnostic[];
+	readonly matchGroupConstraints: ReadonlyMap<string, MatchGroupConstraints>;
 }
 
 interface PlayerConstructionOptions {
@@ -178,8 +195,13 @@ export class Player {
 	private _pnpChangeListeners = new Set<(pnp: PnpProfile | undefined) => void>();
 	private sessionGuid: string;
 	private lifecycleStatus: ItemLifecycleStatus = 'initial';
+	private diagnostics: readonly QtiItemDiagnostic[] = [];
+	/** matchGroup constraints of the item's pairing interactions, by response identifier. */
+	private matchGroupConstraints: ReadonlyMap<string, MatchGroupConstraints> = new Map();
 	private sessionStartedAt: number;
 	private accumulatedDurationMs = 0;
+	/** Time on task at the last duration update, in milliseconds. */
+	private durationMs = 0;
 
 	constructor(config: ItemSessionEngineConfig);
 	/** @internal Definition-backed sessions use the module-local factory above. */
@@ -297,6 +319,7 @@ export class Player {
 
 		const responseProcessing = prepared ? null : this.itemDocument.getProcessingElement('response');
 		this.responseProcessing = prepared?.responseProcessing ?? this.itemDocument.describeResponseProcessing();
+		if (!prepared) this.assertSupportedResponseProcessing();
 		this.responseProcessingProgram =
 			prepared?.responseProcessingProgram ??
 			(responseProcessing
@@ -310,15 +333,9 @@ export class Player {
 				? buildOutcomeProcessingAst(outcomeProcessing, processingBuildOptions)
 				: null);
 
-		// Detect and log QTI version for compatibility awareness
-		const detectedVersion = prepared ? null : this.detectQTIVersion();
-		if (detectedVersion === 'unknown') {
-			console.warn('[QTI Player] Could not detect QTI version. Assuming QTI 2.2 compatibility.');
-		} else if (detectedVersion === '2.0') {
-			console.warn(
-				'[QTI Player] QTI 2.0 detected. Some features may not be fully supported. QTI 2.2 is recommended.'
-			);
-		} else if (detectedVersion === '2.1') {
+		// QTI 2.1 is delivered through the QTI 2.2 code path; other version findings are diagnostics.
+		const versionDetection = prepared ? null : detectQtiVersionDetailed(config.itemXml ?? '');
+		if (versionDetection?.version === '2.1' && !this.config.strictQtiCompliance?.enabled) {
 			console.info(
 				'[QTI Player] QTI 2.1 detected. Using QTI 2.2 compatibility mode with CC2 template support.'
 			);
@@ -362,9 +379,15 @@ export class Player {
 			this._catalogIndex = mergeCatalogs(mergedCatalog, deliveryItemCatalog);
 		}
 
-		// Check strict compliance if enabled
-		if (!prepared && this.config.strictQtiCompliance?.enabled) {
-			this.validateStrictCompliance();
+		// Checks that read the item as authored, before the content pass: matchGroup constraints, and
+		// compliance findings, reported (or rejected, in strict mode) once, when the item compiles.
+		if (prepared) {
+			this.matchGroupConstraints = prepared.matchGroupConstraints;
+			this.diagnostics = prepared.diagnostics;
+		} else {
+			const sourceItem = findAssessmentItem(parseXml(config.itemXml ?? ''));
+			this.matchGroupConstraints = readMatchGroupConstraints(sourceItem, this.mapper);
+			this.diagnostics = this.compileDiagnostics(config.itemXml ?? '', sourceItem, versionDetection ?? undefined);
 		}
 	}
 
@@ -386,7 +409,14 @@ export class Player {
 			outcomeProcessingProgram: this.outcomeProcessingProgram,
 			catalogIndex: this._catalogIndex,
 			stimulusCatalogIndexes: this._stimulusCatalogIndexes,
+			diagnostics: this.diagnostics,
+			matchGroupConstraints: this.matchGroupConstraints,
 		});
+	}
+
+	/** The item's QTI compliance findings from compilation; empty when it compiled cleanly. */
+	public getDiagnostics(): readonly QtiItemDiagnostic[] {
+		return this.diagnostics;
 	}
 
 	/**
@@ -780,34 +810,38 @@ export class Player {
 	}
 
 	/**
-	 * Detects the QTI version from the assessmentItem element.
-	 * Checks both namespace URI and version attribute.
-	 *
-	 * @returns QTI version string ('2.0', '2.1', '2.2') or 'unknown'
+	 * The item's QTI compliance findings (see `collectItemDiagnostics`): errors in strict mode,
+	 * warnings otherwise. Strict mode with `rejectUnknownExtensions` throws a `QtiComplianceError`
+	 * on any finding; otherwise they are logged unless `logDeviations` is false.
 	 */
-	private detectQTIVersion(): string {
-		return this.itemDocument.detectVersion();
-	}
-
-	/**
-	 * Validates strict QTI 2.2 compliance if enabled in configuration.
-	 * Logs warnings or throws errors based on config settings.
-	 */
-	private validateStrictCompliance(): void {
-		const config = this.config.strictQtiCompliance;
-		if (!config?.enabled) return;
-
-		const version = this.detectQTIVersion();
-		if (version !== '2.2') {
-			const message = `[QTI Player] Strict compliance enabled but item version is ${version}, not 2.2`;
-			if (config.rejectUnknownExtensions) {
-				throw new Error(message);
-			} else if (config.logDeviations !== false) {
-				console.warn(message);
-			}
-		}
-
-		// Future: Add validation for non-standard elements/attributes
+	private compileDiagnostics(
+		sourceXml: string,
+		sourceItem: Element,
+		versionDetection?: QtiVersionDetection,
+	): readonly QtiItemDiagnostic[] {
+		const compliance = this.config.strictQtiCompliance;
+		const strict = compliance?.enabled === true;
+		const diagnostics = Object.freeze(
+			collectItemDiagnostics({
+				itemXml: sourceXml,
+				item: sourceItem,
+				versionDetection,
+				elementNameMapper: this.mapper,
+				extractionRegistry: this.extractionRegistry,
+				responseIdentifiers: new Set(
+					Object.values(this.decls)
+						.filter((d) => (d as any).__kind === 'response')
+						.map((d) => d.identifier),
+				),
+				strict,
+			}),
+		);
+		reportItemDiagnostics(diagnostics, {
+			itemIdentifier: this.itemDocument.getAssessmentItemAttribute('identifier') ?? undefined,
+			reject: strict && compliance?.rejectUnknownExtensions === true,
+			log: compliance?.logDeviations !== false,
+		});
+		return diagnostics;
 	}
 
 	private resetOutcomesToDefault(): void {
@@ -1240,6 +1274,16 @@ export class Player {
 			) {
 				errors.push(`Response '${responseId}' exceeds maxStrings=${i.maxStrings}`);
 			}
+			const shapeErrorCount = errors.length;
+
+			// matchGroup restricts which choices may pair. The renderers enforce it while the
+			// candidate works; a restored or programmatic response is checked here.
+			const matchGroups = this.matchGroupConstraints.get(responseId);
+			if (matchGroups) {
+				for (const pair of findMatchGroupViolations(value, matchGroups)) {
+					errors.push(`Response '${responseId}' pairs ${pair.replace(' ', ' with ')}, which matchGroup does not allow`);
+				}
+			}
 
 			const valid = errors.length === 0;
 			entries[responseId] = {
@@ -1252,14 +1296,14 @@ export class Player {
 				warnings,
 			};
 
-			for (const e of errors) {
+			errors.forEach((e, index) => {
 				issues.push({
 					responseId,
-					code: 'invalid_shape',
+					code: index < shapeErrorCount ? 'invalid_shape' : 'match_group',
 					message: e,
 					severity: 'error',
 				});
-			}
+			});
 		}
 
 		const allValid = Object.values(entries).every((e) => e.valid);
@@ -1350,11 +1394,9 @@ export class Player {
 	}
 
 	private execResponseProcessingTemplate(templateUrl: string): void {
-		const name = templateUrl.split('/').pop()?.toLowerCase().replace(/\.xml$/, '');
-		if (!name) {
-			console.warn(`[QTI Player] Could not extract template name from URL: ${templateUrl}`);
-			return;
-		}
+		const name = resolveResponseProcessingTemplate(templateUrl);
+		// Compilation rejects unsupported templates; this guards a hand-built prepared definition.
+		if (!name) throw this.unsupportedTemplateError(templateUrl);
 
 		const responseMatchesCorrect = (): boolean => {
 			const expression = {
@@ -1449,10 +1491,30 @@ export class Player {
 				setScore(mapResponse(true));
 				return;
 			}
-			default:
-				console.warn(`[QTI Player] Unsupported response processing template: ${name}`);
+			case 'no_response_processing': {
+				// The standard empty template: outcomes keep their defaults (unscored item).
 				return;
+			}
 		}
+	}
+
+	/**
+	 * A template reference is the item's only scoring rule when responseProcessing has no rules of
+	 * its own. Without a built-in program for that template the item would score its defaults
+	 * silently, so compilation fails instead (docs/SPEC-GAPS-PLAN.md G-19).
+	 */
+	private assertSupportedResponseProcessing(): void {
+		const { present, hasStatements, template } = this.responseProcessing;
+		if (!present || hasStatements || !template) return;
+		if (resolveResponseProcessingTemplate(template)) return;
+		throw this.unsupportedTemplateError(template);
+	}
+
+	private unsupportedTemplateError(templateUri: string): UnsupportedResponseProcessingTemplateError {
+		return new UnsupportedResponseProcessingTemplateError(
+			templateUri,
+			this.itemDocument.getAssessmentItemAttribute('identifier') ?? undefined,
+		);
 	}
 
 	// ----------------------------------------------------------------------------
@@ -1655,9 +1717,10 @@ export class Player {
 			if (!d) continue;
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
 		}
-		const restoredDuration = Number(state.duration);
-		if (Number.isFinite(restoredDuration) && restoredDuration >= 0) {
-			this.accumulatedDurationMs = restoredDuration;
+		// `duration` here is the QTI variable's public value, which is in seconds.
+		const restoredSeconds = Number(state.duration);
+		if (Number.isFinite(restoredSeconds) && restoredSeconds >= 0) {
+			this.accumulatedDurationMs = restoredSeconds * 1000;
 			this.sessionStartedAt = Date.now();
 			this.updateDuration();
 		}
@@ -1750,21 +1813,26 @@ export class Player {
 
 	private updateDuration(): void {
 		const elapsedMs = Math.max(0, Date.now() - this.sessionStartedAt);
-		const durationMs = this.accumulatedDurationMs + elapsedMs;
-		this.ctx.setValue('duration', qtiValue('duration', 'single', durationMs));
+		this.durationMs = Math.max(0, Math.floor(this.accumulatedDurationMs + elapsedMs));
+		// QTI 2.2/3.0: the built-in `duration` response variable is a float of seconds, truncated.
+		// The host-facing `duration` fields of serialized sessions and action results stay in
+		// milliseconds (see getDuration).
+		this.ctx.setValue(
+			'duration',
+			qtiValue('duration', 'single', durationSecondsFromMilliseconds(this.durationMs)),
+		);
 	}
 
 	private freezeDuration(): number {
 		this.updateDuration();
-		const duration = this.getDuration();
-		this.accumulatedDurationMs = duration;
+		this.accumulatedDurationMs = this.durationMs;
 		this.sessionStartedAt = Date.now();
-		return duration;
+		return this.durationMs;
 	}
 
+	/** Time on task in whole milliseconds, as the host-facing session fields report it. */
 	private getDuration(): number {
-		const value = this.ctx.getValue('duration');
-		return Math.max(0, Math.floor(toNumber(value) || 0));
+		return this.durationMs;
 	}
 
 	/**

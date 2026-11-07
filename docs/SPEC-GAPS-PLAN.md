@@ -77,7 +77,16 @@ prevent nonsensical pairings in large matching pools.
 Current
 The associate, match, gap-match, graphic-gap-match and graphic-associate extractors read
 `matchGroup` into the choice data, and the default components filter pairing targets through
-`isCompatibleMatchGroup`.
+`isCompatibleMatchGroup`. Response validation enforces it too (2026-11-07): `validateResponses`
+reports each pair of a restored or programmatic response that `matchGroup` forbids as a
+`match_group` error, reading the authored `matchGroup` of both sides, gaps and associable hotspots
+included (`packages/item-player/src/core/matchGroups.ts`). The specification defines `matchGroup`
+as the identifiers a choice may be matched with, while the example above and the default
+components read the tokens as group labels; validation refuses a pair only when neither reading
+allows it (see `docs/QTI_techguide.md` §7.4). Open: the default components still apply only the
+label reading (blocking pairs the specification allows), ignore `matchGroup` on gaps and hotspots
+(not extracted), and treat it in gap match as mutual exclusion among choices; they should reuse
+`isMatchGroupCompatible`.
 
 Action
 1. Add `matchGroup?: string[]` to the choice type in each affected extractor's data interface.
@@ -387,8 +396,10 @@ Current
 Fixed-template execution now follows the canonical `RESPONSE` program rather than aggregating all
 response declarations. `match_correct`, `CC2_match`, `CC2_match_basic`, `map_response`,
 `map_response_point`, and `CC2_map_response` are regression-tested against the corresponding XML
-programs, including `MAXSCORE`, null handling, and Common Cartridge feedback outcomes. Unknown
-fixed template names still fail explicitly.
+programs, including `MAXSCORE`, null handling, and Common Cartridge feedback outcomes. A
+`responseProcessing` that is only a reference to any other template fails compilation with
+`UnsupportedResponseProcessingTemplateError` (2026-11-07; it used to warn and score the outcome
+defaults); inline rules still take precedence over a template reference.
 
 Action
 Done for the currently supported names. Any newly accepted template URI must be added together with
@@ -477,6 +488,13 @@ assessment minTime on `submit()`, same-instant parent/child expiry ordering (par
 allow-late item limits that keep accepting submissions with expired timing evidence while a hard
 parent limit still closes the scope, and the effective-limit and remaining-time getters.
 
+QTI duration variables are seconds (2026-11-07): the item's built-in `duration` variable, and
+`ITEM.duration` as test-level expressions read it, hold seconds, and Results Reporting output writes
+the test, test-part and section durations in seconds. Clocks and host-facing `duration` / `timing`
+fields stay in milliseconds. Open: test-level outcome processing does not yet declare the built-in
+`duration`, `PART.duration` and `SECTION.duration` variables; expose them from the timing state in
+seconds (`durationSecondsFromMilliseconds` in `@pie-qti/qti-processing`).
+
 Action
 Done for the tracked runtime and evidence gaps. Candidate-facing minimum-time affordances (countdown
 UI for `minTime`) remain host work; the effective-limit getters are the intended data source.
@@ -552,6 +570,70 @@ Test signal
   and a missing fragment whose authored `xi:fallback` executes.
 - `packages/qti-processing/tests/processing-fragments.test.ts`: foreign-namespace `<include>` and
   `<fallback>` regressions, resolver never consulted for foreign vocabulary.
+
+---
+
+### G-26: QTI Results Reporting output
+
+Scope       — `packages/assessment-player/src/reporting/`
+Status      — Done (2026-11-07)
+Effort      — M
+Spec ref    — QTI 2.2 Results Reporting (`imsqti_result_v2p2`); QTI 3.0 Results Reporting (`imsqti_result_v3p0`)
+
+Context
+Delivery systems exchange results as a QTI Results Reporting `assessmentResult`: the candidate
+context, a test result with test-level variables, and an item result per item session.
+
+Current
+`toAssessmentResultXml(results, { version: '2.2' | '3.0' })` writes the assessment player's results
+data (delivered test, session state, finalize response) as an `assessmentResult`: context
+`sourcedId` and session identifiers; test outcomes typed by the test's declarations and the test,
+test-part and section durations in seconds; and an item result per recorded item with
+`sequenceIndex`, `datestamp`, a derived `sessionStatus`, response, outcome, template and (3.0)
+context variables, the built-in `numAttempts` / `duration` response variables and the candidate
+comment. `serializeAssessmentResult` writes a hand-built report. Values are XML-escaped; identifiers
+the target schema types as NCName are validated.
+
+Action
+Done. Not covered: `choiceSequence` (the player does not record presentation order), QTI 3.0
+`support` elements and `scoreStatus` / `answeredStatus`.
+
+Test signal
+- `packages/assessment-player/tests/assessment-result-xml.test.ts`: structure, cardinalities, record
+  fields, escaping, version differences and schema-typed failures; generated documents validate
+  against the official 2.2 and 3.0 result XSDs.
+
+---
+
+### G-27: Compliance checks without an XSD engine
+
+Scope       — `packages/item-player/src/core/compliance.ts`; `packages/qti-common/src/version-detection/`
+Status      — Done (2026-11-07)
+Effort      — M
+Spec ref    — QTI 2.2 / 3.0 ASI XSD element vocabulary; interaction–responseDeclaration binding
+
+Context
+`strictQtiCompliance` only compared the item's version with 2.2. Unknown elements, interactions bound
+to undeclared responses, and interactions no extractor handles degraded silently, and version
+detection assumed QTI 2.2 for unversioned roots without saying so.
+
+Current
+Item compilation checks the root's QTI namespace (`detectQtiVersionDetailed` reports basis,
+confidence and warnings), element names against the XSD-verified QTI 2.2 / 3.0 vocabulary
+(`isQtiVocabularyElement`, tested equal to the vendored schemas' element sets), unbound
+`responseIdentifier`s, QTI interactions without one, and response-bound elements no registered
+extractor renders. Findings are warnings by default and errors in strict mode, listed on
+`AssessmentItemDefinition.diagnostics`; strict mode with `rejectUnknownExtensions` throws a
+`QtiComplianceError`.
+
+Action
+Done for element vocabulary and bindings. Attributes, content models and value spaces still need an
+XSD validator outside the browser player.
+
+Test signal
+- `packages/item-player/tests/core/compliance.test.ts`, `tests/extraction/interaction-coverage.test.ts`
+- `packages/qti-common/src/version-detection/__tests__/vocabulary.test.ts`,
+  `detectQtiVersionDetailed.test.ts`
 
 ---
 
@@ -955,8 +1037,11 @@ Quick lookup of which source files are touched by each gap item.
 | `packages/default-components/src/catalog/` | G-10 |
 | `packages/item-player/src/interactions/position-object/` | G-17 |
 | `packages/item-player/src/interactions/extended-text/` | G-23 |
-| `packages/item-player/src/core/Player.ts` | G-19, G-21, G-23, G-24 |
+| `packages/item-player/src/core/Player.ts` | G-01, G-19, G-21, G-23, G-24, G-27 |
+| `packages/item-player/src/core/compliance.ts` | G-27 |
 | `packages/qti-common/src/element-mapper/` | G-18 |
+| `packages/qti-common/src/version-detection/` | G-27 |
+| `packages/assessment-player/src/reporting/` | G-26 |
 | `packages/qti-processing/` | G-11, G-19, G-21, G-24 |
 | `packages/ims-cp-browser/` | G-15 |
 | `packages/pie-to-qti2/` | G-25 |

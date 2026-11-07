@@ -112,7 +112,8 @@ export interface SerializedItemSessionState {
 	completionStatus: CompletionStatus;
 	numAttempts: number;
 	/**
-	 * Time-on-task in milliseconds, stored as the QTI built-in duration variable value.
+	 * Time on task in milliseconds. The QTI built-in `duration` variable (in
+	 * `contextVariables.duration`) holds the same time in seconds, as QTI defines it.
 	 */
 	duration: number;
 	responseVariables: Record<string, SerializedItemSessionVariable>;
@@ -142,6 +143,7 @@ export interface ItemSessionActionResult {
 	lifecycleStatus: ItemLifecycleStatus;
 	completionStatus: CompletionStatus;
 	numAttempts: number;
+	/** Time on task in milliseconds; the QTI `duration` variable holds it in seconds. */
 	duration: number;
 	completed: boolean;
 	sessionState: SerializedItemSessionState;
@@ -251,17 +253,27 @@ export interface RubricBlock {
 }
 
 /**
- * QTI specification compliance configuration.
- * Controls whether the player enforces strict QTI 2.2 spec or allows vendor extensions.
+ * QTI compliance checks run once, when the item compiles. They are not an XSD validator: they check
+ * the version's namespace, every element name against the XSD-verified QTI 2.2 / 3.0 vocabulary
+ * (unknown QTI-namespace elements, and unknown `qti-` elements in QTI 3.0), interactions whose
+ * `responseIdentifier` names no responseDeclaration, QTI interactions with no
+ * `responseIdentifier`, and response-bound elements no registered extractor renders.
+ *
+ * Findings are listed on `AssessmentItemDefinition.diagnostics`: warnings by default, errors in
+ * strict mode. An unsupported `responseProcessing@template` always fails compilation with an
+ * `UnsupportedResponseProcessingTemplateError`, strict or not.
  */
 export interface QTIComplianceConfig {
-	/** Enable strict QTI 2.2 compliance mode. Default: false (lenient) */
+	/**
+	 * Strict mode: findings are errors, and items in versions other than QTI 2.2 and 3.0 (the
+	 * certifiable versions) are findings too. Default: false (findings are warnings).
+	 */
 	enabled?: boolean;
 
-	/** Reject items with unknown or non-standard elements. Default: false */
+	/** In strict mode, throw a `QtiComplianceError` listing every finding instead of compiling. Default: false */
 	rejectUnknownExtensions?: boolean;
 
-	/** Log warnings for spec deviations and vendor extensions. Default: true */
+	/** Write findings to the console (errors in strict mode, warnings otherwise). Default: true */
 	logDeviations?: boolean;
 }
 
@@ -353,8 +365,7 @@ export interface ItemSessionEngineConfig {
 	security?: PlayerSecurityConfig;
 
 	/**
-	 * QTI specification compliance settings.
-	 * Set strictQtiCompliance.enabled = true for strict QTI 2.2 validation.
+	 * QTI compliance checks; see `QTIComplianceConfig`. Set `enabled` for strict mode.
 	 */
 	strictQtiCompliance?: QTIComplianceConfig;
 }
