@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { ExtendedTextInteractionData } from '@pie-qti/item-player';
+	import { tick } from 'svelte';
 	import { emitInteractionChange, emitQtiChange } from '../../shared/utils/eventHelpers';
 	import {
 		createExtendedTextResponse,
@@ -10,11 +11,18 @@
 	} from '@pie-qti/item-player';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
-	import { translate, type I18nProvider } from '@pie-qti/i18n';
+	import { translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
 	import RichTextEditor from '../../shared/components/RichTextEditor.svelte';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
+	import {
+		characterCount,
+		isSpellcheckAllowed,
+		reachedExpectedLength,
+		responseInputMode,
+		writingAssistance,
+	} from './textInput';
 
 	interface Props {
 		interaction?: ExtendedTextInteractionData | string;
@@ -26,10 +34,28 @@
 		role?: string;
 		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
+		/**
+		 * Allow the browser's spell check and autocorrect in the response fields.
+		 * Off by default, so spelling and writing items give every candidate the
+		 * same help; a host turns it on for a candidate whose needs grant it.
+		 * Accepts `true`/`"true"` (or the bare attribute) on the custom element.
+		 */
+		spellcheck?: boolean | string;
 		onChange?: (value: unknown) => void;
 	}
 
-	let { interaction = $bindable(), response = $bindable(), stringResponse = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), typeset, onChange }: Props = $props();
+	let {
+		interaction = $bindable(),
+		response = $bindable(),
+		stringResponse = $bindable(),
+		correctResponse = $bindable(),
+		disabled = false,
+		role = 'candidate',
+		i18n = $bindable(),
+		typeset,
+		spellcheck = false,
+		onChange,
+	}: Props = $props();
 
 	const shell = $derived(
 		createInteractionShell<ExtendedTextInteractionData, unknown, unknown>({
@@ -49,6 +75,14 @@
 	let editorValues: string[] = $state(['']);
 	let lastRenderedResponse: unknown;
 	let lastInteractionShape = '';
+
+	// The editable field of each response region, to move focus after add/remove.
+	let textareas: Array<HTMLTextAreaElement | null> = $state([]);
+	let richEditors: Array<{ focus: () => void } | null> = $state([]);
+
+	// Polite live region: threshold and removal messages only, never per keystroke.
+	let liveMessage = $state('');
+	let liveToggle = false;
 
 	function sameResponse(a: unknown, b: unknown): boolean {
 		if (Object.is(a, b)) return true;
@@ -119,16 +153,46 @@
 		}
 	}
 
+	/** Announce through the polite live region; a repeat still changes the DOM. */
+	function announce(message: string) {
+		liveToggle = !liveToggle;
+		liveMessage = liveToggle ? message : `${message}\u00A0`;
+	}
+
 	function handleChange(index: number, html: string) {
+		const before = characterCount(editorValues[index] ?? '', format);
 		editorValues[index] = html;
 		editorValues = [...editorValues];
 		emitResponses(editorValues);
+		// The counter itself is quiet; reaching the expected length is the moment to hear.
+		if (showCounter && reachedExpectedLength(before, characterCount(html, format), expectedLength)) {
+			announce(
+				translatePlural(
+					i18n,
+					'interactions.extendedText.expectedLengthReached',
+					{
+						one: 'Expected length of {count} character reached.',
+						other: 'Expected length of {count} characters reached.',
+					},
+					expectedLength,
+				),
+			);
+		}
+	}
+
+	/** Focus the field of response `index` once the DOM reflects the latest change. */
+	async function focusField(index: number) {
+		await tick();
+		const target = Math.max(0, Math.min(index, editorValues.length - 1));
+		if (format === 'xhtml') richEditors[target]?.focus();
+		else textareas[target]?.focus();
 	}
 
 	function addString() {
 		if (!parsedInteraction) return;
 		if (parsedInteraction.maxStrings > 0 && editorValues.length >= parsedInteraction.maxStrings) return;
 		editorValues = [...editorValues, ''];
+		void focusField(editorValues.length - 1);
 	}
 
 	function removeString(index: number) {
@@ -138,21 +202,22 @@
 			editorValues = editorValues.filter((_, valueIndex) => valueIndex !== index);
 		}
 		emitResponses(editorValues);
+		announce(
+			translate(i18n, 'interactions.extendedText.responseRemoved', 'Response {number} removed.', {
+				number: index + 1,
+			}),
+		);
+		// The removed region's button is gone: continue at the response before it
+		// (or the one that moved up into its place).
+		void focusField(index - 1);
 	}
 
-	// Character counter support (qti-counter-down / qti-counter-up)
-	function charCount(html: string, format: string): number {
-		if (format === 'xhtml') {
-			// Strip HTML tags, count only text characters
-			return html.replace(/<[^>]*>/g, '').length;
-		}
-		return html.length;
-	}
-
+	const format = $derived(parsedInteraction?.format ?? 'plain');
 	const expectedLength = $derived(parsedInteraction?.expectedLength ?? 0);
 	const classes = $derived(parsedInteraction?.interactionClasses ?? []);
 	const showCounterDown = $derived(classes.includes('qti-counter-down') && expectedLength > 0);
 	const showCounterUp = $derived(classes.includes('qti-counter-up') && expectedLength > 0);
+	const showCounter = $derived(showCounterDown || showCounterUp);
 	const isContainer = $derived(
 		parsedInteraction?.cardinality === 'multiple' || parsedInteraction?.cardinality === 'ordered'
 	);
@@ -163,6 +228,51 @@
 	const correctResponseStrings = $derived(
 		parsedInteraction ? extendedTextResponseToStrings(parsedCorrectResponse, parsedInteraction) : []
 	);
+
+	const spellcheckAllowed = $derived(isSpellcheckAllowed(spellcheck));
+	const assistance = $derived(writingAssistance(spellcheckAllowed));
+	const inputMode = $derived(parsedInteraction ? responseInputMode(parsedInteraction) : undefined);
+	const placeholder = $derived(
+		parsedInteraction?.placeholderText ||
+			translate(i18n, 'interactions.extendedText.placeholder', 'Type your response here...'),
+	);
+
+	// Ids stay unique per interaction in a shared light DOM as well as in the shadow root.
+	const idBase = $derived(
+		`qti-extended-text-${(parsedInteraction?.responseId ?? 'response').replace(/[^A-Za-z0-9_-]/g, '-')}`,
+	);
+	const promptId = $derived(parsedInteraction?.prompt ? `${idBase}-prompt` : undefined);
+	const fieldId = (index: number) => `${idBase}-field-${index + 1}`;
+	const fieldLabelId = (index: number) => `${fieldId(index)}-label`;
+	const counterId = (index: number) => `${fieldId(index)}-counter`;
+
+	/**
+	 * A single field is named by the prompt (the placeholder is only a hint);
+	 * without a prompt it gets a generic name. Fields of a multi-part response
+	 * are each named by their visible "Response N" label, inside a group the
+	 * prompt names.
+	 */
+	function fieldName(index: number): { labelledby?: string; label?: string } {
+		if (isContainer) return { labelledby: fieldLabelId(index) };
+		if (promptId) return { labelledby: promptId };
+		return { label: translate(i18n, 'interactions.extendedText.responseLabel', 'Response') };
+	}
+
+	function counterText(value: string): string {
+		const count = characterCount(value, format);
+		if (showCounterDown) {
+			return translatePlural(
+				i18n,
+				'interactions.extendedText.charactersRemaining',
+				{ one: '{count} character remaining', other: '{count} characters remaining' },
+				Math.max(0, expectedLength - count),
+			);
+		}
+		return translate(i18n, 'interactions.extendedText.characterLimit', '{count} / {max} characters', {
+			count,
+			max: expectedLength,
+		});
+	}
 </script>
 
 <ShadowBaseStyles />
@@ -173,43 +283,62 @@
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
-			<div part="prompt" class="qti-extended-text-prompt qti-rich-content font-semibold" use:typesetAction={{ typeset }}>
+			<div id={promptId} part="prompt" class="qti-extended-text-prompt qti-rich-content font-semibold" use:typesetAction={{ typeset }}>
 				{@html parsedInteraction.prompt}
 			</div>
 		{/if}
-		<div part="editor" class="qti-extended-text-editors">
+		<div
+			part="editor"
+			class="qti-extended-text-editors"
+			role={isContainer && promptId ? 'group' : undefined}
+			aria-labelledby={isContainer && promptId ? promptId : undefined}
+		>
 			{#each editorValues as editorValue, index}
-				{@const currentCount = charCount(editorValue, parsedInteraction.format)}
-				{@const remaining = expectedLength - currentCount}
+				{@const name = fieldName(index)}
 				<div part="string" class="qti-extended-text-string">
-					{#if parsedInteraction.format === 'xhtml'}
+					{#if isContainer}
+						<label
+							id={fieldLabelId(index)}
+							for={format === 'xhtml' ? undefined : fieldId(index)}
+							part="string-label"
+							class="qti-extended-text-label"
+						>
+							{translate(i18n, 'interactions.extendedText.responseNumber', 'Response {number}', { number: index + 1 })}
+						</label>
+					{/if}
+					{#if format === 'xhtml'}
 						<RichTextEditor
+							bind:this={richEditors[index]}
 							value={editorValue}
 							editable={!disabled}
-							placeholder={parsedInteraction.placeholderText || translate(i18n, 'interactions.extendedText.placeholder', 'Type your response here...')}
+							{placeholder}
 							minHeight={parsedInteraction.expectedLines ? parsedInteraction.expectedLines * 24 : 200}
+							ariaLabelledby={name.labelledby}
+							ariaLabel={name.label}
+							ariaDescribedby={showCounter ? counterId(index) : undefined}
+							spellcheck={spellcheckAllowed}
 							{i18n}
 							onChange={(html) => handleChange(index, html)}
 						/>
 					{:else}
 						<textarea
+							bind:this={textareas[index]}
+							{...assistance}
+							id={fieldId(index)}
 							value={editorValue}
 							disabled={disabled}
 							rows={parsedInteraction.expectedLines || 3}
 							dir="auto"
-							placeholder={parsedInteraction.placeholderText || translate(i18n, 'interactions.extendedText.placeholder', 'Type your response here...')}
-							aria-label={parsedInteraction.placeholderText || translate(i18n, 'interactions.extendedText.placeholder', 'Type your response here...')}
+							inputmode={inputMode}
+							{placeholder}
+							aria-labelledby={name.labelledby}
+							aria-label={name.label}
+							aria-describedby={showCounter ? counterId(index) : undefined}
 							oninput={(event) => handleChange(index, event.currentTarget.value)}
 						></textarea>
 					{/if}
-					{#if showCounterDown}
-						<p part="counter" class="qti-character-counter" aria-live="polite">
-							{remaining >= 0 ? remaining : 0} {i18n?.t('interactions.extendedText.charsRemaining', 'characters remaining')}
-						</p>
-					{:else if showCounterUp}
-						<p part="counter" class="qti-character-counter" aria-live="polite">
-							{currentCount} / {expectedLength} {i18n?.t('interactions.extendedText.charsUsed', 'characters')}
-						</p>
+					{#if showCounter}
+						<p id={counterId(index)} part="counter" class="qti-character-counter">{counterText(editorValue)}</p>
 					{/if}
 					{#if isContainer && !disabled}
 						<button
@@ -217,22 +346,22 @@
 							part="remove-string"
 							class="qti-extended-text-remove"
 							onclick={() => removeString(index)}
-							aria-label={i18n?.t('interactions.extendedText.removeResponse', 'Remove response')}
 						>
-							{i18n?.t('interactions.extendedText.removeResponse', 'Remove response')}
+							{translate(i18n, 'interactions.extendedText.removeResponseNumber', 'Remove response {number}', { number: index + 1 })}
 						</button>
 					{/if}
 				</div>
 			{/each}
 			{#if canAddString && !disabled}
 				<button type="button" part="add-string" class="qti-extended-text-add" onclick={addString}>
-					{i18n?.t('interactions.extendedText.addResponse', 'Add response')}
+					{translate(i18n, 'interactions.extendedText.addResponse', 'Add response')}
 				</button>
 			{/if}
 		</div>
+		<div part="announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true">{liveMessage}</div>
 		{#if isShowingCorrect && parsedCorrectResponse}
 			<div part="correct-answer" class="mt-3 p-3 bg-success bg-opacity-10 border border-success rounded">
-				<div class="text-sm font-semibold text-success mb-2">
+				<div class="qti-extended-text-correct-heading text-sm font-semibold mb-2">
 					{translate(i18n, 'interactions.extendedText.correctAnswerHeading', 'Correct answer:')}
 				</div>
 				{#each correctResponseStrings as correctResponseString}
@@ -268,12 +397,17 @@
 		gap: 0.5rem;
 	}
 
+	.qti-extended-text-label {
+		font-weight: 600;
+	}
+
 	textarea {
 		box-sizing: border-box;
 		width: 100%;
 		min-height: 4.5rem;
 		padding: 0.75rem;
-		border: 1px solid var(--pie-qti-border-color, #9ca3af);
+		/* The field boundary identifies the control: 3:1 against the page (WCAG 1.4.11). */
+		border: 1px solid var(--pie-qti-border-strong, #767676);
 		border-radius: 0.25rem;
 		font: inherit;
 		line-height: 1.5;
@@ -281,15 +415,32 @@
 		white-space: pre-wrap;
 	}
 
+	textarea:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
+	}
+
 	.qti-extended-text-add,
 	.qti-extended-text-remove {
 		justify-self: start;
-		min-height: 2.75rem;
-		padding: 0.5rem 0.75rem;
+		box-sizing: border-box;
+		/* Primary K-12 targets: at least 44 by 44 CSS pixels. */
+		min-block-size: 2.75rem;
+		min-inline-size: 2.75rem;
+		padding-block: 0.5rem;
+		padding-inline: 0.75rem;
 		border: 1px solid currentColor;
 		border-radius: 0.25rem;
 		background: transparent;
+		color: inherit;
+		font: inherit;
 		cursor: pointer;
+	}
+
+	.qti-extended-text-add:focus-visible,
+	.qti-extended-text-remove:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
 	}
 
 	/* QTI 3.0 Shared Vocabulary: qti-height-lines-N sets minimum textarea height.
@@ -316,9 +467,13 @@
 
 	.qti-character-counter {
 		font-size: 0.8125rem;
+		/* Solid text color (no opacity) keeps the counter at 4.5:1. */
 		color: var(--pie-qti-base-content, #374151);
-		opacity: 0.7;
 		margin-top: 0.25rem;
 		text-align: end;
+	}
+
+	.qti-extended-text-correct-heading {
+		color: var(--pie-qti-success-text, #15803d);
 	}
 </style>

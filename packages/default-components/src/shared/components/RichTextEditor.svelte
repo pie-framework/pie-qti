@@ -5,14 +5,26 @@
 	import Placeholder from '@tiptap/extension-placeholder';
 	import StarterKit from '@tiptap/starter-kit';
 	import { untrack } from 'svelte';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import { openMathLiveEditor } from '../extensions/MathLiveEditor.js';
 
 	interface Props {
 		value?: string;
 		editable?: boolean;
+		/** A visible hint inside the empty editor; it is not the editor's name. */
 		placeholder?: string;
 		minHeight?: number;
+		/** Id(s) of the element(s) that name the editor, such as the interaction prompt. */
+		ariaLabelledby?: string;
+		/** The editor's name when nothing on screen names it (ignored with `ariaLabelledby`). */
+		ariaLabel?: string;
+		/** Id(s) of the element(s) that describe the editor, such as a character counter. */
+		ariaDescribedby?: string;
+		/**
+		 * Allow the browser's spell check and autocorrect. Off by default, so
+		 * spelling and writing items give every candidate the same help.
+		 */
+		spellcheck?: boolean;
 		i18n?: I18nProvider;
 		onChange?: (html: string) => void;
 	}
@@ -22,21 +34,49 @@
 		editable = true,
 		placeholder = '',
 		minHeight = 200,
+		ariaLabelledby,
+		ariaLabel,
+		ariaDescribedby,
+		spellcheck = false,
 		i18n,
 		onChange,
 	}: Props = $props();
 
 	// Translations
 	const translations = $derived({
-		bold: i18n?.t('interactions.extendedText.bold') ?? 'interactions.extendedText.bold',
-		italic: i18n?.t('interactions.extendedText.italic') ?? 'interactions.extendedText.italic',
-		insertInlineMath: i18n?.t('interactions.extendedText.insertInlineMath') ?? 'interactions.extendedText.insertInlineMath',
-		insertBlockMath: i18n?.t('interactions.extendedText.insertBlockMath') ?? 'interactions.extendedText.insertBlockMath',
-		editorLabel: placeholder || (i18n?.t('interactions.extendedText.placeholder') ?? 'interactions.extendedText.placeholder'),
+		bold: translate(i18n, 'interactions.extendedText.bold', 'Bold'),
+		italic: translate(i18n, 'interactions.extendedText.italic', 'Italic'),
+		insertInlineMath: translate(i18n, 'interactions.extendedText.insertInlineMath', 'Insert inline math'),
+		insertBlockMath: translate(i18n, 'interactions.extendedText.insertBlockMath', 'Insert block math'),
+		editorLabel:
+			ariaLabel || placeholder || translate(i18n, 'interactions.extendedText.placeholder', 'Type your response here...'),
+	});
+
+	/**
+	 * Attributes of the editable surface. A prompt or label names it; the
+	 * placeholder stays a hint (`aria-placeholder`). Writing assistance is off
+	 * unless spell checking is allowed, and capitalization is never automatic.
+	 */
+	const editorAttributes = $derived<Record<string, string>>({
+		// Stable hook for theming. The host app's DaisyUI theme vars cascade here.
+		class: 'pie-tiptap tiptap-prose',
+		style: `min-height: ${minHeight}px`,
+		role: 'textbox',
+		dir: 'auto',
+		'aria-multiline': 'true',
+		...(ariaLabelledby ? { 'aria-labelledby': ariaLabelledby } : { 'aria-label': translations.editorLabel }),
+		...(ariaDescribedby ? { 'aria-describedby': ariaDescribedby } : {}),
+		...(placeholder ? { 'aria-placeholder': placeholder } : {}),
+		...(editable ? {} : { 'aria-readonly': 'true' }),
+		spellcheck: spellcheck ? 'true' : 'false',
+		autocorrect: spellcheck ? 'on' : 'off',
+		autocapitalize: 'off',
 	});
 
 	let el: HTMLDivElement | null = $state(null);
 	let editor: Editor | null = $state(null);
+	let boldActive = $state(false);
+	let italicActive = $state(false);
 	// Use a regular variable (not $state) to track last emitted value
 	// This prevents circular dependencies in $effect
 	let lastEmitted = '';
@@ -50,36 +90,37 @@
 		onChange?.(html);
 	}
 
-	function insertInlineMath() {
+	/** Move keyboard focus into the editor (used after adding or removing a response). */
+	export function focus() {
+		if (!editor) return;
+		// TipTap focuses on the next frame; focus the surface now so the move is immediate.
+		(editor.view.dom as HTMLElement).focus();
+		editor.commands.focus();
+	}
+
+	/** Open the math dialog; Cancel or Escape returns focus to `trigger`, Insert to the editor. */
+	function insertMath(isBlock: boolean, trigger: HTMLElement) {
 		if (!editor) return;
 		openMathLiveEditor({
 			initialLatex: '\\frac{a}{b}',
-			isBlock: false,
+			isBlock,
+			mode: 'insert',
+			returnFocusTo: trigger,
 			i18n,
 			onConfirm: (latex) => {
-				editor?.commands.insertInlineMath({ latex });
+				if (isBlock) editor?.commands.insertBlockMath({ latex });
+				else editor?.commands.insertInlineMath({ latex });
 				editor?.commands.focus();
 			},
 			onCancel: () => {
-				editor?.commands.focus();
+				// Focus has already returned to the toolbar button that opened the dialog.
 			},
 		});
 	}
 
-	function insertBlockMath() {
-		if (!editor) return;
-		openMathLiveEditor({
-			initialLatex: '\\frac{a}{b}',
-			isBlock: true,
-			i18n,
-			onConfirm: (latex) => {
-				editor?.commands.insertBlockMath({ latex });
-				editor?.commands.focus();
-			},
-			onCancel: () => {
-				editor?.commands.focus();
-			},
-		});
+	function syncActiveMarks(current: Editor) {
+		boldActive = current.isActive('bold');
+		italicActive = current.isActive('italic');
 	}
 
 	// Initialize editor once when element is available
@@ -90,9 +131,8 @@
 		// Capture initial values without tracking them as dependencies
 		const initialValue = untrack(() => value?.trim() ? value : '<p></p>');
 		const initialPlaceholder = untrack(() => placeholder);
-		const initialMinHeight = untrack(() => minHeight);
 		const initialEditable = untrack(() => editable);
-		const initialEditorLabel = untrack(() => translations.editorLabel);
+		const initialAttributes = untrack(() => editorAttributes);
 		const initialI18n = untrack(() => i18n);
 
 		const ed = new Editor({
@@ -111,6 +151,8 @@
 							openMathLiveEditor({
 								initialLatex: node.attrs?.latex || '',
 								isBlock: false,
+								mode: 'edit',
+								returnFocusTo: ed.view.dom as HTMLElement,
 								i18n: initialI18n,
 								onConfirm: (latex) => {
 									ed.chain().setNodeSelection(pos).updateInlineMath({ latex }).focus().run();
@@ -126,6 +168,8 @@
 							openMathLiveEditor({
 								initialLatex: node.attrs?.latex || '',
 								isBlock: true,
+								mode: 'edit',
+								returnFocusTo: ed.view.dom as HTMLElement,
 								i18n: initialI18n,
 								onConfirm: (latex) => {
 									ed.chain().setNodeSelection(pos).updateBlockMath({ latex }).focus().run();
@@ -144,15 +188,10 @@
 			content: initialValue,
 			editable: initialEditable,
 			editorProps: {
-				attributes: {
-					// Stable hook for theming. The host app's DaisyUI theme vars cascade here.
-					class: 'pie-tiptap tiptap-prose',
-					style: `min-height: ${initialMinHeight}px`,
-					role: 'textbox',
-					dir: 'auto',
-					'aria-multiline': 'true',
-					'aria-label': initialEditorLabel,
-				},
+				attributes: initialAttributes,
+			},
+			onTransaction: ({ editor: current }) => {
+				syncActiveMarks(current);
 			},
 			onUpdate: ({ editor: ed, transaction }) => {
 				// `setEditable()` emits `update` with an empty transaction, so an editability
@@ -173,6 +212,15 @@
 			editor?.destroy();
 			editor = null;
 		};
+	});
+
+	// Keep the editable surface's name, description and writing assistance current
+	// without re-creating the editor.
+	$effect(() => {
+		const attributes = editorAttributes;
+		if (editor) {
+			editor.setOptions({ editorProps: { attributes } });
+		}
 	});
 
 	// Keep editable in sync (without re-creating the editor). `emitUpdate: false` keeps an
@@ -209,42 +257,42 @@
 	<div part="toolbar" class="rte-toolbar">
 		<button
 			part="toolbar-button"
-			class="btn btn-sm"
+			class="btn btn-sm rte-button"
 			type="button"
 			disabled={!editor || !editable}
 			onclick={() => editor?.chain().focus().toggleBold().run()}
 			aria-label={translations.bold}
+			aria-pressed={boldActive ? 'true' : 'false'}
 		>
-			<strong>B</strong>
+			<strong aria-hidden="true">B</strong>
 		</button>
 		<button
 			part="toolbar-button"
-			class="btn btn-sm"
+			class="btn btn-sm rte-button"
 			type="button"
 			disabled={!editor || !editable}
 			onclick={() => editor?.chain().focus().toggleItalic().run()}
 			aria-label={translations.italic}
+			aria-pressed={italicActive ? 'true' : 'false'}
 		>
-			<em>I</em>
+			<em aria-hidden="true">I</em>
 		</button>
-		<div part="toolbar-divider" class="divider divider-horizontal mx-0"></div>
+		<div part="toolbar-divider" class="divider divider-horizontal mx-0" aria-hidden="true"></div>
 		<button
 			part="toolbar-button"
-			class="btn btn-sm"
+			class="btn btn-sm rte-button"
 			type="button"
 			disabled={!editor || !editable}
-			onclick={() => insertInlineMath()}
-			aria-label={translations.insertInlineMath}
+			onclick={(event) => insertMath(false, event.currentTarget)}
 		>
 			{translations.insertInlineMath}
 		</button>
 		<button
 			part="toolbar-button"
-			class="btn btn-sm"
+			class="btn btn-sm rte-button"
 			type="button"
 			disabled={!editor || !editable}
-			onclick={() => insertBlockMath()}
-			aria-label={translations.insertBlockMath}
+			onclick={(event) => insertMath(true, event.currentTarget)}
 		>
 			{translations.insertBlockMath}
 		</button>
@@ -267,16 +315,35 @@
 		flex-wrap: wrap;
 	}
 
+	/* Primary K-12 targets: at least 44 by 44 CSS pixels. */
+	.rte-button {
+		box-sizing: border-box;
+		min-block-size: 2.75rem;
+		min-inline-size: 2.75rem;
+	}
+
+	.rte-button:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
+	}
+
+	.rte-button[aria-pressed='true'] {
+		border-color: var(--pie-qti-border-strong, #767676);
+		background: var(--pie-qti-base-300, oklch(95% 0 0));
+	}
+
 	.tiptap-editor-container {
 		background: var(--pie-qti-base-100, oklch(100% 0 0));
-		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		/* The field boundary identifies the control: 3:1 against the page. */
+		border: 1px solid var(--pie-qti-border-strong, #767676);
 		border-radius: 0.5rem;
 		padding: 0.75rem;
 	}
 
+	/* The editable surface draws no ring of its own, so its container shows focus. */
 	.tiptap-editor-container:focus-within {
-		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));
-		box-shadow: 0 0 0 2px color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 20%, transparent);
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
 	}
 
 	.richtext-editor[data-readonly='true'] .tiptap-editor-container {
@@ -302,7 +369,8 @@
 	:global(.pie-tiptap p.is-editor-empty:first-child::before) {
 		content: attr(data-placeholder);
 		float: inline-start;
-		color: color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 45%, transparent);
+		/* A solid mix (not transparency) keeps the hint at 4.5:1 on the editor background. */
+		color: color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 65%, var(--pie-qti-base-100, oklch(100% 0 0)));
 		pointer-events: none;
 		height: 0;
 	}
@@ -317,5 +385,3 @@
 		text-align: center;
 	}
 </style>
-
-

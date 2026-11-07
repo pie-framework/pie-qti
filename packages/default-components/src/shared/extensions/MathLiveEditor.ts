@@ -4,15 +4,17 @@
  * MathLive Editor Extension for TipTap
  *
  * Integrates MathLive (visual math editor) with TipTap's Mathematics extension.
- * Provides a modal dialog with MathLive mathfield for editing LaTeX formulas.
+ * Opens a modal dialog (WAI-ARIA APG pattern: `role="dialog"`, `aria-modal`,
+ * named by its title, focus moved in and trapped, Escape cancels, focus
+ * returned to the opener) with a labelled MathLive mathfield for LaTeX input.
  *
  * Note: MathLive CSS is loaded dynamically to avoid build issues with package exports.
  */
 
-import { isImeComposing } from '@pie-qti/i18n';
 import type { MathfieldElement } from 'mathlive';
 // Import MathLive CSS from the local package
 import 'mathlive/static.css';
+import { createModalDialog } from './modalDialog.js';
 
 // Dynamically import MathLive to register the custom element
 let mathLiveLoaded: Promise<void> | null = null;
@@ -28,6 +30,14 @@ async function ensureMathLiveLoaded(): Promise<void> {
 	return mathLiveLoaded || Promise.resolve();
 }
 
+/**
+ * The translation surface the editor uses; an `I18nProvider` satisfies it, and
+ * so does the earlier `{ t(key) }` shape.
+ */
+export interface MathLiveEditorI18n {
+	t: (key: string, fallback?: string, values?: Record<string, unknown>) => string | undefined;
+}
+
 export interface MathLiveEditorOptions {
 	/** Called when user confirms the LaTeX input */
 	onConfirm: (latex: string) => void;
@@ -37,22 +47,169 @@ export interface MathLiveEditorOptions {
 	initialLatex?: string;
 	/** Whether this is inline or block math */
 	isBlock?: boolean;
+	/**
+	 * Whether the dialog inserts new math or edits existing math: it sets the
+	 * title and the confirm button. Defaults to `edit` when `initialLatex` is set.
+	 */
+	mode?: 'insert' | 'edit';
+	/**
+	 * The control that opened the dialog, where focus returns when it closes.
+	 * Defaults to the element focused when the dialog was requested.
+	 */
+	returnFocusTo?: HTMLElement | null;
 	/** Optional i18n provider for translations */
-	i18n?: { t: (key: string) => string | undefined };
+	i18n?: MathLiveEditorI18n;
+}
+
+/** The candidate-visible strings, from `interactions.mathInput` (and `common.cancel`). */
+function createTranslator(i18n: MathLiveEditorI18n | undefined) {
+	return (key: string, fallback: string): string => {
+		const translated = i18n?.t(key, fallback);
+		return translated && translated !== key ? translated : fallback;
+	};
+}
+
+let dialogCount = 0;
+
+/** Dialog styles that must hold without the host's DaisyUI/Tailwind classes. */
+const DIALOG_STYLES = `
+	/* Keep MathLive's virtual keyboard above the modal. Its container spans the
+	   whole viewport and must keep MathLive's own pointer-events: none (only the
+	   keyboard panel takes clicks), or it would block the dialog's buttons. */
+	.ML__keyboard {
+		z-index: 10001 !important;
+	}
+	/* Hide the built-in keyboard toggle button in the mathfield - try multiple selectors */
+	.ML__virtual-keyboard-toggle,
+	.ML__keyboard-toggle,
+	math-field::part(virtual-keyboard-toggle) {
+		display: none !important;
+		visibility: hidden !important;
+		opacity: 0 !important;
+		pointer-events: none !important;
+	}
+	.pie-qti-math-dialog {
+		box-sizing: border-box;
+		inline-size: min(42rem, calc(100vw - 2rem));
+		/* Of the backdrop's content box, which excludes an open virtual keyboard. */
+		max-block-size: calc(100% - 2rem);
+		overflow: auto;
+		padding: 1.5rem;
+		border-radius: 0.75rem;
+		background: var(--pie-qti-base-100, #ffffff);
+		color: var(--pie-qti-base-content, #1f2937);
+		position: relative;
+		z-index: 10000;
+	}
+	.pie-qti-math-dialog-title {
+		margin-block: 0 0.5rem;
+		font-size: 1.125rem;
+		font-weight: 700;
+	}
+	.pie-qti-math-dialog-instructions {
+		margin-block: 0 1rem;
+	}
+	.pie-qti-math-dialog-field-label {
+		display: block;
+		margin-block-end: 0.5rem;
+		font-weight: 600;
+	}
+	.pie-qti-math-dialog math-field {
+		display: block;
+		box-sizing: border-box;
+		inline-size: 100%;
+		min-block-size: 100px;
+		padding: 0.75rem;
+		font-size: 1.125rem;
+		border: 1px solid var(--pie-qti-border-strong, #767676);
+		border-radius: 0.5rem;
+	}
+	.pie-qti-math-dialog math-field:focus-within {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
+	}
+	.pie-qti-math-dialog-source-label {
+		margin-block: 1rem 0.25rem;
+		font-weight: 600;
+	}
+	.pie-qti-math-dialog-source {
+		display: block;
+		margin-block-end: 1rem;
+		padding: 0.5rem 0.75rem;
+		border: 1px solid var(--pie-qti-border-strong, #767676);
+		border-radius: 0.5rem;
+		font-family: 'Monaco', 'Courier New', monospace;
+		font-size: 0.875rem;
+		word-break: break-all;
+	}
+	.pie-qti-math-dialog-source[data-empty='true'] {
+		font-style: italic;
+	}
+	.pie-qti-math-dialog-actions {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		gap: 0.5rem;
+	}
+	.pie-qti-math-dialog-actions > div {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+	.pie-qti-math-dialog button {
+		box-sizing: border-box;
+		min-block-size: 2.75rem;
+		min-inline-size: 2.75rem;
+		padding-block: 0.5rem;
+		padding-inline: 1rem;
+		border: 1px solid var(--pie-qti-border-strong, #767676);
+		border-radius: 0.5rem;
+		background: var(--pie-qti-base-100, #ffffff);
+		color: var(--pie-qti-base-content, #1f2937);
+		font: inherit;
+		cursor: pointer;
+	}
+	.pie-qti-math-dialog button:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
+	}
+	.pie-qti-math-dialog button[aria-pressed='true'] {
+		font-weight: 700;
+		border-width: 2px;
+	}
+`;
+
+interface VirtualKeyboardHandle {
+	visible?: boolean;
+	boundingRect?: DOMRect;
+	hide?: (options?: { animate?: boolean }) => void;
+	addEventListener?: (type: string, listener: () => void) => void;
+	removeEventListener?: (type: string, listener: () => void) => void;
+}
+
+function sharedVirtualKeyboard(): VirtualKeyboardHandle | undefined {
+	return (globalThis as { mathVirtualKeyboard?: VirtualKeyboardHandle }).mathVirtualKeyboard;
 }
 
 /**
- * Opens a modal dialog with MathLive editor for LaTeX input
+ * Opens a modal dialog with MathLive editor for LaTeX input.
+ * Resolves to a function that closes the dialog without calling either callback.
  */
 export async function openMathLiveEditor(options: MathLiveEditorOptions): Promise<() => void> {
 	const { onConfirm, onCancel, initialLatex = '', isBlock = false } = options;
+	const mode = options.mode ?? (initialLatex ? 'edit' : 'insert');
+	const t = createTranslator(options.i18n);
+	// Capture the opener before loading MathLive, while it still holds focus.
+	const opener = options.returnFocusTo ?? (document.activeElement as HTMLElement | null);
 
 	// Ensure MathLive is loaded and registered before creating the mathfield
 	await ensureMathLiveLoaded();
 
-	// Create modal overlay - use DaisyUI modal classes
+	const id = `pie-qti-math-dialog-${++dialogCount}`;
+
+	// Backdrop - keeps DaisyUI modal classes for hosts that theme them
 	const overlay = document.createElement('div');
-	overlay.className = 'modal modal-open';
+	overlay.className = 'modal modal-open pie-qti-math-dialog-backdrop';
 	overlay.style.cssText = `
 		position: fixed;
 		inset: 0;
@@ -63,42 +220,48 @@ export async function openMathLiveEditor(options: MathLiveEditorOptions): Promis
 		z-index: 9999;
 	`;
 
-	// Create modal dialog - use DaisyUI modal-box class
-	const modal = document.createElement('div');
-	modal.className = 'modal-box max-w-2xl';
-	modal.style.cssText = `
-		padding: 1.5rem;
-		position: relative;
-		z-index: 10000;
-	`;
+	// The dialog itself: a named, described modal
+	const dialog = document.createElement('div');
+	dialog.className = 'modal-box max-w-2xl pie-qti-math-dialog';
+	dialog.setAttribute('role', 'dialog');
+	dialog.setAttribute('aria-modal', 'true');
+	dialog.setAttribute('aria-labelledby', `${id}-title`);
+	dialog.setAttribute('aria-describedby', `${id}-instructions`);
+	// The dialog lives in the document body, outside the editor's shadow root:
+	// carry the opener's writing direction across.
+	if (opener?.isConnected && getComputedStyle(opener).direction === 'rtl') dialog.dir = 'rtl';
 
-	// Create header - use DaisyUI font-bold text-lg
-	const header = document.createElement('h3');
-	header.textContent = isBlock ? (options.i18n?.t('interactions.extendedText.insertBlockMath') ?? 'Insert Block Math') : (options.i18n?.t('interactions.extendedText.insertInlineMath') ?? 'Insert Inline Math');
-	header.className = 'font-bold text-lg mb-4';
+	const title = document.createElement('h2');
+	title.id = `${id}-title`;
+	title.className = 'pie-qti-math-dialog-title';
+	title.textContent =
+		mode === 'edit'
+			? isBlock
+				? t('interactions.mathInput.editBlockTitle', 'Edit block math')
+				: t('interactions.mathInput.editInlineTitle', 'Edit inline math')
+			: isBlock
+				? t('interactions.mathInput.insertBlockTitle', 'Insert block math')
+				: t('interactions.mathInput.insertInlineTitle', 'Insert inline math');
 
-	// Create form control wrapper
-	const formControl = document.createElement('div');
-	formControl.className = 'form-control';
+	const instructions = document.createElement('p');
+	instructions.id = `${id}-instructions`;
+	instructions.className = 'pie-qti-math-dialog-instructions';
+	instructions.textContent = t(
+		'interactions.mathInput.instructions',
+		'Type the expression, or open the math keyboard. Press Escape to cancel.',
+	);
 
-	// Create label for mathfield
-	const label = document.createElement('label');
-	label.className = 'label';
-	const labelText = document.createElement('span');
-	labelText.className = 'label-text';
-	labelText.textContent = options.i18n?.t('interactions.extendedText.enterMathExpression') ?? 'Enter your math expression:';
-	label.appendChild(labelText);
+	// The mathfield's label: associated both ways MathLive resolves a name
+	const fieldLabel = document.createElement('label');
+	fieldLabel.id = `${id}-field-label`;
+	fieldLabel.htmlFor = `${id}-field`;
+	fieldLabel.className = 'pie-qti-math-dialog-field-label';
+	fieldLabel.textContent = t('interactions.mathInput.fieldLabel', 'Math expression');
 
-	// Create MathLive mathfield - style like DaisyUI input
 	const mathfield = document.createElement('math-field') as MathfieldElement;
+	mathfield.id = `${id}-field`;
+	mathfield.setAttribute('aria-labelledby', fieldLabel.id);
 	mathfield.value = initialLatex;
-	mathfield.className = 'input input-bordered w-full';
-	mathfield.style.cssText = `
-		display: block;
-		min-height: 100px;
-		padding: 0.75rem;
-		font-size: 1.125rem;
-	`;
 
 	// Set MathLive options for better UX via attributes
 	// Use 'manual' mode so keyboard only shows when explicitly requested
@@ -109,189 +272,169 @@ export async function openMathLiveEditor(options: MathLiveEditorOptions): Promis
 	// Hide the built-in virtual keyboard toggle
 	mathfield.setAttribute('virtual-keyboard-toggle-glyph', '');
 
-	// Inject CSS to ensure virtual keyboard appears above modal and accepts clicks
+	// Inject CSS: virtual keyboard layering and the dialog's own fallback styles
 	const style = document.createElement('style');
-	style.textContent = `
-		/* Ensure MathLive virtual keyboard appears above the modal and is clickable */
-		.ML__keyboard {
-			z-index: 10001 !important;
-			pointer-events: auto !important;
-		}
-		/* Hide the built-in keyboard toggle button in the mathfield - try multiple selectors */
-		.ML__virtual-keyboard-toggle,
-		.ML__keyboard-toggle,
-		math-field::part(virtual-keyboard-toggle) {
-			display: none !important;
-			visibility: hidden !important;
-			opacity: 0 !important;
-			pointer-events: none !important;
-		}
-	`;
+	style.textContent = DIALOG_STYLES;
 	document.head.appendChild(style);
 
-	// Create LaTeX preview label
-	const previewLabel = document.createElement('label');
-	previewLabel.className = 'label';
-	const previewLabelText = document.createElement('span');
-	previewLabelText.className = 'label-text';
-	previewLabelText.textContent = options.i18n?.t('interactions.extendedText.latexSource') ?? 'LaTeX source:';
-	previewLabel.appendChild(previewLabelText);
+	// LaTeX source preview: a visual aid; the mathfield itself is what assistive technology reads
+	const sourceLabel = document.createElement('p');
+	sourceLabel.className = 'pie-qti-math-dialog-source-label';
+	sourceLabel.textContent = t('interactions.mathInput.latexSourceLabel', 'LaTeX source');
 
-	// Create LaTeX preview/source - use alert info styling
-	const latexPreview = document.createElement('div');
-	latexPreview.className = 'alert alert-info';
-	latexPreview.style.cssText = `
-		font-family: 'Monaco', 'Courier New', monospace;
-		font-size: 0.875rem;
-		word-break: break-all;
-		margin-bottom: 1rem;
-	`;
-	latexPreview.textContent = initialLatex || '(LaTeX will appear here)';
+	const latexPreview = document.createElement('code');
+	latexPreview.className = 'pie-qti-math-dialog-source';
+	const latexEmpty = t('interactions.mathInput.latexEmpty', 'LaTeX will appear here');
+	const showLatex = (latex: string) => {
+		latexPreview.textContent = latex || latexEmpty;
+		latexPreview.dataset.empty = latex ? 'false' : 'true';
+	};
+	showLatex(initialLatex);
 
 	// Update preview when mathfield changes
-	mathfield.addEventListener('input', () => {
-		const latex = mathfield.value;
-		latexPreview.textContent = latex || '(LaTeX will appear here)';
-	});
+	mathfield.addEventListener('input', () => showLatex(mathfield.value));
 
-	// Create button container - use DaisyUI modal-action class
-	const buttons = document.createElement('div');
-	buttons.className = 'modal-action';
-	buttons.style.cssText = 'justify-content: space-between;';
+	// Actions: keyboard toggle on one side, cancel/confirm on the other
+	const actions = document.createElement('div');
+	actions.className = 'modal-action pie-qti-math-dialog-actions';
 
-	// Create left-side buttons (keyboard toggle)
-	const leftButtons = document.createElement('div');
-	leftButtons.style.cssText = 'display: flex; gap: 0.5rem;';
+	const leftActions = document.createElement('div');
+	const rightActions = document.createElement('div');
 
-	// Create Keyboard Toggle button
-	const keyboardBtn = document.createElement('button');
-	keyboardBtn.textContent = `⌨️ ${options.i18n?.t('interactions.extendedText.keyboard') ?? 'Keyboard'}`;
-	keyboardBtn.type = 'button';
-	keyboardBtn.className = 'btn btn-sm btn-outline';
-	keyboardBtn.onclick = () => {
+	const keyboardButton = document.createElement('button');
+	keyboardButton.type = 'button';
+	keyboardButton.className = 'btn btn-sm btn-outline';
+	keyboardButton.textContent = t('interactions.mathInput.toggleKeyboard', 'Math keyboard');
+	const syncKeyboardState = () => {
+		const keyboard = sharedVirtualKeyboard();
+		keyboardButton.setAttribute('aria-pressed', keyboard?.visible ? 'true' : 'false');
+		// The virtual keyboard docks over the bottom of the page, above this dialog:
+		// reserve its height so the dialog (and the focused control) stays visible.
+		const height = keyboard?.visible ? (keyboard.boundingRect?.height ?? 0) : 0;
+		overlay.style.paddingBlockEnd = height > 0 ? `${Math.ceil(height)}px` : '';
+	};
+	syncKeyboardState();
+	keyboardButton.addEventListener('click', () => {
 		if (mathfield.executeCommand) {
 			mathfield.executeCommand('toggleVirtualKeyboard');
 		}
-	};
+		syncKeyboardState();
+	});
+	sharedVirtualKeyboard()?.addEventListener?.('virtual-keyboard-toggle', syncKeyboardState);
+	sharedVirtualKeyboard()?.addEventListener?.('geometrychange', syncKeyboardState);
 
-	leftButtons.appendChild(keyboardBtn);
+	const cancelButton = document.createElement('button');
+	cancelButton.type = 'button';
+	cancelButton.className = 'btn btn-ghost';
+	cancelButton.textContent = t('common.cancel', 'Cancel');
 
-	// Create right-side buttons (Cancel/Insert)
-	const rightButtons = document.createElement('div');
-	rightButtons.style.cssText = 'display: flex; gap: 0.5rem;';
+	const confirmButton = document.createElement('button');
+	confirmButton.type = 'button';
+	confirmButton.className = 'btn btn-primary';
+	confirmButton.textContent =
+		mode === 'edit'
+			? t('interactions.mathInput.update', 'Update')
+			: t('interactions.mathInput.insert', 'Insert');
 
-	// Create Cancel button - use DaisyUI classes
-	const cancelBtn = document.createElement('button');
-	cancelBtn.textContent = options.i18n?.t('common.cancel') ?? 'Cancel';
-	cancelBtn.type = 'button';
-	cancelBtn.className = 'btn btn-ghost';
+	leftActions.appendChild(keyboardButton);
+	rightActions.appendChild(cancelButton);
+	rightActions.appendChild(confirmButton);
+	actions.appendChild(leftActions);
+	actions.appendChild(rightActions);
 
-	// Create Insert button - use DaisyUI classes
-	const insertBtn = document.createElement('button');
-	insertBtn.textContent = initialLatex
-		? (options.i18n?.t('interactions.extendedText.update') ?? 'Update')
-		: (options.i18n?.t('interactions.extendedText.insert') ?? 'Insert');
-	insertBtn.type = 'button';
-	insertBtn.className = 'btn btn-primary';
+	dialog.appendChild(title);
+	dialog.appendChild(instructions);
+	dialog.appendChild(fieldLabel);
+	dialog.appendChild(mathfield);
+	dialog.appendChild(sourceLabel);
+	dialog.appendChild(latexPreview);
+	dialog.appendChild(actions);
+	overlay.appendChild(dialog);
 
-	rightButtons.appendChild(cancelBtn);
-	rightButtons.appendChild(insertBtn);
+	const previousOverflow = document.body.style.overflow;
+	let closed = false;
+	let focusTimer: ReturnType<typeof setTimeout> | undefined;
 
-	// Assemble modal
-	buttons.appendChild(leftButtons);
-	buttons.appendChild(rightButtons);
+	// Add to DOM, then make it modal
+	document.body.appendChild(overlay);
+	// Prevent body scroll when modal is open
+	document.body.style.overflow = 'hidden';
 
-	// Assemble form-control
-	formControl.appendChild(label);
-	formControl.appendChild(mathfield);
-	formControl.appendChild(previewLabel);
-	formControl.appendChild(latexPreview);
+	const modal = createModalDialog(dialog, {
+		initialFocus: mathfield,
+		returnFocusTo: opener,
+		onEscape: () => close(false),
+	});
 
-	modal.appendChild(header);
-	modal.appendChild(formControl);
-	modal.appendChild(buttons);
-
-	overlay.appendChild(modal);
-
-	// Cleanup function
-	const cleanup = () => {
-		// Remove event listeners to prevent memory leaks
-		cancelBtn.removeEventListener('click', handleCancel);
-		insertBtn.removeEventListener('click', handleConfirm);
-		document.removeEventListener('keydown', handleEscape);
+	function teardown() {
+		closed = true;
+		if (focusTimer !== undefined) clearTimeout(focusTimer);
+		cancelButton.removeEventListener('click', handleCancel);
+		confirmButton.removeEventListener('click', handleConfirm);
 		overlay.removeEventListener('click', handleOverlayClick);
+		sharedVirtualKeyboard()?.removeEventListener?.('virtual-keyboard-toggle', syncKeyboardState);
+		sharedVirtualKeyboard()?.removeEventListener?.('geometrychange', syncKeyboardState);
 
-		// Hide virtual keyboard before cleanup
-		if (mathfield.executeCommand) {
-			mathfield.executeCommand('hideVirtualKeyboard');
-		}
+		// Hide the shared virtual keyboard through its own API: the mathfield's
+		// `hideVirtualKeyboard` command would refocus the field and schedule an
+		// update that runs after the field is gone.
+		const keyboard = sharedVirtualKeyboard();
+		if (keyboard?.visible) keyboard.hide?.();
 
 		// Remove DOM elements
 		overlay.remove();
 		style.remove();
 
 		// Restore body scroll
-		document.body.style.overflow = '';
-	};
+		document.body.style.overflow = previousOverflow;
 
-	// Event handlers
-	const handleCancel = () => {
-		cleanup();
-		onCancel();
-	};
+		// Return focus to the control that opened the dialog
+		modal.release();
+	}
 
-	const handleConfirm = () => {
+	function close(confirmed: boolean) {
+		if (closed) return;
 		const latex = mathfield.value;
-		cleanup();
-		onConfirm(latex);
-	};
+		teardown();
+		if (confirmed) onConfirm(latex);
+		else onCancel();
+	}
 
-	const handleEscape = (e: KeyboardEvent) => {
-		if (e.key === 'Escape' && !isImeComposing(e)) {
-			handleCancel();
-		}
-	};
+	const handleCancel = () => close(false);
+	const handleConfirm = () => close(true);
 
 	const handleOverlayClick = (e: MouseEvent) => {
-		// Don't close if clicking on the modal content or virtual keyboard
-		const target = e.target as HTMLElement;
-
-		// Check if click is on overlay background (not modal or keyboard)
-		if (target === overlay) {
-			// Additional check: don't close if virtual keyboard is open
-			// MathLive virtual keyboard has class 'ML__keyboard'
-			const virtualKeyboard = document.querySelector('.ML__keyboard');
-			if (!virtualKeyboard) {
-				handleCancel();
-			}
+		// Only a click on the backdrop itself closes; never one on the dialog or the
+		// virtual keyboard, which MathLive attaches outside it.
+		if (e.target === overlay && !document.querySelector('.ML__keyboard')) {
+			close(false);
 		}
 	};
 
-	// Attach event listeners
-	cancelBtn.addEventListener('click', handleCancel);
-	insertBtn.addEventListener('click', handleConfirm);
-	document.addEventListener('keydown', handleEscape);
+	cancelButton.addEventListener('click', handleCancel);
+	confirmButton.addEventListener('click', handleConfirm);
 	overlay.addEventListener('click', handleOverlayClick);
 
-	// Prevent body scroll when modal is open
-	document.body.style.overflow = 'hidden';
-
-	// Add to DOM
-	document.body.appendChild(overlay);
-
 	// Focus the mathfield (but don't auto-show keyboard)
-	setTimeout(() => {
-		mathfield.focus();
+	modal.focusInitial();
+	focusTimer = setTimeout(() => {
+		if (closed) return;
+		// MathLive moves focus into the field after a short delay of its own; if the
+		// field still has no focus by now, it never will (e.g. MathLive failed to
+		// load), so focus goes to the next control in the dialog instead.
+		modal.ensureFocusInside();
 		// Try to programmatically disable the built-in toggle via options
 		try {
-			(mathfield as any).setOptions({
+			(mathfield as unknown as { setOptions?: (options: Record<string, unknown>) => void }).setOptions?.({
 				virtualKeyboardToggleGlyph: '',
 			});
-		} catch (e) {
+		} catch {
 			// Silently ignore if this API doesn't exist
 		}
 	}, 100);
 
-	// Return cleanup function
-	return cleanup;
+	// Closing from outside calls neither callback.
+	return () => {
+		if (!closed) teardown();
+	};
 }
