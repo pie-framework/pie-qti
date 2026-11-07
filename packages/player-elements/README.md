@@ -179,6 +179,29 @@ const state = assessment.getState();
 await assessment.restoreState(state);
 ```
 
+### Layout and styling
+
+The shell needs no host stylesheet (no Tailwind or DaisyUI): it styles itself on the
+`--pie-qti-*` theme tokens, with fallbacks when no theme is loaded.
+
+- By default it fills the element's box. Give the element a height (it is a block box), or let
+  it size to its content between `--pie-qti-assessment-min-block-size` (default
+  `min(32rem, 100dvh)`) and `--pie-qti-assessment-max-block-size` (default `100dvh`).
+- `full-viewport` (`fullViewport`) fills the dynamic viewport inside the safe-area insets — add
+  `viewport-fit=cover` to the page's viewport meta — with page-level `header`/`main`/`nav`
+  landmarks. Use it when the player owns the page.
+- `heading-level` (`headingLevel`, 1–6) sets the assessment title's heading level so it fits
+  your page outline (default 2, or 1 with `full-viewport`); passage and item titles follow one
+  level below. Section elements accept `heading-level` for their passage and item titles
+  (default 3).
+
+Set these before the element mounts; changing them on a mounted assessment re-renders the
+shell, like `config`.
+
+```html
+<pie-qti-assessment-player full-viewport heading-level="1"></pie-qti-assessment-player>
+```
+
 ## Section elements
 
 Section elements are standalone render adapters for a resolved section composition:

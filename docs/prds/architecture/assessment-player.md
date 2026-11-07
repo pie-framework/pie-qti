@@ -4,13 +4,13 @@
   Status: current
   Type: architecture
   Packages: @pie-qti/assessment-player
-  Last reviewed: 2026-08-13
+  Last reviewed: 2026-11-07
 -->
 
 **Status:** current
 **Type:** architecture
 **Packages:** `@pie-qti/assessment-player`
-**Last reviewed:** 2026-08-13
+**Last reviewed:** 2026-11-07
 
 ---
 
@@ -175,11 +175,121 @@ host decides when a draft is durable and whether client storage is appropriate.
 
 ## Non-functional requirements
 
-- **Accessibility:** The assessment player provides the headless logic layer; accessibility responsibilities for navigation announcements, focus management, and ARIA live regions live in the Svelte shell components (`AssessmentShell`, `NavigationBar`). The PRD for those components covers WCAG 2.2 AA requirements. The `AssessmentPlayer` class itself exposes `onItemChange` and `onSectionChange` events that shell components must use to trigger screen-reader announcements.
+- **Accessibility:** The assessment player provides the headless logic layer; accessibility responsibilities for navigation announcements, focus management, and ARIA live regions live in the Svelte shell components (`AssessmentShell`, `NavigationBar`), described under [Candidate shell](#candidate-shell). The `AssessmentPlayer` class itself exposes `onItemChange` and `onSectionChange` events that shell components must use to trigger screen-reader announcements.
 - **Performance:** `flattenItems()` runs once at construction; subsequent navigation calls use O(1) array index lookups. Immutable `AssessmentItemDefinition` instances are cached by item identifier, while only the active item has a live session.
 - **Cross-platform:** No DOM dependencies. The player class is framework-agnostic and can be used headlessly (e.g. server-side with Node.js for testing, or wrapped in a web component).
 - **Security:** The player trusts the `BackendAdapter` contract. It must never apply client-computed scores to `itemResults` in a way that could be finalized — all `ItemResult.score` values must come from `SubmitResponsesResponse.result` or `FinalizeAssessmentResponse.itemScores`, not from local computation.
 - **i18n:** The player accepts an `i18nProvider` from the host. If none is supplied, a no-op provider is created that returns translation keys as-is. String content (e.g. error messages thrown from navigation) should be keys, not hardcoded English.
+
+---
+
+## Candidate shell
+
+`AssessmentShell` (mounted by `<pie-qti-assessment-player>`) and the section layouts it
+delegates to (`SectionPlayerSplitPane`, `SectionPlayerVertical`, also mounted by the
+`<pie-qti-section-player-*>` elements) render in the light DOM. They are self-contained:
+nothing depends on host CSS frameworks.
+
+### Self-contained styling
+
+- Every shell and section component styles itself with scoped CSS on the `--pie-qti-*`
+  tokens, each with a fallback (`var(--pie-qti-base-100, oklch(100% 0 0))`), so it renders
+  without `@pie-qti/theme` or a DaisyUI bridge. Text uses text tokens
+  (`--pie-qti-error-text`, `--pie-qti-warning-text`, `--pie-qti-info-text`), boundaries
+  `--pie-qti-border-strong`, focus rings `outline: 2px solid var(--pie-qti-focus)` on
+  `:focus-visible`; spacing, radius and the 44px control size use the `--pie-qti-space-*`,
+  `--pie-qti-radius*` and `--pie-qti-control-min-size` tokens.
+- Icons carry `width`/`height` attributes and are sized by component CSS; no Tailwind
+  utility is load-bearing. DaisyUI and Tailwind classes are not used by the shell, the
+  navigation bar or the section layouts. `SectionMenu` and `AssessmentTimer` still carry
+  some and are restyled separately; until then the header keeps the section menu sized and
+  on the tokens.
+- Svelte injects the component CSS at mount, so the published `@pie-qti/player-elements`
+  bundle ships it; hosts load no stylesheet for the shell.
+
+### Layout and reflow
+
+- **Contained (default).** The shell fills its host container (`block-size: 100%`). When
+  the host gives no height it sizes to its content between
+  `--pie-qti-assessment-min-block-size` (default `min(32rem, 100dvh)`) and
+  `--pie-qti-assessment-max-block-size` (default `100dvh`), so Previous/Next stay reachable.
+  Header and navigation sit outside the scrolling question region, never on top of it; the
+  region keeps `scroll-padding` so a focused control and its ring stay clear of its edges
+  (WCAG 2.4.11).
+- **Full viewport.** The `full-viewport` attribute (`fullViewport` property / prop) sizes
+  the shell to `100dvh` (iOS toolbars excluded) inside the `safe-area-inset-*` padding
+  (needs `viewport-fit=cover`), and renders page-level `header`, `main` and `nav`
+  landmarks.
+- **Short viewports** (`max-height: 30rem`: 400% zoom of a desktop window, landscape
+  phones). Nothing is pinned: header, content and navigation flow in one scroll — the page's
+  when the host gives no height, the shell's own when it does (WCAG 1.4.10, 2.4.11).
+- **Narrow containers.** The navigation bar is a size container: one row of Previous, the
+  position and Next/Submit; below `18rem` the arrows carry Previous/Next and the names stay
+  for assistive technology. Below a `48rem` container width the split layout becomes a
+  Passage/Question tab switch (APG tabs: arrow keys mirror right-to-left, Home/End,
+  `aria-controls`/`aria-labelledby` panels); a newly presented item selects the question
+  tab. Wide containers keep the keyboard-resizable splitter. Nested paddings collapse to one
+  slim gutter on phones.
+- Layout code never applies `transform`, `contain` or `filter` to an ancestor of item
+  content, so `position: fixed` drag previews stay viewport-relative.
+
+### Landmarks, headings and focus
+
+- Embedded, the shell is one region named by the assessment title, with a "Question
+  content" region and an "Assessment navigation" landmark. A "Skip to question" link
+  (visible on focus) moves focus to the active question without touching the host URL.
+- The header shows the assessmentTest `title` (`AssessmentPlayer.getAssessmentTitle()`), or
+  the localized `assessment.title` — never the identifier. Untitled sections are named by
+  their position ("Section 2 of 3") only when there are several.
+- Heading levels follow the host outline: the title uses `heading-level` (default 2, 1 in
+  full-viewport mode); passage and item titles sit one level below. Passages are headed by
+  `QtiSharedHtmlBlock.title`, else a neutral localized "Passage" (numbered when several).
+- After navigation, focus moves to the question through the layout's
+  `focusActiveItem()`, which first selects the question tab when the panes are stacked.
+  Navigation buttons stay focusable (`aria-disabled`) while a transition is in flight.
+
+### Shared dialog
+
+`AssessmentDialog` (exported from the components barrel) is the shell's modal dialog for
+submit confirmation, time notices and resume prompts: native `<dialog>` + `showModal()`
+(with an emulated modal fallback where it is missing), named by its title and described by
+`description`, focus moved to the title (`initialFocus` can pick an action) and returned to
+the trigger on close, Escape cancelling unless `dismissible` is false, `busy` keeping the
+actions focusable but unavailable, `closeOnConfirm`, and `onConfirm`/`onCancel`/`onClose`
+callbacks with a `bind:open` state.
+
+### Host CSS reaching item content
+
+Item bodies, passages and rubric blocks are light-DOM HTML, so host page CSS reaches
+them. `PlayerBaseStyles` injects one `@layer pie-qti-base` sheet of zero-specificity
+`:where()` rules: `.pie-qti-chrome` roots take their font, size, line height and colour from
+the tokens; `.pie-qti-content` containers (item, passage, rubric, test feedback) get the
+user-agent defaults that host resets strip — paragraph, list, `dl`, `blockquote` and
+`figure` spacing, list markers, heading sizes and weights, bold table headers, underlined
+links, inline images and SVG, `max-inline-size: 100%` media, and borders on `border`
+tables. What remains host-dependent:
+
+- **Unlayered host rules win.** Any host selector outside a cascade layer (`p { margin: 2em }`,
+  `table { width: 100% }`, `img { border: 1px solid }`, `li::marker { … }`) outranks the base
+  layer, whatever its specificity, as do host `!important` declarations.
+- **Layered host resets rank below only when declared first.** Tailwind/DaisyUI preflight
+  (`@layer base`) yields to `pie-qti-base` when the host's layers are declared before the
+  player's sheet is injected. Hosts that load CSS later, or want the opposite order, pin it
+  with a layer statement such as `@layer base, pie-qti-base, components, utilities;`.
+- **Authored presentational hints stay with the host.** The base does not set cell padding
+  (`cellpadding`), table or image widths, image alignment (`align`) or the marker of a list
+  with a `type` attribute, because a stylesheet value would override the authored hint; a
+  host reset that strips them still does.
+- **Inherited typography beyond the tokens.** `letter-spacing`, `word-spacing`,
+  `text-transform`, `font-variant` and similar inherited properties set on host ancestors
+  flow into the shell and item content.
+- **Inline interactions** (text entry, inline choice) render in the light DOM and take host
+  form-control rules their own styles do not set. Block interactions render in shadow DOM
+  and are unaffected.
+- **Standalone item players.** `<pie-qti-item-player>` used outside a section or assessment
+  does not get the content base.
+
+Full isolation requires rendering the item body in shadow DOM; until then these limits hold.
 
 ---
 
@@ -391,6 +501,32 @@ AC-A2: Navigation bar buttons have accessible disabled states
   Given: canPrevious is false on the first item
   When: AssessmentShell renders NavigationBar
   Then: The Previous button has aria-disabled="true" or is rendered as a disabled <button>
+
+AC-A3: The shell renders without host CSS
+  Given: A host page with no Tailwind, DaisyUI or theme stylesheet
+  When: <pie-qti-assessment-player> renders an assessment with a passage
+  Then: Shell icons are icon-sized, navigation buttons are at least 44px tall, and a
+        keyboard-focused control shows a 2px solid focus ring
+  Notes: apps/demo/tests/playwright/no-host-css.pw.ts
+
+AC-A4: Phones get one navigation row and a Passage/Question tab switch
+  Given: A 375px-wide container showing an item with a passage
+  When: The shell renders
+  Then: Previous and Next sit on one row; the passage and question are tabs
+        (role="tablist"), and a newly presented item selects the question tab
+
+AC-A5: Content reflows at 400% zoom and focus is never covered
+  Given: A 320×256 CSS-pixel viewport
+  When: A control inside the question receives focus
+  Then: There is no horizontal scrolling, header and navigation are not pinned, and the
+        focused control is the topmost element at its position
+
+AC-A6: Skip link and dialog focus
+  Given: The shell is rendered
+  When: The "Skip to question" link is activated
+  Then: Focus moves to the active question
+  When: An AssessmentDialog opens and is dismissed with Escape
+  Then: Focus moves to its title on open and returns to its trigger on close
 ```
 
 ### Edge cases
@@ -425,6 +561,7 @@ AC-E4: Backend returns updatedState after submitCurrentItem; responses are not l
 
 - QTI spec: §2 (Assessment Architecture), §2.1–2.4
 - Implementation: `packages/assessment-player/src/core/AssessmentPlayer.ts`, `NavigationManager.ts`, `ItemSessionController.ts`, `TimeManager.ts`
+- Shell: `packages/assessment-player/src/components/` (`AssessmentShell`, `NavigationBar`, `AssessmentHeader`, `AssessmentDialog`); section layouts and the base layer: `packages/section-player/src/components/` (`SplitPaneResizer`, `SectionPlayerSplitPane`, `SectionPlayerVertical`, `PlayerBaseStyles`)
 - API contract: `packages/assessment-player/src/integration/api-contract.ts`
 - Adjacent PRDs: `docs/prds/architecture/item-player.md`, `docs/prds/architecture/response-processing.md`
 - Existing docs: `packages/assessment-player/BACKEND-INTEGRATION.md`, `packages/assessment-player/EXTENSIBILITY.md`
