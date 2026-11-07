@@ -1,14 +1,15 @@
 /**
  * Fixed response-processing templates (`responseProcessing@template`) the player executes
  * natively, identified by the file name of the template URI: the QTI standard templates
- * (`match_correct`, `map_response`, `map_response_point`), their Common Cartridge aliases, and the
- * `match_nothing` compatibility templates. Each name is regression-tested against the
- * corresponding XML program (docs/SPEC-GAPS-PLAN.md G-19).
+ * (`match_correct`, `map_response`, `map_response_point`, `no_response_processing`), their
+ * Common Cartridge aliases, and the `match_nothing` compatibility templates. Each scoring name is
+ * regression-tested against the corresponding XML program (docs/SPEC-GAPS-PLAN.md G-19).
  */
 export const SUPPORTED_RESPONSE_PROCESSING_TEMPLATES = [
 	'match_correct',
 	'map_response',
 	'map_response_point',
+	'no_response_processing',
 	'cc2_match',
 	'cc2_match_basic',
 	'cc2_map_response',

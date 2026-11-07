@@ -1491,6 +1491,10 @@ export class Player {
 				setScore(mapResponse(true));
 				return;
 			}
+			case 'no_response_processing': {
+				// The standard empty template: outcomes keep their defaults (unscored item).
+				return;
+			}
 		}
 	}
 

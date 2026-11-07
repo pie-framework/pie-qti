@@ -188,6 +188,14 @@ describe('unsupported response-processing templates', () => {
 		).toThrow(UnsupportedResponseProcessingTemplateError);
 	});
 
+	test('no_response_processing scores nothing, and completes the item', () => {
+		const outcomes = process(fixedTemplate('no_response_processing'), { RESPONSE: 'A' });
+		expect(outcomes.SCORE).toBe(0);
+		// FEEDBACK has no default and the empty template never assigns it: NULL.
+		expect(outcomes.FEEDBACK).toBeNull();
+		expect(outcomes.MAXSCORE).toBe(5);
+	});
+
 	test('inline rules take precedence over an unknown template reference', () => {
 		const processing = `<qti-response-processing template="https://example.org/rptemplates/unknown">
 			<qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">3</qti-base-value></qti-set-outcome-value>
