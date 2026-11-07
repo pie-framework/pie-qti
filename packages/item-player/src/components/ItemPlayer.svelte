@@ -7,11 +7,12 @@
 	import type { AdaptiveAttemptResult, ModalFeedback, PlayerSecurityConfig, QTIRole, ScoringResult } from '../types';
 	import type { PnpProfile } from '../pnp/types';
 	import type { InteractionResponseValue } from '../web-components';
-	import { interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
+	import { interfaceLocaleAttributes, translate, type I18nProvider } from '@pie-qti/i18n';
 	import { warnOnce } from '@pie-qti/qti-common';
 	import { untrack } from 'svelte';
 	import ItemBody from './ItemBody.svelte';
 	import ModalFeedbackDisplay from './ModalFeedbackDisplay.svelte';
+	import { endAttemptRequest } from './utils/endAttempt';
 
 	type ItemResponseValue = InteractionResponseValue | null;
 	type ItemResponseMap = Record<string, ItemResponseValue>;
@@ -113,7 +114,8 @@
 			applySessionView(nextSession.state());
 			error = null;
 			modalFeedback = [];
-			const unsubscribe = nextSession.subscribe(({ command, current }) => {
+			const unsubscribe = nextSession.subscribe((transition) => {
+				const { command, current } = transition;
 				applySessionView(current);
 				if (current.disposed) {
 					if (activeSession === nextSession) activeSession = null;
@@ -124,6 +126,14 @@
 						command.responseIdentifier,
 						current.responses[command.responseIdentifier] as ItemResponseValue
 					);
+					// Activating an endAttemptInteraction ends the attempt. Submit after this dispatch
+					// has finished notifying, so every subscriber sees the response change first.
+					const request = endAttemptRequest(transition, () => nextSession?.present().flow ?? []);
+					if (request) {
+						queueMicrotask(() => {
+							if (activeSession === nextSession) submit(request.countAttempt);
+						});
+					}
 				}
 			});
 			return () => {
@@ -136,7 +146,7 @@
 			};
 		} catch (e) {
 			if (ownsSession) nextSession?.dispose();
-			error = e instanceof Error ? e.message : (i18n?.t('item.parsingError') ?? 'item.parsingError');
+			error = e instanceof Error ? e.message : translate(i18n, 'item.parsingError', 'Failed to parse QTI XML');
 			activeSession = null;
 			sessionView = null;
 		}
@@ -155,12 +165,12 @@
 		try {
 			currentSession.dispatch({ action: 'setResponses', responses: controlledResponses });
 		} catch (e) {
-			error = e instanceof Error ? e.message : (i18n?.t('item.processingError') ?? 'item.processingError');
+			error = e instanceof Error ? e.message : translate(i18n, 'item.processingError', 'Failed to process responses');
 		}
 	});
 
 	function handleItemBodyError(cause: unknown) {
-		error = cause instanceof Error ? cause.message : (i18n?.t('item.processingError') ?? 'item.processingError');
+		error = cause instanceof Error ? cause.message : translate(i18n, 'item.processingError', 'Failed to process responses');
 	}
 
 	export function submit(countAttempt: boolean = true): ScoringResult | AdaptiveAttemptResult | undefined {
@@ -185,7 +195,7 @@
 			}
 			return result;
 		} catch (e) {
-			error = e instanceof Error ? e.message : (i18n?.t('item.processingError') ?? 'item.processingError');
+			error = e instanceof Error ? e.message : translate(i18n, 'item.processingError', 'Failed to process responses');
 		}
 	}
 
@@ -197,13 +207,13 @@
 	// locale; the item body inside sets its own from the item's language.
 	const interfaceAttributes = $derived(interfaceLocaleAttributes(i18n));
 
-	// Surface silently-degraded setup: without a provider, error banners show raw
-	// message keys and lang/dir attributes are never set.
+	// Surface silently-degraded setup: without a provider, UI messages fall back to
+	// English and lang/dir attributes are never set.
 	$effect(() => {
 		if (!i18n) {
 			warnOnce(
 				'item-player:i18n-missing',
-				'No i18n provider configured: UI messages will render as raw keys (e.g. item.parsingError) and lang/dir attributes are not set. Pass an I18nProvider from @pie-qti/i18n via the i18n property.',
+				'No i18n provider configured: UI messages fall back to English and lang/dir attributes are not set. Pass an I18nProvider from @pie-qti/i18n via the i18n property.',
 			);
 		}
 	});
@@ -212,7 +222,7 @@
 
 <div class="qti-item-player" lang={interfaceAttributes?.lang} dir={interfaceAttributes?.dir}>
 	{#if error}
-		<div class="qti-player-alert qti-player-alert-error">
+		<div class="qti-player-alert qti-player-alert-error" role="alert">
 			<span>{error}</span>
 		</div>
 	{:else if activeSession && sessionView}
@@ -233,15 +243,15 @@
 					onclick={() => submit(true)}
 					disabled={isCompleted || !canSubmit}
 				>
-					{isAdaptive && isCompleted ? (i18n?.t('item.completed') ?? 'item.completed') : (i18n?.t('item.submit') ?? 'item.submit')}
+					{isAdaptive && isCompleted ? translate(i18n, 'item.completed', 'Completed') : translate(i18n, 'item.submit', 'Submit')}
 				</button>
 
 				{#if isAdaptive}
 					<div class="qti-player-attempt-status">
 						{#if isCompleted}
-							<span class="qti-player-badge qti-player-badge-success">{i18n?.t('item.complete') ?? 'item.complete'}</span>
+							<span class="qti-player-badge qti-player-badge-success">{translate(i18n, 'item.complete', 'Complete')}</span>
 						{:else}
-							<span>{i18n?.t('item.attempt', { numAttempts: numAttempts + 1 }) ?? `item.attempt (${numAttempts + 1})`}</span>
+							<span>{translate(i18n, 'item.attempt', 'Attempt {numAttempts}', { numAttempts: numAttempts + 1 })}</span>
 						{/if}
 					</div>
 				{/if}
@@ -251,8 +261,8 @@
 		<!-- Modal feedback display -->
 		<ModalFeedbackDisplay feedback={modalFeedback} onClose={closeFeedback} {typeset} {i18n} {contentLanguage} />
 	{:else}
-		<div class="qti-player-alert qti-player-alert-info">
-			<span>{i18n?.t('item.loading') ?? 'item.loading'}</span>
+		<div class="qti-player-alert qti-player-alert-info" role="status">
+			<span>{translate(i18n, 'item.loading', 'Loading item...')}</span>
 		</div>
 	{/if}
 </div>
@@ -295,8 +305,9 @@
 		align-items: center;
 		justify-content: center;
 		gap: 0.5rem;
-		padding: 0.5rem 0.75rem;
-		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		min-height: 2.75rem;
+		padding: 0.5rem 1rem;
+		border: 1px solid var(--pie-qti-border-strong, #767676);
 		border-radius: 0.75rem;
 		background: var(--pie-qti-base-200, oklch(98% 0 0));
 		color: var(--pie-qti-base-content, oklch(21% 0 0));
@@ -316,7 +327,7 @@
 	}
 
 	.qti-player-button:focus-visible {
-		outline: 2px solid var(--pie-qti-focus, var(--pie-qti-primary, oklch(45% 0.24 277)));
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
 	}
 

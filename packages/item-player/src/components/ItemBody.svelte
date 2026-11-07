@@ -3,14 +3,24 @@
 </script>
 
 <script lang="ts">
+	import { mount as mountComponent, unmount, untrack, type ComponentProps } from 'svelte';
 	import { getItemSessionBinding, type ItemSession } from '../core/ItemSession';
 	import type { InteractionResponseValue, QTIChangeEventDetail } from '../web-components';
 	import type { ExtractedPci } from '../pci/types';
+	import type { PlayerSecurityConfig } from '../types';
+	import type {
+		BlockInteractionMount,
+		InlineInteractionMount,
+		ItemInteractionMount,
+		ItemPresentation,
+	} from '../presentation/itemPresentationPlan';
 	import { contentLanguageAttributes, type I18nProvider } from '@pie-qti/i18n';
 	import type { QtiHeuristicsConfig } from '@pie-qti/ims-cp-core';
 	import { typesetAction } from './actions/typesetAction';
 	import { glossaryAction } from '../catalog/glossaryAction';
 	import { assignProps } from '@pie-qti/qti-common';
+	import { createItemBodyRenderer, type MountedInteraction } from './utils/itemBodyRenderer';
+	import { sentenceContextId } from './utils/sentenceContext';
 	import InlineChoice from '../interactions/inline-choice/InlineChoice.svelte';
 	import InlineTextEntry from '../interactions/text-entry/InlineTextEntry.svelte';
 
@@ -69,16 +79,17 @@
 	// inherited CSS property, so it reaches interactions inside shadow roots;
 	// glossary lookups and read-aloud read `lang`.
 	const contentAttributes = $derived(contentLanguageAttributes(presentation.contentLanguage));
-	const blockMounts = $derived.by(() =>
-		presentation.flow.flatMap((node) =>
-			node.kind === 'interaction' && node.mount.placement === 'block' ? [node.mount] : []
-		)
-	);
-
-	function getStringResponse(responseId: string): string {
-		const response = responses[responseId];
-		return typeof response === 'string' ? response : '';
-	}
+	const bodyMarkup = $derived.by(() => {
+		const node = presentation.flow.find((entry) => entry.kind === 'html');
+		return node?.kind === 'html' ? String(node.html) : '';
+	});
+	const security = $derived(binding.getSecurityConfig());
+	const bodyParams = $derived<BodyParams>({ presentation, responses, i18n, typeset, security });
+	// Glossary triggers live in the body markup, so they are applied again whenever it is replaced.
+	const glossaryParams = $derived.by(() => {
+		void bodyMarkup;
+		return { player: binding };
+	});
 
 	function handleResponseChange(responseId: string, value: ItemResponseValue) {
 		try {
@@ -116,33 +127,169 @@
 		};
 	});
 
-	// Action to set typeset and i18n on web components when they mount
-	function setWebComponentProps(
-		node: HTMLElement,
-		params: {
-			i18n?: I18nProvider;
-			typeset?: (el: HTMLElement) => void;
-			[key: string]: unknown;
+	interface BodyParams {
+		presentation: ItemPresentation;
+		responses: ItemResponseMap;
+		i18n: I18nProvider | undefined;
+		typeset: ((element: HTMLElement) => void) | undefined;
+		security: PlayerSecurityConfig | undefined;
+	}
+
+	/**
+	 * Renders the item body and mounts every interaction into the slot that marks its authored
+	 * position, so block interactions sit between the paragraphs, layout columns and table cells
+	 * they were authored in and inline interactions stay in their sentence. Interactions are keyed:
+	 * a response change updates props and never remounts.
+	 */
+	function itemBodyContent(node: HTMLElement, initial: BodyParams) {
+		let params = initial;
+		let nextContextId = 0;
+		const contextId = () => `${itemBodyScope}-context-${++nextContextId}`;
+
+		const correctAnswerFor = (responseId: string): string | null =>
+			params.presentation.capabilities.canViewCorrectResponses
+				? ((params.presentation.correctResponses[responseId] ?? null) as string | null)
+				: null;
+		const stringResponse = (responseId: string): string => {
+			const response = params.responses[responseId];
+			return typeof response === 'string' ? response : '';
+		};
+
+		function blockProps(mount: BlockInteractionMount): Record<string, unknown> {
+			return {
+				i18n: params.i18n,
+				typeset: params.typeset,
+				interaction: mount.interaction,
+				response: mount.response,
+				stringResponse: mount.stringResponse,
+				correctResponse: mount.correctResponse,
+				pnp: mount.pnp,
+				eliminationTool: mount.eliminationTool,
+				answerMasking: mount.answerMasking,
+				structuredLabelSupport: mount.structuredLabelSupport,
+				disabled: mount.disabled,
+				// Avoid invalid ARIA role values on custom-element hosts.
+				// Components default to candidate when role is omitted.
+				role: mount.componentRole,
+				security: params.security,
+				createPciHost,
+			};
 		}
-	) {
-		// Use microtask to ensure custom element is fully initialized
-		queueMicrotask(() => {
-			if (!node) return;
-			assignProps(node, params);
+
+		function createBlock(mount: BlockInteractionMount): MountedInteraction<ItemInteractionMount> {
+			const element = node.ownerDocument.createElement(mount.tagName);
+			applyAttributes(element, mount.interaction.readAloud);
+			let latest = mount;
+			let destroyed = false;
+			assignProps(element, blockProps(latest));
+			if (!customElements.get(mount.tagName)) {
+				// Props set before the element is defined shadow its accessors; set them again once it is.
+				void customElements.whenDefined(mount.tagName).then(() => {
+					if (!destroyed) upgradeProps(element, blockProps(latest));
+				});
+			}
+			return {
+				element,
+				update(next) {
+					latest = next as BlockInteractionMount;
+					assignProps(element, blockProps(latest));
+				},
+				destroy() {
+					destroyed = true;
+				},
+			};
+		}
+
+		function createInline(mount: InlineInteractionMount): MountedInteraction<ItemInteractionMount> {
+			// The wrapper is the component's mount target and carries the read-aloud attributes;
+			// moving it moves the control and its delegated event handling together.
+			const element = node.ownerDocument.createElement('span');
+			element.className = 'qti-inline-interaction';
+			applyAttributes(element, mount.interaction.readAloud);
+			const shared = () => ({
+				position: mount.position,
+				response: stringResponse(mount.interaction.responseId),
+				correctAnswer: correctAnswerFor(mount.interaction.responseId),
+				disabled: params.presentation.disabled,
+				i18n: params.i18n,
+				onResponseChange: handleResponseChange,
+			});
+
+			if (mount.renderer === 'text-entry') {
+				const props: ComponentProps<typeof InlineTextEntry> = $state({ interaction: mount.interaction, ...shared() });
+				const instance = mountComponent(InlineTextEntry, { target: element, props });
+				return {
+					element,
+					update(next) {
+						if (next.placement !== 'inline' || next.renderer !== 'text-entry') return;
+						mount = next;
+						Object.assign(props, { interaction: next.interaction, ...shared() });
+					},
+					placed(slot) {
+						props.contextId = slot ? sentenceContextId(slot, node, contextId) : undefined;
+					},
+					destroy() {
+						void unmount(instance);
+					},
+				};
+			}
+
+			const props: ComponentProps<typeof InlineChoice> = $state({ interaction: mount.interaction, ...shared() });
+			const instance = mountComponent(InlineChoice, { target: element, props });
+			return {
+				element,
+				update(next) {
+					if (next.placement !== 'inline' || next.renderer !== 'inline-choice') return;
+					mount = next;
+					Object.assign(props, { interaction: next.interaction, ...shared() });
+				},
+				placed(slot) {
+					props.contextId = slot ? sentenceContextId(slot, node, contextId) : undefined;
+				},
+				destroy() {
+					void unmount(instance);
+				},
+			};
+		}
+
+		const renderer = createItemBodyRenderer<ItemInteractionMount>(node, {
+			create: (mount) => (mount.placement === 'block' ? createBlock(mount) : createInline(mount)),
+			onError: (mount, error) => console.error(`Failed to render ${mount.interaction.type}:`, error),
 		});
 
+		const render = () =>
+			untrack(() => {
+				const htmlNode = params.presentation.flow.find((entry) => entry.kind === 'html');
+				const mounts = params.presentation.flow.flatMap((entry) =>
+					entry.kind === 'interaction' ? [entry.mount] : []
+				);
+				renderer.render(htmlNode?.kind === 'html' ? htmlNode.html : '', mounts);
+			});
+		render();
+
 		return {
-			update(
-				newParams: {
-					i18n?: I18nProvider;
-					typeset?: (el: HTMLElement) => void;
-					[key: string]: unknown;
-				}
-			) {
-				assignProps(node, newParams);
+			update(next: BodyParams) {
+				params = next;
+				render();
 			},
-			destroy() {}
+			destroy() {
+				renderer.destroy();
+			},
 		};
+	}
+
+	function applyAttributes(element: HTMLElement, attributes: Readonly<Record<string, string>> | undefined) {
+		for (const [name, value] of Object.entries(attributes ?? {})) element.setAttribute(name, value);
+	}
+
+	/** Re-run property assignment through the element's own accessors once it is upgraded. */
+	function upgradeProps(element: HTMLElement, props: Record<string, unknown>) {
+		const target = element as unknown as Record<string, unknown>;
+		for (const [key, value] of Object.entries(props)) {
+			if (value === undefined) continue;
+			if (Object.prototype.hasOwnProperty.call(target, key)) delete target[key];
+			target[key] = value;
+		}
 	}
 </script>
 
@@ -153,74 +300,19 @@
 	lang={contentAttributes?.lang}
 	dir={contentAttributes?.dir}
 	use:typesetAction={{ typeset }}
-	use:glossaryAction={{ player: binding }}
 >
-	<!-- Item body with inline interactions -->
-	<div class="qti-item-body-content">
-		<div class="inline-interaction-container">
-			{#if presentation.scopedCss}
-				<svelte:element this={'style'} data-qti-stylesheets="resolved">
-					{presentation.scopedCss}
-				</svelte:element>
-			{/if}
+	{#if presentation.scopedCss}
+		<svelte:element this={'style'} data-qti-stylesheets="resolved">
+			{presentation.scopedCss}
+		</svelte:element>
+	{/if}
 
-			{#each presentation.flow as node}
-				{#if node.kind === 'html'}
-					{@html node.html}
-				{:else if node.mount.renderer === 'text-entry'}
-					{@const correctAnswer = (presentation.capabilities.canViewCorrectResponses ? (presentation.correctResponses[node.mount.interaction.responseId] ?? null) : null) as string | null}
-					<span {...node.mount.interaction.readAloud}>
-						<InlineTextEntry
-							interaction={node.mount.interaction}
-							response={getStringResponse(node.mount.interaction.responseId)}
-							correctAnswer={presentation.capabilities.canViewCorrectResponses ? correctAnswer : null}
-							disabled={presentation.disabled}
-							{i18n}
-							onResponseChange={handleResponseChange}
-						/>
-					</span>
-				{:else if node.mount.renderer === 'inline-choice'}
-					{@const correctAnswer = (presentation.capabilities.canViewCorrectResponses ? (presentation.correctResponses[node.mount.interaction.responseId] ?? null) : null) as string | null}
-					<span {...node.mount.interaction.readAloud}>
-						<InlineChoice
-							interaction={node.mount.interaction}
-							response={getStringResponse(node.mount.interaction.responseId)}
-							correctAnswer={presentation.capabilities.canViewCorrectResponses ? correctAnswer : null}
-							disabled={presentation.disabled}
-							{i18n}
-							onResponseChange={handleResponseChange}
-						/>
-					</span>
-				{/if}
-			{/each}
-		</div>
-	</div>
-
-	<!-- Block interactions retain their existing DOM placement and keyed lifecycle. -->
-	{#each blockMounts as block (block.key)}
-		<svelte:element
-			this={block.tagName}
-			{...block.interaction.readAloud}
-			use:setWebComponentProps={{
-				i18n,
-				typeset,
-				interaction: block.interaction,
-				response: block.response,
-				stringResponse: block.stringResponse,
-				correctResponse: block.correctResponse,
-				pnp: block.pnp,
-				eliminationTool: block.eliminationTool,
-				answerMasking: block.answerMasking,
-				structuredLabelSupport: block.structuredLabelSupport,
-				disabled: block.disabled,
-				// Avoid invalid ARIA role values on custom-element hosts.
-				// Components default to candidate when role is omitted.
-				role: block.componentRole,
-				security: binding.getSecurityConfig(),
-				createPciHost,
-			}}
-		/>
-	{/each}
+	<!-- The authored body, with every interaction mounted at its authored position. -->
+	<div
+		class="qti-item-body-content"
+		use:itemBodyContent={bodyParams}
+		use:glossaryAction={glossaryParams}
+	></div>
 </div>
 
 <style>
@@ -264,16 +356,26 @@
 		min-width: 0;
 	}
 
-	/* Keep inline interactions from breaking paragraph flow */
-	.inline-interaction-container :global(p) {
-		display: inline;
+	/*
+	 * Each interaction mounts into the empty slot that replaced its element in the body. A block
+	 * slot takes its own line wherever it was authored, also inside a paragraph; an inline slot
+	 * stays in the sentence.
+	 */
+	:global(.qti-item-body .qti-interaction-slot--block) {
+		display: block;
+		max-width: 100%;
+		min-width: 0;
+		margin-block: 1rem;
+	}
+
+	/* Interactions whose element is not in the body render after it. */
+	:global(.qti-item-body .qti-item-body-unslotted) {
+		display: flow-root;
 	}
 
 	/*
-	 * Hide all QTI interaction elements wrapped with qti-hidden-interaction.
-	 * These are rendered separately as web components above.
-	 * Keeping them in the HTML (but hidden) makes debugging easier and is fully extensible.
-	 * Any *Interaction element will be automatically wrapped and hidden - no hardcoded list needed!
+	 * Interaction markup with no interaction data behind it (nothing renders it) stays hidden
+	 * rather than showing raw prompt and choice text.
 	 */
 	:global(.qti-item-body .qti-hidden-interaction) {
 		display: none !important;

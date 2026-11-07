@@ -412,9 +412,10 @@ export default {
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: 'Selectare...',
-			textEntryLabel: 'Introducere text {id}',
-			choiceLabel: 'Alegere în text {id}',
-			formatHint: 'Format: {mask}',
+			blankLabel: 'Spațiul liber {index} din {count}',
+			patternMismatch: 'Acest răspuns nu are formatul așteptat.',
+			patternMismatchWithHint: 'Acest răspuns nu are formatul așteptat. Folosește acest format: {hint}',
+			correctChoice: 'Corect: {choice}',
 		},
 	},
 
@@ -432,6 +433,7 @@ export default {
 
 
 	feedback: {
+		title: 'Feedback',
 		close: 'Închide feedback-ul',
 		closeFeedback: 'Respinge feedback-ul',
 		testFeedback: 'Feedback test',

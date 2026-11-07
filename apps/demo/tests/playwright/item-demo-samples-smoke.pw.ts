@@ -104,15 +104,20 @@ test.describe('item demo samples smoke', () => {
 
 			const probe = await probeItem();
 			expect(probe, 'item body disappeared after load').not.toBeNull();
-			const { componentHosts, images } = probe as ItemProbe;
+			const { componentHosts } = probe as ItemProbe;
 
-			const blank = images.filter((image) => !image.src.trim() || image.naturalWidth === 0);
-			expect(
-				blank,
-				`image(s) failed to load in ${componentHosts.join(', ') || 'item body'}: ${blank
-					.map((image) => `${image.tag}[src=${image.src || 'empty'}]`)
-					.join(', ')}`,
-			).toEqual([]);
+			// An image decodes after the component that draws it renders, so poll for that too: a
+			// broken or blanked src never loads and still fails here, after the timeout.
+			const blankImages = async () =>
+				((await probeItem())?.images ?? [])
+					.filter((image) => !image.src.trim() || image.naturalWidth === 0)
+					.map((image) => `${image.tag}[src=${image.src || 'empty'}]`);
+			await expect
+				.poll(blankImages, {
+					timeout: 10_000,
+					message: `image(s) failed to load in ${componentHosts.join(', ') || 'item body'}`,
+				})
+				.toEqual([]);
 
 			if (declaresImageAsset(sample.xml)) {
 				await expect

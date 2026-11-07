@@ -100,9 +100,14 @@ const presentation = session.present({
   renderItemBodyRubrics: true
 });
 
-for (const node of presentation.flow) {
-  if (node.kind === 'html') renderFinalHtml(node.html);
-  else mountInteraction(node.mount);
+const [body, ...interactions] = presentation.flow;
+if (body.kind === 'html') renderFinalHtml(container, body.html);
+for (const node of interactions) {
+  if (node.kind !== 'interaction') continue;
+  const slot = node.mount.slot === null
+    ? null
+    : container.querySelector(`[data-qti-interaction-slot="${node.mount.slot}"]`);
+  mountInteraction(node.mount, slot ?? afterBody);
 }
 
 renderRubrics(presentation.directRubrics);
@@ -112,6 +117,17 @@ The presentation contains role capabilities, disabled state, role-filtered corre
 policy-checked scoped CSS, ordered body flow, and direct `assessmentItem` rubric blocks. HTML values
 use `HtmlContent` (`string | TrustedHTML` when available); `FinalItemBodyHtml` marks content that has
 completed the body transform and delivery pipeline.
+
+The flow is one `html` node holding the whole item body, then one mount per interaction in document
+order. The item body is an ordered content model, so each interaction keeps its authored position:
+its element is replaced by an empty slot (`<span data-qti-interaction-slot="…">`, exported as
+`INTERACTION_SLOT_ATTRIBUTE`) and the mount's `slot` names it. Mount the interaction into its slot —
+between the paragraphs around it, inside a layout column or table cell, or in its sentence for an
+inline interaction; a mount whose `slot` is `null` (its element is not in the body) goes after the
+body. Slots and mount keys are stable across response changes, so a renderer can keep interactions
+mounted while only their props change. Inline mounts also carry their `position` among the item's
+inline interactions, which names them for assistive technology ("Blank 2 of 4") when no label is
+authored; never use the response identifier as a name.
 
 Item body, rubric block and modal feedback content resolves `printedVariable` against the current
 session in either QTI spelling, honouring `format` (C `printf` conversions), `base`, `index`,

@@ -412,9 +412,10 @@ export default {
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: 'Sélectionner...',
-			textEntryLabel: 'Saisie de texte {id}',
-			choiceLabel: 'Choix en ligne {id}',
-			formatHint: 'Format : {mask}',
+			blankLabel: 'Trou {index} sur {count}',
+			patternMismatch: 'Cette réponse n\'est pas au format attendu.',
+			patternMismatchWithHint: 'Cette réponse n\'est pas au format attendu. Utilisez ce format : {hint}',
+			correctChoice: 'Bonne réponse : {choice}',
 		},
 	},
 
@@ -432,6 +433,7 @@ export default {
 
 
 	feedback: {
+		title: 'Commentaires',
 		close: 'Fermer les commentaires',
 		closeFeedback: 'Ignorer les commentaires',
 		testFeedback: 'Commentaires du test',

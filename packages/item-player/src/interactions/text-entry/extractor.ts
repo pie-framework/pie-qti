@@ -14,6 +14,8 @@ export interface TextEntryData {
 	patternMask: string | null;
 	placeholderText: string;
 	format?: string;
+	baseType?: string;
+	title?: string;
 }
 
 /**
@@ -44,12 +46,17 @@ export const standardTextEntryExtractor: ElementExtractor<TextEntryData> = {
 		const format = utils.getAttribute(element, 'format', '');
 		const interactionClasses = utils.getClasses(element);
 		const patternMaskMessage = utils.getAttribute(element, 'data-patternmask-message', '') || null;
+		// The response's baseType picks the on-screen keyboard (numeric for integer/float).
+		const baseType = context.declarations.get(context.responseId)?.baseType;
+		const title = utils.getAttribute(element, 'title', '').trim();
 
 		return {
 			expectedLength,
 			patternMask: patternMask || null,
 			placeholderText,
 			...(format ? { format } : {}),
+			...(baseType ? { baseType } : {}),
+			...(title ? { title } : {}),
 			...(interactionClasses.length > 0 ? { interactionClasses } : {}),
 			...(patternMaskMessage ? { patternMaskMessage } : {}),
 		};
