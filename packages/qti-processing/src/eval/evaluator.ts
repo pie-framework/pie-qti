@@ -6,6 +6,7 @@ import { xsdPatternToRegExp } from '../runtime/xsd-pattern.js';
 import type { BaseType, Cardinality, LookupTableTable, Mapping, MappingEntry, QtiValue } from '../runtime/types.js';
 import {
 	coerceBaseValue,
+	durationSeconds,
 	normalizeForCompare,
 	qtiInvalid,
 	qtiNull,
@@ -163,6 +164,11 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			}
 		}
 		if (baseType === 'string' && typeof v === 'string') return normalizeResponse(v, { language: env.language });
+		if (baseType === 'duration') {
+			// One duration, however written: `30`, `30.0` and `PT30S` are the same 30 seconds.
+			const seconds = durationSeconds(v);
+			if (seconds !== null) return String(seconds);
+		}
 		return normalizeForCompare(v);
 	};
 
@@ -714,23 +720,26 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			if (!pushed) return qtiNull(outBaseType, 'ordered');
 			return qtiValue(outBaseType, 'ordered', out);
 		}
-		case 'expr.durationLT': {
-			const a = evalExpr(env, expr.a);
-			const b = evalExpr(env, expr.b);
-			if (a.kind === 'invalid' || b.kind === 'invalid') return qtiInvalid('durationLT invalid');
-			if (a.kind === 'null' || b.kind === 'null') return qtiNull('boolean', 'single');
-			if (a.kind !== 'value' || b.kind !== 'value') return qtiInvalid('durationLT expects values');
-			if (a.baseType !== 'duration' || b.baseType !== 'duration') return qtiInvalid('durationLT expects duration operands');
-			return qtiValue('boolean', 'single', Number(a.value) < Number(b.value));
-		}
+		case 'expr.durationLT':
 		case 'expr.durationGTE': {
+			// QTI 2.2/3.0: both operands are single durations, in seconds; NULL operands give NULL.
+			// Both go through the runtime's duration reading, so `PT2S` and `2` compare as one value,
+			// and a malformed duration is invalid rather than a NaN comparison that reads as false.
+			const name = expr.kind === 'expr.durationLT' ? 'durationLT' : 'durationGTE';
 			const a = evalExpr(env, expr.a);
 			const b = evalExpr(env, expr.b);
-			if (a.kind === 'invalid' || b.kind === 'invalid') return qtiInvalid('durationGTE invalid');
+			if (a.kind === 'invalid' || b.kind === 'invalid') return qtiInvalid(`${name} invalid`, 'boolean', 'single');
 			if (a.kind === 'null' || b.kind === 'null') return qtiNull('boolean', 'single');
-			if (a.kind !== 'value' || b.kind !== 'value') return qtiInvalid('durationGTE expects values');
-			if (a.baseType !== 'duration' || b.baseType !== 'duration') return qtiInvalid('durationGTE expects duration operands');
-			return qtiValue('boolean', 'single', Number(a.value) >= Number(b.value));
+			if (a.baseType !== 'duration' || b.baseType !== 'duration') {
+				return qtiInvalid(`${name} expects duration operands`, 'boolean', 'single');
+			}
+			if (a.cardinality !== 'single' || b.cardinality !== 'single') {
+				return qtiInvalid(`${name} expects single cardinality`, 'boolean', 'single');
+			}
+			const x = durationSeconds(a.value);
+			const y = durationSeconds(b.value);
+			if (x === null || y === null) return qtiInvalid(`${name} operand is not a valid duration`, 'boolean', 'single');
+			return qtiValue('boolean', 'single', expr.kind === 'expr.durationLT' ? x < y : x >= y);
 		}
 		case 'expr.inside': {
 			const value = evalExpr(env, expr.value);
