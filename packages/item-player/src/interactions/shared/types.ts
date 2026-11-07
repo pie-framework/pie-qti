@@ -174,6 +174,8 @@ export interface SliderInteractionData extends BaseInteractionData<'sliderIntera
 	lowerBound: number;
 	upperBound: number;
 	step: number;
+	/** Authored `stepLabel` attribute: render a label at each step interval. */
+	stepLabel?: boolean;
 	orientation: string;
 	reverse: boolean;
 	prompt: HtmlContent | null;
