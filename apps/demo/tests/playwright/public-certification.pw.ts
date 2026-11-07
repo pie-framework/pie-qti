@@ -7,7 +7,7 @@ async function selectAssessmentSample(page: Page, sampleId: string) {
 }
 
 async function openSection(page: Page, sectionTitle: string) {
-	const sectionsButton = page.locator('button.btn:has(svg path[d*="M4 6h16M4 12h16M4 18h16"])').first();
+	const sectionsButton = page.locator('button.section-menu-toggle').first();
 	await expect(sectionsButton).toBeVisible({ timeout: 10000 });
 	await sectionsButton.click();
 	const sectionButton = page.locator(`button.section-item:has-text("${sectionTitle}")`).first();
