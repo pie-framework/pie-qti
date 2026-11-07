@@ -18,6 +18,7 @@ export type A11yFixtureId =
 	| 'section-rubric-display'
 	| 'assessment-timer'
 	| 'assessment-shell'
+	| 'assessment-dialog'
 	| 'pnp-catalog-stimulus';
 
 export interface A11yFixture {
@@ -45,6 +46,7 @@ export const A11Y_FIXTURES: A11yFixture[] = [
 	{ id: 'section-rubric-display', title: 'RubricDisplay (section-player)' },
 	{ id: 'assessment-timer', title: 'AssessmentTimer (assessment-player)' },
 	{ id: 'assessment-shell', title: 'AssessmentShell (assessment-player)' },
+	{ id: 'assessment-dialog', title: 'AssessmentDialog (assessment-player)' },
 	{ id: 'pnp-catalog-stimulus', title: 'PNP catalog and shared stimulus runtime' },
 ];
 

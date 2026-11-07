@@ -449,6 +449,10 @@ export interface QtiAssessmentPlayerElement extends HTMLElement {
 	itemBaseUrl?: string;
 	items?: QtiItemMap;
 	itemFetchPolicy?: QtiItemFetchPolicy;
+	/** Fill the viewport (`100dvh`, safe-area aware) instead of the element's box. Reflects `full-viewport`. */
+	fullViewport: boolean;
+	/** Heading level (1–6) of the assessment title; passage and item titles follow one below. Reflects `heading-level`. */
+	headingLevel?: number;
 	next(): Promise<void>;
 	previous(): Promise<void>;
 	navigateTo(index: number): Promise<void>;
@@ -530,6 +534,8 @@ export interface QtiSharedHtmlBlock {
 	source?: string;
 	view?: string[];
 	tools?: QtiSectionToolConfig[];
+	/** The passage or stimulus title; untitled passages get a neutral localized heading. */
+	title?: string;
 	rawHtml?: string;
 	/** The block's content language, from its `xml:lang`; sets its `lang` and its read-aloud voice. */
 	language?: string;
@@ -625,6 +631,8 @@ export interface QtiSectionPlayerElement extends HTMLElement {
 	pci?: QtiPciConfiguration;
 	i18n?: QtiI18nProvider;
 	typeset?: (root: HTMLElement) => void | Promise<void>;
+	/** Heading level (1–6) of the passage and item titles. Default 3. Reflects `heading-level`. */
+	headingLevel?: number;
 	addEventListener<K extends keyof QtiSectionPlayerEventMap>(
 		type: K,
 		listener: (this: QtiSectionPlayerElement, event: QtiSectionPlayerEventMap[K]) => unknown,

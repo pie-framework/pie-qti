@@ -603,7 +603,8 @@ export async function parseAssessmentTestXml(
 
 	return {
 		identifier: getAttr(root, 'identifier') ?? 'assessment',
-		title: getAttr(root, 'title') ?? 'Assessment',
+		// Left empty when absent: shells show a localized generic title, not English text.
+		title: getAttr(root, 'title') ?? '',
 		navigationMode,
 		submissionMode,
 		testParts,

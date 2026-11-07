@@ -639,6 +639,16 @@ export default {
 		playerLabel: 'Reproductor de evaluación',
 		instructions: 'Instrucciones',
 		rubrics: 'Rúbricas',
+		skipToQuestion: 'Saltar a la pregunta',
+	},
+
+	// Section player chrome: passage/question panes and their headings.
+	sectionPlayer: {
+		passage: 'Pasaje',
+		passageNumbered: 'Pasaje {number}',
+		passages: 'Pasajes',
+		question: 'Pregunta',
+		passageAndQuestion: 'Pasaje y pregunta',
 	},
 
 	i18n: {

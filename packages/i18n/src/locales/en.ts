@@ -646,6 +646,16 @@ export default {
 		playerLabel: 'Assessment player',
 		instructions: 'Instructions',
 		rubrics: 'Rubrics',
+		skipToQuestion: 'Skip to question',
+	},
+
+	// Section player chrome: passage/question panes and their headings.
+	sectionPlayer: {
+		passage: 'Passage',
+		passageNumbered: 'Passage {number}',
+		passages: 'Passages',
+		question: 'Question',
+		passageAndQuestion: 'Passage and question',
 	},
 
 	i18n: {

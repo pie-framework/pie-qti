@@ -638,6 +638,16 @@ export default {
 		playerLabel: 'Lecteur d\'évaluation',
 		instructions: 'Consignes',
 		rubrics: 'Grilles d\'évaluation',
+		skipToQuestion: 'Passer à la question',
+	},
+
+	// Section player chrome: passage/question panes and their headings.
+	sectionPlayer: {
+		passage: 'Passage',
+		passageNumbered: 'Passage {number}',
+		passages: 'Passages',
+		question: 'Question',
+		passageAndQuestion: 'Passage et question',
 	},
 
 	i18n: {

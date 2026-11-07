@@ -646,6 +646,16 @@ export default {
 		playerLabel: '评估播放器',
 		instructions: '说明',
 		rubrics: '评分标准',
+		skipToQuestion: '跳到问题',
+	},
+
+	// Section player chrome: passage/question panes and their headings.
+	sectionPlayer: {
+		passage: '文章',
+		passageNumbered: '文章 {number}',
+		passages: '文章',
+		question: '问题',
+		passageAndQuestion: '文章和问题',
 	},
 
 	i18n: {

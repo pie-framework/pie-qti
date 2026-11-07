@@ -633,6 +633,16 @@ export default {
 		playerLabel: 'Toetsspeler',
 		instructions: 'Instructies',
 		rubrics: 'Beoordelingsrubrieken',
+		skipToQuestion: 'Naar vraag springen',
+	},
+
+	// Section player chrome: passage/question panes and their headings.
+	sectionPlayer: {
+		passage: 'Tekst',
+		passageNumbered: 'Tekst {number}',
+		passages: 'Teksten',
+		question: 'Vraag',
+		passageAndQuestion: 'Tekst en vraag',
 	},
 
 	i18n: {

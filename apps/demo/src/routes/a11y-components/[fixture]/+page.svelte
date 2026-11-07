@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { A11Y_FIXTURES, type A11yFixtureId } from '#lib/a11y/fixtures.js';
+	import AssessmentDialogFixture from '#lib/a11y/fixtures/AssessmentDialogFixture.svelte';
 	import AssessmentNavigationBarFixture from '#lib/a11y/fixtures/AssessmentNavigationBarFixture.svelte';
 	import AssessmentSectionMenuFixture from '#lib/a11y/fixtures/AssessmentSectionMenuFixture.svelte';
 	import AssessmentShellFixture from '#lib/a11y/fixtures/AssessmentShellFixture.svelte';
@@ -85,6 +86,8 @@
 				<AssessmentTimerFixture />
 			{:else if fixture === 'assessment-shell'}
 				<AssessmentShellFixture />
+			{:else if fixture === 'assessment-dialog'}
+				<AssessmentDialogFixture />
 			{:else if fixture === 'pnp-catalog-stimulus'}
 				<PnpCatalogStimulusFixture />
 			{:else}

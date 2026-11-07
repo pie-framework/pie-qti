@@ -634,6 +634,16 @@ export default {
 		playerLabel: 'เครื่องเล่นการประเมิน',
 		instructions: 'คำแนะนำ',
 		rubrics: 'เกณฑ์การให้คะแนน',
+		skipToQuestion: 'ข้ามไปยังคำถาม',
+	},
+
+	// Section player chrome: passage/question panes and their headings.
+	sectionPlayer: {
+		passage: 'ข้อความ',
+		passageNumbered: 'ข้อความ {number}',
+		passages: 'ข้อความ',
+		question: 'คำถาม',
+		passageAndQuestion: 'ข้อความและคำถาม',
 	},
 
 	i18n: {

@@ -69,6 +69,12 @@ export interface QtiSharedHtmlBlock {
   source?: string;
   view?: string[];
   tools?: QtiSectionToolConfig[];
+  /**
+   * The passage or stimulus title (for example a QTI 3 `qti-assessment-stimulus`
+   * `title`). Section layouts head the block with it; untitled passages get a
+   * neutral localized label.
+   */
+  title?: string;
   rawHtml?: string;
   /** The block's content language, from its `xml:lang`; sets its `lang` and its read-aloud voice. */
   language?: string;

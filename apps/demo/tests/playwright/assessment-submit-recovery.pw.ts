@@ -10,7 +10,15 @@ for (const width of [1280, 375]) {
 			const submit = page.getByTestId('assessment-submit');
 			await submit.click();
 			await expect(submit).toBeDisabled();
-			await expect(page.getByRole('alert')).toContainText('Your answers are still here');
+			// Raw backend text never reaches the candidate: an uncoded submission failure renders
+			// the localized submit-failure message (which reassures that answers were kept) and a
+			// support code. The fixture's backend messages ("Connection interrupted…", "Could not
+			// finish submission…") must not appear.
+			const alert = page.getByRole('alert');
+			await expect(alert).toContainText('Your answers could not be submitted. Your answers are still here.');
+			await expect(alert).toContainText(/Support code: E-[0-9A-F]+/);
+			await expect(alert).not.toContainText('Connection interrupted');
+			await expect(alert).not.toContainText('Could not finish submission');
 			await expect(answer).toBeChecked();
 			const retry = page.getByRole('button', { name: 'Try Again', exact: true });
 			await expect(retry).toBeFocused();

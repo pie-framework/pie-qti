@@ -21,6 +21,8 @@
 		security?: PlayerSecurityConfig;
 		host?: QtiSectionRuntimeHostContract;
 		typeset?: (root: HTMLElement) => void | Promise<void>;
+		/** Heading level of the passage titles, so they fit the page outline. Default 3. */
+		headingLevel?: number;
 	}
 
 	const {
@@ -32,9 +34,13 @@
 		security,
 		host,
 		typeset,
+		headingLevel = 3,
 	}: Props = $props();
 
-	let isCollapsed = $state(false);
+	const uid = $props.id();
+
+	/** Per-passage collapse state; passages without an entry follow the `collapsed` prop. */
+	let collapsedPassages = $state<Record<string, boolean>>({});
 	let passageScopeElements = $state<Record<string, HTMLElement>>({});
 
 	const isVisibleForRole = (block: QtiSharedHtmlBlock) => isQtiViewVisibleForRole(block.view, role);
@@ -53,13 +59,32 @@
 	);
 	const visibleInstructions = $derived(visibleRubricBlocks.filter((block) => block.kind === 'instructions'));
 	const visibleRubrics = $derived(visibleRubricBlocks.filter((block) => block.kind !== 'instructions'));
+	const headingTag = $derived(`h${Math.min(6, Math.max(1, Math.round(headingLevel)))}`);
 
 	$effect(() => {
-		isCollapsed = collapsed;
+		// A new default from the host applies to every passage again.
+		void collapsed;
+		collapsedPassages = {};
 	});
 
-	function toggleCollapse() {
-		isCollapsed = !isCollapsed;
+	function isPassageCollapsed(identifier: string): boolean {
+		return collapsedPassages[identifier] ?? collapsed;
+	}
+
+	function toggleCollapse(identifier: string) {
+		collapsedPassages = { ...collapsedPassages, [identifier]: !isPassageCollapsed(identifier) };
+	}
+
+	/** The authored title, or a neutral label ("Passage", "Passage 2") — never an identifier. */
+	function passageTitle(passage: QtiSharedHtmlBlock, index: number): string {
+		const authored = passage.title?.trim();
+		if (authored) return authored;
+		if (visiblePassages.length > 1) {
+			return (
+				i18n?.t('sectionPlayer.passageNumbered', 'Passage {number}', { number: index + 1 }) ?? `Passage ${index + 1}`
+			);
+		}
+		return i18n?.t('sectionPlayer.passage', 'Passage') ?? 'Passage';
 	}
 
 	function passageScope(node: HTMLElement, identifier: string) {
@@ -81,13 +106,15 @@
 {#if visiblePassages.length > 0 || visibleRubricBlocks.length > 0}
 	<div class="rubric-container">
 		{#if visiblePassages.length > 0}
-			<section class="passage-section" aria-label={i18n?.t('assessment.readingPassages') ?? 'Reading passages'}>
+			<section class="passage-section" aria-label={i18n?.t('sectionPlayer.passages', 'Passages') ?? 'Passages'}>
 				{#each visiblePassages as passage, index (passage.identifier)}
-					<article class="passage" aria-labelledby={`passage-heading-${index}`}>
+					{@const headingId = `${uid}-passage-${index}`}
+					{@const passageCollapsed = isPassageCollapsed(passage.identifier)}
+					<article class="passage" aria-labelledby={headingId}>
 						<div class="passage-header">
-							<h4 id={`passage-heading-${index}`} class="font-semibold text-base">
-								{i18n?.t('assessment.readingPassage') ?? 'Reading Passage'}
-							</h4>
+							<svelte:element this={headingTag} id={headingId} class="passage-title">
+								{passageTitle(passage, index)}
+							</svelte:element>
 							<div class="passage-header-actions">
 								<QtiToolButtonBar
 									tools={passage.tools}
@@ -101,25 +128,29 @@
 								/>
 								<button
 									type="button"
-									class="btn btn-ghost btn-sm passage-toggle"
-									onclick={toggleCollapse}
-									aria-expanded={!isCollapsed}
-									aria-label={isCollapsed ? (i18n?.t('assessment.expandPassage') ?? 'Expand passage') : (i18n?.t('assessment.collapsePassage') ?? 'Collapse passage')}
+									class="passage-toggle"
+									onclick={() => toggleCollapse(passage.identifier)}
+									aria-expanded={!passageCollapsed}
+									aria-label={passageCollapsed ? (i18n?.t('assessment.expandPassage') ?? 'Expand passage') : (i18n?.t('assessment.collapsePassage') ?? 'Collapse passage')}
 								>
-									{#if isCollapsed}
-										<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-										</svg>
-									{:else}
-										<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-										</svg>
-									{/if}
+									<svg
+										class="passage-toggle-icon"
+										class:collapsed={passageCollapsed}
+										xmlns="http://www.w3.org/2000/svg"
+										width="20"
+										height="20"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
+										aria-hidden="true"
+									>
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+									</svg>
 								</button>
 							</div>
 						</div>
 
-						{#if !isCollapsed}
+						{#if !passageCollapsed}
 							<div use:passageScope={passage.identifier}>
 								<SanitizedHtml
 									rawHtml={readablePassages.get(passage.identifier)?.html ?? passage.rawHtml}
@@ -128,7 +159,7 @@
 									{host}
 									sanitizeContext={{ kind: 'passage', source: passage.source }}
 									language={passage.language}
-									class="passage-content prose max-w-none"
+									class="passage-content pie-qti-content"
 									{typeset}
 								/>
 							</div>
@@ -141,8 +172,17 @@
 		{#if visibleInstructions.length > 0}
 			<section class="instructions-section" aria-label={i18n?.t('assessment.instructions') ?? 'Instructions'}>
 				{#each visibleInstructions as instruction (instruction.identifier)}
-					<div class="alert alert-info">
-						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6" aria-hidden="true">
+					<div class="instructions-block">
+						<svg
+							class="instructions-icon"
+							xmlns="http://www.w3.org/2000/svg"
+							width="24"
+							height="24"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							aria-hidden="true"
+						>
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
 						</svg>
 						<SanitizedHtml
@@ -152,7 +192,7 @@
 							{host}
 							sanitizeContext={{ kind: 'instructions', source: instruction.source }}
 							language={instruction.language}
-							class="instructions-content"
+							class="instructions-content pie-qti-content"
 							{typeset}
 						/>
 					</div>
@@ -170,7 +210,7 @@
 						{host}
 						sanitizeContext={{ kind: sanitizeKind(rubric), source: rubric.source }}
 						language={rubric.language}
-						class="rubric-block"
+						class="rubric-block pie-qti-content"
 						{typeset}
 					/>
 				{/each}
@@ -181,73 +221,160 @@
 
 <style>
 	.rubric-container {
-		margin-bottom: 2rem;
+		margin-block-end: var(--pie-qti-space-5, 1.5rem);
 	}
 
-	.passage-section {
-		margin-bottom: 1.5rem;
+	.passage-section,
+	.instructions-section,
+	.rubric-section {
+		margin-block-end: var(--pie-qti-space-4, 1rem);
 	}
 
 	.passage {
-		border: 1px solid var(--color-base-300);
-		border-radius: 0.5rem;
-		padding: 1rem;
-		background: var(--color-base-200);
+		box-sizing: border-box;
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		border-radius: var(--pie-qti-radius, 0.5rem);
+		padding: var(--pie-qti-space-4, 1rem);
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
+	}
+
+	.passage + .passage {
+		margin-block-start: var(--pie-qti-space-4, 1rem);
 	}
 
 	.passage-header {
 		display: flex;
+		flex-wrap: wrap;
 		justify-content: space-between;
 		align-items: center;
-		gap: 1rem;
-		margin-bottom: 0.5rem;
+		gap: var(--pie-qti-space-2, 0.5rem) var(--pie-qti-space-4, 1rem);
+		margin-block-end: var(--pie-qti-space-2, 0.5rem);
+	}
+
+	.passage-title {
+		margin: 0;
+		font-size: 1em;
+		font-weight: 600;
+		line-height: 1.3;
+		overflow-wrap: anywhere;
 	}
 
 	.passage-header-actions {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--pie-qti-space-2, 0.5rem);
+		margin-inline-start: auto;
 	}
 
 	.passage-toggle {
-		min-width: 44px;
-		min-height: 44px;
+		box-sizing: border-box;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-inline-size: var(--pie-qti-control-min-size, 2.75rem);
+		min-block-size: var(--pie-qti-control-min-size, 2.75rem);
+		padding: var(--pie-qti-space-2, 0.5rem);
+		border: 1px solid var(--pie-qti-border-strong, #767676);
+		border-radius: var(--pie-qti-radius-sm, 0.25rem);
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+		font: inherit;
+		cursor: pointer;
+	}
+
+	.passage-toggle:hover {
+		background: var(--pie-qti-base-300, oklch(95% 0 0));
 	}
 
 	.passage-toggle:focus-visible {
-		outline: 2px solid var(--color-primary);
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
 	}
 
-	:global(.passage-content) {
-		padding: 1rem 0;
+	.passage-toggle-icon {
+		inline-size: 1.25rem;
+		block-size: 1.25rem;
+		flex: none;
+	}
+
+	.passage-toggle-icon.collapsed {
+		transform: rotate(180deg);
+	}
+
+	.passage :global(.passage-content) {
+		padding-block: var(--pie-qti-space-2, 0.5rem) 0;
 		line-height: 1.6;
 	}
 
-	.instructions-section {
-		margin-bottom: 1.5rem;
+	.passage :global(.passage-content > :first-child) {
+		margin-block-start: 0;
 	}
 
-	:global(.instructions-content) {
+	.passage :global(.passage-content p) {
+		margin-block: 0 1em;
+	}
+
+	.passage :global(.passage-content p:last-child) {
+		margin-block-end: 0;
+	}
+
+	.instructions-block {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--pie-qti-space-3, 0.75rem);
+		padding: var(--pie-qti-space-4, 1rem);
+		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		border-inline-start: 4px solid var(--pie-qti-info-text, #1d4ed8);
+		border-radius: var(--pie-qti-radius, 0.5rem);
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
+	}
+
+	.instructions-block + .instructions-block {
+		margin-block-start: var(--pie-qti-space-3, 0.75rem);
+	}
+
+	.instructions-icon {
+		flex: none;
+		inline-size: 1.5rem;
+		block-size: 1.5rem;
+		color: var(--pie-qti-info-text, #1d4ed8);
+	}
+
+	.instructions-block :global(.instructions-content) {
+		flex: 1 1 auto;
+		min-inline-size: 0;
 		line-height: 1.6;
 	}
 
-	.rubric-section {
-		margin-bottom: 1.5rem;
+	.instructions-block :global(.instructions-content > :first-child) {
+		margin-block-start: 0;
 	}
 
-	:global(.rubric-block) {
-		padding: 1rem;
-		background: var(--color-base-200);
-		border-radius: 0.5rem;
-		margin-bottom: 1rem;
+	.instructions-block :global(.instructions-content > :last-child) {
+		margin-block-end: 0;
 	}
 
-	:global(.passage-content p) {
-		margin-bottom: 1rem;
+	.rubric-section :global(.rubric-block) {
+		padding: var(--pie-qti-space-4, 1rem);
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
+		border-radius: var(--pie-qti-radius, 0.5rem);
+		margin-block-end: var(--pie-qti-space-4, 1rem);
 	}
 
-	:global(.passage-content p:last-child) {
-		margin-bottom: 0;
+	.rubric-section :global(.rubric-block > :first-child) {
+		margin-block-start: 0;
+	}
+
+	.rubric-section :global(.rubric-block > :last-child) {
+		margin-block-end: 0;
+	}
+
+	/* Phones: one slim gutter instead of nested ones. */
+	@media (max-width: 40rem) {
+		.passage,
+		.instructions-block,
+		.rubric-section :global(.rubric-block) {
+			padding: var(--pie-qti-space-3, 0.75rem);
+		}
 	}
 </style>
