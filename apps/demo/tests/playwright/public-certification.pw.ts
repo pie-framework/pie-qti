@@ -51,7 +51,8 @@ test.describe('public QTI certification browser coverage', () => {
 		await expect(page.locator('svg').first()).toBeVisible({ timeout: 10000 });
 
 		await page.locator('#sample-select').selectOption('math-inline');
-		await expect(page.locator('.katex').first()).toBeVisible({ timeout: 10000 });
+		// Authored (m:-prefixed) MathML renders natively; the KaTeX adapter only typesets LaTeX.
+		await expect(page.locator('math').first()).toBeVisible({ timeout: 10000 });
 	});
 
 	test('renders QTI 2 and QTI 3 choice prompts through the item player', async ({ page }) => {
