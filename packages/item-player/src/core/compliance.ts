@@ -118,7 +118,7 @@ export function collectItemDiagnostics(input: CollectItemDiagnosticsInput): QtiI
 						}
 					: {
 							code: 'missing-response-identifier',
-							message: `${tag} has no responseIdentifier, so it is neither rendered nor scored.`,
+							message: `${tag} has no ${responseIdentifierAttribute(unextractable.element)}, so it is neither rendered nor scored.`,
 							element: unextractable.element,
 						},
 			);
@@ -214,8 +214,12 @@ function responseBindings(
 
 function describeTag(element: string, responseIdentifier?: string): string {
 	if (!responseIdentifier) return `<${element}>`;
-	const attribute = element.startsWith('qti-') ? 'response-identifier' : 'responseIdentifier';
-	return `<${element} ${attribute}="${responseIdentifier}">`;
+	return `<${element} ${responseIdentifierAttribute(element)}="${responseIdentifier}">`;
+}
+
+/** The response binding attribute as the element's QTI version spells it. */
+function responseIdentifierAttribute(element: string): string {
+	return element.startsWith('qti-') ? 'response-identifier' : 'responseIdentifier';
 }
 
 function withoutUndefined<T extends object>(value: T): T {
