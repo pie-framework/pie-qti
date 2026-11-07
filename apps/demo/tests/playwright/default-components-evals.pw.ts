@@ -124,6 +124,27 @@ async function dispatchQtiChange(page: Page, tagName: string, responseId: string
 	);
 }
 
+/**
+ * A deterministic wrong ordering for a "wrong" ordering eval: the first rotation of the
+ * presentation order (by one, then two, ...) that is not the order the eval forbids.
+ *
+ * The presentation order is not the authored order when the interaction shuffles
+ * (`shuffle="true"` seeds a new permutation per item session), so a fixed rotation by one
+ * lands on the correct order whenever the shuffle happens to put the last item first:
+ * 1 in 24 runs for four choices. Rotations of distinct ids are all distinct, so at most one
+ * of them is forbidden.
+ */
+function wrongOrder(presentation: string[], forbidden: unknown): string[] {
+	const isForbidden = (order: string[]) =>
+		Array.isArray(forbidden) &&
+		forbidden.length === order.length &&
+		order.every((id, index) => id === String(forbidden[index]));
+	const rotations = presentation.map((_, shift) => [...presentation.slice(shift), ...presentation.slice(0, shift)]);
+	// Rotation by 0 (the presentation order itself) is the last resort.
+	const candidates = [...rotations.slice(1), rotations[0]];
+	return candidates.find((order) => !isForbidden(order)) ?? candidates[0];
+}
+
 async function placeGraphicGapMatchPair(page: Page, pair: string) {
 	// pair looks like "MERCURY A" (gapTextId hotspotId)
 	const [gapId, hotspotId] = pair.split(' ');
@@ -401,9 +422,7 @@ async function runStep(page: Page, file: EvalFile, step: EvalStep): Promise<{ su
 				: Array.isArray(interaction?.hotspotChoices) ? interaction.hotspotChoices.map((c: any) => c.identifier)
 				: [];
 			if (ids.length === 0) throw new Error('dragReorder could not derive a default ordering from interaction data');
-			// Rotate by 1 to avoid accidentally hitting the correct ordering (reverse can be correct in some samples).
-			const rotated = ids.length > 1 ? [...ids.slice(1), ids[0]] : ids;
-			await dispatchQtiChange(page, tagName, 'RESPONSE', rotated);
+			await dispatchQtiChange(page, tagName, 'RESPONSE', wrongOrder(ids, resp?.notEqualsOrdered));
 			return {};
 		}
 		case 'matchPairs': {

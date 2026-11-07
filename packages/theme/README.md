@@ -58,7 +58,10 @@ Rules of thumb:
 
 The guarantees cover the default palettes in `tokens.css` and are enforced by
 `tests/theme-contrast.test.ts`. Hosts that override colour tokens own the
-contrast of their overrides.
+contrast of their overrides. The DaisyUI bridge derives `--pie-qti-focus` and
+the `*-content` tokens so that they keep these guarantees in every stock
+DaisyUI theme (text on fills in engines with relative colour syntax); see its
+[contrast guarantees](../theme-daisyui/README.md#contrast-guarantees).
 
 ### Default values and measured contrast
 
@@ -118,7 +121,10 @@ Candidate PNP text appearance (font size, font family, line height) also
 updates `--pie-qti-font-size-base`, `--pie-qti-font-family`, and
 `--pie-qti-line-height`, so chrome sized from these tokens keeps the
 candidate's preferences. PNP colour schemes redraw the message/state text,
-border, and focus tokens in the scheme's two colours.
+border, and focus tokens in the scheme's two colours. A candidate's own text or
+background colour redraws them in the text colour (the candidate's, or the
+theme's when only a background is set), and the background colour also covers
+`--pie-qti-base-200` surfaces, so they keep the contrast the candidate chose.
 
 ### Dark theme and var() references
 

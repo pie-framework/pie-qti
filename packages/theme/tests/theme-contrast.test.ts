@@ -6,6 +6,7 @@ import {
 	type CssVariables,
 	computeCustomProperties,
 	contrastRatio,
+	evaluateCssMath,
 	parseCssColor,
 	parseCustomPropertyBlocks,
 	toHex,
@@ -80,6 +81,52 @@ describe('WCAG contrast helper', () => {
 		expect(toHex(parseCssColor('light-dark(#ffffff, #000000)', 'dark'))).toBe('#000000');
 		expect(() => parseCssColor('oklch(50% 0.1 120 / 0.5)')).toThrow();
 		expect(() => parseCssColor('#00000080')).toThrow();
+	});
+
+	test('mixes in oklab like color-mix()', () => {
+		// Equal parts black and white in oklab: L = 0.5, a grey of luminance 0.125.
+		expect(toHex(parseCssColor('color-mix(in oklab, black, white)'))).toBe(toHex(parseCssColor('oklch(50% 0 0)')));
+		expect(toHex(parseCssColor('color-mix(in oklab, #ff0000 100%, #0000ff)'))).toBe('#ff0000');
+		expect(toHex(parseCssColor('color-mix(in oklab, #ff0000 25%, #0000ff 75%)'))).toBe(
+			toHex(parseCssColor('color-mix(in oklab, #0000ff 75%, #ff0000)')),
+		);
+		expect(() => parseCssColor('color-mix(in oklab, red 20%, blue 30%)')).toThrow();
+	});
+
+	test('evaluates relative colour syntax over srgb-linear', () => {
+		expect(toHex(parseCssColor('color(from #146eb3 srgb-linear r g b)'))).toBe('#146eb3');
+		expect(toHex(parseCssColor('color(from #808080 srgb-linear calc(r * 0) clamp(0, g, 0) min(b, 0) / 1)'))).toBe('#000000');
+		expect(toHex(parseCssColor('color(from #000000 srgb-linear calc(r + 1) max(g, 1) calc((1 - b) / 1) / alpha)'))).toBe(
+			'#ffffff',
+		);
+		// Out-of-gamut channels stay unclipped until the colour is displayed.
+		expect(toHex(parseCssColor('color(from oklch(70% 0.4 330) srgb-linear calc(r * 1) g b)'))).toBe(
+			toHex(parseCssColor('oklch(70% 0.4 330)')),
+		);
+		expect(() => parseCssColor('color(from #ffffff srgb-linear r g b / 0.5)')).toThrow();
+		expect(() => parseCssColor('color(from #ffffff srgb r g b)')).toThrow();
+	});
+
+	test('evaluates CSS math with keywords', () => {
+		expect(evaluateCssMath('calc(1 + 2 * 3)')).toBe(7);
+		expect(evaluateCssMath('clamp(0, (0.5 - r) * 1000000, 1)', { r: 0.2 })).toBe(1);
+		expect(evaluateCssMath('clamp(0, (0.5 - r) * 1000000, 1)', { r: 0.7 })).toBe(0);
+		expect(evaluateCssMath('min(1, 0.5 / max(0.0001, g)) - -1', { g: 0.25 })).toBe(2);
+		expect(() => evaluateCssMath('calc(1 + q)')).toThrow();
+		expect(() => evaluateCssMath('round(1)')).toThrow();
+	});
+
+	test('parses custom properties nested in @supports', () => {
+		const blocks = parseCustomPropertyBlocks(`
+			:root { --a: red; color: blue; }
+			@supports (color: color-mix(in oklab, red, blue)) {
+				:root, [data-x] { --a: blue; }
+			}
+		`);
+		expect(blocks).toEqual([
+			{ selectors: [':root'], declarations: { '--a': 'red' }, supports: null },
+			{ selectors: [':root', '[data-x]'], declarations: { '--a': 'blue' }, supports: '(color: color-mix(in oklab, red, blue))' },
+		]);
 	});
 });
 
