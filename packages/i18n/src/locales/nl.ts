@@ -569,6 +569,47 @@ export default {
 			jumpTo: 'Ga naar vraag {number}',
 			sectionMenu: 'Sectiemenu',
 			progress: 'Voortgang: {percent}%',
+			answeredCount: '{answered} van {total} beantwoord',
+		},
+
+		flag: {
+			label: 'Markeren voor revisie',
+			flaggedAnnouncement: 'Vraag {number} gemarkeerd voor revisie.',
+			unflaggedAnnouncement: 'Markering van vraag {number} verwijderd.',
+		},
+
+		review: {
+			title: 'Bekijk je antwoorden',
+			open: 'Vragen herzien',
+			backToQuestion: 'Terug naar de vraag',
+			flagged: 'Gemarkeerd',
+			flaggedCount: '{count} gemarkeerd voor revisie',
+			questionsGroup: 'Vragen',
+			linearNote: 'In dit onderdeel kun je alleen vooruit, dus deze vragen staan alleen ter herziening op een rij.',
+			goToItem: 'Ga naar vraag {number}',
+			currentItem: 'Huidige vraag',
+			statusAnswered: 'Beantwoord',
+			statusPartially: 'Deels beantwoord',
+			statusUnanswered: 'Niet beantwoord',
+			notVisited: 'Nog niet bezocht',
+		},
+
+		submit: {
+			dialogTitle: 'Je toets inleveren?',
+			dialogDescription: 'Je kunt je antwoorden na het inleveren niet meer wijzigen.',
+			flaggedLine: '{count} vragen gemarkeerd voor revisie',
+			unansweredHeading: '{count} vragen niet beantwoord',
+			unansweredHeadingOne: '1 vraag niet beantwoord',
+			allAnswered: 'Je hebt alle vragen beantwoord.',
+			confirm: 'Toets inleveren',
+			cancel: 'Verder werken',
+		},
+
+		leavePart: {
+			title: 'Dit onderdeel verlaten?',
+			description: 'Als je doorgaat, kun je niet terug naar de vragen in dit onderdeel.',
+			confirm: 'Doorgaan',
+			cancel: 'In dit onderdeel blijven',
 		},
 
 		sections: {

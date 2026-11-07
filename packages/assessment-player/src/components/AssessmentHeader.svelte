@@ -6,6 +6,13 @@
 		id: string;
 		title?: string;
 		index: number;
+		/** Whether jumping to this section is legal right now. */
+		navigable?: boolean;
+		/** Items with a response (answered or partially answered). */
+		answered?: number;
+		/** All delivered items in the section. */
+		total?: number;
+		isCurrent?: boolean;
 	}
 
 	interface Props {
@@ -42,6 +49,20 @@
 	}: Props = $props();
 
 	const headingTag = $derived(`h${Math.min(6, Math.max(1, Math.round(headingLevel)))}`);
+
+	// The menu receives every candidate-visible section with its live status; it enables
+	// only legal targets itself and lets disabled entries explain the rest.
+	const menuSections = $derived(
+		sections.map((section) => ({
+			id: section.id,
+			title: section.title,
+			index: section.index,
+			navigable: section.navigable ?? true,
+			answered: section.answered ?? 0,
+			total: section.total ?? 0,
+			isCurrent: currentSectionIndex !== undefined ? section.index === currentSectionIndex : (section.isCurrent ?? false),
+		})),
+	);
 </script>
 
 <header class="assessment-header">
@@ -51,8 +72,7 @@
 
 	{#if showSections && sections.length > 1}
 		<SectionMenu
-			{sections}
-			{currentSectionIndex}
+			sections={menuSections}
 			{i18n}
 			{onSectionSelect}
 			disabled={!allowSectionNavigation}
@@ -85,82 +105,6 @@
 		font-weight: 700;
 		line-height: 1.3;
 		overflow-wrap: anywhere;
-	}
-
-	/*
-	 * Interim: SectionMenu still carries DaisyUI/Tailwind classes and colour variables
-	 * and is restyled in its own later change. Until then the header keeps it usable,
-	 * sized and on the theme tokens without host CSS.
-	 */
-	.assessment-header :global(.section-menu > button) {
-		box-sizing: border-box;
-		display: inline-flex;
-		align-items: center;
-		gap: var(--pie-qti-space-2, 0.5rem);
-		min-inline-size: var(--pie-qti-control-min-size, 2.75rem);
-		min-block-size: var(--pie-qti-control-min-size, 2.75rem);
-		padding-block: var(--pie-qti-space-2, 0.5rem);
-		padding-inline: var(--pie-qti-space-3, 0.75rem);
-		border: 1px solid var(--pie-qti-border-strong, #767676);
-		border-radius: var(--pie-qti-radius, 0.5rem);
-		background: var(--pie-qti-base-100, oklch(100% 0 0));
-		color: var(--pie-qti-base-content, oklch(21% 0 0));
-		font: inherit;
-		font-weight: 600;
-		line-height: 1.25;
-		cursor: pointer;
-	}
-
-	.assessment-header :global(.section-menu > button:hover:not(:disabled)) {
-		background: var(--pie-qti-base-200, oklch(98% 0 0));
-	}
-
-	.assessment-header :global(.section-menu > button:disabled) {
-		cursor: not-allowed;
-		opacity: 0.55;
-	}
-
-	.assessment-header :global(.section-menu svg) {
-		flex: none;
-		inline-size: 1.25rem;
-		block-size: 1.25rem;
-	}
-
-	.assessment-header :global(.section-menu .section-dropdown-content) {
-		border: 1px solid var(--pie-qti-border-strong, #767676);
-		background: var(--pie-qti-base-100, oklch(100% 0 0));
-		color: var(--pie-qti-base-content, oklch(21% 0 0));
-	}
-
-	.assessment-header :global(.section-menu .section-item) {
-		min-block-size: var(--pie-qti-control-min-size, 2.75rem);
-		color: inherit;
-		font: inherit;
-	}
-
-	.assessment-header :global(.section-menu .section-item:hover:not(:disabled)) {
-		background: var(--pie-qti-base-200, oklch(98% 0 0));
-	}
-
-	.assessment-header :global(.section-menu .section-item.active) {
-		background: color-mix(in oklab, var(--pie-qti-primary, oklch(45% 0.24 277)) 12%, var(--pie-qti-base-100, oklch(100% 0 0)));
-		color: var(--pie-qti-base-content, oklch(21% 0 0));
-		font-weight: 700;
-	}
-
-	.assessment-header :global(.section-menu .section-icon) {
-		color: inherit;
-	}
-
-	.assessment-header :global(.section-menu > button:focus-visible) {
-		outline: 2px solid var(--pie-qti-focus, #4338ca);
-		outline-offset: 2px;
-	}
-
-	/* Inset: the menu list scrolls and would clip an outer ring. */
-	.assessment-header :global(.section-menu .section-item:focus-visible) {
-		outline: 2px solid var(--pie-qti-focus, #4338ca);
-		outline-offset: -2px;
 	}
 
 	@media (max-width: 40rem) {

@@ -1,0 +1,15 @@
+---
+'@pie-qti/assessment-player': patch
+'@pie-qti/i18n': patch
+---
+
+Submit safety, review screen and flag-for-review in the candidate shell (WCAG 3.3.4):
+
+- **Submitting is confirmed, never accidental.** The final-submission control is styled and placed apart from the primary Next (outlined, error-toned, distinct icon) and opens a confirmation dialog that states the answered count ("8 of 12 answered"), names the flagged questions, lists every unanswered question with a jump link where the navigation rules allow (linear parts render status only), and requires an explicit confirm; cancel and Escape return focus to the Submit control. A failed submission closes the dialog and moves focus to the retry control so the alert is reachable.
+- **Leaving a test part warns "you cannot return".** QTI parts cannot be re-entered, so when the next step crosses the part boundary the shell first shows a clear confirmation (`AssessmentPlayer.getForwardTransitionInfo()` reports it).
+- **Candidate review screen and item palette.** The navigation bar gains a review view (also offered from the submit confirmation) listing all delivered items grouped by candidate-visible sections with answered / partially answered / unanswered, flagged and not-yet-visited as text plus an icon (never colour alone), `aria-current` on the live item, jump buttons wherever jumping is legal, a note explaining status-only listing in linear parts, and 320px reflow.
+- **Flag for review.** A per-item toggle with a visible label and `aria-pressed` in the navigation bar. Flag state lives in the session state (`AssessmentSessionState.itemFlags`), survives navigation and rides `getState()` snapshots for persistence. New player APIs: `setItemFlag` / `toggleItemFlag` / `isItemFlagged` / `getFlaggedItemIdentifiers` / `onFlagChange`.
+- **One definition of "answered".** New `core/reviewState.ts` helpers (`itemAnswerStatus`, `isAnsweredValue`, `interactionResponseIdentifiers`) decide answered / partially answered / unanswered from the responses — per interaction for composite items. `AssessmentPlayer.getItemAnswerStatus()`, `getAnsweredItemCount()` and `getReviewItems()` feed the review screen, section menu and confirmation; the answered count ("8 of 12 answered") is visible in the navigation bar and named by the progress bar.
+- **Section menu is a real disclosure.** `SectionMenu` drops the `role="menu"`/`menuitemradio` pattern for a button with `aria-expanded` plus a plain list of section buttons: per-section answered counts, only legal jump targets enabled, `aria-current` on the current section, Escape/outside-press close, and self-contained token styling (the interim styling hack is removed from `AssessmentHeader`).
+- **Navigation bar reflow.** Below a 30rem container the position moves to its own row and Previous/Next/Review collapse to icons (names kept for assistive technology); the flag keeps its visible label at every width.
+- New localized strings (`assessment.review.*`, `assessment.submit.*`, `assessment.flag.*`, `assessment.leavePart.*`, `assessment.navigation.answeredCount`) in all 8 locales.

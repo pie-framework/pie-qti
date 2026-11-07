@@ -7,9 +7,14 @@ for (const width of [1280, 375]) {
 			await page.goto(`fixtures/assessment-submit?stage=${stage}`);
 			const answer = page.getByRole('radio', { name: 'Water', exact: true });
 			await answer.check();
+			// Submitting routes through the confirmation dialog (WCAG 3.3.4); the
+			// irreversible finalization only runs on its explicit confirm.
 			const submit = page.getByTestId('assessment-submit');
 			await submit.click();
-			await expect(submit).toBeDisabled();
+			const dialog = page.getByRole('dialog', { name: 'Submit your test?' });
+			await expect(dialog).toBeVisible();
+			await dialog.getByTestId('assessment-dialog-confirm').click();
+			await expect(dialog).toBeHidden();
 			// Raw backend text never reaches the candidate: an uncoded submission failure renders
 			// the localized submit-failure message (which reassures that answers were kept) and a
 			// support code. The fixture's backend messages ("Connection interrupted…", "Could not

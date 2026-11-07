@@ -574,6 +574,48 @@ export default {
 			jumpTo: 'Aller à la question {number}',
 			sectionMenu: 'Menu de section',
 			progress: 'Progression : {percent}%',
+			answeredCount: '{answered} sur {total} répondues',
+		},
+
+		flag: {
+			label: 'Marquer pour révision',
+			flaggedAnnouncement: 'Question {number} marquée pour révision.',
+			unflaggedAnnouncement: 'Marque retirée de la question {number}.',
+		},
+
+		review: {
+			title: 'Vérifiez vos réponses',
+			open: 'Revoir les questions',
+			backToQuestion: 'Retour à la question',
+			flagged: 'Marquée',
+			flaggedCount: '{count} marquées pour révision',
+			questionsGroup: 'Questions',
+			linearNote:
+				"Dans cette partie, vous ne pouvez qu'avancer ; ces questions sont donc listées pour révision uniquement.",
+			goToItem: 'Aller à la question {number}',
+			currentItem: 'Question actuelle',
+			statusAnswered: 'Répondue',
+			statusPartially: 'Partiellement répondue',
+			statusUnanswered: 'Non répondue',
+			notVisited: 'Pas encore visitée',
+		},
+
+		submit: {
+			dialogTitle: 'Soumettre votre test ?',
+			dialogDescription: 'Vous ne pourrez plus changer vos réponses après la soumission.',
+			flaggedLine: '{count} questions marquées pour révision',
+			unansweredHeading: '{count} questions sans réponse',
+			unansweredHeadingOne: '1 question sans réponse',
+			allAnswered: 'Vous avez répondu à toutes les questions.',
+			confirm: 'Soumettre le test',
+			cancel: 'Continuer à travailler',
+		},
+
+		leavePart: {
+			title: 'Quitter cette partie ?',
+			description: 'Après avoir continué, vous ne pourrez plus revenir aux questions de cette partie.',
+			confirm: 'Continuer',
+			cancel: 'Rester dans cette partie',
 		},
 
 		sections: {

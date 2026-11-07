@@ -744,16 +744,20 @@ test.describe('Assessment shell and section player without host CSS', () => {
 		expect(navBox!.y + navBox!.height).toBeLessThanOrEqual(shellBox!.y + shellBox!.height + 1);
 	});
 
-	test('phone (375px): one-row navigation, slim gutters and a Passage/Question tab switch', async ({ page }) => {
+	test('phone (375px): compact navigation, slim gutters and a Passage/Question tab switch', async ({ page }) => {
 		const frame = await renderShellWithoutHostCss(page, { width: 375, height: 700 });
 
 		const nav = frame.getByRole('navigation', { name: 'Assessment navigation' });
 		const navBox = (await nav.boundingBox())!;
 		const prevBox = (await frame.getByTestId('assessment-prev').boundingBox())!;
 		const nextBox = (await frame.getByTestId('assessment-next').boundingBox())!;
+		// Position on its own row above the controls; Previous/Next share the control row.
 		expect(Math.abs(prevBox.y - nextBox.y)).toBeLessThan(8);
-		expect(prevBox.x).toBeLessThan(nextBox.x);
-		expect(navBox.height).toBeLessThan(110);
+		expect(prevBox.y).toBeGreaterThan(navBox.y);
+		expect(navBox.height).toBeLessThan(150);
+		// The flag toggle keeps its visible label even here.
+		const flagBox = (await frame.getByTestId('assessment-flag').boundingBox())!;
+		expect(flagBox.height).toBeGreaterThanOrEqual(44);
 
 		const tabs = frame.getByRole('tab');
 		await expect(tabs).toHaveText(['Passage', 'Question']);

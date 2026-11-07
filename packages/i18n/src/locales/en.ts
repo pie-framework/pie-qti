@@ -582,6 +582,48 @@ export default {
 			jumpTo: 'Jump to question {number}',
 			sectionMenu: 'Section menu',
 			progress: 'Progress: {percent}%',
+			answeredCount: '{answered} of {total} answered',
+		},
+
+		flag: {
+			label: 'Flag for review',
+			flaggedAnnouncement: 'Question {number} flagged for review.',
+			unflaggedAnnouncement: 'Flag removed from question {number}.',
+		},
+
+		review: {
+			title: 'Review your answers',
+			open: 'Review questions',
+			backToQuestion: 'Back to question',
+			flagged: 'Flagged',
+			flaggedCount: '{count} flagged for review',
+			questionsGroup: 'Questions',
+			linearNote:
+				'In this part you can only move forward, so these questions are listed for review only.',
+			goToItem: 'Go to question {number}',
+			currentItem: 'Current question',
+			statusAnswered: 'Answered',
+			statusPartially: 'Partially answered',
+			statusUnanswered: 'Not answered',
+			notVisited: 'Not yet visited',
+		},
+
+		submit: {
+			dialogTitle: 'Submit your test?',
+			dialogDescription: 'You cannot change your answers after you submit.',
+			flaggedLine: '{count} questions are flagged for review',
+			unansweredHeading: '{count} questions are not answered',
+			unansweredHeadingOne: '1 question is not answered',
+			allAnswered: 'You have answered all the questions.',
+			confirm: 'Submit test',
+			cancel: 'Keep working',
+		},
+
+		leavePart: {
+			title: 'Leave this part?',
+			description: 'After you continue, you cannot return to the questions in this part.',
+			confirm: 'Continue',
+			cancel: 'Stay on this part',
 		},
 
 		sections: {
