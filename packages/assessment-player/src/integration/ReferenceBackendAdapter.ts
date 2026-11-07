@@ -74,6 +74,7 @@ import type {
 } from './api-contract.js';
 import {
 	addItemVariableDeclarations,
+	addScopeDurationDeclarations,
 	applyVariableMappings,
 	type DeliveredItem,
 	deliveredItems,
@@ -274,7 +275,10 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		const itemXml = current.item.itemXml;
 		const control = resolveItemSessionControl(current.testPart, current.sections, current.item);
 		const previousItemSession = session.state.itemSessionStates?.[request.itemIdentifier];
-		if (control.maxAttempts > 0 && (previousItemSession?.attemptCount ?? 0) >= control.maxAttempts) {
+		// A QTI endAttempt countAttempt=false submission (a hint request) runs response processing
+		// without consuming an attempt, so the attempt limit does not apply to it.
+		const countAttempt = request.countAttempt ?? true;
+		if (countAttempt && control.maxAttempts > 0 && (previousItemSession?.attemptCount ?? 0) >= control.maxAttempts) {
 			return {
 				success: false,
 				error: 'Maximum attempts reached',
@@ -295,16 +299,20 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			itemSession: request.itemSession,
 		});
 
-		// Store responses and result
+		// Store responses and result. An uncounted submission (countAttempt=false) persists the
+		// response but records no score, presented state, or attempt: response processing ran,
+		// and the candidate continues on the item.
 		session.state.itemResponses[request.itemIdentifier] = request.responses;
-		if (!session.state.itemScores) {
-			session.state.itemScores = {};
-		}
-		session.state.itemScores[request.itemIdentifier] = result;
-		if (testState) {
-			session.itemTestStates = { ...(session.itemTestStates ?? {}), [request.itemIdentifier]: testState };
-		} else if (session.itemTestStates) {
-			delete session.itemTestStates[request.itemIdentifier];
+		if (countAttempt) {
+			if (!session.state.itemScores) {
+				session.state.itemScores = {};
+			}
+			session.state.itemScores[request.itemIdentifier] = result;
+			if (testState) {
+				session.itemTestStates = { ...(session.itemTestStates ?? {}), [request.itemIdentifier]: testState };
+			} else if (session.itemTestStates) {
+				delete session.itemTestStates[request.itemIdentifier];
+			}
 		}
 		if (request.itemSession) {
 			session.state.itemSessions = {
@@ -319,10 +327,10 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			...(session.state.itemSessionStates ?? {}),
 			[request.itemIdentifier]: {
 				itemIdentifier: request.itemIdentifier,
-				attemptCount: (previousItemSession?.attemptCount ?? 0) + 1,
+				attemptCount: (previousItemSession?.attemptCount ?? 0) + (countAttempt ? 1 : 0),
 				isAnswered: this.hasAnyResponse(request.responses),
-				isSubmitted: true,
-				lastSubmissionTime: request.submittedAt,
+				isSubmitted: countAttempt ? true : (previousItemSession?.isSubmitted ?? false),
+				lastSubmissionTime: countAttempt ? request.submittedAt : previousItemSession?.lastSubmissionTime,
 			},
 		};
 
@@ -332,7 +340,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		}
 
 		// Add to visited items if not already there
-		if (!session.state.visitedItems.includes(request.itemIdentifier)) {
+		if (countAttempt && !session.state.visitedItems.includes(request.itemIdentifier)) {
 			session.state.visitedItems.push(request.itemIdentifier);
 		}
 
@@ -450,12 +458,16 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			return { outcomes: null };
 		}
 
-		try {
-			const testItems = this.buildTestItems(session);
-			const decls = addItemVariableDeclarations(
+	try {
+		const testItems = this.buildTestItems(session);
+		const decls = addScopeDurationDeclarations(
+			addItemVariableDeclarations(
 				testOutcomeDeclarations(assessment),
 				Object.fromEntries(testItems.map((item) => [item.identifier, item.variables])),
-			);
+			),
+			assessment,
+			session.state.timing,
+		);
 			const ctx = new DeclarationContext(decls);
 			const ops = new OperatorRegistry();
 

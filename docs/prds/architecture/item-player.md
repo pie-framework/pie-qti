@@ -30,6 +30,10 @@ When the player was designed, the default interactions were authored in Svelte 5
 
 The item XML, plugin set, security policy, and processing configuration are definition-lifetime inputs; responses, outcomes, attempts, duration, and lifecycle status are session-lifetime state. `createAssessmentItemDefinition()` snapshots the former, and `openSession()` creates the latter. An active item has exactly one live session. Assessment-player, section composition, and the item renderer all reach that same object rather than synchronizing mutable copies. `serialize()` returns a `SerializedItemSessionState` handoff value; restoration creates a new live session after validating the item identifier. Serialized state is never a second live authority.
 
+### Why the renderer submits only a session it owns
+
+Activating an `endAttemptInteraction` sets its boolean response, and the natural reflex is to end the attempt right there. In standalone delivery the player owns the session and does exactly that, with the interaction's `countAttempt`. In assessment delivery the session is injected from above: closing it locally would leave the assessment's later `endAttempt` dispatch throwing against a closed session and could fail the submission. The renderer therefore gates auto-submit on session ownership; the assessment player watches the same response on the normal response path and decides per QTI submission mode. The interaction itself stays dumb — a boolean response plus the `countAttempt` metadata its owner reads.
+
 ### Why web components as the rendering contract
 
 The browser adapter communicates with interaction UIs via three mechanisms: element creation by tag name, property assignment for presentation data, and the bubbling `qti-change` CustomEvent for response mutations. The event is translated into an `ItemSession.dispatch(...)` command; components do not own response state. This is intentionally the narrowest browser seam. Web components are the cross-framework rendering primitive, while `ItemSession` remains equally usable by a headless adapter.
@@ -89,6 +93,12 @@ Parsing limits (`ParsingLimitsConfig`) are opt-in rather than default because th
   rubrics.
 - **FR-9:** Presentation must apply stimulus injection, rubric filtering, feedback expansion, inline planning, and interaction placement before the final body sanitation and optional `TrustedHTML` creation. Policy-checked scoped stylesheet text must remain a separate `scopedCss` field.
 - **FR-10:** The package must not publish the private session engine. The root and DOM-free server entries expose definitions, sessions, and command/result contracts.
+- **FR-11:** Activating an `endAttemptInteraction` ends the attempt with its `countAttempt` (QTI 3.0
+  `count-attempt`): response processing always runs, while `numAttempts` increments and the session
+  closes only for a counted attempt. With `countAttempt=false` (a hint request) `numAttempts` is
+  unchanged and a non-adaptive session stays open — the candidate continues. The renderer
+  auto-submits only a session it owns (standalone delivery); an injected session is decided by its
+  owner and is never closed locally by a renderer.
 
 ---
 

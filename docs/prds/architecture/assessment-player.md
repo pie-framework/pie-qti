@@ -125,13 +125,16 @@ host decides when a draft is durable and whether client storage is appropriate.
 | `assessmentSection.selection` (direct children, with replacement) | Drawn by the backend at session start |
 | `assessmentSection.ordering` (shuffle, fixed, keepTogether) | Drawn by the backend at session start |
 | `outcomeDeclaration` / `outcomeProcessing` (test-level) | Parsed/executed by the reference adapter; production backend remains authoritative |
+| Built-in duration variables in test-level outcome processing | `duration` (test), `TESTPART_ID.duration`, `SECTION_ID.duration` declared from the persisted timing clocks, converted to QTI seconds |
 
 ### Known divergences from spec
 
 - **Modal feedback:** the assessment renders no item `modalFeedback`; `showFeedback` governs the
   integrated feedback only.
-- **Timing evidence (G-22):** scoped clocks and `minTime`/`maxTime` enforcement exist, but direct
-  integration coverage for every minimum-time scope and simultaneous expiry combination remains.
+- **Timing evidence (G-22):** scoped clocks and `minTime`/`maxTime` enforcement exist, and the
+  built-in `duration`, `TESTPART_ID.duration` and `SECTION_ID.duration` variables are exposed to
+  test-level outcome processing in seconds from the timing clocks. Direct integration coverage for
+  every minimum-time scope and simultaneous expiry combination remains.
 
 ---
 
@@ -170,6 +173,17 @@ host decides when a draft is durable and whether client storage is appropriate.
   transport, backend acceptance, or result validation fails before commit, it must replace the closed
   live session with a session restored from the exact pre-submit snapshot so the attempt remains
   retryable and is not double-counted.
+- **FR-19:** Assessment delivery owns the end-attempt decision. When a candidate activates an
+  `endAttemptInteraction`, the renderer must only record its boolean response — a renderer or
+  session guest must never close the assessment-owned session locally. The player recognizes the
+  end-attempt response on the session's normal response path (from the item's
+  `endAttemptInteraction` metadata) and decides per QTI submission mode: in `individual` mode it
+  submits the item through the normal per-item path with the interaction's `countAttempt` honored
+  (true → a counted attempt toward maxAttempts; false → a hint submission that runs response
+  processing, records no result, and consumes no attempt), branching ignored — the candidate stays
+  on the item; in `simultaneous` mode the response is recorded like any response and response
+  processing is deferred to the end of the testPart. A locally closed session must never make a
+  later submission throw.
 
 ---
 
@@ -274,6 +288,7 @@ Key types are in `packages/assessment-player/src/integration/api-contract.ts`. I
 - **`AssessmentSessionState.itemResponses`** is keyed by item identifier, then by response variable identifier. The inner value type is `Record<string, ResponseValue>`. A missing outer key means the item has never been visited; an empty inner object means the item was visited but no response was entered.
 - **`AssessmentSessionState.itemSessions`** contains serialized handoff values for inactive/restorable items. It never contains or represents a second live session. `getCurrentItemSession()` is the sole live reference and is not persistence data.
 - **`SubmitResponsesResponse.nextItemIdentifier`** is the server's branching decision. When present, the client must navigate to that item. When absent, the client falls back to `currentIndex + 1` (individual mode) or stays in place (simultaneous mode). Servers that do not implement branching should omit this field entirely.
+- **`SubmitResponsesRequest.countAttempt`** (default true) carries QTI `endAttempt`'s `countAttempt`: `false` marks a hint / "show me" submission that runs response processing without consuming an attempt. Backends must not count it toward `maxAttempts`, must not record it as the item's result, and must leave the attempt counter unchanged; the candidate continues and a later submission carries the final response.
 - **`FinalizeAssessmentResponse.itemScores`** is the authoritative score record. Scores in `AssessmentSessionState.itemScores` accumulated during the session are discarded in favour of this.
 - **`AssessmentScoringResult.score`** is a normalized float (0.0–1.0 for most items, but not constrained by the type). `maxScore` is the denominator. `AssessmentResults.totalScore` is the raw sum, not a fraction.
 
