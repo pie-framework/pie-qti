@@ -105,6 +105,10 @@ export default {
 			correct: 'Correct',
 			revealChoice: 'Reveal choice {index}',
 			groupLabel: 'Answer choices',
+			maxChoicesReached: 'You can select up to {max}. Deselect one to choose another.',
+			clearAnswer: 'Clear answer',
+			eliminateChoice: 'Eliminate',
+			restoreChoice: 'Restore',
 		},
 
 		upload: {
@@ -179,6 +183,7 @@ export default {
 			step: 'Step: {step}',
 			ariaLabel: 'Slider value from {lowerBound} to {upperBound}',
 			statTitle: 'Selected Value',
+			noValueSelected: 'No value selected',
 		},
 
 		hottext: {
@@ -186,6 +191,9 @@ export default {
 			selectText: 'Select text from the passage',
 			clearSelection: 'Clear Selection',
 			ariaLabel: 'Text selection interaction',
+			selectableState: 'Selectable',
+			selectedState: 'Selected',
+			maxChoicesReached: 'You can select up to {max}. Deselect one to choose another.',
 		},
 
 		hotspot: {
@@ -369,8 +377,10 @@ export default {
 			buttonLabel: 'End Attempt',
 			ended: 'Attempt Ended',
 			requested: 'Requested',
-			warningMessage: 'Your attempt has been ended and can no longer be modified.',
+			warningMessage: 'Your attempt has ended.',
 			confirmMessage: 'Are you sure you want to end your attempt? You will not be able to change your responses.',
+			confirm: 'Yes, end attempt',
+			cancel: 'Cancel',
 		},
 
 		media: {

@@ -107,6 +107,10 @@ export default {
 			correct: 'Corect',
 			revealChoice: 'Afișează opțiunea {index}',
 			groupLabel: 'Opțiuni de răspuns',
+			maxChoicesReached: 'Poți selecta cel mult {max}. Deselectează una pentru a alege alta.',
+			clearAnswer: 'Șterge răspunsul',
+			eliminateChoice: 'Elimină',
+			restoreChoice: 'Restabilește',
 		},
 
 		upload: {
@@ -168,6 +172,7 @@ export default {
 			step: 'Pas: {step}',
 			ariaLabel: 'Valoare cursor de la {lowerBound} la {upperBound}',
 			statTitle: 'Valoare selectată',
+			noValueSelected: 'Nicio valoare selectată',
 		},
 
 		hottext: {
@@ -175,6 +180,9 @@ export default {
 			selectText: 'Selectează text din pasaj',
 			clearSelection: 'Șterge selecția',
 			ariaLabel: 'Interacțiune de selecție text',
+			selectableState: 'Selectabil',
+			selectedState: 'Selectat',
+			maxChoicesReached: 'Poți selecta cel mult {max}. Deselectează una pentru a alege alta.',
 		},
 
 		hotspot: {
@@ -356,8 +364,10 @@ export default {
 			buttonLabel: 'Încheie încercarea',
 			ended: 'Încercare încheiată',
 			requested: 'Solicitat',
-			warningMessage: 'Încercarea ta a fost încheiată și nu mai poate fi modificată.',
+			warningMessage: 'Încercarea ta s-a încheiat.',
 			confirmMessage: 'Ești sigur că vrei să închei încercarea? Nu vei putea modifica răspunsurile.',
+			confirm: 'Da, încheie încercarea',
+			cancel: 'Anulare',
 		},
 
 		media: {

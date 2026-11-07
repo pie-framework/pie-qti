@@ -137,6 +137,10 @@ export default {
 			correct: 'صحيح',
 			revealChoice: 'إظهار الخيار {index}',
 			groupLabel: 'خيارات الإجابة',
+			maxChoicesReached: 'يمكنك اختيار {max} خيارات كحد أقصى. ألغِ اختيار أحد الخيارات لاختيار آخر.',
+			clearAnswer: 'مسح الإجابة',
+			eliminateChoice: 'استبعاد',
+			restoreChoice: 'استعادة',
 		},
 
 		upload: {
@@ -211,6 +215,7 @@ export default {
 			step: 'الخطوة: {step}',
 			ariaLabel: 'قيمة شريط التمرير من {lowerBound} إلى {upperBound}',
 			statTitle: 'القيمة المحددة',
+			noValueSelected: 'لم يتم اختيار قيمة',
 		},
 
 		hottext: {
@@ -218,6 +223,9 @@ export default {
 			selectText: 'اختر نصًا من الفقرة',
 			clearSelection: 'مسح التحديد',
 			ariaLabel: 'تفاعل تحديد النص',
+			selectableState: 'قابل للاختيار',
+			selectedState: 'مُختار',
+			maxChoicesReached: 'يمكنك اختيار {max} خيارات كحد أقصى. ألغِ اختيار أحد الخيارات لاختيار آخر.',
 		},
 
 		hotspot: {
@@ -401,8 +409,10 @@ export default {
 			buttonLabel: 'إنهاء المحاولة',
 			ended: 'انتهت المحاولة',
 			requested: 'مطلوب',
-			warningMessage: 'تم إنهاء محاولتك ولا يمكن تعديلها بعد الآن.',
+			warningMessage: 'انتهت محاولتك.',
 			confirmMessage: 'هل أنت متأكد من أنك تريد إنهاء محاولتك؟ لن تتمكن من تغيير إجاباتك.',
+			confirm: 'نعم، أنهِ المحاولة',
+			cancel: 'إلغاء',
 		},
 
 		media: {
