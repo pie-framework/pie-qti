@@ -8,6 +8,7 @@
 
 import type { I18nProvider, InterpolationValues, PluralOptions } from './I18nProvider.js';
 import type { LocaleCode, MessageKey, LocaleMessages } from './types.js';
+import { interpolate } from './accessible-text.js';
 import { languageDirection } from './direction.js';
 import { normalizeLanguageTag } from './language-tags.js';
 import { formattingLocale } from './numbering.js';
@@ -191,21 +192,15 @@ export class DefaultI18nProvider implements I18nProvider {
 			: values;
 		const defaultStr = typeof defaultOrValues === 'string' ? defaultOrValues : undefined;
 
-		if (!message) {
-			if (isDevelopment) {
-				console.warn(`[i18n] Missing translation: ${key} (locale: ${this.currentLocale})`);
-			}
-			return defaultStr ?? key;
+		if (!message && isDevelopment) {
+			console.warn(`[i18n] Missing translation: ${key} (locale: ${this.currentLocale})`);
 		}
 
-		if (!interpolationValues) return message;
-
-		// Replace {key} with values[key]; numbers take the locale's digits
-		return message.replace(/\{(\w+)\}/g, (match, k) => {
-			const value = interpolationValues[k];
-			if (typeof value === 'number') return this.formatNumber(value);
-			return String(value ?? match);
-		});
+		// A default is message text, not a marker: it interpolates like a translation,
+		// so a key no catalog carries degrades to English instead of literal "{count}".
+		const text = message || defaultStr;
+		if (text === undefined) return key;
+		return interpolate(text, interpolationValues, (value) => this.formatNumber(value));
 	}
 
 	/**

@@ -23,7 +23,8 @@ export interface I18nProvider {
 	 * @param key - Message key (e.g., 'common.submit', 'assessment.question')
 	 * @param defaultOrValues - Optional default string or interpolation values
 	 * @param values - Optional interpolation values (if second arg is default string)
-	 * @returns Translated message, default, or key if not found
+	 * @returns Translated message, default, or key if not found. Values fill a
+	 *   default exactly as they fill a translated message.
 	 */
 	t(key: string, defaultOrValues?: Record<string, any> | string, values?: Record<string, any>): string;
 

@@ -13,22 +13,41 @@ import type { I18nProvider } from './I18nProvider.js';
 
 type Values = Record<string, unknown>;
 
-function interpolate(message: string, values?: Values): string {
+/**
+ * Fill `{name}` placeholders: the one interpolation every message goes through,
+ * translated or fallback. Numbers take `formatNumber`, which a provider points
+ * at its locale's digits. A value that was not supplied leaves its placeholder
+ * visible: a legible authoring bug beats a silent blank.
+ */
+export function interpolate(
+	message: string,
+	values?: Values,
+	formatNumber: (value: number) => string = String,
+): string {
 	if (!values) return message;
-	return message.replace(/\{(\w+)\}/g, (match, key) => (key in values ? String(values[key]) : match));
+	return message.replace(/\{(\w+)\}/g, (match, key) => {
+		const value = values[key];
+		return typeof value === 'number' ? formatNumber(value) : String(value ?? match);
+	});
 }
 
 /**
  * Translate `key`, or interpolate the English `fallback` when the component was
- * mounted without a provider.
+ * mounted without a provider or no catalog carries the key.
+ *
+ * `I18nProvider` is a host extension point, so a default handed back verbatim
+ * is filled here: placeholders never reach a candidate, whichever provider runs.
  */
 export function translate(i18n: I18nProvider | undefined, key: string, fallback: string, values?: Values): string {
-	return i18n ? i18n.t(key, fallback, values) : interpolate(fallback, values);
+	if (!i18n) return interpolate(fallback, values);
+	const message = i18n.t(key, fallback, values);
+	return message === fallback ? interpolate(fallback, values, i18n.formatNumber?.bind(i18n)) : message;
 }
 
 /**
  * Pluralize the plural group `key` for `count`, or pick from the English
- * `fallback` forms when the component was mounted without a provider.
+ * `fallback` forms when the component was mounted without a provider or no
+ * catalog carries the group.
  */
 export function translatePlural(
 	i18n: I18nProvider | undefined,
@@ -37,7 +56,10 @@ export function translatePlural(
 	count: number,
 	values?: Record<string, string | number>,
 ): string {
-	if (i18n?.plural) return i18n.plural(key, { ...values, count });
+	const message = i18n?.plural?.(key, { ...values, count });
+	// A provider answers a miss with the key it looked up, never with a sentence.
+	const missed = message === undefined || message === key || message.startsWith(`${key}.`);
+	if (!missed) return message;
 	const form = count === 1 ? 'one' : 'other';
 	return translate(i18n, `${key}.${form}`, fallback[form], { ...values, count });
 }
