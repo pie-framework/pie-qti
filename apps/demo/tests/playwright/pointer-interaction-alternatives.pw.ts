@@ -11,11 +11,11 @@ for (const input of ['mouse', 'touch', 'keyboard'] as const) {
 				else if (input === 'keyboard') await control.press('Enter');
 				else await control.click();
 			};
-			await activate(page.getByRole('button', { name: 'Move later: One', exact: true }));
+			await activate(page.getByRole('button', { name: 'Move One later', exact: true }));
 			await expect(page.getByTestId('ORDER')).toHaveText('["two","one","three"]');
-			await activate(page.getByRole('button', { name: 'Move later: One', exact: true }));
+			await activate(page.getByRole('button', { name: 'Move One later', exact: true }));
 			await expect(page.getByTestId('ORDER')).toHaveText('["two","three","one"]');
-			await expect(page.getByRole('button', { name: 'Move later: One', exact: true })).toBeDisabled();
+			await expect(page.getByRole('button', { name: 'Move One later', exact: true })).toBeDisabled();
 
 			const match = page.locator('pie-qti-match');
 			await activate(match.getByRole('button', { name: /^Paris/ }));

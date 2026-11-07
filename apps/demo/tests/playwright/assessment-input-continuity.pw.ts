@@ -24,16 +24,22 @@ test.describe('assessment input continuity through published elements', () => {
 		await page.goto('fixtures/assessment-input');
 		await expect(page.getByRole('textbox')).toBeVisible();
 		await page.getByTestId('assessment-next').click();
-		const one = page.getByRole('button', { name: /^One\. Position/ });
+		// The item button is named by its rendered content; position and grabbed
+		// state are exposed through the describedby state element.
+		const one = page.getByRole('button', { name: 'One', exact: true });
+		const stateOf = async () => {
+			const stateId = await one.getAttribute('aria-describedby');
+			return page.locator(`[id="${stateId}"]`);
+		};
 		await one.focus();
 		await page.keyboard.press('Space');
 		await expect(one).toHaveAttribute('data-grabbed', 'true');
 		await page.keyboard.press('ArrowDown');
-		await expect(one).toHaveAttribute('aria-label', /Position 2 of 3/);
+		await expect(await stateOf()).toHaveText(/Position 2 of 3/);
 		await expect(one).toBeFocused();
 		await expect(one).toHaveAttribute('data-grabbed', 'true');
 		await page.keyboard.press('ArrowDown');
-		await expect(one).toHaveAttribute('aria-label', /Position 3 of 3/);
+		await expect(await stateOf()).toHaveText(/Position 3 of 3/);
 		await expect(one).toBeFocused();
 		await page.keyboard.press('Space');
 		await expect(one).toHaveAttribute('data-grabbed', 'false');
