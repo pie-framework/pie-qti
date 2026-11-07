@@ -624,6 +624,41 @@ export default {
 			timeRemaining: 'Timp rămas: {time}',
 			timeElapsed: 'Timp scurs: {time}',
 			timeUp: 'Timpul s-a terminat!',
+			warningMinutesOne: 'A mai rămas 1 minut',
+			warningMinutes: 'Au mai rămas {count} min',
+			warningTime: 'A mai rămas: {time}',
+			paused: 'În pauză',
+			showTimer: 'Afișează cronometrul',
+			hideTimer: 'Ascunde cronometrul',
+		},
+
+		start: {
+			begin: 'Începe',
+			resume: 'Reia',
+			timeMinutesOne: 'Ai la dispoziție 1 minut.',
+			timeMinutes: 'Ai la dispoziție {count} min.',
+			timeExact: 'Ai la dispoziție {time}.',
+			scopedTimeLimits: 'Unele părți ale acestui test au propria limită de timp.',
+		},
+
+		timeExpiry: {
+			autoSubmitted: 'Timpul a expirat. Răspunsurile tale au fost predate.',
+			submitTitle: 'Timpul pentru acest test s-a încheiat',
+			submitDescription: 'Nu îți mai poți modifica răspunsurile. Predă testul pentru a încheia.',
+			partTitle: 'Timpul pentru această parte s-a încheiat',
+			sectionTitle: 'Timpul pentru această secțiune s-a încheiat',
+			questionTitle: 'Timpul pentru această întrebare s-a încheiat',
+			scopeDescription: 'Treci la următoarea parte a testului.',
+			questionDescription: 'Treci la următoarea întrebare.',
+			continue: 'Continuă',
+		},
+
+		pause: {
+			title: 'Evaluare în pauză',
+			message: 'Testul tău a fost pus pe pauză. Te rugăm să aștepți până când este reluat.',
+			announcement: 'Evaluarea este în pauză.',
+			withReason: 'Evaluarea este în pauză: {reason}',
+			resumed: 'Evaluarea a fost reluată.',
 		},
 
 		feedback: {
@@ -668,6 +703,7 @@ export default {
 				commentsNotAllowed: 'Comentariile nu sunt permise la această întrebare.',
 				submitFailed: 'Răspunsurile tale nu au putut fi trimise. Răspunsurile tale sunt în continuare aici. Te rugăm să încerci din nou.',
 				finalizeFailed: 'Evaluarea nu a putut fi trimisă încă. Răspunsurile tale sunt în continuare aici. Te rugăm să încerci din nou.',
+				assessmentPaused: 'Evaluarea ta este în pauză. Te rugăm să aștepți până când este reluată.',
 				outcomeProcessingFailed: 'Răspunsurile tale au fost salvate, dar rezultatele nu au putut fi calculate. Contactează asistența dacă problema persistă.',
 			},
 		},

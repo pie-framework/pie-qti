@@ -241,11 +241,21 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			request.timing?.scope === 'assessment' && request.timing.limitSeconds !== undefined
 				? request.timing.limitSeconds
 				: assessmentLimit?.maxTime;
+		// The candidate's own test clock (gates and pauses excluded) when the client
+		// reports it; otherwise the session wall clock, which a production backend owns.
+		const assessmentElapsedSeconds =
+			request.timing?.assessmentElapsedMs !== undefined
+				? request.timing.assessmentElapsedMs / 1000
+				: (receivedAt - session.createdAt) / 1000;
 		const assessmentAllowsLate = assessmentLimit?.allowLateSubmission ?? request.timing?.allowLateSubmission;
+		// A `time-expired` submission is the terminal collection a hard limit triggers:
+		// the window closed with the expiry, and the pending responses must be accepted.
+		const timeExpiredCollection = request.timing?.submissionReason === 'time-expired';
 		if (
+			!timeExpiredCollection &&
 			effectiveAssessmentLimitSeconds !== undefined &&
 			assessmentAllowsLate !== true &&
-			receivedAt - session.createdAt > effectiveAssessmentLimitSeconds * 1000
+			assessmentElapsedSeconds > effectiveAssessmentLimitSeconds
 		) {
 			return {
 				success: false,
@@ -256,7 +266,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		const evidenceExpired =
 			request.timing?.limitSeconds !== undefined &&
 			request.timing.elapsedMs >= request.timing.limitSeconds * 1000;
-		if (evidenceExpired && request.timing?.allowLateSubmission !== true) {
+		if (!timeExpiredCollection && evidenceExpired && request.timing?.allowLateSubmission !== true) {
 			return {
 				success: false,
 				error: 'Time limit expired',

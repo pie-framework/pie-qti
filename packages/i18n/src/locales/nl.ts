@@ -619,6 +619,41 @@ export default {
 			timeRemaining: 'Resterende tijd: {time}',
 			timeElapsed: 'Verstreken tijd: {time}',
 			timeUp: 'Tijd is om!',
+			warningMinutesOne: 'Nog 1 minuut',
+			warningMinutes: 'Nog {count} minuten',
+			warningTime: 'Nog {time}',
+			paused: 'Gepauzeerd',
+			showTimer: 'Timer tonen',
+			hideTimer: 'Timer verbergen',
+		},
+
+		start: {
+			begin: 'Beginnen',
+			resume: 'Verdergaan',
+			timeMinutesOne: 'Je hebt 1 minuut.',
+			timeMinutes: 'Je hebt {count} minuten.',
+			timeExact: 'Je hebt {time}.',
+			scopedTimeLimits: 'Sommige onderdelen van deze toets hebben een eigen tijdslimiet.',
+		},
+
+		timeExpiry: {
+			autoSubmitted: 'De tijd is om. Je antwoorden zijn ingediend.',
+			submitTitle: 'De tijd voor deze toets is om',
+			submitDescription: 'Je kunt je antwoorden niet meer wijzigen. Dien je toets in om af te ronden.',
+			partTitle: 'De tijd voor dit onderdeel is om',
+			sectionTitle: 'De tijd voor deze sectie is om',
+			questionTitle: 'De tijd voor deze vraag is om',
+			scopeDescription: 'Je gaat verder met het volgende deel van de toets.',
+			questionDescription: 'Je gaat verder met de volgende vraag.',
+			continue: 'Verder',
+		},
+
+		pause: {
+			title: 'Toets gepauzeerd',
+			message: 'Je toets is gepauzeerd. Wacht tot hij wordt hervat.',
+			announcement: 'De toets is gepauzeerd.',
+			withReason: 'De toets is gepauzeerd: {reason}',
+			resumed: 'De toets gaat weer verder.',
 		},
 
 		feedback: {
@@ -663,6 +698,7 @@ export default {
 				commentsNotAllowed: 'Opmerkingen zijn niet toegestaan bij deze vraag.',
 				submitFailed: 'Je antwoorden konden niet worden ingediend. Je antwoorden zijn er nog. Probeer het opnieuw.',
 				finalizeFailed: 'De toets kon nog niet worden ingediend. Je antwoorden zijn er nog. Probeer het opnieuw.',
+				assessmentPaused: 'Je toets is gepauzeerd. Wacht tot hij wordt hervat.',
 				outcomeProcessingFailed: 'Je antwoorden zijn opgeslagen, maar de resultaten konden niet worden berekend. Neem contact op met de ondersteuning als dit aanhoudt.',
 			},
 		},

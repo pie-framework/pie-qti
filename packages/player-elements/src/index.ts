@@ -35,13 +35,16 @@ export type {
 // Make browser-facing custom-element and event types available without loading
 // their implementations in SSR/Node environments.
 export type {
+	QtiAssessmentErrorDetail,
 	QtiAssessmentItemChangeDetail,
 	QtiAssessmentLoadErrorDetail,
+	QtiAssessmentPauseDetail,
 	QtiAssessmentPlayerEventMap,
 	QtiAssessmentPlayerElement,
 	QtiAssessmentResponseChangeDetail,
 	QtiAssessmentSectionChangeDetail,
 	QtiAssessmentSubmitDetail,
+	QtiAssessmentTimeExpiredDetail,
 	QtiSectionPlayerSplitPaneElement,
 	QtiSectionPlayerEventMap,
 	QtiSectionPlayerVerticalElement,

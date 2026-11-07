@@ -1,4 +1,11 @@
 export { AssessmentPlayer } from './AssessmentPlayer.js';
+export type {
+	AssessmentStartInfo,
+	AssessmentTimeExpiryEvent,
+	AssessmentTimeState,
+	EffectiveItemTimeLimits,
+	ScopeTimeExpiryEvent,
+} from './AssessmentPlayer.js';
 export {
 	AssessmentPlayerError,
 	assessmentErrorDisplay,

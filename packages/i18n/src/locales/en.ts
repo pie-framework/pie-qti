@@ -633,6 +633,41 @@ export default {
 			timeRemaining: 'Time remaining: {time}',
 			timeElapsed: 'Time elapsed: {time}',
 			timeUp: "Time's up!",
+			warningMinutesOne: '1 minute remaining',
+			warningMinutes: '{count} minutes remaining',
+			warningTime: '{time} remaining',
+			paused: 'Paused',
+			showTimer: 'Show timer',
+			hideTimer: 'Hide timer',
+		},
+
+		start: {
+			begin: 'Begin',
+			resume: 'Continue',
+			timeMinutesOne: 'You have 1 minute.',
+			timeMinutes: 'You have {count} minutes.',
+			timeExact: 'You have {time}.',
+			scopedTimeLimits: 'Some parts of this test have their own time limits.',
+		},
+
+		timeExpiry: {
+			autoSubmitted: 'Time is up. Your answers have been submitted.',
+			submitTitle: 'The time for this test is over',
+			submitDescription: 'You can no longer change your answers. Submit your test to finish.',
+			partTitle: 'The time for this part is over',
+			sectionTitle: 'The time for this section is over',
+			questionTitle: 'The time for this question is over',
+			scopeDescription: 'You are moving on to the next part of the test.',
+			questionDescription: 'You are moving on to the next question.',
+			continue: 'Continue',
+		},
+
+		pause: {
+			title: 'Assessment paused',
+			message: 'Your test has been paused. Please wait until it resumes.',
+			announcement: 'The assessment is paused.',
+			withReason: 'The assessment is paused: {reason}',
+			resumed: 'The assessment is running again.',
 		},
 
 		feedback: {
@@ -677,6 +712,7 @@ export default {
 				commentsNotAllowed: 'Comments are not allowed for this question.',
 				submitFailed: 'Your answers could not be submitted. Your answers are still here. Please try again.',
 				finalizeFailed: 'Your assessment could not be submitted yet. Your answers are still here. Please try again.',
+				assessmentPaused: 'Your assessment is paused. Please wait until it resumes.',
 				outcomeProcessingFailed: 'Your answers were saved, but the results could not be computed. Please contact support if this persists.',
 			},
 		},

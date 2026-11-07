@@ -684,6 +684,41 @@ export default {
 			timeRemaining: 'الوقت المتبقي: {time}',
 			timeElapsed: 'الوقت المنقضي: {time}',
 			timeUp: 'انتهى الوقت!',
+			warningMinutesOne: 'تبقّت دقيقة واحدة',
+			warningMinutes: 'الوقت المتبقي بالدقائق: {count}',
+			warningTime: 'تبقّى من الوقت: {time}',
+			paused: 'متوقف مؤقتًا',
+			showTimer: 'إظهار المؤقت',
+			hideTimer: 'إخفاء المؤقت',
+		},
+
+		start: {
+			begin: 'ابدأ',
+			resume: 'متابعة',
+			timeMinutesOne: 'لديك دقيقة واحدة.',
+			timeMinutes: 'المدة المتاحة لك بالدقائق: {count}.',
+			timeExact: 'المدة المتاحة لك: {time}.',
+			scopedTimeLimits: 'لبعض أجزاء هذا الاختبار حدود زمنية خاصة بها.',
+		},
+
+		timeExpiry: {
+			autoSubmitted: 'انتهى الوقت. تم تسليم إجاباتك.',
+			submitTitle: 'انتهى وقت هذا الاختبار',
+			submitDescription: 'لم يعد بإمكانك تغيير إجاباتك. سلّم اختبارك للإنهاء.',
+			partTitle: 'انتهى وقت هذا الجزء',
+			sectionTitle: 'انتهى وقت هذا القسم',
+			questionTitle: 'انتهى وقت هذا السؤال',
+			scopeDescription: 'ستنتقل الآن إلى الجزء التالي من الاختبار.',
+			questionDescription: 'ستنتقل الآن إلى السؤال التالي.',
+			continue: 'متابعة',
+		},
+
+		pause: {
+			title: 'الاختبار متوقف مؤقتًا',
+			message: 'تم إيقاف اختبارك مؤقتًا. يرجى الانتظار حتى يُستأنف.',
+			announcement: 'الاختبار متوقف مؤقتًا.',
+			withReason: 'الاختبار متوقف مؤقتًا: {reason}',
+			resumed: 'تم استئناف الاختبار.',
 		},
 
 		feedback: {
@@ -728,6 +763,7 @@ export default {
 				commentsNotAllowed: 'التعليقات غير مسموح بها في هذا السؤال.',
 				submitFailed: 'تعذر إرسال إجاباتك. إجاباتك لا تزال محفوظة هنا. يرجى المحاولة مرة أخرى.',
 				finalizeFailed: 'تعذر إرسال الاختبار بعد. إجاباتك لا تزال محفوظة هنا. يرجى المحاولة مرة أخرى.',
+				assessmentPaused: 'اختبارك متوقف مؤقتًا. يرجى الانتظار حتى يُستأنف.',
 				outcomeProcessingFailed: 'تم حفظ إجاباتك، لكن تعذر حساب النتائج. يرجى التواصل مع الدعم إذا استمرت المشكلة.',
 			},
 		},

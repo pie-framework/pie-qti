@@ -1,6 +1,13 @@
 // Core classes
 
-export type { BackendAssessmentPlayerConfig } from './core/AssessmentPlayer.js';
+export type {
+	BackendAssessmentPlayerConfig,
+	EffectiveItemTimeLimits,
+	AssessmentStartInfo,
+	AssessmentTimeExpiryEvent,
+	AssessmentTimeState,
+	ScopeTimeExpiryEvent,
+} from './core/AssessmentPlayer.js';
 export type { ForwardTransitionInfo, ItemAnswerStatus, NavigationMode, ReviewItemView } from './core/index.js';
 export { AssessmentPlayer, NavigationManager } from './core/index.js';
 // Coded errors thrown by the core; shells localize them via `assessment.errors.codes.*`.

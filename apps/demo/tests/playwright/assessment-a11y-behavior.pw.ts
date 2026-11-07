@@ -65,19 +65,38 @@ test.describe('assessment accessibility behavior', () => {
 	test('timer warning and expiry are exposed to assistive technology', async ({ page }) => {
 		await page.goto('a11y-components/assessment-timer');
 
-		await expect(page.getByRole('timer')).toHaveAttribute('aria-label', /remaining/i);
+		// The ticking readout: a programmatic name, never a live region.
+		const readout = page.getByRole('timer');
+		await expect(readout).toHaveAttribute('aria-label', /time remaining/i);
+		await expect(readout).toHaveAttribute('aria-live', 'off');
 
 		const warningButton = page.getByRole('button', { name: /simulate warning/i });
 		await warningButton.focus();
 		await page.keyboard.press('Enter');
-		await expect(page.getByRole('status').filter({ hasText: /time remaining/i })).toBeAttached();
+		await expect(page.getByTestId('assessment-timer-warning')).toHaveText('1 minute remaining');
 		await expect(warningButton).toBeFocused();
+		// The readout itself stays silent even after the warning.
+		await expect(readout).toHaveAttribute('aria-live', 'off');
 
 		const expiryButton = page.getByRole('button', { name: /simulate expiry/i });
 		await expiryButton.focus();
 		await page.keyboard.press('Enter');
-		await expect(page.getByRole('alert').filter({ hasText: /time expired/i })).toBeAttached();
+		await expect(page.getByTestId('assessment-timer-expired')).toHaveText('Time expired');
 		await expect(expiryButton).toBeFocused();
+	});
+
+	test('the candidate can hide the timer and bring it back', async ({ page }) => {
+		await page.goto('a11y-components/assessment-timer');
+
+		const toggle = page.getByTestId('assessment-timer-toggle');
+		await expect(toggle).toContainText('Hide timer');
+		await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+		await toggle.click();
+		await expect(page.getByRole('timer')).toHaveCount(0);
+		await expect(toggle).toContainText('Show timer');
+		await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+		await toggle.click();
+		await expect(page.getByRole('timer')).toHaveCount(1);
 	});
 
 	test('timer controls remain reachable in a narrow reflow viewport', async ({ page }) => {

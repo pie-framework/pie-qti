@@ -632,6 +632,41 @@ export default {
 			timeRemaining: '剩余时间:{time}',
 			timeElapsed: '已用时间:{time}',
 			timeUp: '时间到!',
+			warningMinutesOne: '剩余 1 分钟',
+			warningMinutes: '剩余 {count} 分钟',
+			warningTime: '剩余 {time}',
+			paused: '已暂停',
+			showTimer: '显示计时器',
+			hideTimer: '隐藏计时器',
+		},
+
+		start: {
+			begin: '开始',
+			resume: '继续作答',
+			timeMinutesOne: '你有 1 分钟的时间。',
+			timeMinutes: '你有 {count} 分钟的时间。',
+			timeExact: '你有 {time} 的时间。',
+			scopedTimeLimits: '本测试的部分内容有各自的时间限制。',
+		},
+
+		timeExpiry: {
+			autoSubmitted: '时间到。你的答案已提交。',
+			submitTitle: '本测试的时间已到',
+			submitDescription: '你已无法修改答案。请提交试卷以结束。',
+			partTitle: '本部分的时间已到',
+			sectionTitle: '本节的时间已到',
+			questionTitle: '本题的时间已到',
+			scopeDescription: '你将进入测试的下一部分。',
+			questionDescription: '你将进入下一题。',
+			continue: '继续',
+		},
+
+		pause: {
+			title: '评估已暂停',
+			message: '你的测试已暂停。请等待恢复。',
+			announcement: '评估已暂停。',
+			withReason: '评估已暂停:{reason}',
+			resumed: '评估已恢复。',
 		},
 
 		feedback: {
@@ -676,6 +711,7 @@ export default {
 				commentsNotAllowed: '本题不允许填写评论。',
 				submitFailed: '无法提交你的答案。你的答案仍然保留在这里，请重试。',
 				finalizeFailed: '暂时无法提交评估。你的答案仍然保留在这里，请重试。',
+				assessmentPaused: '你的评估已暂停。请等待恢复。',
 				outcomeProcessingFailed: '你的答案已保存，但无法计算结果。如果问题仍然存在，请联系支持人员。',
 			},
 		},

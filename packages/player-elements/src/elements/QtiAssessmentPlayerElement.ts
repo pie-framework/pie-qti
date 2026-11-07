@@ -1,4 +1,10 @@
-import type { AssessmentResults, BackendAdapter, BackendAssessmentPlayerConfig, InitSessionRequest } from '@pie-qti/assessment-player';
+import type {
+	AssessmentResults,
+	AssessmentTimeExpiryEvent,
+	BackendAdapter,
+	BackendAssessmentPlayerConfig,
+	InitSessionRequest,
+} from '@pie-qti/assessment-player';
 import { isAssessmentPlayerError, ReferenceBackendAdapter } from '@pie-qti/assessment-player';
 import type { PciConfiguration, PlayerSecurityConfig } from '@pie-qti/item-player';
 import { enforceItemXmlLimits } from '@pie-qti/item-player/security';
@@ -38,6 +44,18 @@ export type QtiAssessmentLoadErrorDetail = {
 	message: string;
 };
 
+/**
+ * A hard time limit ran out with no late submission (`time-expired`): the whole test —
+ * the player then submits automatically (`autoFinalized`) — or a scope whose expiry left
+ * nothing to work on, so the candidate must submit (`submissionRequired`).
+ */
+export type QtiAssessmentTimeExpiredDetail = AssessmentTimeExpiryEvent;
+
+/** A proctor pause started (`player-pause`); `reason` is the text the candidate sees. */
+export type QtiAssessmentPauseDetail = {
+	reason?: string;
+};
+
 /** Core/backend failure surfaced through the `player-error` event (see `config.onError`). */
 export type QtiAssessmentErrorDetail = {
 	/** Stable code when the failure is a coded `AssessmentPlayerError`. */
@@ -57,6 +75,9 @@ export interface QtiAssessmentPlayerEventMap {
 	submit: CustomEvent<QtiAssessmentSubmitDetail>;
 	complete: CustomEvent<void>;
 	'player-error': CustomEvent<QtiAssessmentErrorDetail>;
+	'time-expired': CustomEvent<QtiAssessmentTimeExpiredDetail>;
+	'player-pause': CustomEvent<QtiAssessmentPauseDetail>;
+	'player-resume': CustomEvent<void>;
 }
 
 export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<string, unknown>> {
@@ -75,6 +96,7 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 			// Presentation
 			'full-viewport',
 			'heading-level',
+			'begin-gate',
 		];
 	}
 
@@ -96,6 +118,7 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	#referenceMode = false;
 	#fullViewport = false;
 	#headingLevel: number | undefined;
+	#beginGate = false;
 	#backend: BackendAdapter | undefined;
 	#hostBackend: BackendAdapter | undefined;
 	#initSession: InitSessionRequest | undefined;
@@ -134,8 +157,9 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	}
 
 	attributeChangedCallback(name: string, _oldValue: string | null, newValue: string | null) {
-		if (name === 'full-viewport' || name === 'heading-level') {
+		if (name === 'full-viewport' || name === 'heading-level' || name === 'begin-gate') {
 			if (name === 'full-viewport') this.#fullViewport = newValue !== null && newValue !== 'false';
+			else if (name === 'begin-gate') this.#beginGate = newValue !== null && newValue !== 'false';
 			else this.#headingLevel = parseHeadingLevel(newValue);
 			// Presentation only: never re-resolve the assessment for it. A mounted shell
 			// re-renders with it, like a `config` change.
@@ -219,6 +243,20 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 		const level = parseHeadingLevel(value === undefined ? null : String(value));
 		if (level === undefined) this.removeAttribute('heading-level');
 		else this.setAttribute('heading-level', String(level));
+	}
+
+	/**
+	 * Opt-in begin gate: an accessible start screen (title, the time allowed, the test's
+	 * instructions) holds delivery and every clock until the candidate activates Begin.
+	 * Reflects `begin-gate`; set it before the element mounts. Off by default, so existing
+	 * embeds keep starting at session creation.
+	 */
+	get beginGate(): boolean {
+		return this.#beginGate;
+	}
+	set beginGate(value: boolean) {
+		if (value) this.setAttribute('begin-gate', '');
+		else this.removeAttribute('begin-gate');
 	}
 
 	get security() {
@@ -381,6 +419,25 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	}
 	restoreState(state: unknown) {
 		return this._instance?.restoreState?.(state);
+	}
+	/** Open the begin gate (as the candidate's Begin does): delivery and the clocks start. */
+	async start() {
+		return this._instance?.start?.();
+	}
+	/** Whether delivery has begun (false while the begin gate holds the start screen). */
+	hasStarted(): boolean {
+		return this._instance?.hasStarted?.() ?? false;
+	}
+	/**
+	 * Proctor pause: every clock freezes, candidate input is blocked and an overlay shows
+	 * `reason` (host-supplied, candidate-facing text) until `resume()`. Fires `player-pause`.
+	 */
+	pause(reason?: string): void {
+		this._instance?.pause?.(reason);
+	}
+	/** End a proctor pause; the clocks continue where they froze. Fires `player-resume`. */
+	resume(): void {
+		this._instance?.resume?.();
 	}
 
 	addEventListener<K extends keyof QtiAssessmentPlayerEventMap>(
@@ -634,6 +691,30 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 			onComplete: () => {
 				this.dispatchEvent(new CustomEvent('complete', { bubbles: true, composed: true }));
 			},
+			onTimeExpired: (event: AssessmentTimeExpiryEvent) => {
+				const detail: QtiAssessmentTimeExpiredDetail = { ...event };
+				this.dispatchEvent(
+					new CustomEvent<QtiAssessmentTimeExpiredDetail>('time-expired', {
+						detail,
+						bubbles: true,
+						composed: true,
+					}),
+				);
+			},
+			onPauseChange: (paused: boolean, reason?: string) => {
+				if (paused) {
+					const detail: QtiAssessmentPauseDetail = reason === undefined ? {} : { reason };
+					this.dispatchEvent(
+						new CustomEvent<QtiAssessmentPauseDetail>('player-pause', {
+							detail,
+							bubbles: true,
+							composed: true,
+						}),
+					);
+				} else {
+					this.dispatchEvent(new CustomEvent('player-resume', { bubbles: true, composed: true }));
+				}
+			},
 			onError: (error: Error) => {
 				const detail: QtiAssessmentErrorDetail = {
 					code: isAssessmentPlayerError(error) ? error.code : undefined,
@@ -654,6 +735,7 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 			initSession: this.#initSession,
 			config: baseConfig,
 			fullViewport: this.#fullViewport,
+			beginGate: this.#beginGate,
 			...(this.#headingLevel === undefined ? {} : { headingLevel: this.#headingLevel }),
 			onSubmit: (results: AssessmentResults) => {
 				const detail: QtiAssessmentSubmitDetail = { results };

@@ -1,13 +1,16 @@
 export { defineQtiPlayerElements } from './define.js';
 export {
 	defineQtiAssessmentPlayerElement,
+	type QtiAssessmentErrorDetail,
 	type QtiAssessmentItemChangeDetail,
 	type QtiAssessmentLoadErrorDetail,
+	type QtiAssessmentPauseDetail,
 	type QtiAssessmentPlayerEventMap,
 	QtiAssessmentPlayerElement,
 	type QtiAssessmentResponseChangeDetail,
 	type QtiAssessmentSectionChangeDetail,
 	type QtiAssessmentSubmitDetail,
+	type QtiAssessmentTimeExpiredDetail,
 } from './elements/QtiAssessmentPlayerElement.js';
 export {
 	defineQtiItemPlayerElement,
