@@ -371,6 +371,111 @@ describe('standardGapMatchExtractor', () => {
 		});
 	});
 
+	describe('gapImg extraction', () => {
+		test('extracts QTI 2.x gapImg with an object child', () => {
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>Fill: <gap identifier="G1" /></prompt>
+					<gapText identifier="T1" matchMax="1">cat</gapText>
+					<gapImg identifier="I1" matchMax="1">
+						<object data="images/sun.png" width="40" height="30" type="image/png">Sun</object>
+					</gapImg>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGapMatchExtractor.extract(element, context);
+
+			expect(result.gapImages).toHaveLength(1);
+			expect(result.gapImages[0]).toMatchObject({
+				identifier: 'I1',
+				src: 'images/sun.png',
+				alt: 'Sun',
+				matchMax: 1,
+				width: 40,
+				height: 30,
+			});
+		});
+
+		test('extracts image choices with matchGroup and matchMax', () => {
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>Fill: <gap identifier="G1" /></prompt>
+					<gapImg identifier="I1" matchMax="2" matchGroup="shapes">
+						<object data="images/circle.png">Circle</object>
+					</gapImg>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGapMatchExtractor.extract(element, context);
+
+			expect(result.gapImages[0].matchMax).toBe(2);
+			expect(result.gapImages[0].matchGroup).toEqual(['shapes']);
+		});
+
+		test('supports mixed pools: gapText and gapImg choices can shuffle together', () => {
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="true">
+					<prompt>Fill: <gap identifier="G1" /> and <gap identifier="G2" /></prompt>
+					<gapText identifier="T1" matchMax="1">cat</gapText>
+					<gapImg identifier="I1" matchMax="1">
+						<object data="images/dog.png">Dog</object>
+					</gapImg>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGapMatchExtractor.extract(element, context);
+
+			// Shuffling redistributes the combined pool; both kinds survive it.
+			expect(result.gapTexts).toHaveLength(1);
+			expect(result.gapImages).toHaveLength(1);
+			expect(result.shuffle).toBe(true);
+		});
+
+		test('keeps authored pool order when shuffle is off', () => {
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>Fill: <gap identifier="G1" /></prompt>
+					<gapText identifier="T1" matchMax="1">cat</gapText>
+					<gapImg identifier="I1" matchMax="1">
+						<object data="images/dog.png">Dog</object>
+					</gapImg>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGapMatchExtractor.extract(element, context);
+
+			expect(result.gapTexts[0].identifier).toBe('T1');
+			expect(result.gapImages[0].identifier).toBe('I1');
+		});
+
+		test('an image-only item has no gapTexts but extracts the image', () => {
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>Fill: <gap identifier="G1" /></prompt>
+					<gapImg identifier="I1" matchMax="1">
+						<object data="images/sun.png">Sun</object>
+					</gapImg>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGapMatchExtractor.extract(element, context);
+
+			expect(result.gapTexts).toHaveLength(0);
+			expect(result.gapImages).toHaveLength(1);
+			expect(result.gapImages[0].src).toBe('images/sun.png');
+		});
+	});
+
 	describe('canHandle predicate', () => {
 		test('handles gapMatchInteraction element', () => {
 			const xml = `
@@ -400,6 +505,7 @@ describe('standardGapMatchExtractor', () => {
 					{ identifier: 'T1', text: 'Text 1', matchMax: 1 },
 					{ identifier: 'T2', text: 'Text 2', matchMax: 1 },
 				],
+				gapImages: [],
 				gaps: ['G1', 'G2'],
 				promptText: 'Fill [GAP:G1] and [GAP:G2]',
 				shuffle: false,
@@ -412,9 +518,26 @@ describe('standardGapMatchExtractor', () => {
 			expect(validation.errors).toBeUndefined();
 		});
 
-		test('reports error for empty gapTexts', () => {
+		test('validates an image-only item (gapImg without gapText)', () => {
 			const data = {
 				gapTexts: [],
+				gapImages: [{ identifier: 'I1', src: 'images/sun.png', alt: 'Sun', matchMax: 1 }],
+				gaps: ['G1'],
+				promptText: 'Fill [GAP:G1]',
+				shuffle: false,
+				prompt: null,
+			};
+
+			const validation = standardGapMatchExtractor.validate!(data);
+
+			expect(validation.valid).toBe(true);
+			expect(validation.errors).toBeUndefined();
+		});
+
+		test('reports error for empty gapTexts and gapImages', () => {
+			const data = {
+				gapTexts: [],
+				gapImages: [],
 				gaps: ['G1'],
 				promptText: '[GAP:G1]',
 				shuffle: false,
@@ -424,7 +547,39 @@ describe('standardGapMatchExtractor', () => {
 			const validation = standardGapMatchExtractor.validate!(data);
 
 			expect(validation.valid).toBe(false);
-			expect(validation.errors).toContain('gapMatchInteraction must have at least one gapText');
+			expect(validation.errors).toContain('gapMatchInteraction must have at least one gapText or gapImg');
+		});
+
+		test('reports error for a gapImg without an image source', () => {
+			const data = {
+				gapTexts: [{ identifier: 'T1', text: 'Text', matchMax: 1 }],
+				gapImages: [{ identifier: 'I1', src: '', alt: 'Sun', matchMax: 1 }],
+				gaps: ['G1'],
+				promptText: '[GAP:G1]',
+				shuffle: false,
+				prompt: null,
+			};
+
+			const validation = standardGapMatchExtractor.validate!(data);
+
+			expect(validation.valid).toBe(false);
+			expect(validation.errors).toContain('gapImg I1 must reference an image source');
+		});
+
+		test('reports error when a gapImg identifier collides with a gapText identifier', () => {
+			const data = {
+				gapTexts: [{ identifier: 'T1', text: 'Text', matchMax: 1 }],
+				gapImages: [{ identifier: 'T1', src: 'images/sun.png', alt: 'Sun', matchMax: 1 }],
+				gaps: ['G1'],
+				promptText: '[GAP:G1]',
+				shuffle: false,
+				prompt: null,
+			};
+
+			const validation = standardGapMatchExtractor.validate!(data);
+
+			expect(validation.valid).toBe(false);
+			expect(validation.errors).toContain('Duplicate choice identifier: T1');
 		});
 
 		test('reports error for empty gaps', () => {
@@ -457,7 +612,7 @@ describe('standardGapMatchExtractor', () => {
 			const validation = standardGapMatchExtractor.validate!(data);
 
 			expect(validation.valid).toBe(false);
-			expect(validation.errors).toContain('Duplicate gapText identifier: T1');
+			expect(validation.errors).toContain('Duplicate choice identifier: T1');
 		});
 	});
 });

@@ -157,6 +157,20 @@ export interface GapMatchInteractionData extends BaseInteractionData<'gapMatchIn
 	shuffle: boolean;
 	prompt: HtmlContent | null;
 	gapTexts: Array<{ identifier: string; text: string; matchMax: number; matchGroup?: string[]; inputWidth?: number }>;
+	/**
+	 * Image choices from gapImg (QTI 2.x) / qti-gap-img (QTI 3.0); optional so
+	 * hand-built text-only data stays valid. `src` passes the resource-URL policy
+	 * through the module's delivery field.
+	 */
+	gapImages?: Array<{
+		identifier: string;
+		src: string;
+		alt: string;
+		matchMax: number;
+		matchGroup?: string[];
+		width?: number;
+		height?: number;
+	}>;
 	gaps: Array<{ identifier: string; index: number }>;
 	/** Finalized HTML template containing `[GAP:identifier]` text markers. */
 	promptText: HtmlContent;
