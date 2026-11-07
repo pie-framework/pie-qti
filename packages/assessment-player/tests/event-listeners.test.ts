@@ -9,6 +9,7 @@ import './setup';
 import { describe, expect, test } from 'bun:test';
 import { ReferenceBackendAdapter } from '../src/integration/ReferenceBackendAdapter.js';
 import { AssessmentPlayer } from '../src/core/AssessmentPlayer.js';
+import { isAssessmentPlayerError } from '../src/core/errors.js';
 
 const CHOICE_XML = (identifier: string) =>
 	`<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="${identifier}" title="${identifier}" adaptive="false" timeDependent="false">
@@ -166,9 +167,14 @@ describe('navigateToSection', () => {
 		player.destroy();
 	});
 
-	test('an unknown section id leaves delivery where it was', async () => {
+	test('an unknown section id rejects as an invalid target and leaves delivery where it was', async () => {
 		const player = await createPlayer(TWO_SECTION_ASSESSMENT);
-		await player.navigateToSection('no-such-section');
+		try {
+			await player.navigateToSection('no-such-section');
+			expect.unreachable();
+		} catch (error) {
+			expect(isAssessmentPlayerError(error) && error.code).toBe('invalidNavigationTarget');
+		}
 		expect(player.getCurrentItem()?.identifier).toBe('item-1');
 		player.destroy();
 	});

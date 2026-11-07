@@ -5,7 +5,7 @@
  * Enforces attempt limits, feedback visibility, review/skip controls, and validation.
  *
  * QTI 2.2 itemSessionControl attributes:
- * - maxAttempts: Maximum number of submission attempts (0 = unlimited)
+ * - maxAttempts: Maximum number of submission attempts (default 1; 0 = unlimited, for adaptive items)
  * - showFeedback: Whether to show feedback after responses
  * - showSolution: Whether to show correct answers
  * - allowReview: Allow returning to already-answered items
@@ -16,8 +16,16 @@
  * Settings apply per item where `setItemSettings` has set them, and fall back to the shared settings.
  */
 
+import type { AssessmentPlayerErrorCode } from './errors.js';
+
+/** Why navigation away from an item is blocked; localized via `assessment.errors.codes.<reason>`. */
+export type ItemNavigationBlockReason = Extract<
+	AssessmentPlayerErrorCode,
+	'responseRequired' | 'responseInvalid'
+>;
+
 export interface ItemSessionControlSettings {
-	maxAttempts?: number; // 0 = unlimited
+	maxAttempts?: number; // default 1; 0 = unlimited (adaptive items)
 	showFeedback?: boolean;
 	allowReview?: boolean;
 	showSolution?: boolean;
@@ -40,9 +48,11 @@ export class ItemSessionController {
 	private itemSettings: Map<string, ItemSessionControlSettings> = new Map();
 
 	constructor(settings: ItemSessionControlSettings = {}) {
-		// Apply defaults per QTI 2.2 spec
+		// Apply defaults per QTI 2.2/3.0 spec: one attempt for non-adaptive items
+		// (0 = unlimited), feedback/solution/comment off, review and skipping on,
+		// response validation off.
 		this.settings = {
-			maxAttempts: settings.maxAttempts ?? 0, // 0 = unlimited
+			maxAttempts: settings.maxAttempts ?? 1,
 			showFeedback: settings.showFeedback ?? false,
 			allowReview: settings.allowReview ?? true,
 			showSolution: settings.showSolution ?? false,
@@ -116,8 +126,8 @@ export class ItemSessionController {
 			return false;
 		}
 
-		// Check maxAttempts
-		const maxAttempts = this.settingsFor(itemIdentifier).maxAttempts ?? 0;
+		// Check maxAttempts (0 = unlimited)
+		const maxAttempts = this.settingsFor(itemIdentifier).maxAttempts ?? 1;
 		if (maxAttempts > 0 && state.attemptCount >= maxAttempts) {
 			return false;
 		}
@@ -134,7 +144,7 @@ export class ItemSessionController {
 			return null;
 		}
 
-		const maxAttempts = this.settingsFor(itemIdentifier).maxAttempts ?? 0;
+		const maxAttempts = this.settingsFor(itemIdentifier).maxAttempts ?? 1;
 		if (maxAttempts === 0) {
 			return null; // Unlimited
 		}
@@ -198,11 +208,12 @@ export class ItemSessionController {
 	}
 
 	/**
-	 * Validate that an item has valid responses (if validation is required)
+	 * Validate that an item has valid responses (if validation is required).
+	 * `error` is a stable reason code, localized by the shell — never raw English text.
 	 */
 	validateItem(itemIdentifier: string, hasValidResponses: boolean): {
 		isValid: boolean;
-		error?: string;
+		error?: ItemNavigationBlockReason;
 	} {
 		if (!this.mustValidateResponses(itemIdentifier)) {
 			return { isValid: true };
@@ -217,7 +228,7 @@ export class ItemSessionController {
 		if (!hasValidResponses) {
 			return {
 				isValid: false,
-				error: 'This item requires a valid response before continuing.',
+				error: 'responseInvalid',
 			};
 		}
 
@@ -225,11 +236,12 @@ export class ItemSessionController {
 	}
 
 	/**
-	 * Check if navigation away from current item is allowed
+	 * Check if navigation away from current item is allowed.
+	 * `reason` is a stable code the shell localizes — never raw English text.
 	 */
 	canNavigateAway(itemIdentifier: string, hasValidResponses: boolean): {
 		allowed: boolean;
-		reason?: string;
+		reason?: ItemNavigationBlockReason;
 	} {
 		const state = this.sessionStates.get(itemIdentifier);
 		if (!state) {
@@ -240,7 +252,7 @@ export class ItemSessionController {
 		if (!state.isAnswered && !this.canSkip(itemIdentifier)) {
 			return {
 				allowed: false,
-				reason: 'You must answer this item before continuing.',
+				reason: 'responseRequired',
 			};
 		}
 
@@ -248,7 +260,7 @@ export class ItemSessionController {
 		if (this.mustValidateResponses(itemIdentifier) && state.isAnswered && !hasValidResponses) {
 			return {
 				allowed: false,
-				reason: 'Please provide valid responses before continuing.',
+				reason: 'responseInvalid',
 			};
 		}
 

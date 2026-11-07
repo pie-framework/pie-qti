@@ -30,6 +30,7 @@ import type {
 	FinalizeAssessmentResponse,
 	InitSessionRequest,
 	InitSessionResponse,
+	OutcomeProcessingError,
 	SecureAssessment,
 	SecureItemRef,
 	SecureSection,
@@ -40,12 +41,14 @@ import type {
 } from '../integration/api-contract.js';
 import type {
 	AssessmentResults,
+	CandidateSectionView,
 	ItemResult,
 	NavigationState,
 	TimeLimits,
 	VisibleTestFeedback,
 } from '../types/index.js';
 import { AssessmentSessionCoordinator } from './AssessmentSessionCoordinator.js';
+import { AssessmentPlayerError, type AssessmentPlayerErrorCode } from './errors.js';
 import { NavigationManager } from './NavigationManager.js';
 import {
 	deliveredItems,
@@ -131,6 +134,12 @@ export interface BackendAssessmentPlayerConfig {
 	onSectionChange?: (sectionIndex: number, totalSections: number) => void;
 	onResponseChange?: (responses: Record<string, unknown>) => void;
 	onComplete?: () => void;
+	/**
+	 * Host hook for core and backend failures. Errors are `AssessmentPlayerError`
+	 * instances carrying a stable `code` for localization; `message` keeps the raw
+	 * detail (including backend error text) for logs — never show it to candidates.
+	 */
+	onError?: (error: Error) => void;
 }
 
 type FlatItem = {
@@ -140,8 +149,11 @@ type FlatItem = {
 	section: SecureSection;
 	/** Enclosing sections, outermost first. */
 	sections: SecureSection[];
+	/** Outermost enclosing section the candidate is actually shown (QTI visible="false" merges content into the parent). */
+	presentedSection: SecureSection | undefined;
 	testPart: SecureTestPart;
 	index: number;
+	/** Index of `presentedSection` in the candidate-facing section list; -1 when none is visible. */
 	sectionIndex: number;
 };
 
@@ -189,15 +201,25 @@ export class AssessmentPlayer {
 	/** Test-level outcomes from the last outcome processing; null until it first runs. */
 	private testOutcomes: TestOutcomeValues | null = null;
 	private finalized = false;
+	/** Results produced by the finalization; returned when submit() is called again after the end. */
+	private finalResults: AssessmentResults | null = null;
 	/** Scopes whose time limit expired without late submission, keyed `scope:identifier`. */
 	private readonly lockedScopes = new Set<string>();
 	private legacyFeedback: string | undefined;
+	/**
+	 * Navigation serialization: exactly one navigation or submission transition may run at
+	 * a time. While set, further navigation and submit calls are rejected as busy.
+	 */
+	private transitionInFlight = false;
+	/** Last reported test-level outcome-processing failure, so hosts hear about each new one once. */
+	private reportedOutcomeProcessingError: OutcomeProcessingError | null = null;
 
 	// Event listeners
 	private itemChangeListeners = new Set<(index: number, total: number) => void>();
 	private sectionChangeListeners = new Set<(index: number, total: number) => void>();
 	private responseChangeListeners = new Set<(responses: Record<string, unknown>) => void>();
 	private completeListeners = new Set<() => void>();
+	private busyChangeListeners = new Set<(busy: boolean) => void>();
 	private testFeedbackChangeListeners = new Set<() => void>();
 	private timeWarningListeners = new Set<(remainingSeconds: number) => void>();
 	private timeExpiredListeners = new Set<() => void>();
@@ -251,9 +273,9 @@ export class AssessmentPlayer {
 		const startId = this.state.currentItemIdentifier;
 		const idx = startId ? this.items.findIndex((q) => q.identifier === startId) : -1;
 		if (idx >= 0) {
-			this.navigateTo(idx, { restoring: true }).catch(() => {});
+			this.performNavigateTo(idx, { restoring: true }).catch(() => {});
 		} else if (this.items.length > 0) {
-			this.navigateTo(0, { restoring: true }).catch(() => {});
+			this.performNavigateTo(0, { restoring: true }).catch(() => {});
 		}
 	}
 
@@ -263,6 +285,36 @@ export class AssessmentPlayer {
 
 	private set state(state: AssessmentSessionState) {
 		this.sessionCoordinator.restoreState(state);
+	}
+
+	/**
+	 * Whether a navigation or submission transition is currently in flight. Shells must
+	 * disable navigation controls while this is set.
+	 */
+	public isBusy(): boolean {
+		return this.transitionInFlight;
+	}
+
+	/**
+	 * Serialize navigation and submission transitions. Exactly one transition runs at a
+	 * time; concurrent navigation or submit calls reject with a typed `navigationInFlight`
+	 * error instead of racing the in-flight backend request.
+	 */
+	private async runExclusive<T>(operation: () => Promise<T>): Promise<T> {
+		if (this.transitionInFlight) {
+			throw new AssessmentPlayerError(
+				'navigationInFlight',
+				'A navigation or submission transition is already in progress.',
+			);
+		}
+		this.transitionInFlight = true;
+		this.notifyBusyChange(true);
+		try {
+			return await operation();
+		} finally {
+			this.transitionInFlight = false;
+			this.notifyBusyChange(false);
+		}
 	}
 
 	private getEffectiveItemTimeLimits(flat: FlatItem): EffectiveItemTimeLimits {
@@ -346,7 +398,11 @@ export class AssessmentPlayer {
 		const elapsedMs = this.timeManager?.getScopeElapsedMs(scope, identifier) ?? 0;
 		if (elapsedMs < limits.minTime * 1000) {
 			const remaining = Math.ceil(limits.minTime - elapsedMs / 1000);
-			throw new Error(`The ${scope} minimum time has not elapsed (${remaining}s remaining).`);
+			throw new AssessmentPlayerError(
+				'minTimeNotElapsed',
+				`The ${scope} minimum time has not elapsed (${remaining}s remaining).`,
+				{ scope, remaining },
+			);
 		}
 	}
 
@@ -358,60 +414,128 @@ export class AssessmentPlayer {
 	}
 
 	private flattenItems(assessment: SecureAssessment): FlatItem[] {
-		const sectionIndexes = new Map(this.getAllSections().map((section) => [section.id, section.index]));
+		const sectionIndexes = new Map(
+			this.presentedSectionList().map((section, index) => [section.identifier, index]),
+		);
 		return deliveredItems(assessment).map(({ item, testPart, sections }, index) => {
 			const section = sections[sections.length - 1];
+			const presentedSection = this.presentedSectionOf(sections);
 			return {
 				identifier: item.identifier,
 				item,
 				section,
 				sections,
+				presentedSection,
 				testPart,
 				index,
-				sectionIndex: sectionIndexes.get(section.identifier) ?? 0,
+				sectionIndex: presentedSection ? (sectionIndexes.get(presentedSection.identifier) ?? -1) : -1,
 			};
 		});
+	}
+
+	/**
+	 * Sections presented to the candidate: visible themselves and under visible ancestors.
+	 * A QTI `visible="false"` section is not presented as a section — its content appears as
+	 * part of the parent — so neither it nor its descendants surface a title here. Items
+	 * inside keep being delivered in order.
+	 */
+	private presentedSectionList(): SecureSection[] {
+		const out: SecureSection[] = [];
+		const seen = new Set<string>();
+		const visit = (section: SecureSection, underInvisible: boolean): void => {
+			const hidden = underInvisible || section.visible === false;
+			if (!hidden && !seen.has(section.identifier)) {
+				seen.add(section.identifier);
+				out.push(section);
+			}
+			for (const component of sectionComponents(section)) {
+				if (component.type === 'section') visit(component.section, hidden);
+			}
+		};
+		for (const tp of this.assessment.testParts || []) {
+			for (const section of tp.sections || []) visit(section, false);
+		}
+		return out;
+	}
+
+	/** Outermost enclosing section of an item that the candidate is shown, if any. */
+	private presentedSectionOf(sections: readonly SecureSection[]): SecureSection | undefined {
+		let underInvisible = false;
+		for (const section of sections) {
+			if (section.visible === false) {
+				underInvisible = true;
+				continue;
+			}
+			if (!underInvisible) return section;
+		}
+		return undefined;
+	}
+
+	/**
+	 * Whether jumping to a presented section is legal right now: in linear navigation there
+	 * is no jumping at all; in nonlinear navigation only sections of the current test part
+	 * are reachable, never locked items or items review has closed. Finalized tests have no
+	 * legal targets.
+	 */
+	private isLegalSectionTarget(section: SecureSection): boolean {
+		if (this.finalized) return false;
+		const current = this.items[this.currentItemIndex];
+		if (!current) return false;
+		const members = this.items.filter((q) =>
+			q.sections.some((s) => s.identifier === section.identifier),
+		);
+		if (members.length === 0) return false;
+		const mode = current.testPart.navigationMode ?? this.assessment.navigationMode ?? 'nonlinear';
+		if (mode === 'linear') {
+			return members.some((q) => q === current);
+		}
+		return members.some(
+			(q) =>
+				q.testPart === current.testPart &&
+				!this.isItemLocked(q) &&
+				this.sessionCoordinator.canReview(q.identifier),
+		);
 	}
 
 	// ---------------------------------------------------------------------------
 	// Public API used by components
 	// ---------------------------------------------------------------------------
 
-	public getAllSections(): Array<{ id: string; title?: string; visible: boolean; index: number }> {
-		const out: Array<{ id: string; title?: string; visible: boolean; index: number }> = [];
-		const seen = new Set<string>();
-		const visit = (section: SecureSection): void => {
-			// A keepTogether="false" section mixed into its parent's shuffle appears as several fragments.
-			if (!seen.has(section.identifier)) {
-				seen.add(section.identifier);
-				out.push({ id: section.identifier, title: section.title, visible: section.visible, index: out.length });
-			}
-			for (const component of sectionComponents(section)) {
-				if (component.type === 'section') visit(component.section);
-			}
-		};
-		for (const tp of this.assessment.testParts || []) {
-			for (const section of tp.sections || []) visit(section);
-		}
-		return out;
+	/**
+	 * Candidate-facing sections: visible sections only (QTI `visible="false"` sections are
+	 * not presented as sections and their titles never surface), each with whether jumping
+	 * to it is legal right now for the current navigationMode.
+	 */
+	public getAllSections(): CandidateSectionView[] {
+		return this.presentedSectionList().map((section, index) => ({
+			id: section.identifier,
+			title: section.title,
+			index,
+			navigable: this.isLegalSectionTarget(section),
+		}));
 	}
 
 	public getNavigationState(): NavigationState {
+		const presented = this.presentedSectionList();
+		const sectionIndexes = new Map(presented.map((section, index) => [section.identifier, index]));
 		const total = this.items.length;
-		const canPrevious = this.canPrevious();
-		const canNext = this.canNext();
 		const q = this.items[this.currentItemIndex];
-		const totalSections = this.getAllSections().length;
+		const presentedSection = q ? this.presentedSectionOf(q.sections) : undefined;
 		return {
 			currentIndex: this.currentItemIndex,
 			totalItems: total,
-			canNext,
-			canPrevious,
-			isLoading: false,
-			currentSection: q
-				? { id: q.section.identifier, title: q.section.title, index: q.sectionIndex }
+			canNext: !this.finalized && this.canNext(),
+			canPrevious: !this.finalized && this.canPrevious(),
+			isLoading: this.transitionInFlight,
+			isComplete: this.finalized,
+			currentSection: presentedSection
+				? {
+					id: presentedSection.identifier,
+					title: presentedSection.title,
+					index: sectionIndexes.get(presentedSection.identifier) ?? -1,
+				}
 				: undefined,
-			totalSections,
+			totalSections: presented.length,
 		};
 	}
 
@@ -420,7 +544,7 @@ export class AssessmentPlayer {
 		if (!q) return null;
 		return {
 			identifier: q.item.identifier,
-			title: q.section.title,
+			title: q.presentedSection?.title,
 			required: q.item.required,
 			itemXml: q.item.itemXml,
 			deliveryContext: q.item.deliveryContext,
@@ -565,8 +689,10 @@ export class AssessmentPlayer {
 		}
 		const persisted = this.sessionCoordinator.getPersistedItemSession(itemIdentifier);
 		if (persisted && !isWritableItemLifecycle(persisted.lifecycleStatus)) {
-			throw new Error(
+			throw new AssessmentPlayerError(
+				'itemSessionLocked',
 				`Cannot update responses while item session is ${persisted.lifecycleStatus}`,
+				{ status: persisted.lifecycleStatus },
 			);
 		}
 
@@ -723,23 +849,25 @@ export class AssessmentPlayer {
 	/**
 	 * Restore a previously saved session state.
 	 */
-	public async restoreState(state: AssessmentSessionState): Promise<void> {
-		this.state = state;
-		this.restoreTimeTracking(state.timing);
+	public restoreState(state: AssessmentSessionState): Promise<void> {
+		return this.runExclusive(async () => {
+			this.state = state;
+			this.restoreTimeTracking(state.timing);
 
-		// Restore visited state for UI navigation hints.
-		const visitedIdx = (state.visitedItems || [])
-			.map((id) => this.items.findIndex((q) => q.identifier === id))
-			.filter((i) => i >= 0);
-		this.navigationManager.restoreState(visitedIdx);
+			// Restore visited state for UI navigation hints.
+			const visitedIdx = (state.visitedItems || [])
+				.map((id) => this.items.findIndex((q) => q.identifier === id))
+				.filter((i) => i >= 0);
+			this.navigationManager.restoreState(visitedIdx);
 
-		const currentId = state.currentItemIdentifier;
-		const idx = currentId ? this.items.findIndex((q) => q.identifier === currentId) : -1;
-		if (idx >= 0) {
-			await this.navigateTo(idx, { restoring: true });
-		} else if (this.items.length > 0) {
-			await this.navigateTo(0, { restoring: true });
-		}
+			const currentId = state.currentItemIdentifier;
+			const idx = currentId ? this.items.findIndex((q) => q.identifier === currentId) : -1;
+			if (idx >= 0) {
+				await this.performNavigateTo(idx, { restoring: true });
+			} else if (this.items.length > 0) {
+				await this.performNavigateTo(0, { restoring: true });
+			}
+		});
 	}
 
 	private restoreTimeTracking(timing: AssessmentSessionState['timing']): void {
@@ -756,23 +884,46 @@ export class AssessmentPlayer {
 		});
 	}
 
-	public async navigateTo(index: number, options: { restoring?: boolean } = {}): Promise<void> {
-		if (index < 0 || index >= this.items.length) throw new Error(`Invalid item index: ${index}`);
+	/**
+	 * Navigate to an item by index. Serialized with all other navigation and submission
+	 * transitions: while one is in flight this rejects with a `navigationInFlight` error,
+	 * and once the test has finalized it rejects with `testFinalized`.
+	 */
+	public navigateTo(index: number, options: { restoring?: boolean } = {}): Promise<void> {
+		return this.runExclusive(() => this.performNavigateTo(index, options));
+	}
+
+	private async performNavigateTo(index: number, options: { restoring?: boolean } = {}): Promise<void> {
+		if (index < 0 || index >= this.items.length) {
+			throw new AssessmentPlayerError('invalidNavigationTarget', `Invalid item index: ${index}`, { index });
+		}
+		if (this.finalized && !options.restoring) {
+			throw new AssessmentPlayerError(
+				'testFinalized',
+				'Cannot navigate: the assessment has ended.',
+			);
+		}
 
 		// Enforce navigation rules (UI hints, still backend-authoritative for real deployments).
 		if (!options.restoring && this.currentItemIndex >= 0 && !this.canNavigateByTestPart(index, this.currentItemIndex)) {
 			const currentMode = this.items[this.currentItemIndex]?.testPart.navigationMode ?? this.assessment.navigationMode;
 			if (currentMode === 'linear' && index > this.nextUnlockedIndex(this.currentItemIndex)) {
-				throw new Error('In linear navigation mode, you can only move to the next question.');
+				throw new AssessmentPlayerError(
+					'linearNavigationOnly',
+					'In linear navigation mode, you can only move to the next question.',
+				);
 			}
-			throw new Error('Navigation is not allowed.');
+			throw new AssessmentPlayerError('navigationNotAllowed', 'Navigation is not allowed.');
 		}
 		const target = this.items[index];
 		if (!options.restoring && target && this.isItemLocked(target)) {
-			throw new Error('The time limit for this question has expired.');
+			throw new AssessmentPlayerError('itemTimeExpired', 'The time limit for this question has expired.');
 		}
 		if (!options.restoring && target && !this.sessionCoordinator.canReview(target.identifier)) {
-			throw new Error('You cannot go back to previous questions in this assessment.');
+			throw new AssessmentPlayerError(
+				'reviewNotAllowed',
+				'You cannot go back to previous questions in this assessment.',
+			);
 		}
 
 		const currentItem = this.items[this.currentItemIndex];
@@ -837,12 +988,47 @@ export class AssessmentPlayer {
 		if (currentItem?.testPart.identifier !== q.testPart.identifier) this.notifyTestFeedbackChange();
 	}
 
-	public async navigateToSection(sectionId: string): Promise<void> {
-		const idx = this.items.findIndex((q) => q.section.identifier === sectionId);
-		if (idx >= 0) await this.navigateTo(idx);
+	/**
+	 * Navigate to a section by identifier. Legal targets only: a presented (visible)
+	 * section reachable under the current navigationMode. Illegal jumps reject with a
+	 * typed `AssessmentPlayerError` instead of throwing plain errors.
+	 */
+	public navigateToSection(sectionId: string): Promise<void> {
+		return this.runExclusive(async () => {
+			if (this.finalized) {
+				throw new AssessmentPlayerError(
+					'testFinalized',
+					`Cannot navigate to section "${sectionId}": the assessment has ended.`,
+				);
+			}
+			const idx = this.items.findIndex((q) =>
+				q.sections.some((s) => s.identifier === sectionId),
+			);
+			if (idx < 0) {
+				throw new AssessmentPlayerError(
+					'invalidNavigationTarget',
+					`Unknown section: ${sectionId}`,
+					{ sectionId },
+				);
+			}
+			const presented = this.presentedSectionList().find((s) => s.identifier === sectionId);
+			if (!presented || !this.isLegalSectionTarget(presented)) {
+				throw new AssessmentPlayerError(
+					'navigationNotAllowed',
+					`Navigation to section "${sectionId}" is not allowed.`,
+					{ sectionId },
+				);
+			}
+			await this.performNavigateTo(idx);
+		});
 	}
 
-	public async next(): Promise<void> {
+	/** Move forward. Serialized with all other transitions; rejects as busy while one is in flight. */
+	public next(): Promise<void> {
+		return this.runExclusive(() => this.performNext());
+	}
+
+	private async performNext(): Promise<void> {
 		const state = this.getNavigationState();
 		if (!state.canNext) return;
 
@@ -853,7 +1039,13 @@ export class AssessmentPlayer {
 
 			const navAway = this.sessionCoordinator.canNavigateAway(q.identifier, responses);
 			if (!navAway.allowed) {
-				throw new Error(navAway.reason || 'You must answer this question before continuing.');
+				const reason: AssessmentPlayerErrorCode = navAway.reason ?? 'responseRequired';
+				throw new AssessmentPlayerError(
+					reason,
+					reason === 'responseInvalid'
+						? 'Please provide valid responses before continuing.'
+						: 'You must answer this question before continuing.',
+				);
 			}
 
 			// In individual submission mode, submit the current item before moving forward
@@ -865,27 +1057,38 @@ export class AssessmentPlayer {
 				lifecycle !== 'closed'
 			) {
 				const before = this.currentItemIndex;
-				await this.submitCurrentItem();
-				// submitCurrentItem may branch/navigate; if it did, we're done.
-				if (this.currentItemIndex !== before) return;
+				await this.submitCurrentItemInternal();
+				// The submission may branch, navigate, or finalize the test (EXIT_TEST);
+				// in those cases navigation stops here.
+				if (this.currentItemIndex !== before || this.finalized) return;
 			}
 		}
 
 		const nextIndex = this.nextUnlockedIndex(this.currentItemIndex);
 		if (nextIndex < 0) return;
-		await this.navigateTo(nextIndex);
+		await this.performNavigateTo(nextIndex);
 	}
 
-	public async previous(): Promise<void> {
-		const state = this.getNavigationState();
-		if (!state.canPrevious) return;
-		await this.navigateTo(this.currentItemIndex - 1);
+	/** Move back. Serialized with all other transitions; rejects as busy while one is in flight. */
+	public previous(): Promise<void> {
+		return this.runExclusive(async () => {
+			const state = this.getNavigationState();
+			if (!state.canPrevious) return;
+			await this.performNavigateTo(this.currentItemIndex - 1);
+		});
 	}
 
-	/** Submit current item (server-side scoring) */
-	public async submitCurrentItem(): Promise<ItemResult> {
+	/**
+	 * Submit current item (server-side scoring). Serialized with all other navigation and
+	 * submission transitions; rejects as busy while one is in flight.
+	 */
+	public submitCurrentItem(): Promise<ItemResult> {
+		return this.runExclusive(() => this.submitCurrentItemInternal());
+	}
+
+	private async submitCurrentItemInternal(): Promise<ItemResult> {
 		const q = this.items[this.currentItemIndex];
-		if (!q) throw new Error('No current item');
+		if (!q) throw new AssessmentPlayerError('invalidNavigationTarget', 'No current item');
 		this.assertMinimumTime('item', q);
 
 		const submittedAt = Date.now();
@@ -905,7 +1108,10 @@ export class AssessmentPlayer {
 				const attempt = transition.result;
 				if (!attempt) throw new Error('Item session did not produce an end-attempt result');
 				if (attempt.validation && !attempt.validation.valid) {
-					throw new Error(attempt.validation.issues[0]?.message || 'Submit failed: invalid response');
+					throw new AssessmentPlayerError(
+						'attemptValidationFailed',
+						attempt.validation.issues[0]?.message || 'Submit failed: invalid response',
+					);
 				}
 				itemSession = attempt.sessionState;
 			}
@@ -921,7 +1127,9 @@ export class AssessmentPlayer {
 			});
 
 			if (!res.success || !res.result) {
-				throw new Error(res.error || 'Submit failed');
+				// Backend error text stays on the Error (logs/host callbacks); candidates
+				// see the localized `assessment.errors.codes.submitFailed` message instead.
+				throw new AssessmentPlayerError('submitFailed', res.error || 'Submit failed');
 			}
 		} catch (error) {
 			// Ending an attempt is a local provisional commit until the backend accepts
@@ -967,6 +1175,7 @@ export class AssessmentPlayer {
 		}
 
 		this.setTestOutcomes(res.outcomes);
+		this.reportOutcomeProcessingError(res.outcomeProcessingError);
 
 		const itemResult: ItemResult = {
 			itemIdentifier: q.identifier,
@@ -985,40 +1194,67 @@ export class AssessmentPlayer {
 		this.sessionCoordinator.markAnswered(q.identifier, responses);
 		this.navigationManager.markVisited(this.currentItemIndex);
 
-		// Apply backend branching decision if provided.
-		// Special QTI targets EXIT_TEST / EXIT_TESTPART / EXIT_SECTION trigger finalization.
+		// Apply the backend's branching decision, if any. QTI branchRule semantics:
+		// - EXIT_TEST terminates the test: remaining items are not presented and the test
+		//   finalizes exactly like a normal end of test.
+		// - EXIT_TESTPART ends the current test part; EXIT_SECTION ends the current section.
+		//   Delivery continues with the next item outside the ended scope; when none follows
+		//   (for the part, or the test), the ended scope finalizes like a normal end of test.
 		if (res.nextItemIdentifier) {
 			const special = res.nextItemIdentifier;
 			if (special === 'EXIT_TEST') {
-				// Finalize immediately — no further navigation
-				for (const l of this.completeListeners) l();
-				this.config.onComplete?.();
+				await this.endTestInternal();
 			} else if (special === 'EXIT_TESTPART' || special === 'EXIT_SECTION') {
-				// Advance past all remaining items in the current testPart or section
-				const currentItem = this.items[this.currentItemIndex];
-				const isSection = special === 'EXIT_SECTION';
-				const nextIdx = this.items.findIndex((item, i) =>
-					i > this.currentItemIndex &&
-					(isSection
-						? item.section.identifier !== currentItem?.section.identifier
-						: item.testPart.identifier !== currentItem?.testPart.identifier)
-				);
-				if (nextIdx >= 0) {
-					await this.navigateTo(nextIdx, { restoring: true });
-				} else {
-					// No further items — signal completion
-					for (const l of this.completeListeners) l();
-					this.config.onComplete?.();
-				}
+				await this.applyExitBoundary(special, q);
 			} else {
 				const nextIdx = this.items.findIndex((x) => x.identifier === special);
 				if (nextIdx >= 0) {
-					await this.navigateTo(nextIdx, { restoring: true });
+					await this.performNavigateTo(nextIdx, { restoring: true });
 				}
 			}
 		}
 
 		return itemResult;
+	}
+
+	/**
+	 * Leave the scope ended by an EXIT_TESTPART / EXIT_SECTION branch rule: continue with
+	 * the first delivered item outside it, finalizing the ended test part (or, when nothing
+	 * follows anywhere, the whole test) through the same finalization path as submit().
+	 */
+	private async applyExitBoundary(
+		special: 'EXIT_TESTPART' | 'EXIT_SECTION',
+		current: FlatItem,
+	): Promise<void> {
+		let nextIdx = this.items.findIndex((item, i) =>
+			i > this.currentItemIndex &&
+			(special === 'EXIT_SECTION'
+				? item.section.identifier !== current.section.identifier
+				: item.testPart.identifier !== current.testPart.identifier),
+		);
+		if (special === 'EXIT_SECTION' && nextIdx < 0) {
+			// Nothing follows the section inside this test part: the part ends too.
+			nextIdx = this.items.findIndex(
+				(item, i) => i > this.currentItemIndex && item.testPart !== current.testPart,
+			);
+		}
+		const partEnded = nextIdx < 0 || this.items[nextIdx]!.testPart !== current.testPart;
+		if (partEnded) {
+			// The part's pending simultaneous-mode responses are due when it ends.
+			await this.submitSimultaneousItems(
+				this.items.filter(
+					(item) =>
+						item.testPart === current.testPart &&
+						(item.testPart.submissionMode ?? this.assessment.submissionMode) === 'simultaneous',
+				),
+			);
+		}
+		if (nextIdx >= 0) {
+			await this.performNavigateTo(nextIdx, { restoring: true });
+			return;
+		}
+		// No further test part: end the test exactly like a normal end of test.
+		await this.endTestInternal();
 	}
 
 	private canPrevious(): boolean {
@@ -1094,7 +1330,11 @@ export class AssessmentPlayer {
 					comment: this.sessionCoordinator.getItemComment(q.identifier),
 				});
 				if (!res.success || !res.result) {
-					throw new Error(res.error || `Submit failed for item ${q.identifier}`);
+					// Backend error text stays on the Error for logs/host callbacks only.
+					throw new AssessmentPlayerError(
+						'submitFailed',
+						res.error || `Submit failed for item ${q.identifier}`,
+					);
 				}
 				if (res.updatedState) {
 					this.sessionCoordinator.replaceStatePreservingResponsesAndSessions(
@@ -1117,6 +1357,7 @@ export class AssessmentPlayer {
 					responses: this.state.itemResponses[q.identifier] || {},
 				});
 				this.setTestOutcomes(res.outcomes);
+				this.reportOutcomeProcessingError(res.outcomeProcessingError);
 			}
 
 			// The attached item must represent the same accepted lifecycle as persistence.
@@ -1164,8 +1405,24 @@ export class AssessmentPlayer {
 		}
 	}
 
-	/** Submit entire assessment (finalize on backend) */
-	public async submit(): Promise<AssessmentResults> {
+	/**
+	 * Submit the entire assessment and finalize on the backend — the single terminal
+	 * transition, also used for QTI `EXIT_TEST` (and for EXIT_TESTPART / EXIT_SECTION when
+	 * nothing follows the ended scope). Serialized with all other navigation and submission
+	 * transitions. Calling it again after the test has ended returns the same results.
+	 */
+	public submit(): Promise<AssessmentResults> {
+		return this.runExclusive(() => this.endTestInternal());
+	}
+
+	/**
+	 * The one normal-end-of-test path: pending simultaneous-mode responses are submitted,
+	 * the current individual-mode item is submitted if needed, then the backend finalizes
+	 * (outcome processing runs, results are produced) and navigation closes.
+	 */
+	private async endTestInternal(): Promise<AssessmentResults> {
+		if (this.finalized && this.finalResults) return this.finalResults;
+
 		const current = this.items[this.currentItemIndex];
 		if (current) {
 			this.assertMinimumTime('item', current);
@@ -1178,16 +1435,25 @@ export class AssessmentPlayer {
 		await this.submitSimultaneousItems(this.items.filter((q) =>
 			(q.testPart.submissionMode ?? this.assessment.submissionMode) === 'simultaneous',
 		));
+		if (this.finalized && this.finalResults) return this.finalResults;
 		const q = this.items[this.currentItemIndex];
 		if (q && (q.testPart.submissionMode ?? this.assessment.submissionMode) === 'individual'
 			&& !this.sessionCoordinator.hasItemResult(q.identifier)) {
-			await this.submitCurrentItem();
+			await this.submitCurrentItemInternal();
+			// That submission may itself have branched to EXIT_TEST and finalized the test.
+			if (this.finalized && this.finalResults) return this.finalResults;
 		}
+
+		return this.finalizeInternal();
+	}
+
+	private async finalizeInternal(): Promise<AssessmentResults> {
+		if (this.finalized && this.finalResults) return this.finalResults;
 
 		const finalized: FinalizeAssessmentResponse = await this.backend.finalizeAssessment({
 			sessionId: this.sessionId,
 		});
-		if (!finalized.success) throw new Error('Finalize failed');
+		if (!finalized.success) throw new AssessmentPlayerError('finalizeFailed', 'Finalize failed');
 
 		// Map backend itemScores to ItemResult[]
 		const itemScores = finalized.itemScores || {};
@@ -1204,16 +1470,41 @@ export class AssessmentPlayer {
 		this.legacyFeedback = finalized.feedback;
 		this.testOutcomes = cloneData(finalized.outcomes ?? this.testOutcomes ?? {})!;
 		this.notifyTestFeedbackChange();
+		this.reportOutcomeProcessingError(finalized.outcomeProcessingError);
 
 		this.notifyComplete();
 		if (this.config.onComplete) this.config.onComplete();
 
-		return {
+		const results: AssessmentResults = {
 			totalScore: finalized.totalScore,
 			maxScore: finalized.maxScore,
 			itemResults,
 			completedAt: new Date(finalized.finalizedAt),
 		};
+		if (this.reportedOutcomeProcessingError) {
+			results.outcomeProcessingError = this.reportedOutcomeProcessingError;
+		}
+		this.finalResults = results;
+		return results;
+	}
+
+	/**
+	 * Surface a backend test-level outcome-processing failure to the host (onError and,
+	 * for finalize, the results). Candidate responses stay accepted and persisted; only
+	 * SCORE/testFeedback computation failed.
+	 */
+	private reportOutcomeProcessingError(error: OutcomeProcessingError | undefined): void {
+		if (!error) return;
+		const isNew =
+			!this.reportedOutcomeProcessingError ||
+			this.reportedOutcomeProcessingError.message !== error.message ||
+			this.reportedOutcomeProcessingError.code !== error.code;
+		this.reportedOutcomeProcessingError = error;
+		if (isNew) {
+			this.config.onError?.(
+				new AssessmentPlayerError('outcomeProcessingFailed', error.message, { code: error.code }),
+			);
+		}
 	}
 
 	// ---------------------------------------------------------------------------
@@ -1289,6 +1580,12 @@ export class AssessmentPlayer {
 		return () => this.completeListeners.delete(listener);
 	}
 
+	/** Fires when a navigation/submission transition starts or ends (`getNavigationState().isLoading` mirrors this). */
+	public onBusyChange(listener: (busy: boolean) => void): () => void {
+		this.busyChangeListeners.add(listener);
+		return () => this.busyChangeListeners.delete(listener);
+	}
+
 	/** Called when `getVisibleFeedback()` may have changed: new outcomes, a new test part, or the end. */
 	public onTestFeedbackChange(listener: () => void): () => void {
 		this.testFeedbackChangeListeners.add(listener);
@@ -1318,6 +1615,7 @@ export class AssessmentPlayer {
 		this.sectionChangeListeners.clear();
 		this.responseChangeListeners.clear();
 		this.completeListeners.clear();
+		this.busyChangeListeners.clear();
 		this.testFeedbackChangeListeners.clear();
 		this.timeWarningListeners.clear();
 		this.timeExpiredListeners.clear();
@@ -1335,8 +1633,8 @@ export class AssessmentPlayer {
 
 	private notifySectionChange(): void {
 		const q = this.items[this.currentItemIndex];
-		const sectionIndex = q?.sectionIndex ?? 0;
-		const totalSections = this.getAllSections().length;
+		const sectionIndex = q?.sectionIndex ?? -1;
+		const totalSections = this.presentedSectionList().length;
 		for (const l of this.sectionChangeListeners) l(sectionIndex, totalSections);
 		this.config.onSectionChange?.(sectionIndex, totalSections);
 	}
@@ -1349,6 +1647,10 @@ export class AssessmentPlayer {
 
 	private notifyComplete(): void {
 		for (const l of this.completeListeners) l();
+	}
+
+	private notifyBusyChange(busy: boolean): void {
+		for (const l of this.busyChangeListeners) l(busy);
 	}
 
 	private notifyTestFeedbackChange(): void {
@@ -1400,7 +1702,7 @@ export class AssessmentPlayer {
 			this.notifyTimeExpired();
 			return;
 		}
-		this.navigateTo(nextIndex, { restoring: true }).catch(() => {});
+		this.performNavigateTo(nextIndex, { restoring: true }).catch(() => {});
 	}
 
 	private notifyTimeExpired(): void {

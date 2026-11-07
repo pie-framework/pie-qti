@@ -186,8 +186,10 @@ describe('T7-L1-D1: one visible section', () => {
 	it('first section is visible', async () => {
 		const player = await createPlayer();
 		const sections = player.getAllSections();
+		// Only visible sections are listed candidate-facing; an invisible one would be
+		// omitted entirely, so presence in the list means the section is visible.
 		expect(sections).toHaveLength(1);
-		expect(sections[0].visible).toBe(true);
+		expect(sections[0].id).toBe('section1');
 	});
 });
 

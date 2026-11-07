@@ -53,6 +53,7 @@ export type {
 	FinalizeAssessmentResponse,
 	InitSessionRequest,
 	InitSessionResponse,
+	OutcomeProcessingError,
 	ResponseValue,
 	SaveAssessmentStateRequest,
 	SaveAssessmentStateResponse,

@@ -56,6 +56,7 @@ import type {
 	FinalizeAssessmentResponse,
 	InitSessionRequest,
 	InitSessionResponse,
+	OutcomeProcessingError,
 	SaveAssessmentStateRequest,
 	SaveAssessmentStateResponse,
 	SecureAssessment,
@@ -156,17 +157,17 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 	 */
 	async initSession(request: InitSessionRequest): Promise<InitSessionResponse> {
 		// Check if resuming existing session
-		if (request.resumeSessionId) {
-			const stored = loadSession(request.resumeSessionId);
-			if (stored) {
-				return {
-					sessionId: stored.sessionId,
-					assessment: stored.assessment,
-					restoredState: stored.state,
-					outcomes: this.currentOutcomes(stored),
-				};
+			if (request.resumeSessionId) {
+				const stored = loadSession(request.resumeSessionId);
+				if (stored) {
+					return {
+						sessionId: stored.sessionId,
+						assessment: stored.assessment,
+						restoredState: stored.state,
+						outcomes: this.currentOutcomes(stored).outcomes,
+					};
+				}
 			}
-		}
 
 		// Create new session
 		const sessionId = generateSessionId(request.assessmentId, request.candidateId);
@@ -337,7 +338,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 
 		saveSession(session);
 
-		const outcomes = this.currentOutcomes(session);
+		const { outcomes, error } = this.currentOutcomes(session);
 		const currentVariables = testState?.variables ?? this.scoredItemVariables(result);
 		const decls = navigationDeclarations(session, outcomes, {
 			...applyVariableMappings(currentVariables, current.item.variableMappings),
@@ -351,6 +352,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			nextItemIdentifier: nextId,
 			updatedState: session.state,
 			outcomes,
+			...(error ? { outcomeProcessingError: error } : {}),
 		};
 	}
 
@@ -403,7 +405,8 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		const maxScore = Object.values(itemScores).reduce((sum, result) => sum + result.maxScore, 0);
 
 		// Execute test-level outcome processing if available
-		const outcomes = this.runOutcomeProcessing(session);
+		const run = this.runOutcomeProcessing(session);
+		const outcomes = run.outcomes;
 		const scoreOutcome = outcomes?.SCORE_TOTAL ?? outcomes?.SCORE;
 		const totalScore = typeof scoreOutcome === 'number' ? scoreOutcome : fallbackTotal;
 
@@ -413,25 +416,38 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			maxScore,
 			itemScores,
 			outcomes: outcomes ?? undefined,
+			...(run.error ? { outcomeProcessingError: run.error } : {}),
 			finalizedAt: Date.now(),
 		};
 	}
 
-	/** Outcome values after the submissions so far; undefined before the first submission. */
-	private currentOutcomes(session: StoredSession): TestOutcomeValues | undefined {
-		if (Object.keys(session.state.itemScores ?? {}).length === 0) return undefined;
-		return this.runOutcomeProcessing(session) ?? undefined;
+	/**
+	 * Outcome values and any outcome-processing failure after the submissions so far; both
+	 * undefined before the first submission.
+	 */
+	private currentOutcomes(
+		session: StoredSession,
+	): { outcomes?: TestOutcomeValues; error?: OutcomeProcessingError } {
+		if (Object.keys(session.state.itemScores ?? {}).length === 0) return {};
+		const run = this.runOutcomeProcessing(session);
+		return { outcomes: run.outcomes ?? undefined, error: run.error };
 	}
 
 	/**
 	 * Execute test-level outcome processing (T9/T1).
-	 * Returns every declared outcome's value (null for NULL), or null if no outcomeProcessing is
-	 * defined.
+	 *
+	 * Returns every declared outcome's value (null for NULL), or null when no
+	 * outcomeProcessing is defined. A failure is reported as a typed
+	 * `OutcomeProcessingError` (persisted on the session) — it never fails delivery and
+	 * candidate responses always stay persisted, but it must surface to the host instead
+	 * of SCORE/testFeedback silently never computing.
 	 */
-	private runOutcomeProcessing(session: StoredSession): TestOutcomeValues | null {
+	private runOutcomeProcessing(
+		session: StoredSession,
+	): { outcomes: TestOutcomeValues | null; error?: OutcomeProcessingError } {
 		const { assessment } = session;
 		if (!assessment.outcomeProcessingXml) {
-			return null;
+			return { outcomes: null };
 		}
 
 		try {
@@ -445,7 +461,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 
 			// Parse and execute outcome processing
 			const opEl = parseXml(assessment.outcomeProcessingXml).documentElement;
-			if (!opEl) return null;
+			if (!opEl) return { outcomes: null };
 
 			const program = buildOutcomeProcessingAst(opEl, {
 				scope: 'test',
@@ -466,10 +482,20 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 				const v = ctx.getValue(d.identifier);
 				result[d.identifier] = v.kind === 'value' ? (v.value as TestOutcomeValue) : null;
 			}
-			return result;
+			if (session.outcomeProcessingError) {
+				delete session.outcomeProcessingError;
+				saveSession(session);
+			}
+			return { outcomes: result };
 		} catch (err) {
 			console.warn('[ReferenceBackendAdapter] outcomeProcessing failed:', err);
-			return null;
+			const error: OutcomeProcessingError = {
+				code: 'OUTCOME_PROCESSING_FAILED',
+				message: err instanceof Error ? err.message : String(err),
+			};
+			session.outcomeProcessingError = error;
+			saveSession(session);
+			return { outcomes: null, error };
 		}
 	}
 

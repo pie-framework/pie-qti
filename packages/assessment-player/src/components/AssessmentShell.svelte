@@ -5,9 +5,15 @@
 	import { SectionPlayerSplitPane, SectionPlayerVertical, TestFeedback as SectionTestFeedback } from '../../../section-player/src/components/index.js';
 	import type { BackendAssessmentPlayerConfig } from '../core/AssessmentPlayer.js';
 	import { AssessmentPlayer } from '../core/AssessmentPlayer.js';
+	import { assessmentErrorDisplay, isAssessmentPlayerError } from '../core/errors.js';
 	import type { BackendAdapter, InitSessionRequest } from '../integration/api-contract.js';
 	import { toSectionComposition } from '../integration/toSectionComposition.js';
-	import type { AssessmentResults, NavigationState, VisibleTestFeedback } from '../types/index.js';
+	import type {
+		AssessmentResults,
+		CandidateSectionView,
+		NavigationState,
+		VisibleTestFeedback,
+	} from '../types/index.js';
 	import AccessibilityAnnouncer from './AccessibilityAnnouncer.svelte';
 	import AssessmentHeader from './AssessmentHeader.svelte';
 	import NavigationBar from './NavigationBar.svelte';
@@ -46,6 +52,21 @@
 		},
 	});
 
+	/**
+	 * Candidate-safe error rendering: coded core errors resolve to localized
+	 * `assessment.errors.codes.*` messages; anything else (raw backend errors included)
+	 * renders a generic localized message plus a short support code. Backend error text
+	 * is never shown verbatim.
+	 */
+	function localizeError(err: unknown): { message: string; supportCode: string | null } {
+		const display = assessmentErrorDisplay(err);
+		const message = i18n.t(display.i18nKey, display.params);
+		return {
+			message,
+			supportCode: isAssessmentPlayerError(err) ? null : display.supportCode,
+		};
+	}
+
 	let player = $state<AssessmentPlayer | null>(null);
 	let navState = $state<NavigationState>({
 		currentIndex: -1,
@@ -59,10 +80,10 @@
 	let currentItem = $state<any>(null);
 	let currentRubricBlocks = $state<any[]>([]);
 	let currentResponses = $state<Record<string, unknown>>({});
-	let sections = $state<any[]>([]);
-	let error = $state<string | null>(null);
-	let navError = $state<string | null>(null);
-	let submitError = $state<string | null>(null);
+	let sections = $state<CandidateSectionView[]>([]);
+	let error = $state<{ message: string; supportCode: string | null } | null>(null);
+	let navError = $state<{ message: string; supportCode: string | null } | null>(null);
+	let submitError = $state<{ message: string; supportCode: string | null } | null>(null);
 	let isSubmitting = $state(false);
 	let retryButton = $state<HTMLButtonElement | null>(null);
 	let itemPaneEl = $state<HTMLElement | null>(null);
@@ -90,14 +111,24 @@
 			rawHtml: item.content,
 		}))
 	);
+	// The section menu only offers legal navigation targets for the current
+	// navigationMode (linear: none beyond staying; nonlinear: the current test part).
+	const menuSections = $derived(
+		sections
+			.filter((section) => section.navigable)
+			.map((section, index) => ({ ...section, index })),
+	);
+	const menuCurrentSectionIndex = $derived(
+		navState.currentSection ? menuSections.find((s) => s.id === navState.currentSection?.id)?.index : undefined,
+	);
 
 	// Initialize player
 	onMount(() => {
 		// Never allow infinite "Loading assessment..." state
 		initTimeout = setTimeout(() => {
 			if (!hasFirstItem && !error) {
-				error = i18n.t('assessment.loadingError');
-				announcer?.announce(error, 3000, 'assertive');
+				error = { message: i18n.t('assessment.loadingError'), supportCode: null };
+				announcer?.announce(error.message, 3000, 'assertive');
 			}
 		}, 10000);
 
@@ -143,6 +174,18 @@
 				responseVersion += 1;
 			});
 
+			player.onBusyChange(() => {
+				updateState();
+			});
+
+			// Terminal branching (QTI EXIT_TEST) finalizes the core like a normal submit;
+			// the shell shows the same completed state without a submit call.
+			player.onComplete(() => {
+				isComplete = true;
+				sections = player?.getAllSections() ?? [];
+				updateState();
+			});
+
 			// If backend did not restore a current item, start at index 0.
 			if (player.getNavigationState().currentIndex < 0) {
 				await player.navigateTo(0);
@@ -156,8 +199,8 @@
 			}
 		})().catch((err) => {
 			console.error('Failed to initialize assessment player:', err);
-			error = err instanceof Error ? err.message : i18n.t('assessment.loadingError');
-			announcer?.announce(error, 3000, 'assertive');
+			error = localizeError(err);
+			announcer?.announce(error.message, 3000, 'assertive');
 		});
 
 		return () => {
@@ -182,6 +225,11 @@
 		stateVersion += 1;
 	}
 
+	/** In-flight transitions reject further navigation; the busy UI already covers them. */
+	function isBusyRejection(err: unknown): boolean {
+		return isAssessmentPlayerError(err) && err.code === 'navigationInFlight';
+	}
+
 	async function handlePrevious() {
 		if (!player || isSubmitting || isComplete) return;
 		try {
@@ -190,9 +238,9 @@
 			await manageFocusAfterNavigation();
 			announceCurrentQuestion();
 		} catch (err) {
+			if (isBusyRejection(err)) return;
 			console.error('Previous navigation failed:', err);
-			const message = err instanceof Error ? err.message : (i18n?.t('assessment.errors.navigationFailed') ?? 'assessment.errors.navigationFailed');
-			navError = message;
+			navError = localizeError(err);
 		}
 	}
 
@@ -204,9 +252,9 @@
 			await manageFocusAfterNavigation();
 			announceCurrentQuestion();
 		} catch (err) {
+			if (isBusyRejection(err)) return;
 			console.error('Next navigation failed:', err);
-			const message = err instanceof Error ? err.message : (i18n?.t('assessment.errors.navigationFailed') ?? 'assessment.errors.navigationFailed');
-			navError = message;
+			navError = localizeError(err);
 		}
 	}
 
@@ -223,12 +271,18 @@
 		announcer?.announce(msg, 1500);
 	}
 
-	async function handleSectionSelect(sectionIndex: number) {
-		if (!player || isSubmitting || isComplete || !sections[sectionIndex]) return;
+	async function handleSectionSelect(menuIndex: number) {
+		if (!player || isSubmitting || isComplete || !menuSections[menuIndex]) return;
 
-		const section = sections[sectionIndex];
-		await player.navigateToSection(section.id);
-		await manageFocusAfterNavigation();
+		const section = menuSections[menuIndex];
+		try {
+			await player.navigateToSection(section.id);
+			await manageFocusAfterNavigation();
+		} catch (err) {
+			if (isBusyRejection(err)) return;
+			console.error('Section navigation failed:', err);
+			navError = localizeError(err);
+		}
 	}
 
 	/**
@@ -260,8 +314,12 @@
 		try {
 			results = await player.submit();
 		} catch (err) {
+			if (isBusyRejection(err)) {
+				isSubmitting = false;
+				return;
+			}
 			console.error('Failed to submit assessment:', err);
-			submitError = err instanceof Error ? err.message : (i18n?.t('assessment.errors.submitFailed') ?? 'Submission failed. Please try again.');
+			submitError = localizeError(err);
 			// Keep the shell and its session available after the core restores a
 			// failed submission. Already accepted responses are retained for retry.
 			updateState();
@@ -275,6 +333,7 @@
 		}
 
 		testFeedback = player.getVisibleFeedback();
+		sections = player.getAllSections();
 		isComplete = true;
 		onSubmit?.(results);
 	}
@@ -334,7 +393,10 @@
 					d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
 				/>
 			</svg>
-			<span>{error}</span>
+			<span>{error.message}</span>
+			{#if error.supportCode}
+				<span class="support-code">{i18n.t('assessment.errors.supportCode', { code: error.supportCode })}</span>
+			{/if}
 		</div>
 	</div>
 {:else if !player || navState.currentIndex < 0}
@@ -352,13 +414,13 @@
 		dir={interfaceAttributes?.dir}
 		role="region"
 		aria-label={i18n.t('assessment.playerLabel', 'Assessment player')}
-		aria-busy={isSubmitting}
+		aria-busy={isSubmitting || navState.isLoading}
 	>
-		<!-- Header with title and section menu -->
+		<!-- Header with title and section menu (legal navigation targets only) -->
 		<AssessmentHeader
 			title={initSession.assessmentId || (i18n?.t('assessment.title') ?? 'Assessment')}
-			{sections}
-			currentSectionIndex={navState.currentSection?.index}
+			sections={menuSections}
+			currentSectionIndex={menuCurrentSectionIndex}
 			showSections={config.showSections}
 			allowSectionNavigation={!isSubmitting && !isComplete && config.allowSectionNavigation !== false}
 			onSectionSelect={handleSectionSelect}
@@ -392,7 +454,10 @@
 							d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
 						/>
 					</svg>
-					<span>{navError}</span>
+					<span>{navError.message}</span>
+					{#if navError.supportCode}
+						<span class="support-code">{i18n.t('assessment.errors.supportCode', { code: navError.supportCode })}</span>
+					{/if}
 				</div>
 			</div>
 		{/if}
@@ -432,7 +497,12 @@
 
 		{#if submitError}
 			<div class="assessment-submit-error">
-				<p role="alert">{submitError}</p>
+				<p role="alert">
+					{submitError.message}
+					{#if submitError.supportCode}
+						<span class="support-code">{i18n.t('assessment.errors.supportCode', { code: submitError.supportCode })}</span>
+					{/if}
+				</p>
 				<button bind:this={retryButton} type="button" class="btn btn-primary" onclick={handleSubmit} disabled={isSubmitting}>
 					{i18n?.t('common.tryAgain') ?? 'Try Again'}
 				</button>
@@ -511,6 +581,12 @@
 
 	.assessment-submit-status {
 		padding: 0.5rem 1rem;
+	}
+
+	.support-code {
+		padding-inline-start: 0.5rem;
+		font-size: 0.85em;
+		color: var(--pie-qti-warning-text, #92400e);
 	}
 
 	@media (max-width: 768px) {

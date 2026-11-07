@@ -33,7 +33,7 @@
 	});
 </script>
 
-<div class="navigation-bar">
+<div class="navigation-bar" aria-busy={navState.isLoading}>
 	<!-- Progress indicator -->
 	{#if showProgress}
 		<div class="progress-section">
