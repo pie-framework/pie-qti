@@ -19,16 +19,15 @@ import type {
 import { processFeedbackInline } from '@pie-qti/qti-common';
 import { buildScopedStylesheetCss } from '../components/utils/stylesheetRender.js';
 import { buildEffectiveStimulusContent, injectStimulusContent } from '../components/utils/stimulusRender.js';
-import {
-	createInlineRenderPlan,
-	isInlineInteractionTagName,
-	isInlineInteractionType,
-} from '../interactions/inline/render-plan.js';
+import { isInlineInteractionType } from '../interactions/inline/render-plan.js';
 import type {
 	BaseInteractionData,
 	InlineChoiceInteractionData,
 	TextEntryInteractionData,
 } from '../interactions/shared/types.js';
+import { hasInteractionSlot, placeInteractionSlots } from './interactionSlots.js';
+
+export { INTERACTION_SLOT_ATTRIBUTE } from './interactionSlots.js';
 
 export type ItemPresentationResponseValue = unknown;
 export type ItemPresentationResponseMap = Record<string, ItemPresentationResponseValue>;
@@ -76,6 +75,12 @@ export interface BlockInteractionMount {
 	readonly interaction: BaseInteractionData;
 	readonly tagName: string;
 	readonly key: string;
+	/**
+	 * The slot this interaction mounts into: the `data-qti-interaction-slot` value of the empty
+	 * placeholder at its authored position in the body HTML. Null when the interaction's element
+	 * is not in the body; the interaction then renders after the body.
+	 */
+	readonly slot: string | null;
 	readonly response: ItemPresentationResponseValue | null;
 	/** Lexical companion value used by extendedTextInteraction stringIdentifier. */
 	readonly stringResponse?: ItemPresentationResponseValue | null;
@@ -89,17 +94,35 @@ export interface BlockInteractionMount {
 	readonly componentRole: 'scorer' | undefined;
 }
 
+/** Where an inline interaction sits among the item's inline interactions, in document order. */
+export interface InlineInteractionPosition {
+	/** 1-based. */
+	readonly index: number;
+	readonly count: number;
+}
+
+interface InlineInteractionMountBase {
+	readonly placement: 'inline';
+	readonly key: string;
+	/** As for {@link BlockInteractionMount.slot}; the slot stays in its sentence. */
+	readonly slot: string | null;
+	/**
+	 * Its position among the item's inline interactions, which names it for assistive
+	 * technology ("Blank 2 of 4") when no label is authored. The response identifier never
+	 * does: it is author data and can hint at the answer.
+	 */
+	readonly position: InlineInteractionPosition;
+}
+
 export type InlineInteractionMount =
-	| {
-			readonly placement: 'inline';
+	| (InlineInteractionMountBase & {
 			readonly renderer: 'text-entry';
 			readonly interaction: TextEntryInteractionData;
-	  }
-	| {
-			readonly placement: 'inline';
+	  })
+	| (InlineInteractionMountBase & {
 			readonly renderer: 'inline-choice';
 			readonly interaction: InlineChoiceInteractionData;
-	  };
+	  });
 
 export type ItemInteractionMount = InlineInteractionMount | BlockInteractionMount;
 
@@ -122,7 +145,14 @@ export interface ItemPresentation {
 	readonly correctResponses: Readonly<Record<string, unknown>>;
 	/** Direct assessmentItem rubrics that remain outside the item-body flow. */
 	readonly directRubrics: readonly RubricBlock[];
-	/** Ordered, render-neutral body flow. Block mounts follow the authored body HTML. */
+	/**
+	 * Ordered, render-neutral body flow: one `html` node holding the whole item body, then every
+	 * interaction mount in document order. The body keeps each interaction's authored position as
+	 * an empty slot element (`[data-qti-interaction-slot]`); render the body once and mount each
+	 * interaction into the slot its `slot` names, which keeps block interactions between the
+	 * paragraphs, layout columns and table cells they were authored in and inline interactions in
+	 * their sentence. A mount whose `slot` is null renders after the body.
+	 */
 	readonly flow: readonly ItemPresentationFlowNode[];
 	/** Policy-checked CSS is kept out of the HTML/Trusted Types pipeline. */
 	readonly scopedCss: string;
@@ -156,51 +186,25 @@ export function createItemPresentation({
 		renderItemBodyRubrics,
 		showFeedback,
 	});
-	const inlineFlow = createInlineRenderPlan(html, source.interactions).map(
-		(segment): ItemPresentationFlowNode => {
-			if (segment.type === 'html') {
-				// Inline planning parses and reserializes the composed body, so sanitation
-				// belongs after that final string transform and immediately before TT.
-				const sanitized = sanitizeHtml(segment.content, { security: source.security });
-				return {
-					kind: 'html',
-					html: finalizeItemBodyHtml(sanitized, source.security),
-				};
-			}
-			if (segment.type === 'textEntry') {
-				return {
-					kind: 'interaction',
-					mount: {
-						placement: 'inline',
-						renderer: 'text-entry',
-						interaction: segment.interaction,
-					},
-				};
-			}
-			return {
-				kind: 'interaction',
-				mount: {
-					placement: 'inline',
-					renderer: 'inline-choice',
-					interaction: segment.interaction,
-				},
-			};
-		}
+	const placed = placeInteractionSlots(html, source.interactions, (interaction) =>
+		isInlineInteractionType(interaction.type) ? 'inline' : 'block'
 	);
-	const blockFlow = createBlockInteractionMounts({
+	// Slot placement is the last string transform of the body, so sanitation runs once over the
+	// composed body, immediately before Trusted Types finalization.
+	const sanitized = sanitizeHtml(placed.html, { security: source.security });
+	const slots = new Map(
+		[...placed.slots].filter(([, slot]) => hasInteractionSlot(sanitized, slot))
+	);
+	const mounts = createInteractionMounts({
 		interactions: source.interactions,
+		slots,
 		source,
 		responses,
 		correctResponses,
 		roleCapabilities,
 		effectiveDisabled,
 		onComponentError,
-	}).map(
-		(mount): ItemPresentationFlowNode => ({
-			kind: 'interaction',
-			mount,
-		})
-	);
+	});
 
 	return freezePresentation({
 		capabilities: roleCapabilities,
@@ -208,7 +212,10 @@ export function createItemPresentation({
 		...(source.contentLanguage ? { contentLanguage: source.contentLanguage } : {}),
 		correctResponses,
 		directRubrics: source.directRubrics ?? [],
-		flow: [...inlineFlow, ...blockFlow],
+		flow: [
+			{ kind: 'html', html: finalizeItemBodyHtml(sanitized, source.security) },
+			...mounts.map((mount): ItemPresentationFlowNode => ({ kind: 'interaction', mount })),
+		],
 		scopedCss,
 	});
 }
@@ -259,7 +266,7 @@ function buildItemBodyPresentation({
 		hideAll: !showFeedback,
 	});
 
-	return { html: hideBlockInteractionMarkup(html), scopedCss };
+	return { html, scopedCss };
 }
 
 function finalizeItemBodyHtml(
@@ -355,22 +362,13 @@ function escapeHtmlAttribute(value: string): string {
 		.replace(/>/g, '&gt;');
 }
 
-function hideBlockInteractionMarkup(html: string): string {
-	// positionObjectStage is hidden as a unit: it owns the background object and wraps its
-	// interactions, all of which the component renders. Matching only the interaction inside it
-	// would leave the stage's background image visible in the item body as well.
-	return html.replace(
-		/<(\w+Interaction|qti-[\w-]+-interaction|positionObjectStage|qti-position-object-stage)(\s[^>]*)?>[\s\S]*?<\/\1>/gi,
-		(match, tagName) => {
-			const lower = tagName.toLowerCase();
-			if (isInlineInteractionTagName(lower)) return match;
-			return `<span class="qti-hidden-interaction">${match}</span>`;
-		}
-	);
-}
-
-function createBlockInteractionMounts({
+/**
+ * One mount per interaction, in document order: slotted interactions in slot order, then any
+ * whose element is not in the body, in extraction order.
+ */
+function createInteractionMounts({
 	interactions,
+	slots,
 	source,
 	responses,
 	correctResponses,
@@ -379,48 +377,81 @@ function createBlockInteractionMounts({
 	onComponentError,
 }: {
 	interactions: readonly BaseInteractionData[];
+	slots: ReadonlyMap<number, string>;
 	source: ItemPresentationSource;
 	responses: ItemPresentationResponseMap;
 	correctResponses: Record<string, unknown>;
 	roleCapabilities: RoleCapabilities;
 	effectiveDisabled: boolean;
 	onComponentError?: (interaction: BaseInteractionData, error: unknown) => void;
-}): BlockInteractionMount[] {
-	return interactions
-		.filter((interaction) => !isInlineInteractionType(interaction.type))
-		.map((interaction) => {
-			try {
-				const stringIdentifier =
-					'stringIdentifier' in interaction && typeof interaction.stringIdentifier === 'string'
-						? interaction.stringIdentifier
-						: undefined;
-				const block: BlockInteractionMount = {
-					placement: 'block',
-					renderer: 'web-component',
-					interaction,
-					tagName: source.componentRegistry.getTagName(interaction),
-					key: interactionKey(interaction),
-					response: responses[interaction.responseId] ?? null,
-					...(stringIdentifier
-						? { stringResponse: responses[stringIdentifier] ?? null }
-						: {}),
-					correctResponse: roleCapabilities.canViewCorrectResponses
-						? (correctResponses[interaction.responseId] ?? null)
-						: null,
-					pnp: source.pnp,
-					eliminationTool: source.pnp?.cognitive?.eliminationTool === true,
-					answerMasking: source.pnp?.cognitive?.answerMasking === true,
-					structuredLabelSupport: source.pnp?.display?.structuredLabelSupport === true,
-					disabled: effectiveDisabled,
-					componentRole: roleCapabilities.canViewCorrectResponses ? 'scorer' : undefined,
-				};
-				return block;
-			} catch (error) {
-				onComponentError?.(interaction, error);
-				return null;
-			}
-		})
-		.filter((item): item is BlockInteractionMount => item !== null);
+}): ItemInteractionMount[] {
+	const slotRank = (index: number) => {
+		const slot = slots.get(index);
+		return slot === undefined ? Number.POSITIVE_INFINITY : Number(slot);
+	};
+	const order = interactions.map((_, index) => index).sort((a, b) => slotRank(a) - slotRank(b));
+	const inlineCount = interactions.filter((interaction) => isInlineInteractionType(interaction.type)).length;
+	const usedKeys = new Map<string, number>();
+	const uniqueKey = (interaction: BaseInteractionData) => {
+		const key = interactionKey(interaction);
+		const seen = usedKeys.get(key) ?? 0;
+		usedKeys.set(key, seen + 1);
+		// Keyed rendering needs distinct keys even for (invalid) duplicate interactions.
+		return seen === 0 ? key : `${key}#${seen}`;
+	};
+
+	const mounts: ItemInteractionMount[] = [];
+	let inlineIndex = 0;
+	for (const index of order) {
+		const interaction = interactions[index];
+		const slot = slots.get(index) ?? null;
+		if (isInlineInteractionType(interaction.type)) {
+			inlineIndex += 1;
+			const inline = {
+				placement: 'inline' as const,
+				key: uniqueKey(interaction),
+				slot,
+				position: { index: inlineIndex, count: inlineCount },
+			};
+			mounts.push(
+				interaction.type === 'textEntryInteraction'
+					? { ...inline, renderer: 'text-entry', interaction: interaction as TextEntryInteractionData }
+					: { ...inline, renderer: 'inline-choice', interaction: interaction as InlineChoiceInteractionData }
+			);
+			continue;
+		}
+		try {
+			const stringIdentifier =
+				'stringIdentifier' in interaction && typeof interaction.stringIdentifier === 'string'
+					? interaction.stringIdentifier
+					: undefined;
+			const block: BlockInteractionMount = {
+				placement: 'block',
+				renderer: 'web-component',
+				interaction,
+				tagName: source.componentRegistry.getTagName(interaction),
+				key: uniqueKey(interaction),
+				slot,
+				response: responses[interaction.responseId] ?? null,
+				...(stringIdentifier
+					? { stringResponse: responses[stringIdentifier] ?? null }
+					: {}),
+				correctResponse: roleCapabilities.canViewCorrectResponses
+					? (correctResponses[interaction.responseId] ?? null)
+					: null,
+				pnp: source.pnp,
+				eliminationTool: source.pnp?.cognitive?.eliminationTool === true,
+				answerMasking: source.pnp?.cognitive?.answerMasking === true,
+				structuredLabelSupport: source.pnp?.display?.structuredLabelSupport === true,
+				disabled: effectiveDisabled,
+				componentRole: roleCapabilities.canViewCorrectResponses ? 'scorer' : undefined,
+			};
+			mounts.push(block);
+		} catch (error) {
+			onComponentError?.(interaction, error);
+		}
+	}
+	return mounts;
 }
 
 export function interactionKey(interaction: BaseInteractionData): string {

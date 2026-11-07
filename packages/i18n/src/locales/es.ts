@@ -428,9 +428,10 @@ export default {
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: 'Seleccionar...',
-			textEntryLabel: 'Entrada de texto {id}',
-			choiceLabel: 'Opción en línea {id}',
-			formatHint: 'Formato: {mask}',
+			blankLabel: 'Espacio en blanco {index} de {count}',
+			patternMismatch: 'Esta respuesta no tiene el formato esperado.',
+			patternMismatchWithHint: 'Esta respuesta no tiene el formato esperado. Usa este formato: {hint}',
+			correctChoice: 'Correcta: {choice}',
 		},
 	},
 
@@ -448,6 +449,7 @@ export default {
 
 
 	feedback: {
+		title: 'Retroalimentación',
 		close: 'Cerrar retroalimentación',
 		closeFeedback: 'Descartar retroalimentación',
 		testFeedback: 'Retroalimentación de prueba',

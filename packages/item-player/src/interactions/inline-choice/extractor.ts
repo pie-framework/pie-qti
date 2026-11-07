@@ -53,6 +53,8 @@ export const standardInlineChoiceExtractor: ElementExtractor<InlineChoiceData> =
 
 		// data-prompt: alternative placeholder for the dropdown default option
 		const dataPrompt = utils.getAttribute(element, 'data-prompt', '') || null;
+		// An authored title names the dropdown when no aria label is authored.
+		const title = utils.getAttribute(element, 'title', '').trim();
 
 		// Extract attributes
 		const shuffle = utils.getBooleanAttribute(element, 'shuffle');
@@ -63,6 +65,7 @@ export const standardInlineChoiceExtractor: ElementExtractor<InlineChoiceData> =
 			shuffle,
 			label,
 			...(dataPrompt ? { dataPrompt } : {}),
+			...(title ? { title } : {}),
 			...(interactionClasses.length > 0 ? { interactionClasses } : {}),
 		};
 	},

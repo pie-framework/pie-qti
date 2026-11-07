@@ -36,7 +36,8 @@ export const standardEndAttemptExtractor: ElementExtractor<EndAttemptData> = {
 
 		// Extract attributes with defaults
 		const title = utils.getAttribute(element, 'title', 'End Attempt');
-		const countAttempt = element.hasAttribute('countAttempt')
+		// utils resolve QTI 3.0 `count-attempt` as well as QTI 2.x `countAttempt`.
+		const countAttempt = utils.getAttribute(element, 'countAttempt', '')
 			? utils.getBooleanAttribute(element, 'countAttempt')
 			: true;
 

@@ -475,9 +475,10 @@ export default {
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: 'اختر...',
-			textEntryLabel: 'إدخال نص {id}',
-			choiceLabel: 'اختيار مضمَّن {id}',
-			formatHint: 'التنسيق: {mask}',
+			blankLabel: 'الفراغ {index} من {count}',
+			patternMismatch: 'هذه الإجابة ليست بالتنسيق المتوقع.',
+			patternMismatchWithHint: 'هذه الإجابة ليست بالتنسيق المتوقع. استخدم هذا التنسيق: {hint}',
+			correctChoice: 'الإجابة الصحيحة: {choice}',
 		},
 	},
 
@@ -495,6 +496,7 @@ export default {
 
 
 	feedback: {
+		title: 'التعليقات',
 		close: 'إغلاق التعليقات',
 		closeFeedback: 'رفض التعليقات',
 		testFeedback: 'تعليقات الاختبار',

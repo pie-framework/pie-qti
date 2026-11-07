@@ -32,10 +32,13 @@ export {
 } from './core/ItemSession.js';
 export type {
 	FinalItemBodyHtml,
+	InlineInteractionPosition,
 	ItemInteractionMount,
 	ItemPresentation,
 	ItemPresentationFlowNode,
 } from './presentation/itemPresentationPlan.js';
+/** The attribute on the empty slot that marks an interaction's authored position in the body. */
+export { INTERACTION_SLOT_ATTRIBUTE } from './presentation/itemPresentationPlan.js';
 export { getRoleCapabilities, type RoleCapabilities } from './core/rolePolicy.js';
 // Render-facing interaction contracts. Standard extractors remain implementation details.
 export type * from './interactions/shared/types.js';

@@ -427,9 +427,10 @@ export default {
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: 'เลือก...',
-			textEntryLabel: 'ช่องป้อนข้อความ {id}',
-			choiceLabel: 'ตัวเลือกในบรรทัด {id}',
-			formatHint: 'รูปแบบ: {mask}',
+			blankLabel: 'ช่องว่างที่ {index} จาก {count}',
+			patternMismatch: 'คำตอบนี้ไม่อยู่ในรูปแบบที่กำหนด',
+			patternMismatchWithHint: 'คำตอบนี้ไม่อยู่ในรูปแบบที่กำหนด ใช้รูปแบบนี้: {hint}',
+			correctChoice: 'ถูกต้อง: {choice}',
 		},
 	},
 
@@ -447,6 +448,7 @@ export default {
 
 
 	feedback: {
+		title: 'คำติชม',
 		close: 'ปิดคำติชม',
 		closeFeedback: 'ละเว้นคำติชม',
 		testFeedback: 'คำติชมการทดสอบ',

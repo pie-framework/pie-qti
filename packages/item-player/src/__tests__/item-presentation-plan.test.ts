@@ -35,13 +35,18 @@ describe('createItemPresentation', () => {
 				(node) => node.kind === 'interaction' && node.mount.renderer === 'inline-choice'
 			)
 		).toBe(true);
-		expect(presentationHtml(presentation)).toContain('qti-hidden-interaction');
+		// Every interaction element is replaced by the slot it mounts into; none is left as markup.
+		const html = presentationHtml(presentation);
+		expect(html).toContain('data-qti-interaction-slot="0"');
+		expect(html).toContain('data-qti-interaction-slot="1"');
+		expect(html).not.toContain('choiceInteraction');
 		const blockMounts = presentation.flow
 			.filter((node) => node.kind === 'interaction' && node.mount.placement === 'block')
 			.map((node) => node.kind === 'interaction' ? node.mount : null);
 		expect(blockMounts).toHaveLength(1);
 		expect(blockMounts[0]).toMatchObject({
 			tagName: 'pie-qti-choice',
+			slot: '1',
 			response: 'A',
 			correctResponse: 'A',
 			disabled: true,

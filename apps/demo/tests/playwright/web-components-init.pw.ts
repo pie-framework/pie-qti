@@ -32,7 +32,7 @@ test.describe('web component initialization', () => {
 </assessmentItem>`;
 		});
 
-		const input = item.locator('input[aria-label="Text entry RESPONSE"]');
+		const input = item.locator('input[aria-label="Blank 1 of 1"]');
 		await expect(input).toBeVisible();
 		await input.fill('007');
 		await expect

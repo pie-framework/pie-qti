@@ -439,9 +439,10 @@ export default {
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: '选择...',
-			textEntryLabel: '文本输入 {id}',
-			choiceLabel: '行内选项 {id}',
-			formatHint: '格式：{mask}',
+			blankLabel: '第 {index} 空，共 {count} 空',
+			patternMismatch: '此答案不符合预期格式。',
+			patternMismatchWithHint: '此答案不符合预期格式。请使用此格式：{hint}',
+			correctChoice: '正确：{choice}',
 		},
 	},
 
@@ -459,6 +460,7 @@ export default {
 
 
 	feedback: {
+		title: '反馈',
 		close: '关闭反馈',
 		closeFeedback: '关闭反馈',
 		testFeedback: '测试反馈',

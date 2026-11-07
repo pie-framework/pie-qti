@@ -426,9 +426,10 @@ export default {
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: 'Selecteren...',
-			textEntryLabel: 'Tekstinvoer {id}',
-			choiceLabel: 'Inline keuze {id}',
-			formatHint: 'Notatie: {mask}',
+			blankLabel: 'Invulplek {index} van {count}',
+			patternMismatch: 'Dit antwoord heeft niet de verwachte notatie.',
+			patternMismatchWithHint: 'Dit antwoord heeft niet de verwachte notatie. Gebruik deze notatie: {hint}',
+			correctChoice: 'Juist: {choice}',
 		},
 	},
 
@@ -446,6 +447,7 @@ export default {
 
 
 	feedback: {
+		title: 'Terugkoppeling',
 		close: 'Feedback sluiten',
 		closeFeedback: 'Feedback negeren',
 		testFeedback: 'Testfeedback',

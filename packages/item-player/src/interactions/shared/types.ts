@@ -68,6 +68,10 @@ export interface TextEntryInteractionData extends BaseInteractionData<'textEntry
 	patternMask: string | null;
 	placeholderText: string;
 	format?: string;
+	/** The bound response declaration's baseType, e.g. `integer` or `float` for a numeric keyboard */
+	baseType?: string;
+	/** The authored `title`, an accessible name when no aria label is authored */
+	title?: string;
 	/** CSS classes from the textEntryInteraction element (e.g. qti-input-width-N) */
 	interactionClasses?: string[];
 	/** Pattern mask validation message (data-patternmask-message) */
@@ -99,6 +103,8 @@ export interface InlineChoiceInteractionData extends BaseInteractionData<'inline
 	label: string | null;
 	/** Placeholder text from data-prompt attribute; alternative to <label> for dropdown default option */
 	dataPrompt?: string | null;
+	/** The authored `title`, an accessible name when no aria label is authored */
+	title?: string;
 	choices: Array<{ identifier: string; text: string; fixed?: boolean }>;
 	/** CSS classes from the inlineChoiceInteraction element (e.g. qti-input-width-N) */
 	interactionClasses?: string[];

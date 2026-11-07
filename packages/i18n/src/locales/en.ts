@@ -439,9 +439,10 @@ export default {
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: 'Select...',
-			textEntryLabel: 'Text entry {id}',
-			choiceLabel: 'Inline choice {id}',
-			formatHint: 'Format: {mask}',
+			blankLabel: 'Blank {index} of {count}',
+			patternMismatch: 'This answer is not in the expected format.',
+			patternMismatchWithHint: 'This answer is not in the expected format. Use this format: {hint}',
+			correctChoice: 'Correct: {choice}',
 		},
 	},
 
@@ -459,6 +460,7 @@ export default {
 
 
 	feedback: {
+		title: 'Feedback',
 		close: 'Close feedback',
 		closeFeedback: 'Dismiss feedback',
 		testFeedback: 'Test feedback',

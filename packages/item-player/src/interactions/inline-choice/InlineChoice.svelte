@@ -1,9 +1,15 @@
 <script lang="ts">
 	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
+	import type { InlineInteractionPosition } from '../../presentation/itemPresentationPlan.js';
+	import { inlineInteractionLabel } from '../inline/accessibleName.js';
 	import type { InlineChoiceInteractionData } from '../shared/types.js';
 
 	interface Props {
 		interaction: InlineChoiceInteractionData;
+		/** Its place among the item's inline interactions, which names it when no label is authored. */
+		position: InlineInteractionPosition;
+		/** The id of the sentence or paragraph the dropdown sits in, which describes it. */
+		contextId?: string;
 		response?: string;
 		correctAnswer?: string | null;
 		disabled?: boolean;
@@ -13,6 +19,8 @@
 
 	let {
 		interaction,
+		position,
+		contextId,
 		response = '',
 		correctAnswer = null,
 		disabled = false,
@@ -20,11 +28,14 @@
 		onResponseChange = () => {},
 	}: Props = $props();
 
+	// Ids are per instance: two items on one page commonly share a response identifier.
+	const uid = $props.id();
+	const descriptionId = `${uid}-description`;
 	const displayValue = $derived(correctAnswer !== null ? correctAnswer : response);
 	const correctChoice = $derived(correctAnswer ? interaction.choices.find((choice) => choice.identifier === correctAnswer) : null);
-	const label = $derived(
-		interaction.accessibility?.label ??
-			translate(i18n, 'interactions.inline.choiceLabel', 'Inline choice {id}', { id: interaction.responseId }),
+	const label = $derived(inlineInteractionLabel(i18n, interaction, position));
+	const describedBy = $derived(
+		[interaction.accessibility?.description ? descriptionId : '', contextId ?? ''].filter(Boolean).join(' ') || undefined,
 	);
 
 	function handleChange(event: Event) {
@@ -35,7 +46,7 @@
 
 <span class="inline-choice-wrapper">
 	{#if interaction.accessibility?.description}
-		<span id={`${interaction.responseId}-description`} hidden>{interaction.accessibility.description}</span>
+		<span id={descriptionId} hidden>{interaction.accessibility.description}</span>
 	{/if}
 	<select
 		class:qti-inline-select={true}
@@ -46,12 +57,12 @@
 					translate(i18n, 'accessibility.correctAnswerIs', 'Correct answer: {answer}.', { answer: correctChoice.text }),
 				)
 			: label}
-		aria-describedby={interaction.accessibility?.description ? `${interaction.responseId}-description` : undefined}
+		aria-describedby={describedBy}
 		value={displayValue}
 		onchange={handleChange}
 		{disabled}
 	>
-		<option value="">{interaction.label ?? interaction.dataPrompt ?? i18n?.t('interactions.inline.selectPlaceholder', 'Select...')}</option>
+		<option value="">{interaction.label ?? interaction.dataPrompt ?? translate(i18n, 'interactions.inline.selectPlaceholder', 'Select...')}</option>
 		{#each interaction.choices as choice}
 			{@const isCorrect = correctAnswer === choice.identifier}
 			<option value={choice.identifier}>
@@ -61,7 +72,7 @@
 	</select>
 	{#if correctAnswer !== null && correctChoice}
 		<span class="qti-inline-choice-correct-badge">
-			{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}: {correctChoice.text}
+			{translate(i18n, 'interactions.inline.correctChoice', 'Correct: {choice}', { choice: correctChoice.text })}
 		</span>
 	{/if}
 </span>
@@ -77,8 +88,9 @@
 		width: auto;
 		min-width: 120px;
 		margin: 0 4px;
-		padding: 0.25rem 1.75rem 0.25rem 0.5rem;
-		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		padding-block: 0.25rem;
+		padding-inline: 0.5rem 1.75rem;
+		border: 1px solid var(--pie-qti-border-strong, #767676);
 		border-radius: 0.5rem;
 		background: var(--pie-qti-base-100, oklch(100% 0 0));
 		color: var(--pie-qti-base-content, oklch(21% 0 0));
@@ -86,12 +98,12 @@
 	}
 
 	.qti-inline-select:focus-visible {
-		outline: 2px solid var(--pie-qti-focus, var(--pie-qti-primary, oklch(45% 0.24 277)));
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
 	}
 
 	.qti-inline-select-correct {
-		border-color: var(--pie-qti-success, oklch(76% 0.177 163.223));
+		border-color: var(--pie-qti-success-text, #15803d);
 		background: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 10%, transparent);
 	}
 
@@ -104,11 +116,11 @@
 		white-space: nowrap;
 		min-height: 1.1rem;
 		padding: 0 0.5rem;
-		border: 1px solid var(--pie-qti-success, oklch(76% 0.177 163.223));
+		border: 1px solid var(--pie-qti-success-text, #15803d);
 		border-radius: 9999px;
 		background: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 12%, transparent);
 		color: var(--pie-qti-base-content, oklch(21% 0 0));
-		font-size: 0.7rem;
+		font-size: 0.75rem;
 		font-weight: 600;
 	}
 </style>

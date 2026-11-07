@@ -15,7 +15,7 @@ test.describe('QTI 3 Stage 5 PNP/catalog/stimulus browser evidence', () => {
 		await expect(root.getByLabel('Shared river passage')).toBeVisible();
 		await expect(root.locator('[data-stimulus-idref="passage_1"]')).toHaveCount(1);
 		await expect(root.locator('[data-stimulus-idref="passage_1"] .stimulus-term')).toHaveCount(1);
-		await expect(root.getByRole('textbox', { name: /text entry response/i })).toBeVisible();
+		await expect(root.getByRole('textbox', { name: 'Blank 1 of 1' })).toBeVisible();
 		await expect(root.getByText(/braided delta|qti-correct-response|correctResponse|Item-local fallback definition/i)).toHaveCount(
 			0
 		);

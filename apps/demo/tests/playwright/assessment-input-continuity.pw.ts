@@ -5,7 +5,7 @@ test.describe('assessment input continuity through published elements', () => {
 		test(`preserves typing, caret, and answers at ${width}px`, async ({ page }) => {
 			await page.setViewportSize({ width, height: 812 });
 			await page.goto('fixtures/assessment-input');
-			const input = page.getByRole('textbox', { name: 'Text entry RESPONSE' });
+			const input = page.getByRole('textbox', { name: 'Blank 1 of 1' });
 			await input.pressSequentially('water', { delay: 30 });
 			await expect(input).toHaveValue('water');
 			await expect(input).toBeFocused();
