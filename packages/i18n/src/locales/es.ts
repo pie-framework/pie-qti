@@ -233,12 +233,13 @@ export default {
 			selectedForMatchingSentence: 'Seleccionado para emparejar.',
 			availableForMatchingSentence: 'Disponible para emparejar.',
 			notCompatibleSentence: 'No compatible con el origen seleccionado.',
+			selectionCancelledItem: 'Selección de {item} cancelada.',
 		},
 
 		gapMatch: {
-			filledGapAriaLabelWithHeld: 'Espacio {gapId}, con {word}. Selecciona para sustituirlo por {heldWord}.',
-			blankGapAriaLabelWithHeld: 'Espacio {gapId}. Selecciona para colocar {heldWord} aquí.',
-			placed: '{word} colocado en el espacio {gapId}.',
+			filledGapAriaLabelWithHeld: 'Espacio {position} de {total}, con {word}. Selecciona para sustituirlo por {heldWord}.',
+			blankGapAriaLabelWithHeld: 'Espacio {position} de {total}. Selecciona para colocar {heldWord} aquí.',
+			placed: '{word} colocado en el espacio {position} de {total}.',
 			pointerInstructions: 'Selecciona una palabra y luego un espacio en blanco. También puedes arrastrar y soltar.',
 			instruction: 'Arrastra palabras para llenar los espacios en blanco',
 			available: 'Palabras disponibles',
@@ -248,8 +249,10 @@ export default {
 			removeFromBlanks: 'Eliminar {word} de los espacios',
 			selectPlaceholder: 'Seleccionar...',
 			gapAriaLabel: 'Espacio {gapId}',
-			blankGapAriaLabel: 'Espacio en blanco {gapId}. Arrastra una respuesta aquí.',
-			filledGapAriaLabel: 'Espacio {gapId}, rellenado con {word}. Haz clic para limpiar.',
+			blankGapAriaLabel: 'Espacio en blanco {position} de {total}. Arrastra una respuesta aquí.',
+			filledGapAriaLabel: 'Espacio {position} de {total}, rellenado con {word}. Selecciona para limpiar.',
+			wordSelected: '{word} recogido. Selecciona un espacio para colocarlo, o pulsa Escape para cancelar.',
+			pickUpCancelled: 'Se canceló la recogida de {word}.',
 		},
 
 		graphicGapMatch: {
@@ -287,8 +290,10 @@ export default {
 		},
 
 		order: {
-			moveEarlier: 'Mover antes',
-			moveLater: 'Mover después',
+			moveEarlierItem: 'Mover {item} antes',
+			moveLaterItem: 'Mover {item} después',
+			eliminateItem: 'Descartar {item}',
+			restoreItem: 'Restaurar {item}',
 			instruction: 'Usa los botones de movimiento o arrastra los elementos para ordenarlos.',
 			keyboardInstructions: 'Presiona Espacio o Enter para agarrar un elemento. Usa las flechas para mover el elemento. Presiona Espacio o Enter nuevamente para soltar. Presiona Escape para cancelar.',
 			grabbed: 'Agarrado. Usa las flechas para mover.',
@@ -303,7 +308,6 @@ export default {
 			itemDropped: '{item} soltado en la posición {position} de {total}',
 			itemMoved: '{item} movido a la posición {position} de {total}',
 			selectionCancelled: 'Selección de {item} cancelada',
-			itemPosition: '{item}. Posición {position} de {total}.',
 			itemFallback: 'Elemento',
 			orderConfirmed: 'Orden confirmado',
 		},
@@ -328,6 +332,7 @@ export default {
 			clickHotspotsToAssociate: 'Haz clic en dos puntos activos en la imagen para crear una asociación.',
 			clickAnotherHotspot: 'Seleccionado: <strong>{label}</strong>. Haz clic en otro punto activo para crear una asociación.',
 			removeAssociationBetween: 'Eliminar asociación entre {first} y {second}',
+			inPairSentence: 'Forma parte de una asociación.',
 		},
 
 		positionObject: {

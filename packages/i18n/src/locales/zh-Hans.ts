@@ -244,12 +244,13 @@ export default {
 			selectedForMatchingSentence: '已选择以进行匹配。',
 			availableForMatchingSentence: '可用于匹配。',
 			notCompatibleSentence: '与所选来源不兼容。',
+			selectionCancelledItem: '已取消选择 {item}。',
 		},
 
 		gapMatch: {
-			filledGapAriaLabelWithHeld: '空格 {gapId}，已填入 {word}。选择以替换为 {heldWord}。',
-			blankGapAriaLabelWithHeld: '空格 {gapId}。选择以在此放入 {heldWord}。',
-			placed: '已将 {word} 放入空格 {gapId}。',
+			filledGapAriaLabelWithHeld: '第 {position} 处空白（共 {total} 处），已填入 {word}。选择以替换为 {heldWord}。',
+			blankGapAriaLabelWithHeld: '第 {position} 处空白（共 {total} 处）。选择以在此放入 {heldWord}。',
+			placed: '已将 {word} 放入第 {position} 处空白（共 {total} 处）。',
 			pointerInstructions: '先选择一个词，再选择一个空格。也可以拖放。',
 			instruction: '拖动单词填入空白处',
 			available: '可用的单词',
@@ -260,8 +261,10 @@ export default {
 			removeFromBlanks: '从空白处移除 {word}',
 			selectPlaceholder: '选择...',
 			gapAriaLabel: '空白 {gapId}',
-			blankGapAriaLabel: '空白 {gapId}。在此处放置答案。',
-			filledGapAriaLabel: 'Blank {gapId}, filled with {word}. Click to clear.',
+			blankGapAriaLabel: '第 {position} 处空白（共 {total} 处）。在此处放置答案。',
+			filledGapAriaLabel: '第 {position} 处空白（共 {total} 处），已填入 {word}。选择以清除。',
+			wordSelected: '已拿起 {word}。选择一处空白以放置，或按 Esc 键取消。',
+			pickUpCancelled: '已取消拿起 {word}。',
 		},
 
 		graphicGapMatch: {
@@ -299,8 +302,10 @@ export default {
 		},
 
 		order: {
-			moveEarlier: '向前移动',
-			moveLater: '向后移动',
+			moveEarlierItem: '将 {item} 向前移动',
+			moveLaterItem: '将 {item} 向后移动',
+			eliminateItem: '排除 {item}',
+			restoreItem: '恢复 {item}',
 			instruction: '使用移动按钮或拖动项目来调整顺序。',
 			keyboardInstructions: '按空格键或回车键抓取项目。使用方向键移动项目。再次按空格键或回车键放下。按 Esc 键取消。',
 			grabbed: '已抓取。使用方向键移动。',
@@ -315,7 +320,6 @@ export default {
 			itemDropped: '{item} 已放置在位置 {position} / {total}',
 			itemMoved: '{item} 已移动到位置 {position} / {total}',
 			selectionCancelled: '{item} 选择已取消',
-			itemPosition: '{item}。位置 {position} / {total}。',
 			itemFallback: '项目',
 			orderConfirmed: '顺序已确认',
 		},
@@ -340,6 +344,7 @@ export default {
 			clickHotspotsToAssociate: '点击图像上的两个热点以创建关联。',
 			clickAnotherHotspot: '已选择:<strong>{label}</strong>。点击另一个热点以创建关联。',
 			removeAssociationBetween: '移除 {first} 与 {second} 之间的关联',
+			inPairSentence: '已在一个关联中。',
 		},
 
 		positionObject: {

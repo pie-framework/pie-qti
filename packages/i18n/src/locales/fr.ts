@@ -232,12 +232,13 @@ export default {
 			selectedForMatchingSentence: 'Sélectionné pour l\'association.',
 			availableForMatchingSentence: 'Disponible pour l\'association.',
 			notCompatibleSentence: 'Incompatible avec l\'élément source sélectionné.',
+			selectionCancelledItem: 'Sélection de {item} annulée.',
 		},
 
 		gapMatch: {
-			filledGapAriaLabelWithHeld: 'Espace {gapId}, rempli avec {word}. Sélectionnez pour remplacer par {heldWord}.',
-			blankGapAriaLabelWithHeld: 'Espace {gapId}. Sélectionnez pour y placer {heldWord}.',
-			placed: '{word} placé dans l’espace {gapId}.',
+			filledGapAriaLabelWithHeld: 'Blanc {position} sur {total}, rempli avec {word}. Sélectionnez pour remplacer par {heldWord}.',
+			blankGapAriaLabelWithHeld: 'Blanc {position} sur {total}. Sélectionnez pour y placer {heldWord}.',
+			placed: '{word} placé dans le blanc {position} sur {total}.',
 			pointerInstructions: 'Sélectionnez un mot, puis un espace vide. Vous pouvez aussi glisser-déposer.',
 			instruction: 'Faites glisser les mots pour remplir les blancs',
 			available: 'Mots disponibles',
@@ -247,8 +248,10 @@ export default {
 			removeFromBlanks: 'Supprimer {word} des blancs',
 			selectPlaceholder: 'Sélectionner...',
 			gapAriaLabel: 'Espace {gapId}',
-			blankGapAriaLabel: 'Blanc {gapId}. Déposez une réponse ici.',
-			filledGapAriaLabel: 'Blanc {gapId}, rempli avec {word}. Cliquez pour effacer.',
+			blankGapAriaLabel: 'Blanc {position} sur {total}. Déposez une réponse ici.',
+			filledGapAriaLabel: 'Blanc {position} sur {total}, rempli avec {word}. Sélectionnez pour effacer.',
+			wordSelected: '{word} saisi. Sélectionnez un blanc pour le placer, ou appuyez sur Échap pour annuler.',
+			pickUpCancelled: 'La saisie de {word} a été annulée.',
 		},
 
 		graphicGapMatch: {
@@ -286,8 +289,10 @@ export default {
 		},
 
 		order: {
-			moveEarlier: 'Déplacer avant',
-			moveLater: 'Déplacer après',
+			moveEarlierItem: 'Déplacer {item} avant',
+			moveLaterItem: 'Déplacer {item} après',
+			eliminateItem: 'Éliminer {item}',
+			restoreItem: 'Rétablir {item}',
 			instruction: 'Utilisez les boutons de déplacement ou faites glisser les éléments pour les réorganiser.',
 			keyboardInstructions: 'Appuyez sur Espace ou Entrée pour saisir un élément. Utilisez les touches fléchées pour déplacer l\'élément. Appuyez à nouveau sur Espace ou Entrée pour déposer. Appuyez sur Échap pour annuler.',
 			grabbed: 'Saisi. Utilisez les touches fléchées pour déplacer.',
@@ -302,7 +307,6 @@ export default {
 			itemDropped: '{item} déposé à la position {position} sur {total}',
 			itemMoved: '{item} déplacé à la position {position} sur {total}',
 			selectionCancelled: 'Sélection de {item} annulée',
-			itemPosition: '{item}. Position {position} sur {total}.',
 			itemFallback: 'Élément',
 			orderConfirmed: 'Ordre confirmé',
 		},
@@ -327,6 +331,7 @@ export default {
 			clickHotspotsToAssociate: 'Cliquez sur deux zones sensibles sur l\'image pour créer une association.',
 			clickAnotherHotspot: 'Sélectionné : <strong>{label}</strong>. Cliquez sur une autre zone sensible pour créer une association.',
 			removeAssociationBetween: 'Supprimer l\'association entre {first} et {second}',
+			inPairSentence: 'Fait partie d\'une association.',
 		},
 
 		positionObject: {

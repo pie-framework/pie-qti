@@ -233,12 +233,13 @@ export default {
 			selectedForMatchingSentence: 'เลือกเพื่อจับคู่แล้ว',
 			availableForMatchingSentence: 'พร้อมสำหรับการจับคู่',
 			notCompatibleSentence: 'ไม่เข้ากันกับต้นทางที่เลือก',
+			selectionCancelledItem: 'ยกเลิกการเลือก {item} แล้ว',
 		},
 
 		gapMatch: {
-			filledGapAriaLabelWithHeld: 'ช่องว่าง {gapId} มีคำว่า {word} เลือกเพื่อแทนที่ด้วย {heldWord}',
-			blankGapAriaLabelWithHeld: 'ช่องว่าง {gapId} เลือกเพื่อวาง {heldWord} ที่นี่',
-			placed: 'วาง {word} ในช่องว่าง {gapId} แล้ว',
+			filledGapAriaLabelWithHeld: 'ช่องว่างที่ {position} จาก {total} มีคำว่า {word} เลือกเพื่อแทนที่ด้วย {heldWord}',
+			blankGapAriaLabelWithHeld: 'ช่องว่างที่ {position} จาก {total} เลือกเพื่อวาง {heldWord} ที่นี่',
+			placed: 'วาง {word} ในช่องว่างที่ {position} จาก {total} แล้ว',
 			pointerInstructions: 'เลือกคำ แล้วเลือกช่องว่าง หรือใช้การลากและวาง',
 			instruction: 'ลากคำเพื่อเติมช่องว่าง',
 			available: 'คำที่พร้อมใช้งาน',
@@ -248,8 +249,10 @@ export default {
 			removeFromBlanks: 'ลบ {word} จากช่องว่าง',
 			selectPlaceholder: 'เลือก...',
 			gapAriaLabel: 'ช่องว่าง {gapId}',
-			blankGapAriaLabel: 'ช่องว่าง {gapId} วางคำตอบที่นี่',
-			filledGapAriaLabel: 'ช่องว่าง {gapId} เติมด้วย {word} แล้ว คลิกเพื่อล้าง',
+			blankGapAriaLabel: 'ช่องว่างที่ {position} จาก {total} วางคำตอบที่นี่',
+			filledGapAriaLabel: 'ช่องว่างที่ {position} จาก {total} เติมด้วย {word} แล้ว เลือกเพื่อล้าง',
+			wordSelected: 'หยิบ {word} แล้ว เลือกช่องว่างเพื่อวาง หรือกด Escape เพื่อยกเลิก',
+			pickUpCancelled: 'ยกเลิกการหยิบ {word} แล้ว',
 		},
 
 		graphicGapMatch: {
@@ -287,8 +290,10 @@ export default {
 		},
 
 		order: {
-			moveEarlier: 'เลื่อนไปก่อนหน้า',
-			moveLater: 'เลื่อนไปถัดไป',
+			moveEarlierItem: 'เลื่อน {item} ไปก่อนหน้า',
+			moveLaterItem: 'เลื่อน {item} ไปถัดไป',
+			eliminateItem: 'ตัด {item} ออก',
+			restoreItem: 'เรียก {item} คืน',
 			instruction: 'ใช้ปุ่มเลื่อนหรือลากรายการเพื่อจัดลำดับใหม่',
 			keyboardInstructions: 'กด Space หรือ Enter เพื่อจับรายการ ใช้ปุ่มลูกศรเพื่อย้ายรายการ กด Space หรือ Enter อีกครั้งเพื่อวาง กด Escape เพื่อยกเลิก',
 			grabbed: 'จับแล้ว ใช้ปุ่มลูกศรเพื่อย้าย',
@@ -303,7 +308,6 @@ export default {
 			itemDropped: 'วาง {item} ที่ตำแหน่ง {position} จาก {total} แล้ว',
 			itemMoved: 'ย้าย {item} ไปยังตำแหน่ง {position} จาก {total} แล้ว',
 			selectionCancelled: 'ยกเลิกการเลือก {item}',
-			itemPosition: '{item} ตำแหน่ง {position} จาก {total}',
 			itemFallback: 'รายการ',
 			orderConfirmed: 'ยืนยันลำดับแล้ว',
 		},
@@ -328,6 +332,7 @@ export default {
 			clickHotspotsToAssociate: 'คลิกสองฮอตสปอตบนภาพเพื่อสร้างความสัมพันธ์',
 			clickAnotherHotspot: 'เลือกแล้ว: <strong>{label}</strong> คลิกฮอตสปอตอื่นเพื่อสร้างความสัมพันธ์',
 			removeAssociationBetween: 'ลบความสัมพันธ์ระหว่าง {first} และ {second}',
+			inPairSentence: 'อยู่ในความสัมพันธ์แล้ว',
 		},
 
 		positionObject: {

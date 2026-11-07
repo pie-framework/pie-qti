@@ -244,12 +244,13 @@ export default {
 			selectedForMatchingSentence: 'Selected for matching.',
 			availableForMatchingSentence: 'Available for matching.',
 			notCompatibleSentence: 'Not compatible with the selected source.',
+			selectionCancelledItem: 'Selection of {item} cancelled.',
 		},
 
 		gapMatch: {
-			filledGapAriaLabelWithHeld: 'Blank {gapId}, filled with {word}. Select to replace with {heldWord}.',
-			blankGapAriaLabelWithHeld: 'Blank {gapId}. Select to place {heldWord} here.',
-			placed: 'Placed {word} in blank {gapId}.',
+			filledGapAriaLabelWithHeld: 'Blank {position} of {total}, filled with {word}. Select to replace with {heldWord}.',
+			blankGapAriaLabelWithHeld: 'Blank {position} of {total}. Select to place {heldWord} here.',
+			placed: 'Placed {word} in blank {position} of {total}.',
 			pointerInstructions: 'Select a word, then select a blank. You can also drag and drop.',
 			instruction: 'Drag words to fill in the blanks',
 			available: 'Available words',
@@ -260,8 +261,10 @@ export default {
 			removeFromBlanks: 'Remove {word} from the blanks',
 			selectPlaceholder: 'Select...',
 			gapAriaLabel: 'Gap {gapId}',
-			blankGapAriaLabel: 'Blank {gapId}. Drop an answer here.',
-			filledGapAriaLabel: 'Blank {gapId}, filled with {word}. Click to clear.',
+			blankGapAriaLabel: 'Blank {position} of {total}. Drop an answer here.',
+			filledGapAriaLabel: 'Blank {position} of {total}, filled with {word}. Select to clear.',
+			wordSelected: '{word} picked up. Select a blank to place it, or press Escape to cancel.',
+			pickUpCancelled: 'Pick-up of {word} cancelled.',
 		},
 
 		graphicGapMatch: {
@@ -299,8 +302,10 @@ export default {
 		},
 
 		order: {
-			moveEarlier: 'Move earlier',
-			moveLater: 'Move later',
+			moveEarlierItem: 'Move {item} earlier',
+			moveLaterItem: 'Move {item} later',
+			eliminateItem: 'Eliminate {item}',
+			restoreItem: 'Restore {item}',
 			instruction: 'Use the move buttons or drag items to reorder them.',
 			keyboardInstructions: 'Press Space or Enter to grab an item. Use arrow keys to move the item. Press Space or Enter again to drop. Press Escape to cancel.',
 			grabbed: 'Grabbed. Use arrow keys to move.',
@@ -315,7 +320,6 @@ export default {
 			itemDropped: '{item} dropped at position {position} of {total}',
 			itemMoved: '{item} moved to position {position} of {total}',
 			selectionCancelled: '{item} selection cancelled',
-			itemPosition: '{item}. Position {position} of {total}.',
 			itemFallback: 'Item',
 			orderConfirmed: 'Order confirmed',
 		},
@@ -340,6 +344,7 @@ export default {
 			clickHotspotsToAssociate: 'Click two hotspots on the image to create an association.',
 			clickAnotherHotspot: 'Selected: <strong>{label}</strong>. Click another hotspot to create an association.',
 			removeAssociationBetween: 'Remove association between {first} and {second}',
+			inPairSentence: 'In an association.',
 		},
 
 		positionObject: {

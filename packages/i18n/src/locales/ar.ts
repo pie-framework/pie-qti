@@ -276,12 +276,13 @@ export default {
 			selectedForMatchingSentence: 'محدد للمطابقة.',
 			availableForMatchingSentence: 'متاح للمطابقة.',
 			notCompatibleSentence: 'غير متوافق مع المصدر المحدد.',
+			selectionCancelledItem: 'تم إلغاء تحديد {item}.',
 		},
 
 		gapMatch: {
-			filledGapAriaLabelWithHeld: 'الفراغ {gapId} يحتوي على {word}. اختر لاستبداله بـ {heldWord}.',
-			blankGapAriaLabelWithHeld: 'الفراغ {gapId}. اختر لوضع {heldWord} هنا.',
-			placed: 'تم وضع {word} في الفراغ {gapId}.',
+			filledGapAriaLabelWithHeld: 'الفراغ {position} من {total} يحتوي على {word}. اختر لاستبداله بـ {heldWord}.',
+			blankGapAriaLabelWithHeld: 'الفراغ {position} من {total}. اختر لوضع {heldWord} هنا.',
+			placed: 'تم وضع {word} في الفراغ {position} من {total}.',
 			pointerInstructions: 'اختر كلمة ثم اختر فراغًا. يمكنك أيضًا السحب والإفلات.',
 			instruction: 'اسحب الكلمات لملء الفراغات',
 			available: 'الكلمات المتاحة',
@@ -292,8 +293,10 @@ export default {
 			removeFromBlanks: 'إزالة {word} من الفراغات',
 			selectPlaceholder: 'اختر...',
 			gapAriaLabel: 'الفراغ {gapId}',
-			blankGapAriaLabel: 'الفراغ {gapId}. أسقط إجابة هنا.',
-			filledGapAriaLabel: 'الفراغ {gapId}، تم ملؤه بـ {word}. انقر للمسح.',
+			blankGapAriaLabel: 'الفراغ {position} من {total}. أسقط إجابة هنا.',
+			filledGapAriaLabel: 'الفراغ {position} من {total}، تم ملؤه بـ {word}. اختر للمسح.',
+			wordSelected: 'تم التقاط {word}. اختر فراغًا لوضعه، أو اضغط على Escape للإلغاء.',
+			pickUpCancelled: 'تم إلغاء التقاط {word}.',
 		},
 
 		graphicGapMatch: {
@@ -331,8 +334,10 @@ export default {
 		},
 
 		order: {
-			moveEarlier: 'نقل إلى الأمام',
-			moveLater: 'نقل إلى الخلف',
+			moveEarlierItem: 'نقل {item} إلى الأمام',
+			moveLaterItem: 'نقل {item} إلى الخلف',
+			eliminateItem: 'استبعاد {item}',
+			restoreItem: 'إعادة {item}',
 			instruction: 'استخدم أزرار النقل أو اسحب العناصر لتغيير ترتيبها.',
 			keyboardInstructions: 'اضغط على مفتاح المسافة أو الإدخال للإمساك بعنصر. استخدم مفاتيح الأسهم لتحريك العنصر. اضغط على مفتاح المسافة أو الإدخال مرة أخرى للإفلات. اضغط على Escape للإلغاء.',
 			grabbed: 'تم الإمساك. استخدم مفاتيح الأسهم للتحريك.',
@@ -347,7 +352,6 @@ export default {
 			itemDropped: 'تم إفلات {item} في الموضع {position} من {total}',
 			itemMoved: 'تم نقل {item} إلى الموضع {position} من {total}',
 			selectionCancelled: 'تم إلغاء تحديد {item}',
-			itemPosition: '{item}. الموضع {position} من {total}.',
 			itemFallback: 'عنصر',
 			orderConfirmed: 'تم تأكيد الترتيب',
 		},
@@ -372,6 +376,7 @@ export default {
 			clickHotspotsToAssociate: 'انقر على نقطتين ساخنتين على الصورة لإنشاء ارتباط.',
 			clickAnotherHotspot: 'محدد: <strong>{label}</strong>. انقر على نقطة ساخنة أخرى لإنشاء ارتباط.',
 			removeAssociationBetween: 'إزالة الارتباط بين {first} و{second}',
+			inPairSentence: 'ضمن ارتباط قائم.',
 		},
 
 		positionObject: {
