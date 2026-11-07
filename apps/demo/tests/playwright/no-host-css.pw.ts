@@ -7,9 +7,15 @@
  *
  * We run the components inside an iframe `srcdoc` document (no CSS), and import
  * the custom elements via Vite's dev server module graph (`/ @id / ...`).
+ *
+ * The assessment shell and section player render in the light DOM; they must be
+ * self-contained too: sized icons, token-styled controls with visible focus rings,
+ * a one-row navigation and a Passage/Question tab switch on phones, reflow at 400%
+ * zoom (a 320×256 CSS-pixel viewport) and a full-viewport mode.
  */
 
-import { expect, test } from './fixtures';
+import type { FrameLocator } from '@playwright/test';
+import { expect, type Page, test } from './fixtures';
 
 const NO_CSS_SRC_DOC = String.raw`<!doctype html>
 <html lang="en">
@@ -575,3 +581,241 @@ test.describe('Web components without host CSS', () => {
 });
 
 
+const NS = 'xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"';
+
+function choiceItem(identifier: string, prompt: string) {
+	return `<assessmentItem ${NS} identifier="${identifier}" title="${identifier}" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"><correctResponse><value>A</value></correctResponse></responseDeclaration>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"><defaultValue><value>0</value></defaultValue></outcomeDeclaration>
+  <itemBody>
+    <p>${prompt}</p>
+    <choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+      <simpleChoice identifier="A">Evaporation</simpleChoice>
+      <simpleChoice identifier="B">Condensation</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+</assessmentItem>`;
+}
+
+const SHELL_ITEMS = {
+	'q1.xml': choiceItem('q1', 'Which process turns water into vapour?'),
+	'q2.xml': choiceItem('q2', 'Which process forms clouds?'),
+	'q3.xml': choiceItem('q3', 'Which process returns water to the ground?'),
+};
+
+const SHELL_TEST_XML = `<assessmentTest ${NS} identifier="NO-CSS-001" title="The Water Cycle Check">
+  <testPart identifier="part-1" navigationMode="nonlinear" submissionMode="individual">
+    <assessmentSection identifier="s1" title="Reading" visible="true">
+      <rubricBlock view="candidate" use="passage"><p>Water evaporates, condenses into clouds and falls as precipitation.</p></rubricBlock>
+      <assessmentItemRef identifier="q1" href="q1.xml"/>
+      <assessmentItemRef identifier="q2" href="q2.xml"/>
+    </assessmentSection>
+    <assessmentSection identifier="s2" title="Review" visible="true">
+      <assessmentItemRef identifier="q3" href="q3.xml"/>
+    </assessmentSection>
+  </testPart>
+</assessmentTest>`;
+
+function shellSrcDoc(options: { fullViewport?: boolean } = {}) {
+	return String.raw`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>No host CSS: assessment shell</title>
+    <style>
+      /* Intentionally minimal: no Tailwind/DaisyUI, no theme tokens. */
+      body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    </style>
+  </head>
+  <body>
+    <pie-qti-assessment-player id="assessment"${options.fullViewport ? ' full-viewport' : ''}></pie-qti-assessment-player>
+    <script type="module">
+      import '/@id/@pie-qti/player-elements/register';
+      const element = document.getElementById('assessment');
+      element.referenceMode = true;
+      element.items = ${JSON.stringify(SHELL_ITEMS)};
+      element.assessmentTestXml = ${JSON.stringify(SHELL_TEST_XML)};
+    </script>
+  </body>
+</html>`;
+}
+
+async function renderShellWithoutHostCss(
+	page: Page,
+	size: { width: number; height: number },
+	options: { fullViewport?: boolean } = {},
+): Promise<FrameLocator> {
+	await page.goto('./');
+	await page.waitForLoadState('networkidle');
+	await page.evaluate(
+		({ srcdoc, width, height }) => {
+			const iframe = document.createElement('iframe');
+			iframe.id = 'no-host-css-shell';
+			iframe.style.width = `${width}px`;
+			iframe.style.height = `${height}px`;
+			iframe.style.border = '0';
+			iframe.srcdoc = srcdoc;
+			document.body.prepend(iframe);
+		},
+		{ srcdoc: shellSrcDoc(options), ...size },
+	);
+	const frame = page.frameLocator('#no-host-css-shell');
+	await expect(frame.locator('pie-qti-assessment-player .assessment-shell')).toBeVisible({ timeout: 30_000 });
+	await expect(frame.locator('pie-qti-choice').first()).toBeAttached({ timeout: 30_000 });
+	return frame;
+}
+
+/** Every light-DOM icon in the shell keeps an icon size (the browser default is 300×150). */
+async function largestShellIcon(frame: FrameLocator) {
+	return frame.locator('pie-qti-assessment-player').evaluate((host) => {
+		let width = 0;
+		let height = 0;
+		for (const svg of Array.from(host.querySelectorAll('svg'))) {
+			const rect = svg.getBoundingClientRect();
+			width = Math.max(width, rect.width);
+			height = Math.max(height, rect.height);
+		}
+		return { width, height, count: host.querySelectorAll('svg').length };
+	});
+}
+
+/** A keyboard-focused control shows the token focus ring. */
+async function expectKeyboardFocusRing(page: Page, frame: FrameLocator, selector: string) {
+	const target = frame.locator(selector).first();
+	await target.focus();
+	await page.keyboard.press('Shift+Tab');
+	await page.keyboard.press('Tab');
+	await expect(target).toBeFocused();
+	const ring = await target.evaluate((element) => {
+		const style = getComputedStyle(element);
+		return { visible: element.matches(':focus-visible'), style: style.outlineStyle, width: style.outlineWidth };
+	});
+	expect(ring).toEqual({ visible: true, style: 'solid', width: '2px' });
+}
+
+test.describe('Assessment shell and section player without host CSS', () => {
+	test('desktop: sized icons, token-styled controls, focus rings and a fitted shell', async ({ page }) => {
+		const frame = await renderShellWithoutHostCss(page, { width: 1100, height: 800 });
+
+		// The assessmentTest title heads the shell, never its identifier.
+		await expect(frame.getByRole('heading', { name: 'The Water Cycle Check' })).toBeVisible();
+		await expect(frame.getByText('NO-CSS-001')).toHaveCount(0);
+
+		const icons = await largestShellIcon(frame);
+		expect(icons.count).toBeGreaterThan(0);
+		expect(icons.width).toBeLessThanOrEqual(32);
+		expect(icons.height).toBeLessThanOrEqual(32);
+
+		for (const testId of ['assessment-prev', 'assessment-next']) {
+			const box = await frame.getByTestId(testId).boundingBox();
+			expect(box!.height).toBeGreaterThanOrEqual(44);
+		}
+		const next = await frame.getByTestId('assessment-next').evaluate((element) => {
+			const style = getComputedStyle(element);
+			return { background: style.backgroundColor, color: style.color };
+		});
+		expect(next.background).not.toBe('rgba(0, 0, 0, 0)');
+		expect(next.background).not.toBe(next.color);
+		const previousBorder = await frame
+			.getByTestId('assessment-prev')
+			.evaluate((element) => Number.parseFloat(getComputedStyle(element).borderTopWidth));
+		expect(previousBorder).toBeGreaterThanOrEqual(1);
+
+		// The section menu toggle (two visible sections) is usable too.
+		const sectionsBox = await frame.locator('.section-menu > button').boundingBox();
+		expect(sectionsBox!.height).toBeGreaterThanOrEqual(44);
+
+		await expectKeyboardFocusRing(page, frame, '[data-testid="assessment-next"]');
+		await expectKeyboardFocusRing(page, frame, '[role="separator"]');
+
+		// The skip link is hidden until focused, then leads to the question.
+		const skip = frame.getByRole('link', { name: 'Skip to question' });
+		expect((await skip.boundingBox())!.width).toBeLessThanOrEqual(1);
+		await skip.focus();
+		expect((await skip.boundingBox())!.width).toBeGreaterThan(40);
+		await page.keyboard.press('Enter');
+		await expect(frame.getByRole('region', { name: 'Question', exact: true })).toBeFocused();
+
+		// Fits the viewport rather than assuming it owns a fixed 100vh box.
+		const shellBox = await frame.locator('.assessment-shell').boundingBox();
+		expect(shellBox!.height).toBeLessThanOrEqual(800);
+		const navBox = await frame.getByRole('navigation', { name: 'Assessment navigation' }).boundingBox();
+		expect(navBox!.y + navBox!.height).toBeLessThanOrEqual(shellBox!.y + shellBox!.height + 1);
+	});
+
+	test('phone (375px): one-row navigation, slim gutters and a Passage/Question tab switch', async ({ page }) => {
+		const frame = await renderShellWithoutHostCss(page, { width: 375, height: 700 });
+
+		const nav = frame.getByRole('navigation', { name: 'Assessment navigation' });
+		const navBox = (await nav.boundingBox())!;
+		const prevBox = (await frame.getByTestId('assessment-prev').boundingBox())!;
+		const nextBox = (await frame.getByTestId('assessment-next').boundingBox())!;
+		expect(Math.abs(prevBox.y - nextBox.y)).toBeLessThan(8);
+		expect(prevBox.x).toBeLessThan(nextBox.x);
+		expect(navBox.height).toBeLessThan(110);
+
+		const tabs = frame.getByRole('tab');
+		await expect(tabs).toHaveText(['Passage', 'Question']);
+		const questionTab = frame.getByRole('tab', { name: 'Question' });
+		await questionTab.click();
+		await expect(questionTab).toHaveAttribute('aria-selected', 'true');
+		const question = frame.getByRole('tabpanel', { name: 'Question' });
+		await expect(question.locator('pie-qti-choice')).toBeVisible();
+		await expect(frame.getByRole('tabpanel', { name: 'Passage' })).toBeHidden();
+
+		// One slim gutter, not three nested 1rem paddings.
+		const itemBox = (await question.locator('pie-qti-item-player').boundingBox())!;
+		expect(itemBox.x).toBeLessThanOrEqual(20);
+		expect(itemBox.width).toBeGreaterThanOrEqual(375 - 2 * 20);
+
+		const overflow = await frame.locator('html').evaluate((html) => html.scrollWidth - html.clientWidth);
+		expect(overflow).toBeLessThanOrEqual(1);
+
+		// Next presents the following question in the question tab.
+		await frame.getByRole('radio', { name: 'Evaporation' }).check();
+		await frame.getByTestId('assessment-next').click();
+		await expect(frame.locator('.progress-question')).toHaveText('Question 2 of 3');
+		await expect(questionTab).toHaveAttribute('aria-selected', 'true');
+	});
+
+	test('400% zoom (320×256): content reflows and no bar covers the focused control', async ({ page }) => {
+		const frame = await renderShellWithoutHostCss(page, { width: 320, height: 256 });
+
+		for (const selector of ['.assessment-header', '.navigation-bar']) {
+			const position = await frame.locator(selector).evaluate((element) => getComputedStyle(element).position);
+			expect(['static', 'relative']).toContain(position);
+		}
+		const overflow = await frame.locator('html').evaluate((html) => html.scrollWidth - html.clientWidth);
+		expect(overflow).toBeLessThanOrEqual(1);
+
+		await frame.getByRole('tab', { name: 'Question' }).click();
+		const radio = frame.getByRole('radio', { name: 'Condensation' });
+		await radio.focus();
+		await expect(radio).toBeFocused();
+		const covered = await radio.evaluate((input) => {
+			const rect = input.getBoundingClientRect();
+			const host = (input.getRootNode() as ShadowRoot).host;
+			const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+			const inViewport = rect.top >= 0 && rect.bottom <= window.innerHeight;
+			return { inViewport, hitIsQuestion: hit === host || (hit !== null && host.contains(hit)) };
+		});
+		expect(covered).toEqual({ inViewport: true, hitIsQuestion: true });
+
+		// The navigation is still reachable by scrolling, in reading order after the question.
+		const next = frame.getByTestId('assessment-next');
+		await next.scrollIntoViewIfNeeded();
+		await expect(next).toBeInViewport();
+	});
+
+	test('full-viewport mode fills the viewport with page-level landmarks', async ({ page }) => {
+		const frame = await renderShellWithoutHostCss(page, { width: 420, height: 640 }, { fullViewport: true });
+
+		const shellBox = (await frame.locator('.assessment-shell').boundingBox())!;
+		expect(Math.round(shellBox.height)).toBe(640);
+		await expect(frame.getByRole('banner')).toBeVisible();
+		await expect(frame.getByRole('main', { name: 'Question content' })).toBeVisible();
+		await expect(frame.getByRole('navigation', { name: 'Assessment navigation' })).toBeVisible();
+		await expect(frame.getByRole('heading', { level: 1, name: 'The Water Cycle Check' })).toBeVisible();
+	});
+});

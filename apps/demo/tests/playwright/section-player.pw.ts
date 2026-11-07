@@ -42,7 +42,7 @@ test.describe('section player web components', () => {
 		await page.goto('/wc-section-splitpane');
 
 		const host = page.locator('pie-qti-section-player-splitpane');
-		await expect(host.getByRole('heading', { name: 'Reading Passage', exact: true })).toBeVisible();
+		await expect(host.getByRole('heading', { name: 'Passage', exact: true })).toBeVisible();
 		await expect(host.locator('pie-qti-item-player')).toBeAttached();
 		await expect(host.locator('math').first()).toBeVisible();
 	});

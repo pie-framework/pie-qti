@@ -18,7 +18,7 @@ async function openSection(page: Page, sectionTitle: string) {
 test.describe('public QTI certification browser coverage', () => {
 	test('renders section rubric and item-level stimulus in the assessment shell', async ({ page }) => {
 		await selectAssessmentSample(page, 'interaction-showcase-1');
-		await expect(page.getByRole('heading', { name: 'SHOWCASE-001' })).toBeVisible({ timeout: 10000 });
+		await expect(page.getByRole('heading', { name: 'Interaction Showcase' })).toBeVisible({ timeout: 10000 });
 
 		await expect(page.getByText('Reading Passage (Standalone Rubric)')).toBeVisible();
 		await openSection(page, 'Inline Stimulus');
@@ -27,7 +27,7 @@ test.describe('public QTI certification browser coverage', () => {
 
 	test('renders advanced interaction affordances in the browser', async ({ page }) => {
 		await selectAssessmentSample(page, 'interaction-showcase-1');
-		await expect(page.getByRole('heading', { name: 'SHOWCASE-001' })).toBeVisible({ timeout: 10000 });
+		await expect(page.getByRole('heading', { name: 'Interaction Showcase' })).toBeVisible({ timeout: 10000 });
 
 		await openSection(page, 'Hotspot');
 		await expect(page.locator('pie-qti-hotspot').first()).toBeVisible({ timeout: 15000 });

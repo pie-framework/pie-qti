@@ -129,6 +129,12 @@ for (const locale of LOCALES) {
 			await expect(shell).toHaveAttribute('lang', locale);
 			await expect(shell).toHaveAttribute('dir', 'rtl');
 
+			// Previous/Next arrows point along the reading direction: mirrored right-to-left.
+			for (const testId of ['assessment-prev', 'assessment-next']) {
+				const arrow = shell.getByTestId(testId).locator('svg');
+				expect(await arrow.evaluate((svg) => getComputedStyle(svg).transform)).toBe('matrix(-1, 0, 0, 1, 0, 0)');
+			}
+
 			if (locale === 'ar-XB') await expectPseudoStringsIntact(page, 'pie-qti-assessment-player');
 		});
 	});

@@ -10,7 +10,12 @@ for (const width of [1280, 375]) {
 			const submit = page.getByTestId('assessment-submit');
 			await submit.click();
 			await expect(submit).toBeDisabled();
-			await expect(page.getByRole('alert')).toContainText('Your answers are still here');
+			// Raw backend text never reaches the candidate: an uncoded failure renders the
+			// localized generic message with a support code.
+			const alert = page.getByRole('alert');
+			await expect(alert).toContainText('Something went wrong. Please try again.');
+			await expect(alert).toContainText(/Support code: E-[0-9A-F]+/);
+			await expect(alert).not.toContainText('Your answers are still here');
 			await expect(answer).toBeChecked();
 			const retry = page.getByRole('button', { name: 'Try Again', exact: true });
 			await expect(retry).toBeFocused();

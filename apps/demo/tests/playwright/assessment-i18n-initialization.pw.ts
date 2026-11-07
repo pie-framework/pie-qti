@@ -3,9 +3,10 @@ import { expect, test } from './fixtures';
 test('a cold assessment load renders translated controls and headings', async ({ page }) => {
 	await page.goto('assessment-demo');
 	await expect(page.getByTestId('assessment-next')).toHaveText(/Next/);
-	await expect(page.getByRole('region', { name: 'Reading passages', exact: true })).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Passages', exact: true })).toBeVisible();
 	await expect(page.getByTestId('assessment-prev')).toHaveText(/Previous/);
-	await expect(page.getByRole('heading', { name: 'Reading Passage', exact: true })).toBeVisible();
+	// An untitled passage gets a neutral heading, not "Reading Passage".
+	await expect(page.getByRole('heading', { name: 'Passage', exact: true })).toBeVisible();
 });
 
 test('a late context provider updates the assessment without losing its answer', async ({ page }) => {
