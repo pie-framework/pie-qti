@@ -295,10 +295,12 @@ AC-7: QTI 3.0 item parsed without explicit mapper configuration
 ```
 
 ```
-AC-8: Strict compliance mode rejects non-2.2 items when configured
-  Given: A QTI 3.0 item and AssessmentItemDefinitionConfig with strictQtiCompliance: { enabled: true, rejectUnknownExtensions: true }
+AC-8: Strict compliance mode rejects non-certifiable versions and unknown vocabulary when configured
+  Given: A QTI 2.1 item, or a QTI 2.2/3.0 item with an element outside its version's vocabulary,
+         and AssessmentItemDefinitionConfig with strictQtiCompliance: { enabled: true, rejectUnknownExtensions: true }
   When: createAssessmentItemDefinition({ itemXml, role: 'candidate', strictQtiCompliance: { enabled: true, rejectUnknownExtensions: true } }) is called
-  Then: An error is thrown with a message indicating version mismatch
+  Then: A QtiComplianceError is thrown whose diagnostics name the finding (unsupported-version, unknown-element)
+        A clean QTI 2.2 or 3.0 item compiles with no diagnostics
 ```
 
 ### Security
