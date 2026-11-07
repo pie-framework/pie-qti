@@ -287,6 +287,12 @@
 					{t('interactions.media.audioNoSupport', 'Your browser does not support the audio element.')}
 				</audio>
 			{:else if media.type === 'video'}
+				<!--
+					Inline playback keeps the question on screen on iOS, which would
+					otherwise take over in fullscreen. The unprefixed attribute needs
+					iOS 10; the prefixed one (spread, as Svelte's video attribute
+					types do not know it) covers older iOS WebViews.
+				-->
 				<video
 					bind:this={mediaElement}
 					class="w-full rounded-lg"
@@ -296,7 +302,8 @@
 					autoplay={parsedInteraction.autostart && !disabled && canStartNewPlay}
 					preload="metadata"
 					crossorigin={media.crossOrigin}
-					playsinline={limitApplies}
+					playsinline
+					{...({ 'webkit-playsinline': true } as Record<string, unknown>)}
 					disablepictureinpicture={limitApplies}
 					disableremoteplayback={limitApplies}
 					width={media.width}

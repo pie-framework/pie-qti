@@ -213,6 +213,7 @@ export function pnpProfileFromAfa(record: AfaPnpRecord): PnpProfile {
 
 	const cognitive: NonNullable<PnpProfile['cognitive']> = {};
 	if (granted('answer-masking')) cognitive.answerMasking = true;
+	if (granted('spell-checker-on-screen')) cognitive.spellChecker = true;
 
 	const tools = toolSupportsOf(record, granted, prohibited);
 

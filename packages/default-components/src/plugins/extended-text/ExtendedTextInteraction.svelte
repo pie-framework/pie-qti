@@ -1,7 +1,7 @@
 <svelte:options customElement="pie-qti-extended-text" />
 
 <script lang="ts">
-	import type { ExtendedTextInteractionData } from '@pie-qti/item-player';
+	import type { ExtendedTextInteractionData, PnpProfile } from '@pie-qti/item-player';
 	import { tick } from 'svelte';
 	import { emitInteractionChange, emitQtiChange } from '../../shared/utils/eventHelpers';
 	import {
@@ -15,7 +15,7 @@
 	import RichTextEditor from '../../shared/components/RichTextEditor.svelte';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
+	import { createInteractionShell, parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import {
 		characterCount,
 		isSpellcheckAllowed,
@@ -35,9 +35,16 @@
 		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
 		/**
+		 * The candidate's Personal Needs and Preferences profile (or its JSON). Its
+		 * spell-checker grant opts the fields into spelling help like the
+		 * `spellcheck` prop does.
+		 */
+		pnp?: PnpProfile | string;
+		/**
 		 * Allow the browser's spell check and autocorrect in the response fields.
 		 * Off by default, so spelling and writing items give every candidate the
-		 * same help; a host turns it on for a candidate whose needs grant it.
+		 * same help; a host turns it on for a candidate whose needs grant it —
+		 * through this prop or the candidate's PNP spell-checker grant.
 		 * Accepts `true`/`"true"` (or the bare attribute) on the custom element.
 		 */
 		spellcheck?: boolean | string;
@@ -53,6 +60,7 @@
 		role = 'candidate',
 		i18n = $bindable(),
 		typeset,
+		pnp,
 		spellcheck = false,
 		onChange,
 	}: Props = $props();
@@ -229,7 +237,9 @@
 		parsedInteraction ? extendedTextResponseToStrings(parsedCorrectResponse, parsedInteraction) : []
 	);
 
-	const spellcheckAllowed = $derived(isSpellcheckAllowed(spellcheck));
+	const parsedPnp = $derived(parseJsonProp<PnpProfile>(pnp));
+	// The host's prop and the candidate's PNP spell-checker grant both opt in.
+	const spellcheckAllowed = $derived(isSpellcheckAllowed(spellcheck) || parsedPnp?.cognitive?.spellChecker === true);
 	const assistance = $derived(writingAssistance(spellcheckAllowed));
 	const inputMode = $derived(parsedInteraction ? responseInputMode(parsedInteraction) : undefined);
 	const placeholder = $derived(

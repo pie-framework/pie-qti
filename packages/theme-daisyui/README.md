@@ -20,7 +20,7 @@ inherit the new token values through normal CSS cascading.
 | Fills, `base-100/200/300`, `base-content` | DaisyUI `--color-*` of the active theme |
 | `*-content` (text on a fill) | Black or white, whichever contrasts more with the fill; DaisyUI's `*-content` in engines without relative colour syntax |
 | `--pie-qti-focus` | DaisyUI `--color-primary`, darkened or lightened only as far as 3:1 needs (see [Focus indicator](#focus-indicator)) |
-| `--pie-qti-error-text`, `--pie-qti-warning-text`, `--pie-qti-success-text`, `--pie-qti-info-text` | `@pie-qti/theme` defaults via `light-dark()`, **not** DaisyUI colours |
+| `--pie-qti-error-text`, `--pie-qti-warning-text`, `--pie-qti-success-text`, `--pie-qti-info-text` | `@pie-qti/theme` defaults via `light-dark()`, **not** DaisyUI colours; adjusted for tinted surfaces in the relative-colour tier (see [Contrast guarantees](#contrast-guarantees)) |
 | `--pie-qti-border-strong` | `@pie-qti/theme` defaults via `light-dark()` |
 | `--pie-qti-radius`, `--pie-qti-radius-sm` | DaisyUI `--radius-box`, `--radius-field` |
 
@@ -81,16 +81,27 @@ then owns its contrast:
 
 For DaisyUI's built-in `light` and `dark` themes it also verifies:
 
-- message/state text tokens and `--pie-qti-base-content`: ≥ 4.5:1 on
-  `--pie-qti-base-100` and `--pie-qti-base-200`;
+- message/state text tokens: ≥ 4.5:1 on `--pie-qti-base-100` and
+  `--pie-qti-base-200` in every stock theme, in the relative-colour tier
+  (lowest: 4.58:1);
+- `--pie-qti-base-content`: ≥ 4.5:1 on the same surfaces, in the built-in
+  themes;
 - `--pie-qti-border-strong`: ≥ 3:1 on the same surfaces.
 
-The message/state text colours are fixed light and dark values, so on tinted
-surfaces of other stock themes they can fall short: `--pie-qti-success-text`
-is below 4.5:1 in 15 tinted light themes (lowest: garden `base-200`, 3.33:1),
-and `--pie-qti-error-text` and `--pie-qti-info-text` on aqua's `base-100` and
-garden's `base-200`. Check those themes, or set the `*-text` tokens for them,
-before offering them to candidates.
+The message/state text colours are fixed light and dark values, and on the
+tinted surfaces of themes such as garden, aqua, retro and nord they fell
+short: `--pie-qti-success-text` reached only 3.33:1 (garden `base-200`),
+`--pie-qti-error-text` 3.90:1 and `--pie-qti-info-text` 4.25:1 (aqua's
+`base-100`). The relative-colour tier fixes this the same way the focus
+indicator is derived: in engines with relative colour syntax and
+`light-dark()`, each value is darkened (light themes) or lightened (dark
+themes) in linear light just far enough — light themes cap its luminance at
+0.1, which clears 4.5:1 on any surface of luminance 0.625 or more; dark
+themes raise it to at least 0.4, which clears 4.5:1 on any surface of
+luminance 0.05 or less. A value already within the bound stays as it is (the
+amber `--pie-qti-warning-text` is one in every stock theme), and hosts can
+still set the `*-text` tokens explicitly. Engines without the tier keep the
+plain fixed values, which hold on neutral surfaces only.
 
 ## JavaScript helpers
 

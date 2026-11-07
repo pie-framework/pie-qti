@@ -76,6 +76,11 @@ export interface PnpProfile {
 		eliminationTool?: boolean;
 		/** AfA `answer-masking`: each choice of a choiceInteraction stays masked until the candidate reveals it. */
 		answerMasking?: boolean;
+		/**
+		 * AfA `spell-checker-on-screen`: the browser's spell check and autocorrect are
+		 * allowed in the candidate's response fields (the extended text interaction).
+		 */
+		spellChecker?: boolean;
 	};
 	/**
 	 * Tool supports in pie-players' `PersonalNeedsProfile` terms, from AfA `calculator-on-screen`,

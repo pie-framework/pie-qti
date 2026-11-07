@@ -107,8 +107,8 @@ The QTI 3.0 tag name is `qti-extended-text-interaction` (kebab-case) with attrib
 - **FR-21:** Each response field must be named by the interaction prompt (single field) or by its visible "Response N" label inside a group the prompt names (multiple/ordered); without a prompt a single field gets the localized generic name "Response". `placeholderText` is a hint only (`placeholder`/`aria-placeholder`), never the accessible name.
 - **FR-22:** Each remove control must name the response it removes ("Remove response 2"). After removing a response, focus must move to the response before it, or — when the first was removed — to the response that took its place. Adding a response must move focus to the new field.
 - **FR-23:** The QTI 3.0 counters (`qti-counter-up`, `qti-counter-down` with `expectedLength`) must describe the field (`aria-describedby`) without being live regions; a polite live region must announce only when the count reaches `expectedLength` (again only after the count has dropped below it).
-- **FR-24:** Response fields must default to `spellcheck="false"`, `autocorrect="off"` and `autocapitalize="off"`, so spelling and writing items give every candidate the same help. The component's `spellcheck` prop (boolean, or `"true"` on the custom element) opts in to spell check and autocorrect; automatic capitalization stays off either way.
-- **FR-25:** A plain-text field for a numeric response must request a numeric virtual keyboard: `inputmode="numeric"` for `integer`, `"decimal"` for `float` and numeric `record` cardinality. A `base` above 10 (letters as digits) keeps the text keyboard.
+- **FR-24:** Response fields must default to `spellcheck="false"`, `autocorrect="off"` and `autocapitalize="off"`, so spelling and writing items give every candidate the same help. The component's `spellcheck` prop (boolean, or `"true"` on the custom element) opts in to spell check and autocorrect, as does the candidate's PNP spell-checker grant (AfA `spell-checker-on-screen`, mapped to `cognitive.spellChecker` and carried to the component through the `pnp` prop the item body passes to every interaction); automatic capitalization stays off either way.
+- **FR-25:** A plain-text field for a numeric response must request a numeric virtual keyboard — `inputmode="numeric"` for `integer`, `"decimal"` for `float` and numeric `record` cardinality — only when the authored `patternMask` provably excludes `-` (for example `^[0-9]+$`), because phone number pads offer no minus key (nor an exponent). A `base` above 10 (letters as digits) keeps the text keyboard. Every other numeric response keeps the default text keyboard, which can enter whatever the item accepts.
 - **FR-13:** When the `response` prop is updated externally while the editor is not focused, the editor content must update to reflect the new value without triggering a `qti-change` event.
 - **FR-14:** When the `response` prop is updated externally while the editor is focused (active editing), the external update must be silently ignored to prevent clobbering in-progress input.
 
@@ -137,8 +137,8 @@ The QTI 3.0 tag name is `qti-extended-text-interaction` (kebab-case) with attrib
 - The editor must be usable on iOS Safari (touch) and Android Chrome. The TipTap `contenteditable` div is used for this; browser virtual keyboards should open naturally without extra handling.
 - The toolbar must wrap (`flex-wrap: wrap`) on narrow viewports so buttons do not overflow horizontally.
 - The editor container must not set a fixed `height` — only `min-height` — so the editor expands naturally on mobile as the candidate types.
-- Numeric responses request a numeric keyboard (FR-25). Phone number pads (notably iPhone's `numeric`/`decimal` pads) offer no minus sign or exponent, so a negative or exponent answer cannot be typed on them; items that expect such answers should use `baseType="string"` with response processing that parses the number, until a sign control is provided.
-- Writing assistance (spell check, autocorrect, autocapitalize) is off by default on both the textarea and the rich-text editor (FR-24), so mobile keyboards give no automatic corrections either. There is no PNP field for spell checking yet; the host grants it through the `spellcheck` component prop.
+- Numeric responses request a numeric keyboard only when the authored `patternMask` proves the answer cannot be negative (FR-25). Phone number pads (notably iPhone's `numeric`/`decimal` pads) offer no minus sign or exponent, so a negative or exponent answer cannot be typed on them; a numeric response without such a mask keeps the default text keyboard, which can enter a minus.
+- Writing assistance (spell check, autocorrect, autocapitalize) is off by default on both the textarea and the rich-text editor (FR-24), so mobile keyboards give no automatic corrections either. A candidate whose PNP grants AfA `spell-checker-on-screen` gets it back: the item player maps the grant to `cognitive.spellChecker` and the component reads it from the `pnp` prop.
 
 ### Security
 
@@ -405,6 +405,12 @@ AC-A12: MathLive dialog semantics
   Then: It is role="dialog" aria-modal="true", named "Insert inline math" and described by
         its instructions; focus is in the labelled math field; Tab and Shift+Tab stay inside
   And: Escape closes it without inserting and focus returns to the "Insert inline math" button
+
+AC-A13: PNP spell-checker grant
+  Given: The candidate's PNP grants AfA spell-checker-on-screen (pnp.cognitive.spellChecker)
+  When: The component renders with the pnp prop
+  Then: The field has spellcheck="true" and autocorrect="on", like the spellcheck prop grants;
+        capitalization stays "off". A profile without the grant keeps spellcheck="false".
 ```
 
 ### G-04 gap behavior (current state and target state)
@@ -470,7 +476,7 @@ AC-E6: format="xhtml" — same editor as plain
 
 - [ ] Should `format="preFormatted"` render the editor with a monospace font (e.g. `font-family: monospace` on `.pie-tiptap`) to signal to the candidate that formatting is significant? There is no spec requirement, but it would be a useful UX hint for code or data entry items.
 - [x] Should `expectedLength` surface a visible character count? Resolved: the QTI 3.0 shared-vocabulary classes `qti-counter-up`/`qti-counter-down` opt in to a visible counter; it describes the field and is announced only at the expected length (FR-23).
-- [ ] Should the candidate's PNP carry a spell-check grant (AfA PNP 3.0 `spell-checker-on-screen`) that the item player maps to the `spellcheck` prop? Today a host sets the prop itself.
+- [x] Should the candidate's PNP carry a spell-check grant (AfA PNP 3.0 `spell-checker-on-screen`) that the item player maps to the `spellcheck` prop? Resolved — `pnpProfileFromAfa` maps the grant to `cognitive.spellChecker` (2026-11-07), and the component reads it from the `pnp` prop the item body already passes; a host can still force it with the `spellcheck` prop.
 - [ ] Numeric responses on phone number pads cannot take a minus sign (see Cross-platform). Should numeric fields get a sign toggle, or fall back to the text keyboard when negative answers are plausible?
 - [ ] The `format="xhtml"` case is currently silently served as a plain rich-text editor. Should the extractor emit a warning when `format="xhtml"` is detected, since the rendering is not XHTML-compliant?
 

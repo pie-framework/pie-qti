@@ -159,6 +159,7 @@ No items from `docs/SPEC-GAPS-PLAN.md` (G-01 through G-15) directly affect `medi
 - **FR-20:** The extractor shall extract every `<track>` element (`kind`, `src`, `srclang`, `label`, `default`) of QTI 2.2 and QTI 3.0 `audio`/`video` content, and the component shall render them so captions and subtitles load. A track whose URL the delivery policy blocked is not rendered.
 - **FR-21:** For video with caption or subtitle tracks, the component shall provide a labeled control to show one track or none; the track marked `default` shows initially.
 - **FR-22:** The component shall name audio and video by their prompt when one is authored, and convey play-count changes and threshold moments (a play started, the limit reached) through polite live regions.
+- **FR-23:** Video shall always be rendered `playsinline` (with `webkit-playsinline` for pre-iOS-10 WebViews), so iOS playback stays in the page instead of taking over the display in fullscreen and hiding the question. Under a play limit, picture-in-picture and remote playback are additionally disabled, and the component offers no fullscreen control; without a limit the native controls may offer one, which cannot break `maxPlays` enforcement (play events still fire in the page).
 
 ---
 
@@ -186,9 +187,9 @@ No items from `docs/SPEC-GAPS-PLAN.md` (G-01 through G-15) directly affect `medi
 ### Cross-platform / mobile
 
 - On iOS Safari, autoplay with audio is blocked by default regardless of the `autostart` attribute. Safari permits autoplay only for muted video. Item authors relying on `autostart="true"` for audio should be aware of this and ensure the item design does not depend on autoplay working.
-- Under a play limit, video is rendered `playsinline` with picture-in-picture and remote playback disabled, so playback stays in the page where the limit is enforced. The browser context menu is suppressed while a limit applies (it offers "Show controls" and "Loop", which would bypass the limit).
+- Video is always rendered `playsinline` (plus `webkit-playsinline` for pre-iOS-10 WebViews), so iOS playback stays in the page instead of taking over the display in fullscreen and hiding the question. Under a play limit, picture-in-picture and remote playback are disabled as well, and the browser context menu is suppressed (it offers "Show controls" and "Loop", which would bypass the limit).
+- The component offers no fullscreen control of its own. Under a play limit the native controls are hidden and the custom controls intentionally provide no fullscreen button: fullscreen adds nothing the question needs, and a native fullscreen player surface is outside the page the limit is enforced in. Without a limit the native controls may offer fullscreen, which is harmless there: play and pause events still fire where the component can count them.
 - On Android Chrome, autoplay is governed by a media engagement score. Similarly unreliable for new domains.
-- Native video players on iOS take over the display in fullscreen when the user taps the play button in some contexts. The `<video>` element's `playsinline` attribute is not currently set by the framework, which means iOS may show the fullscreen player. This affects `maxPlays` enforcement: if the user leaves the in-page player, the `ended` event still fires, so play counting remains correct.
 - The stats section (play count, minPlays badge) is designed with `flex-wrap` to reflow on narrow screens.
 
 ### Security
@@ -594,7 +595,7 @@ Then:  An error is thrown: "object element must have data attribute"
 ## Open questions
 
 - [x] **aria-live for play count updates:** Resolved — a polite live region announces plays started and the limit reached; the stats row stays quiet (2026-11-07).
-- [x] **`playsinline` for iOS:** Resolved — video is rendered `playsinline` (with PiP and remote playback disabled) while a play limit applies, keeping enforcement in the page (2026-11-07).
+- [x] **`playsinline` for iOS:** Resolved — video is always rendered `playsinline` (with PiP and remote playback disabled while a play limit applies), keeping playback and enforcement in the page; no fullscreen control is offered where a limit applies (2026-11-07).
 - [ ] **Caption/transcript enforcement:** Should the item validator warn when a `<video>` mediaInteraction lacks a `<track kind="captions">` element, or when an `<audio>` mediaInteraction lacks a sibling transcript element? Tracks now render and can be switched, but authoring-time validation is still unenforced.
 
 ---

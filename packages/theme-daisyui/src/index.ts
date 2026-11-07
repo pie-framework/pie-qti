@@ -50,15 +50,19 @@ const RELATIVE_COLOR_LIGHT_DARK_SUPPORT = `${RELATIVE_COLOR_SUPPORT} and (color:
  * Message/state text and control-boundary tokens. These are intentionally not
  * derived from DaisyUI's fill colours, which fail 4.5:1 as text; they keep the
  * `@pie-qti/theme` defaults and pick the light or dark value from the
- * `color-scheme` every DaisyUI theme declares. Kept identical to bridge.css.
+ * `color-scheme` every DaisyUI theme declares. This is the fallback tier: the
+ * relative-colour tier below adjusts the state text for tinted surfaces. Kept
+ * identical to bridge.css.
  */
-const DAISY_ACCESSIBLE_TEXT_VARIABLES = {
+const DAISY_STATE_TEXT_VARIABLES = {
 	'--pie-qti-error-text': 'light-dark(#b91c1c, #f87171)',
 	'--pie-qti-warning-text': 'light-dark(#92400e, #fbbf24)',
 	'--pie-qti-success-text': 'light-dark(#15803d, #4ade80)',
 	'--pie-qti-info-text': 'light-dark(#1d4ed8, #60a5fa)',
-	'--pie-qti-border-strong': 'light-dark(#767676, #9ca3af)',
 } as const satisfies QtiThemeVariables;
+
+/** Control boundaries and non-text cues: >= 3:1 on base-100/base-200 as fixed values. */
+const DAISY_BORDER_STRONG_VARIABLE: QtiThemeVariables = { '--pie-qti-border-strong': 'light-dark(#767676, #9ca3af)' };
 
 function browserSupports(conditionText: string): boolean {
 	return typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports(conditionText);
@@ -98,6 +102,30 @@ function focusColor(primary: string, baseContent: string | undefined, supports: 
 		return `color-mix(in oklab, ${primary} 45%, ${baseContent})`;
 	}
 	return primary;
+}
+
+/**
+ * Message/state text, darkened in light themes to luminance <= 0.1 and
+ * lightened in dark themes to luminance >= 0.4 (in linear light, only when the
+ * fixed value exceeds the bound): >= 4.5:1 on surfaces of luminance >= 0.625
+ * (light) or <= 0.05 (dark), which every stock DaisyUI theme's base surfaces
+ * lie within. A value already within the bound is kept as it is.
+ */
+function clampedStateText(light: string, dark: string): string {
+	const darken = (channel: string) => `calc(${channel} * min(1, 0.1 / max(0.0001, ${LUMINANCE_UPPER_BOUND})))`;
+	const lighten = (channel: string) =>
+		`calc(${channel} + max(0, (0.4 - ${LUMINANCE_LOWER_BOUND}) / max(0.0001, 1 - ${LUMINANCE_LOWER_BOUND})) * (1 - ${channel}))`;
+	return `light-dark(color(from ${light} srgb-linear ${darken('r')} ${darken('g')} ${darken('b')} / 1), color(from ${dark} srgb-linear ${lighten('r')} ${lighten('g')} ${lighten('b')} / 1))`;
+}
+
+function stateTextVariables(supports: CssSupportsCondition): QtiThemeVariables {
+	if (!supports(RELATIVE_COLOR_LIGHT_DARK_SUPPORT)) return DAISY_STATE_TEXT_VARIABLES;
+	return {
+		'--pie-qti-error-text': clampedStateText('#b91c1c', '#f87171'),
+		'--pie-qti-warning-text': clampedStateText('#92400e', '#fbbf24'),
+		'--pie-qti-success-text': clampedStateText('#15803d', '#4ade80'),
+		'--pie-qti-info-text': clampedStateText('#1d4ed8', '#60a5fa'),
+	};
 }
 
 function contentOnFill(
@@ -165,7 +193,8 @@ export function mapDaisyThemeToQtiVariables(
 		'--pie-qti-error': error,
 		'--pie-qti-error-content': content(error, tokens.errorContent ?? 'var(--color-error-content)'),
 		'--pie-qti-focus': focusColor(primary, baseContent, supports),
-		...DAISY_ACCESSIBLE_TEXT_VARIABLES,
+		...stateTextVariables(supports),
+		...DAISY_BORDER_STRONG_VARIABLE,
 		'--pie-qti-radius': tokens.radiusBox ?? 'var(--radius-box, 0.5rem)',
 		'--pie-qti-radius-sm': tokens.radiusField ?? 'var(--radius-field, 0.25rem)',
 	});

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it, vi } from 'bun:test';
 import { Player } from '../../src/core/Player.js';
 import { applyPnpToRoot } from '../../src/pnp/applyPnp.js';
 import { parseAfaPnpXml, parsePnpXml } from '../../src/pnp/parsePnpXml.js';
@@ -223,6 +223,15 @@ describe('parsePnpXml', () => {
 		expect(parsePnpXml(pnp('<answer-masking/>')).cognitive).toEqual({ answerMasking: true });
 	});
 
+	it('maps spell-checker-on-screen to spelling help in the response fields', () => {
+		expect(parsePnpXml(pnp('<spell-checker-on-screen/>')).cognitive).toEqual({ spellChecker: true });
+		// An activation-set listing grants it, a prohibit-set withdraws it.
+		expect(
+			parsePnpXml(pnp('<activate-as-option-set><spell-checker-on-screen/></activate-as-option-set>')).cognitive,
+		).toEqual({ spellChecker: true });
+		expect(parsePnpXml(pnp('<prohibit-set><spell-checker-on-screen/></prohibit-set>')).cognitive).toBeUndefined();
+	});
+
 	it('grants features listed in an activation set and withdraws prohibited ones', () => {
 		const profile = parsePnpXml(
 			pnp(`
@@ -338,6 +347,56 @@ describe('applyPnpToRoot', () => {
 		applyPnpToRoot(el, undefined);
 		expect(el.hasAttribute('data-qti-text-appearance')).toBe(false);
 		expect(el.props).toEqual({});
+	});
+
+	describe('colour validation', () => {
+		const savedCss = globalThis.CSS;
+		const restoreCss = () => {
+			if (savedCss === undefined) delete (globalThis as { CSS?: unknown }).CSS;
+			else (globalThis as { CSS?: unknown }).CSS = savedCss;
+		};
+
+		afterEach(restoreCss);
+
+		it('ignores colours CSS cannot parse and warns, keeping the rest of the profile', () => {
+			(globalThis as { CSS?: unknown }).CSS = {
+				supports: (_property: string, value: string) => value.startsWith('#') || value.startsWith('rgb'),
+			};
+			const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+			try {
+				const el = makeEl();
+				applyPnpToRoot(el, {
+					display: {
+						invertPolarity: { foreground: 'not-a-colour', background: '#000000' },
+						textAppearance: { fontColor: 'oops;', backgroundColor: 'rgb(16 16 16)', fontSize: 14 },
+					},
+				});
+				// The invalid colours are dropped, the valid ones applied.
+				expect(el.getAttribute('data-qti-invert-polarity')).toBe('colors');
+				expect(el.props).toEqual({
+					'--qti-invert-background': '#000000',
+					'--qti-background-color': 'rgb(16 16 16)',
+					'--qti-font-size': '14pt',
+				});
+				expect(el.getAttribute('data-qti-text-appearance')).toBe('font-size background-color');
+				expect(warn).toHaveBeenCalledTimes(2);
+				expect(warn.mock.calls[0]?.[0]).toContain('display.invertPolarity.foreground');
+				expect(warn.mock.calls[1]?.[0]).toContain('display.textAppearance.fontColor');
+				// A later profile without the invalid values clears the property.
+				applyPnpToRoot(el, { display: {} });
+				expect(el.props['--qti-background-color']).toBeUndefined();
+			} finally {
+				warn.mockRestore();
+			}
+		});
+
+		it('applies every colour when no CSS engine exists to validate against', () => {
+			delete (globalThis as { CSS?: unknown }).CSS;
+			const el = makeEl();
+			applyPnpToRoot(el, { display: { textAppearance: { fontColor: 'totally-invalid', backgroundColor: '#101010' } } });
+			expect(el.props).toEqual({ '--qti-font-color': 'totally-invalid', '--qti-background-color': '#101010' });
+			restoreCss();
+		});
 	});
 
 	it.each(['blackwhite', 'whiteblack', 'blackrose', 'yellowblue', 'blueyellow', 'blackcream', 'creamblack', 'medgray'] as const)(

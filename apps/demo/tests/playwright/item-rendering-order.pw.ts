@@ -132,14 +132,19 @@ test.describe('item rendering order', () => {
 		expect(leaked).toEqual([]);
 	});
 
-	test('text entry offers no spelling help and a numeric keyboard for numbers', async ({ page }) => {
+	test('text entry offers no spelling help, and a numeric keyboard only when no minus can be needed', async ({ page }) => {
 		await openFixture(page, 'parts');
 		const capital = page.locator('p.blanks input').nth(0);
 		await expect(capital).toHaveAttribute('spellcheck', 'false');
 		await expect(capital).toHaveAttribute('autocorrect', 'off');
 		await expect(capital).toHaveAttribute('autocapitalize', 'off');
 		await expect(capital).toHaveAttribute('autocomplete', 'off');
+		// Phone number pads have no minus key: a numeric keyboard is only safe
+		// behind a patternMask that excludes `-`. The string responses keep the
+		// text keyboard — even the date with its digit-only mask (its response
+		// is a string, so its answer could legitimately hold a minus).
 		expect(await capital.getAttribute('inputmode')).toBeNull();
+		expect(await page.locator('p.dated input').getAttribute('inputmode')).toBeNull();
 		await expect(page.locator('p.blanks input').nth(1)).toHaveAttribute('inputmode', 'numeric');
 	});
 

@@ -45,18 +45,30 @@ export function applyPnpToRoot(rootEl: HTMLElement, pnp: PnpProfile | undefined)
 	}
 
 	const polarity = display?.invertPolarity;
-	if (polarity) rootEl.setAttribute(INVERT_POLARITY_ATTR, polarity.foreground || polarity.background ? 'colors' : 'invert');
-	else rootEl.removeAttribute(INVERT_POLARITY_ATTR);
-	setProperty(rootEl, '--qti-invert-foreground', polarity?.foreground);
-	setProperty(rootEl, '--qti-invert-background', polarity?.background);
+	const polarityForeground = validColor(polarity?.foreground, 'display.invertPolarity.foreground');
+	const polarityBackground = validColor(polarity?.background, 'display.invertPolarity.background');
+	if (polarity) {
+		rootEl.setAttribute(INVERT_POLARITY_ATTR, polarityForeground || polarityBackground ? 'colors' : 'invert');
+	} else {
+		rootEl.removeAttribute(INVERT_POLARITY_ATTR);
+	}
+	setProperty(rootEl, '--qti-invert-foreground', polarityForeground);
+	setProperty(rootEl, '--qti-invert-background', polarityBackground);
 
 	if (display?.singleColumn) rootEl.setAttribute(LAYOUT_ATTR, 'single-column');
 	else rootEl.removeAttribute(LAYOUT_ATTR);
 
 	const appearance = display?.textAppearance;
+	const appearanceValue = (key: keyof PnpTextAppearance): string | number | undefined => {
+		const value = appearance?.[key];
+		if (COLOR_APPEARANCE_FIELDS.has(key)) {
+			return validColor(typeof value === 'string' ? value : undefined, `display.textAppearance.${key}`);
+		}
+		return value;
+	};
 	const tokens: string[] = [];
 	for (const [key, token, unit] of TEXT_APPEARANCE_PROPERTIES) {
-		const value = appearance?.[key];
+		const value = appearanceValue(key);
 		const css = value === undefined || value === '' ? undefined : `${value}${unit}`;
 		if (css !== undefined) tokens.push(token);
 		setProperty(rootEl, `--qti-${token}`, css);
@@ -68,4 +80,31 @@ export function applyPnpToRoot(rootEl: HTMLElement, pnp: PnpProfile | undefined)
 function setProperty(rootEl: HTMLElement, property: string, value: string | undefined): void {
 	if (value === undefined) rootEl.style?.removeProperty?.(property);
 	else rootEl.style?.setProperty?.(property, value);
+}
+
+/** The text-appearance fields whose value is a CSS colour. */
+const COLOR_APPEARANCE_FIELDS = new Set<string>(['fontColor', 'backgroundColor']);
+
+/**
+ * A colour from the profile, or `undefined` when CSS cannot parse it. A host
+ * delivers the JSON profile directly, so a typo reaches here unfiltered — and
+ * an invalid colour wipes whatever the custom property styles (focus outlines,
+ * control borders). `CSS.supports('color', …)` filters it; without a CSS engine
+ * (SSR, tests) there is nothing to ask and every value applies.
+ */
+function validColor(value: string | undefined, field: string): string | undefined {
+	if (value === undefined || value === '') return undefined;
+	if (colorIsSupported(value)) return value;
+	console.warn(`[@pie-qti/item-player] PNP ${field} "${value}" is not a colour CSS understands and is ignored.`);
+	return undefined;
+}
+
+/** `CSS.supports('color', value)` where the environment exposes it; otherwise true. */
+function colorIsSupported(value: string): boolean {
+	if (typeof CSS === 'undefined' || typeof CSS.supports !== 'function') return true;
+	try {
+		return CSS.supports('color', value);
+	} catch {
+		return false;
+	}
 }
