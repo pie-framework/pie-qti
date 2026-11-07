@@ -56,6 +56,7 @@ const {
 
 // Unique id prefix so aria-labelledby/describedby survive several lists in one document.
 const uid = $props.id();
+const instructionsId = `${uid}-sortable-instructions`;
 
 function formatIndex(index: number): string {
 	if (indexLabels === 'decimal') return `${index + 1}${indexSuffix}`;
@@ -267,7 +268,7 @@ function itemState(index: number, isGrabbed: boolean, isCorrect: boolean): strin
 </div>
 
 <!-- Instructions for keyboard users -->
-<div id="sortable-instructions" class="sr-only">
+<div id={instructionsId} class="sr-only">
 	{translate(
 		i18n,
 		'interactions.order.keyboardInstructions',
@@ -278,7 +279,7 @@ function itemState(index: number, isGrabbed: boolean, isCorrect: boolean): strin
 <div
 	role="list"
 	aria-label={i18n?.t('interactions.order.listLabel') ?? 'Reorderable list of choices'}
-	aria-describedby="sortable-instructions"
+	aria-describedby={instructionsId}
 	data-orientation={orientation}
 	part="list"
 	class="qti-sortable-list space-y-2"
@@ -308,7 +309,6 @@ function itemState(index: number, isGrabbed: boolean, isCorrect: boolean): strin
 					disabled={disabled}
 					aria-labelledby={textId}
 					aria-describedby={stateId}
-					aria-grabbed={isGrabbed}
 					data-grabbed={isGrabbed}
 					data-correct={isCorrect}
 					data-disabled={disabled}

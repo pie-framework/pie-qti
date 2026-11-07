@@ -35,7 +35,9 @@ describe('SortableList under an Arabic provider', () => {
 		});
 		await settle();
 
-		expect(q(mounted, '#sortable-instructions')?.textContent?.trim()).toBe(
+		// Resolved through the list's aria-describedby, the path assistive technology follows.
+		const instructionsId = q(mounted, '[part="list"]')?.getAttribute('aria-describedby') ?? '';
+		expect(document.getElementById(instructionsId)?.textContent?.trim()).toBe(
 			'اضغط على مفتاح المسافة أو الإدخال للإمساك بعنصر. استخدم مفاتيح الأسهم لتحريك العنصر. اضغط على مفتاح المسافة أو الإدخال مرة أخرى للإفلات. اضغط على Escape للإلغاء.',
 		);
 

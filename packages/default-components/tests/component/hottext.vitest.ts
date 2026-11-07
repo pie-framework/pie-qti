@@ -127,6 +127,98 @@ describe('HottextInteraction (pie-qti-hottext)', () => {
 		expect(target.getAttribute('aria-pressed')).toBe('false');
 	});
 
+	test('single selection switches: selecting another hottext replaces the previous one (radio-like)', async () => {
+		const mounted = mountInteraction(HottextInteraction, { interaction: hottextData() });
+		await settle();
+
+		const [fern, oak, rock] = qa<HTMLElement>(mounted, '[role="button"]');
+		fern!.click();
+		await settle();
+		oak!.click();
+		await settle();
+
+		expect(mounted.instance.response).toBe('H2');
+		expect(mounted.events.map((event) => event.detail.value)).toEqual(['H1', 'H2']);
+		expect(fern!.getAttribute('aria-pressed')).toBe('false');
+		expect(oak!.getAttribute('aria-pressed')).toBe('true');
+		expect(nameFromLabelledBy(mounted.host, fern!)).toBe('fern Selectable');
+		expect(nameFromLabelledBy(mounted.host, oak!)).toBe('oak Selected');
+		expect(q(mounted, '[part="footer"]')?.textContent).toContain('1 / 3');
+		// Unselected hottexts stay visibly selectable: one more choice is always possible.
+		expect(fern!.classList.contains('selectable')).toBe(true);
+		// Nothing was refused, so no limit message appears.
+		expect(q(mounted, '[role="alert"]')).toBeNull();
+
+		// The keyboard switches the same way.
+		pressKey(rock!, 'Enter');
+		await settle();
+		expect(mounted.instance.response).toBe('H3');
+		expect(oak!.getAttribute('aria-pressed')).toBe('false');
+		expect(rock!.getAttribute('aria-pressed')).toBe('true');
+	});
+
+	test('multi-selection: activating a selected hottext deselects only that one', async () => {
+		const mounted = mountInteraction(HottextInteraction, {
+			interaction: hottextData({ maxChoices: 2 }),
+		});
+		await settle();
+
+		const targets = qa(mounted, '[role="button"]');
+		targets[0]!.click();
+		targets[1]!.click();
+		await settle();
+		targets[0]!.click();
+		await settle();
+
+		expect(mounted.instance.response).toEqual(['H2']);
+		expect(mounted.events.at(-1)?.detail).toMatchObject({ value: ['H2'] });
+	});
+
+	test('multi-selection: a selection refused at the cap changes nothing and emits nothing', async () => {
+		const mounted = mountInteraction(HottextInteraction, {
+			interaction: hottextData({ maxChoices: 2 }),
+		});
+		await settle();
+
+		const targets = qa(mounted, '[role="button"]');
+		targets[0]!.click();
+		targets[1]!.click();
+		await settle();
+		const eventsAtCap = mounted.events.length;
+
+		targets[2]!.click();
+		await settle();
+
+		expect(mounted.instance.response).toEqual(['H1', 'H2']);
+		expect(mounted.events).toHaveLength(eventsAtCap);
+		expect(targets[2]!.getAttribute('aria-pressed')).toBe('false');
+		expect(targets[2]!.classList.contains('selectable')).toBe(false);
+	});
+
+	test('two hottext interactions in one document keep instance-unique name ids', async () => {
+		const first = mountInteraction(HottextInteraction, { interaction: hottextData() });
+		const second = mountInteraction(HottextInteraction, { interaction: hottextData() });
+		await settle();
+
+		const ids = Array.from(document.querySelectorAll('[id]'), (element) => element.id);
+		expect(ids.filter((id, index) => ids.indexOf(id) !== index)).toEqual([]);
+
+		qa(second, '[role="button"]')[0]!.click();
+		await settle();
+
+		for (const [mounted, firstName] of [
+			[first, 'fern Selectable'],
+			[second, 'fern Selected'],
+		] as const) {
+			const fern = qa(mounted, '[role="button"]')[0]!;
+			for (const id of (fern.getAttribute('aria-labelledby') ?? '').split(' ')) {
+				expect(mounted.host.contains(document.getElementById(id))).toBe(true);
+			}
+			expect(nameFromLabelledBy(mounted.host, fern)).toBe(firstName);
+		}
+		cleanupInteraction(first, second);
+	});
+
 	test('clear selection resets the state and emits the cleared response', async () => {
 		const mounted = mountInteraction(HottextInteraction, { interaction: hottextData() });
 		await settle();

@@ -119,8 +119,8 @@ WCAG 2.2 Level AA compliance is mandatory for all default components.
 - **Keyboard drag pattern (SC 2.1.1):** The grab → move → drop pattern with Space/Enter and arrow keys is mandatory. Arrow keys must respect orientation: Up/Down for `vertical`, Left/Right for `horizontal`. Horizontal keys follow the inline direction: under `rtl`, ArrowRight moves earlier.
 - **Focus management (SC 2.4.3):** After a keyboard drop, focus must remain on the dropped item at its new position.
 - **Live region announcements (SC 4.1.3):** All position changes must be announced via `aria-live="polite"` with messages in the format: `"{item} moved to position {N} of {total}"`. Grab, drop, and cancel must each have their own message. Messages are i18n-keyed (see `interactions.order.*` keys).
-- **Static instructions for screen readers:** An `aria-describedby` pointing to a visually hidden instructions element must be present on the list container. The instructions explain the grab → arrow → drop pattern.
-- **`aria-grabbed` (SC 4.1.2):** Each list item button must carry `aria-grabbed={isGrabbed}` to reflect grab state.
+- **Static instructions for screen readers:** An `aria-describedby` pointing to a visually hidden instructions element must be present on the list container. The instructions explain the grab → arrow → drop pattern. Its id, like every name and state id in the list, is unique per list instance, so several lists in one document never share it.
+- **Grab state (SC 4.1.2):** The `aria-grabbed` attribute (deprecated since WAI-ARIA 1.1, unreliable in current screen readers) is not used. Grab state is exposed through the item's `aria-describedby` state sentence ("Grabbed. Use arrow keys to move."), the `data-grabbed` styling hook, and the grab, drop and cancel live-region announcements.
 - **Touch targets (SC 2.5.8):** Each sortable item must be at least 44×44 CSS px on a 375-px viewport.
 - **`disabled` accessibility:** When `disabled=true`, items must have `disabled` attribute (native button disabled) so assistive technologies announce them as non-interactive.
 - **Confirmation button (SC 3.3.4):** The "Confirm Order" button must have an `aria-label` that fully describes the action (`'Confirm this order as your answer'`) and must be reachable by Tab.
@@ -339,7 +339,8 @@ AC-12: Prompt renders above the list
 AC-A1: Keyboard grab and move — vertical orientation
   Given: the item from AC-1 rendered with orientation=vertical (default)
   When: the candidate Tabs to ChoiceC and presses Space
-  Then: ChoiceC is "grabbed" (aria-grabbed=true; visual highlight; live announcement reads
+  Then: ChoiceC is "grabbed" (its description gains "Grabbed. Use arrow keys to move.";
+        data-grabbed="true"; visual highlight; no aria-grabbed; live announcement reads
         "ChoiceC grabbed. Current position 3 of 4. Use arrow keys to move, Space or Enter to drop.")
   When: the candidate presses ArrowUp
   Then: ChoiceC moves to position 2; ChoiceB moves to position 3;
@@ -352,7 +353,7 @@ AC-A2: Keyboard cancel with Escape
   Given: ChoiceC has been grabbed as in AC-A1
   When: the candidate presses Escape before dropping
   Then: ChoiceC returns to its original position; live region announces "ChoiceC selection cancelled";
-        aria-grabbed becomes false
+        the "Grabbed." sentence leaves its description (data-grabbed="false")
 
 AC-A3: Keyboard move — horizontal orientation
   Given: an item with orientation=horizontal

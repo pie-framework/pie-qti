@@ -146,26 +146,31 @@
 		emitInteractionChange({ target: rootElement, responseId: shell.responseId, value: newValues, onChange });
 	}
 
-	function choiceTextId(responseId: string, identifier: string): string {
-		const token = `${responseId}-${identifier}`.replace(/[^A-Za-z0-9_-]/g, '-');
-		return `qti-choice-text-${token}`;
+	// Unique per instance, so two renderings of the same item (same responseId) in one
+	// document neither share label/description ids nor join one radio group.
+	const uid = $props.id();
+	const radioGroupName = `${uid}-choice`;
+
+	function idToken(value: string): string {
+		return value.replace(/[^A-Za-z0-9_-]/g, '-');
 	}
 
-	function eliminationVerbId(responseId: string, identifier: string): string {
-		const token = `${responseId}-${identifier}`.replace(/[^A-Za-z0-9_-]/g, '-');
-		return `qti-eliminate-verb-${token}`;
+	function choiceTextId(identifier: string): string {
+		return `${uid}-choice-text-${idToken(identifier)}`;
+	}
+
+	function eliminationVerbId(identifier: string): string {
+		return `${uid}-eliminate-verb-${idToken(identifier)}`;
 	}
 
 	// The answer set is one ARIA group associated with the prompt, so a screen reader
 	// announces the question once and each choice within it.
-	const promptId = $derived(
-		parsedInteraction ? `qti-choice-prompt-${parsedInteraction.responseId.replace(/[^A-Za-z0-9_-]/g, '-')}` : undefined
-	);
+	const promptId = `${uid}-choice-prompt`;
 	const groupAria = $derived.by(() => {
 		if (!parsedInteraction) return {};
 		// An authored accessible name beats the prompt and the generic group label.
 		if (parsedInteraction.accessibility?.label) return { role: 'group' };
-		if (parsedInteraction.prompt && promptId) return { role: 'group', 'aria-labelledby': promptId };
+		if (parsedInteraction.prompt) return { role: 'group', 'aria-labelledby': promptId };
 		return { role: 'group', 'aria-label': t('interactions.choice.groupLabel', 'Answer choices') };
 	});
 
@@ -231,7 +236,7 @@
 		{:else if parsedInteraction.maxChoices === 1}
 			<!-- Single choice (radio buttons) -->
 			{#each parsedInteraction.choices as choice, index}
-				{@const textId = choiceTextId(parsedInteraction.responseId, choice.identifier)}
+				{@const textId = choiceTextId(choice.identifier)}
 				<div
 					part="option"
 					class="qti-choice-option"
@@ -250,7 +255,7 @@
 						<input
 							part="input"
 							type="radio"
-							name={parsedInteraction.responseId}
+							name={radioGroupName}
 							class="radio radio-primary"
 							class:radio-success={isCorrectChoice(choice.identifier)}
 							value={choice.identifier}
@@ -272,10 +277,10 @@
 							type="button"
 							part="eliminate"
 							class="qti-eliminate-btn"
-							aria-labelledby={`${eliminationVerbId(parsedInteraction.responseId, choice.identifier)} ${textId}`}
+							aria-labelledby={`${eliminationVerbId(choice.identifier)} ${textId}`}
 							aria-pressed={elimination.isEliminated(choice.identifier)}
 							onclick={() => elimination.toggle(choice.identifier)}
-						><span class="sr-only" id={eliminationVerbId(parsedInteraction.responseId, choice.identifier)}>{eliminationLabel(choice.identifier)}</span>✕</button>
+						><span class="sr-only" id={eliminationVerbId(choice.identifier)}>{eliminationLabel(choice.identifier)}</span>✕</button>
 					{/if}
 				</div>
 			{/each}
@@ -283,7 +288,7 @@
 			<!-- Multiple choice (checkboxes) -->
 			{@const currentValues = Array.isArray(parsedResponse) ? parsedResponse : []}
 			{#each parsedInteraction.choices as choice, index}
-				{@const textId = choiceTextId(parsedInteraction.responseId, choice.identifier)}
+				{@const textId = choiceTextId(choice.identifier)}
 				<div
 					part="option"
 					class="qti-choice-option"
@@ -326,10 +331,10 @@
 							type="button"
 							part="eliminate"
 							class="qti-eliminate-btn"
-							aria-labelledby={`${eliminationVerbId(parsedInteraction.responseId, choice.identifier)} ${textId}`}
+							aria-labelledby={`${eliminationVerbId(choice.identifier)} ${textId}`}
 							aria-pressed={elimination.isEliminated(choice.identifier)}
 							onclick={() => elimination.toggle(choice.identifier)}
-						><span class="sr-only" id={eliminationVerbId(parsedInteraction.responseId, choice.identifier)}>{eliminationLabel(choice.identifier)}</span>✕</button>
+						><span class="sr-only" id={eliminationVerbId(choice.identifier)}>{eliminationLabel(choice.identifier)}</span>✕</button>
 					{/if}
 				</div>
 			{/each}

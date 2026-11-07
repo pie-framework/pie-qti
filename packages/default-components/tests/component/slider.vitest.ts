@@ -161,4 +161,24 @@ describe('SliderInteraction (pie-qti-slider)', () => {
 		expect(mounted.instance.response).toBeNull();
 		expect(mounted.events).toHaveLength(0);
 	});
+
+	test('two renderings of the same item keep their own prompt label and tick list', async () => {
+		const data = sliderData({ lowerBound: 0, upperBound: 10, step: 2, stepLabel: true });
+		const first = mountInteraction(SliderInteraction, { interaction: data });
+		const second = mountInteraction(SliderInteraction, { interaction: data });
+		await settle();
+
+		const ids = Array.from(document.querySelectorAll('[id]'), (element) => element.id);
+		expect(ids.filter((id, index) => ids.indexOf(id) !== index)).toEqual([]);
+
+		for (const mounted of [first, second]) {
+			const input = q<HTMLInputElement>(mounted, 'input[type="range"]')!;
+			const prompt = document.getElementById(input.getAttribute('aria-labelledby') ?? '');
+			expect(prompt?.getAttribute('part')).toBe('prompt');
+			expect(mounted.host.contains(prompt)).toBe(true);
+			const ticks = document.getElementById(input.getAttribute('list') ?? '');
+			expect(ticks?.tagName).toBe('DATALIST');
+			expect(mounted.host.contains(ticks)).toBe(true);
+		}
+	});
 });

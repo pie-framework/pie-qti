@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from 'vitest';
 import MatchInteraction from '../../src/plugins/match/MatchInteraction.svelte';
+import MatchDragDrop from '../../src/shared/components/MatchDragDrop.svelte';
 import type { MatchInteractionData } from '@pie-qti/item-player';
 import {
 	cleanupInteraction,
@@ -149,5 +150,49 @@ describe('MatchInteraction (pie-qti-match)', () => {
 		);
 		expect(states).toEqual(['Available for matching.', 'Available for matching.']);
 		cleanupInteraction(mounted);
+	});
+});
+
+describe('MatchDragDrop instance-unique ids', () => {
+	/** Ids that occur more than once in the document. */
+	function duplicateIds(): string[] {
+		const ids = Array.from(document.querySelectorAll('[id]'), (element) => element.id);
+		return [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))];
+	}
+
+	test('two instances keep their own headings, instructions and state ids, also with structured labels', async () => {
+		const data = matchData();
+		const props = {
+			sourceSet: data.sourceSet,
+			targetSet: data.targetSet,
+			pairs: ['paris france'],
+			structuredLabels: true,
+			onPairsChange: () => {},
+		};
+		const first = mountInteraction(MatchDragDrop, props);
+		const second = mountInteraction(MatchDragDrop, props);
+		await settle();
+
+		expect(duplicateIds()).toEqual([]);
+		for (const mounted of [first, second]) {
+			// Structured labels name each column by its own visible heading.
+			for (const [column, heading] of [
+				['source-column', 'Source items to match'],
+				['target-column', 'Target items for matching'],
+			] as const) {
+				const named = namedElement(mounted, `[part="${column}"]`, 'aria-labelledby');
+				expect(named?.tagName).toBe('H3');
+				expect(named?.textContent?.trim()).toBe(heading);
+				expect(mounted.host.contains(named)).toBe(true);
+			}
+			const instructions = namedElement(mounted, '[part="grid"]', 'aria-describedby');
+			expect(mounted.host.contains(instructions)).toBe(true);
+			expect(instructions?.textContent).toContain('Press Space or Enter to select a source item.');
+			// The rendered sr-only state sentence pairs with its own button.
+			const sourceState = namedElement(mounted, '[data-source-id="paris"]', 'aria-describedby');
+			expect(mounted.host.contains(sourceState)).toBe(true);
+			expect(sourceState?.textContent?.trim()).toBe('Matched with France.');
+		}
+		cleanupInteraction(first, second);
 	});
 });

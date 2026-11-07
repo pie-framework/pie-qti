@@ -1,12 +1,32 @@
 import { afterEach, describe, expect, test } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import SortableList from '../../src/shared/components/SortableList.svelte';
 import {
 	cleanupInteraction,
 	mountInteraction,
+	pressKey,
 	qa,
 	q,
 	settle,
 } from './helpers';
+
+/** Ids that occur more than once in the document. */
+function duplicateIds(): string[] {
+	const ids = Array.from(document.querySelectorAll('[id]'), (element) => element.id);
+	return [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))];
+}
+
+/** Every id an attribute references must resolve inside the given host. */
+function expectReferencesInside(host: HTMLElement, element: Element, attribute: string): void {
+	const ids = (element.getAttribute(attribute) ?? '').split(' ').filter(Boolean);
+	expect(ids.length, `${attribute} must reference something`).toBeGreaterThan(0);
+	for (const id of ids) {
+		const referenced = document.getElementById(id);
+		expect(referenced, `#${id} must exist`).not.toBeNull();
+		expect(host.contains(referenced), `#${id} must belong to its own instance`).toBe(true);
+	}
+}
 
 afterEach(() => {
 	for (const node of Array.from(document.body.children)) node.remove();
@@ -76,5 +96,75 @@ describe('SortableList accessible naming', () => {
 			'Move Moon later',
 		]);
 		cleanupInteraction(mounted);
+	});
+});
+
+describe('SortableList instance-unique ids', () => {
+	test('two lists with the same item ids keep their own instruction, name and state ids', async () => {
+		const props = {
+			items: [
+				{ id: 'I1', text: 'One' },
+				{ id: 'I2', text: 'Two' },
+			],
+			orderedIds: ['I1', 'I2'],
+			onReorder: () => {},
+		};
+		const first = mountInteraction(SortableList, props);
+		const second = mountInteraction(SortableList, props);
+		await settle();
+
+		expect(duplicateIds()).toEqual([]);
+		for (const mounted of [first, second]) {
+			expectReferencesInside(mounted.host, q(mounted, '[part="list"]')!, 'aria-describedby');
+			for (const item of qa(mounted, 'button[part="item"]')) {
+				expectReferencesInside(mounted.host, item, 'aria-labelledby');
+				expectReferencesInside(mounted.host, item, 'aria-describedby');
+			}
+		}
+		cleanupInteraction(first, second);
+	});
+});
+
+describe('SortableList grabbed state', () => {
+	test('grabbing is exposed through the description, data-grabbed and a live announcement, not aria-grabbed', async () => {
+		const mounted = mountInteraction(SortableList, {
+			items: [
+				{ id: 'I1', text: 'One' },
+				{ id: 'I2', text: 'Two' },
+			],
+			orderedIds: ['I1', 'I2'],
+			onReorder: () => {},
+		});
+		await settle();
+
+		const item = q<HTMLButtonElement>(mounted, 'button[part="item"]')!;
+		pressKey(item, 'Enter');
+		await settle();
+
+		expect(item.dataset.grabbed).toBe('true');
+		const state = document.getElementById(item.getAttribute('aria-describedby') ?? '');
+		expect(state?.textContent).toContain('Grabbed. Use arrow keys to move.');
+		expect(q(mounted, '[aria-live="polite"]')?.textContent).toContain('One grabbed.');
+		// aria-grabbed is deprecated since WAI-ARIA 1.1 and unreliable in current screen readers.
+		expect(qa(mounted, '[aria-grabbed]')).toHaveLength(0);
+
+		pressKey(item, 'Enter');
+		await settle();
+		expect(item.dataset.grabbed).toBe('false');
+		expect(qa(mounted, '[aria-grabbed]')).toHaveLength(0);
+		cleanupInteraction(mounted);
+	});
+
+	test('no drag component in this package emits the deprecated aria-grabbed', () => {
+		const dragSources = [
+			'src/shared/components/SortableList.svelte',
+			'src/shared/components/MatchDragDrop.svelte',
+			'src/shared/components/DragHandle.svelte',
+			'src/plugins/gap-match/GapMatchInteraction.svelte',
+		];
+		for (const file of dragSources) {
+			const source = readFileSync(resolve(process.cwd(), file), 'utf8');
+			expect(source, file).not.toContain('aria-grabbed');
+		}
 	});
 });

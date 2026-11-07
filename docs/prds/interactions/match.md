@@ -370,8 +370,11 @@ AC-A5: aria-label on target reflects availability
 AC-A6: Keyboard instructions are present in DOM
   Given: any instance of the match interaction
   When: the page DOM is inspected
-  Then: a visually hidden element with id="match-instructions" contains the full keyboard workflow
+  Then: a visually hidden instructions element contains the full keyboard workflow
         description; the grid region references it via aria-describedby
+  Notes: the instructions id, the column heading ids (used by structured labels) and every
+         state-sentence id are unique per instance, so two match interactions in one
+         document never describe or label each other's controls.
 
 AC-A7: Touch target size
   Given: the item rendered on a 375px viewport

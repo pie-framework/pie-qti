@@ -40,12 +40,13 @@ function textFromNode(node: Node): string {
 	if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? '';
 	if (node.nodeType !== Node.ELEMENT_NODE) return '';
 	const element = node as Element;
+	// Hidden content contributes nothing, even an icon that carries alt text or a
+	// title: a hidden icon beside the same visible word must not read it twice.
+	if (element.getAttribute('aria-hidden') === 'true') return '';
 	const alternative = ownAlternative(element);
 	// A node with its own alternative is read as that alternative; its children
 	// (e.g. an <object>'s fallback markup) are not announced in addition.
 	if (alternative) return alternative;
-	const hidden = element.getAttribute('aria-hidden') === 'true';
-	if (hidden) return '';
 	return Array.from(element.childNodes).map(textFromNode).join(' ');
 }
 

@@ -60,12 +60,11 @@
 	});
 	const showStepLabels = $derived(parsedInteraction?.stepLabel === true && stepValues.length > 0);
 
-	const promptId = $derived(
-		parsedInteraction ? `qti-slider-prompt-${parsedInteraction.responseId.replace(/[^A-Za-z0-9_-]/g, '-')}` : undefined
-	);
-	const tickListId = $derived(
-		parsedInteraction ? `qti-slider-ticks-${parsedInteraction.responseId.replace(/[^A-Za-z0-9_-]/g, '-')}` : undefined
-	);
+	// Unique per instance, so two renderings of the same item (same responseId) in one
+	// document keep their own prompt label and tick list.
+	const uid = $props.id();
+	const promptId = `${uid}-slider-prompt`;
+	const tickListId = `${uid}-slider-ticks`;
 
 	// The accessible name comes from the prompt; the range bounds label it only
 	// when the item has no authored prompt.
@@ -130,8 +129,8 @@
 				step={parsedInteraction.step}
 				class="qti-slider-input range range-primary"
 				value={displayValue}
-				list={showStepLabels && tickListId ? tickListId : undefined}
-				aria-labelledby={parsedInteraction.prompt && promptId ? promptId : undefined}
+				list={showStepLabels ? tickListId : undefined}
+				aria-labelledby={parsedInteraction.prompt ? promptId : undefined}
 				aria-label={parsedInteraction.prompt ? undefined : fallbackLabel}
 				aria-valuemin={parsedInteraction.lowerBound}
 				aria-valuemax={parsedInteraction.upperBound}
