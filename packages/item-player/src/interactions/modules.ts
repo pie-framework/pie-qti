@@ -144,7 +144,13 @@ const STANDARD_INTERACTION_MODULE_DEFINITIONS = [
 		type: 'mediaInteraction',
 		extractor: standardMediaExtractor,
 		placement: 'block',
-		delivery: [prompt, urlField('media-or-object', 'mediaElement', 'src')],
+		delivery: [
+			prompt,
+			urlField('media-or-object', 'mediaElement', 'src'),
+			// Every source and caption/subtitle track URL reaches a media sink.
+			urlField('media', 'mediaElement', 'sources', '*', 'src'),
+			urlField('media', 'mediaElement', 'tracks', '*', 'src'),
+		],
 	},
 	{
 		type: 'hottextInteraction',
