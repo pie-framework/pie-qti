@@ -77,7 +77,7 @@ The QTI processing model is inherently stateful: `setOutcomeValue` and `setTempl
 | `setResponseValue` | `<setResponseValue>` | response |
 | `setTemplateValue` | `<setTemplateValue>` | template |
 | `setCorrectResponse` | `<setCorrectResponse>` | template |
-| `setDefaultValue` | `<setDefaultValue>` | response, outcome, template |
+| `setDefaultValue` | `<setDefaultValue>` | template |
 | `exitResponse` | `<exitResponse>` | response |
 | `exitTemplate` | `<exitTemplate>` | template |
 | `exitTest` | `<exitTest>` | outcome |
