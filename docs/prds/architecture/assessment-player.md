@@ -83,11 +83,32 @@ but shells render only the localized message from `assessment.errors.codes.<code
 uncoded renders as a generic localized message plus a short support code, never a raw backend or
 engine string.
 
-### Why persistence is host-driven
+### Why the shell autosaves drafts (and how hosts turn it off)
 
-`AssessmentPlayer` exposes `getState()`/`restoreState()` and requires `BackendAdapter.saveState()` in
-the adapter contract, but it does not start an auto-save loop or call `saveState()` implicitly. The
-host decides when a draft is durable and whether client storage is appropriate.
+Historically `BackendAdapter.saveState()` existed but nothing called it: in simultaneous mode
+responses only reached the backend at the final Submit, so a refresh or crash lost everything.
+The core now runs a debounced autosave: candidate activity (response edits, navigation, flags,
+the timer-visibility preference, pause changes) restarts a 1.5 s debounce window (tunable via
+`autosaveIntervalMs`), and `visibilitychange`/`pagehide` trigger an immediate best-effort
+`flushAutosave()` through the shell. The backend is the store — there is no offline queue and
+no client-side database. Autosave is **ON by default** when the backend reports the save
+capability (`canSaveState !== false`; `ReferenceBackendAdapter` sets it) and never runs after
+finalization. Saves are busy-aware (a due save defers while a transition runs) and non-fatal:
+a failure logs to the console, fires `onAutosaveFailed` (the element's `autosave-failed`
+event) and the indicator's `failed` state, and retries on the next change. Hosts that persist
+state themselves set `autosave: false` (or `canSaveState: false` on the adapter), which also
+hides the save indicator.
+
+### Why persistence stays host-shaped
+
+`AssessmentPlayer` exposes `getState()`/`restoreState()` for hosts that want full control of
+cadence and storage, and `startOver()` for the candidate-facing restart: it resets responses,
+flags, visited state, the timer preference and the clocks to a fresh session and persists the
+blank draft, so a refresh cannot resurrect discarded answers. Already-submitted items stay
+submitted — the backend remains authoritative for accepted results. A session created from a
+backend-restored snapshot (`initSession.resumeSessionId`) reopens at the saved item with its
+answers; `hasRestoredProgress()` tells shells whether there is work worth resuming, and the
+snapshot's `timing.savedAt` dates the resume prompt.
 `StatePersistenceManager` exists as an internal source utility but is not a published package export;
 `ReferenceBackendAdapter` uses local storage for explicit demo/reference delivery.
 
@@ -184,13 +205,28 @@ host decides when a draft is durable and whether client storage is appropriate.
   on the item; in `simultaneous` mode the response is recorded like any response and response
   processing is deferred to the end of the testPart. A locally closed session must never make a
   later submission throw.
+- **FR-20:** With autosave enabled (default when the backend's `canSaveState` is not false and
+  `autosave` is not false), every candidate activity (response change, navigation, flag, timer
+  visibility, pause) restarts a debounced `saveState` of the full session snapshot stamped with
+  `timing.savedAt`; a due save during a transition defers until the transition settles; nothing
+  saves after finalization; failures are non-fatal and reported through `onAutosaveChange`
+  (`failed`), `onAutosaveFailed` and a console log, then retried on the next change. Hosts get
+  `flushAutosave()` for page-lifecycle moments.
+- **FR-21:** `startOver()` (candidate transition, rejected while paused/behind the begin gate/
+  finalized/while busy) resets the draft — responses, sessions, results, flags, comments,
+  visited state, timer preference and clocks — re-enters the first item and persists the blank
+  draft. Already-submitted items keep their accepted results.
+- **FR-22:** A session created from a backend-restored snapshot reports `hasRestoredProgress()`
+  (saved answers present), `getRestoredSavedAt()` (the snapshot's `timing.savedAt`) and carries
+  `savedAt` on `getStartInfo()`. Restored responses, flags, timer preference and the current
+  item are restored by the snapshot, and a restored-paused session reopens paused.
 
 ---
 
 ## Non-functional requirements
 
 - **Accessibility:** The assessment player provides the headless logic layer; accessibility responsibilities for navigation announcements, focus management, and ARIA live regions live in the Svelte shell components (`AssessmentShell`, `NavigationBar`), described under [Candidate shell](#candidate-shell). The `AssessmentPlayer` class itself exposes `onItemChange` and `onSectionChange` events that shell components must use to trigger screen-reader announcements.
-- **Performance:** `flattenItems()` runs once at construction; subsequent navigation calls use O(1) array index lookups. Immutable `AssessmentItemDefinition` instances are cached by item identifier, while only the active item has a live session.
+- **Performance:** `flattenItems()` runs once at construction; subsequent navigation calls use O(1) array index lookups. Immutable `AssessmentItemDefinition` instances are cached by item identifier, while only the active item has a live session. Response updates are targeted (O(changed item), not O(assessment)): the live session's subscription mirrors only the changed item's responses with one snapshot copy, the section composition carries the active session and the section's response records by shared reference (`getSectionItemResponses()`, no per-item deep copies, unchanged items keep identical props), and the shell rebuilds the composition only when the item, section or delivery state changes — keystrokes recompute the answered counts but never rebuild the section view. A unit guard asserts a keystroke stays at one deep copy and composition builds at zero.
 - **Cross-platform:** No DOM dependencies. The player class is framework-agnostic and can be used headlessly (e.g. server-side with Node.js for testing, or wrapped in a web component).
 - **Security:** The player trusts the `BackendAdapter` contract. It must never apply client-computed scores to `itemResults` in a way that could be finalized — all `ItemResult.score` values must come from `SubmitResponsesResponse.result` or `FinalizeAssessmentResponse.itemScores`, not from local computation.
 - **i18n:** The player accepts an `i18nProvider` from the host. If none is supplied, a no-op provider is created that returns translation keys as-is. String content (e.g. error messages thrown from navigation) should be keys, not hardcoded English.
@@ -331,6 +367,45 @@ submit confirmation, time notices and resume prompts: native `<dialog>` + `showM
 the trigger on close, Escape cancelling unless `dismissible` is false, `busy` keeping the
 actions focusable but unavailable, `closeOnConfirm`, and `onConfirm`/`onCancel`/`onClose`
 callbacks with a `bind:open` state.
+
+### Safe loading, failure and crash screens
+
+- **A slow load is a status, never an error.** After 10 s of loading the shell adds a polite
+  `role="status"` line ("Still loading") to the loading screen. It disappears on its own when
+  the load finishes; it never becomes a permanent error, and no developer text ("assessment
+  may be invalid") is shown.
+- **Load failures are retryable and candidate-safe.** A failed `initSession` renders the
+  localized coded-error path (`assessmentErrorDisplay`): coded core errors by their code,
+  anything else (raw backend text included) as a generic localized message plus a short
+  support code — never the raw message — with a Retry control that tears the half-created
+  player down and re-initializes. On another failure the alert is re-announced and focus
+  moves to Retry.
+- **A crashing question never takes the test down.** `<svelte:boundary>` wraps the question
+  content area and the shell's dialogs (each with a `failed` fallback + `onerror`). A crash
+  during item rendering shows a localized "This question could not be displayed" fallback
+  with Try again (re-render) and Continue (move on where navigation rules allow); the shell,
+  header and navigation stay usable. The raw error goes to the console and the host's
+  `onError` only. A crashed dialog body degrades to an alert that dismisses the broken modal
+  instead of stranding the candidate behind it.
+
+### Autosave indicator, resume prompt and start over
+
+- **The save indicator rides the real save state.** When autosave is enabled, the navigation
+  bar shows a polite `role="status"` line next to the answered count: "Saving…" while a save
+  is pending or in flight, "Saved · 12:04" (locale-formatted) after one lands, "Not saved"
+  after a failure — announced politely so a "Not saved" turn is heard. Hidden entirely when
+  the host disables autosave. The element reports the same states through `autosave-change`
+  and failures through `autosave-failed`.
+- **Resume is offered, never forced.** When the session was created from a backend snapshot
+  with saved answers, the shell opens an `AssessmentDialog` resume prompt ("You have answers
+  saved from {time}" — `timing.savedAt`, locale-formatted): "Resume where you left off"
+  restores responses, flags, the timer-visibility preference and the position (a snapshot
+  saved during a proctor pause reopens paused, behind the pause overlay). Escape counts as
+  resume — it is never one step away from deletion.
+- **Start over deletes with confirmation.** The prompt's other action asks a second,
+  destructive-toned confirmation ("Your saved answers will be deleted … This cannot be
+  undone"), then `startOver()` clears the draft, persists the blank state and restarts at the
+  first item with focus and announcement handled like a navigation.
 
 ### Submit safety, review screen and flags (WCAG 3.3.4)
 
@@ -479,7 +554,7 @@ to score them.
 | Custom outcome processing | Backend adapter / host application | Implement assessment-level outcome policy in the backend or host integration. | Compute aggregate outcomes before returning updated assessment state |
 | Time events | `onTimeWarning()`, `onTimeExpired(event)`, `onScopeTimeExpired(event)`, `onTimeTick()`, `getTimeState()`, `getStartInfo()` | Subscribe after construction and retain the returned unsubscribe function. `onTimeExpired` reports `autoFinalized` (whole-test expiry submitted) or `submissionRequired` (nothing unlocked remains). | Display a countdown banner (`getTimeState()`), react to expiry, host-owned submission |
 | Begin gate / pause | `beginGate` config, `start()` / `hasStarted()`, `pause(reason?)` / `resume()` / `isPaused()` / `getPauseReason()`, `onPauseChange()` | Set `beginGate: true` (or the `begin-gate` attribute) to hold delivery behind the shell's start screen; call `pause(reason)` for proctor pauses. | Gate delivery until the candidate begins; proctor controls |
-| Persistence | `getState()` / `restoreState()` and `BackendAdapter.saveState()` | The host chooses save cadence and calls its adapter explicitly; any local draft fallback is host-owned. | Persist to a session table with an optional host storage fallback |
+| Persistence | `getState()` / `restoreState()` and `BackendAdapter.saveState()` | Autosave runs by default (see "Why the shell autosaves drafts"); set `autosave: false` (config/`autosave` attribute) or `canSaveState: false` on the adapter to persist yourself, then call `saveState`/`restoreState` on your own cadence; `flushAutosave()` covers page-hide when you keep it on. | Persist to a session table with an optional host storage fallback |
 
 ---
 
@@ -492,6 +567,8 @@ Key types are in `packages/assessment-player/src/integration/api-contract.ts`. I
 - **`AssessmentSessionState.itemResponses`** is keyed by item identifier, then by response variable identifier. The inner value type is `Record<string, ResponseValue>`. A missing outer key means the item has never been visited; an empty inner object means the item was visited but no response was entered.
 - **`AssessmentSessionState.itemSessions`** contains serialized handoff values for inactive/restorable items. It never contains or represents a second live session. `getCurrentItemSession()` is the sole live reference and is not persistence data.
 - **`SubmitResponsesResponse.nextItemIdentifier`** is the server's branching decision. When present, the client must navigate to that item. When absent, the client falls back to `currentIndex + 1` (individual mode) or stays in place (simultaneous mode). Servers that do not implement branching should omit this field entirely.
+- **`BackendAdapter.canSaveState`** (default `true`) is the autosave capability flag: the core debounces drafts through `saveState` unless the adapter reports `false` or the config disables autosave. Adapters that cannot store drafts must say so rather than silently accepting saves.
+- **`AssessmentSessionState.timing.savedAt`** is the client clock of the last autosave written into a snapshot; shells show it on the resume prompt. It is metadata, not an authority — the backend's own timestamps remain authoritative.
 - **`SubmitResponsesRequest.countAttempt`** (default true) carries QTI `endAttempt`'s `countAttempt`: `false` marks a hint / "show me" submission that runs response processing without consuming an attempt. Backends must not count it toward `maxAttempts`, must not record it as the item's result, and must leave the attempt counter unchanged; the candidate continues and a later submission carries the final response.
 - **`FinalizeAssessmentResponse.itemScores`** is the authoritative score record. Scores in `AssessmentSessionState.itemScores` accumulated during the session are discarded in favour of this.
 - **`AssessmentScoringResult.score`** is a normalized float (0.0–1.0 for most items, but not constrained by the type). `maxScore` is the denominator. `AssessmentResults.totalScore` is the raw sum, not a fraction.
