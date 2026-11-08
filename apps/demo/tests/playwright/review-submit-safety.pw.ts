@@ -73,7 +73,9 @@ test('submit with unanswered questions: the dialog names them, cancel jumps back
 	await dialog.getByRole('button', { name: 'Submit test' }).click();
 	await expect(page.getByRole('status').filter({ hasText: 'Assessment completed' })).toBeVisible();
 	await expect(dialog).toBeHidden();
-	await expect(submit).toBeDisabled();
+	// The built-in completion screen replaces delivery: the bar (and its Submit) is gone.
+	await expect(page.getByTestId('assessment-complete')).toBeVisible();
+	await expect(submit).toHaveCount(0);
 });
 
 test('keeping work: the safe action closes the dialog without submitting', async ({ page }) => {

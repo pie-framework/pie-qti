@@ -29,9 +29,10 @@ for (const width of [1280, 375]) {
 			await expect(retry).toBeFocused();
 			await retry.press('Enter');
 			await expect(page.getByText('Assessment completed', { exact: true })).toBeVisible();
+			// The built-in completion screen replaces delivery; navigation is closed.
+			await expect(page.getByTestId('assessment-complete')).toBeVisible();
+			await expect(page.getByTestId('assessment-submit')).toHaveCount(0);
 			await expect(page.getByRole('alert')).toHaveCount(0);
-			await expect(answer).toBeChecked();
-			await expect(submit).toBeDisabled();
 			await expect(page.getByTestId('request-counts')).toHaveText(
 				stage === 'responses' ? 'Responses: 2; finalizations: 1' : 'Responses: 1; finalizations: 2'
 			);
