@@ -1,6 +1,8 @@
 import type {
 	QtiAssessmentLoadErrorDetail,
 	QtiAssessmentResponseChangeDetail,
+	QtiAssessmentScopeTimeExpiredDetail,
+	QtiAssessmentSessionFinalizedDetail,
 	QtiAssessmentSubmitDetail,
 	QtiItemPlayerCompleteDetail,
 	QtiItemPlayerResponseChangeDetail,
@@ -74,6 +76,35 @@ export function assertAssessmentCustomElementTypes(
 	element.addEventListener('complete', (event) => {
 		void event.detail;
 	});
+
+	// The proctor console surface.
+	element.addEventListener('scope-time-expired', (event) => {
+		const detail: QtiAssessmentScopeTimeExpiredDetail = event.detail;
+		void detail.deliveryContinues;
+	});
+
+	element.addEventListener('session-finalized', (event) => {
+		const detail: QtiAssessmentSessionFinalizedDetail = event.detail;
+		void detail.restored;
+		void detail.results.totalScore;
+	});
+
+	element.addEventListener('player-pause', (event) => {
+		void event.detail.reason;
+	});
+
+	const paused: boolean = element.isPaused();
+	const reason: string | undefined = element.getPauseReason();
+	const finished: boolean = element.isFinalized();
+	const remaining: number | null | undefined = element.getTimeState()?.remainingSeconds;
+	const allowStartOver: boolean = element.allowStartOver;
+	void paused;
+	void reason;
+	void finished;
+	void remaining;
+	void allowStartOver;
+	void element.flushAutosave();
+	void element.submit({ force: true });
 }
 
 export function assertSectionCustomElementTypes(

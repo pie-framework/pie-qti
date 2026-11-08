@@ -268,7 +268,9 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		const assessmentAllowsLate = assessmentLimit?.allowLateSubmission ?? request.timing?.allowLateSubmission;
 		// A `time-expired` submission is the terminal collection a hard limit triggers:
 		// the window closed with the expiry, and the pending responses must be accepted.
-		const timeExpiredCollection = request.timing?.submissionReason === 'time-expired';
+		// A `proctor` collection is the administrative end of the test, accepted alike.
+		const timeExpiredCollection =
+			request.timing?.submissionReason === 'time-expired' || request.timing?.submissionReason === 'proctor';
 		if (
 			!timeExpiredCollection &&
 			effectiveAssessmentLimitSeconds !== undefined &&

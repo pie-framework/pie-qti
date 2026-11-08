@@ -193,6 +193,57 @@ describe('autosave basics', () => {
 		expect(player.getNavigationState().isLoading).toBe(false);
 	});
 
+	test('the end-of-test snapshot is saved before finalize even while an older save is in flight', async () => {
+		const parsed = await ReferenceBackendAdapter.parseAssessmentTestXml(testXml(2), { itemXmlMap: items(2) });
+		const backend = new ReferenceBackendAdapter();
+		backend.registerAssessment(parsed.identifier, parsed);
+		const events: string[] = [];
+		let gateNext = false;
+		let release: (() => void) | null = null;
+		const referenceSave = backend.saveState.bind(backend);
+		backend.saveState = async (request) => {
+			events.push(`save:${JSON.stringify(request.state.itemResponses.i1?.RESPONSE ?? null)}`);
+			if (gateNext) {
+				gateNext = false;
+				await new Promise<void>((resolve) => {
+					release = resolve;
+				});
+			}
+			return referenceSave(request);
+		};
+		const referenceFinalize = backend.finalizeAssessment.bind(backend);
+		backend.finalizeAssessment = async (request) => {
+			events.push('finalize');
+			return referenceFinalize(request);
+		};
+		const player = await AssessmentPlayer.create({
+			backend,
+			initSession: { assessmentId: parsed.identifier, candidateId: 'candidate' },
+			autosaveIntervalMs: 40,
+		});
+		players.push(player);
+		await until(() => player.getNavigationState().currentIndex >= 0);
+		player.updateResponse('RESPONSE', 'A');
+		await player.flushAutosave();
+
+		// A slow save captures response A; the candidate then answers B and submits.
+		gateNext = true;
+		const slow = player.flushAutosave();
+		await until(() => release !== null);
+		player.updateResponse('RESPONSE', 'B');
+		const submitting = player.submit();
+		await new Promise((resolve) => setTimeout(resolve, 30));
+		release!();
+		await slow;
+		await submitting;
+
+		const finalizeAt = events.indexOf('finalize');
+		expect(finalizeAt).toBeGreaterThan(0);
+		const lastSaveBeforeFinalize = events.slice(0, finalizeAt).filter((event) => event.startsWith('save:')).at(-1);
+		// The final draft — with B, not the stale in-flight A — reached the backend first.
+		expect(lastSaveBeforeFinalize).toBe('save:"B"');
+	});
+
 	test('nothing is saved after finalization', async () => {
 		const { player, saves } = await deliver();
 		await player.flushAutosave();

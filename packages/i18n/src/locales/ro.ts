@@ -618,6 +618,8 @@ export default {
 			flaggedLine: '{count} întrebări marcate pentru revizuire',
 			unansweredHeading: '{count} întrebări fără răspuns',
 			unansweredHeadingOne: '1 întrebare fără răspuns',
+			needsAnswerHeading: '{count} întrebări au nevoie de un răspuns înainte de predare',
+			needsAnswerHeadingOne: '1 întrebare are nevoie de un răspuns înainte de predare',
 			allAnswered: 'Ai răspuns la toate întrebările.',
 			confirm: 'Predă testul',
 			cancel: 'Continuă lucrul',
@@ -657,6 +659,7 @@ export default {
 			timeMinutes: 'Ai la dispoziție {count} min.',
 			timeExact: 'Ai la dispoziție {time}.',
 			scopedTimeLimits: 'Unele părți ale acestui test au propria limită de timp.',
+			paused: 'Acest test este în pauză. Te rugăm să aștepți până când este reluat.',
 		},
 
 		timeExpiry: {
@@ -757,6 +760,8 @@ export default {
 				reviewNotAllowed: 'Nu te poți întoarce la această întrebare.',
 				responseRequired: 'Trebuie să răspunzi la această întrebare înainte de a continua.',
 				responseInvalid: 'Te rugăm să oferi un răspuns valid înainte de a continua.',
+				finalizeResponseRequired: 'Unele întrebări încă au nevoie de un răspuns înainte de predare: {items}.',
+				finalizeResponseInvalid: 'Unele răspunsuri nu sunt încă complete. Verifică aceste întrebări înainte de predare: {items}.',
 				attemptValidationFailed: 'Verifică-ți răspunsul. Este necesar un răspuns valid.',
 				maxAttemptsReached: 'Ai folosit toate încercările pentru această întrebare.',
 				itemSessionLocked: 'Această întrebare este închisă și nu mai poate fi modificată.',

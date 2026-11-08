@@ -8,7 +8,9 @@ export {
 	type QtiAssessmentPlayerEventMap,
 	QtiAssessmentPlayerElement,
 	type QtiAssessmentResponseChangeDetail,
+	type QtiAssessmentScopeTimeExpiredDetail,
 	type QtiAssessmentSectionChangeDetail,
+	type QtiAssessmentSessionFinalizedDetail,
 	type QtiAssessmentSubmitDetail,
 	type QtiAssessmentTimeExpiredDetail,
 } from './elements/QtiAssessmentPlayerElement.js';

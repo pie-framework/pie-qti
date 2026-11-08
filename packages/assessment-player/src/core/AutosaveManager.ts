@@ -115,21 +115,26 @@ export class AutosaveManager {
 	}
 
 	/**
-	 * Save immediately even while a transition is in flight: the terminal transition
-	 * (finalization) itself calls this so the backend finalizes against the final clocks
-	 * and responses, not the last debounced draft. Must run inside that transition's
-	 * exclusive lock; failures stay non-fatal.
+	 * Save the current snapshot immediately even while a transition is in flight: the
+	 * terminal transition (finalization) itself calls this so the backend finalizes
+	 * against the final clocks and responses, not the last debounced draft. A save
+	 * already in flight captured an older snapshot, so it is awaited first and the
+	 * current one is saved after it — the end-of-test snapshot always lands. Must run
+	 * inside that transition's exclusive lock; failures stay non-fatal.
 	 */
-	public flushImmediate(): Promise<void> {
-		if (this.stopped || !this.options.enabled || this.options.isStopped()) return Promise.resolve();
+	public async flushImmediate(): Promise<void> {
+		if (this.stopped || !this.options.enabled || this.options.isStopped()) return;
 		if (this.timer !== null) {
 			clearTimeout(this.timer);
 			this.timer = null;
 		}
+		const inFlight = this.flushing;
+		if (inFlight) await inFlight;
+		if (this.stopped || this.options.isStopped()) return;
 		this.flushing ??= this.persist().finally(() => {
 			this.flushing = null;
 		});
-		return this.flushing;
+		await this.flushing;
 	}
 
 	/** Stop autosaving for good: nothing runs afterwards, pending timers cleared. */

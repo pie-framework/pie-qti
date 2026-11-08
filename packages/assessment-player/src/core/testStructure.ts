@@ -482,3 +482,29 @@ export function evaluateTestCondition(expressionXml: string, decls: DeclarationM
 export function plainQtiValue(value: QtiValue): unknown {
 	return value.kind === 'value' ? value.value : null;
 }
+
+/** A serialized item-session variable, as `SerializedItemSessionState` carries it. */
+interface SerializedVariableShape {
+	baseType?: string;
+	cardinality: string;
+	value: unknown;
+}
+
+/**
+ * The QTI values of a serialized item session's response, outcome and template
+ * variables (NULL where unset), keyed by variable identifier — the item's variables a
+ * test-scope expression reads as `ITEM.VARIABLE`.
+ */
+export function itemSessionVariableValues(session: {
+	responseVariables?: Record<string, SerializedVariableShape>;
+	outcomeVariables?: Record<string, SerializedVariableShape>;
+	templateVariables?: Record<string, SerializedVariableShape>;
+}): Record<string, QtiValue> {
+	const out: Record<string, QtiValue> = {};
+	for (const group of [session.responseVariables, session.outcomeVariables, session.templateVariables]) {
+		for (const [identifier, variable] of Object.entries(group ?? {})) {
+			out[identifier] = toQtiValue(variable.baseType as string, variable.cardinality, variable.value);
+		}
+	}
+	return out;
+}

@@ -619,6 +619,8 @@ export default {
 			flaggedLine: '{count} preguntas marcadas para revisar',
 			unansweredHeading: '{count} preguntas sin responder',
 			unansweredHeadingOne: '1 pregunta sin responder',
+			needsAnswerHeading: '{count} preguntas necesitan respuesta antes de que puedas entregar',
+			needsAnswerHeadingOne: '1 pregunta necesita respuesta antes de que puedas entregar',
 			allAnswered: 'Has respondido todas las preguntas.',
 			confirm: 'Entregar prueba',
 			cancel: 'Seguir trabajando',
@@ -658,6 +660,7 @@ export default {
 			timeMinutes: 'Tienes {count} minutos.',
 			timeExact: 'Tienes {time}.',
 			scopedTimeLimits: 'Algunas partes de esta prueba tienen su propio límite de tiempo.',
+			paused: 'Esta prueba está en pausa. Espera a que se reanude.',
 		},
 
 		timeExpiry: {
@@ -758,6 +761,8 @@ export default {
 				reviewNotAllowed: 'No puedes volver a esta pregunta.',
 				responseRequired: 'Debes responder esta pregunta antes de continuar.',
 				responseInvalid: 'Proporciona una respuesta válida antes de continuar.',
+				finalizeResponseRequired: 'Algunas preguntas aún necesitan respuesta antes de que puedas entregar: {items}.',
+				finalizeResponseInvalid: 'Algunas respuestas aún no están completas. Revisa estas preguntas antes de entregar: {items}.',
 				attemptValidationFailed: 'Revisa tu respuesta. Se requiere una respuesta válida.',
 				maxAttemptsReached: 'Has usado todos tus intentos para esta pregunta.',
 				itemSessionLocked: 'Esta pregunta está cerrada y ya no puede modificarse.',

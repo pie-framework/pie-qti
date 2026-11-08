@@ -17,6 +17,11 @@
 	 *   reload during the pause reopens paused behind the overlay.
 	 * - `start-gate`: the begin gate; delivery and the clocks wait for Begin.
 	 * - `late`: an expired limit with allowLateSubmission; the test stays open.
+	 * - `section-expiry`: a 3s section limit on question 1 ahead of an untimed section;
+	 *   with `&resume=1` a reload resumes the stored draft (for Start over after expiry).
+	 *
+	 * `window.__timedShell.pause(reason)` / `.resume()` drive the proctor pause from a
+	 * test while a modal dialog makes the page's own buttons inert.
 	 */
 
 	const NS = 'xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"';
@@ -27,7 +32,7 @@
   <itemBody><p>${prompt}</p><choiceInteraction responseIdentifier="RESPONSE" shuffle="false" maxChoices="1"><simpleChoice identifier="A">Alpha</simpleChoice><simpleChoice identifier="B">Beta</simpleChoice></choiceInteraction></itemBody>
 </assessmentItem>`;
 
-	type Scenario = 'auto-submit' | 'dead-end' | 'pause' | 'start-gate' | 'late';
+	type Scenario = 'auto-submit' | 'dead-end' | 'pause' | 'start-gate' | 'late' | 'section-expiry';
 
 	let ready = $state(false);
 	let scenario = $state<Scenario>('auto-submit');
@@ -172,6 +177,39 @@
 				],
 			},
 		}),
+		'section-expiry': () => ({
+			assessment: {
+				identifier: 'timed-section-expiry',
+				title: 'Section expiry check',
+				navigationMode: 'nonlinear',
+				submissionMode: 'simultaneous',
+				testParts: [
+					{
+						identifier: 'part-1',
+						sections: [
+							{
+								identifier: 'section-1',
+								title: 'Quick round',
+								visible: true,
+								timeLimits: { maxTime: 3 },
+								assessmentItemRefs: [
+									{ identifier: 'q1', role: 'candidate', itemXml: choiceItem('q1', 'Question one') },
+								],
+							},
+							{
+								identifier: 'section-2',
+								title: 'Main round',
+								visible: true,
+								assessmentItemRefs: [
+									{ identifier: 'q2', role: 'candidate', itemXml: choiceItem('q2', 'Question two') },
+									{ identifier: 'q3', role: 'candidate', itemXml: choiceItem('q3', 'Question three') },
+								],
+							},
+						],
+					},
+				],
+			},
+		}),
 	};
 
 	function mountAssessment(selected: Scenario) {
@@ -200,6 +238,11 @@
 		if (requested in ASSESSMENTS) scenario = requested as Scenario;
 		resume = params.get('resume') === '1';
 		ready = true;
+		// Test hook: a proctor pause while a modal dialog makes this page's buttons inert.
+		(window as unknown as { __timedShell?: unknown }).__timedShell = {
+			pause: (reason?: string) => shell?.pause(reason),
+			resume: () => shell?.resume(),
+		};
 	});
 </script>
 

@@ -29,6 +29,16 @@ export type AssessmentPlayerErrorCode =
 	| 'responseRequired'
 	/** The item's responses fail validation and navigation away is blocked. */
 	| 'responseInvalid'
+	/**
+	 * Ending the test was refused: items in individual parts that do not allow skipping
+	 * still have no response (`params.items` lists their numbers).
+	 */
+	| 'finalizeResponseRequired'
+	/**
+	 * Ending the test was refused: items in individual parts that validate responses
+	 * hold responses that do not satisfy their interactions (`params.items`).
+	 */
+	| 'finalizeResponseInvalid'
 	/** Ending the attempt failed response validation. */
 	| 'attemptValidationFailed'
 	/** The item's maxAttempts are used up; no further attempt can be submitted. */

@@ -614,6 +614,8 @@ export default {
 			flaggedLine: 'ทำเครื่องหมายเพื่อทบทวน {count} ข้อ',
 			unansweredHeading: 'ยังไม่ได้ตอบ {count} ข้อ',
 			unansweredHeadingOne: 'ยังไม่ได้ตอบ 1 ข้อ',
+			needsAnswerHeading: 'มี {count} ข้อที่ต้องตอบก่อนจึงจะส่งได้',
+			needsAnswerHeadingOne: 'มี 1 ข้อที่ต้องตอบก่อนจึงจะส่งได้',
 			allAnswered: 'คุณตอบครบทุกข้อแล้ว',
 			confirm: 'ส่งข้อสอบ',
 			cancel: 'ทำต่อไป',
@@ -653,6 +655,7 @@ export default {
 			timeMinutes: 'คุณมีเวลา {count} นาที',
 			timeExact: 'คุณมีเวลา {time}',
 			scopedTimeLimits: 'บางส่วนของข้อสอบนี้มีการจำกัดเวลาของตัวเอง',
+			paused: 'ข้อสอบนี้หยุดชั่วคราว กรุณารอจนกว่าจะดำเนินการต่อ',
 		},
 
 		timeExpiry: {
@@ -753,6 +756,8 @@ export default {
 				reviewNotAllowed: 'คุณกลับมาที่คำถามนี้ไม่ได้',
 				responseRequired: 'คุณต้องตอบคำถามนี้ก่อนจึงจะไปต่อได้',
 				responseInvalid: 'กรุณากรอกคำตอบที่สมบูรณ์ก่อนไปต่อ',
+				finalizeResponseRequired: 'ยังมีบางข้อที่ต้องตอบก่อนจึงจะส่งได้: {items}',
+				finalizeResponseInvalid: 'คำตอบบางข้อยังไม่สมบูรณ์ ตรวจสอบข้อเหล่านี้ก่อนส่ง: {items}',
 				attemptValidationFailed: 'กรุณาตรวจสอบคำตอบของคุณ ต้องเป็นคำตอบที่สมบูรณ์',
 				maxAttemptsReached: 'คุณใช้จำนวนครั้งที่ตอบได้สำหรับคำถามนี้ครบแล้ว',
 				itemSessionLocked: 'คำถามนี้ปิดอยู่และไม่สามารถเปลี่ยนแปลงได้อีก',

@@ -678,6 +678,8 @@ export default {
 			flaggedLine: 'تم تعليم {count} من الأسئلة للمراجعة',
 			unansweredHeading: 'لم تتم الإجابة على {count} من الأسئلة',
 			unansweredHeadingOne: 'لم تتم الإجابة على سؤال واحد',
+			needsAnswerHeading: 'تحتاج {count} من الأسئلة إلى إجابة قبل أن تتمكن من التسجيل',
+			needsAnswerHeadingOne: 'يحتاج سؤال واحد إلى إجابة قبل أن تتمكن من التسجيل',
 			allAnswered: 'لقد أجبت على جميع الأسئلة.',
 			confirm: 'تسجيل الاختبار',
 			cancel: 'متابعة العمل',
@@ -717,6 +719,7 @@ export default {
 			timeMinutes: 'المدة المتاحة لك بالدقائق: {count}.',
 			timeExact: 'المدة المتاحة لك: {time}.',
 			scopedTimeLimits: 'لبعض أجزاء هذا الاختبار حدود زمنية خاصة بها.',
+			paused: 'هذا الاختبار متوقف مؤقتًا. يرجى الانتظار حتى يُستأنف.',
 		},
 
 		timeExpiry: {
@@ -817,6 +820,8 @@ export default {
 				reviewNotAllowed: 'لا يمكنك العودة إلى هذا السؤال.',
 				responseRequired: 'يجب الإجابة على هذا السؤال قبل المتابعة.',
 				responseInvalid: 'يرجى تقديم إجابة صالحة قبل المتابعة.',
+				finalizeResponseRequired: 'لا تزال بعض الأسئلة بحاجة إلى إجابة قبل أن تتمكن من التسجيل: {items}.',
+				finalizeResponseInvalid: 'بعض الإجابات غير مكتملة بعد. راجع هذه الأسئلة قبل التسجيل: {items}.',
 				attemptValidationFailed: 'يرجى التحقق من إجابتك. الإجابة الصالحة مطلوبة.',
 				maxAttemptsReached: 'لقد استخدمت جميع محاولاتك لهذا السؤال.',
 				itemSessionLocked: 'هذا السؤال مغلق ولا يمكن تغييره بعد الآن.',

@@ -504,6 +504,20 @@ export class TimeManager {
 	}
 
 	/**
+	 * Record limits that already ran out — restored from a snapshot's clocks — so the live
+	 * timer never fires their expiry a second time. Keys are `assessment` or
+	 * `scope:identifier` (`testPart:P1`, `section:S1`, `item:I1`).
+	 */
+	markExpired(keys: Iterable<string>): void {
+		for (const key of keys) this.expirationTriggered.add(key);
+	}
+
+	/** Forget the fired expiries, before another snapshot's clocks replace these. */
+	resetExpiryRecord(): void {
+		this.expirationTriggered.clear();
+	}
+
+	/**
 	 * Get remaining time in seconds (null if no limit)
 	 */
 	getRemainingSeconds(): number | null {

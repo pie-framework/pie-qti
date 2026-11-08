@@ -1,0 +1,17 @@
+---
+'@pie-qti/assessment-player': patch
+'@pie-qti/player-elements': patch
+'@pie-qti/i18n': patch
+---
+
+Assessment delivery gating, time policy and proctor fixes (round 3).
+
+- **Finalize honours `allowSkipping` / `validateResponses`** (QTI: both apply only to items in `individual` submission parts). A candidate's end of the test never submits an item left without a response while `allowSkipping=false`, nor an answered item whose responses do not satisfy its interactions while `validateResponses=true`: `submit()` rejects with the coded `finalizeResponseRequired` / `finalizeResponseInvalid` naming the questions (`getSubmissionBlockers()`), and the shell's submit confirmation lists them with jump links and holds Submit. `next()`, `submitCurrentItem()` and `checkCurrentItem()` apply the same gates; simultaneous parts are never gated. A time expiry (and a proctor force-submit) collects everything as it stands, recording an unanswered required item as skipped by the expiry.
+- **Attempt-relative feedback**: with more than one attempt, feedback shows for every non-final attempt even when `showFeedback=false`; after the last attempt `showFeedback` governs. The check-answer control is offered whenever more than one attempt is allowed.
+- **`templateDefault` in nonlinear parts** is evaluated once at test-part entry for every item ref, with the other items' variables in scope (`ITEM.VARIABLE`); linear parts are unchanged.
+- **Start over keeps the time accounting**: it clears the candidate's answers, flags, comments and unrecorded check state, but clocks, expired scopes and a whole-test expiry persist (no fresh time allowance), accepted results stay, and delivery repositions to the first open question — or offers Submit when none is open. The blank draft is saved at once. New shell prop `allowStartOver` / element attribute `allow-start-over="false"` removes Start over.
+- **Restored sessions**: scopes whose restored clock already expired lock before any item is entered (no editable window until the next tick); a restored whole-test expiry finalizes once delivery runs; visited marks survive a reload; the end-of-test snapshot is saved after any in-flight autosave, before `finalizeAssessment`.
+- **Proctor console on `<pie-qti-assessment-player>`**: `isPaused()`, `getPauseReason()`, `isFinalized()`, `getTimeState()`, `flushAutosave()`, and `submit({ force: true })` (ends the test during a pause; submissions carry `timing.submissionReason: 'proctor'`). New `scope-time-expired` and `session-finalized` (`{ restored, results }`) events; `player-pause` now fires at mount for a session restored paused (core: `onPauseChange` once after creation, new `onFinalized` hook).
+- **Pause accessibility**: a proctor pause closes every dialog in the shell (section display settings included) and dispatches `pie-qti-close-transient-ui` (`{ reason: 'pause' }`) for transient UI outside dialogs; focus containment is scoped to the shell so host controls stay operable; a paused session behind the begin gate says so on its start screen and holds Begin.
+- **Status regions**: the save indicator's live region exists while idle, "Submitting…" is outside the busy subtree, and the polite/assertive announcer regions no longer clear each other. The pressed Flag button keeps its state in forced-colors mode.
+- New `assessment` locale keys in all eight locales: `errors.codes.finalizeResponseRequired`, `errors.codes.finalizeResponseInvalid`, `submit.needsAnswerHeading(One)`, `start.paused`.
