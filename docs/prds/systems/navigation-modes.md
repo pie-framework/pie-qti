@@ -4,13 +4,13 @@
   Status: current
   Type: system
   Packages: @pie-qti/assessment-player
-  Last reviewed: 2026-11-08
+  Last reviewed: 2026-11-09
 -->
 
 **Status:** current
 **Type:** system
 **Packages:** `@pie-qti/assessment-player`
-**Last reviewed:** 2026-11-08
+**Last reviewed:** 2026-11-09
 
 ---
 
@@ -25,11 +25,16 @@ submission behavior at test-part boundaries while keeping a simple item index fo
 save/resume.
 
 - `linear` navigation is one-way: the candidate may remain on the current item or advance to the
-  immediately following item, but may not skip ahead or return to an earlier item.
+  next item the delivery rules deliver (the immediately following item unless a branch rule or a
+  precondition skips it), but may not skip ahead or return to an earlier item.
 - `nonlinear` navigation permits arbitrary movement within the current test part, subject to item
   session controls.
 - Test parts themselves are always entered in document order. A candidate may cross into the next
-  part only through the adjacent next item and may not return to a completed part.
+  part only through the forward step and may not return to a completed part; a part whose
+  precondition fails is skipped, never entered.
+- Branch rules and preconditions decide every forward move: the backend's `nextItemIdentifier` for
+  a move that submits the item, the decision kept from the item's practice check (or counted
+  end-attempt) for a move on that submits nothing, else the same rules evaluated by the player.
 - `individual` submission is applied from the current test part when `next()` is used.
 - `simultaneous` responses are retained until final submission. Mixed-mode test-part finalization is
   not yet complete; see Remaining gaps.
@@ -99,9 +104,10 @@ rejecting hard-limit submissions from assessment elapsed time or submitted timin
 
 | QTI concept | Current status | Implementation notes |
 |---|---|---|
-| `testPart.navigationMode=linear` | Implemented | Current item or immediate next item only; no backward navigation |
+| `testPart.navigationMode=linear` | Implemented | Current item or the next item the delivery rules deliver only; no backward navigation |
 | `testPart.navigationMode=nonlinear` | Implemented | Arbitrary in-bounds navigation within the current test part |
-| Sequential test-part delivery | Implemented | Only the adjacent first item of the next part may be entered; completed parts cannot be revisited |
+| Sequential test-part delivery | Implemented | Only the forward step out of a part (its first item the rules deliver) may be entered; completed parts cannot be revisited |
+| `preCondition` / `branchRule` | Implemented | The backend decides the moves that submit (`nextItemIdentifier`); a practice check or counted end-attempt keeps its decision for the move on; a move without a backend decision applies the same rules in the player (`test-navigation.ts`), so a part whose precondition fails is never entered |
 | Per-test-part `submissionMode=individual` | Implemented during `next()` | The current item is submitted before advancing; backend branching may choose the next item |
 | Per-test-part `submissionMode=simultaneous` | Partial | Navigation defers item submission, but flushing is assessment-final rather than test-part-final |
 | `timeLimits.minTime` | Implemented with limitations | Item transition, section/test-part exit, and final assessment submission are guarded; see Remaining gaps |
@@ -124,17 +130,21 @@ first test part. New code must treat `SecureTestPart.navigationMode` and
 
 ## Functional requirements
 
-- **FR-1:** In a linear test part, navigation must allow only the current item or the immediately
-  following item. It must reject backward navigation and forward skips.
+- **FR-1:** In a linear test part, navigation must allow only the current item or the next item the
+  delivery rules deliver (the immediately following one unless a branch rule or precondition skips
+  it). It must reject backward navigation and forward skips.
 - **FR-2:** In a nonlinear test part, navigation may target any in-bounds item in that same part,
   subject to the applicable item-session controls and minimum-time guards.
 - **FR-3:** Test parts must be delivered in order. Navigation may cross a part boundary only from the
-  final item of one part to the adjacent first item of the next part, and may not return to an earlier
-  part.
+  final item of one part through the forward step, landing on the first item the delivery rules
+  deliver next: a part whose precondition fails is skipped, never entered (a jump into it is a coded
+  `navigationNotAllowed`). Navigation may not return to an earlier part.
 - **FR-4:** Navigation state must set `canPrevious=false` throughout a linear part and at a test-part
   boundary. In a nonlinear part, Previous is available only when the preceding item is reviewable.
 - **FR-5:** In an individual-submission part, `next()` must submit the current item before changing
-  the index. A backend `nextItemIdentifier` decision takes precedence over the adjacent item.
+  the index. A backend `nextItemIdentifier` decision takes precedence over the adjacent item. A
+  `next()` that submits nothing (the response unchanged since a practice check) follows the decision
+  kept from that check (FR-17).
 - **FR-6:** In a simultaneous-submission part, normal navigation must retain responses without
   calling `submitResponses()` for each move.
 - **FR-7:** In an individual-submission part, no candidate-initiated submission may send an
@@ -174,6 +184,15 @@ first test part. New code must treat `SecureTestPart.navigationMode` and
 - **FR-16:** `NavigationBar` must use the semantic `disabled` attribute for unavailable Previous and
   Next actions. `SectionMenu` navigation must still pass through `AssessmentPlayer.navigateTo()` so
   mode and minimum-time checks cannot be bypassed by the UI.
+- **FR-17:** Branch rules and preconditions must hold on every forward move. A counted submission
+  that stays on the item (a practice check, a counted end-attempt) keeps the backend's decision —
+  one at a time, replaced by any later counted submission — and the next forward move from the item
+  that submits nothing follows it. A move without a backend decision (a nonlinear jump into the
+  next part, a move on from a simultaneous part, a resumed session, a backend that returns none)
+  applies the reference rules (`test-navigation.ts`) in the player against the backend's last test
+  outcomes and the recorded item results. `next()`, `canNext`, the forward-transition info, jump
+  legality and the scope-expiry hop share that forward step; with nothing eligible after the item,
+  `canNext` is false and Submit is the way on.
 
 ---
 
@@ -201,8 +220,9 @@ first test part. New code must treat `SecureTestPart.navigationMode` and
 
 ### Linear mode prohibits backtracking
 
-**Decision:** Linear navigation accepts `targetIndex === currentIndex` and
-`targetIndex === currentIndex + 1` only.
+**Decision:** Linear navigation accepts `targetIndex === currentIndex` and the forward step only:
+`currentIndex + 1`, unless a branch rule or a precondition (the backend's decision for the item,
+else the same rules evaluated by the player) delivers a later item.
 
 **Rationale:** This directly models QTI's one-way linear delivery and prevents a host from restoring
 backtracking merely by calling an imperative API instead of the standard buttons.
@@ -308,6 +328,22 @@ And: The current item has no non-empty response
 When: next() is invoked
 Then: Navigation is rejected with an actionable error
 And: The current item remains displayed
+```
+
+**AC-6a: A practice check's decision is followed on the move on**
+```
+Given: A linear individual part q1, q2 (preCondition false), q3 with maxAttempts=2
+When: The candidate checks q1 and invokes next() without changing the response
+Then: q3 is displayed and q1 is not submitted again
+```
+
+**AC-6b: A part whose precondition fails is never entered**
+```
+Given: A nonlinear part [q1], a part [q2] whose preCondition is false, and a part [q3]
+When: The host navigates from q1 to the first item of the second part
+Then: Navigation is rejected and q1 remains displayed
+When: The candidate moves forward (Next, or the jump to q3)
+Then: q3 is displayed
 ```
 
 ### Scoped timing

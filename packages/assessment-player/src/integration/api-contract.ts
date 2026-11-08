@@ -188,9 +188,14 @@ export interface SecureTestPart {
 	 * enclosing section to the item ref; the backend enforces maxAttempts.
 	 */
 	itemSessionControl?: SecureItemSessionControl;
-	/** Serialized direct preCondition expressions, evaluated by the backend on entering the part. */
+	/**
+	 * Serialized direct preCondition expressions, evaluated on entering the part (any navigation
+	 * mode): by the backend for the moves it decides (`nextItemIdentifier`), and by the player,
+	 * with the same rules, for a move without a backend decision (a jump into the next part, a
+	 * move on from a simultaneous part). A part whose precondition fails is skipped.
+	 */
 	preConditions?: string[];
-	/** Branch rules the backend evaluates after the part's last item, in linear navigation. */
+	/** Branch rules evaluated after the part's last item (any navigation mode). */
 	branchRule?: SecureBranchRule[];
 }
 
@@ -227,7 +232,10 @@ export interface SecureSection {
 	ordering?: {
 		shuffle: boolean;
 	};
-	/** Serialized direct preCondition expressions, evaluated by the backend. */
+	/**
+	 * Serialized direct preCondition expressions, evaluated on reaching the section in a linear
+	 * part (by the backend for its decisions, by the player with the same rules otherwise).
+	 */
 	preConditions?: string[];
 	/** Branch rules the backend evaluates after the section's last item, in linear navigation. */
 	branchRule?: SecureBranchRule[];
@@ -282,10 +290,14 @@ export interface SecureItemRef {
 	deliveryContext?: ResolvedItemDeliveryContext;
 	/**
 	 * QTI branchRule: ordered branch rules on this item. The backend evaluates them after scoring, in
-	 * linear navigation, and returns the resolved target as nextItemIdentifier.
+	 * linear navigation, and returns the resolved target as nextItemIdentifier. With no backend
+	 * decision for the move, the player applies them itself with the same rules.
 	 */
 	branchRule?: SecureBranchRule[];
-	/** Serialized direct preCondition expressions, evaluated by the backend. */
+	/**
+	 * Serialized direct preCondition expressions, evaluated on reaching the item in a linear part
+	 * (by the backend for its decisions, by the player with the same rules otherwise).
+	 */
 	preConditions?: string[];
 	/** QTI item-ref weights, preserved for backend outcome processing. */
 	weights?: Array<{ identifier: string; value: number }>;
@@ -402,8 +414,13 @@ export interface SubmitResponsesResponse {
 	/** Scoring result (if submission mode allows immediate scoring) */
 	result?: AssessmentScoringResult;
 	/**
-	 * Backend-authoritative next item (branching/navigation decision).
-	 * If omitted, client may fall back to linear next/previous UI navigation.
+	 * Backend-authoritative next item (branching/navigation decision): the item the test's branch
+	 * rules and preconditions deliver after this submission, or `EXIT_TEST` / `EXIT_TESTPART` /
+	 * `EXIT_SECTION`. The player follows it on the candidate's move; a submission that stays on the
+	 * item (a practice check, a counted endAttemptInteraction) keeps it, and the candidate's next
+	 * move on from the item that submits nothing follows it. If omitted, the player moves to the
+	 * next item the delivery rules make eligible, evaluating the test's branch rules and
+	 * preconditions itself with the reference rules (for a test without any: the adjacent item).
 	 */
 	nextItemIdentifier?: string;
 	/**

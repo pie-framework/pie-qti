@@ -182,14 +182,30 @@ return {
 `nextItemIdentifier` may also be `EXIT_SECTION`, `EXIT_TESTPART`, or `EXIT_TEST`. If `success` is
 false, include an `error` and omit `result`.
 
-The player follows `nextItemIdentifier` when the candidate moves on. The end of the test never
-navigates: a decision you return for the end's own collection is kept, not followed — the player
-finalizes where the candidate stands, so the final snapshot never records an unseen item as
-current or visited; if your finalize fails, the candidate's next `next()` from that item follows the
-decision. A decision that arrives after a scope expiry moved the candidate (the submission was in
-flight when the limit ran out) is not followed, and no decision re-enters a test part the candidate
-already left. `updatedState` carries your scores and attempt records but never moves the candidate:
-the player keeps its own `currentItemIdentifier` across it.
+The player follows `nextItemIdentifier` when the candidate moves on. A submission that stays on the
+item — a practice check, a counted `endAttemptInteraction` — keeps your decision instead: when the
+candidate then moves on with the response unchanged (nothing is submitted again), the player
+follows it; a changed response re-submits and your fresh decision replaces it. Any later counted
+submission replaces a kept decision, because the outcomes it was made on have moved.
+
+When no decision of yours applies — you omit the field, the candidate jumps into the next test
+part, moves on from a simultaneous part, or resumes after a reload — the player applies the test's
+branch rules and preconditions itself with the reference rules (`test-navigation.ts`), against the
+test outcomes you last returned and the item results you recorded (your `result.outcomeValues` over
+the item session): a test part whose precondition fails is never entered, and in a linear part a
+section or item whose precondition fails is skipped. A test without branch rules or preconditions
+moves to the adjacent item, as before.
+
+The end of the test never navigates: a decision you return for the end's own collection is kept,
+not followed — the player finalizes where the candidate stands, so the final snapshot never
+records an unseen item as current or visited; if your finalize fails, the candidate's next `next()`
+from that item follows the decision. A decision that arrives after a scope expiry moved the
+candidate (the submission was in flight when the limit ran out) is not followed, and no decision
+re-enters a test part the candidate already left. `updatedState` carries your scores and attempt
+records but never moves the candidate: the player keeps its own `currentItemIdentifier` across it.
+The final snapshot saved before `finalizeAssessment()` carries every item session closed — the
+test is over, so a practice item reopened for attempts the candidate did not use stands as you
+last accepted it.
 
 **Outcome-processing failures.** When test-level outcome processing fails on your side, keep the
 submission accepted (`success: true`) and report the failure as `outcomeProcessingError`
