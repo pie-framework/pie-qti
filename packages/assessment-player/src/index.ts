@@ -3,6 +3,7 @@
 export type {
 	BackendAssessmentPlayerConfig,
 	EffectiveItemTimeLimits,
+	AssessmentEndReason,
 	AssessmentFinalizedEvent,
 	AssessmentStartInfo,
 	AssessmentTimeExpiryEvent,
@@ -19,6 +20,7 @@ export {
 	AssessmentPlayerError,
 	assessmentErrorDisplay,
 	isAssessmentPlayerError,
+	isSubmissionBlockedError,
 	shortSupportCode,
 	type AssessmentErrorDisplay,
 	type AssessmentPlayerErrorCode,

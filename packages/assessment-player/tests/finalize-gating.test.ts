@@ -381,18 +381,21 @@ describe('restore-time expiry locks (F)', () => {
 		expect(resumed.isNavigationTargetLegal(1)).toBe(false);
 	});
 
-	it('an expired scope with nothing unlocked after it parks read-only and asks for a submission', async () => {
+	it('an expired scope with nothing open left to reach parks read-only and asks for a submission', async () => {
 		let now = 1_000;
 		const sections = [
 			{ identifier: 'section-1', visible: true, assessmentItemRefs: [ref('item-1')] },
 			{ identifier: 'section-2', visible: true, timeLimits: { maxTime: 5 }, assessmentItemRefs: [ref('item-2')] },
 		];
-		const first = await fixture({ submissionMode: 'simultaneous', sections, now: () => now });
-		await first.player.navigateTo(1);
+		// A linear part: item-1 lies behind the candidate and cannot be revisited, so
+		// nothing open remains anywhere reachable (in a nonlinear part the restore would
+		// land on item-1 instead — see delivery-round4 P8).
+		const first = await fixture({ submissionMode: 'simultaneous', navigationMode: 'linear', sections, now: () => now });
+		await first.player.next();
 		now += 70_000;
 		const saved = first.player.getState({ includeItemSessions: true });
 
-		const second = await fixture({ submissionMode: 'simultaneous', sections, now: () => now });
+		const second = await fixture({ submissionMode: 'simultaneous', navigationMode: 'linear', sections, now: () => now });
 		const expiries: AssessmentTimeExpiryEvent[] = [];
 		second.player.onTimeExpired((event) => expiries.push(event));
 		await second.player.restoreState(saved);

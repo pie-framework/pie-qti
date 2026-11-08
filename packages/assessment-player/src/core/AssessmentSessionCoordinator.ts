@@ -176,8 +176,13 @@ export class AssessmentSessionCoordinator {
 		this.#sessionController.markAnswered(itemIdentifier, hasAnyResponse(responses));
 	}
 
-	canReview(itemIdentifier: string): boolean {
-		return this.#sessionController.canReview(itemIdentifier);
+	/**
+	 * Whether the candidate may return to the item: always before its first submission, and
+	 * while attempts remain (an adaptive item: until it `completed`); after that QTI
+	 * `allowReview` decides.
+	 */
+	canReview(itemIdentifier: string, options: { completed?: boolean } = {}): boolean {
+		return this.#sessionController.canReview(itemIdentifier, options);
 	}
 
 	canNavigateAway(
@@ -337,4 +342,38 @@ export function hasAnyResponse(responses: Record<string, unknown>): boolean {
 		return true;
 	}
 	return false;
+}
+
+/** A response variable's declared default, with the cardinality that decides how it compares. */
+export interface ResponseDefault {
+	value: unknown;
+	cardinality?: string;
+}
+
+/**
+ * QTI's skipped item (itemSessionControl `allowSkipping`): every response is NULL, empty, or
+ * still equal to its declared default — the same test `numberResponded` applies (a response
+ * that differs from its default). A `multiple` response compares as an unordered container.
+ */
+export function isSkippedResponseSet(
+	responses: Record<string, unknown>,
+	defaults: Readonly<Record<string, ResponseDefault>> = {},
+): boolean {
+	for (const [identifier, value] of Object.entries(responses)) {
+		if (!hasAnyResponse({ [identifier]: value })) continue;
+		const declared = defaults[identifier];
+		if (declared && declared.value != null && responseEqualsDefault(value, declared)) continue;
+		return false;
+	}
+	return true;
+}
+
+function responseEqualsDefault(value: unknown, declared: ResponseDefault): boolean {
+	if (declared.cardinality === 'multiple' && Array.isArray(value) && Array.isArray(declared.value)) {
+		const canonical = (entries: unknown[]) => entries.map((entry) => JSON.stringify(entry)).sort();
+		const left = canonical(value);
+		const right = canonical(declared.value);
+		return left.length === right.length && left.every((entry, index) => entry === right[index]);
+	}
+	return JSON.stringify(value) === JSON.stringify(declared.value);
 }

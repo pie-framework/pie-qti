@@ -237,6 +237,27 @@ test('a pause closes the dialogs the section layout owns and tells transient UI 
 	await expect(settings).toBeVisible();
 });
 
+test('a section expiry notice is acknowledge-only and Escape lands focus on the question it moved to', async ({ page }) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.goto('fixtures/assessment-timed?scenario=section-expiry');
+	await expect(page.locator('.assessment-shell')).toBeVisible({ timeout: 30000 });
+
+	const notice = page.getByRole('dialog', { name: 'The time for this section is over' });
+	await expect(notice).toBeVisible({ timeout: 10000 });
+	await expect(notice).toContainText('You are moving on to question 2.');
+	// Nothing to cancel: delivery already moved on.
+	await expect(notice.getByRole('button')).toHaveCount(1);
+	await expect(notice.getByRole('button', { name: 'Continue', exact: true })).toBeVisible();
+
+	await page.keyboard.press('Escape');
+	await expect(notice).toBeHidden();
+	await expect(page.locator('.progress-question')).toHaveText('Question 2 of 3');
+	// Focus follows delivery to the question — never left on the page body.
+	await expect
+		.poll(() => page.evaluate(() => Boolean(document.activeElement?.closest('.assessment-content'))))
+		.toBe(true);
+});
+
 test('start over after a section expiry: delivery is not stuck and the expired section stays closed @cross-browser', async ({ page }) => {
 	await page.setViewportSize({ width: 1280, height: 900 });
 	await page.goto('fixtures/assessment-timed?scenario=section-expiry&resume=1');

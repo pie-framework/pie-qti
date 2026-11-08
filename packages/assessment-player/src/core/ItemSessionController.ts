@@ -182,15 +182,20 @@ export class ItemSessionController {
 	}
 
 	/**
-	 * Check if candidate can navigate to a previously answered item
+	 * Check if candidate can navigate to a previously answered item. QTI `allowReview`
+	 * governs an item whose session is over — after its LAST attempt, or for an adaptive
+	 * item (unlimited attempts) once it completed (`completed`). While attempts remain the
+	 * candidate may return to use them, whatever `allowReview` says.
 	 */
-	canReview(itemIdentifier: string): boolean {
+	canReview(itemIdentifier: string, options: { completed?: boolean } = {}): boolean {
 		const state = this.sessionStates.get(itemIdentifier);
 		if (!state || !state.isSubmitted) {
 			return true; // Can always navigate to unsubmitted items
 		}
 
-		return this.settingsFor(itemIdentifier).allowReview ?? true;
+		if ((this.settingsFor(itemIdentifier).allowReview ?? true) === true) return true;
+		if (options.completed === true) return false;
+		return this.canSubmit(itemIdentifier);
 	}
 
 	/**

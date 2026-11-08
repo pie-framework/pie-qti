@@ -7,6 +7,7 @@
 
 import './setup';
 import { afterEach, describe, expect, test } from 'bun:test';
+import { createAssessmentItemDefinition, type SerializedItemSessionState } from '@pie-qti/item-player';
 import { convertQti2ToQti3 } from '@pie-qti/qti-common';
 import { AssessmentPlayer } from '../src/core/AssessmentPlayer.js';
 import {
@@ -80,15 +81,28 @@ async function deliver(
 	const backend = new ReferenceBackendAdapter({ rng });
 	backend.registerAssessment(parsed.identifier, parsed);
 	const init = await backend.initSession({ assessmentId: parsed.identifier, candidateId: 'candidate' });
-	const submit = (itemIdentifier: string, RESPONSE = 'A', comment?: string) =>
+	const submit = (itemIdentifier: string, RESPONSE = 'A', comment?: string, itemSession?: SerializedItemSessionState) =>
 		backend.submitResponses({
 			sessionId: init.sessionId,
 			itemIdentifier,
 			responses: { RESPONSE },
 			submittedAt: Date.now(),
 			comment,
+			...(itemSession ? { itemSession } : {}),
 		});
 	return { parsed, backend, init, submit };
+}
+
+/** The candidate's item session after one attempt, as the player sends it to a backend scoring from it. */
+function attemptedSession(version: Version, itemXml: string, RESPONSE: string): SerializedItemSessionState {
+	const session = createAssessmentItemDefinition({ itemXml: VERSIONS[version](itemXml) }).openSession({
+		responses: { RESPONSE },
+	});
+	try {
+		return session.dispatch({ action: 'endAttempt' }).result!.sessionState;
+	} finally {
+		session.dispose();
+	}
 }
 
 async function player(
@@ -157,8 +171,16 @@ describe.each(Object.keys(VERSIONS) as Version[])('%s item session control', (ve
 
 		expect((await delivery.submit('i1')).success).toBe(true);
 		expect(await delivery.submit('i1')).toMatchObject({ success: false, error: 'Maximum attempts reached' });
+		// An adaptive item is scored from the candidate's item session (its outcomes
+		// accumulate across attempts): the reference backend refuses one without it.
+		expect(await delivery.submit('adaptive', 'B')).toMatchObject({
+			success: false,
+			error: expect.stringContaining('itemSessionRequired'),
+		});
+		const adaptiveXml = choiceItem('adaptive', { adaptive: true });
 		for (let attempt = 0; attempt < 3; attempt++) {
-			expect((await delivery.submit('adaptive', 'B')).success).toBe(true);
+			const itemSession = attemptedSession(version, adaptiveXml, 'B');
+			expect((await delivery.submit('adaptive', 'B', undefined, itemSession)).success).toBe(true);
 		}
 	});
 

@@ -39,6 +39,17 @@ export type AssessmentPlayerErrorCode =
 	 * hold responses that do not satisfy their interactions (`params.items`).
 	 */
 	| 'finalizeResponseInvalid'
+	/**
+	 * Leaving an individual test part was refused (a left part cannot be re-entered):
+	 * questions in the part that do not allow skipping still have no response
+	 * (`params.items` lists their numbers).
+	 */
+	| 'leavePartResponseRequired'
+	/**
+	 * Leaving an individual test part was refused: questions in the part that validate
+	 * responses hold responses that do not satisfy their interactions (`params.items`).
+	 */
+	| 'leavePartResponseInvalid'
 	/** Ending the attempt failed response validation. */
 	| 'attemptValidationFailed'
 	/** The item's maxAttempts are used up; no further attempt can be submitted. */
@@ -95,6 +106,21 @@ export class AssessmentPlayerError extends Error {
 
 export function isAssessmentPlayerError(error: unknown): error is AssessmentPlayerError {
 	return error instanceof AssessmentPlayerError;
+}
+
+/**
+ * The coded refusals that name questions still needing an answer (or a complete one):
+ * the end of the test, or leaving an individual test part. They are warnings the
+ * candidate resolves by answering, never failures to retry.
+ */
+export function isSubmissionBlockedError(error: unknown): error is AssessmentPlayerError {
+	return (
+		isAssessmentPlayerError(error) &&
+		(error.code === 'finalizeResponseRequired' ||
+			error.code === 'finalizeResponseInvalid' ||
+			error.code === 'leavePartResponseRequired' ||
+			error.code === 'leavePartResponseInvalid')
+	);
 }
 
 /** Deterministic short support code for an arbitrary (non-coded) error message. */

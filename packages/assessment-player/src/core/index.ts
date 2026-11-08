@@ -1,5 +1,6 @@
 export { AssessmentPlayer } from './AssessmentPlayer.js';
 export type {
+	AssessmentEndReason,
 	AssessmentFinalizedEvent,
 	AssessmentStartInfo,
 	AssessmentTimeExpiryEvent,
@@ -14,6 +15,7 @@ export {
 	AssessmentPlayerError,
 	assessmentErrorDisplay,
 	isAssessmentPlayerError,
+	isSubmissionBlockedError,
 	shortSupportCode,
 	type AssessmentErrorDisplay,
 	type AssessmentPlayerErrorCode,
@@ -28,11 +30,13 @@ export { ItemSessionController } from './ItemSessionController.js';
 export type { NavigationMode } from './NavigationManager.js';
 export { NavigationManager } from './NavigationManager.js';
 export {
+	interactionRequirementFromXml,
 	interactionResponseIdentifiers,
 	isAnsweredValue,
 	itemAnswerStatus,
 	itemTitleFromXml,
 	type ForwardTransitionInfo,
+	type InteractionRequirement,
 	type ItemAnswerStatus,
 	type ReviewItemView,
 } from './reviewState.js';
