@@ -622,6 +622,22 @@ export default {
 			maxReached: 'تم الوصول إلى الحد الأقصى للمحاولات',
 			required: 'يجب الإجابة قبل المتابعة',
 			reviewNotAllowed: 'غير مسموح بعد الإرسال',
+			attemptOf: 'المحاولة {current} من {total}',
+			current: 'المحاولة {current}',
+		},
+
+		// Practice delivery: the item-level check control (stays on the item, shows feedback).
+		checkAnswer: {
+			button: 'تحقق من الإجابة',
+			submittedAnnouncement: 'تم تسليم إجابتك.',
+			attemptsUsedUp: 'لقد استخدمت جميع محاولاتك لهذا السؤال.',
+		},
+
+		// QTI allowComment: the candidate comment disclosure.
+		comments: {
+			heading: 'تعليقات لفريق الاختبار',
+			label: 'تعليقاتك',
+			placeholder: 'اكتب تعليقًا لفريق الاختبار (اختياري).',
 		},
 
 		navigation: {
@@ -773,6 +789,15 @@ export default {
 			exit: 'خروج',
 		},
 
+		// The shell completion screen after finalization (+ the opt-in results summary).
+		complete: {
+			finished: 'لقد أنهيت الاختبار.',
+			timeExpired: 'انتهى الوقت. انتهى الاختبار وتم تسليم إجاباتك.',
+			resultsHeading: 'ملخص النتائج',
+			totalScore: 'الدرجة الكلية: {score} من {maxScore}',
+			itemName: 'السؤال {number}',
+		},
+
 		errors: {
 			navigationFailed: 'فشل التنقل. يرجى المحاولة مرة أخرى.',
 			submitFailed: 'فشل إرسال التقييم. يرجى المحاولة مرة أخرى.',
@@ -792,6 +817,7 @@ export default {
 				responseRequired: 'يجب الإجابة على هذا السؤال قبل المتابعة.',
 				responseInvalid: 'يرجى تقديم إجابة صالحة قبل المتابعة.',
 				attemptValidationFailed: 'يرجى التحقق من إجابتك. الإجابة الصالحة مطلوبة.',
+				maxAttemptsReached: 'لقد استخدمت جميع محاولاتك لهذا السؤال.',
 				itemSessionLocked: 'هذا السؤال مغلق ولا يمكن تغييره بعد الآن.',
 				commentsNotAllowed: 'التعليقات غير مسموح بها في هذا السؤال.',
 				submitFailed: 'تعذر إرسال إجاباتك. إجاباتك لا تزال محفوظة هنا. يرجى المحاولة مرة أخرى.',

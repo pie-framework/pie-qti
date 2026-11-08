@@ -572,6 +572,22 @@ export default {
 			maxReached: 'Max attempts reached',
 			required: 'Must answer before continuing',
 			reviewNotAllowed: 'Not allowed once submitted',
+			attemptOf: 'Attempt {current} of {total}',
+			current: 'Attempt {current}',
+		},
+
+		// Practice delivery: the item-level check control (stays on the item, shows feedback).
+		checkAnswer: {
+			button: 'Check answer',
+			submittedAnnouncement: 'Your answer was submitted.',
+			attemptsUsedUp: 'You have used all your attempts for this question.',
+		},
+
+		// QTI allowComment: the candidate comment disclosure.
+		comments: {
+			heading: 'Comments for the test team',
+			label: 'Your comments',
+			placeholder: 'Write a comment for the test team (optional).',
 		},
 
 		navigation: {
@@ -724,6 +740,15 @@ export default {
 			exit: 'Exit',
 		},
 
+		// The shell completion screen after finalization (+ the opt-in results summary).
+		complete: {
+			finished: 'You have finished the test.',
+			timeExpired: 'Time is up. The test is finished and your answers have been submitted.',
+			resultsHeading: 'Results summary',
+			totalScore: 'Total score: {score} out of {maxScore}',
+			itemName: 'Question {number}',
+		},
+
 		errors: {
 			navigationFailed: 'Navigation failed. Please try again.',
 			submitFailed: 'Failed to submit assessment. Please try again.',
@@ -743,6 +768,7 @@ export default {
 				responseRequired: 'You must answer this question before continuing.',
 				responseInvalid: 'Please provide a valid answer before continuing.',
 				attemptValidationFailed: 'Please check your answer. A valid response is required.',
+				maxAttemptsReached: 'You have used all your attempts for this question.',
 				itemSessionLocked: 'This question is closed and can no longer be changed.',
 				commentsNotAllowed: 'Comments are not allowed for this question.',
 				submitFailed: 'Your answers could not be submitted. Your answers are still here. Please try again.',

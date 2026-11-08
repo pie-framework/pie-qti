@@ -562,6 +562,22 @@ export default {
 			maxReached: 'Nombre maximum de tentatives atteint',
 			required: 'Doit répondre avant de continuer',
 			reviewNotAllowed: 'Non autorisé une fois soumis',
+			attemptOf: 'Tentative {current} sur {total}',
+			current: 'Tentative {current}',
+		},
+
+		// Practice delivery: the item-level check control (stays on the item, shows feedback).
+		checkAnswer: {
+			button: 'Vérifier la réponse',
+			submittedAnnouncement: 'Votre réponse a été envoyée.',
+			attemptsUsedUp: 'Vous avez utilisé toutes vos tentatives pour cette question.',
+		},
+
+		// QTI allowComment: the candidate comment disclosure.
+		comments: {
+			heading: 'Commentaires pour l\'équipe du test',
+			label: 'Vos commentaires',
+			placeholder: 'Écrivez un commentaire pour l\'équipe du test (facultatif).',
 		},
 
 		navigation: {
@@ -714,6 +730,15 @@ export default {
 			exit: 'Quitter',
 		},
 
+		// The shell completion screen after finalization (+ the opt-in results summary).
+		complete: {
+			finished: 'Vous avez terminé le test.',
+			timeExpired: 'Le temps est écoulé. Le test est terminé et vos réponses ont été envoyées.',
+			resultsHeading: 'Récapitulatif des résultats',
+			totalScore: 'Score total : {score} sur {maxScore}',
+			itemName: 'Question {number}',
+		},
+
 		errors: {
 			navigationFailed: 'Échec de la navigation. Veuillez réessayer.',
 			submitFailed: 'Échec de la soumission de l\'évaluation. Veuillez réessayer.',
@@ -733,6 +758,7 @@ export default {
 				responseRequired: 'Vous devez répondre à cette question avant de continuer.',
 				responseInvalid: 'Veuillez fournir une réponse valide avant de continuer.',
 				attemptValidationFailed: 'Veuillez vérifier votre réponse. Une réponse valide est requise.',
+				maxAttemptsReached: 'Vous avez utilisé toutes vos tentatives pour cette question.',
 				itemSessionLocked: 'Cette question est close et ne peut plus être modifiée.',
 				commentsNotAllowed: 'Les commentaires ne sont pas autorisés pour cette question.',
 				submitFailed: 'Vos réponses n\'ont pas pu être envoyées. Vos réponses sont toujours là. Veuillez réessayer.',

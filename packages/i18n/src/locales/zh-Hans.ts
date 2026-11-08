@@ -570,6 +570,22 @@ export default {
 			maxReached: '已达到最大尝试次数',
 			required: '必须在继续之前回答',
 			reviewNotAllowed: '提交后不允许',
+			attemptOf: '第 {current} 次尝试(共 {total} 次)',
+			current: '第 {current} 次尝试',
+		},
+
+		// Practice delivery: the item-level check control (stays on the item, shows feedback).
+		checkAnswer: {
+			button: '检查答案',
+			submittedAnnouncement: '你的答案已提交。',
+			attemptsUsedUp: '你已用完本题的所有尝试次数。',
+		},
+
+		// QTI allowComment: the candidate comment disclosure.
+		comments: {
+			heading: '给测试团队的评论',
+			label: '你的评论',
+			placeholder: '给测试团队写一条评论(可选)。',
 		},
 
 		navigation: {
@@ -721,6 +737,15 @@ export default {
 			exit: '退出',
 		},
 
+		// The shell completion screen after finalization (+ the opt-in results summary).
+		complete: {
+			finished: '你已完成测试。',
+			timeExpired: '时间到。测试已结束，你的答案已提交。',
+			resultsHeading: '结果摘要',
+			totalScore: '总分:{score} / {maxScore}',
+			itemName: '第 {number} 题',
+		},
+
 		errors: {
 			navigationFailed: '导航失败。请重试。',
 			submitFailed: '提交评估失败。请重试。',
@@ -740,6 +765,7 @@ export default {
 				responseRequired: '继续之前必须回答本题。',
 				responseInvalid: '继续之前请提供有效的答案。',
 				attemptValidationFailed: '请检查你的答案。必须提供有效作答。',
+				maxAttemptsReached: '你已用完本题的所有尝试次数。',
 				itemSessionLocked: '本题已关闭，无法再修改。',
 				commentsNotAllowed: '本题不允许填写评论。',
 				submitFailed: '无法提交你的答案。你的答案仍然保留在这里，请重试。',
