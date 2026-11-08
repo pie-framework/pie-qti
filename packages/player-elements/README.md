@@ -206,7 +206,8 @@ assessment.addEventListener('session-finalized', (event) => {}); // { restored, 
 
 - A candidate's `submit()` is refused while paused; `submit({ force: true })` is the administrative
   end of the test: it ignores minimum times and the QTI `allowSkipping` / `validateResponses`
-  controls, and each collected submission carries `timing.submissionReason: 'proctor'`. It never
+  controls, and each collected submission carries `timing.submissionReason: 'proctor'` — except
+  questions an expired time limit closed, which keep `time-expired` (time wins). It never
   fails because the candidate is mid-action: it waits for the navigation or submission in flight
   and then ends the test. Behind the begin gate it ends the test too (the completion screen
   replaces the start screen).
@@ -214,7 +215,10 @@ assessment.addEventListener('session-finalized', (event) => {}); // { restored, 
   whole-test time expiry — fires `complete`, `session-finalized` (`restored: false`) and `submit`
   (`{ results }`) once. `session-finalized` and `results.endReason` say which: `candidate`,
   `expiry`, `proctor` or `branch`; a proctor's ending shows "Your test was submitted by your
-  proctor." and announces it.
+  proctor." and announces it. An ending that collects a delivery the time already closed (the
+  whole test expired, or a scope expiry left nothing open) is `expiry` whoever submits it — the
+  automatic submission, the candidate after it failed, or a proctor — and shows the time-expired
+  heading.
 - A session restored paused fires `player-pause` once at mount; a session restored already
   finalized fires `session-finalized` with `restored: true` (and no `endReason`, nor `submit`).
 - While paused, the player closes every dialog it contains and dispatches

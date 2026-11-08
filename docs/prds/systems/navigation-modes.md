@@ -144,8 +144,9 @@ first test part. New code must treat `SecureTestPart.navigationMode` and
   in a nonlinear part the candidate may jump away from an unanswered item, and the gate applies when
   the item would be submitted. Leaving the part is gated too — a left part cannot be re-entered, so
   Next, a jump into the next part, or a branch decision leaving it is refused while a question of
-  the part still owes an answer (`leavePartResponseRequired`). A question that is no longer
-  reachable never holds the end of the test; it is collected as it stands
+  the part the candidate can still reach owes an answer (`leavePartResponseRequired`). A question
+  that is no longer reachable holds neither the way out of the part nor the end of the test; it is
+  collected as it stands
   (`submissionReason: 'unreachable'`). Simultaneous parts are not gated (QTI scopes
   `allowSkipping` and `validateResponses` to individual submission).
 - **FR-7a:** `allowReview=false` applies only once an item's session is over (after its last

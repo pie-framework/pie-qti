@@ -1038,6 +1038,21 @@ Test signal
 
 ---
 
+## Delivery backlog (round 5)
+
+Known, accepted delivery limits from the round-5 delivery review (2026-11). Each is open work, not
+a defect in the behaviour shipped today.
+
+- Nested `xml:lang` on inner elements of feedback, instruction and rubric content keeps only its block-level language where content renders as given (the shell's item-feedback dialog for backend `result.feedback`, host-supplied `html`); the conversion is `prepareReadableBlock` — `packages/section-player/src/tts/spoken-catalogs.ts`, `packages/assessment-player/src/components/AssessmentShell.svelte`.
+- A `newTemplate` rerun starts from declaration defaults as an earlier `setDefaultValue` changed them, not from the authored defaults — `packages/item-player/src/core/Player.ts` (`newTemplate`).
+- `patternMask` is not part of the `validateResponses` check (it constrains input only) — `packages/item-player/src/core/Player.ts` (`validateResponses`).
+- No per-scope countdowns: the timer shows only the nearest active limit — `packages/assessment-player/src/components/AssessmentTimer.svelte`, `getTimeState()` in `packages/assessment-player/src/core/AssessmentPlayer.ts`.
+- No mid-session time extension: PNP extended time is fixed when the player is created — `packages/assessment-player/src/core/TimeManager.ts`.
+- PNP `line-reader` is parsed into the profile's tool supports, but no built-in line reader renders it — `packages/item-player/src/pnp/parsePnpXml.ts`.
+- The section tool bar hosts only the tools the host configures; there is no built-in calculator, ruler, protractor or TTS of pie-qti's own — `packages/section-player/src/components/QtiToolButtonBar.svelte`.
+
+---
+
 ## Reference: gap–file index
 
 Quick lookup of which source files are touched by each gap item.

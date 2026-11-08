@@ -80,9 +80,11 @@ export interface ItemResult {
 }
 
 /**
- * Why the test ended: the candidate's submit, a whole-test time expiry, a proctor's
- * forced submit, or a QTI branch rule (`EXIT_TEST`, or an `EXIT_TESTPART`/`EXIT_SECTION`
- * with nothing following).
+ * Why the test ended: the candidate's submit, a time expiry, a proctor's forced submit,
+ * or a QTI branch rule (`EXIT_TEST`, or an `EXIT_TESTPART`/`EXIT_SECTION` with nothing
+ * following). An end that collects a delivery the time already closed — the whole test
+ * expired, or a scope expiry left nothing open — is `expiry` whoever triggers it (the
+ * automatic submission, the candidate's Submit after it failed, a proctor's force-submit).
  */
 export type AssessmentEndReason = 'candidate' | 'expiry' | 'proctor' | 'branch';
 

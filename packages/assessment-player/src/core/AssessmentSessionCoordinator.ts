@@ -158,7 +158,12 @@ export class AssessmentSessionCoordinator {
 		itemResponses: AssessmentSessionState['itemResponses'],
 		itemSessions: AssessmentSessionState['itemSessions']
 	): void {
+		// Where the candidate stands is the client's: delivery moves through navigation (a
+		// branch decision is `nextItemIdentifier`), never through a backend state update,
+		// whose position may be stale — or already overtaken by a scope expiry's move.
+		const currentItemIdentifier = this.#state.currentItemIdentifier;
 		this.restoreState(updatedState);
+		this.#state.currentItemIdentifier = currentItemIdentifier;
 		// Own the accepted snapshots rather than retaining the submit loop's mutable
 		// working maps. Later provisional items must not appear committed until their
 		// backend request succeeds.
