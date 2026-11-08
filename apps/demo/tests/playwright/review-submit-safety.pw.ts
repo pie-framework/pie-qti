@@ -181,3 +181,46 @@ test('leaving a linear test part warns that you cannot return', async ({ page })
 	await expect(dialog).toBeHidden();
 	await expect(page.locator('.progress-question')).toHaveText('Question 2 of 2');
 });
+
+test('questions that may not be skipped are named in the confirmation, and Submit waits for them @cross-browser', async ({ page }) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.goto('fixtures/assessment-review?layout=required');
+	await expect(page.locator('.assessment-shell')).toBeVisible({ timeout: 15000 });
+
+	// Leave question 1 unanswered (a nonlinear jump is navigation, not submission),
+	// answer question 2, then try to submit.
+	await page.getByRole('button', { name: 'Review questions' }).click();
+	await page.getByRole('button', { name: 'Go to question 2' }).click();
+	await expect(page.locator('.progress-question')).toHaveText('Question 2 of 2');
+	await page.getByRole('radio', { name: 'Beta', exact: true }).check();
+	await page.getByTestId('assessment-submit').click();
+
+	const dialog = page.getByRole('dialog', { name: 'Submit your test?' });
+	await expect(dialog).toBeVisible();
+	await expect(dialog.getByTestId('submit-dialog-needs-answer')).toHaveText(
+		'1 question needs an answer before you can submit',
+	);
+	const confirm = dialog.getByTestId('assessment-dialog-confirm');
+	await expect(confirm).toHaveAttribute('aria-disabled', 'true');
+	await expect(confirm).toHaveAccessibleDescription('1 question needs an answer before you can submit');
+	await scan(page, 'dialog[open]');
+
+	// Submit is held: it stays focusable (aria-disabled), and activating it finalizes nothing.
+	await confirm.focus();
+	await page.keyboard.press('Enter');
+	await expect(dialog).toBeVisible();
+	await expect(page.getByRole('status').filter({ hasText: 'Assessment completed' })).toHaveCount(0);
+
+	// The named question is one jump away; answered, the test submits.
+	await dialog.getByTestId('submit-dialog-needs-answer-jump-1').click();
+	await expect(dialog).toBeHidden();
+	await expect(page.locator('.progress-question')).toHaveText('Question 1 of 2');
+	await page.getByRole('radio', { name: 'Alpha', exact: true }).check();
+	await page.getByRole('button', { name: 'Review questions' }).click();
+	await page.getByRole('button', { name: 'Go to question 2' }).click();
+	await page.getByTestId('assessment-submit').click();
+	await expect(dialog).toBeVisible();
+	await expect(dialog.getByTestId('submit-dialog-needs-answer')).toHaveCount(0);
+	await dialog.getByRole('button', { name: 'Submit test' }).click();
+	await expect(page.getByRole('status').filter({ hasText: 'Assessment completed' })).toBeVisible();
+});

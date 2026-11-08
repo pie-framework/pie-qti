@@ -7,7 +7,9 @@
 	/**
 	 * Fixture for the submit-safety, review-screen and flag flows.
 	 * `?layout=linear-parts` delivers a linear part followed by a nonlinear part
-	 * (for the "you cannot return" warning); the default is one nonlinear section.
+	 * (for the "you cannot return" warning); `?layout=required` delivers a nonlinear
+	 * individual part whose itemSessionControl forbids skipping (the submit confirmation
+	 * names the questions that still need an answer); the default is one nonlinear section.
 	 */
 
 	const NS = 'xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"';
@@ -78,6 +80,31 @@
 							title: 'Part Two',
 							visible: true,
 							assessmentItemRefs: [{ identifier: 'q2', role: 'candidate', itemXml: choiceItem('q2', 'Final question') }],
+						},
+					],
+				},
+			],
+		},
+		required: {
+			identifier: 'required-answers',
+			title: 'Required answers check',
+			navigationMode: 'nonlinear',
+			submissionMode: 'individual',
+			testParts: [
+				{
+					identifier: 'part-1',
+					navigationMode: 'nonlinear',
+					submissionMode: 'individual',
+					itemSessionControl: { allowSkipping: false },
+					sections: [
+						{
+							identifier: 'section-1',
+							title: 'Required',
+							visible: true,
+							assessmentItemRefs: [
+								{ identifier: 'q1', role: 'candidate', itemXml: choiceItem('q1', 'Question one') },
+								{ identifier: 'q2', role: 'candidate', itemXml: choiceItem('q2', 'Question two') },
+							],
 						},
 					],
 				},
