@@ -1,0 +1,59 @@
+{
+  "id": "responseProcessing_null_conditions",
+  "cases": [
+    {
+      "name": "unanswered: NULL conditions are not true, so the else branches run",
+      "responses": {},
+      "expect": {
+        "score": 0,
+        "outcomes": {
+          "FEEDBACK": "unanswered",
+          "PICKS_FEEDBACK": "unanswered",
+          "AND_FALSE_WINS": "taken",
+          "OR_TRUE_WINS": "taken",
+          "NOT_OR_UNKNOWN": "skipped"
+        }
+      }
+    },
+    {
+      "name": "a cleared multiple selection is an empty container, which is NULL",
+      "responses": { "PICKS": [] },
+      "expect": {
+        "score": 0,
+        "outcomes": {
+          "FEEDBACK": "unanswered",
+          "PICKS_FEEDBACK": "unanswered",
+          "NOT_OR_UNKNOWN": "skipped"
+        }
+      }
+    },
+    {
+      "name": "wrong answers",
+      "responses": { "RESPONSE": "B", "PICKS": ["B", "C"] },
+      "expect": {
+        "score": 0,
+        "outcomes": {
+          "FEEDBACK": "wrong",
+          "PICKS_FEEDBACK": "missing_a",
+          "AND_FALSE_WINS": "taken",
+          "OR_TRUE_WINS": "taken",
+          "NOT_OR_UNKNOWN": "skipped"
+        }
+      }
+    },
+    {
+      "name": "right answers",
+      "responses": { "RESPONSE": "A", "PICKS": ["A", "B"] },
+      "expect": {
+        "score": 1,
+        "outcomes": {
+          "FEEDBACK": "right",
+          "PICKS_FEEDBACK": "has_a",
+          "AND_FALSE_WINS": "taken",
+          "OR_TRUE_WINS": "taken",
+          "NOT_OR_UNKNOWN": "taken"
+        }
+      }
+    }
+  ]
+}

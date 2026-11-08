@@ -1,0 +1,17 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "contains(container1, container2) with a container second operand: multiset containment for multiple (QTI: [A,B,C] contains [C,A] but not [B,B]), contiguous sub-sequence for ordered ([A,B,C] contains [B,C] but not [C,A]).",
+  "covers": [
+    "contains",
+    "expr.contains",
+    "expr.multiple",
+    "expr.ordered",
+    "multiple",
+    "ordered",
+    "responseCondition",
+    "setOutcomeValue",
+    "stmt.responseCondition",
+    "stmt.setOutcomeValue"
+  ]
+}

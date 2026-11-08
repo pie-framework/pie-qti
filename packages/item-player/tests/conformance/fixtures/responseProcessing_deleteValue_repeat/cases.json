@@ -22,8 +22,28 @@
 					"REPEAT_CONTAINER_SIZE": 4
 				}
 			}
+		},
+		{
+			"name": "deleteValue_all_removed_is_null",
+			"responses": { "RESPONSE": ["B", "B"] },
+			"expect": {
+				"outcomes": {
+					"CLEAN_SIZE": 0,
+					"REPEAT_SCALAR_SIZE": 3,
+					"REPEAT_CONTAINER_SIZE": 4
+				}
+			}
+		},
+		{
+			"name": "deleteValue_null_response_is_null",
+			"responses": {},
+			"expect": {
+				"outcomes": {
+					"CLEAN_SIZE": 0,
+					"REPEAT_SCALAR_SIZE": 3,
+					"REPEAT_CONTAINER_SIZE": 4
+				}
+			}
 		}
 	]
 }
-
-

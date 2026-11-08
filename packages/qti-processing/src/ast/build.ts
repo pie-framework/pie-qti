@@ -759,11 +759,13 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			return { kind: 'expr.multiple', id, values: kids.map((k) => buildExpression(k, options)) };
 		}
 		case 'delete': {
+			// QTI: "The first sub-expression must have single cardinality and the second must be a
+			// multiple or ordered container": delete(A, {B,A,C,A}) is {B,C}.
 			return {
 				kind: 'expr.delete',
 				id,
-				container: buildExpression(kids[0]!, options),
-				value: buildExpression(kids[1]!, options),
+				value: buildExpression(kids[0]!, options),
+				container: buildExpression(kids[1]!, options),
 			};
 		}
 		case 'repeat': {

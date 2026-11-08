@@ -15,7 +15,8 @@
 					"DUR_NULL": null,
 					"STATS_MEAN": 2.5,
 					"STATS_SAMPLE_SD": 1.2909944487358056,
-					"STATS_NULL_ON_NULL_MEMBER": null,
+					"STATS_IGNORES_NULL_MEMBER": 1,
+					"STATS_NULL_ON_ALL_NULL": null,
 					"STATS_NULL_ON_NON_NUMERIC": null
 				}
 			}

@@ -982,9 +982,43 @@ For custom scoring logic, use `responseCondition` with expressions:
 | Comparison | `match`, `equal`, `lt`, `gt`, `lte`, `gte` |
 | Logic | `and`, `or`, `not` |
 | Arithmetic | `sum`, `product`, `divide`, `subtract` |
-| Container | `contains`, `member`, `containerSize` |
+| Container | `contains`, `member`, `containerSize`, `delete`, `multiple`, `ordered` |
 | String | `stringMatch`, `patternMatch`, `substring` |
 | Null handling | `isNull`, `null` |
+
+### NULL Operands
+
+A variable with no value is NULL, and QTI reads an empty container or an empty string as NULL as
+well (QTI ASI §5), so a multiple response the candidate cleared is as unanswered as one never
+touched. The operators carry NULL through (§15.3):
+
+- `match`, `equal`, `member`, `contains`, `stringMatch`, `patternMatch`, `lt`, `lte`, `gt`, `gte`
+  and `not` result in NULL when an operand is NULL. `delete` results in NULL as well.
+- `and` is false when any operand is false and otherwise NULL when any operand is NULL; `or` is true
+  when any operand is true and otherwise NULL when any operand is NULL.
+- A NULL condition is not true: `responseIf`, `responseElseIf` and their outcome and template
+  counterparts pass to the next branch, and a NULL `templateConstraint` restarts template
+  processing.
+
+So `not(match(RESPONSE, correct))` is NULL for an unanswered response, not true: a rule that reads
+it as "the answer is wrong" does not apply. Branch on `isNull` to handle an unanswered response
+explicitly.
+
+`multiple` and `ordered` ignore NULL sub-expressions and are NULL when every sub-expression is NULL.
+`round` and `truncate` result in an integer (`round(6.5)` is 7, `round(-6.5)` is -6,
+`truncate(-6.8)` is -6), so `match(round(SCORE_FLOAT), 3)` compares integers; `roundTo` results in a
+float.
+
+### Container Operators
+
+- `contains(container1, container2)` is true when the first container contains the second. Multiple
+  containers compare without regard to order, counting repeated values: `[A,B,C]` contains `[C,A]`
+  but not `[B,B]`, which `[A,B,B,C]` does. For ordered containers the second must be a contiguous
+  sub-sequence of the first: `[A,B,C]` contains `[B,C]` but not `[C,A]` or `[A,C]`.
+- `delete(value, container)` takes the value to remove first and the container second:
+  `delete(A, {B,A,C,A})` is `{B,C}`. A value that is not in the container leaves it unchanged;
+  removing every value leaves the empty container, which is NULL.
+- `member(value, container)` is true when the value is in the container.
 
 ---
 
@@ -1681,6 +1715,14 @@ QTI defines `matchGroup` as the identifiers of the choices, gaps or hotspots a c
 matched with. Content, and this project's default renderers, also use the tokens as shared group
 labels. Response validation refuses a pairing only when neither reading allows it, so it never
 rejects a response the delivered interface lets a candidate build.
+
+### A single value as a container in `contains` and `delete`
+
+QTI defines `contains` on two containers of the same cardinality and `delete` on a single value and
+a container. The engine also reads a single value where a container is expected as a container of
+that one value: `contains(RESPONSE, A)`, which content writes for "A is among the choices", is true
+when `member(A, RESPONSE)` is. A container as the first operand of `delete` removes each of its
+values. Two containers of different cardinality are an error in `contains`.
 
 ### Compliance checks without an XSD engine
 

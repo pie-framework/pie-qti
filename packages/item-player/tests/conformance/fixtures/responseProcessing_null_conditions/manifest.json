@@ -1,0 +1,25 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "NULL operands in response conditions (QTI ASI expressions): match, member and not result in NULL for a NULL operand, an empty container is NULL, and/or follow three-valued logic, and a NULL condition is not true, so responseIf/responseElseIf pass to the next branch.",
+  "covers": [
+    "and",
+    "correct",
+    "expr.and",
+    "expr.correct",
+    "expr.isNull",
+    "expr.match",
+    "expr.member",
+    "expr.not",
+    "expr.or",
+    "isNull",
+    "match",
+    "member",
+    "not",
+    "or",
+    "responseCondition",
+    "setOutcomeValue",
+    "stmt.responseCondition",
+    "stmt.setOutcomeValue"
+  ]
+}

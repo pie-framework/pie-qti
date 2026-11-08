@@ -156,6 +156,23 @@ function mapMappedValue(
 }
 
 /**
+ * Whether QTI reads a value as NULL (ASI §5): no value at all, and also, as "empty containers and
+ * empty strings are always treated as NULL values", an empty container or string. A response the
+ * candidate cleared arrives as an empty container and reads as unanswered, like one never touched.
+ */
+function isNullValue(v: QtiValue): boolean {
+	if (v.kind === 'null') return true;
+	if (v.kind !== 'value') return false;
+	const raw = v.value;
+	return raw === null || raw === undefined || raw === '' || (Array.isArray(raw) && raw.length === 0);
+}
+
+/** The values of a multiple or ordered container; a single value reads as a container of that one value. */
+function containerValues(v: Extract<QtiValue, { kind: 'value' }>): unknown[] {
+	return Array.isArray(v.value) ? v.value : [v.value];
+}
+
+/**
  * The numbers a `sum` or `product` operand contributes: one for a single value, each value of a
  * multiple or ordered container. NULL, including an empty container, gives null.
  */
@@ -494,23 +511,24 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			}
 		}
 		case 'expr.preCondition': {
-			// Treat as boolean-context wrapper. (Our boolean operators already treat NULL/invalid as false.)
+			// A boolean-context wrapper: a NULL or invalid condition is not true.
 			const v = evalExpr(env, expr.expr);
 			return qtiValue('boolean', 'single', toBoolean(v));
 		}
 		case 'expr.isNull': {
 			const v = evalExpr(env, expr.expr);
-			return qtiValue('boolean', 'single', v.kind === 'null');
+			return qtiValue('boolean', 'single', isNullValue(v));
 		}
 		case 'expr.isNotNull': {
 			const v = evalExpr(env, expr.expr);
-			return qtiValue('boolean', 'single', v.kind !== 'null');
+			return qtiValue('boolean', 'single', !isNullValue(v));
 		}
 		case 'expr.match': {
+			// QTI: "If either sub-expression is NULL then the operator results in NULL."
 			const a = evalExpr(env, expr.a);
 			const b = evalExpr(env, expr.b);
 			if (a.kind === 'invalid' || b.kind === 'invalid') return qtiInvalid('match invalid');
-			if (a.kind === 'null' || b.kind === 'null') return qtiValue('boolean', 'single', false);
+			if (isNullValue(a) || isNullValue(b)) return qtiNull('boolean', 'single');
 
 			if (a.kind === 'value' && b.kind === 'value') {
 				return qtiValue('boolean', 'single', qtiValuesMatch(a, b));
@@ -522,7 +540,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const b = evalExpr(env, expr.b);
 			if (a.kind === 'invalid' || b.kind === 'invalid') return qtiInvalid('equal invalid');
 			// Spec-aligned null propagation: boolean comparisons yield NULL if any operand is NULL.
-			if (a.kind === 'null' || b.kind === 'null') return qtiNull('boolean', 'single');
+			if (isNullValue(a) || isNullValue(b)) return qtiNull('boolean', 'single');
 
 			if (a.kind === 'value' && b.kind === 'value') {
 				// QTI tolerance support (numeric only, single cardinality)
@@ -606,7 +624,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const b = evalExpr(env, expr.b);
 			if (a.kind === 'invalid' || b.kind === 'invalid') return qtiInvalid('equalRounded invalid');
 			// Spec-aligned null propagation.
-			if (a.kind === 'null' || b.kind === 'null') return qtiNull('boolean', 'single');
+			if (isNullValue(a) || isNullValue(b)) return qtiNull('boolean', 'single');
 			if (a.kind !== 'value' || b.kind !== 'value') return qtiValue('boolean', 'single', false);
 			if (Array.isArray(a.value) || Array.isArray(b.value)) return qtiValue('boolean', 'single', false);
 
@@ -645,10 +663,11 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			return qtiValue('boolean', 'single', !toBoolean(eq));
 		}
 		case 'expr.member': {
+			// QTI: "If either sub-expression is NULL then the result of the operator is NULL."
 			const value = evalExpr(env, expr.value);
 			const container = evalExpr(env, expr.container);
 			if (value.kind === 'invalid' || container.kind === 'invalid') return qtiInvalid('member invalid');
-			if (value.kind === 'null' || container.kind === 'null') return qtiValue('boolean', 'single', false);
+			if (isNullValue(value) || isNullValue(container)) return qtiNull('boolean', 'single');
 			if (value.kind !== 'value' || container.kind !== 'value') return qtiValue('boolean', 'single', false);
 
 			const v = value.value;
@@ -658,16 +677,45 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			return qtiValue('boolean', 'single', c.some((x) => normalizeScalarForCompare(x, container.baseType) === needle));
 		}
 		case 'expr.contains': {
+			// QTI: true when the first container contains the second. Multiple containers compare as
+			// multisets — [A,B,C] contains [C,A] but not [B,B], which [A,B,B,C] does — and for ordered
+			// containers the second must be a strict (contiguous) sub-sequence of the first: [A,B,C]
+			// contains [B,C] but not [C,A] or [A,C]. NULL when either is NULL. A single value reads as
+			// a container of that one value, so `contains(RESPONSE, A)` asks whether A was chosen.
 			const container = evalExpr(env, expr.container);
 			const value = evalExpr(env, expr.value);
 			if (value.kind === 'invalid' || container.kind === 'invalid') return qtiInvalid('contains invalid');
-			if (value.kind === 'null' || container.kind === 'null') return qtiValue('boolean', 'single', false);
-			if (value.kind !== 'value' || container.kind !== 'value') return qtiValue('boolean', 'single', false);
+			if (isNullValue(value) || isNullValue(container)) return qtiNull('boolean', 'single');
+			if (value.kind !== 'value' || container.kind !== 'value') return qtiNull('boolean', 'single');
 
-			const c = container.value;
-			if (!Array.isArray(c)) return qtiValue('boolean', 'single', false);
-			const needle = normalizeScalarForCompare(value.value, container.baseType);
-			return qtiValue('boolean', 'single', c.some((x) => normalizeScalarForCompare(x, container.baseType) === needle));
+			const isContainer = (v: QtiValue): boolean => v.cardinality === 'multiple' || v.cardinality === 'ordered';
+			if (isContainer(container) && isContainer(value) && container.cardinality !== value.cardinality) {
+				return qtiInvalid('contains expects two containers of the same cardinality', 'boolean', 'single');
+			}
+			const ordered = container.cardinality === 'ordered' || value.cardinality === 'ordered';
+			const baseType = container.baseType ?? value.baseType;
+			const keys = (v: Extract<QtiValue, { kind: 'value' }>): string[] =>
+				containerValues(v).map((x) => normalizeScalarForCompare(x, baseType));
+			const haystack = keys(container);
+			const needle = keys(value);
+
+			if (!ordered) {
+				const available = new Map<string, number>();
+				for (const key of haystack) available.set(key, (available.get(key) ?? 0) + 1);
+				for (const key of needle) {
+					const count = available.get(key) ?? 0;
+					if (count === 0) return qtiValue('boolean', 'single', false);
+					available.set(key, count - 1);
+				}
+				return qtiValue('boolean', 'single', true);
+			}
+
+			for (let start = 0; start + needle.length <= haystack.length; start++) {
+				if (needle.every((key, offset) => haystack[start + offset] === key)) {
+					return qtiValue('boolean', 'single', true);
+				}
+			}
+			return qtiValue('boolean', 'single', false);
 		}
 		case 'expr.containerSize': {
 			const container = evalExpr(env, expr.container);
@@ -703,59 +751,44 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 		}
 		case 'expr.ordered':
 		case 'expr.multiple': {
+			// QTI: "All sub-expressions with NULL values are ignored. If no sub-expressions are given
+			// (or all are NULL) then the result is NULL." A container sub-expression adds its values.
 			const values = expr.values.map((v) => evalExpr(env, v));
 			if (values.some((v) => v.kind === 'invalid')) return qtiInvalid(`${expr.kind} invalid`);
-			const baseType = inferBaseType(values);
+			const cardinality: Cardinality = expr.kind === 'expr.ordered' ? 'ordered' : 'multiple';
 			const out: unknown[] = [];
 			for (const v of values) {
-				if (v.kind === 'null') {
-					out.push(null);
-					continue;
+				if (v.kind !== 'value' || isNullValue(v)) continue;
+				for (const item of containerValues(v)) {
+					if (item !== null && item !== undefined) out.push(item);
 				}
-				if (v.kind !== 'value') continue;
-				if (Array.isArray(v.value)) out.push(...v.value);
-				else out.push(v.value);
 			}
-			const cardinality: Cardinality = expr.kind === 'expr.ordered' ? 'ordered' : 'multiple';
-			return qtiValue(baseType, cardinality, out);
+			if (out.length === 0) return qtiNull(values.find((v) => v.baseType)?.baseType, cardinality);
+			return qtiValue(inferBaseType(values), cardinality, out);
 		}
 		case 'expr.delete': {
-			const container = evalExpr(env, expr.container);
+			// QTI: the first sub-expression is the single value to remove, the second the multiple or
+			// ordered container: delete(A, {B,A,C,A}) is {B,C}. NULL when either is NULL; removing every
+			// value leaves the empty container, which is NULL.
 			const value = evalExpr(env, expr.value);
+			const container = evalExpr(env, expr.container);
 			if (container.kind === 'invalid' || value.kind === 'invalid') return qtiInvalid('delete invalid');
 
-			const baseType: BaseType =
-				container.kind === 'value'
-					? (container.baseType ?? 'string')
-					: value.kind === 'value'
-						? (value.baseType ?? 'string')
-						: 'string';
+			const baseType: BaseType | undefined = container.baseType ?? value.baseType;
+			if (isNullValue(container) || isNullValue(value) || container.kind !== 'value' || value.kind !== 'value') {
+				return qtiNull(baseType, container.cardinality ?? 'multiple');
+			}
 
-			const needle =
-				value.kind === 'value'
-					? value.value
-					: value.kind === 'null'
-						? null
-						: null;
-
-			const needles = Array.isArray(needle) ? new Set(needle.map((n) => normalizeForCompare(n))) : null;
-			const needleKey = needles ? null : normalizeForCompare(needle);
-
-			const remove = (x: unknown): boolean => {
-				const k = normalizeForCompare(x);
-				if (needles) return needles.has(k);
-				return k === needleKey;
-			};
-
-			if (container.kind !== 'value') return qtiNull(baseType, 'single');
-			const outCard: Cardinality = container.cardinality;
+			const removed = new Set(containerValues(value).map((x) => normalizeScalarForCompare(x, baseType)));
+			const remove = (x: unknown): boolean => removed.has(normalizeScalarForCompare(x, baseType));
 
 			if (!Array.isArray(container.value)) {
-				// Single value: remove => NULL, else unchanged
+				// A single value: removing it leaves nothing, otherwise it is unchanged.
 				return remove(container.value) ? qtiNull(baseType, 'single') : qtiValue(baseType, 'single', container.value);
 			}
 
-			return qtiValue(baseType, outCard, container.value.filter((item) => !remove(item)));
+			const kept = container.value.filter((item) => !remove(item));
+			return kept.length === 0 ? qtiNull(baseType, container.cardinality) : qtiValue(baseType, container.cardinality, kept);
 		}
 		case 'expr.repeat': {
 			// Spec (Repeat.Type): numberRepeats attribute (xs:int or variable identifier)
@@ -820,7 +853,9 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const a = evalExpr(env, expr.a);
 			const b = evalExpr(env, expr.b);
 			if (a.kind === 'invalid' || b.kind === 'invalid') return qtiInvalid(`${name} invalid`, 'boolean', 'single');
-			if (a.kind === 'null' || b.kind === 'null') return qtiNull('boolean', 'single');
+			if (isNullValue(a) || isNullValue(b) || a.kind !== 'value' || b.kind !== 'value') {
+				return qtiNull('boolean', 'single');
+			}
 			if (a.baseType !== 'duration' || b.baseType !== 'duration') {
 				return qtiInvalid(`${name} expects duration operands`, 'boolean', 'single');
 			}
@@ -835,7 +870,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 		case 'expr.inside': {
 			const value = evalExpr(env, expr.value);
 			if (value.kind === 'invalid') return qtiInvalid('inside invalid');
-			if (value.kind === 'null') return qtiNull('boolean', 'single');
+			if (isNullValue(value)) return qtiNull('boolean', 'single');
 			if (value.kind !== 'value') return qtiInvalid('inside expects a value');
 			if (value.baseType !== 'point') return qtiInvalid('inside expects point baseType');
 
@@ -1058,7 +1093,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const a = evalExpr(env, expr.a);
 			const b = evalExpr(env, expr.b);
 			if (a.kind === 'invalid' || b.kind === 'invalid') return qtiInvalid('stringMatch invalid');
-			if (a.kind === 'null' || b.kind === 'null') return qtiValue('boolean', 'single', false);
+			if (isNullValue(a) || isNullValue(b)) return qtiNull('boolean', 'single');
 
 			const options = { language: env.language, ignoreCase: !expr.caseSensitive };
 			const left = normalizeResponse(toStringValue(a), options);
@@ -1071,7 +1106,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const value = evalExpr(env, expr.value);
 			const pattern = evalExpr(env, expr.pattern);
 			if (value.kind === 'invalid' || pattern.kind === 'invalid') return qtiInvalid('patternMatch invalid');
-			if (value.kind === 'null' || pattern.kind === 'null') return qtiValue('boolean', 'single', false);
+			if (isNullValue(value) || isNullValue(pattern)) return qtiNull('boolean', 'single');
 
 			const sv = toStringValue(value);
 			const sp = toStringValue(pattern);
@@ -1080,19 +1115,53 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			return qtiValue('boolean', 'single', re?.test(sv) ?? false);
 		}
 		case 'expr.lt':
-			return qtiValue('boolean', 'single', toNumber(evalExpr(env, expr.a)) < toNumber(evalExpr(env, expr.b)));
 		case 'expr.lte':
-			return qtiValue('boolean', 'single', toNumber(evalExpr(env, expr.a)) <= toNumber(evalExpr(env, expr.b)));
 		case 'expr.gt':
-			return qtiValue('boolean', 'single', toNumber(evalExpr(env, expr.a)) > toNumber(evalExpr(env, expr.b)));
-		case 'expr.gte':
-			return qtiValue('boolean', 'single', toNumber(evalExpr(env, expr.a)) >= toNumber(evalExpr(env, expr.b)));
-		case 'expr.and':
-			return qtiValue('boolean', 'single', expr.ops.every((o) => toBoolean(evalExpr(env, o))));
-		case 'expr.or':
-			return qtiValue('boolean', 'single', expr.ops.some((o) => toBoolean(evalExpr(env, o))));
-		case 'expr.not':
-			return qtiValue('boolean', 'single', !toBoolean(evalExpr(env, expr.expr)));
+		case 'expr.gte': {
+			// QTI: "If either sub-expression is NULL then the operator results in NULL."
+			const name = expr.kind.slice('expr.'.length);
+			const a = evalExpr(env, expr.a);
+			const b = evalExpr(env, expr.b);
+			if (a.kind === 'invalid' || b.kind === 'invalid') return qtiInvalid(`${name} invalid`, 'boolean', 'single');
+			if (isNullValue(a) || isNullValue(b)) return qtiNull('boolean', 'single');
+			const x = toNumber(a);
+			const y = toNumber(b);
+			if (Number.isNaN(x) || Number.isNaN(y)) return qtiInvalid(`${name} expects numeric operands`, 'boolean', 'single');
+			const result =
+				expr.kind === 'expr.lt' ? x < y : expr.kind === 'expr.lte' ? x <= y : expr.kind === 'expr.gt' ? x > y : x >= y;
+			return qtiValue('boolean', 'single', result);
+		}
+		case 'expr.and': {
+			// Three-valued: false if any sub-expression is false; otherwise NULL if any is NULL ("and
+			// all others are true"); true when all are true. An invalid one is not a truth value either.
+			let unknown: QtiValue | undefined;
+			for (const op of expr.ops) {
+				const v = evalExpr(env, op);
+				if (v.kind === 'invalid') unknown = qtiInvalid('and operand invalid', 'boolean', 'single');
+				else if (isNullValue(v)) unknown ??= qtiNull('boolean', 'single');
+				else if (!toBoolean(v)) return qtiValue('boolean', 'single', false);
+			}
+			return unknown ?? qtiValue('boolean', 'single', true);
+		}
+		case 'expr.or': {
+			// Three-valued: true if any sub-expression is true; otherwise NULL if any is NULL ("and all
+			// the others are false"); false when all are false.
+			let unknown: QtiValue | undefined;
+			for (const op of expr.ops) {
+				const v = evalExpr(env, op);
+				if (v.kind === 'invalid') unknown = qtiInvalid('or operand invalid', 'boolean', 'single');
+				else if (isNullValue(v)) unknown ??= qtiNull('boolean', 'single');
+				else if (toBoolean(v)) return qtiValue('boolean', 'single', true);
+			}
+			return unknown ?? qtiValue('boolean', 'single', false);
+		}
+		case 'expr.not': {
+			// QTI: "If the sub-expression is NULL then the not operator also results in NULL."
+			const v = evalExpr(env, expr.expr);
+			if (v.kind === 'invalid') return qtiInvalid('not operand invalid', 'boolean', 'single');
+			if (isNullValue(v)) return qtiNull('boolean', 'single');
+			return qtiValue('boolean', 'single', !toBoolean(v));
+		}
 		case 'expr.anyN': {
 			const trueCount = expr.ops.reduce((acc, o) => acc + (toBoolean(evalExpr(env, o)) ? 1 : 0), 0);
 			return qtiValue('boolean', 'single', trueCount >= expr.min && trueCount <= expr.max);
@@ -1184,21 +1253,19 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			}
 			return qtiValue(allInteger ? 'integer' : 'float', 'single', Math.min(...nums));
 		}
-		case 'expr.round': {
-			const v = evalExpr(env, expr.value);
-			if (v.kind === 'invalid') return qtiInvalid('round operand invalid', 'float', 'single');
-			if (v.kind === 'null') return qtiNull('float', 'single');
-			const n = toNumber(v);
-			if (!Number.isFinite(n)) return qtiInvalid('round operand is not a finite number', 'float', 'single');
-			return qtiValue('float', 'single', Math.round(n));
-		}
+		case 'expr.round':
 		case 'expr.truncate': {
+			// QTI: "The result is a value of base-type integer": round takes n for [n-0.5, n+0.5)
+			// (6.5 is 7, -6.5 is -6), truncate goes towards zero (-6.8 is -6). roundTo stays float.
+			const name = expr.kind === 'expr.round' ? 'round' : 'truncate';
 			const v = evalExpr(env, expr.value);
-			if (v.kind === 'invalid') return qtiInvalid('truncate operand invalid', 'float', 'single');
-			if (v.kind === 'null') return qtiNull('float', 'single');
+			if (v.kind === 'invalid') return qtiInvalid(`${name} operand invalid`, 'integer', 'single');
+			if (isNullValue(v)) return qtiNull('integer', 'single');
 			const n = toNumber(v);
-			if (!Number.isFinite(n)) return qtiInvalid('truncate operand is not a finite number', 'float', 'single');
-			return qtiValue('float', 'single', Math.trunc(n));
+			if (!Number.isFinite(n)) return qtiInvalid(`${name} operand is not a finite number`, 'integer', 'single');
+			const result = expr.kind === 'expr.round' ? Math.round(n) : Math.trunc(n);
+			// No negative zero: -0.4 rounds to the integer 0.
+			return qtiValue('integer', 'single', result === 0 ? 0 : result);
 		}
 		case 'expr.mapOutcome': {
 			const decl = env.ctx.getDeclaration(expr.identifier);

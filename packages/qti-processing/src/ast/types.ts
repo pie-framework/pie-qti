@@ -344,6 +344,7 @@ export type MemberExpr = {
 	container: ExpressionNode;
 };
 
+/** QTI contains: whether the first container (`container`) contains the second (`value`). */
 export type ContainsExpr = {
 	kind: 'expr.contains';
 	id: AstNodeId;
@@ -383,6 +384,10 @@ export type RepeatExpr = {
 	values: ExpressionNode[]; // 1..N
 };
 
+/**
+ * QTI delete: the container (the second sub-expression) with every instance of the single value
+ * (the first sub-expression) removed.
+ */
 export type DeleteExpr = {
 	kind: 'expr.delete';
 	id: AstNodeId;

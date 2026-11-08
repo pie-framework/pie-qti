@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="contains_subcontainer" title="contains() with a container second operand" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="PICKS" cardinality="multiple" baseType="identifier"/>
+  <responseDeclaration identifier="STEPS" cardinality="ordered" baseType="identifier"/>
+
+  <outcomeDeclaration identifier="HAS_A_AND_B" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="HAS_B_TWICE" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="HAS_B_THEN_C" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <choiceInteraction responseIdentifier="PICKS" maxChoices="0">
+      <prompt>Select every true statement.</prompt>
+      <simpleChoice identifier="A">A</simpleChoice>
+      <simpleChoice identifier="B">B</simpleChoice>
+      <simpleChoice identifier="C">C</simpleChoice>
+    </choiceInteraction>
+    <orderInteraction responseIdentifier="STEPS">
+      <prompt>Put the steps in order.</prompt>
+      <simpleChoice identifier="A">A</simpleChoice>
+      <simpleChoice identifier="B">B</simpleChoice>
+      <simpleChoice identifier="C">C</simpleChoice>
+    </orderInteraction>
+  </itemBody>
+
+  <responseProcessing>
+    <!-- multiple: every value of the second container is in the first, without regard to order -->
+    <responseCondition>
+      <responseIf>
+        <contains>
+          <variable identifier="PICKS"/>
+          <multiple>
+            <baseValue baseType="identifier">B</baseValue>
+            <baseValue baseType="identifier">A</baseValue>
+          </multiple>
+        </contains>
+        <setOutcomeValue identifier="HAS_A_AND_B">
+          <baseValue baseType="integer">1</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+
+    <!-- multiple: values are counted, so [A,B,C] does not contain [B,B] -->
+    <responseCondition>
+      <responseIf>
+        <contains>
+          <variable identifier="PICKS"/>
+          <multiple>
+            <baseValue baseType="identifier">B</baseValue>
+            <baseValue baseType="identifier">B</baseValue>
+          </multiple>
+        </contains>
+        <setOutcomeValue identifier="HAS_B_TWICE">
+          <baseValue baseType="integer">1</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+
+    <!-- ordered: the second container is a contiguous sub-sequence of the first -->
+    <responseCondition>
+      <responseIf>
+        <contains>
+          <variable identifier="STEPS"/>
+          <ordered>
+            <baseValue baseType="identifier">B</baseValue>
+            <baseValue baseType="identifier">C</baseValue>
+          </ordered>
+        </contains>
+        <setOutcomeValue identifier="HAS_B_THEN_C">
+          <baseValue baseType="integer">1</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>
