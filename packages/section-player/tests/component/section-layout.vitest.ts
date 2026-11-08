@@ -211,6 +211,31 @@ describe('RubricDisplay passage headings', () => {
 		expect(m.host.querySelectorAll('.passage-content')).toHaveLength(1);
 	});
 
+	test('every passage toggle is named for its own passage', async () => {
+		const several = mountInto(RubricDisplay, {
+			passages: [passage('p1', { title: 'The Water Cycle' }), passage('p2')],
+		});
+		mounted.push(several);
+		await settle();
+
+		const toggles = Array.from(several.host.querySelectorAll<HTMLButtonElement>('.passage-toggle'));
+		const names = toggles.map((toggle) => toggle.getAttribute('aria-label'));
+		expect(names).toEqual(['The Water Cycle — Collapse passage', 'Passage 2 — Collapse passage']);
+		expect(new Set(names).size).toBe(names.length);
+
+		// The name follows the state: a collapsed passage offers to expand again.
+		toggles[0]!.click();
+		await settle();
+		expect(toggles[0]!.getAttribute('aria-expanded')).toBe('false');
+		expect(toggles[0]!.getAttribute('aria-label')).toBe('The Water Cycle — Expand passage');
+
+		// A lone untitled passage still gets a sensible name from its neutral heading.
+		const single = mountInto(RubricDisplay, { passages: [passage('p1')] });
+		mounted.push(single);
+		await settle();
+		expect(single.host.querySelector('.passage-toggle')?.getAttribute('aria-label')).toBe('Passage — Collapse passage');
+	});
+
 	test('passage and rubric content carry the normalized content base', async () => {
 		const m = mountInto(RubricDisplay, {
 			passages: [passage('p1')],

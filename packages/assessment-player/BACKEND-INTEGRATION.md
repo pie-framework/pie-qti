@@ -61,8 +61,11 @@ export class HttpBackend implements BackendAdapter {
 }
 ```
 
-`resumeSession(sessionId)` and `queryItemBank(request)` are optional. A host may instead resume by
-passing `resumeSessionId` to `initSession()`.
+`canSaveState?`, `resumeSession(sessionId)` and `queryItemBank(request)` are optional. A host may
+instead resume by passing `resumeSessionId` to `initSession()`. `canSaveState` declares whether
+the backend can persist candidate drafts through `saveState()` at all; it defaults to enabled, so
+an adapter that implements `saveState` gets the shell's autosave without extra wiring (see
+[Autosave](#autosave) for the opt-outs).
 
 ## Initialization response
 
@@ -113,6 +116,21 @@ Rubric placement is scoped:
 - direct `assessmentItem` rubric blocks remain with the item and are exposed as
   `ItemSession.present().directRubrics` after role filtering.
 
+### Resume and finished sessions
+
+When `initSession()` (or `resumeSession()`) carries a `resumeSessionId`, return the saved
+`AssessmentSessionState` as `restoredState`. The snapshot restores the candidate's responses,
+scoring results and item-session lifecycle, flags for review, candidate comments, the
+timer-visibility preference and the timing clocks; delivery reopens at the snapshot's
+`currentItemIdentifier`, and the shell's resume prompt dates itself from `timing.savedAt`.
+Persist every field the shell sends: anything the backend drops silently disappears on resume.
+
+A session that has already been finalized has no resumable draft. Return it with
+`InitSessionResponse.finalized: true` and no `restoredState`; the player then renders a terminal
+"already submitted" view instead of reopening the test. Player builds that predate the flag
+ignore it, so always pair it with the absence of `restoredState` — the flag tells newer builds
+why there is nothing to restore.
+
 ## Item submission
 
 The player sends one `SubmitResponsesRequest` per item:
@@ -124,8 +142,10 @@ interface SubmitResponsesRequest {
   responses: Record<string, ResponseValue>;
   submittedAt: number;
   timeSpent?: number;
+  countAttempt?: boolean;
   timing?: SubmitTimingEvidence;
   itemSession?: SerializedItemSessionState;
+  comment?: string;
 }
 ```
 
@@ -143,7 +163,8 @@ return {
     score: 1,
     maxScore: 1,
     completed: true,
-    outcomeValues: { SCORE: 1 }
+    outcomeValues: { SCORE: 1 },
+    feedback: [{ content: '<p>Well done.</p>', type: 'correct' }]
   },
   nextItemIdentifier: 'item-3',
   updatedState
@@ -152,6 +173,38 @@ return {
 
 `nextItemIdentifier` may also be `EXIT_SECTION`, `EXIT_TESTPART`, or `EXIT_TEST`. If `success` is
 false, include an `error` and omit `result`.
+
+**Attempts.** `countAttempt` defaults to `true`: the submission consumes an attempt, and its
+result is the item's recorded result. Hint and "show me" controls (QTI `endAttemptInteraction`
+with `countAttempt="false"`) submit with `countAttempt: false` instead. These submissions run
+response processing but are not attempts: do not count them toward `maxAttempts` and do not
+record their result as the item's result — the candidate stays on the item and may revise.
+Enforce the same distinction the player applies: only a `countAttempt: true` submission may
+spend an attempt or record the item's result.
+
+**Comments.** `comment` carries the candidate's per-item comment and is sent with the item's
+submissions whenever the test allows comments (the resolved `itemSessionControl.allowComment`
+cascade). Backends should enforce `allowComment` the same way they enforce `maxAttempts`: accept
+a comment only where the item's resolved control turns it on, and ignore or reject one where it
+does not. Comments also ride the persisted session snapshot (`itemComments`), so an unsubmitted
+comment survives autosave and resume.
+
+**Timing and expiry.** `timing` is client evidence and production backends stay authoritative,
+but `timing.submissionReason` is part of the flow contract: `candidate` (default) for a normal
+candidate action, `time-expired` for the response collection a hard time limit triggers. After a
+whole-test expiry the player finalizes through the same path; a test-part, section or item limit
+without late submission collects the closed scope's previously answered items as `time-expired`
+submissions whose own scope has expired. Accept them: the delivery window closed with the expiry,
+and collecting the pending responses is the mandated terminal step — rejecting them as late loses
+candidate work.
+
+**Feedback.** Production builds strip `<responseProcessing>` from candidate item XML, so the
+candidate's own session cannot compute modal or integrated feedback. When your delivered item XML
+has no response processing, return the item's feedback in `result.feedback` (`FeedbackItem[]`:
+`content` HTML and a `correct` / `incorrect` / `hint` / `solution` type) together with the
+outcome values that drive feedback selection in `result.outcomeValues`; the shell surfaces that
+feedback under the resolved `showFeedback` on the check-answer and submit-on-move paths.
+Without it, candidates see no feedback even where `showFeedback` is on.
 
 For the active item, `submitCurrentItem()` treats local end-attempt as provisional: validation or a
 failed backend submission restores the exact pre-submit item-session snapshot so the candidate can
@@ -205,6 +258,35 @@ The server should reject:
 - response identifiers or values incompatible with declarations;
 - impossible lifecycle, attempt-count, or timing transitions;
 - client scores, answer keys, or template values treated as authoritative.
+
+### Autosave
+
+Autosave is ON by default: the shell persists a session snapshot through `saveState()` whenever
+the backend reports the save capability (`canSaveState` is not `false`) and the host has not
+opted out. Every kind of candidate activity — response edits, navigation, flags, comments, the
+timer-visibility preference, pause changes — restarts a 1.5 s debounce window, and
+`visibilitychange` / `pagehide` flush immediately. Hosts turn it off (because they persist state
+themselves, or the backend cannot store drafts) by setting the player config `autosave: false`,
+the element attribute `autosave="false"`, or `canSaveState: false` on the adapter; the shell's
+save indicator hides with it. The debounce window is tunable through `autosaveIntervalMs`
+(element attribute `autosave-interval-ms`).
+
+Each payload is a full session snapshot (`SaveAssessmentStateRequest.state`) stamped with
+`timing.savedAt`. A save due while a navigation or submission transition is in flight defers
+until the transition settles, and nothing saves after finalization. A failed save is a
+non-fatal event, never a delivery failure: the shell logs it, reports it through
+`onAutosaveChange` (`failed`), `onAutosaveFailed` and the element's `autosave-failed` event
+("Not saved" on the indicator), and retries on the next change. The backend is the store —
+there is no offline queue — so treat each save as an idempotent replace of the session's draft
+keyed by `sessionId`.
+
+### Start over
+
+`startOver()` is the candidate-facing restart behind the resume prompt's destructive action: the
+shell resets the draft — responses, sessions, results, flags, comments, visited state, the timer
+preference and the clocks — and immediately persists the blank state, so a refresh cannot
+resurrect discarded answers. Already-submitted items keep their accepted results: the backend
+remains authoritative for everything it has accepted.
 
 ## Finalization
 
