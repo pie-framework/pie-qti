@@ -201,9 +201,12 @@
 	// the default hint — a radio group's affordance already says "pick one" — but an authored
 	// message still shows.
 	const minHintId = `${uid}-min-hint`;
-	const authoredMessage = parsedInteraction?.minSelectionsMessage;
-	const minHint = $derived(
-		minimumHint({
+	// Reads stay inside $derived: block interactions mount as custom elements and receive their
+	// props after creation, so an authored message read outside would be captured as undefined
+	// forever (and the minChoices=1 exemption would suppress an authored message entirely).
+	const minHint = $derived.by(() => {
+		const authoredMessage = parsedInteraction?.minSelectionsMessage;
+		return minimumHint({
 			i18n,
 			minimum:
 				!disabled && role === 'candidate' && ((parsedInteraction?.minChoices ?? 0) > 1 || authoredMessage)
@@ -213,8 +216,8 @@
 			authored: authoredMessage,
 			key: 'interactions.choice.minChoicesHint',
 			fallback: { one: 'Select at least {count} answer.', other: 'Select at least {count} answers.' },
-		})
-	);
+		});
+	});
 	// The answer group's description: the authored one, then the hint while it shows.
 	const groupDescribedBy = $derived(
 		describedByIds(interactionAria(parsedInteraction)['aria-describedby'], minHint && minHintId)
