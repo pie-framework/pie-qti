@@ -29,10 +29,11 @@
 	<responseProcessing>
 		<responseCondition>
 			<responseElse>
+				<!-- QTI delete: the first sub-expression is the value to remove, the second the container -->
 				<setResponseValue identifier="CLEAN">
 					<delete>
-						<variable identifier="RESPONSE"/>
 						<baseValue baseType="identifier">B</baseValue>
+						<variable identifier="RESPONSE"/>
 					</delete>
 				</setResponseValue>
 

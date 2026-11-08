@@ -1316,6 +1316,18 @@ export class Player {
 			) {
 				errors.push(`Response '${responseId}' exceeds maxStrings=${i.maxStrings}`);
 			}
+			// graphicGapMatch maxima: the delivered interface does not cap them all, so a response
+			// built or restored over a limit is checked here.
+			if (i.type === 'graphicGapMatchInteraction' && Array.isArray(value)) {
+				errors.push(
+					...graphicGapMatchMaximaErrors(responseId, value.filter(isMeaningfulEntry), {
+						maxAssociations: i.maxAssociations,
+						gapTexts: i.gapTexts,
+						gapImages: i.gapImages,
+						hotspots: i.hotspots,
+					}),
+				);
+			}
 			const shapeErrorCount = errors.length;
 
 			// matchGroup restricts which choices may pair. The renderers enforce it while the
@@ -2438,6 +2450,47 @@ function isMeaningfulResponseEntry(
 		? entry.replace(/<[^>]*>/g, '').replace(/&nbsp;|&#160;/gi, ' ')
 		: entry;
 	return comparable.trim().length > 0;
+}
+
+/**
+ * The graphicGapMatchInteraction maxima a response breaks (QTI ASI graphicGapMatchInteraction,
+ * gapChoice and associableHotspot): at most `maxAssociations` associations, and each gap choice
+ * (gapText, gapImg) and each hotspot in at most its `matchMax` associations; 0 means no
+ * restriction. Associations are directed pairs "choice hotspot"; other entries count towards
+ * `maxAssociations` only.
+ */
+function graphicGapMatchMaximaErrors(
+	responseId: string,
+	entries: readonly unknown[],
+	interaction: {
+		maxAssociations?: number;
+		gapTexts?: ReadonlyArray<{ identifier: string; matchMax?: number }>;
+		gapImages?: ReadonlyArray<{ identifier: string; matchMax?: number }>;
+		hotspots?: ReadonlyArray<{ identifier: string; matchMax?: number }>;
+	},
+): string[] {
+	const errors: string[] = [];
+	const maxAssociations = Number(interaction.maxAssociations ?? 0);
+	if (maxAssociations > 0 && entries.length > maxAssociations) {
+		errors.push(`Response '${responseId}' exceeds maxAssociations=${maxAssociations}`);
+	}
+	const pairs = entries
+		.filter((entry): entry is string => typeof entry === 'string')
+		.map((entry) => entry.trim().split(/\s+/))
+		.filter((parts) => parts.length === 2);
+	const checkMatchMax = (choices: ReadonlyArray<{ identifier: string; matchMax?: number }>, side: 0 | 1): void => {
+		for (const choice of choices) {
+			const matchMax = Number(choice.matchMax ?? 0);
+			if (!(matchMax > 0)) continue;
+			const count = pairs.filter((parts) => parts[side] === choice.identifier).length;
+			if (count > matchMax) {
+				errors.push(`Response '${responseId}' uses ${choice.identifier} in ${count} associations, more than matchMax=${matchMax}`);
+			}
+		}
+	};
+	checkMatchMax([...(interaction.gapTexts ?? []), ...(interaction.gapImages ?? [])], 0);
+	checkMatchMax(interaction.hotspots ?? [], 1);
+	return errors;
 }
 
 function cloneDeclarationMap(declarations: DeclarationMap): DeclarationMap {
