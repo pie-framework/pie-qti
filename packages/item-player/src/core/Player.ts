@@ -511,6 +511,7 @@ export class Player {
 				return d ? { baseType: d.baseType, cardinality: d.cardinality } : undefined;
 			})(),
 			status: () => this.pciInteractionStatus(),
+			contentLanguage: this.getContentLanguage(),
 		});
 
 		// Wire response changes back into the player's declaration context
