@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { HottextInteractionData } from '@pie-qti/item-player';
+	import { tick } from 'svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
@@ -165,10 +166,26 @@
 	}
 
 	/**
+	 * Clear the whole selection from the footer button. The button removes itself with
+	 * the selection, which would drop keyboard focus to the document; focus moves to
+	 * the first hottext element instead, the interaction's surviving control.
+	 */
+	async function clearSelection() {
+		if (disabled || !parsedInteraction) return;
+		selectedIds = [];
+		// Return null for single selection, empty array for multiple
+		const responseValue = parsedInteraction.maxChoices === 1 ? null : [];
+		response = responseValue;
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: responseValue, onChange });
+		updateHottextStyles();
+		await tick();
+		contentElement?.querySelector<HTMLElement>(HOTTEXT_SELECTOR)?.focus();
+	}
+
+	/**
 	 * Update visual styles of hottext elements based on selection state
 	 */
-	function updateHottextStyles() {
-		if (!contentElement) return;
+	function updateHottextStyles() {		if (!contentElement) return;
 
 		const hottextElements = contentElement.querySelectorAll(HOTTEXT_SELECTOR);
 		hottextElements.forEach((elem: Element) => {
@@ -352,14 +369,7 @@
 				<button
 					type="button"
 					class="btn btn-sm btn-ghost"
-					onclick={() => {
-						selectedIds = [];
-						// Return null for single selection, empty array for multiple
-						const responseValue = parsedInteraction!.maxChoices === 1 ? null : [];
-						response = responseValue;
-						emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: responseValue, onChange });
-						updateHottextStyles();
-					}}
+					onclick={clearSelection}
 					{disabled}
 				>
 					{translate(i18n, 'interactions.hottext.clearSelection', 'Clear Selection')}

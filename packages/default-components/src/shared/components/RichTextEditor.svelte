@@ -48,9 +48,82 @@
 		italic: translate(i18n, 'interactions.extendedText.italic', 'Italic'),
 		insertInlineMath: translate(i18n, 'interactions.extendedText.insertInlineMath', 'Insert inline math'),
 		insertBlockMath: translate(i18n, 'interactions.extendedText.insertBlockMath', 'Insert block math'),
+		editMath: translate(i18n, 'interactions.extendedText.editMath', 'Edit math'),
 		editorLabel:
 			ariaLabel || placeholder || translate(i18n, 'interactions.extendedText.placeholder', 'Type your response here...'),
 	});
+
+	/** A math node the current selection can re-edit: its shape, LaTeX and position. */
+	interface MathSelection {
+		isBlock: boolean;
+		latex: string;
+		/** Document position of the math node's start, for the update command. */
+		pos: number;
+	}
+
+	interface MathNodeLike {
+		type: { name: string };
+		attrs: { latex?: unknown };
+		nodeSize: number;
+	}
+
+	function isMathNode(node: MathNodeLike | null | undefined): boolean {
+		return node !== null && node !== undefined && (node.type.name === 'inlineMath' || node.type.name === 'blockMath');
+	}
+
+	function mathLatex(node: MathNodeLike): string {
+		return typeof node.attrs.latex === 'string' ? node.attrs.latex : '';
+	}
+
+	/**
+	 * The math expression the selection can re-edit: a node selection on inline or block
+	 * math, or a caret sitting right beside an inline math atom (the inserted node leaves
+	 * the caret just after it, and arrow keys move it to just before).
+	 */
+	function mathAtSelection(current: Editor): MathSelection | null {
+		const selection = current.state.selection as {
+			from: number;
+			$from: { pos: number; nodeBefore: MathNodeLike | null; nodeAfter: MathNodeLike | null };
+			node?: MathNodeLike;
+		};
+		if (selection.node && isMathNode(selection.node)) {
+			return { isBlock: selection.node.type.name === 'blockMath', latex: mathLatex(selection.node), pos: selection.from };
+		}
+		const before = selection.$from.nodeBefore;
+		if (before && isMathNode(before)) {
+			return { isBlock: before.type.name === 'blockMath', latex: mathLatex(before), pos: selection.$from.pos - before.nodeSize };
+		}
+		const after = selection.$from.nodeAfter;
+		if (after && isMathNode(after)) {
+			return { isBlock: after.type.name === 'blockMath', latex: mathLatex(after), pos: selection.$from.pos };
+		}
+		return null;
+	}
+
+	/**
+	 * Open the math dialog pre-filled with the expression at `math`, re-editing it in
+	 * place; keyboard focus returns to `target` (the editor surface or the toolbar
+	 * control that opened it).
+	 */
+	function openMathEdit(current: Editor, math: MathSelection, target: HTMLElement) {
+		openMathLiveEditor({
+			initialLatex: math.latex,
+			isBlock: math.isBlock,
+			mode: 'edit',
+			returnFocusTo: target,
+			i18n,
+			onConfirm: (latex) => {
+				// The commands read the CURRENT selection when no pos is given, so the
+				// captured node position is passed explicitly: the caret may have moved.
+				if (math.isBlock) current.commands.updateBlockMath({ latex, pos: math.pos });
+				else current.commands.updateInlineMath({ latex, pos: math.pos });
+				current.commands.focus();
+			},
+			onCancel: () => {
+				current.commands.focus();
+			},
+		});
+	}
 
 	/**
 	 * Attributes of the editable surface. A prompt or label names it; the
@@ -77,6 +150,8 @@
 	let editor: Editor | null = $state(null);
 	let boldActive = $state(false);
 	let italicActive = $state(false);
+	/** The math expression the current selection can re-edit (drives the Edit math button). */
+	let mathSelection = $state<MathSelection | null>(null);
 	// Use a regular variable (not $state) to track last emitted value
 	// This prevents circular dependencies in $effect
 	let lastEmitted = '';
@@ -200,9 +275,22 @@
 			editable: initialEditable,
 			editorProps: {
 				attributes: initialAttributes,
+				// Keyboard route to re-editing inserted math (it is otherwise reachable only
+				// with a pointer, through the node's click handler): Enter or F2 on a
+				// selection that touches an inline/block math expression opens the edit
+				// dialog pre-filled with the expression's LaTeX.
+				handleKeyDown: (view, event) => {
+					if (event.key !== 'Enter' && event.key !== 'F2') return false;
+					const math = mathAtSelection(ed);
+					if (!math) return false;
+					event.preventDefault();
+					openMathEdit(ed, math, view.dom as HTMLElement);
+					return true;
+				},
 			},
 			onTransaction: ({ editor: current }) => {
 				syncActiveMarks(current);
+				mathSelection = mathAtSelection(current);
 			},
 			onUpdate: ({ editor: ed, transaction }) => {
 				// `setEditable()` emits `update` with an empty transaction, so an editability
@@ -306,6 +394,20 @@
 			onclick={(event) => insertMath(true, event.currentTarget)}
 		>
 			{translations.insertBlockMath}
+		</button>
+		<!-- Enabled only while the selection touches a math expression, so it always edits
+		     the expression the candidate is on; the keyboard route (Enter/F2 in the editor)
+		     opens the same dialog. -->
+		<button
+			part="toolbar-button"
+			class="btn btn-sm rte-button qti-math-edit-button"
+			type="button"
+			disabled={!editor || !editable || !mathSelection}
+			onclick={(event) => {
+				if (editor && mathSelection) openMathEdit(editor, mathSelection, event.currentTarget);
+			}}
+		>
+			{translations.editMath}
 		</button>
 	</div>
 

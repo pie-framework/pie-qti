@@ -133,6 +133,8 @@ export default {
 			errorReadFailed: 'Error al leer el archivo',
 			errorTooLarge: 'El archivo es demasiado grande (máximo {max} MB)',
 			unknownType: 'Tipo de archivo desconocido',
+			fileRemoved: 'Archivo eliminado.',
+			errorFileTooLarge: 'El archivo {filename} es demasiado grande. El tamaño máximo es {maxBytes} bytes.',
 		},
 
 		drawing: {
@@ -179,6 +181,13 @@ export default {
 				other: 'Has alcanzado la longitud esperada de {count} caracteres.',
 			},
 			correctAnswerHeading: 'Respuesta correcta:',
+			editMath: 'Editar matemáticas',
+			minStringsHint: {
+				one: 'Escribe al menos {count} respuesta.',
+				many: 'Escribe al menos {count} respuestas.',
+				other: 'Escribe al menos {count} respuestas.',
+			},
+			minStringsRemoveRefused: 'Respuesta no eliminada: se requieren al menos {count} respuestas.',
 		},
 
 		mathInput: {
@@ -318,6 +327,7 @@ export default {
 			pickUpCancelled: 'Se canceló la recogida de {word}.',
 			minPlacementsHint: 'Falta colocar en los espacios en blanco: {words}.',
 			notCompatibleSentence: 'No compatible con la palabra seleccionada.',
+			wordRemovedFromBlanks: 'Se eliminó {word} de los espacios.',
 		},
 
 		graphicGapMatch: {
@@ -355,6 +365,7 @@ export default {
 			imageFallback: 'Imagen de esta pregunta',
 			imageLoadError: 'No se pudo cargar la imagen.',
 			unknownImageDimensions: 'No se pueden mostrar las zonas activas: se desconoce el tamaño de la imagen. Añade ancho y alto a la imagen.',
+			minPlacementsHint: 'Falta por colocar en las zonas: {labels}.',
 		},
 
 		order: {
@@ -529,6 +540,16 @@ export default {
 			pairDescription: '{first} asociado con {second}',
 			removeAssociation: 'Eliminar la asociación entre {first} y {second}',
 			minimumRequired: 'Mínimo requerido: {minAssociations}',
+			associationMade: 'Asociación creada.',
+			associationRemoved: 'Asociación eliminada.',
+			associationLimitReached: 'No se puede asociar: se alcanzó el límite de {max}.',
+			hotspotLimitReached: 'No es posible: {label} no puede estar en más asociaciones.',
+			minAssociationsHint: {
+				one: 'Crea al menos {count} asociación.',
+				many: 'Crea al menos {count} asociaciones.',
+				other: 'Crea al menos {count} asociaciones.',
+			},
+			minHotspotUsesHint: 'Necesita más asociaciones: {items}.',
 		},
 
 		custom: {

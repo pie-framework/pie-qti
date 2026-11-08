@@ -13,7 +13,10 @@ import { DefaultI18nProvider } from '@pie-qti/i18n';
 import type {
 	AssociateInteractionData,
 	ChoiceInteractionData,
+	ExtendedTextInteractionData,
 	GapMatchInteractionData,
+	GraphicAssociateInteractionData,
+	GraphicGapMatchInteractionData,
 	GraphicOrderInteractionData,
 	HotspotInteractionData,
 	MatchInteractionData,
@@ -22,7 +25,10 @@ import type {
 import { afterEach, beforeAll, describe, expect, test } from 'vitest';
 import AssociateInteraction from '../../src/plugins/associate/AssociateInteraction.svelte';
 import ChoiceInteraction from '../../src/plugins/choice/ChoiceInteraction.svelte';
+import ExtendedTextInteraction from '../../src/plugins/extended-text/ExtendedTextInteraction.svelte';
 import GapMatchInteraction from '../../src/plugins/gap-match/GapMatchInteraction.svelte';
+import GraphicAssociateInteraction from '../../src/plugins/graphic-associate/GraphicAssociateInteraction.svelte';
+import GraphicGapMatchInteraction from '../../src/plugins/graphic-gap-match/GraphicGapMatchInteraction.svelte';
 import GraphicOrderInteraction from '../../src/plugins/graphic-order/GraphicOrderInteraction.svelte';
 import HotspotInteraction from '../../src/plugins/hotspot/HotspotInteraction.svelte';
 import MatchInteraction from '../../src/plugins/match/MatchInteraction.svelte';
@@ -572,5 +578,181 @@ describe('the hint’s presentation', () => {
 		expect(style).toContain('margin-block: 0.5rem 0;');
 		expect(style).not.toMatch(/(?:margin|padding)-(?:top|bottom|left|right)\s*:/);
 		expect(source).toContain('aria-live="polite"');
+	});
+});
+describe('GraphicAssociateInteraction minimum (minAssociations and matchMin per hotspot)', () => {
+	function graphicAssociateData(
+		overrides: Partial<GraphicAssociateInteractionData> = {},
+	): GraphicAssociateInteractionData {
+		return {
+			type: 'graphicAssociateInteraction',
+			responseId: 'RESPONSE',
+			prompt: null,
+			maxAssociations: 4,
+			minAssociations: 1,
+			imageData: { type: 'svg', content: '<svg/>', width: '100', height: '50' },
+			associableHotspots: [
+				{ identifier: 'H1', shape: 'rect', coords: '0,0,40,20', matchMax: 2, matchMin: 1, label: 'Heart' },
+				{ identifier: 'H2', shape: 'rect', coords: '50,0,90,20', matchMax: 2, label: 'Pump' },
+			],
+			...overrides,
+		};
+	}
+
+	test('states the association minimum and the hotspots short of their matchMin', async () => {
+		const mounted = mountInteraction(GraphicAssociateInteraction, { interaction: graphicAssociateData() });
+		await settle();
+
+		// Heart needs one association (matchMin 1) on top of the interaction minimum.
+		expect(hint(mounted)?.textContent).toBe('Make at least 1 association. Needs more associations: Heart.');
+
+		const hotspots = qa<HTMLButtonElement>(mounted, 'button[part="hotspot"]');
+		hotspots[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		hotspots[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+
+		expect(mounted.instance.response).toEqual(['H1 H2']);
+		expect(hint(mounted)).toBeNull();
+	});
+
+});
+
+describe('GraphicGapMatchInteraction minimum (matchMin per label)', () => {
+	function graphicGapMatchData(
+		overrides: Partial<GraphicGapMatchInteractionData> = {},
+	): GraphicGapMatchInteractionData {
+		return {
+			type: 'graphicGapMatchInteraction',
+			responseId: 'RESPONSE',
+			prompt: null,
+			maxAssociations: 2,
+			imageData: {
+				type: 'image',
+				src: 'cycle.png',
+				width: '600',
+				height: '200',
+				alt: 'The water cycle over a lake',
+			},
+			gapTexts: [
+				{ identifier: 'RAIN', text: 'Rain', matchMax: 1, matchMin: 1 },
+				{ identifier: 'SUN', text: 'Sun', matchMax: 1 },
+			],
+			gapImages: [],
+			hotspots: [
+				{ identifier: 'TOP_RIGHT', shape: 'circle', coords: '300,50,8', matchMax: 1 },
+				{ identifier: 'LAKE', shape: 'rect', coords: '20,120,220,190', matchMax: 1 },
+			],
+			...overrides,
+		};
+	}
+
+	function hotspotTargets(mm: MountedInteraction): Element[] {
+		return qa(mm, '.qti-ggm-hotspot');
+	}
+
+	test('names the labels still to place, describing the label palette, until placed', async () => {
+		const mounted = mountInteraction(GraphicGapMatchInteraction, { interaction: graphicGapMatchData() });
+		await settle();
+
+		expect(hint(mounted)?.textContent).toBe('Still to place on the hotspots: Rain.');
+		expect(describedByHint(mounted, q(mounted, '[part="labels"]'))).toBe(true);
+
+		// Keyboard placement: pick Rain up, drop it on the first hotspot (an SVG shape,
+		// so the click is dispatched rather than .click()).
+		clickButton(qa(mounted, '[part="labels"] button').find((button) => button.textContent?.trim() === 'Rain'));
+		await settle();
+		hotspotTargets(mounted)[0]?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+
+		expect(mounted.instance.response).toEqual(['RAIN TOP_RIGHT']);
+		expect(hint(mounted)).toBeNull();
+		expect(describedByHint(mounted, q(mounted, '[part="labels"]'))).toBe(false);
+	});
+
+	test('the author’s data-min-selections-message wins', async () => {
+		const mounted = mountInteraction(GraphicGapMatchInteraction, {
+			interaction: graphicGapMatchData({ minSelectionsMessage: 'Put the rain on the lake.' }),
+		});
+		await settle();
+		expect(hint(mounted)?.textContent).toBe('Put the rain on the lake.');
+	});
+});
+
+describe('ExtendedTextInteraction minimum (minStrings)', () => {
+	function extendedTextData(
+		overrides: Partial<ExtendedTextInteractionData> = {},
+	): ExtendedTextInteractionData {
+		return {
+			type: 'extendedTextInteraction',
+			responseId: 'RESPONSE',
+			cardinality: 'multiple',
+			base: 10,
+			baseType: 'string',
+			minStrings: 2,
+			maxStrings: 3,
+			expectedLines: 0,
+			expectedLength: 0,
+			prompt: '<p>Name two things.</p>',
+			placeholderText: '',
+			format: 'plain',
+			...overrides,
+		};
+	}
+
+	test('states the minimum while fewer fields hold responses, and refuses removal below it', async () => {
+		const mounted = mountInteraction(ExtendedTextInteraction, { interaction: extendedTextData() });
+		await settle();
+
+		expect(hint(mounted)?.textContent).toBe('Write at least 2 responses.');
+
+		// Both fields are required: removing the second refuses and keeps the field.
+		const removeButtons = qa(mounted, 'button[part="remove-string"]');
+		expect(removeButtons).toHaveLength(2);
+		clickButton(removeButtons[1]);
+		await settle();
+
+		expect(qa(mounted, 'textarea')).toHaveLength(2);
+		expect(q(mounted, '[part="announcer"]')?.textContent).toContain('at least 2 responses are required');
+		expect(hint(mounted)?.textContent).toBe('Write at least 2 responses.');
+
+		// Filling both fields meets the minimum: the hint goes. Removal at the minimum
+		// would still fall below it, so removal only opens up past the minimum.
+		const textareas = qa(mounted, 'textarea');
+		textareas[0].value = 'clouds';
+		textareas[0].dispatchEvent(new Event('input', { bubbles: true }));
+		textareas[1].value = 'rain';
+		textareas[1].dispatchEvent(new Event('input', { bubbles: true }));
+		await settle();
+
+		expect(hint(mounted)).toBeNull();
+		clickButton(qa(mounted, 'button[part="remove-string"]')[1]);
+		await settle();
+		expect(qa(mounted, 'textarea')).toHaveLength(2);
+		expect(q(mounted, '[part="announcer"]')?.textContent).toContain('at least 2 responses are required');
+
+		// A third response leaves room to remove one again.
+		clickButton(q(mounted, 'button[part="add-string"]'));
+		await settle();
+		expect(qa(mounted, 'textarea')).toHaveLength(3);
+		clickButton(qa(mounted, 'button[part="remove-string"]')[2]);
+		await settle();
+		expect(qa(mounted, 'textarea')).toHaveLength(2);
+		expect(q(mounted, '[part="announcer"]')?.textContent).toContain('Response 3 removed.');
+	});
+
+	test('without a minimum the single response clears without a refusal', async () => {
+		const mounted = mountInteraction(ExtendedTextInteraction, {
+			interaction: extendedTextData({ minStrings: 0, maxStrings: 1 }),
+		});
+		await settle();
+
+		expect(hint(mounted)).toBeNull();
+		clickButton(q(mounted, 'button[part="remove-string"]'));
+		await settle();
+		// The only field resets to empty; no refusal, no hint.
+		expect(qa(mounted, 'textarea')).toHaveLength(1);
+		expect((q(mounted, 'textarea') as HTMLTextAreaElement).value).toBe('');
+		expect(hint(mounted)).toBeNull();
 	});
 });

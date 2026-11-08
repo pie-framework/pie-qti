@@ -132,6 +132,8 @@ export default {
 			errorReadFailed: 'Échec de la lecture du fichier',
 			errorTooLarge: 'Le fichier est trop volumineux (maximum {max} Mo)',
 			unknownType: 'Type de fichier inconnu',
+			fileRemoved: 'Fichier supprimé.',
+			errorFileTooLarge: 'Le fichier {filename} est trop volumineux. La taille maximale est de {maxBytes} octets.',
 		},
 
 		drawing: {
@@ -178,6 +180,13 @@ export default {
 				other: 'Longueur attendue de {count} caractères atteinte.',
 			},
 			correctAnswerHeading: 'Bonne réponse :',
+			editMath: 'Modifier les mathématiques',
+			minStringsHint: {
+				one: 'Écrivez au moins {count} réponse.',
+				many: 'Écrivez au moins {count} réponses.',
+				other: 'Écrivez au moins {count} réponses.',
+			},
+			minStringsRemoveRefused: 'Réponse non supprimée : au moins {count} réponses sont requises.',
 		},
 
 		mathInput: {
@@ -317,6 +326,7 @@ export default {
 			pickUpCancelled: 'La saisie de {word} a été annulée.',
 			minPlacementsHint: 'Reste à placer dans les blancs : {words}.',
 			notCompatibleSentence: 'Incompatible avec le mot sélectionné.',
+			wordRemovedFromBlanks: '{word} a été retiré des cases.',
 		},
 
 		graphicGapMatch: {
@@ -354,6 +364,7 @@ export default {
 			imageFallback: 'Image de cette question',
 			imageLoadError: 'L\'image n\'a pas pu être chargée.',
 			unknownImageDimensions: 'Les zones sensibles ne peuvent pas être affichées : la taille de l\'image est inconnue. Ajoutez une largeur et une hauteur à l\'image.',
+			minPlacementsHint: 'Reste à placer sur les zones : {labels}.',
 		},
 
 		order: {
@@ -528,6 +539,16 @@ export default {
 			pairDescription: '{first} associé à {second}',
 			removeAssociation: 'Supprimer l\'association entre {first} et {second}',
 			minimumRequired: 'Minimum requis : {minAssociations}',
+			associationMade: 'Association créée.',
+			associationRemoved: 'Association supprimée.',
+			associationLimitReached: 'Association impossible : la limite de {max} est atteinte.',
+			hotspotLimitReached: 'Impossible : {label} ne peut pas faire partie d’autres associations.',
+			minAssociationsHint: {
+				one: 'Créez au moins {count} association.',
+				many: 'Créez au moins {count} associations.',
+				other: 'Créez au moins {count} associations.',
+			},
+			minHotspotUsesHint: 'Besoin de plus d’associations : {items}.',
 		},
 
 		custom: {

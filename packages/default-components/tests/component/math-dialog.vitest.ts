@@ -474,4 +474,79 @@ describe('Rich text editor math insertion', () => {
 		await settle();
 		expect((await openInsertDialog(insertInlineButton(first))).value).toBe('a^2+b^2');
 	});
+	/** Open an insert dialog from a named toolbar button, type LaTeX, and insert it. */
+	async function insertVia(m: MountedInteraction, buttonLabel: string, latex: string): Promise<void> {
+		const button = Array.from(m.host.querySelectorAll<HTMLButtonElement>('button[part="toolbar-button"]')).find(
+			(b) => b.textContent?.trim() === buttonLabel,
+		)!;
+		button.focus();
+		button.click();
+		await waitFor(() => document.querySelector('[role="dialog"] math-field') !== null);
+		typeLatex(document.querySelector('[role="dialog"] math-field') as unknown as FakeMathfield, latex);
+		Array.from(document.querySelectorAll('[role="dialog"] button')).at(-1)!.click();
+		await settle();
+		expect(document.querySelector('[role="dialog"]')).toBeNull();
+	}
+
+	test('Enter or F2 beside inserted math opens the edit dialog with its LaTeX (round 6)', async () => {
+		const m = mountInteraction(ExtendedTextInteraction, { interaction: data });
+		mounted.push(m);
+		await settle();
+		await insertVia(m, 'Insert inline math', 'x^2');
+
+		// The inserted node leaves the caret right after it: the keyboard alone reaches it.
+		const surface = q(m, '[contenteditable]')!;
+		surface.focus();
+		press(surface, 'Enter');
+		await waitFor(() => document.querySelector('[role="dialog"]') !== null);
+
+		const modal = dialog();
+		expect(byId(modal.getAttribute('aria-labelledby'))?.textContent).toBe('Edit inline math');
+		const field = modal.querySelector('math-field') as unknown as FakeMathfield;
+		expect(field.value).toBe('x^2');
+		expect(modal.querySelector('code')?.textContent).toBe('x^2');
+		expect(document.activeElement).toBe(field);
+
+		// F2 opens the same dialog again (both keys are the keyboard route).
+		press(field, 'Escape');
+		await settle();
+		expect(document.querySelector('[role="dialog"]')).toBeNull();
+		press(surface, 'F2');
+		await waitFor(() => document.querySelector('[role="dialog"]') !== null);
+		expect((document.querySelector('[role="dialog"] math-field') as unknown as FakeMathfield).value).toBe('x^2');
+		press(document.querySelector('[role="dialog"] math-field')!, 'Escape');
+		await settle();
+		expect(document.querySelector('[role="dialog"]')).toBeNull();
+	});
+
+	test('the Edit math toolbar button enables with a math selection and updates in place (round 6)', async () => {
+		const m = mountInteraction(ExtendedTextInteraction, { interaction: data });
+		mounted.push(m);
+		await settle();
+
+		// Without math in the response the button is off.
+		const editButton = () =>
+			Array.from(m.host.querySelectorAll<HTMLButtonElement>('button[part="toolbar-button"]')).find(
+				(button) => button.textContent?.trim() === 'Edit math',
+			)!;
+		expect(editButton().disabled).toBe(true);
+
+		await insertVia(m, 'Insert inline math', '\\sqrt{3}');
+
+		// With the caret beside the expression the button enables and opens pre-filled.
+		expect(editButton().disabled).toBe(false);
+		editButton().click();
+		await waitFor(() => document.querySelector('[role="dialog"] math-field') !== null);
+
+		const field = document.querySelector('[role="dialog"] math-field') as unknown as FakeMathfield;
+		expect(field.value).toBe('\\sqrt{3}');
+		field.value = 'a+b';
+		field.dispatchEvent(new Event('input'));
+		Array.from(document.querySelectorAll('[role="dialog"] button')).at(-1)!.click();
+		await settle();
+
+		expect(document.querySelector('[role="dialog"]')).toBeNull();
+		// The expression was updated in place: the editor now renders the new LaTeX.
+		expect(q(m, '[contenteditable]')?.innerHTML).toContain('data-latex="a+b"');
+	});
 });

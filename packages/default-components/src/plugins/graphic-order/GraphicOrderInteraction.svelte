@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { GraphicOrderInteractionData } from '@pie-qti/item-player';
+	import { tick } from 'svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { createConfirmationFlow } from '../../shared/utils/confirmationFlow.svelte';
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
@@ -101,6 +102,28 @@
 	$effect(() => {
 		confirmation.resetIfCleared();
 	});
+
+	// Confirmation feedback: the control itself stays mounted through confirmation (it
+	// becomes an inert "Order confirmed" state instead of being swapped for an alert), so
+	// the focus that pressed it keeps a home, and the always-present polite region below
+	// announces the confirmation to assistive technology.
+	let confirmationAnnouncement = $state('');
+
+	function announceConfirmation(message: string) {
+		confirmationAnnouncement = confirmationAnnouncement === message ? `${message}\u200b` : message;
+	}
+
+	async function confirmFromButton(event: MouseEvent) {
+		const button = event.currentTarget as HTMLButtonElement | null;
+		const wasNeedy = confirmation.needsConfirmation;
+		confirmation.confirmOrder();
+		if (!wasNeedy) return;
+		announceConfirmation(translate(i18n, 'interactions.order.orderConfirmed', 'Order confirmed'));
+		// The control flips to its confirmed state in place; make sure keyboard focus
+		// sits on it even if a re-render replaced the element.
+		await tick();
+		button?.focus();
+	}
 
 	// Minimum requirement (minChoices): stated while the response orders fewer hotspots — until
 	// the candidate moves an item or confirms the order, it orders none — the same minimum
@@ -202,42 +225,54 @@
 						/>
 						<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(parsedResponse ?? null)} />
 
-						<!-- Confirmation button for WCAG 2.2 SC 3.3.4 compliance -->
+						<!-- Confirmation control for WCAG 2.2 SC 3.3.4 compliance. One persistent
+						     element flips between the actionable control and an inert "Order
+						     confirmed" state (aria-disabled, tabindex=-1 — never removed), so the
+						     focus that pressed it keeps a home; the always-present polite region
+						     below announces the confirmation. -->
 						<div part="confirm" class="qti-go-confirm mt-4 pt-3 border-t border-base-300">
-							{#if confirmation.needsConfirmation}
+							{#if confirmation.needsConfirmation || confirmation.hasConfirmed}
 								<button
 									type="button"
-									class="btn btn-primary btn-sm w-full"
-									onclick={confirmation.confirmOrder}
-									aria-label={i18n?.t('interactions.graphicOrder.confirmAria') ?? 'Confirm this order as your answer'}
+									part={confirmation.hasConfirmed ? 'confirmed' : 'confirm-button'}
+									class="btn btn-sm w-full {confirmation.hasConfirmed ? 'qti-go-confirmed-control' : 'btn-primary'}"
+									onclick={confirmFromButton}
+									aria-disabled={confirmation.hasConfirmed ? 'true' : undefined}
+									tabindex={confirmation.hasConfirmed ? -1 : undefined}
+									aria-label={confirmation.hasConfirmed
+										? undefined
+										: (i18n?.t('interactions.graphicOrder.confirmAria') ?? 'Confirm this order as your answer')}
 								>
-									{confirmation.hasReordered
-										? (i18n?.t('interactions.graphicOrder.confirmOrder') ?? 'Confirm Order')
-										: (i18n?.t('interactions.graphicOrder.confirmOrderNoChanges') ?? 'Confirm Order (No Changes)')}
+									{#if confirmation.hasConfirmed}
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											fill="none"
+											viewBox="0 0 24 24"
+											part="confirmed-icon"
+											class="qti-icon qti-go-confirmed stroke-current shrink-0 w-5 h-5"
+											aria-hidden="true"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M5 13l4 4L19 7"
+											></path>
+										</svg>
+										<span class="text-sm">{translate(i18n, 'interactions.order.orderConfirmed', 'Order confirmed')}</span>
+									{:else}
+										{confirmation.hasReordered
+											? (i18n?.t('interactions.graphicOrder.confirmOrder') ?? 'Confirm Order')
+											: (i18n?.t('interactions.graphicOrder.confirmOrderNoChanges') ?? 'Confirm Order (No Changes)')}
+									{/if}
 								</button>
-								<p class="text-xs text-base-content/60 mt-2 text-center">
-									{i18n?.t('interactions.graphicOrder.instruction') ?? 'Drag to reorder, or click to confirm'}
-								</p>
-							{:else if confirmation.hasConfirmed}
-								<div class="alert alert-success py-2">
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										fill="none"
-										viewBox="0 0 24 24"
-										part="confirmed-icon"
-										class="qti-icon qti-go-confirmed stroke-current shrink-0 w-5 h-5"
-										aria-hidden="true"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M5 13l4 4L19 7"
-										></path>
-									</svg>
-									<span class="text-sm">{translate(i18n, 'interactions.order.orderConfirmed', 'Order confirmed')}</span>
-								</div>
+								{#if !confirmation.hasConfirmed}
+									<p class="text-xs text-base-content/60 mt-2 text-center">
+										{i18n?.t('interactions.graphicOrder.instruction') ?? 'Drag to reorder, or click to confirm'}
+									</p>
+								{/if}
 							{/if}
+							<div aria-live="polite" aria-atomic="true" class="qti-go-confirmation-live">{confirmationAnnouncement}</div>
 						</div>
 					</div>
 				</div>
@@ -321,6 +356,30 @@
 		border-top: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		padding-top: 0.75rem;
 		margin-top: 1rem;
+	}
+	/* The confirmed control: the alert's success reading without removing the control */
+	.qti-go-confirmed-control {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.375rem;
+		border: 1px solid var(--pie-qti-success-text, #15803d);
+		color: var(--pie-qti-success-text, #15803d);
+		background: transparent;
+		cursor: default;
+	}
+
+	/* Visually hidden confirmation live region, self-contained so it hides without Tailwind. */
+	.qti-go-confirmation-live {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
 	}
 	.qti-go-sr-only {
 		position: absolute;

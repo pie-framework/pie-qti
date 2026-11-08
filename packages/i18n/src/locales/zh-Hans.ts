@@ -142,6 +142,8 @@ export default {
 			// {max} 将被替换为最大大小(MB)
 			errorTooLarge: '文件太大(最大 {max} MB)',
 			unknownType: '未知文件类型',
+			fileRemoved: '已移除文件。',
+			errorFileTooLarge: '文件 {filename} 太大。最大大小为 {maxBytes} 字节。',
 		},
 
 		drawing: {
@@ -186,6 +188,12 @@ export default {
 				other: '已达到 {count} 个字符的预期长度。',
 			},
 			correctAnswerHeading: '正确答案：',
+			editMath: '编辑数学公式',
+			minStringsHint: {
+				one: '请至少填写 {count} 个回答。',
+				other: '请至少填写 {count} 个回答。',
+			},
+			minStringsRemoveRefused: '回答未移除：至少需要 {count} 个回答。',
 		},
 
 		mathInput: {
@@ -325,6 +333,7 @@ export default {
 			pickUpCancelled: '已取消拿起 {word}。',
 			minPlacementsHint: '还需放入空白处：{words}。',
 			notCompatibleSentence: '与所选词语不兼容。',
+			wordRemovedFromBlanks: '已将 {word} 从空格中移除。',
 		},
 
 		graphicGapMatch: {
@@ -362,6 +371,7 @@ export default {
 			imageFallback: '本题的图像',
 			imageLoadError: '无法加载图像。',
 			unknownImageDimensions: '无法显示热点：图像尺寸未知。请为图像添加宽度和高度。',
+			minPlacementsHint: '仍需放置到区域：{labels}。',
 		},
 
 		order: {
@@ -530,6 +540,15 @@ export default {
 			pairDescription: '{first} 与 {second} 关联',
 			removeAssociation: '移除 {first} 与 {second} 之间的关联',
 			minimumRequired: '最少需要：{minAssociations}',
+			associationMade: '已创建关联。',
+			associationRemoved: '已移除关联。',
+			associationLimitReached: '无法创建关联：已达到 {max} 个的上限。',
+			hotspotLimitReached: '无法操作：{label} 不能参与更多关联。',
+			minAssociationsHint: {
+				one: '请至少建立 {count} 个关联。',
+				other: '请至少建立 {count} 个关联。',
+			},
+			minHotspotUsesHint: '还需要更多关联：{items}。',
 		},
 
 		custom: {

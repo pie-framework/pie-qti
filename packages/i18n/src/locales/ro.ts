@@ -132,6 +132,8 @@ export default {
 			errorReadFailed: 'Nu s-a putut citi fișierul',
 			errorTooLarge: 'Fișierul este prea mare (maxim {max} MB)',
 			unknownType: 'Tip de fișier necunoscut',
+			fileRemoved: 'Fișier eliminat.',
+			errorFileTooLarge: 'Fișierul {filename} este prea mare. Dimensiunea maximă este de {maxBytes} octeți.',
 		},
 
 		drawing: {
@@ -178,6 +180,13 @@ export default {
 				other: 'Ai atins lungimea așteptată de {count} de caractere.',
 			},
 			correctAnswerHeading: 'Răspuns corect:',
+			editMath: 'Editare matematică',
+			minStringsHint: {
+				one: 'Scrie cel puțin un răspuns.',
+				few: 'Scrie cel puțin {count} răspunsuri.',
+				other: 'Scrie cel puțin {count} de răspunsuri.',
+			},
+			minStringsRemoveRefused: 'Răspunsul nu a fost eliminat: sunt necesare cel puțin {count} răspunsuri.',
 		},
 
 		mathInput: {
@@ -317,6 +326,7 @@ export default {
 			pickUpCancelled: 'Preluarea lui {word} a fost anulată.',
 			minPlacementsHint: 'Mai sunt de plasat în spațiile libere: {words}.',
 			notCompatibleSentence: 'Incompatibil cu cuvântul selectat.',
+			wordRemovedFromBlanks: 'S-a eliminat {word} din spații.',
 		},
 
 		graphicGapMatch: {
@@ -354,6 +364,7 @@ export default {
 			imageFallback: 'Imaginea acestei întrebări',
 			imageLoadError: 'Imaginea nu a putut fi încărcată.',
 			unknownImageDimensions: 'Hotspot-urile nu pot fi afișate: dimensiunea imaginii este necunoscută. Adăugați lățime și înălțime imaginii.',
+			minPlacementsHint: 'Încă de plasat pe zone: {labels}.',
 		},
 
 		order: {
@@ -528,6 +539,16 @@ export default {
 			pairDescription: '{first} asociat cu {second}',
 			removeAssociation: 'Elimină asocierea dintre {first} și {second}',
 			minimumRequired: 'Minim necesar: {minAssociations}',
+			associationMade: 'Asociere realizată.',
+			associationRemoved: 'Asociere eliminată.',
+			associationLimitReached: 'Asociere imposibilă: s-a atins limita de {max}.',
+			hotspotLimitReached: 'Imposibil: {label} nu poate face parte din mai multe asocieri.',
+			minAssociationsHint: {
+				one: 'Realizează cel puțin o asociere.',
+				few: 'Realizează cel puțin {count} asocieri.',
+				other: 'Realizează cel puțin {count} de asocieri.',
+			},
+			minHotspotUsesHint: 'Mai are nevoie de asocieri: {items}.',
 		},
 
 		custom: {

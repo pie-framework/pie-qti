@@ -151,7 +151,7 @@ function createMatch(sourceId: string, targetId: string): boolean {
 	return true;
 }
 
-function clearMatch(sourceId: string) {
+async function clearMatch(sourceId: string) {
 	if (disabled) return;
 	const source = sourceSet.find((s) => s.identifier === sourceId);
 	const sourceName = choiceLabel(source);
@@ -160,6 +160,14 @@ function clearMatch(sourceId: string) {
 	onPairsChange(newPairs);
 
 	announceText = translate(i18n, 'interactions.match.matchCleared', 'Match cleared for {item}', { item: sourceName });
+
+	// The clear button is removed with the match, which would drop keyboard focus to
+	// the document. Focus returns to the now-enabled source button instead.
+	await tick();
+	const sourceButton = Array.from(gridElement?.querySelectorAll<HTMLButtonElement>('[data-source-id]') ?? []).find(
+		(button) => button.dataset.sourceId === sourceId,
+	);
+	if (sourceButton?.isConnected) sourceButton.focus();
 }
 </script>
 

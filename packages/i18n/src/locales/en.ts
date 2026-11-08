@@ -142,6 +142,8 @@ export default {
 			// {max} will be replaced with maximum size in MB
 			errorTooLarge: 'File is too large (maximum {max} MB)',
 			unknownType: 'Unknown file type',
+			fileRemoved: 'File removed.',
+			errorFileTooLarge: 'File {filename} is too large. Maximum size is {maxBytes} bytes.',
 		},
 
 		drawing: {
@@ -186,6 +188,12 @@ export default {
 				other: 'Expected length of {count} characters reached.',
 			},
 			correctAnswerHeading: 'Correct answer:',
+			editMath: 'Edit math',
+			minStringsHint: {
+				one: 'Write at least {count} response.',
+				other: 'Write at least {count} responses.',
+			},
+			minStringsRemoveRefused: 'Response not removed: at least {count} responses are required.',
 		},
 
 		mathInput: {
@@ -325,6 +333,7 @@ export default {
 			pickUpCancelled: 'Pick-up of {word} cancelled.',
 			minPlacementsHint: 'Still to place in the blanks: {words}.',
 			notCompatibleSentence: 'Not compatible with the selected word.',
+			wordRemovedFromBlanks: '{word} removed from the blanks.',
 		},
 
 		graphicGapMatch: {
@@ -362,6 +371,7 @@ export default {
 			imageFallback: 'Image for this question',
 			imageLoadError: 'The image could not be loaded.',
 			unknownImageDimensions: 'The hotspots cannot be shown: the size of the image is unknown. Add width and height to the image.',
+			minPlacementsHint: 'Still to place on the hotspots: {labels}.',
 		},
 
 		order: {
@@ -530,6 +540,15 @@ export default {
 			pairDescription: '{first} associated with {second}',
 			removeAssociation: 'Remove association between {first} and {second}',
 			minimumRequired: 'Minimum required: {minAssociations}',
+			associationMade: 'Association made.',
+			associationRemoved: 'Association removed.',
+			associationLimitReached: 'Association not possible: the limit of {max} is reached.',
+			hotspotLimitReached: 'Not possible: {label} cannot be in more associations.',
+			minAssociationsHint: {
+				one: 'Make at least {count} association.',
+				other: 'Make at least {count} associations.',
+			},
+			minHotspotUsesHint: 'Needs more associations: {items}.',
 		},
 
 		custom: {

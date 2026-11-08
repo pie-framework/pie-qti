@@ -11,6 +11,8 @@
 	} from '@pie-qti/item-player';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
+	import { minimumHint } from '../../shared/utils/minimumRequirement';
 	import { translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
 	import RichTextEditor from '../../shared/components/RichTextEditor.svelte';
 	import { typesetAction } from '../../shared/actions/typesetAction';
@@ -204,6 +206,18 @@
 	}
 
 	function removeString(index: number) {
+		// Minimum requirement (minStrings): removing a response would take the multi-part
+		// response below the minimum response validation enforces, so the removal is
+		// refused and the requirement is announced.
+		const minimum = !disabled && role === 'candidate' ? (parsedInteraction?.minStrings ?? 0) : 0;
+		if (minimum > 0 && editorValues.length <= minimum) {
+			announce(
+				translate(i18n, 'interactions.extendedText.minStringsRemoveRefused', 'Response not removed: at least {count} responses are required.', {
+					count: minimum,
+				}),
+			);
+			return;
+		}
 		if (editorValues.length === 1) {
 			editorValues = [''];
 		} else {
@@ -283,6 +297,23 @@
 			max: expectedLength,
 		});
 	}
+
+	// Minimum requirement (minStrings): the response must hold at least that many filled
+	// fields before it counts as complete — the same minimum response validation
+	// enforces. Stated while the fields fall short; only while the candidate can answer.
+	const minHintId = $derived(`${idBase}-min-hint`);
+	const filledCount = $derived(editorValues.filter((value) => value.trim().length > 0).length);
+	const minHint = $derived(
+		disabled || role !== 'candidate' || !parsedInteraction
+			? ''
+			: minimumHint({
+					i18n,
+					minimum: parsedInteraction.minStrings,
+					count: filledCount,
+					key: 'interactions.extendedText.minStringsHint',
+					fallback: { one: 'Write at least {count} response.', other: 'Write at least {count} responses.' },
+				}),
+	);
 </script>
 
 <ShadowBaseStyles />
@@ -368,6 +399,7 @@
 				</button>
 			{/if}
 		</div>
+		<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(editorValues)} />
 		<div part="announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true">{liveMessage}</div>
 		{#if isShowingCorrect && parsedCorrectResponse}
 			<div part="correct-answer" class="mt-3 p-3 bg-success bg-opacity-10 border border-success rounded">
