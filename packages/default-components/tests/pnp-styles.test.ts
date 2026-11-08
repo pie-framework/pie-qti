@@ -226,6 +226,18 @@ describe('PNP display needs', () => {
 		expect(css).toContain("[data-qti-invert-polarity='invert'] :where(img, picture, video, canvas, object)");
 	});
 
+	test('does not invert under forced colours, which already paint the candidate palette', () => {
+		const forced = /@media \(forced-colors: active\) \{([\s\S]*?)\n\}/.exec(css);
+		expect(forced, '@media (forced-colors: active) block').not.toBeNull();
+		const body = forced![1];
+		expect(body).toContain("[data-qti-invert-polarity='invert'],");
+		expect(body).toContain("[data-qti-invert-polarity='invert'] :where(img, picture, video, canvas, object)");
+		expect(body).toMatch(/filter:\s*none;/);
+		// Same specificity as the inversion rules: the override wins by coming after them.
+		const lastInversion = css.lastIndexOf('filter: invert(1) hue-rotate(180deg);');
+		expect(forced!.index).toBeGreaterThan(lastInversion);
+	});
+
 	test('stacks layout columns for single-column layout', () => {
 		expect(css).toContain("[data-qti-layout='single-column'] .qti-layout-row > *");
 	});

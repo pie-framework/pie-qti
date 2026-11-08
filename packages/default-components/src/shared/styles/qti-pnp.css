@@ -157,6 +157,17 @@
 	filter: invert(1) hue-rotate(180deg);
 }
 
+/*
+ * Forced colours (Windows high contrast) already paint the candidate's own palette: inverting
+ * it on top would turn that palette into its complement, the colours they did not choose.
+ */
+@media (forced-colors: active) {
+	[data-qti-invert-polarity='invert'],
+	[data-qti-invert-polarity='invert'] :where(img, picture, video, canvas, object) {
+		filter: none;
+	}
+}
+
 /* With the profile's colours, they take the scheme's place. */
 [data-qti-invert-polarity='colors'] {
 	--qti-scheme-fg: var(--qti-invert-foreground, #ffffff);
