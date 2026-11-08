@@ -134,6 +134,48 @@ test('proctor pause: overlay names the reason, the countdown freezes, resume con
 	await expect(readout).not.toHaveAttribute('aria-label', `Time remaining: ${frozenTime}`, { timeout: 8000 });
 });
 
+test('a pause survives a reload: the overlay is up until the proctor resumes, then delivery works', async ({ page }) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.goto('fixtures/assessment-timed?scenario=pause&resume=1');
+	const readout = page.getByRole('timer');
+	await expect(readout).toBeVisible({ timeout: 30000 });
+
+	// Answer, then pause; the pause rides the autosaved snapshot.
+	await page.getByRole('radio', { name: 'Alpha', exact: true }).first().check();
+	await page.getByTestId('proctor-pause').click();
+	const overlay = page.getByTestId('assessment-pause-overlay');
+	await expect(overlay).toBeVisible();
+	await expect(page.getByTestId('assessment-save-status')).toHaveText(/saved/i, { timeout: 8000 });
+
+	await page.reload();
+
+	// The restored session reopens paused: the overlay is up with no proctor action,
+	// every control beneath it is inert, and no resume prompt is offered.
+	await expect(overlay).toBeVisible({ timeout: 30000 });
+	await expect(overlay).toContainText('Proctor needs your attention');
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+	await expect(overlay.getByRole('heading', { name: 'Assessment paused' })).toBeFocused();
+	// Tab (either direction) stays on the overlay heading: the inert chrome and the
+	// covered host page cannot take focus while the modal pause holds (WCAG 2.4.11).
+	await page.keyboard.press('Tab');
+	await expect(overlay.getByRole('heading', { name: 'Assessment paused' })).toBeFocused();
+	await page.keyboard.press('Shift+Tab');
+	await expect(overlay.getByRole('heading', { name: 'Assessment paused' })).toBeFocused();
+
+	// The proctor resumes: delivery unlocks and the deferred resume prompt returns
+	// (the draft was never answered).
+	await page.getByTestId('proctor-resume').click();
+	await expect(overlay).toBeHidden();
+	const dialog = page.getByRole('dialog', { name: 'Resume your test?' });
+	await expect(dialog).toBeVisible({ timeout: 10000 });
+	await dialog.getByTestId('assessment-resume-continue').click();
+	// Actions work again, and the answer survived the pause and the reload.
+	await page.getByTestId('assessment-next').click();
+	await expect(page.getByTestId('assessment-prev')).toBeEnabled({ timeout: 10000 });
+	await page.getByTestId('assessment-prev').click();
+	await expect(page.getByRole('radio', { name: 'Alpha', exact: true }).first()).toBeChecked({ timeout: 10000 });
+});
+
 test('an expired allowLateSubmission limit is announced but keeps the test open', async ({ page }) => {
 	await page.setViewportSize({ width: 1280, height: 900 });
 	await openTimed(page, 'late');

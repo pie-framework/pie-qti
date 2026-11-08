@@ -57,9 +57,13 @@ After `initSession` returns, `AssessmentPlayer` immediately flattens all `Secure
 QTI `branchRule` targets can end delivery early: `EXIT_TEST` terminates the test (remaining items
 are not presented), `EXIT_TESTPART` ends the current test part, and `EXIT_SECTION` ends the current
 section. All of them — and the explicit `submit()` call — route through the same internal
-end-of-test path: pending simultaneous-mode responses are submitted, the current individual-mode
-item is submitted if needed, the backend finalizes (outcome processing runs, results are produced),
-`complete` fires, and navigation closes (`canNext`/`canPrevious` become false; further navigation
+end-of-test path: pending simultaneous-mode responses are submitted, every visited individual-mode
+item the backend has not accepted yet is collected through the same detached end-attempt loop (an
+item the candidate answered and then jumped away from without a forward submission, an item an
+expired limit froze, and the current item; unchanged responses never re-submit, so no attempt is
+re-spent), the backend finalizes (outcome processing runs against the freshly persisted final
+snapshot, so the built-in durations are current), results are produced, `complete` fires, and
+navigation closes (`canNext`/`canPrevious` become false; further navigation
 rejects with a typed `testFinalized` error). `EXIT_TESTPART`/`EXIT_SECTION` first continue with the
 next delivered item outside the ended scope, finalizing the ended test part when delivery leaves it
 or nothing follows.
@@ -131,7 +135,7 @@ snapshot's `timing.savedAt` dates the resume prompt.
 | `testPart.submissionMode` (individual / simultaneous) | Full |
 | `assessmentSection.visible` | Full (invisible sections — and sections under an invisible ancestor — are never listed candidate-facing: omitted from the section list, never surfaced next to the question counter; their items still deliver in order) |
 | `assessmentSection.rubricBlock` (view-filtered) | Full |
-| `timeLimits.minTime` / `maxTime` (assessment, testPart, section, item) | Runtime enforcement with independent persisted clocks; edge/browser coverage remains |
+| `timeLimits.minTime` / `maxTime` (assessment, testPart, section — every enclosing section, not only the innermost — item) | Runtime enforcement with independent persisted clocks (nested sections each run their own clock, expire, gate `minTime` transitions and accumulate `SECTION_ID.duration`); edge/browser coverage remains |
 | `timeLimits.allowLateSubmission` | Full |
 | `itemSessionControl` cascade (testPart → sections → item ref) | Full, over the QTI defaults |
 | `itemSessionControl.maxAttempts` | Backend-enforced; UI hint (adaptive items unlimited). With `showFeedback`, more than one attempt delivers the item-level check-answer control ("Attempt N of M"; the control disables with a localized explanation once the attempts are used up) |
@@ -178,9 +182,11 @@ snapshot's `timing.savedAt` dates the resume prompt.
   the active item in that order. The compatibility `getCurrentRubricBlocks()` method retains its
   section-first/fallback behavior. Direct `assessmentItem` rubrics must remain on
   `ItemSession.present().directRubrics` rather than being merged into shared section content.
-- **FR-9:** `TimeManager` must independently accumulate and persist assessment, testPart, section,
-  and item clocks; enforce the shortest active hard maximum and every applicable minimum transition;
-  and fire warning/expiry callbacks for the active limiting scope.
+- **FR-9:** `TimeManager` must independently accumulate and persist assessment, testPart, section
+  (every enclosing section — nested sections run alongside each other), and item clocks; enforce
+  the shortest active hard maximum and every applicable minimum transition (leaving an enclosing
+  section waits for its minimum too); and fire warning/expiry callbacks for the active limiting
+  scope, outer sections included.
 - **FR-10:** `getState()` must return a save snapshot with cloned top-level collections and timing
   maps. It is not a recursively immutable value; callers must treat nested response, score, and
   serialized-session entries as read-only or clone them before mutation.
@@ -223,7 +229,10 @@ snapshot's `timing.savedAt` dates the resume prompt.
 - **FR-22:** A session created from a backend-restored snapshot reports `hasRestoredProgress()`
   (saved answers present), `getRestoredSavedAt()` (the snapshot's `timing.savedAt`) and carries
   `savedAt` on `getStartInfo()`. Restored responses, flags, timer preference and the current
-  item are restored by the snapshot, and a restored-paused session reopens paused.
+  item are restored by the snapshot, and a restored-paused session reopens paused: the shell
+  shows the pause overlay without waiting for an `onPauseChange` (it syncs from
+  `isPaused()`/`getPauseReason()` at creation), announces assertively and holds focus on the
+  overlay until the host resumes it.
 - **FR-23:** `checkCurrentItem()` submits the active item through the normal per-item path
   (`countAttempt: true`, branching not followed) and stays on it. It is a coded
   `maxAttemptsReached` rejection once the resolved attempts are used up and a coded
@@ -237,7 +246,13 @@ snapshot's `timing.savedAt` dates the resume prompt.
 - **FR-24:** Moving on from an item whose last counted submission carried exactly these
   responses (a practice check the candidate did not revise) does not submit again and does not
   spend an attempt; a changed response re-submits through the normal path. The same rule gates
-  the final current-item submission inside `endTestInternal()`.
+  the final current-item submission inside `endTestInternal()`, and extends to the whole
+  collection: at finalize, every visited individual-mode item whose live responses differ from
+  its last counted submission — or that has no recorded result — is submitted once through the
+  detached end-attempt loop, so an answer left behind a nonlinear jump is scored instead of
+  finalized from NULL. Items already accepted with identical responses are never re-sent, and a
+  resumed session seeds that memory from the snapshot's recorded results (`itemScores` +
+  `itemResponses`).
 - **FR-25:** `setItemComment()` records the candidate's per-item comment (QTI `allowComment`)
   into the session state, restarts the autosave debounce like other candidate activity, and the
   core sends it as `comment` on every submission path for that item.
@@ -342,7 +357,8 @@ nothing depends on host CSS frameworks.
   so it survives navigation and save/resume. Warnings and expiry still announce while
   the readout is hidden.
 - **Scope expiry is surfaced, never silent.** A test part, section or item limit without
-  late submission locks its items (`TimeManager.onScopeExpired` → `handleScopeExpired`);
+  late submission locks its items — a nested (outer) section's expiry locks its whole subtree
+  (`TimeManager.onScopeExpired` → `handleScopeExpired`);
   delivery moves to the next unlocked item and the shell shows an AssessmentDialog
   notice ("The time for this section is over — you are moving on"), announces the new
   question position, and moves focus like a navigation (`onScopeTimeExpired` event,
@@ -379,7 +395,14 @@ nothing depends on host CSS frameworks.
   A pause requested during a transition applies when it settles; while paused the reason
   can be replaced. `resume()` reopens the attempt from the pause snapshot, so paused
   time never counts as time on task, and the countdown continues where it froze. A
-  snapshot taken while paused carries `timing.isPaused`/`pauseReason` and reopens paused.
+  snapshot taken while paused carries `timing.isPaused`/`pauseReason` and **reopens paused: the
+  shell syncs the overlay from the core at creation** (no `onPauseChange` fires for the restored
+  state — the shell announces the pause assertively, lands focus on the overlay, suppresses the
+  resume prompt while the pause holds and returns it when the pause lifts). Opening the pause
+  closes every shell dialog (submit confirmation, expiry notice, feedback, resume prompt — a
+  candidate must never answer or submit underneath a pause), makes the whole chrome inert through
+  one wrapper while the overlay stays operable outside it, and contains focus: Tab and any focus
+  that falls on covered content return to the overlay heading.
   PNP extended time stays consistent (it scales the limits the frozen clocks measure).
 
 ### Shared dialog
@@ -430,6 +453,10 @@ callbacks with a `bind:open` state.
   destructive-toned confirmation ("Your saved answers will be deleted … This cannot be
   undone"), then `startOver()` clears the draft, persists the blank state and restarts at the
   first item with focus and announcement handled like a navigation.
+- **A finalized session restores terminal.** When the backend reports the stored session as
+  finalized (`InitSessionResponse.finalized`), the shell renders the already-submitted
+  completion view instead of delivery whose every action would reject: no navigation, no resume
+  prompt, `submit()` returning the stored results (`finalResults`).
 
 ### Submit safety, review screen and flags (WCAG 3.3.4)
 
@@ -497,7 +524,8 @@ callbacks with a `bind:open` state.
 
 Finalization replaces the dead last item with a candidate-facing completion screen:
 "You have finished the test" (its time-expired variant when a whole-test limit
-auto-submitted), the test's outcome-matched `testFeedback`, and — only when the host opts
+auto-submitted; its already-submitted variant when a finalized session was restored), the
+test's outcome-matched `testFeedback`, and — only when the host opts
 in through the shell's `showResultsSummary` prop (the element's `show-results-summary`
 attribute, off by default) — a per-question results summary from
 `AssessmentPlayer.getResultsSummary()`: each delivered item's answered status plus the

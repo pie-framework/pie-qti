@@ -614,9 +614,11 @@ Done. Not covered: `choiceSequence` (the player does not record presentation ord
 `support` elements and `scoreStatus` / `answeredStatus`.
 
 Test signal
-- `packages/assessment-player/tests/assessment-result-xml.test.ts`: structure, cardinalities, record
-  fields, escaping, version differences and schema-typed failures; generated documents validate
-  against the official 2.2 and 3.0 result XSDs.
+- `packages/assessment-player/tests/assessment-result-xml.test.ts`: structure, ordering,
+  cardinalities, record fields, escaping, version differences and schema-typed failures.
+  Generated documents were validated against the official 2.2 and 3.0 result XSDs manually,
+  once; that validation is not automated in-tree and belongs in the private runner (or a
+  scripted `xmllint` gate) before anything relies on it as a gate.
 
 ---
 

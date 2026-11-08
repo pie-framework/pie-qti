@@ -167,16 +167,23 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			if (request.resumeSessionId) {
 				const stored = loadSession(request.resumeSessionId);
 				if (stored) {
+					// A finalized session has no resumable draft: restore terminal (the
+					// stored final totals, no restoredState), so hosts show the
+					// already-submitted view instead of delivery whose every submit fails.
+					if (stored.finalized) {
+						return {
+							sessionId: stored.sessionId,
+							assessment: stored.assessment,
+							finalized: true,
+							finalResults: this.storedFinalResults(stored),
+							outcomes: this.currentOutcomes(stored).outcomes,
+						};
+					}
 					return {
 						sessionId: stored.sessionId,
 						assessment: stored.assessment,
 						restoredState: stored.state,
 						outcomes: this.currentOutcomes(stored).outcomes,
-						// A finalized session restores terminal: hosts show the
-						// already-submitted view instead of delivery whose every submit fails.
-						...(stored.finalized
-							? { finalized: true, finalResults: this.storedFinalResults(stored) }
-							: {}),
 					};
 				}
 			}
