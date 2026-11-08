@@ -601,7 +601,9 @@ export default {
 	assessment: {
 		title: 'التقييم',
 		loading: 'جارٍ تحميل التقييم...',
-		loadingError: 'انتهت مهلة تحميل التقييم. قد يكون هذا التقييم غير صالح أو فشل المشغل في التهيئة.',
+		loadingError: 'تعذّر تحميل هذا التقييم. يرجى المحاولة مرة أخرى.',
+		stillLoading: 'ما زال التحميل جاريًا. يرجى الانتظار قليلًا.',
+		loadingRetry: 'حاول مرة أخرى',
 		question: 'السؤال {current} من {total}',
 		questionAnnouncement: 'السؤال {current} من {total}',
 		section: 'القسم {current} من {total}',
@@ -719,6 +721,37 @@ export default {
 			announcement: 'الاختبار متوقف مؤقتًا.',
 			withReason: 'الاختبار متوقف مؤقتًا: {reason}',
 			resumed: 'تم استئناف الاختبار.',
+		},
+
+		// الحفظ التلقائي: مؤشر حالة الحفظ بجانب عدد الأسئلة المُجابة.
+		autosave: {
+			saved: 'تم الحفظ · {time}',
+			savedShort: 'تم الحفظ',
+			saving: 'جارٍ الحفظ…',
+			notSaved: 'لم يُحفظ',
+		},
+
+		// لقطة محفوظة تحتوي على إجابات سابقة: المتابعة أو البدء من جديد.
+		resume: {
+			title: 'هل تريد استئناف اختبارك؟',
+			description: 'لديك إجابات محفوظة من {time}.',
+			descriptionNoTime: 'لديك إجابات محفوظة من جلسة سابقة.',
+			resumeAction: 'استئناف من حيث توقفت',
+			startOver: 'البدء من جديد',
+			confirmTitle: 'البدء من جديد وحذف إجاباتك المحفوظة؟',
+			confirmDescription:
+				'سيتم حذف إجاباتك المحفوظة ويبدأ الاختبار من البداية. لا يمكن التراجع عن هذا الإجراء.',
+			confirmAction: 'احذف وابدأ من جديد',
+			cancel: 'الاحتفاظ بإجاباتي المحفوظة',
+			resumedAnnouncement: 'تمت استعادة إجاباتك المحفوظة.',
+			restartedAnnouncement: 'أعيد بدء الاختبار من البداية.',
+		},
+
+		// تعذّر عرض محتوى السؤال: بلغة واضحة دون نص تقني، ويستمر الاختبار.
+		itemError: {
+			title: 'تعذّر عرض هذا السؤال.',
+			tryAgain: 'حاول مرة أخرى',
+			continue: 'متابعة',
 		},
 
 		feedback: {

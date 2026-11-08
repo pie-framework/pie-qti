@@ -536,7 +536,9 @@ export default {
 	assessment: {
 		title: 'Toets',
 		loading: 'Toets laden...',
-		loadingError: 'Time-out bij laden van toets. Deze toets is mogelijk ongeldig of de speler kon niet worden geïnitialiseerd.',
+		loadingError: 'Deze toets kon niet worden geladen. Probeer het opnieuw.',
+		stillLoading: 'Nog steeds aan het laden. Wacht even.',
+		loadingRetry: 'Opnieuw proberen',
 		question: 'Vraag {current} van {total}',
 		questionAnnouncement: 'Vraag {current} van {total}',
 		section: 'Sectie {current} van {total}',
@@ -654,6 +656,37 @@ export default {
 			announcement: 'De toets is gepauzeerd.',
 			withReason: 'De toets is gepauzeerd: {reason}',
 			resumed: 'De toets gaat weer verder.',
+		},
+
+		// Autosave: de opslagindicator naast het aantal beantwoorde vragen.
+		autosave: {
+			saved: 'Opgeslagen · {time}',
+			savedShort: 'Opgeslagen',
+			saving: 'Opslaan…',
+			notSaved: 'Niet opgeslagen',
+		},
+
+		// Een herstelde snapshot met opgeslagen antwoorden: doorgaan of opnieuw beginnen.
+		resume: {
+			title: 'Je toets hervatten?',
+			description: 'Je hebt antwoorden opgeslagen van {time}.',
+			descriptionNoTime: 'Je hebt opgeslagen antwoorden van een eerdere sessie.',
+			resumeAction: 'Doorgaan waar je was gebleven',
+			startOver: 'Opnieuw beginnen',
+			confirmTitle: 'Opnieuw beginnen en je opgeslagen antwoorden verwijderen?',
+			confirmDescription:
+				'Je opgeslagen antwoorden worden verwijderd en de toets begint opnieuw vanaf het begin. Dit kan niet ongedaan worden gemaakt.',
+			confirmAction: 'Verwijderen en opnieuw beginnen',
+			cancel: 'Mijn opgeslagen antwoorden bewaren',
+			resumedAnnouncement: 'Je opgeslagen antwoorden zijn hersteld.',
+			restartedAnnouncement: 'De toets is opnieuw begonnen vanaf het begin.',
+		},
+
+		// De inhoud van een vraag werkte niet: gewone taal, geen ontwikkelaarstekst, en de toets gaat verder.
+		itemError: {
+			title: 'Deze vraag kon niet worden weergegeven.',
+			tryAgain: 'Opnieuw proberen',
+			continue: 'Doorgaan',
 		},
 
 		feedback: {

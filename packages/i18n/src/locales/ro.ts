@@ -541,7 +541,9 @@ export default {
 	assessment: {
 		title: 'Evaluare',
 		loading: 'Se încarcă evaluarea...',
-		loadingError: 'Timeout la încărcarea evaluării. Această evaluare poate fi invalidă sau playerul nu a reușit să se inițializeze.',
+		loadingError: 'Această evaluare nu a putut fi încărcată. Încercați din nou.',
+		stillLoading: 'Se încarcă în continuare. Vă rugăm să așteptați o clipă.',
+		loadingRetry: 'Încercați din nou',
 		question: 'Întrebarea {current} din {total}',
 		questionAnnouncement: 'Întrebarea {current} din {total}',
 		section: 'Secțiunea {current} din {total}',
@@ -659,6 +661,37 @@ export default {
 			announcement: 'Evaluarea este în pauză.',
 			withReason: 'Evaluarea este în pauză: {reason}',
 			resumed: 'Evaluarea a fost reluată.',
+		},
+
+		// Autosave: indicatorul de salvare lângă numărul de răspunsuri.
+		autosave: {
+			saved: 'Salvat · {time}',
+			savedShort: 'Salvat',
+			saving: 'Se salvează…',
+			notSaved: 'Nesalvat',
+		},
+
+		// O instantă restaurată cu răspunsuri salvate: continuați sau începeți din nou.
+		resume: {
+			title: 'Reluați testul?',
+			description: 'Aveți răspunsuri salvate de la {time}.',
+			descriptionNoTime: 'Aveți răspunsuri salvate dintr-o sesiune anterioară.',
+			resumeAction: 'Reluați de acolo unde ați rămas',
+			startOver: 'Începeți din nou',
+			confirmTitle: 'Începeți din nou și ștergeți răspunsurile salvate?',
+			confirmDescription:
+				'Răspunsurile salvate vor fi șterse, iar testul va începe de la început. Această acțiune nu poate fi anulată.',
+			confirmAction: 'Ștergeți și începeți din nou',
+			cancel: 'Păstrează răspunsurile salvate',
+			resumedAnnouncement: 'Răspunsurile salvate au fost restaurate.',
+			restartedAnnouncement: 'Testul a fost reluat de la început.',
+		},
+
+		// Conținutul unei întrebări a eșuat: limbaj clar, fără text tehnic, iar testul continuă.
+		itemError: {
+			title: 'Această întrebare nu a putut fi afișată.',
+			tryAgain: 'Încercați din nou',
+			continue: 'Continuați',
 		},
 
 		feedback: {
