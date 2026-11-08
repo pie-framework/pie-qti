@@ -725,6 +725,7 @@ export class Player {
 	}
 
 	private runNewTemplateAction(options: { resetResponses?: boolean }): ItemSessionActionResult {
+		this.restoreDeclaredTemplateRuleTargets();
 		this.resetOutcomesToDefault();
 		if (options.resetResponses ?? true) {
 			this.resetResponsesToDefault();
@@ -874,6 +875,31 @@ export class Player {
 	}
 
 	/**
+	 * QTI ASI §10.3 with §5.1: template processing runs on a fresh instance of the item, so a new
+	 * template instance starts from the declarations, not from the instance before it. The
+	 * template rules setDefaultValue and setCorrectResponse change response and outcome
+	 * declarations for one instance; their declared defaults and correct responses come back
+	 * here, before the variables reset and template processing runs again. Template variables
+	 * keep their defaults: template rules do not change them, and they hold the
+	 * assessmentItemRef's templateDefault values (applied at session start, carried by a
+	 * snapshot), which apply to every instance.
+	 */
+	private restoreDeclaredTemplateRuleTargets(): void {
+		for (const d of Object.values(this.decls)) {
+			const kind = (d as any).__kind as DeclKind | undefined;
+			if (kind !== 'response' && kind !== 'outcome') continue;
+			const declared = this.sourceDeclarations[d.identifier];
+			if (!declared) continue;
+			const fields = d as { defaultValue?: QtiValue; correctResponse?: QtiValue };
+			if (declared.defaultValue) fields.defaultValue = cloneRuntimeValue(declared.defaultValue);
+			else delete fields.defaultValue;
+			if (kind !== 'response') continue;
+			if (declared.correctResponse) fields.correctResponse = cloneRuntimeValue(declared.correctResponse);
+			else delete fields.correctResponse;
+		}
+	}
+
+	/**
 	 * A MAXSCORE declared without a <defaultValue> is 0 per the numeric outcome rule, so an item
 	 * that never assigns it scores against a maximum of zero. That is the spec-correct reading of
 	 * under-specified content, and silently substituting 1 would make this engine disagree with a
@@ -896,6 +922,14 @@ export class Player {
 		countAttempt?: boolean;
 	}): ScoringResult {
 		this.updateDuration();
+		// QTI ASI §5.1: numAttempts starts at 0 and is incremented at the start of each attempt,
+		// so the response processing that ends a counted attempt reads that attempt's own
+		// number (1 on the first). The adaptive path counts in runAdaptiveSubmitAttempt; an
+		// uncounted attempt (countAttempt=false) and a scoring pass (scoreAttempt) do not count.
+		const countsAttempt = options.finalizeNonAdaptiveAttempt && (options.countAttempt ?? true);
+		if (!this.isAdaptive() && countsAttempt) {
+			this.ctx.setValue('numAttempts', qtiValue('integer', 'single', this.getNumAttempts() + 1));
+		}
 		// QTI ASI §5.2: for a non-adaptive item, outcome variables are reset to their defaults
 		// before each invocation of response processing. An adaptive item's outcomes "retain the
 		// values that were assigned to them during the previous invocation" (§5.2, §8), so they
@@ -923,10 +957,6 @@ export class Player {
 		// New scoreAttempt() uses this same engine with finalization disabled.
 		if (!this.isAdaptive() && options.finalizeNonAdaptiveAttempt) {
 			this.ctx.setValue('completionStatus', qtiValue('identifier', 'single', 'completed'));
-			if (options.countAttempt ?? true) {
-				const currentAttempts = this.getNumAttempts();
-				this.ctx.setValue('numAttempts', qtiValue('integer', 'single', currentAttempts + 1));
-			}
 		}
 
 		const outcomes = this.collectOutcomes();
@@ -1096,7 +1126,10 @@ export class Player {
 			}
 		}
 
-		const base = this.processResponses();
+		// A non-adaptive item counts (and finalizes) only a counted attempt, as endAttempt does.
+		const base = this.isAdaptive()
+			? this.processResponses()
+			: this.runResponseProcessing({ finalizeNonAdaptiveAttempt: countAttempt, countAttempt });
 		const completionStatus = this.getCompletionStatus();
 		const completed = completionStatus === 'completed';
 		const canContinue = this.isAdaptive() ? !completed : false;
@@ -1773,8 +1806,9 @@ export class Player {
 			// Restore the declaration's default value first: template processing is
 			// skipped on restore (QTI ASI §10.3 fixes its effects for the session), so
 			// a default changed by setDefaultValue must come from the snapshot. Later
-			// resets (attempt starts, newTemplate, outcome resets at response-processing
-			// start, templateConstraint restarts) then use the restored default. Absent
+			// resets (attempt starts, outcome resets at response-processing start,
+			// templateConstraint restarts) then use the restored default; a new template
+			// instance (newTemplate) starts from the declarations instead. Absent
 			// (older-snapshot) fields keep the value freshly parsed from the item XML.
 			if (v.defaultValue != null) {
 				d.defaultValue = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.defaultValue, d.identifier);
@@ -2066,9 +2100,9 @@ export class Player {
 			return cloneRuntimeValue(raw as QtiValue);
 		}
 
-		const extendedTextBase = identifier ? this.getExtendedTextBase(identifier) : undefined;
+		const inputBase = identifier ? this.getNumericInputBase(identifier) : undefined;
 		if (cardinality === 'record') {
-			return this.coerceRecordValue(raw, extendedTextBase ?? 10);
+			return this.coerceRecordValue(raw, inputBase ?? 10);
 		}
 
 		if (!baseType) return qtiNull(undefined, cardinality);
@@ -2089,29 +2123,47 @@ export class Player {
 		if (cardinality === 'multiple' || cardinality === 'ordered') {
 			const arr = Array.isArray(raw) ? raw : [raw];
 			const coerced = arr
-				.map((v) => String(v ?? '').trim())
-				.filter((s) => s.length > 0)
-				.map((t) => {
-					if (extendedTextBase && (baseType === 'integer' || baseType === 'float')) {
-						const numeric = createExtendedTextNumericRecord(t, extendedTextBase, this.getContentLanguage());
-						return baseType === 'integer' ? numeric.integerValue : numeric.floatValue;
-					}
-					const v = coerceBaseValue(baseType, t, this.getContentLanguage());
-					return v.kind === 'value' ? v.value : null;
-				})
-				.filter((v) => v !== null);
+				.map((entry) => this.coerceSingleValue(baseType, entry, inputBase))
+				.filter((v): v is Extract<QtiValue, { kind: 'value' }> => v.kind === 'value')
+				.map((v) => v.value);
 			// Multiple/ordered can legitimately be an empty container (distinct from null).
 			return qtiValue(baseType, cardinality, coerced);
 		}
 
+		return this.coerceSingleValue(baseType, raw, inputBase);
+	}
+
+	/**
+	 * One value of a response, read as its base type. Typed numeric text reads in the number base
+	 * of the string interaction bound to the response (QTI ASI stringInteraction `base`). The base
+	 * applies to typed text only: a finite number already is the variable's value — a restored
+	 * session, a correct response or default, a value read back from the session — and reading
+	 * its decimal digits in the base again would change it on every round trip.
+	 */
+	private coerceSingleValue(baseType: BaseType, raw: unknown, inputBase: number | undefined): QtiValue {
 		const t = String(raw ?? '').trim();
-		if (t.length === 0) return qtiNull(baseType, cardinality);
-		if (extendedTextBase && (baseType === 'integer' || baseType === 'float')) {
-			const numeric = createExtendedTextNumericRecord(t, extendedTextBase, this.getContentLanguage());
+		if (t.length === 0) return qtiNull(baseType, 'single');
+		const typed = !(typeof raw === 'number' && Number.isFinite(raw));
+		if (inputBase !== undefined && typed && (baseType === 'integer' || baseType === 'float')) {
+			const numeric = createExtendedTextNumericRecord(t, inputBase, this.getContentLanguage());
 			const value = baseType === 'integer' ? numeric.integerValue : numeric.floatValue;
 			return value === null ? qtiNull(baseType, 'single') : qtiValue(baseType, 'single', value);
 		}
 		return coerceBaseValue(baseType, t, this.getContentLanguage());
+	}
+
+	/**
+	 * The number base typed numeric text for `responseIdentifier` reads in (QTI ASI
+	 * stringInteraction `base`): the bound extendedTextInteraction's, decimal included (its
+	 * lexical reading also fills the numeric record fields), or the bound textEntryInteraction's
+	 * when it is not decimal. Undefined otherwise: decimal text entry keeps the content-language
+	 * number reading.
+	 */
+	private getNumericInputBase(responseIdentifier: string): number | undefined {
+		const extendedTextBase = this.getExtendedTextBase(responseIdentifier);
+		if (extendedTextBase !== undefined) return extendedTextBase;
+		const textEntryBase = this.itemDocument.getTextEntryBase(responseIdentifier);
+		return textEntryBase !== undefined && textEntryBase !== 10 ? textEntryBase : undefined;
 	}
 
 	private getExtendedTextBase(responseIdentifier: string): number | undefined {

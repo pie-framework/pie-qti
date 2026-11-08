@@ -106,11 +106,16 @@ function findMappingEntry(
  * only", so {B,B,C} maps to 1.5, not 2.5. Deduplication uses the same normalized
  * key the mapping lookup uses — pair keys ignore member order, directedPair keys
  * keep it.
+ *
+ * QTI treats a container with no values as NULL, so a NULL container maps as the
+ * empty container — its values sum to 0, which the mapping's bounds then clamp —
+ * rather than to the defaultValue, which is for a value without a mapping entry. A
+ * NULL single value has no mapping entry and takes the defaultValue.
  */
 function mapMappedValue(
 	decl: Declaration,
 	mapping: Mapping,
-	current: QtiValue & { kind: 'value' },
+	current: QtiValue,
 	language: string | undefined,
 ): number {
 	const normalizeMappingKey = (k: string): string => {
@@ -134,10 +139,11 @@ function mapMappedValue(
 	};
 
 	if (decl.cardinality !== 'multiple' && decl.cardinality !== 'ordered') {
+		if (current.kind !== 'value') return Number(mapping.defaultValue ?? 0);
 		return mapOne(String(current.value));
 	}
 
-	const arr = Array.isArray(current.value) ? current.value : [current.value];
+	const arr = current.kind !== 'value' ? [] : Array.isArray(current.value) ? current.value : [current.value];
 	const counted = new Set<string>();
 	let raw = 0;
 	for (const x of arr) {
@@ -1197,10 +1203,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 		case 'expr.mapOutcome': {
 			const decl = env.ctx.getDeclaration(expr.identifier);
 			if (!decl?.mapping) return qtiValue('float', 'single', 0);
-			const current = decl.value;
-			if (current.kind !== 'value') return qtiValue('float', 'single', decl.mapping.defaultValue ?? 0);
-
-			let raw = mapMappedValue(decl, decl.mapping, current, env.language);
+			let raw = mapMappedValue(decl, decl.mapping, decl.value, env.language);
 
 			const lower = decl.mapping.lowerBound;
 			const upper = decl.mapping.upperBound;
@@ -1211,10 +1214,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 		case 'expr.mapResponse': {
 			const decl = env.ctx.getDeclaration(expr.identifier);
 			if (!decl?.mapping) return qtiValue('float', 'single', 0);
-			const current = decl.value;
-			if (current.kind !== 'value') return qtiValue('float', 'single', decl.mapping.defaultValue ?? 0);
-
-			let raw = mapMappedValue(decl, decl.mapping, current, env.language);
+			let raw = mapMappedValue(decl, decl.mapping, decl.value, env.language);
 
 			const lower = decl.mapping.lowerBound;
 			const upper = decl.mapping.upperBound;
@@ -1226,7 +1226,6 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const decl = env.ctx.getDeclaration(expr.identifier);
 			if (!decl?.areaMapping) return qtiValue('float', 'single', 0);
 			const current = decl.value;
-			if (current.kind !== 'value') return qtiValue('float', 'single', decl.areaMapping.defaultValue ?? 0);
 
 			const numsFromCoords = (coords: string): number[] =>
 				(coords.match(/-?\d+(?:\.\d+)?/g) || []).map((s) => Number(s));
@@ -1324,16 +1323,19 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 				return Number(decl.areaMapping!.defaultValue || 0);
 			};
 
+			// A NULL container maps as the empty container and a NULL point as a point outside
+			// every area, as mapResponse treats them; the bounds then apply.
+			const value = current.kind === 'value' ? current.value : null;
 			let raw = 0;
 			if (decl.cardinality === 'multiple' || decl.cardinality === 'ordered') {
-				const arr = Array.isArray(current.value) ? current.value : [current.value];
+				const arr = value === null ? [] : Array.isArray(value) ? value : [value];
 				raw = arr
 					.map((x) => parsePoint(x))
 					.filter((p): p is { x: number; y: number } => Boolean(p))
 					.map(mapOnePoint)
 					.reduce((a, b) => a + b, 0);
 			} else {
-				const p = parsePoint(current.value);
+				const p = parsePoint(value);
 				raw = p ? mapOnePoint(p) : Number(decl.areaMapping.defaultValue || 0);
 			}
 

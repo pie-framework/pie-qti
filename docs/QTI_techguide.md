@@ -443,13 +443,13 @@ Examples in this section use QTI 2.x syntax. For QTI 3.0, apply the naming conve
 | Attribute | Required | Description |
 |-----------|----------|-------------|
 | `responseIdentifier` | Required | Identifier binding to responseDeclaration |
-| `base` | Optional | Numeric base for integer responses (default: 10) |
+| `base` | Optional | Number base for an integer or float response (default: 10) |
 | `expectedLength` | Optional | Hint for rendering field width (in characters) |
 | `patternMask` | Optional | Regular expression for input validation |
 | `placeholderText` | Optional | Hint text displayed when field is empty |
 | `format` | Optional | (QTI 2.2+) Display format hint |
 
-**Implementation Notes:** Use `stringMatch` or `patternMatch` operators in response processing for text comparison. Set `caseSensitive` attribute as appropriate. The `patternMask` provides client-side validation but should also be validated server-side.
+**Implementation Notes:** Use `stringMatch` or `patternMatch` operators in response processing for text comparison. Set `caseSensitive` attribute as appropriate. The `patternMask` provides client-side validation but should also be validated server-side. With `base`, the player reads the text the candidate enters in that base (`101` in base 2 is 5); values that are already numbers, such as a restored response or the declared correct response, are not read again.
 
 ---
 
@@ -466,7 +466,7 @@ declaration-level baseType; it captures the numeric lexical response as named, t
 | Attribute | Required | Description |
 |-----------|----------|-------------|
 | `responseIdentifier` | Required | Identifier binding to responseDeclaration |
-| `base` | Optional | Numeric base for integer responses |
+| `base` | Optional | Number base for integer or float responses (default: 10). Applies to the text the candidate enters; restored and declared values are already numbers |
 | `stringIdentifier` | Optional | Identifier of a companion string response that preserves the lexical input |
 | `expectedLength` | Optional | Expected character count (for sizing) |
 | `expectedLines` | Optional | Expected line count (for sizing) |
@@ -833,12 +833,23 @@ It is omitted on a `record` declaration because every record field declares its 
 
 These variables are automatically available in every item session:
 
-- **numAttempts** (response variable, integer): Number of attempts made
+- **numAttempts** (response variable, integer): the number of attempts. It starts at 0 and is
+  incremented at the start of each attempt (QTI ASI §5.1), so the response processing that ends an
+  attempt reads that attempt's own number: 1 on the first attempt, 2 on the second. Rules such as
+  `<gt><variable identifier="numAttempts"/><baseValue baseType="integer">1</baseValue></gt>` gate
+  credit for a later attempt. An attempt that is not counted (`countAttempt="false"`) does not
+  increment it.
 - **duration** (response variable, base-type `duration`): accumulated time on the item in seconds,
   fractional and truncated, excluding time the session was suspended. QTI requires a resolution of at
   least 1 s (0.1 s or finer recommended); this player keeps milliseconds. Expressions compare it with
   seconds, e.g. `<durationLT><variable identifier="duration"/><baseValue baseType="duration">60</baseValue></durationLT>`.
 - **completionStatus** (outcome variable, identifier): not_attempted, unknown, incomplete, completed
+
+In the item player, a counted attempt (`endAttempt` or `submitAttempt`) increments `numAttempts`
+before response processing for adaptive and non-adaptive items alike; `scoreAttempt` and an
+uncounted attempt run response processing with the current count. A saved item session carries the
+count in `contextVariables.numAttempts`, which is where a restored session reads it from, so a
+session reopened for the next attempt must carry the count of the attempts already made.
 
 At test level, `duration` is the time spent on the whole test, and `PART.duration` / `SECTION.duration`
 the time spent in a test part or section, also in seconds. Both QTI versions report all of them in
@@ -866,6 +877,15 @@ response-processing run of an adaptive item builds on the current values, `score
 so rescoring a restored adaptive session applies its rules again; report such a session's score
 from its restored outcome values. The built-in `numAttempts`, `completionStatus` and `duration` are
 maintained by the player and are never reset by response processing.
+
+### New Template Instances
+
+Template processing runs on a fresh instance of the item, whose variables start from their
+declarations (QTI ASI §10.3 with §5.1). The item player's `newTemplate` therefore starts the new
+instance from the declared defaults and correct responses: a default set by `setDefaultValue` or a
+correct response set by `setCorrectResponse` in the previous instance does not carry over, so a new
+draw that skips such a rule scores against the declared key. An `assessmentItemRef`'s
+`templateDefault` values apply to every instance, including those of a restored session.
 
 ## 4.2 Standard Response Processing Templates
 
@@ -901,6 +921,12 @@ Uses a `mapping` element to assign point values to each possible response value,
 <responseProcessing
     template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/map_response"/>
 ```
+
+The template sets `SCORE` to 0 when `RESPONSE` is NULL and maps it otherwise. Rules that call
+`mapResponse` or `mapOutcome` directly on an unanswered multiple or ordered variable map it as the
+empty container, because QTI treats a container with no values as NULL: the result is 0, clamped to
+`lowerBound` and `upperBound`, not the mapping's `defaultValue`, which applies to a value with no
+`mapEntry`. `mapResponsePoint` treats a NULL point container the same way.
 
 ### map_response_point
 

@@ -9,7 +9,7 @@ import { OperatorRegistry } from '../src/eval/operators.js';
 import { execProgram } from '../src/exec/execute.js';
 import { DeclarationContext } from '../src/runtime/context.js';
 import type { DeclarationMap, QtiValue } from '../src/runtime/types.js';
-import { qtiValue } from '../src/runtime/value.js';
+import { qtiNull, qtiValue } from '../src/runtime/value.js';
 import { parseXml } from '../src/xml/parse.js';
 
 function responseProcessing(body: string): Element {
@@ -407,5 +407,103 @@ describe('mapping inside a full response condition', () => {
       </responseCondition>`,
 		);
 		expect(ctx.getValue('SCORE')).toEqual(qtiValue('float', 'single', 1));
+	});
+});
+
+/**
+ * QTI ASI: a container with no values is treated as NULL, and a mapping's lowerBound and
+ * upperBound bound the result of mapping a container. A NULL container is therefore the empty
+ * container: its values sum to 0, which the bounds then clamp — it does not take the mapping's
+ * defaultValue, which applies to a value with no mapping entry.
+ */
+describe('mapping a NULL response', () => {
+	const OUT = { identifier: 'OUT', baseType: 'float' as const, cardinality: 'single' as const, value: qtiValue('float', 'single', 0) };
+	/** A canonical penalising multi-select mapping (choice_multiple). */
+	const PENALTY = {
+		defaultValue: -2,
+		lowerBound: 0,
+		upperBound: 2,
+		entries: {
+			H: { mapKey: 'H', mappedValue: 1 },
+			O: { mapKey: 'O', mappedValue: 1 },
+			Cl: { mapKey: 'Cl', mappedValue: -1 },
+		},
+	};
+
+	function mapped(
+		value: QtiValue,
+		mapping: NonNullable<DeclarationMap['RESPONSE']['mapping']>,
+		cardinality: DeclarationMap['RESPONSE']['cardinality'],
+		expression = 'mapResponse',
+	): QtiValue {
+		return run(
+			{ OUT, RESPONSE: { identifier: 'RESPONSE', baseType: 'identifier', cardinality, value, mapping } },
+			`<setOutcomeValue identifier="OUT"><${expression} identifier="RESPONSE"/></setOutcomeValue>`,
+		).getValue('OUT');
+	}
+
+	for (const cardinality of ['multiple', 'ordered'] as const) {
+		it(`maps a NULL ${cardinality} response as the empty container, within the bounds`, () => {
+			const empty = mapped(qtiValue('identifier', cardinality, []), PENALTY, cardinality);
+			expect(empty).toEqual(qtiValue('float', 'single', 0));
+			expect(mapped(qtiNull('identifier', cardinality), PENALTY, cardinality)).toEqual(empty);
+			// Partial responses keep their mapped sums, clamped to the bounds.
+			expect(mapped(qtiValue('identifier', cardinality, ['H']), PENALTY, cardinality)).toEqual(qtiValue('float', 'single', 1));
+			expect(mapped(qtiValue('identifier', cardinality, ['N']), PENALTY, cardinality)).toEqual(qtiValue('float', 'single', 0));
+			expect(mapped(qtiValue('identifier', cardinality, ['H', 'O', 'Cl']), PENALTY, cardinality)).toEqual(
+				qtiValue('float', 'single', 1),
+			);
+		});
+	}
+
+	it('clamps a NULL container to a positive lower bound, as the empty container', () => {
+		const floor = { ...PENALTY, defaultValue: 1, lowerBound: 2 };
+		expect(mapped(qtiValue('identifier', 'multiple', []), floor, 'multiple')).toEqual(qtiValue('float', 'single', 2));
+		expect(mapped(qtiNull('identifier', 'multiple'), floor, 'multiple')).toEqual(qtiValue('float', 'single', 2));
+	});
+
+	it('maps a NULL container to 0 without bounds, not to the mapping default', () => {
+		const unbounded = { defaultValue: -2, entries: PENALTY.entries };
+		expect(mapped(qtiNull('identifier', 'multiple'), unbounded, 'multiple')).toEqual(qtiValue('float', 'single', 0));
+	});
+
+	it('maps a NULL single response to the mapping default within the bounds, as an unmapped value', () => {
+		const below = { ...PENALTY, defaultValue: -1 };
+		expect(mapped(qtiValue('identifier', 'single', 'N'), below, 'single')).toEqual(qtiValue('float', 'single', 0));
+		expect(mapped(qtiNull('identifier', 'single'), below, 'single')).toEqual(qtiValue('float', 'single', 0));
+		const within = { ...PENALTY, defaultValue: 0.25 };
+		expect(mapped(qtiNull('identifier', 'single'), within, 'single')).toEqual(qtiValue('float', 'single', 0.25));
+	});
+
+	it('maps a NULL outcome container (mapOutcome) the same way', () => {
+		const ctx = run(
+			{
+				OUT,
+				FEEDBACK: {
+					identifier: 'FEEDBACK',
+					baseType: 'identifier',
+					cardinality: 'multiple',
+					value: qtiNull('identifier', 'multiple'),
+					mapping: PENALTY,
+				},
+			},
+			`<setOutcomeValue identifier="OUT"><mapOutcome identifier="FEEDBACK"/></setOutcomeValue>`,
+		);
+		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 0));
+	});
+
+	it('maps a NULL point container (mapResponsePoint) as the empty container, within the bounds', () => {
+		const areaMapping = {
+			defaultValue: -2,
+			lowerBound: 0.5,
+			entries: [{ shape: 'circle' as const, coords: '50,50,10', mappedValue: 2 }],
+		};
+		const pointMapped = (value: QtiValue) =>
+			run(
+				{ OUT, RESPONSE: { identifier: 'RESPONSE', baseType: 'point', cardinality: 'multiple', value, areaMapping } },
+				`<setOutcomeValue identifier="OUT"><mapResponsePoint identifier="RESPONSE"/></setOutcomeValue>`,
+			).getValue('OUT');
+		expect(pointMapped(qtiValue('point', 'multiple', []))).toEqual(qtiValue('float', 'single', 0.5));
+		expect(pointMapped(qtiNull('point', 'multiple'))).toEqual(qtiValue('float', 'single', 0.5));
 	});
 });
