@@ -475,6 +475,11 @@ export interface AssessmentSessionState {
 		isPaused?: boolean;
 		/** The candidate-facing reason the proctor gave for the pause. */
 		pauseReason?: string;
+		/**
+		 * Client clock (ms) of the last autosave persisted into this snapshot. Shells
+		 * show it on the resume prompt ("You have answers saved from {time}").
+		 */
+		savedAt?: number;
 	};
 }
 
@@ -591,6 +596,15 @@ export interface BackendAdapter {
 	 * Save session state (auto-save during assessment)
 	 */
 	saveState(request: SaveAssessmentStateRequest): Promise<SaveAssessmentStateResponse>;
+
+	/**
+	 * Whether this adapter persists candidate drafts through `saveState`. Autosave is
+	 * ON by default whenever the backend reports the capability (default `true`, so
+	 * adapters that implement `saveState` get autosave without extra wiring); set
+	 * `canSaveState: false` when the backend cannot store drafts or the host saves
+	 * state itself and wants the shell's autosave and its save indicator off.
+	 */
+	canSaveState?: boolean;
 
 	/**
 	 * Finalize assessment and get results

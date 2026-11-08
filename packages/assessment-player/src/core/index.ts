@@ -6,6 +6,8 @@ export type {
 	EffectiveItemTimeLimits,
 	ScopeTimeExpiryEvent,
 } from './AssessmentPlayer.js';
+export type { AutosaveState, AutosaveStatus } from './AutosaveManager.js';
+export { AutosaveManager } from './AutosaveManager.js';
 export {
 	AssessmentPlayerError,
 	assessmentErrorDisplay,

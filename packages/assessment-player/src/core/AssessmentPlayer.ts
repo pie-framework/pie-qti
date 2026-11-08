@@ -50,6 +50,7 @@ import type {
 	VisibleTestFeedback,
 } from '../types/index.js';
 import { AssessmentSessionCoordinator } from './AssessmentSessionCoordinator.js';
+import { AutosaveManager, type AutosaveState } from './AutosaveManager.js';
 import { AssessmentPlayerError, type AssessmentPlayerErrorCode } from './errors.js';
 import { NavigationManager } from './NavigationManager.js';
 import {
@@ -141,6 +142,21 @@ export interface BackendAssessmentPlayerConfig {
 	 */
 	beginGate?: boolean;
 	/**
+	 * Debounced autosave of the session snapshot through `BackendAdapter.saveState`
+	 * after candidate activity (responses, navigation, flags, timer visibility, pause),
+	 * and an immediate best-effort save via `flushAutosave()`. Default ON when the
+	 * backend reports the save capability (`canSaveState` is not false); set `false`
+	 * when the host persists state itself. Failures are non-fatal and surface through
+	 * `onAutosaveChange` (`failed`) and `onAutosaveFailed`.
+	 */
+	autosave?: boolean;
+	/** Autosave debounce window in ms. Default 1500. */
+	autosaveIntervalMs?: number;
+	/** Save-indicator state changes: `idle`, `pending`, `saving`, `saved`, `failed`. */
+	onAutosaveChange?: (state: AutosaveState) => void;
+	/** A debounced or flushed autosave failed; the draft retries on the next change. */
+	onAutosaveFailed?: (error: Error) => void;
+	/**
 	 * Deterministic clock for time-limit tracking. Defaults to Date.now; intended for
 	 * tests and hosts that drive delivery from their own timeline.
 	 */
@@ -222,6 +238,11 @@ export interface AssessmentStartInfo {
 	totalItems: number;
 	/** True when the session carries prior activity (a resume). */
 	resuming: boolean;
+	/**
+	 * When the restored draft was last saved (client clock), for the resume prompt
+	 * ("You have answers saved from {time}"); undefined for a fresh session.
+	 */
+	savedAt?: number;
 }
 
 export interface EffectiveItemTimeLimits {
@@ -320,6 +341,12 @@ export class AssessmentPlayer {
 	private assessmentExpired = false;
 	/** The live attempt was suspended by a pause; resume() reopens it from its pause snapshot. */
 	private suspendedForPause = false;
+	/** Debounced draft persistence through `saveState` (autosave); null when disabled. */
+	private autosave: AutosaveManager | null = null;
+	/** True while the session carries a backend-restored snapshot (a resume). */
+	private restoredFromSnapshot = false;
+	/** `timing.savedAt` of the restored snapshot, shown on the resume prompt. */
+	private restoredSavedAt: number | undefined;
 
 	// Event listeners
 	private itemChangeListeners = new Set<(index: number, total: number) => void>();
@@ -334,6 +361,7 @@ export class AssessmentPlayer {
 	private pauseChangeListeners = new Set<(paused: boolean, reason?: string) => void>();
 	private timeTickListeners = new Set<(remainingSeconds: number, elapsedSeconds: number) => void>();
 	private flagChangeListeners = new Set<(itemIdentifier: string, flagged: boolean) => void>();
+	private autosaveChangeListeners = new Set<(state: AutosaveState) => void>();
 	/** Item XML–derived review facts (interaction response ids, item title) per item identifier. */
 	private readonly reviewInfoCache = new Map<string, { responseIds: string[]; title?: string }>();
 
@@ -384,6 +412,10 @@ export class AssessmentPlayer {
 		// A session saved during a proctor pause reopens paused, its clocks frozen.
 		this.paused = init.restoredState?.timing?.isPaused === true;
 		this.pauseReason = this.paused ? init.restoredState?.timing?.pauseReason : undefined;
+
+		this.restoredFromSnapshot = init.restoredState !== undefined;
+		this.restoredSavedAt = init.restoredState?.timing?.savedAt;
+		this.createAutosave();
 
 		if (config.beginGate === true) {
 			// The begin gate holds delivery: no item is entered and no clock runs until start().
@@ -465,6 +497,141 @@ export class AssessmentPlayer {
 		if (!this.started) {
 			throw new AssessmentPlayerError('navigationNotAllowed', 'The assessment has not started yet.');
 		}
+	}
+
+	// ---------------------------------------------------------------------------
+	// Autosave: debounced draft persistence through BackendAdapter.saveState
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * Create the autosave engine. ON by default when the backend reports the save
+	 * capability (`canSaveState !== false`); `config.autosave === false` disables it
+	 * for hosts that persist state themselves.
+	 */
+	private createAutosave(): void {
+		const enabled = this.config.autosave !== false && this.backend.canSaveState !== false;
+		if (!enabled) return;
+		this.autosave = new AutosaveManager({
+			enabled: true,
+			intervalMs: this.config.autosaveIntervalMs ?? 1500,
+			collect: () => {
+				const snapshot = this.getState({ includeItemSessions: true });
+				snapshot.timing = { ...snapshot.timing, savedAt: Date.now() };
+				return { sessionId: this.sessionId, state: snapshot };
+			},
+			save: (request) => this.backend.saveState(request as never),
+			isBlocked: () => this.transitionInFlight,
+			isStopped: () => this.destroyed || this.finalized,
+			onStateChange: (state) => this.notifyAutosaveChange(state),
+			onError: (error) => this.config.onAutosaveFailed?.(error),
+		});
+	}
+
+	/** A due save is deferred while a transition runs and retried once it settles. */
+	private notifyAutosaveActivity(): void {
+		this.autosave?.notify();
+	}
+
+	/**
+	 * Save the current draft immediately (best-effort): the shell calls this from
+	 * `visibilitychange`/`pagehide`, and hosts may call it before their own teardown.
+	 * While a transition is in flight the save is re-queued instead of racing it.
+	 * Resolves once a save attempt settled (or immediately when autosave is off).
+	 */
+	public flushAutosave(): Promise<void> {
+		return this.autosave?.flush() ?? Promise.resolve();
+	}
+
+	/** The current save-indicator state (`idle` when autosave is disabled). */
+	public getAutosaveState(): AutosaveState {
+		return this.autosave?.getState() ?? { status: 'idle' };
+	}
+
+	/** Whether autosave is active for this session (backend capability + config). */
+	public isAutosaveEnabled(): boolean {
+		return this.autosave !== null;
+	}
+
+	/** Fires on every save-indicator state change. */
+	public onAutosaveChange(listener: (state: AutosaveState) => void): () => void {
+		this.autosaveChangeListeners.add(listener);
+		return () => this.autosaveChangeListeners.delete(listener);
+	}
+
+	private notifyAutosaveChange(state: AutosaveState): void {
+		for (const listener of this.autosaveChangeListeners) listener(state);
+		this.config.onAutosaveChange?.(state);
+	}
+
+	// ---------------------------------------------------------------------------
+	// Resume + start over
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * Whether the session was created from a backend snapshot that already carries
+	 * candidate work (a resume worth offering: saved answers). Shells show their
+	 * resume prompt from this. Elapsed time alone does not count: a session that was
+	 * merely started (or started over) has nothing to resume.
+	 */
+	public hasRestoredProgress(): boolean {
+		if (!this.restoredFromSnapshot) return false;
+		const responses = this.state.itemResponses ?? {};
+		return Object.values(responses).some(
+			(responsesForItem) => responsesForItem !== undefined && Object.keys(responsesForItem).length > 0,
+		);
+	}
+
+	/** When the restored snapshot was last saved (client clock), for the resume prompt. */
+	public getRestoredSavedAt(): number | undefined {
+		return this.hasRestoredProgress() ? this.restoredSavedAt : undefined;
+	}
+
+	/**
+	 * Discard the candidate's draft and restart delivery at the first item: responses,
+	 * flags, visited state, the timer preference and the clocks reset to a fresh
+	 * session, and the blank draft is persisted immediately when autosave is on.
+	 * Already-submitted items stay submitted (the backend remains authoritative for
+	 * accepted results). Rejects while paused, behind a begin gate, once finalized,
+	 * and while another transition runs.
+	 */
+	public async startOver(): Promise<void> {
+		return this.runCandidateTransition(async () => {
+			if (this.finalized) {
+				throw new AssessmentPlayerError('testFinalized', 'Cannot start over: the assessment has ended.');
+			}
+			const now = this.config.now?.() ?? Date.now();
+			const fresh: AssessmentSessionState = {
+				currentItemIdentifier: this.items[0]?.identifier ?? '',
+				visitedItems: [],
+				itemResponses: {},
+				itemScores: {},
+				itemSessions: {},
+				itemFlags: {},
+				itemComments: {},
+				itemSessionStates: {},
+				timing: {
+					startedAt: now,
+					itemTimes: {},
+					totalTime: 0,
+				},
+			};
+			// Replaces coordinator state (responses, sessions, results, flags), resets the
+			// clocks and clears visited/navigation state.
+			this.state = fresh;
+			this.restoreTimeTracking(fresh.timing);
+			this.navigationManager.restoreState([]);
+			const wasPaused = this.paused;
+			this.paused = false;
+			this.pauseReason = undefined;
+			if (wasPaused !== this.paused) this.notifyPauseChange();
+			// The resumable draft is gone; the shell's resume prompt must not reappear.
+			this.restoredFromSnapshot = false;
+			this.restoredSavedAt = undefined;
+			await this.performNavigateTo(0, { restoring: true });
+			// Persist the blank draft so a refresh cannot resurrect the discarded answers.
+			this.autosave?.notify();
+			void this.autosave?.flush();
+		});
 	}
 
 	private getEffectiveItemTimeLimits(flat: FlatItem): EffectiveItemTimeLimits {
@@ -780,6 +947,8 @@ export class AssessmentPlayer {
 		if (!id) return;
 		this.sessionCoordinator.setItemFlag(id, flagged);
 		for (const listener of this.flagChangeListeners) listener(id, flagged);
+		// Flags are part of the persisted draft.
+		this.notifyAutosaveActivity();
 	}
 
 	/** Toggle the current (or given) item's flag; returns the new state. */
@@ -867,13 +1036,42 @@ export class AssessmentPlayer {
 					href: itemRef.href,
 					title: itemRef.title,
 					itemXml: itemRef.itemXml,
-					deliveryContext: cloneData(itemRef.deliveryContext),
+					// Shared by reference, not cloned: the delivery context is a static
+					// content record the backend returned, composition rebuilds share it so
+					// unchanged items keep identical props, and callers treat it read-only.
+					deliveryContext: itemRef.deliveryContext,
 				};
 			});
 	}
 
 	public getResponsesForItem(itemIdentifier: string): Record<string, unknown> {
 		return cloneData(this.sessionCoordinator.getResponses(itemIdentifier)) ?? {};
+	}
+
+	/**
+	 * The assessment identifier the backend drew this session for (`SecureAssessment.identifier`).
+	 * Section tool bars and host integrations name the assessment with it.
+	 */
+	public getAssessmentId(): string {
+		return this.assessment.identifier;
+	}
+
+	/**
+	 * The delivered items of the active item's innermost section, with their current
+	 * response records shared by reference (a shallow copy of the outer map only).
+	 * For section composition building: the values are read-only views of session
+	 * state and must not be mutated by callers — the deep-cloning accessors above
+	 * remain the boundary for persistence and events.
+	 */
+	public getSectionItemResponses(): Record<string, Record<string, unknown>> {
+		const current = this.items[this.currentItemIndex];
+		if (!current) return {};
+		const out: Record<string, Record<string, unknown>> = {};
+		for (const item of this.items) {
+			if (item.section.identifier !== current.section.identifier) continue;
+			out[item.identifier] = { ...this.sessionCoordinator.getResponses(item.identifier) };
+		}
+		return out;
 	}
 
 	public getCurrentSharedRubricBlocks(): AssessmentRubricBlock[] {
@@ -1281,6 +1479,8 @@ export class AssessmentPlayer {
 				}
 			}
 			if (wasPaused !== this.paused) this.notifyPauseChange();
+			// A host-restored snapshot is the new draft; the save runs once this settles.
+			this.notifyAutosaveActivity();
 		});
 	}
 
@@ -1943,6 +2143,8 @@ export class AssessmentPlayer {
 		// Outcome processing has run by the end of the test, so a backend returning no outcomes
 		// leaves them all NULL.
 		this.finalized = true;
+		// The test ended through its real submission: draft autosave has nothing left to do.
+		this.autosave?.stop();
 		// Delivery is over: no clock keeps running, and no later expiry can fire.
 		this.timeManager?.pause();
 		this.timeManager?.stopTimer();
@@ -2150,6 +2352,7 @@ export class AssessmentPlayer {
 			rubricBlocks: (firstPart?.rubricBlocks ?? []).map((block) => ({ ...block, view: [...block.view] })),
 			totalItems: this.items.length,
 			resuming: (this.state.timing?.totalTime ?? 0) > 0 || this.state.visitedItems.length > 0,
+			savedAt: this.getRestoredSavedAt(),
 		};
 	}
 
@@ -2160,6 +2363,8 @@ export class AssessmentPlayer {
 
 	public setTimerHidden(hidden: boolean): void {
 		this.state.timerHidden = hidden;
+		// The preference rides the persisted snapshot, like flags.
+		this.notifyAutosaveActivity();
 	}
 
 	// ---------------------------------------------------------------------------
@@ -2233,6 +2438,7 @@ export class AssessmentPlayer {
 
 	public destroy(): void {
 		this.destroyed = true;
+		this.autosave?.stop();
 		this.timeManager?.destroy();
 		this.releaseCurrentItemSession();
 		this.itemDefinitions.clear();
@@ -2248,6 +2454,7 @@ export class AssessmentPlayer {
 		this.pauseChangeListeners.clear();
 		this.timeTickListeners.clear();
 		this.flagChangeListeners.clear();
+		this.autosaveChangeListeners.clear();
 		this.reviewInfoCache.clear();
 	}
 
@@ -2258,6 +2465,8 @@ export class AssessmentPlayer {
 	private notifyItemChange(): void {
 		for (const l of this.itemChangeListeners) l(this.currentItemIndex, this.items.length);
 		this.config.onItemChange?.(this.currentItemIndex, this.items.length);
+		// A navigation settles into a new draft worth persisting.
+		this.notifyAutosaveActivity();
 	}
 
 	private notifySectionChange(): void {
@@ -2272,6 +2481,8 @@ export class AssessmentPlayer {
 		const responses = this.sessionCoordinator.getActiveResponses();
 		for (const l of this.responseChangeListeners) l(responses);
 		this.config.onResponseChange?.(responses);
+		// Candidate input happened: restart the autosave debounce.
+		this.notifyAutosaveActivity();
 	}
 
 	private notifyComplete(): void {
@@ -2294,6 +2505,8 @@ export class AssessmentPlayer {
 		const reason = this.pauseReason;
 		for (const l of this.pauseChangeListeners) l(this.paused, reason);
 		this.config.onPauseChange?.(this.paused, reason);
+		// The pause rides the snapshot (`timing.isPaused`), so persist it too.
+		this.notifyAutosaveActivity();
 	}
 
 	private evaluateTemplateDefaults(q: FlatItem): Record<string, unknown> | undefined {
