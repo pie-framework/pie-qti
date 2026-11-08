@@ -9,6 +9,8 @@
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import HotspotShape from '../../shared/components/HotspotShape.svelte';
+	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
+	import { minimumHint } from '../../shared/utils/minimumRequirement';
 	import { hitStrokeWidth, imageAltText, observeWidth, shapeCenter } from './graphicRegions';
 
 	interface Props {
@@ -147,6 +149,22 @@
 	// Scorer view: correct regions by name; an id that matches no region is dropped, never shown raw.
 	const correctRegionNames = $derived(correctIds.map((id) => regionNameById(id)).filter(Boolean));
 
+	// Minimum requirement (minChoices): stated while fewer regions are selected, the same minimum
+	// response validation enforces; the author's message wins. The regions have no group of
+	// their own, so each region is described by it. Only while the candidate can still answer.
+	const minHintId = `${uid}-min-hint`;
+	const selectionCount = $derived(Array.isArray(parsedResponse) ? parsedResponse.length : parsedResponse ? 1 : 0);
+	const minHint = $derived(
+		minimumHint({
+			i18n,
+			minimum: !disabled && role === 'candidate' ? parsedInteraction?.minChoices : 0,
+			count: selectionCount,
+			authored: parsedInteraction?.minSelectionsMessage,
+			key: 'interactions.hotspot.minChoicesHint',
+			fallback: { one: 'Select at least {count} region.', other: 'Select at least {count} regions.' },
+		})
+	);
+
 	function handleClick(identifier: string) {
 		if (!disabled) {
 			response = identifier;
@@ -270,6 +288,7 @@
 									class: 'qti-hotspot-shape',
 									style: `--qti-hit-stroke: ${hitStrokeWidth(choice.shape, choice.coords, renderScale)}px;`,
 									'data-selected': isSelected ? '' : undefined,
+									'aria-describedby': minHint ? minHintId : undefined,
 								}}
 								onclick={() => handleClick(choice.identifier)}
 								onkeydown={(e) => handleKeyDown(e, choice.identifier)}
@@ -291,6 +310,7 @@
 				{/if}
 			</div>
 		{/if}
+		<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(parsedResponse ?? null)} />
 		{#if parsedInteraction.maxSelectionsMessage}
 			{@const selected = Array.isArray(parsedResponse) ? parsedResponse : (parsedResponse ? [parsedResponse] : [])}
 			{#if selected.length >= parsedInteraction.maxChoices && parsedInteraction.maxChoices > 0}

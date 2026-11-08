@@ -107,6 +107,10 @@ export default {
 			groupLabel: 'Answer choices',
 			maxChoicesReached: 'You can select up to {max}. Deselect one to choose another.',
 			clearAnswer: 'Clear answer',
+			minChoicesHint: {
+				one: 'Select at least {count} answer.',
+				other: 'Select at least {count} answers.',
+			},
 			eliminateChoice: 'Eliminate',
 			restoreChoice: 'Restore',
 		},
@@ -231,6 +235,10 @@ export default {
 			imageLoadError: 'The image could not be loaded.',
 			regionOfTotal: 'Region {index} of {total}',
 			selectedRegion: 'Selected: {region}',
+			minChoicesHint: {
+				one: 'Select at least {count} region.',
+				other: 'Select at least {count} regions.',
+			},
 		},
 
 		selectPoint: {
@@ -285,6 +293,11 @@ export default {
 			matchCleared: 'Match cleared for {item}',
 			maxReached: 'Maximum associations reached. Remove a pair to add a new one.',
 			pairCreated: '{source} matched with {target}.',
+			minAssociationsHint: {
+				one: 'Make at least {count} match.',
+				other: 'Make at least {count} matches.',
+			},
+			minChoiceUsesHint: 'Needs more matches: {items}.',
 			matchedWithSentence: 'Matched with {targets}.',
 			selectedForMatchingSentence: 'Selected for matching.',
 			availableForMatchingSentence: 'Available for matching.',
@@ -310,6 +323,7 @@ export default {
 			filledGapAriaLabel: 'Blank {position} of {total}, filled with {word}. Select to clear.',
 			wordSelected: '{word} picked up. Select a blank to place it, or press Escape to cancel.',
 			pickUpCancelled: 'Pick-up of {word} cancelled.',
+			minPlacementsHint: 'Still to place in the blanks: {words}.',
 			notCompatibleSentence: 'Not compatible with the selected word.',
 		},
 
@@ -371,6 +385,10 @@ export default {
 			selectionCancelled: '{item} selection cancelled',
 			itemFallback: 'Item',
 			orderConfirmed: 'Order confirmed',
+			minChoicesHint: {
+				one: 'Put at least {count} item in order.',
+				other: 'Put at least {count} items in order.',
+			},
 		},
 
 		associate: {
@@ -395,6 +413,11 @@ export default {
 			removeAssociationBetween: 'Remove association between {first} and {second}',
 			inPairSentence: 'In an association.',
 			removedAssociationBetween: 'Removed association between {first} and {second}.',
+			minAssociationsHint: {
+				one: 'Make at least {count} association.',
+				other: 'Make at least {count} associations.',
+			},
+			minChoiceUsesHint: 'Needs more associations: {items}.',
 		},
 
 		positionObject: {
@@ -489,6 +512,10 @@ export default {
 			imageFallback: 'Image for this question',
 			imageLoadError: 'The image could not be loaded.',
 			unlabeledItem: 'Item {index}',
+			minChoicesHint: {
+				one: 'Put at least {count} item in order.',
+				other: 'Put at least {count} items in order.',
+			},
 		},
 
 		graphicAssociate: {

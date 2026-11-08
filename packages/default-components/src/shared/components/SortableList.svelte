@@ -38,6 +38,8 @@ interface Props {
 	 * separate column sized against the row pitch.
 	 */
 	rowTrailing?: Snippet<[Item]>;
+	/** Id(s) of more descriptions for the list, such as the interaction's unmet-minimum hint. */
+	describedBy?: string;
 	onReorder: (newOrder: string[]) => void;
 }
 
@@ -51,6 +53,7 @@ const {
 	disabled = false,
 	i18n,
 	rowTrailing,
+	describedBy,
 	onReorder,
 }: Props = $props();
 
@@ -279,7 +282,7 @@ function itemState(index: number, isGrabbed: boolean, isCorrect: boolean): strin
 <div
 	role="list"
 	aria-label={i18n?.t('interactions.order.listLabel') ?? 'Reorderable list of choices'}
-	aria-describedby={instructionsId}
+	aria-describedby={describedBy ? `${instructionsId} ${describedBy}` : instructionsId}
 	data-orientation={orientation}
 	part="list"
 	class="qti-sortable-list space-y-2"

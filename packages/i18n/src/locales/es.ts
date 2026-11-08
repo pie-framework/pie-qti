@@ -110,6 +110,11 @@ export default {
 			groupLabel: 'Opciones de respuesta',
 			maxChoicesReached: 'Puedes seleccionar hasta {max}. Desmarca una para elegir otra.',
 			clearAnswer: 'Borrar respuesta',
+			minChoicesHint: {
+				one: 'Selecciona al menos {count} respuesta.',
+				many: 'Selecciona al menos {count} respuestas.',
+				other: 'Selecciona al menos {count} respuestas.',
+			},
 			eliminateChoice: 'Descartar',
 			restoreChoice: 'Restaurar',
 		},
@@ -223,6 +228,11 @@ export default {
 			imageLoadError: 'No se pudo cargar la imagen.',
 			regionOfTotal: 'Región {index} de {total}',
 			selectedRegion: 'Seleccionado: {region}',
+			minChoicesHint: {
+				one: 'Selecciona al menos {count} región.',
+				many: 'Selecciona al menos {count} regiones.',
+				other: 'Selecciona al menos {count} regiones.',
+			},
 		},
 
 		selectPoint: {
@@ -276,6 +286,12 @@ export default {
 			matchCleared: 'Emparejamiento limpiado para {item}',
 			maxReached: 'Se alcanzó el máximo de asociaciones. Elimina un par para añadir uno nuevo.',
 			pairCreated: '{source} emparejado con {target}.',
+			minAssociationsHint: {
+				one: 'Haz al menos {count} emparejamiento.',
+				many: 'Haz al menos {count} emparejamientos.',
+				other: 'Haz al menos {count} emparejamientos.',
+			},
+			minChoiceUsesHint: 'Necesita más emparejamientos: {items}.',
 			matchedWithSentence: 'Emparejado con {targets}.',
 			selectedForMatchingSentence: 'Seleccionado para emparejar.',
 			availableForMatchingSentence: 'Disponible para emparejar.',
@@ -300,6 +316,7 @@ export default {
 			filledGapAriaLabel: 'Espacio {position} de {total}, rellenado con {word}. Selecciona para limpiar.',
 			wordSelected: '{word} recogido. Selecciona un espacio para colocarlo, o pulsa Escape para cancelar.',
 			pickUpCancelled: 'Se canceló la recogida de {word}.',
+			minPlacementsHint: 'Falta colocar en los espacios en blanco: {words}.',
 			notCompatibleSentence: 'No compatible con la palabra seleccionada.',
 		},
 
@@ -361,6 +378,11 @@ export default {
 			selectionCancelled: 'Selección de {item} cancelada',
 			itemFallback: 'Elemento',
 			orderConfirmed: 'Orden confirmado',
+			minChoicesHint: {
+				one: 'Ordena al menos {count} elemento.',
+				many: 'Ordena al menos {count} elementos.',
+				other: 'Ordena al menos {count} elementos.',
+			},
 		},
 
 		associate: {
@@ -385,6 +407,12 @@ export default {
 			removeAssociationBetween: 'Eliminar asociación entre {first} y {second}',
 			inPairSentence: 'Forma parte de una asociación.',
 			removedAssociationBetween: 'Se eliminó la asociación entre {first} y {second}.',
+			minAssociationsHint: {
+				one: 'Crea al menos {count} asociación.',
+				many: 'Crea al menos {count} asociaciones.',
+				other: 'Crea al menos {count} asociaciones.',
+			},
+			minChoiceUsesHint: 'Necesita más asociaciones: {items}.',
 		},
 
 		positionObject: {
@@ -482,6 +510,11 @@ export default {
 			imageFallback: 'Imagen de esta pregunta',
 			imageLoadError: 'No se pudo cargar la imagen.',
 			unlabeledItem: 'Elemento {index}',
+			minChoicesHint: {
+				one: 'Ordena al menos {count} elemento.',
+				many: 'Ordena al menos {count} elementos.',
+				other: 'Ordena al menos {count} elementos.',
+			},
 		},
 
 		graphicAssociate: {

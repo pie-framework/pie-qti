@@ -114,7 +114,11 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 		const minAssociations = minAssociationsRaw > 0 ? minAssociationsRaw : undefined;
 		const interactionClasses = utils.getClasses(element);
 		const maxSelectionsMessage = utils.getAttribute(element, 'data-qti-max-selections-message', '') || null;
-		const minSelectionsMessage = utils.getAttribute(element, 'data-qti-min-selections-message', '') || null;
+		// QTI 3.0 names it data-min-selections-message, as on the other interactions.
+		const minSelectionsMessage =
+			utils.getAttribute(element, 'data-qti-min-selections-message', '') ||
+			utils.getAttribute(element, 'data-min-selections-message', '') ||
+			null;
 		const firstColumnHeader = utils.getAttribute(element, 'data-qti-first-column-header', '') || null;
 
 		// Extract prompt (optional)

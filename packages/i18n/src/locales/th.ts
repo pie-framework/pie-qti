@@ -110,6 +110,10 @@ export default {
 			groupLabel: 'ตัวเลือกคำตอบ',
 			maxChoicesReached: 'คุณเลือกได้สูงสุด {max} รายการ ให้ยกเลิกการเลือกหนึ่งรายการเพื่อเลือกรายการอื่น',
 			clearAnswer: 'ล้างคำตอบ',
+			minChoicesHint: {
+				one: 'เลือกคำตอบอย่างน้อย {count} ข้อ',
+				other: 'เลือกคำตอบอย่างน้อย {count} ข้อ',
+			},
 			eliminateChoice: 'ตัดออก',
 			restoreChoice: 'เรียกคืน',
 		},
@@ -221,6 +225,10 @@ export default {
 			imageLoadError: 'ไม่สามารถโหลดรูปภาพได้',
 			regionOfTotal: 'พื้นที่ {index} จาก {total}',
 			selectedRegion: 'เลือกแล้ว: {region}',
+			minChoicesHint: {
+				one: 'เลือกพื้นที่อย่างน้อย {count} พื้นที่',
+				other: 'เลือกพื้นที่อย่างน้อย {count} พื้นที่',
+			},
 		},
 
 		selectPoint: {
@@ -274,6 +282,11 @@ export default {
 			matchCleared: 'ล้างการจับคู่สำหรับ {item} แล้ว',
 			maxReached: 'ถึงจำนวนการจับคู่สูงสุดแล้ว ลบคู่หนึ่งออกเพื่อเพิ่มคู่ใหม่',
 			pairCreated: 'จับคู่ {source} กับ {target} แล้ว',
+			minAssociationsHint: {
+				one: 'จับคู่อย่างน้อย {count} คู่',
+				other: 'จับคู่อย่างน้อย {count} คู่',
+			},
+			minChoiceUsesHint: 'ต้องจับคู่เพิ่มเติม: {items}',
 			matchedWithSentence: 'จับคู่กับ {targets}',
 			selectedForMatchingSentence: 'เลือกเพื่อจับคู่แล้ว',
 			availableForMatchingSentence: 'พร้อมสำหรับการจับคู่',
@@ -298,6 +311,7 @@ export default {
 			filledGapAriaLabel: 'ช่องว่างที่ {position} จาก {total} เติมด้วย {word} แล้ว เลือกเพื่อล้าง',
 			wordSelected: 'หยิบ {word} แล้ว เลือกช่องว่างเพื่อวาง หรือกด Escape เพื่อยกเลิก',
 			pickUpCancelled: 'ยกเลิกการหยิบ {word} แล้ว',
+			minPlacementsHint: 'ยังต้องวางในช่องว่าง: {words}',
 			notCompatibleSentence: 'ไม่เข้ากันกับคำที่เลือก',
 		},
 
@@ -359,6 +373,10 @@ export default {
 			selectionCancelled: 'ยกเลิกการเลือก {item}',
 			itemFallback: 'รายการ',
 			orderConfirmed: 'ยืนยันลำดับแล้ว',
+			minChoicesHint: {
+				one: 'จัดลำดับรายการอย่างน้อย {count} รายการ',
+				other: 'จัดลำดับรายการอย่างน้อย {count} รายการ',
+			},
 		},
 
 		associate: {
@@ -383,6 +401,11 @@ export default {
 			removeAssociationBetween: 'ลบความสัมพันธ์ระหว่าง {first} และ {second}',
 			inPairSentence: 'อยู่ในความสัมพันธ์แล้ว',
 			removedAssociationBetween: 'ลบความสัมพันธ์ระหว่าง {first} และ {second} แล้ว',
+			minAssociationsHint: {
+				one: 'สร้างความสัมพันธ์อย่างน้อย {count} รายการ',
+				other: 'สร้างความสัมพันธ์อย่างน้อย {count} รายการ',
+			},
+			minChoiceUsesHint: 'ต้องเชื่อมโยงเพิ่มเติม: {items}',
 		},
 
 		positionObject: {
@@ -477,6 +500,10 @@ export default {
 			imageFallback: 'รูปภาพสำหรับคำถามนี้',
 			imageLoadError: 'ไม่สามารถโหลดรูปภาพได้',
 			unlabeledItem: 'รายการ {index}',
+			minChoicesHint: {
+				one: 'จัดลำดับรายการอย่างน้อย {count} รายการ',
+				other: 'จัดลำดับรายการอย่างน้อย {count} รายการ',
+			},
 		},
 
 		graphicAssociate: {

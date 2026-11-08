@@ -109,6 +109,11 @@ export default {
 			groupLabel: 'Options de réponse',
 			maxChoicesReached: 'Vous pouvez sélectionner jusqu’à {max} réponses. Désélectionnez-en une pour en choisir une autre.',
 			clearAnswer: 'Effacer la réponse',
+			minChoicesHint: {
+				one: 'Sélectionnez au moins {count} réponse.',
+				many: 'Sélectionnez au moins {count} réponses.',
+				other: 'Sélectionnez au moins {count} réponses.',
+			},
 			eliminateChoice: 'Écarter',
 			restoreChoice: 'Rétablir',
 		},
@@ -222,6 +227,11 @@ export default {
 			imageLoadError: 'L\'image n\'a pas pu être chargée.',
 			regionOfTotal: 'Région {index} sur {total}',
 			selectedRegion: 'Sélectionné : {region}',
+			minChoicesHint: {
+				one: 'Sélectionnez au moins {count} région.',
+				many: 'Sélectionnez au moins {count} régions.',
+				other: 'Sélectionnez au moins {count} régions.',
+			},
 		},
 
 		selectPoint: {
@@ -275,6 +285,12 @@ export default {
 			matchCleared: 'Association effacée pour {item}',
 			maxReached: 'Nombre maximal d\'associations atteint. Supprimez une paire pour en ajouter une nouvelle.',
 			pairCreated: '{source} associé à {target}.',
+			minAssociationsHint: {
+				one: 'Faites au moins {count} association.',
+				many: 'Faites au moins {count} associations.',
+				other: 'Faites au moins {count} associations.',
+			},
+			minChoiceUsesHint: 'Il manque des paires pour : {items}.',
 			matchedWithSentence: 'Associé à {targets}.',
 			selectedForMatchingSentence: 'Sélectionné pour l\'association.',
 			availableForMatchingSentence: 'Disponible pour l\'association.',
@@ -299,6 +315,7 @@ export default {
 			filledGapAriaLabel: 'Blanc {position} sur {total}, rempli avec {word}. Sélectionnez pour effacer.',
 			wordSelected: '{word} saisi. Sélectionnez un blanc pour le placer, ou appuyez sur Échap pour annuler.',
 			pickUpCancelled: 'La saisie de {word} a été annulée.',
+			minPlacementsHint: 'Reste à placer dans les blancs : {words}.',
 			notCompatibleSentence: 'Incompatible avec le mot sélectionné.',
 		},
 
@@ -360,6 +377,11 @@ export default {
 			selectionCancelled: 'Sélection de {item} annulée',
 			itemFallback: 'Élément',
 			orderConfirmed: 'Ordre confirmé',
+			minChoicesHint: {
+				one: 'Mettez au moins {count} élément dans l’ordre.',
+				many: 'Mettez au moins {count} éléments dans l’ordre.',
+				other: 'Mettez au moins {count} éléments dans l’ordre.',
+			},
 		},
 
 		associate: {
@@ -384,6 +406,12 @@ export default {
 			removeAssociationBetween: 'Supprimer l\'association entre {first} et {second}',
 			inPairSentence: 'Fait partie d\'une association.',
 			removedAssociationBetween: 'Association entre {first} et {second} supprimée.',
+			minAssociationsHint: {
+				one: 'Créez au moins {count} association.',
+				many: 'Créez au moins {count} associations.',
+				other: 'Créez au moins {count} associations.',
+			},
+			minChoiceUsesHint: 'Il manque des associations pour : {items}.',
 		},
 
 		positionObject: {
@@ -481,6 +509,11 @@ export default {
 			imageFallback: 'Image de cette question',
 			imageLoadError: 'L\'image n\'a pas pu être chargée.',
 			unlabeledItem: 'Élément {index}',
+			minChoicesHint: {
+				one: 'Mettez au moins {count} élément dans l’ordre.',
+				many: 'Mettez au moins {count} éléments dans l’ordre.',
+				other: 'Mettez au moins {count} éléments dans l’ordre.',
+			},
 		},
 
 		graphicAssociate: {

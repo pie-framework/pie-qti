@@ -13,6 +13,8 @@
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
+	import { minimumHint } from '../../shared/utils/minimumRequirement';
 
 	interface Props {
 		interaction?: OrderInteractionData | string;
@@ -95,6 +97,24 @@
 		confirmation.resetIfCleared();
 	});
 
+	// Minimum requirement (minChoices): stated while the response orders fewer items — until the
+	// candidate moves an item or confirms the order, it orders none — the same minimum response
+	// validation enforces; the author's message wins. It describes the list. Only while the
+	// candidate can still answer.
+	const uid = $props.id();
+	const minHintId = `${uid}-min-hint`;
+	const orderedCount = $derived(Array.isArray(parsedResponse) ? parsedResponse.filter(Boolean).length : 0);
+	const minHint = $derived(
+		minimumHint({
+			i18n,
+			minimum: !disabled && role === 'candidate' ? parsedInteraction?.minChoices : 0,
+			count: orderedCount,
+			authored: parsedInteraction?.minSelectionsMessage,
+			key: 'interactions.order.minChoicesHint',
+			fallback: { one: 'Put at least {count} item in order.', other: 'Put at least {count} items in order.' },
+		})
+	);
+
 	// Elimination tool (QTI 3.0 PNP §6.2): scratch-work toggles; the response is untouched.
 	const elimination = createEliminationTool();
 	// Each toggle is named for its item (image alt and MathML included), not just
@@ -131,6 +151,7 @@
 				{indexLabels}
 				{indexSuffix}
 				{disabled}
+				describedBy={minHint ? minHintId : undefined}
 				onReorder={handleReorder}
 			>
 				{#snippet rowTrailing(item)}
@@ -148,6 +169,7 @@
 				{/snippet}
 			</SortableList>
 		</div>
+		<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(parsedResponse ?? null)} />
 
 		<!-- Confirmation button for WCAG 2.2 SC 3.3.4 compliance -->
 		<div class="mt-4 flex items-center gap-3">

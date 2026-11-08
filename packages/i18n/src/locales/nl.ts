@@ -109,6 +109,10 @@ export default {
 			groupLabel: 'Antwoordopties',
 			maxChoicesReached: 'Je kunt maximaal {max} selecteren. Deselecteer er een om een andere te kiezen.',
 			clearAnswer: 'Antwoord wissen',
+			minChoicesHint: {
+				one: 'Selecteer minimaal {count} antwoord.',
+				other: 'Selecteer minimaal {count} antwoorden.',
+			},
 			eliminateChoice: 'Uitsluiten',
 			restoreChoice: 'Herstellen',
 		},
@@ -220,6 +224,10 @@ export default {
 			imageLoadError: 'De afbeelding kon niet worden geladen.',
 			regionOfTotal: 'Gebied {index} van {total}',
 			selectedRegion: 'Geselecteerd: {region}',
+			minChoicesHint: {
+				one: 'Selecteer minimaal {count} gebied.',
+				other: 'Selecteer minimaal {count} gebieden.',
+			},
 		},
 
 		selectPoint: {
@@ -273,6 +281,11 @@ export default {
 			matchCleared: 'Koppeling gewist voor {item}',
 			maxReached: 'Maximum aantal koppelingen bereikt. Verwijder een paar om een nieuw paar toe te voegen.',
 			pairCreated: '{source} gekoppeld aan {target}.',
+			minAssociationsHint: {
+				one: 'Maak minimaal {count} koppeling.',
+				other: 'Maak minimaal {count} koppelingen.',
+			},
+			minChoiceUsesHint: 'Heeft meer koppelingen nodig: {items}.',
 			matchedWithSentence: 'Gekoppeld aan {targets}.',
 			selectedForMatchingSentence: 'Geselecteerd voor koppeling.',
 			availableForMatchingSentence: 'Beschikbaar voor koppeling.',
@@ -297,6 +310,7 @@ export default {
 			filledGapAriaLabel: 'Lege plek {position} van {total}, ingevuld met {word}. Selecteer om te wissen.',
 			wordSelected: '{word} opgepakt. Selecteer een lege plek om het te plaatsen, of druk op Escape om te annuleren.',
 			pickUpCancelled: 'Het oppakken van {word} is geannuleerd.',
+			minPlacementsHint: 'Nog te plaatsen in de lege plekken: {words}.',
 			notCompatibleSentence: 'Niet compatibel met het geselecteerde woord.',
 		},
 
@@ -358,6 +372,10 @@ export default {
 			selectionCancelled: '{item} selectie geannuleerd',
 			itemFallback: 'Item',
 			orderConfirmed: 'Volgorde bevestigd',
+			minChoicesHint: {
+				one: 'Zet minimaal {count} item in volgorde.',
+				other: 'Zet minimaal {count} items in volgorde.',
+			},
 		},
 
 		associate: {
@@ -382,6 +400,11 @@ export default {
 			removeAssociationBetween: 'Associatie tussen {first} en {second} verwijderen',
 			inPairSentence: 'Zit in een associatie.',
 			removedAssociationBetween: 'Associatie tussen {first} en {second} verwijderd.',
+			minAssociationsHint: {
+				one: 'Maak minimaal {count} associatie.',
+				other: 'Maak minimaal {count} associaties.',
+			},
+			minChoiceUsesHint: 'Heeft meer associaties nodig: {items}.',
 		},
 
 		positionObject: {
@@ -476,6 +499,10 @@ export default {
 			imageFallback: 'Afbeelding bij deze vraag',
 			imageLoadError: 'De afbeelding kon niet worden geladen.',
 			unlabeledItem: 'Onderdeel {index}',
+			minChoicesHint: {
+				one: 'Zet minimaal {count} item in volgorde.',
+				other: 'Zet minimaal {count} items in volgorde.',
+			},
 		},
 
 		graphicAssociate: {

@@ -109,6 +109,11 @@ export default {
 			groupLabel: 'Opțiuni de răspuns',
 			maxChoicesReached: 'Poți selecta cel mult {max}. Deselectează una pentru a alege alta.',
 			clearAnswer: 'Șterge răspunsul',
+			minChoicesHint: {
+				one: 'Selectează cel puțin un răspuns.',
+				few: 'Selectează cel puțin {count} răspunsuri.',
+				other: 'Selectează cel puțin {count} de răspunsuri.',
+			},
 			eliminateChoice: 'Elimină',
 			restoreChoice: 'Restabilește',
 		},
@@ -222,6 +227,11 @@ export default {
 			imageLoadError: 'Imaginea nu a putut fi încărcată.',
 			regionOfTotal: 'Regiunea {index} din {total}',
 			selectedRegion: 'Selectat: {region}',
+			minChoicesHint: {
+				one: 'Selectează cel puțin o regiune.',
+				few: 'Selectează cel puțin {count} regiuni.',
+				other: 'Selectează cel puțin {count} de regiuni.',
+			},
 		},
 
 		selectPoint: {
@@ -275,6 +285,12 @@ export default {
 			matchCleared: 'Potrivire ștearsă pentru {item}',
 			maxReached: 'S-a atins numărul maxim de asocieri. Elimină o pereche pentru a adăuga una nouă.',
 			pairCreated: '{source} potrivit cu {target}.',
+			minAssociationsHint: {
+				one: 'Creează cel puțin o potrivire.',
+				few: 'Creează cel puțin {count} potriviri.',
+				other: 'Creează cel puțin {count} de potriviri.',
+			},
+			minChoiceUsesHint: 'Mai are nevoie de potriviri: {items}.',
 			matchedWithSentence: 'Potrivit cu {targets}.',
 			selectedForMatchingSentence: 'Selectat pentru potrivire.',
 			availableForMatchingSentence: 'Disponibil pentru potrivire.',
@@ -299,6 +315,7 @@ export default {
 			filledGapAriaLabel: 'Spațiu liber {position} din {total}, completat cu {word}. Selectează pentru a șterge.',
 			wordSelected: '{word} a fost apucat. Selectează un spațiu liber pentru a-l plasa, sau apasă Escape pentru a anula.',
 			pickUpCancelled: 'Preluarea lui {word} a fost anulată.',
+			minPlacementsHint: 'Mai sunt de plasat în spațiile libere: {words}.',
 			notCompatibleSentence: 'Incompatibil cu cuvântul selectat.',
 		},
 
@@ -360,6 +377,11 @@ export default {
 			selectionCancelled: 'Selecție {item} anulată',
 			itemFallback: 'Element',
 			orderConfirmed: 'Ordine confirmată',
+			minChoicesHint: {
+				one: 'Pune în ordine cel puțin un element.',
+				few: 'Pune în ordine cel puțin {count} elemente.',
+				other: 'Pune în ordine cel puțin {count} de elemente.',
+			},
 		},
 
 		associate: {
@@ -384,6 +406,12 @@ export default {
 			removeAssociationBetween: 'Elimină asocierea dintre {first} și {second}',
 			inPairSentence: 'Face parte din o asociere.',
 			removedAssociationBetween: 'Asocierea dintre {first} și {second} a fost eliminată.',
+			minAssociationsHint: {
+				one: 'Creează cel puțin o asociere.',
+				few: 'Creează cel puțin {count} asocieri.',
+				other: 'Creează cel puțin {count} de asocieri.',
+			},
+			minChoiceUsesHint: 'Mai are nevoie de asocieri: {items}.',
 		},
 
 		positionObject: {
@@ -481,6 +509,11 @@ export default {
 			imageFallback: 'Imaginea acestei întrebări',
 			imageLoadError: 'Imaginea nu a putut fi încărcată.',
 			unlabeledItem: 'Elementul {index}',
+			minChoicesHint: {
+				one: 'Pune în ordine cel puțin un element.',
+				few: 'Pune în ordine cel puțin {count} elemente.',
+				other: 'Pune în ordine cel puțin {count} de elemente.',
+			},
 		},
 
 		graphicAssociate: {

@@ -11,6 +11,8 @@
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
+	import { minimumHint } from '../../shared/utils/minimumRequirement';
 	import { escapeHtml, imageAltText } from '../hotspot/graphicRegions';
 
 	interface Props {
@@ -100,6 +102,23 @@
 		confirmation.resetIfCleared();
 	});
 
+	// Minimum requirement (minChoices): stated while the response orders fewer hotspots — until
+	// the candidate moves an item or confirms the order, it orders none — the same minimum
+	// response validation enforces; the author's message wins. It describes the list. Only while
+	// the candidate can still answer.
+	const minHintId = `${uid}-min-hint`;
+	const orderedCount = $derived(Array.isArray(parsedResponse) ? parsedResponse.filter(Boolean).length : 0);
+	const minHint = $derived(
+		minimumHint({
+			i18n,
+			minimum: !disabled && role === 'candidate' ? parsedInteraction?.minChoices : 0,
+			count: orderedCount,
+			authored: parsedInteraction?.minSelectionsMessage,
+			key: 'interactions.graphicOrder.minChoicesHint',
+			fallback: { one: 'Put at least {count} item in order.', other: 'Put at least {count} items in order.' },
+		})
+	);
+
 	function handleReorder(newOrder: string[]) {
 		confirmation.autoConfirm(); // Auto-confirm on drag
 		orderedIds = newOrder;
@@ -178,8 +197,10 @@
 							orientation="vertical"
 							{disabled}
 							{i18n}
+							describedBy={minHint ? minHintId : undefined}
 							onReorder={handleReorder}
 						/>
+						<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(parsedResponse ?? null)} />
 
 						<!-- Confirmation button for WCAG 2.2 SC 3.3.4 compliance -->
 						<div part="confirm" class="qti-go-confirm mt-4 pt-3 border-t border-base-300">

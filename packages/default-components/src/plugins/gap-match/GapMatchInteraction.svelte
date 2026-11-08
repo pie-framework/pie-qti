@@ -4,13 +4,14 @@
 	import type { GapMatchInteractionData, HtmlContent, PlayerSecurityConfig } from '@pie-qti/item-player';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { normalizeCssPixelLength, sanitizeSharedHtml } from '@pie-qti/item-player/security';
-	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
+	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import { tick } from 'svelte';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 
 	interface Props {
 		interaction?: GapMatchInteractionData | string;
@@ -105,6 +106,8 @@
 		width?: number;
 		height?: number;
 		matchMax: number;
+		/** Gaps this choice must fill at least (QTI matchMin); absent means none. */
+		matchMin?: number;
 		matchGroup?: string[];
 	};
 
@@ -116,6 +119,7 @@
 			kind: 'text' as const,
 			name: gapText.text,
 			matchMax: gapText.matchMax,
+			...(gapText.matchMin ? { matchMin: gapText.matchMin } : {}),
 			...(gapText.matchGroup ? { matchGroup: gapText.matchGroup } : {}),
 		}));
 		for (const gapImage of interaction.gapImages ?? []) {
@@ -127,10 +131,39 @@
 				...(gapImage.width !== undefined ? { width: gapImage.width } : {}),
 				...(gapImage.height !== undefined ? { height: gapImage.height } : {}),
 				matchMax: gapImage.matchMax,
+				...(gapImage.matchMin ? { matchMin: gapImage.matchMin } : {}),
 				...(gapImage.matchGroup ? { matchGroup: gapImage.matchGroup } : {}),
 			});
 		}
 		return words;
+	});
+
+	/**
+	 * Minimum requirement (each choice's matchMin): the choices the response does not place
+	 * often enough yet, the minimum response validation enforces, are named on the question;
+	 * the author's message wins. It describes the word palette. Only while the candidate can
+	 * still answer.
+	 */
+	const uid = $props.id();
+	const minHintId = `${uid}-min-hint`;
+	const wordsShortOfMinimum = $derived(
+		paletteWords.filter(
+			(word) =>
+				(word.matchMin ?? 0) > 0 &&
+				pairs.filter((p: string) => p.startsWith(`${word.identifier} `)).length < (word.matchMin ?? 0),
+		),
+	);
+	const minHint = $derived.by(() => {
+		if (disabled || role !== 'candidate' || wordsShortOfMinimum.length === 0) return '';
+		return (
+			parsedInteraction?.minSelectionsMessage?.trim() ||
+			translate(i18n, 'interactions.gapMatch.minPlacementsHint', 'Still to place in the blanks: {words}.', {
+				words: formatList(
+					i18n,
+					wordsShortOfMinimum.map((word) => word.name),
+				),
+			})
+		);
 	});
 
 	/**
@@ -383,6 +416,7 @@
 			style={choicesContainerWidth ? `width: ${choicesContainerWidth}` : undefined}
 			role="group"
 			aria-label={i18n?.t('interactions.gapMatch.availableLabel') ?? 'Available words to place'}
+			aria-describedby={minHint ? minHintId : undefined}
 		>
 			<div class="qti-gm-palette-title w-full text-sm text-base-content/70 font-semibold mb-2">
 				{translate(i18n, 'interactions.gapMatch.availableHeading', 'Available words:')}
@@ -481,6 +515,7 @@
 		</div>
 	{/if}
 		</div>
+		<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(pairs)} />
 	{/if}
 </div>
 

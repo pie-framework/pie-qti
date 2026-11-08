@@ -107,6 +107,10 @@ export default {
 			groupLabel: '答案选项',
 			maxChoicesReached: '最多可选择 {max} 项。请先取消一项选择,再选择其他项。',
 			clearAnswer: '清除答案',
+			minChoicesHint: {
+				one: '请至少选择 {count} 个答案。',
+				other: '请至少选择 {count} 个答案。',
+			},
 			eliminateChoice: '排除',
 			restoreChoice: '恢复',
 		},
@@ -231,6 +235,10 @@ export default {
 			imageLoadError: '无法加载图像。',
 			regionOfTotal: '第 {index} 个区域，共 {total} 个',
 			selectedRegion: '已选择：{region}',
+			minChoicesHint: {
+				one: '请至少选择 {count} 个区域。',
+				other: '请至少选择 {count} 个区域。',
+			},
 		},
 
 		selectPoint: {
@@ -285,6 +293,11 @@ export default {
 			matchCleared: '已清除 {item} 的匹配',
 			maxReached: '已达到最大关联数。请移除一对后再添加新的一对。',
 			pairCreated: '{source} 已与 {target} 匹配。',
+			minAssociationsHint: {
+				one: '请至少完成 {count} 组匹配。',
+				other: '请至少完成 {count} 组匹配。',
+			},
+			minChoiceUsesHint: '还需要更多匹配：{items}。',
 			matchedWithSentence: '已与 {targets} 匹配。',
 			selectedForMatchingSentence: '已选择以进行匹配。',
 			availableForMatchingSentence: '可用于匹配。',
@@ -310,6 +323,7 @@ export default {
 			filledGapAriaLabel: '第 {position} 处空白（共 {total} 处），已填入 {word}。选择以清除。',
 			wordSelected: '已拿起 {word}。选择一处空白以放置，或按 Esc 键取消。',
 			pickUpCancelled: '已取消拿起 {word}。',
+			minPlacementsHint: '还需放入空白处：{words}。',
 			notCompatibleSentence: '与所选词语不兼容。',
 		},
 
@@ -371,6 +385,10 @@ export default {
 			selectionCancelled: '{item} 选择已取消',
 			itemFallback: '项目',
 			orderConfirmed: '顺序已确认',
+			minChoicesHint: {
+				one: '请至少为 {count} 个项目排序。',
+				other: '请至少为 {count} 个项目排序。',
+			},
 		},
 
 		associate: {
@@ -395,6 +413,11 @@ export default {
 			removeAssociationBetween: '移除 {first} 与 {second} 之间的关联',
 			inPairSentence: '已在一个关联中。',
 			removedAssociationBetween: '已移除 {first} 与 {second} 之间的关联。',
+			minAssociationsHint: {
+				one: '请至少建立 {count} 个关联。',
+				other: '请至少建立 {count} 个关联。',
+			},
+			minChoiceUsesHint: '还需要更多关联：{items}。',
 		},
 
 		positionObject: {
@@ -489,6 +512,10 @@ export default {
 			imageFallback: '本题的图像',
 			imageLoadError: '无法加载图像。',
 			unlabeledItem: '项目 {index}',
+			minChoicesHint: {
+				one: '请至少为 {count} 个项目排序。',
+				other: '请至少为 {count} 个项目排序。',
+			},
 		},
 
 		graphicAssociate: {

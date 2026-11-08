@@ -23,6 +23,8 @@ export interface AssociateData {
 	maxAssociations: number;
 	minAssociations?: number;
 	prompt: string | null;
+	/** Message shown while the response has fewer than minAssociations (data-min-selections-message) */
+	minSelectionsMessage?: string;
 }
 
 /**
@@ -70,6 +72,7 @@ export const standardAssociateExtractor: ElementExtractor<AssociateData> = {
 		const shuffle = utils.getBooleanAttribute(element, 'shuffle');
 		const maxAssociations = utils.getNumberAttribute(element, 'maxAssociations', 0);
 		const minAssociations = utils.getNumberAttribute(element, 'minAssociations', 0);
+		const minSelectionsMessage = utils.getAttribute(element, 'data-min-selections-message', '') || null;
 
 		// Extract prompt (optional)
 		const promptElements = utils.getChildrenByTag(element, 'prompt');
@@ -81,6 +84,7 @@ export const standardAssociateExtractor: ElementExtractor<AssociateData> = {
 			maxAssociations,
 			...(minAssociations > 0 ? { minAssociations } : {}),
 			prompt,
+			...(minSelectionsMessage ? { minSelectionsMessage } : {}),
 		};
 	},
 
