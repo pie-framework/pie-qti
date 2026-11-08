@@ -33,14 +33,27 @@
 
 	let politeMessage = $state('');
 	let assertiveMessage = $state('');
-	let announceTimeout: ReturnType<typeof setTimeout> | null = null;
+	/** Each region clears on its own timer: one announcement never cuts another short. */
+	const clearTimers: Record<'polite' | 'assertive', ReturnType<typeof setTimeout> | null> = {
+		polite: null,
+		assertive: null,
+	};
 
-	// Clean up timeout on destroy to prevent memory leaks
+	function setMessage(region: 'polite' | 'assertive', message: string): void {
+		if (region === 'assertive') assertiveMessage = message;
+		else politeMessage = message;
+	}
+
+	function cancelTimer(region: 'polite' | 'assertive'): void {
+		const timer = clearTimers[region];
+		if (timer) clearTimeout(timer);
+		clearTimers[region] = null;
+	}
+
+	// Clean up timeouts on destroy to prevent memory leaks
 	onDestroy(() => {
-		if (announceTimeout) {
-			clearTimeout(announceTimeout);
-			announceTimeout = null;
-		}
+		cancelTimer('polite');
+		cancelTimer('assertive');
 	});
 
 	/**
@@ -51,28 +64,18 @@
 	 * @param nextPriority - Announcement priority for this message
 	 */
 	export function announce(message: string, clearAfter = 1000, nextPriority: 'polite' | 'assertive' = priority): void {
-		// Clear any existing announcement timeout
-		if (announceTimeout) {
-			clearTimeout(announceTimeout);
-			announceTimeout = null;
-		}
-
 		// Route by priority: the two regions never trade roles, so an assertive
-		// message always rides the assertive-born region.
-		if (nextPriority === 'assertive') {
-			assertiveMessage = message;
-			politeMessage = '';
-		} else {
-			politeMessage = message;
-			assertiveMessage = '';
-		}
+		// message always rides the assertive-born region. The other region is left
+		// alone — clearing it would drop a message still pending there (e.g. the
+		// assertive "restarted" and the polite "Question 1 of 3" of one start over).
+		cancelTimer(nextPriority);
+		setMessage(nextPriority, message);
 
 		// Clear after delay to allow screen readers to announce
 		// and prepare for next announcement
-		announceTimeout = setTimeout(() => {
-			politeMessage = '';
-			assertiveMessage = '';
-			announceTimeout = null;
+		clearTimers[nextPriority] = setTimeout(() => {
+			setMessage(nextPriority, '');
+			clearTimers[nextPriority] = null;
 		}, clearAfter);
 	}
 
@@ -80,10 +83,8 @@
 	 * Clear the current announcement immediately
 	 */
 	export function clear(): void {
-		if (announceTimeout) {
-			clearTimeout(announceTimeout);
-			announceTimeout = null;
-		}
+		cancelTimer('polite');
+		cancelTimer('assertive');
 		politeMessage = '';
 		assertiveMessage = '';
 	}

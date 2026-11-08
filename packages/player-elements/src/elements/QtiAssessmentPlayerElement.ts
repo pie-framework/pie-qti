@@ -1,9 +1,12 @@
 import type {
+	AssessmentFinalizedEvent,
 	AssessmentResults,
 	AssessmentTimeExpiryEvent,
+	AssessmentTimeState,
 	BackendAdapter,
 	BackendAssessmentPlayerConfig,
 	InitSessionRequest,
+	ScopeTimeExpiryEvent,
 } from '@pie-qti/assessment-player';
 import { isAssessmentPlayerError, ReferenceBackendAdapter } from '@pie-qti/assessment-player';
 import type { PciConfiguration, PlayerSecurityConfig } from '@pie-qti/item-player';
@@ -51,6 +54,18 @@ export type QtiAssessmentLoadErrorDetail = {
  */
 export type QtiAssessmentTimeExpiredDetail = AssessmentTimeExpiryEvent;
 
+/**
+ * A test part, section or question limit ran out (`scope-time-expired`): its items closed,
+ * and delivery moved on (`deliveryContinues`) or nothing open remains.
+ */
+export type QtiAssessmentScopeTimeExpiredDetail = ScopeTimeExpiryEvent;
+
+/**
+ * The session is terminal (`session-finalized`): finalized in this delivery
+ * (`restored: false`), or restored already finalized at mount (`restored: true`).
+ */
+export type QtiAssessmentSessionFinalizedDetail = AssessmentFinalizedEvent;
+
 /** A proctor pause started (`player-pause`); `reason` is the text the candidate sees. */
 export type QtiAssessmentPauseDetail = {
 	reason?: string;
@@ -88,6 +103,8 @@ export interface QtiAssessmentPlayerEventMap {
 	complete: CustomEvent<void>;
 	'player-error': CustomEvent<QtiAssessmentErrorDetail>;
 	'time-expired': CustomEvent<QtiAssessmentTimeExpiredDetail>;
+	'scope-time-expired': CustomEvent<QtiAssessmentScopeTimeExpiredDetail>;
+	'session-finalized': CustomEvent<QtiAssessmentSessionFinalizedDetail>;
 	'player-pause': CustomEvent<QtiAssessmentPauseDetail>;
 	'player-resume': CustomEvent<void>;
 	'autosave-change': CustomEvent<QtiAssessmentAutosaveChangeDetail>;
@@ -113,6 +130,8 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 			'begin-gate',
 			// Completion
 			'show-results-summary',
+			// Resume
+			'allow-start-over',
 			// Autosave
 			'autosave',
 			'autosave-interval-ms',
@@ -139,6 +158,7 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	#headingLevel: number | undefined;
 	#beginGate = false;
 	#showResultsSummary = false;
+	#allowStartOver = true;
 	#autosave: boolean | undefined;
 	#autosaveIntervalMs: number | undefined;
 	#backend: BackendAdapter | undefined;
@@ -183,11 +203,14 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 			name === 'full-viewport' ||
 			name === 'heading-level' ||
 			name === 'begin-gate' ||
-			name === 'show-results-summary'
+			name === 'show-results-summary' ||
+			name === 'allow-start-over'
 		) {
 			if (name === 'full-viewport') this.#fullViewport = newValue !== null && newValue !== 'false';
 			else if (name === 'begin-gate') this.#beginGate = newValue !== null && newValue !== 'false';
 			else if (name === 'show-results-summary') this.#showResultsSummary = newValue !== null && newValue !== 'false';
+			// Default on: only an explicit "false" turns Start over off.
+			else if (name === 'allow-start-over') this.#allowStartOver = newValue !== 'false';
 			else this.#headingLevel = parseHeadingLevel(newValue);
 			// Presentation only: never re-resolve the assessment for it. A mounted shell
 			// re-renders with it, like a `config` change.
@@ -312,6 +335,20 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	set showResultsSummary(value: boolean) {
 		if (value) this.setAttribute('show-results-summary', '');
 		else this.removeAttribute('show-results-summary');
+	}
+
+	/**
+	 * Whether the resume prompt offers "Start over" (deleting the saved draft). Default
+	 * true; `false` (attribute `allow-start-over="false"`) lets a restored draft simply
+	 * continue. Start over clears the candidate's answers, flags and comments but keeps
+	 * the time accounting: clocks and expired limits persist.
+	 */
+	get allowStartOver(): boolean {
+		return this.#allowStartOver;
+	}
+	set allowStartOver(value: boolean) {
+		if (value) this.removeAttribute('allow-start-over');
+		else this.setAttribute('allow-start-over', 'false');
 	}
 
 	/**
@@ -490,8 +527,14 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	async navigateToSection(sectionIdentifier: string) {
 		return this._instance?.navigateToSection?.(sectionIdentifier);
 	}
-	async submit() {
-		return this._instance?.submit?.();
+	/**
+	 * End the test. A candidate's submit is refused while paused (and while questions in
+	 * individual parts still need an answer). `{ force: true }` is the proctor's
+	 * force-submit: it ends the test during a pause too, collecting every response as it
+	 * stands (`timing.submissionReason: 'proctor'`).
+	 */
+	async submit(options?: { force?: boolean }): Promise<AssessmentResults | undefined> {
+		return this._instance?.submit?.(options);
 	}
 	getResponses() {
 		return this._instance?.getResponses?.();
@@ -520,6 +563,33 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	/** End a proctor pause; the clocks continue where they froze. Fires `player-resume`. */
 	resume(): void {
 		this._instance?.resume?.();
+	}
+	/**
+	 * Whether a proctor pause is in force. A session restored paused reports it at
+	 * mount too (and fires `player-pause` then), so a proctor console can sync.
+	 */
+	isPaused(): boolean {
+		return this._instance?.isPaused?.() ?? false;
+	}
+	/** The candidate-facing reason of the pause in force, if any. */
+	getPauseReason(): string | undefined {
+		return this._instance?.getPauseReason?.();
+	}
+	/** Whether the session is terminal: finalized here, or restored already finalized. */
+	isFinalized(): boolean {
+		return this._instance?.isFinalized?.() ?? false;
+	}
+	/**
+	 * The countdown state for a proctor console: the nearest active limit (remaining and
+	 * elapsed seconds, scope, expiry), and whether the clocks are paused or started.
+	 * Undefined before the session is ready.
+	 */
+	getTimeState(): AssessmentTimeState | undefined {
+		return this._instance?.getTimeState?.();
+	}
+	/** Save the current draft now (best-effort), e.g. before the host tears the page down. */
+	async flushAutosave(): Promise<void> {
+		await this._instance?.flushAutosave?.();
 	}
 
 	addEventListener<K extends keyof QtiAssessmentPlayerEventMap>(
@@ -783,6 +853,28 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 					}),
 				);
 			},
+			onScopeTimeExpired: (event: ScopeTimeExpiryEvent) => {
+				const detail: QtiAssessmentScopeTimeExpiredDetail = { ...event };
+				this.dispatchEvent(
+					new CustomEvent<QtiAssessmentScopeTimeExpiredDetail>('scope-time-expired', {
+						detail,
+						bubbles: true,
+						composed: true,
+					}),
+				);
+			},
+			onFinalized: (event: AssessmentFinalizedEvent) => {
+				const detail: QtiAssessmentSessionFinalizedDetail = { restored: event.restored, results: event.results };
+				this.dispatchEvent(
+					new CustomEvent<QtiAssessmentSessionFinalizedDetail>('session-finalized', {
+						detail,
+						bubbles: true,
+						composed: true,
+					}),
+				);
+			},
+			// Also called once at mount when a session restores paused (the core reports
+			// the restored pause), so `player-pause` reaches a proctor console then too.
 			onPauseChange: (paused: boolean, reason?: string) => {
 				if (paused) {
 					const detail: QtiAssessmentPauseDetail = reason === undefined ? {} : { reason };
@@ -842,6 +934,7 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 			fullViewport: this.#fullViewport,
 			beginGate: this.#beginGate,
 			showResultsSummary: this.#showResultsSummary,
+			allowStartOver: this.#allowStartOver,
 			...(this.#autosave === undefined ? {} : { autosave: this.#autosave }),
 			...(this.#autosaveIntervalMs === undefined ? {} : { autosaveIntervalMs: this.#autosaveIntervalMs }),
 			...(this.#headingLevel === undefined ? {} : { headingLevel: this.#headingLevel }),

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount, tick, getContext } from 'svelte';
+	import { flushSync, onDestroy, onMount, tick, getContext } from 'svelte';
 	import { DefaultI18nProvider, interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
 	import { applyPnpToSurface, clearPnpSurface, type PnpProfile } from '@pie-qti/item-player';
 	import { sanitizeHtml } from '@pie-qti/item-player/security';
@@ -84,6 +84,12 @@
 		 * receives the full results either way.
 		 */
 		showResultsSummary?: boolean;
+		/**
+		 * Whether the resume prompt offers "Start over" (deleting the saved draft). Default
+		 * true. Hosts that never let a candidate discard saved work set false: a restored
+		 * draft then simply continues, announced, without a prompt.
+		 */
+		allowStartOver?: boolean;
 	}
 
 	const {
@@ -98,6 +104,7 @@
 		autosave,
 		autosaveIntervalMs,
 		showResultsSummary = false,
+		allowStartOver = true,
 	}: Props = $props();
 
 	// Get i18n from context (set by +layout.svelte)
@@ -127,11 +134,45 @@
 	 */
 	function localizeError(err: unknown): { message: string; supportCode: string | null } {
 		const display = assessmentErrorDisplay(err);
-		const message = i18n.t(display.i18nKey, display.params);
+		const message = i18n.t(display.i18nKey, localizeItemList(display.params));
 		return {
 			message,
 			supportCode: isAssessmentPlayerError(err) ? null : display.supportCode,
 		};
+	}
+
+	/**
+	 * A refused end of the test names question numbers (`items`: "1, 3"): render them as
+	 * a localized list in the interface locale ("1 and 3", "1 et 3", "1、3").
+	 */
+	function localizeItemList(params: Record<string, string | number>): Record<string, string | number> {
+		if (typeof params.items !== 'string') return params;
+		const numbers = params.items
+			.split(',')
+			.map((part) => part.trim())
+			.filter(Boolean)
+			.map((part) => i18n.formatNumber?.(Number(part)) ?? part);
+		let list = numbers.join(', ');
+		// Intl.ListFormat (ES2021) is not in every lib target this compiles against.
+		const ListFormat = (
+			Intl as unknown as {
+				ListFormat?: new (locale: string, options: { type: 'conjunction' }) => { format(items: string[]): string };
+			}
+		).ListFormat;
+		try {
+			if (ListFormat) list = new ListFormat(i18n.getLocale(), { type: 'conjunction' }).format(numbers);
+		} catch {
+			// An unsupported locale keeps the plain comma list.
+		}
+		return { ...params, items: list };
+	}
+
+	/** The coded refusals of a candidate's end of the test that name the items to fix. */
+	function isSubmissionBlocked(err: unknown): boolean {
+		return (
+			isAssessmentPlayerError(err) &&
+			(err.code === 'finalizeResponseRequired' || err.code === 'finalizeResponseInvalid')
+		);
 	}
 
 	/**
@@ -214,6 +255,7 @@
 	let startPending = $state(false);
 	let startHeadingEl = $state<HTMLElement | null>(null);
 	let pauseHeadingEl = $state<HTMLElement | null>(null);
+	let pauseOverlayEl = $state<HTMLElement | null>(null);
 	/** Where focus was when a pause began; it returns there on resume. */
 	let focusBeforePause: HTMLElement | null = null;
 	/**
@@ -537,6 +579,10 @@
 			player.onComplete(() => {
 				isComplete = true;
 				submitRequired = false;
+				// A proctor's forced submit can end the test during a pause: the completion
+				// view replaces the overlay too.
+				paused = false;
+				pauseReason = undefined;
 				sections = player?.getAllSections() ?? [];
 				// The completion view replaces delivery: nothing modal may survive it.
 				submitDialogOpen = false;
@@ -619,7 +665,7 @@
 					// A resume prompt the pause interrupted returns once delivery continues.
 					if (resumePromptDeferredByPause) {
 						resumePromptDeferredByPause = false;
-						if (!isComplete && player?.hasRestoredProgress()) resumeDialogOpen = true;
+						if (!isComplete && allowStartOver && player?.hasRestoredProgress()) resumeDialogOpen = true;
 					}
 				}
 			});
@@ -641,15 +687,23 @@
 			// whether to continue or start over. A restored-paused session stays behind
 			// the pause overlay (a proctor resumes it) — the prompt is deferred there and
 			// returns when the pause lifts; a begin gate already says "Continue" on its
-			// start screen.
+			// start screen. Without Start over (the `allowStartOver` prop) there is no
+			// choice to offer: the restored draft simply continues, announced.
 			if (!startPending && player.hasRestoredProgress()) {
-				if (paused) resumePromptDeferredByPause = true;
+				if (!allowStartOver) {
+					announcer?.announce(
+						i18n.t('assessment.resume.resumedAnnouncement', 'Your saved answers were restored.'),
+						3000,
+						'polite',
+					);
+				} else if (paused) resumePromptDeferredByPause = true;
 				else resumeDialogOpen = true;
 			}
 
 			// The restored pause was never observed as a change: announce it like a live
-			// one. Focus lands on the overlay heading through the pause effect below.
-			if (paused && !startPending) {
+			// one. Focus lands on the overlay heading through the pause effect below (or
+			// stays on the start screen, which shows the pause behind a begin gate).
+			if (paused) {
 				announcer?.announce(
 					pauseReason
 						? i18n.t('assessment.pause.withReason', 'The assessment is paused: {reason}', { reason: pauseReason })
@@ -750,11 +804,14 @@
 	}
 
 	/**
-	 * A proctor pause closes every shell dialog — submit confirmation, expiry notice,
-	 * feedback, resume prompt, start-over confirmation: a candidate must never answer or
-	 * submit underneath a pause (WCAG). The chrome wrapper's `inert` hard-disables
-	 * whatever remains. The unanswered resume prompt is remembered and returns when the
-	 * pause lifts.
+	 * A proctor pause closes every dialog — submit confirmation, expiry notice, feedback,
+	 * resume prompt, start-over confirmation, and the dialogs the section layouts and
+	 * interactions own (display settings…), which would otherwise stay in the top layer
+	 * above the pause card and keep the pause imperceptible: a candidate must never
+	 * answer or submit underneath a pause (WCAG). Transient UI outside any dialog (the
+	 * math editor, glossary popups) closes on the `pie-qti-close-transient-ui` event.
+	 * The chrome wrapper's `inert` hard-disables whatever remains. The unanswered resume
+	 * prompt is remembered and returns when the pause lifts.
 	 */
 	function closeDialogsForPause(): void {
 		if (resumeDialogOpen) {
@@ -767,27 +824,53 @@
 		startOverConfirmOpen = false;
 		expiryDialogOpen = false;
 		expiryDialog = null;
+		// Apply the shell's own closes (and the pause's inert wrapper) before looking for
+		// the dialogs it does not own.
+		flushShell();
+		closeOwnedElsewhereDialogs();
+		document.dispatchEvent(new CustomEvent('pie-qti-close-transient-ui', { detail: { reason: 'pause' } }));
+	}
+
+	/** Apply pending state to the DOM now (a no-op when Svelte is already flushing). */
+	function flushShell(): void {
+		try {
+			flushSync();
+		} catch {
+			// Called while Svelte flushes: the DOM follows on its own.
+		}
 	}
 
 	/**
-	 * While a proctor pause holds, the inert chrome and the modal overlay leave exactly
-	 * one focus target: the overlay heading. Tab (either direction) stays on it instead
-	 * of wandering into the host page behind the opaque overlay (WCAG 2.4.11).
+	 * Close every dialog still open inside the shell. Each owner hears the native close
+	 * request first (`cancel`, as Escape sends it) so it closes and syncs itself; one that
+	 * ignores it is closed directly, which its own `close` handler observes.
 	 */
-	function handlePauseFocusKeydown(event: KeyboardEvent) {
-		if (!paused || !pauseHeadingEl || event.key !== 'Tab') return;
-		if (event.altKey || event.ctrlKey || event.metaKey) return;
-		event.preventDefault();
-		pauseHeadingEl.focus();
+	function closeOwnedElsewhereDialogs(): void {
+		const root = shellRootEl;
+		if (!root) return;
+		const open = Array.from(root.querySelectorAll<HTMLDialogElement>('dialog[open]'));
+		if (open.length === 0) return;
+		for (const dialog of open) dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
+		flushShell();
+		for (const dialog of open) {
+			if (!dialog.hasAttribute('open')) continue;
+			if (typeof dialog.close === 'function') dialog.close();
+			else dialog.removeAttribute('open');
+		}
 	}
 
-	/** Focus that lands outside the modal overlay while paused returns to its heading. */
+	/**
+	 * While a proctor pause holds, the inert chrome and the overlay leave one focus
+	 * target inside the shell: the overlay heading. Focus that lands on covered shell
+	 * content returns there. Containment is scoped to the shell: the host page around an
+	 * embedded player (its help, a proctor chat) stays operable, and Tab moves on to it.
+	 */
 	function handlePauseFocusContainment(event: FocusEvent) {
-		if (!paused || !pauseHeadingEl) return;
+		if (!paused || !pauseHeadingEl || !shellRootEl) return;
 		const target = event.target;
-		if (target instanceof Node && target.isConnected && !shellRootEl?.contains(target)) {
-			pauseHeadingEl.focus();
-		}
+		if (!(target instanceof Node) || !target.isConnected) return;
+		if (!shellRootEl.contains(target) || pauseOverlayEl?.contains(target)) return;
+		pauseHeadingEl.focus();
 	}
 
 	/** In-flight transitions reject further navigation; the busy UI already covers them. */
@@ -1040,10 +1123,11 @@
 
 	/**
 	 * Open the begin gate: start the clocks and enter the first item, then focus and
-	 * announce it like a navigation. Also the imperative `start()` export.
+	 * announce it like a navigation. Also the imperative `start()` export. Held while a
+	 * proctor pause is in force: the start screen says so until the pause lifts.
 	 */
 	async function handleBegin() {
-		if (!player || !startPending || isComplete) return;
+		if (!player || !startPending || isComplete || paused) return;
 		startPending = false;
 		player.start();
 		await waitForFirstItem();
@@ -1130,6 +1214,7 @@
 	/** "Start over" chosen: the irreversible deletion is confirmed before it runs. */
 	function handleStartOverRequested() {
 		resumeDialogOpen = false;
+		if (!allowStartOver) return;
 		startOverConfirmOpen = true;
 	}
 
@@ -1298,6 +1383,12 @@
 		total: number;
 		flaggedCount: number;
 		unanswered: SubmitDialogItem[];
+		/**
+		 * Items the end of the test would refuse to submit (QTI allowSkipping=false with no
+		 * answer, validateResponses=true with an incomplete answer): Submit stays
+		 * unavailable until they are answered.
+		 */
+		needsAnswer: SubmitDialogItem[];
 	} | null>(null);
 
 	const submitTranslations = $derived.by(() => {
@@ -1319,6 +1410,14 @@
 						count: submitSummary.flaggedCount,
 					})
 					: null,
+			needsAnswerHeading:
+				submitSummary && submitSummary.needsAnswer.length > 0
+					? submitSummary.needsAnswer.length === 1
+						? t('assessment.submit.needsAnswerHeadingOne', '1 question needs an answer before you can submit')
+						: t('assessment.submit.needsAnswerHeading', '{count} questions need an answer before you can submit', {
+							count: submitSummary.needsAnswer.length,
+						})
+					: null,
 			unansweredHeading:
 				submitSummary && submitSummary.unanswered.length > 0
 					? submitSummary.unanswered.length === 1
@@ -1334,15 +1433,25 @@
 		};
 	});
 
+	/** Submit stays unavailable while the end of the test would refuse held-back items. */
+	const submitBlocked = $derived((submitSummary?.needsAnswer.length ?? 0) > 0);
+
 	function openSubmitDialog() {
 		if (!player || isSubmitting || isComplete) return;
 		const items = player.getReviewItems();
+		const blockers = player.getSubmissionBlockers();
+		const blocked = new Set(blockers.map((blocker) => blocker.index));
 		submitSummary = {
 			answeredCount: player.getAnsweredItemCount(),
 			total: items.length,
 			flaggedCount: items.filter((item) => item.flagged).length,
+			needsAnswer: blockers.map((blocker) => ({
+				number: blocker.number,
+				index: blocker.index,
+				jumpAllowed: blocker.jumpAllowed,
+			})),
 			unanswered: items
-				.filter((item) => item.status === 'unanswered')
+				.filter((item) => item.status === 'unanswered' && !blocked.has(item.index))
 				.map((item) => ({ number: item.number, index: item.index, jumpAllowed: item.jumpAllowed })),
 		};
 		navError = null;
@@ -1352,7 +1461,9 @@
 	/**
 	 * The real terminal transition, shared by the confirmation dialog and the imperative
 	 * API. Returns false when the submission failed (the shell then shows the alert and
-	 * moves focus to the retry control); true once the test has ended.
+	 * moves focus to the retry control); true once the test has ended. A refusal that
+	 * names questions still needing an answer is not a failure to retry: it shows as a
+	 * warning naming them, with no "Try again".
 	 */
 	async function performSubmit(): Promise<boolean> {
 		if (!player || isSubmitting || isComplete) return false;
@@ -1363,7 +1474,11 @@
 		try {
 			results = await player.submit();
 		} catch (err) {
-			if (!isBusyRejection(err)) {
+			if (isSubmissionBlocked(err)) {
+				navError = localizeError(err);
+				announcer?.announce(navError.message, 4000, 'assertive');
+				updateState();
+			} else if (!isBusyRejection(err)) {
 				console.error('Failed to submit assessment:', err);
 				submitError = localizeSubmitError(err);
 				// Keep the shell and its session available after the core restores a
@@ -1383,6 +1498,7 @@
 	}
 
 	async function handleDialogSubmit() {
+		if (submitBlocked) return;
 		const succeeded = await performSubmit();
 		// Close whether it worked or not: on failure the alert and the retry control
 		// must be reachable, and they sit behind the modal otherwise.
@@ -1425,8 +1541,13 @@
 		return player?.navigateToSection(sectionIdentifier);
 	}
 
-	export async function submit() {
-		return player?.submit();
+	/**
+	 * End the test. `{ force: true }` is the proctor's administrative submit: it runs
+	 * during a pause and is not held back by minimum times or the skipping/validation
+	 * controls (a candidate's submit stays blocked while paused).
+	 */
+	export async function submit(options?: { force?: boolean }) {
+		return player?.submit(options);
 	}
 
 	/** Open the begin gate (showing the start screen) and start delivery and the clocks. */
@@ -1447,6 +1568,31 @@
 	/** End a proctor pause; the clocks continue where they froze. */
 	export function resume() {
 		player?.resume();
+	}
+
+	/** Whether a proctor pause is in force (a restored session may open paused). */
+	export function isPaused() {
+		return player?.isPaused() ?? false;
+	}
+
+	/** The candidate-facing reason of the pause in force, if any. */
+	export function getPauseReason() {
+		return player?.getPauseReason();
+	}
+
+	/** Whether the session is terminal (finalized here, or restored already finalized). */
+	export function isFinalized() {
+		return player?.isFinalized() ?? false;
+	}
+
+	/** The countdown state: the active scope's nearest limit, the clocks, pause and start state. */
+	export function getTimeState() {
+		return player?.getTimeState();
+	}
+
+	/** Save the current draft now (best-effort); resolves once the save attempt settled. */
+	export function flushAutosave() {
+		return player?.flushAutosave() ?? Promise.resolve();
 	}
 
 	export function updateResponse(responseId: string, value: unknown) {
@@ -1477,7 +1623,6 @@
 		if (document.visibilityState === 'hidden') void player?.flushAutosave();
 	}}
 	onpagehide={() => void player?.flushAutosave()}
-	onkeydown={handlePauseFocusKeydown}
 	onfocusin={handlePauseFocusContainment}
 />
 
@@ -1574,10 +1719,26 @@
 					/>
 				</div>
 			{/if}
+			{#if paused}
+				<!--
+					A proctor pause holds the begin gate too (a session restored paused, or a
+					pause before Begin): the start screen says so, and Begin waits for the resume.
+				-->
+				<div class="assessment-start-paused" id={`${uid}-start-paused`} role="status" data-testid="assessment-start-paused">
+					<p class="assessment-start-paused-title">
+						{i18n.t('assessment.start.paused', 'This test is paused. Please wait until it resumes.')}
+					</p>
+					{#if pauseReason}
+						<p class="assessment-start-paused-reason">{pauseReason}</p>
+					{/if}
+				</div>
+			{/if}
 			<button
 				type="button"
 				class="assessment-start-button"
 				data-testid="assessment-begin"
+				aria-disabled={paused ? 'true' : undefined}
+				aria-describedby={paused ? `${uid}-start-paused` : undefined}
 				onclick={() => void handleBegin()}
 			>
 				{startInfo?.resuming
@@ -1639,7 +1800,6 @@
 		lang={interfaceAttributes?.lang}
 		dir={interfaceAttributes?.dir}
 		aria-labelledby={fullViewport ? undefined : titleId}
-		aria-busy={isSubmitting || navState.isLoading}
 	>
 		<!--
 			All shell chrome in one wrapper that the proctor pause makes inert (WCAG
@@ -1720,7 +1880,11 @@
 			</div>
 		{/if}
 
-		<!-- Question content: the scrolling region the skip link leads to -->
+		<!--
+			Question content: the scrolling region the skip link leads to. It — not the whole
+			shell — is busy while a transition swaps the question, so the status messages
+			outside it ("Submitting…", the save indicator) are still announced.
+		-->
 		<svelte:element
 			this={fullViewport ? 'main' : 'div'}
 			bind:this={contentEl}
@@ -1730,6 +1894,7 @@
 			tabindex="-1"
 			role={fullViewport ? undefined : 'region'}
 			aria-label={i18n?.t('accessibility.itemBody') ?? 'Question content'}
+			aria-busy={isSubmitting || navState.isLoading}
 			inert={paused || undefined}
 		>
 			<!--
@@ -1882,6 +2047,7 @@
 				showProgress={config.showProgress !== false}
 				answeredCount={reviewData?.answeredCount}
 				saveLabel={saveLabel}
+				saveStatusEnabled={player?.isAutosaveEnabled() === true}
 				flagged={currentFlagged}
 				onToggleFlag={handleToggleFlag}
 				showReview={!isComplete && reviewData !== null}
@@ -1913,44 +2079,48 @@
 				candidate continues where they left off, or — after confirming, because it
 				cannot be undone (WCAG 3.3.4) — deletes the saved draft and starts over.
 			-->
-			{#if resumeDialogOpen}
-				<AssessmentDialog
-					bind:open={resumeDialogOpen}
-					title={i18n.t('assessment.resume.title', 'Resume your test?')}
-					description={resumeSavedAtLine}
-					{i18n}
-					// Escape keeps the saved answers and continues — it must never be one
-					// step away from the irreversible deletion.
-					onCancel={handleResume}
-				>
-					{#snippet actions({ close })}
-						<!-- svelte-ignore a11y_autofocus -->
-						<button
-							type="button"
-							class="submit-dialog-action"
-							data-testid="assessment-resume-start-over"
-							autofocus
-							onclick={() => {
-								close('cancel');
-								handleStartOverRequested();
-							}}
-						>
-							{i18n.t('assessment.resume.startOver', 'Start over')}
-						</button>
-						<button
-							type="button"
-							class="submit-dialog-action primary"
-							data-testid="assessment-resume-continue"
-							onclick={() => {
-								close('confirm');
-								handleResume();
-							}}
-						>
-							{i18n.t('assessment.resume.resumeAction', 'Resume where you left off')}
-						</button>
-					{/snippet}
-				</AssessmentDialog>
-			{/if}
+				{#if resumeDialogOpen}
+					<AssessmentDialog
+						bind:open={resumeDialogOpen}
+						title={i18n.t('assessment.resume.title', 'Resume your test?')}
+						description={resumeSavedAtLine}
+						{i18n}
+						// Escape keeps the saved answers and continues — it must never be one
+						// step away from the irreversible deletion.
+						onCancel={handleResume}
+					>
+						{#snippet actions({ close })}
+							{#if allowStartOver}
+								<!-- svelte-ignore a11y_autofocus -->
+								<button
+									type="button"
+									class="submit-dialog-action"
+									data-testid="assessment-resume-start-over"
+									autofocus
+									onclick={() => {
+										close('cancel');
+										handleStartOverRequested();
+									}}
+								>
+									{i18n.t('assessment.resume.startOver', 'Start over')}
+								</button>
+							{/if}
+							<!-- svelte-ignore a11y_autofocus -->
+							<button
+								type="button"
+								class="submit-dialog-action primary"
+								data-testid="assessment-resume-continue"
+								autofocus={!allowStartOver}
+								onclick={() => {
+									close('confirm');
+									handleResume();
+								}}
+							>
+								{i18n.t('assessment.resume.resumeAction', 'Resume where you left off')}
+							</button>
+						{/snippet}
+					</AssessmentDialog>
+				{/if}
 
 			{#if startOverConfirmOpen}
 				<AssessmentDialog
@@ -1993,6 +2163,40 @@
 				{#if submitTranslations.flaggedLine}
 					<p class="submit-dialog-line">{submitTranslations.flaggedLine}</p>
 				{/if}
+				{#if submitTranslations.needsAnswerHeading && submitSummary}
+					<!--
+						Items the end of the test would refuse (QTI allowSkipping=false without an
+						answer, validateResponses=true with an incomplete one): named first, with a
+						jump where navigation allows. Submit is unavailable until they are answered.
+					-->
+					<p class="submit-dialog-line submit-dialog-needs-answer" id={`${uid}-needs-answer-heading`} data-testid="submit-dialog-needs-answer">
+						{submitTranslations.needsAnswerHeading}
+					</p>
+					<ul class="submit-dialog-items" aria-labelledby={`${uid}-needs-answer-heading`}>
+						{#each submitSummary.needsAnswer as item (item.index)}
+							<li>
+								{#if item.jumpAllowed}
+									<button
+										type="button"
+										class="submit-dialog-jump"
+										data-testid={`submit-dialog-needs-answer-jump-${item.number}`}
+										disabled={isSubmitting}
+										onclick={() => void handleDialogJump(item.index)}
+									>
+										{i18n.t('assessment.review.goToItem', 'Go to question {number}', { number: item.number })}
+									</button>
+								{:else}
+									<span class="submit-dialog-static">
+										{i18n.t('assessment.question', 'Question {current} of {total}', {
+											current: item.number,
+											total: submitSummary?.total ?? 0,
+										})}
+									</span>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				{/if}
 				{#if submitTranslations.unansweredHeading && submitSummary}
 					<p class="submit-dialog-line" id={`${uid}-unanswered-heading`}>{submitTranslations.unansweredHeading}</p>
 					<ul class="submit-dialog-items" aria-labelledby={`${uid}-unanswered-heading`}>
@@ -2019,7 +2223,7 @@
 							</li>
 						{/each}
 					</ul>
-				{:else}
+				{:else if !submitTranslations.needsAnswerHeading}
 					<p class="submit-dialog-line">{submitTranslations.allAnswered}</p>
 				{/if}
 			{/snippet}
@@ -2051,8 +2255,12 @@
 					type="button"
 					class="submit-dialog-action danger"
 					data-testid="assessment-dialog-confirm"
-					aria-disabled={isSubmitting ? 'true' : undefined}
-					onclick={() => close('confirm')}
+					aria-disabled={isSubmitting || submitBlocked ? 'true' : undefined}
+					aria-describedby={submitBlocked ? `${uid}-needs-answer-heading` : undefined}
+					onclick={() => {
+						if (submitBlocked) return;
+						close('confirm');
+					}}
 				>
 					{submitTranslations.confirm}
 				</button>
@@ -2157,7 +2365,7 @@
 		<!-- Proctor pause: an overlay replaces the blocked shell, naming the reason.
 		     It sits OUTSIDE the inert chrome wrapper, so it stays operable. -->
 		{#if paused}
-			<div class="pause-overlay" data-testid="assessment-pause-overlay">
+			<div class="pause-overlay" data-testid="assessment-pause-overlay" bind:this={pauseOverlayEl}>
 				<div class="pause-card" role="status" aria-live="assertive">
 					<h3 class="pause-title" tabindex="-1" bind:this={pauseHeadingEl}>
 						{i18n.t('assessment.pause.title', 'Assessment paused')}
@@ -2444,6 +2652,11 @@
 		margin: 0;
 		padding-block: var(--pie-qti-space-2, 0.5rem);
 		padding-inline: var(--pie-qti-space-4, 1rem);
+	}
+
+	/* The refused end of the test reads as a warning naming questions, not a failure alert. */
+	.submit-dialog-needs-answer {
+		font-weight: 600;
 	}
 
 	/*
@@ -2816,6 +3029,31 @@
 	.assessment-start-button:focus-visible {
 		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
+	}
+
+	.assessment-start-button[aria-disabled='true'] {
+		cursor: not-allowed;
+		opacity: 0.6;
+	}
+
+	/* A proctor pause holds the begin gate: the start screen says so (status region). */
+	.assessment-start-paused {
+		margin: 0 0 var(--pie-qti-space-4, 1rem);
+		padding: var(--pie-qti-space-3, 0.75rem) var(--pie-qti-space-4, 1rem);
+		border: 1px solid var(--pie-qti-border-strong, #767676);
+		border-inline-start-width: 4px;
+		border-radius: var(--pie-qti-radius, 0.5rem);
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+	}
+
+	.assessment-start-paused-title {
+		margin: 0;
+		font-weight: 600;
+	}
+
+	.assessment-start-paused-reason {
+		margin: var(--pie-qti-space-1, 0.25rem) 0 0;
+		overflow-wrap: anywhere;
 	}
 
 	/* Proctor pause: blocks the shell and names the reason. */

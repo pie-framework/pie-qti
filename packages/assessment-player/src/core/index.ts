@@ -1,10 +1,12 @@
 export { AssessmentPlayer } from './AssessmentPlayer.js';
 export type {
+	AssessmentFinalizedEvent,
 	AssessmentStartInfo,
 	AssessmentTimeExpiryEvent,
 	AssessmentTimeState,
 	EffectiveItemTimeLimits,
 	ScopeTimeExpiryEvent,
+	SubmissionBlocker,
 } from './AssessmentPlayer.js';
 export type { AutosaveState, AutosaveStatus } from './AutosaveManager.js';
 export { AutosaveManager } from './AutosaveManager.js';

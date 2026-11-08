@@ -445,6 +445,41 @@ export interface QtiAssessmentPauseDetail {
 	reason?: string;
 }
 
+/**
+ * A test part, section or question limit ran out (`scope-time-expired`): its items
+ * closed, and delivery moved on (`deliveryContinues`) or nothing open remains.
+ */
+export interface QtiAssessmentScopeTimeExpiredDetail {
+	scope: 'testPart' | 'section' | 'item';
+	identifier: string;
+	deliveryContinues: boolean;
+}
+
+/**
+ * The session is terminal (`session-finalized`): finalized in this delivery
+ * (`restored: false`), or restored already finalized at mount (`restored: true`).
+ */
+export interface QtiAssessmentSessionFinalizedDetail {
+	restored: boolean;
+	results: QtiAssessmentResults;
+}
+
+/** The countdown state a proctor console reads (`getTimeState()`). */
+export interface QtiAssessmentTimeState {
+	/** Whether any active scope carries a hard maximum. */
+	limited: boolean;
+	/** Seconds left on the nearest active maximum; null when nothing is limited. */
+	remainingSeconds: number | null;
+	elapsedSeconds: number;
+	expired: boolean;
+	scope: 'assessment' | 'testPart' | 'section' | 'item' | null;
+	allowLateSubmission: boolean;
+	/** Whether a proctor pause freezes the clocks. */
+	paused: boolean;
+	/** Whether delivery has begun (false behind the begin gate). */
+	started: boolean;
+}
+
 export interface QtiAssessmentPlayerEventMap {
 	ready: CustomEvent<void>;
 	'load-start': CustomEvent<void>;
@@ -457,6 +492,8 @@ export interface QtiAssessmentPlayerEventMap {
 	complete: CustomEvent<void>;
 	'player-error': CustomEvent<QtiAssessmentErrorDetail>;
 	'time-expired': CustomEvent<QtiAssessmentTimeExpiredDetail>;
+	'scope-time-expired': CustomEvent<QtiAssessmentScopeTimeExpiredDetail>;
+	'session-finalized': CustomEvent<QtiAssessmentSessionFinalizedDetail>;
 	'player-pause': CustomEvent<QtiAssessmentPauseDetail>;
 	'player-resume': CustomEvent<void>;
 }
@@ -497,11 +534,20 @@ export interface QtiAssessmentPlayerElement extends HTMLElement {
 	 * high-stakes embeds keep showing no scores. Reflects `show-results-summary`.
 	 */
 	showResultsSummary: boolean;
+	/**
+	 * Whether the resume prompt offers "Start over" (default true). Start over clears the
+	 * candidate's answers but keeps the time accounting. Reflects `allow-start-over`.
+	 */
+	allowStartOver: boolean;
 	next(): Promise<void>;
 	previous(): Promise<void>;
 	navigateTo(index: number): Promise<void>;
 	navigateToSection(sectionIdentifier: string): Promise<void>;
-	submit(): Promise<QtiAssessmentResults | undefined>;
+	/**
+	 * End the test. `{ force: true }` is the proctor's force-submit: it ends the test
+	 * during a pause too; a candidate's submit stays blocked while paused.
+	 */
+	submit(options?: { force?: boolean }): Promise<QtiAssessmentResults | undefined>;
 	getResponses(): Record<string, unknown> | undefined;
 	getState(): QtiAssessmentSessionState | undefined;
 	restoreState(
@@ -515,6 +561,16 @@ export interface QtiAssessmentPlayerElement extends HTMLElement {
 	pause(reason?: string): void;
 	/** End a proctor pause. */
 	resume(): void;
+	/** Whether a proctor pause is in force (a session restored paused reports it at mount). */
+	isPaused(): boolean;
+	/** The candidate-facing reason of the pause in force, if any. */
+	getPauseReason(): string | undefined;
+	/** Whether the session is terminal: finalized here, or restored already finalized. */
+	isFinalized(): boolean;
+	/** The countdown state for a proctor console; undefined before the session is ready. */
+	getTimeState(): QtiAssessmentTimeState | undefined;
+	/** Save the current draft now (best-effort). */
+	flushAutosave(): Promise<void>;
 	addEventListener<K extends keyof QtiAssessmentPlayerEventMap>(
 		type: K,
 		listener: (

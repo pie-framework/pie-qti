@@ -3,10 +3,12 @@
 export type {
 	BackendAssessmentPlayerConfig,
 	EffectiveItemTimeLimits,
+	AssessmentFinalizedEvent,
 	AssessmentStartInfo,
 	AssessmentTimeExpiryEvent,
 	AssessmentTimeState,
 	ScopeTimeExpiryEvent,
+	SubmissionBlocker,
 } from './core/AssessmentPlayer.js';
 export type { ForwardTransitionInfo, ItemAnswerStatus, NavigationMode, ReviewItemView } from './core/index.js';
 // Autosave: debounced draft persistence through BackendAdapter.saveState.

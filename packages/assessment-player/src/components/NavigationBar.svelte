@@ -13,9 +13,14 @@
 		answeredCount?: number;
 		/**
 		 * Autosave status line ("Saved · 12:04" / "Saving…" / "Not saved"), announced
-		 * politely on change. Absent (undefined) when autosave is off: nothing renders.
+		 * politely on change. Absent (undefined) when there is nothing to show yet.
 		 */
 		saveLabel?: string | null;
+		/**
+		 * Whether autosave is on for this session: the indicator region mounts whenever it
+		 * is (empty while idle), so a screen reader picks its first message up.
+		 */
+		saveStatusEnabled?: boolean;
 		/** Whether the candidate has flagged the current item for review. */
 		flagged?: boolean;
 		/** Toggle the current item's flag-for-review. */
@@ -57,6 +62,7 @@
 		showProgress = true,
 		answeredCount,
 		saveLabel = null,
+		saveStatusEnabled = false,
 		flagged = false,
 		onToggleFlag,
 		showReview = false,
@@ -208,8 +214,12 @@
 				{#if translations.answered}
 					<span class="progress-answered" data-testid="assessment-answered-count">{translations.answered}</span>
 				{/if}
-				{#if saveLabel}
-					<!-- The autosave indicator: a polite live region so a "Not saved" turn is heard. -->
+				{#if saveStatusEnabled}
+					<!--
+						The autosave indicator: a polite live region that exists from the start
+						(empty while idle), so a screen reader is subscribed when the first
+						"Saving…" / "Saved" / "Not saved" lands rather than missing it.
+					-->
 					<span class="progress-saved" data-testid="assessment-save-status" role="status" aria-live="polite">
 						{saveLabel}
 					</span>
@@ -535,6 +545,22 @@
 
 	.nav-button.flag-button[aria-pressed='true'] .nav-icon {
 		fill: currentColor;
+	}
+
+	/*
+	 * Forced colors drop the token colors and the SVG fill, which would leave the pressed
+	 * flag indistinguishable: Highlight/HighlightText is the system's selection pair.
+	 */
+	@media (forced-colors: active) {
+		.nav-button.flag-button[aria-pressed='true'] {
+			border-color: Highlight;
+			color: HighlightText;
+			forced-color-adjust: none;
+		}
+
+		.nav-button.flag-button[aria-pressed='true'] .nav-icon {
+			fill: currentColor;
+		}
 	}
 
 	/* The flag keeps its visible label at every width; it may use more of the row. */
