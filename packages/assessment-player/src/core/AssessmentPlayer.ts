@@ -252,6 +252,11 @@ export interface AssessmentStartInfo {
 export interface EffectiveItemTimeLimits {
 	timeLimits?: TimeLimits;
 	source?: 'item' | 'section' | 'testPart' | 'assessment';
+	/**
+	 * Identifier of the scope that supplied the binding maximum (the section among the
+	 * enclosing chain when a section limit binds; undefined for the assessment scope).
+	 */
+	scopeIdentifier?: string;
 }
 
 /**
@@ -429,6 +434,10 @@ export class AssessmentPlayer {
 			onScopeExpired: (scope, identifier) => this.handleScopeExpired(scope, identifier),
 			onTick: (remainingSeconds, elapsedSeconds) => this.notifyTimeTick(remainingSeconds, elapsedSeconds),
 		});
+		// Items whose recorded result the snapshot carries were submitted with their
+		// snapshot responses: identical responses must not re-submit (and re-spend an
+		// attempt) on the next move or at finalize after a resume.
+		this.seedSubmittedResponses(initialState);
 		if (init.restoredState?.timing) {
 			this.restoreTimeTracking(init.restoredState.timing);
 		}
@@ -439,6 +448,18 @@ export class AssessmentPlayer {
 		this.restoredFromSnapshot = init.restoredState !== undefined;
 		this.restoredSavedAt = init.restoredState?.timing?.savedAt;
 		this.createAutosave();
+
+		// A session the backend stored as finalized restores terminal: submit() returns
+		// the stored results instead of failing, no item is entered, no clock runs, and
+		// nothing autosaves. The shell shows its already-submitted view for it.
+		if (init.finalized === true) {
+			this.finalized = true;
+			this.finalResults = this.finalResultsFromInit(init);
+			this.autosave?.stop();
+			this.timeManager?.pause();
+			this.timeManager?.stopTimer();
+			return;
+		}
 
 		if (config.beginGate === true) {
 			// The begin gate holds delivery: no item is entered and no clock runs until start().
@@ -452,13 +473,64 @@ export class AssessmentPlayer {
 	/**
 	 * Enter the backend-provided current item (or the first) as delivery begins. The
 	 * restoring navigation has no await before the session is attached, so the live
-	 * session exists when this returns.
+	 * session exists when this returns. A failure is recorded (not swallowed): the shell
+	 * shows its typed failure screen with Retry instead of an eternal loading state.
 	 */
 	private enterInitialItem(): void {
 		const startId = this.state.currentItemIdentifier;
 		const idx = startId ? this.items.findIndex((q) => q.identifier === startId) : -1;
 		const target = idx >= 0 ? idx : this.items.length > 0 ? 0 : -1;
-		if (target >= 0) this.performNavigateTo(target, { restoring: true }).catch(() => {});
+		if (target < 0) return;
+		this.pendingEntryIndex = target;
+		this.performNavigateTo(target, { restoring: true })
+			.then(() => {
+				if (this.pendingEntryIndex === target) this.pendingEntryIndex = null;
+			})
+			.catch((error) => {
+				this.recordEntryFailure(error);
+			});
+	}
+
+	/** The item entry a failed hop will retry: the initial item, or an expiry hop target. */
+	private pendingEntryIndex: number | null = null;
+	/** The last failed item entry, for the shell's typed failure screen. */
+	private entryError: Error | null = null;
+
+	private recordEntryFailure(error: unknown): void {
+		this.entryError = error instanceof Error ? error : new Error(String(error));
+		this.config.onError?.(this.entryError);
+	}
+
+	/** Whether the last item entry (the first item, or an expiry hop) failed. */
+	public hasEntryFailure(): boolean {
+		return this.entryError !== null;
+	}
+
+	/** The failed item entry's error, for host logs and localized shell display. */
+	public getEntryError(): Error | null {
+		return this.entryError;
+	}
+
+	/**
+	 * Retry the failed item entry: re-enter the initial item, or re-run the expiry hop
+	 * that failed. Serialized with all other transitions; a renewed failure is reported
+	 * through `onError` and this rejects.
+	 */
+	public async retryEntry(): Promise<void> {
+		const target = this.pendingEntryIndex;
+		this.entryError = null;
+		if (target === null || target < 0 || this.destroyed) return;
+		await this.runExclusive(async () => {
+			try {
+				await this.performNavigateTo(target, { restoring: true });
+				if (this.pendingEntryIndex === target) this.pendingEntryIndex = null;
+			} catch (error) {
+				// Still broken: the failure is recorded again (the shell's error screen
+				// stays) and the rejection surfaces to the caller.
+				this.recordEntryFailure(error);
+				throw error;
+			}
+		});
 	}
 
 	private get state(): AssessmentSessionState {
@@ -660,13 +732,23 @@ export class AssessmentPlayer {
 	}
 
 	private getEffectiveItemTimeLimits(flat: FlatItem): EffectiveItemTimeLimits {
-		const scopes: Array<{ source: EffectiveItemTimeLimits['source']; limits?: TimeLimits }> = [
+		const scopes: Array<{
+			source: EffectiveItemTimeLimits['source'];
+			identifier?: string;
+			limits?: TimeLimits;
+		}> = [
 			{ source: 'assessment', limits: this.assessment.timeLimits },
-			{ source: 'testPart', limits: flat.testPart.timeLimits },
-			{ source: 'section', limits: flat.section.timeLimits },
-			{ source: 'item', limits: flat.item.timeLimits },
+			{ source: 'testPart', identifier: flat.testPart.identifier, limits: flat.testPart.timeLimits },
+			// Every enclosing section limits the item, not only the innermost one.
+			...flat.sections.map((section) => ({
+				source: 'section' as const,
+				identifier: section.identifier,
+				limits: section.timeLimits,
+			})),
+			{ source: 'item', identifier: flat.identifier, limits: flat.item.timeLimits },
 		];
 		let source: EffectiveItemTimeLimits['source'];
+		let scopeIdentifier: string | undefined;
 		let minTime: number | undefined;
 		let maxTime: number | undefined;
 		let allowLateSubmission: boolean | undefined;
@@ -680,18 +762,20 @@ export class AssessmentPlayer {
 				if (scopedMaxTime !== undefined && (maxTime === undefined || scopedMaxTime < maxTime)) {
 					maxTime = scopedMaxTime;
 					source = scope.source;
+					scopeIdentifier = scope.identifier;
 					allowLateSubmission = scope.limits.allowLateSubmission;
 				}
 			} else if (scope.limits.allowLateSubmission !== undefined && maxTime === undefined) {
 				allowLateSubmission = scope.limits.allowLateSubmission;
 				source = scope.source;
+				scopeIdentifier = scope.identifier;
 			}
 		}
 
 		if (maxTime === undefined && minTime === undefined && allowLateSubmission === undefined) {
 			return {};
 		}
-		return { source, timeLimits: { minTime, maxTime, allowLateSubmission } };
+		return { source, scopeIdentifier, timeLimits: { minTime, maxTime, allowLateSubmission } };
 	}
 
 	public getCurrentEffectiveTimeLimits(): EffectiveItemTimeLimits {
@@ -707,13 +791,14 @@ export class AssessmentPlayer {
 		const effective = this.getEffectiveItemTimeLimits(q);
 		const limitSeconds = effective.timeLimits?.maxTime;
 		if (!effective.source || limitSeconds === undefined) return undefined;
-		const scopeIdentifier = effective.source === 'item'
-			? q.identifier
-			: effective.source === 'section'
-				? q.section.identifier
-				: effective.source === 'testPart'
-					? q.testPart.identifier
-					: undefined;
+		const scopeIdentifier = effective.source === 'assessment'
+			? undefined
+			: (effective.scopeIdentifier ??
+				(effective.source === 'item'
+					? q.identifier
+					: effective.source === 'section'
+						? q.section.identifier
+						: q.testPart.identifier));
 		const tracked = this.timeManager?.getScopeElapsedMs(effective.source, scopeIdentifier);
 		const scopedElapsedMs = tracked ?? elapsedMs;
 		const assessmentLimitSeconds = this.assessment.timeLimits?.maxTime === undefined
@@ -737,19 +822,23 @@ export class AssessmentPlayer {
 		};
 	}
 
-	private assertMinimumTime(scope: 'assessment' | 'testPart' | 'section' | 'item', q: FlatItem): void {
+	private assertMinimumTime(
+		scope: 'assessment' | 'testPart' | 'section' | 'item',
+		q: FlatItem,
+		section: FlatItem['section'] = q.section,
+	): void {
 		const limits = scope === 'assessment'
 			? this.assessment.timeLimits
 			: scope === 'testPart'
 				? q.testPart.timeLimits
 				: scope === 'section'
-					? q.section.timeLimits
+					? section.timeLimits
 					: q.item.timeLimits;
 		if (limits?.minTime === undefined) return;
 		const identifier = scope === 'testPart'
 			? q.testPart.identifier
 			: scope === 'section'
-				? q.section.identifier
+				? section.identifier
 				: scope === 'item'
 					? q.identifier
 					: undefined;
@@ -764,11 +853,35 @@ export class AssessmentPlayer {
 		}
 	}
 
+	/**
+	 * Every enclosing section's minimum time gates leaving it: a transition out of an
+	 * enclosing scope (another section, another test part, or the end of the test) waits
+	 * for the outer sections' minimums too, not only the innermost section's.
+	 */
+	private assertEnclosingSectionMinimumTime(q: FlatItem, target?: FlatItem): void {
+		for (const section of q.sections) {
+			if (target?.sections.some((enclosing) => enclosing.identifier === section.identifier)) continue;
+			this.assertMinimumTime('section', q, section);
+		}
+	}
+
 	private assertTransitionMinimum(current: FlatItem, target: FlatItem): void {
 		if (current === target) return;
 		this.assertMinimumTime('item', current);
-		if (current.section.identifier !== target.section.identifier) this.assertMinimumTime('section', current);
+		this.assertEnclosingSectionMinimumTime(current, target);
 		if (current.testPart !== target.testPart) this.assertMinimumTime('testPart', current);
+	}
+
+	/**
+	 * Whether an item still owes the backend a submission: it has no recorded result yet
+	 * (the candidate left it open, answered or not), or its live responses differ from the
+	 * ones its last counted submission carried (a practice answer revised after the
+	 * check, or a revised answer a nonlinear jump left behind). Unchanged responses are
+	 * never re-sent, so an accepted item spends no extra attempt here.
+	 */
+	private itemNeedsSubmission(q: FlatItem): boolean {
+		if (!this.sessionCoordinator.hasItemResult(q.identifier)) return true;
+		return !this.responsesUnchangedSinceSubmission(q.identifier, this.sessionCoordinator.getResponses(q.identifier));
 	}
 
 	private flattenItems(assessment: SecureAssessment): FlatItem[] {
@@ -1505,6 +1618,7 @@ export class AssessmentPlayer {
 	public restoreState(state: AssessmentSessionState): Promise<void> {
 		return this.runExclusive(async () => {
 			this.state = state;
+			this.seedSubmittedResponses(state);
 			this.restoreTimeTracking(state.timing);
 			// The snapshot carries the proctor pause; the begin gate keeps holding the clocks.
 			const wasPaused = this.paused;
@@ -1527,6 +1641,9 @@ export class AssessmentPlayer {
 				} else if (this.items.length > 0) {
 					await this.performNavigateTo(0, { restoring: true });
 				}
+				// The (re-)entry succeeded: a previous entry failure is repaired.
+				this.entryError = null;
+				this.pendingEntryIndex = null;
 			}
 			if (wasPaused !== this.paused) this.notifyPauseChange();
 			// A host-restored snapshot is the new draft; the save runs once this settles.
@@ -1626,6 +1743,11 @@ export class AssessmentPlayer {
 		this.timeManager?.activateScopes({
 			testPart: { identifier: q.testPart.identifier, timeLimits: q.testPart.timeLimits },
 			section: { identifier: q.section.identifier, timeLimits: q.section.timeLimits },
+			// Every enclosing section runs its own clock, outermost first.
+			sections: q.sections.map((section) => ({
+				identifier: section.identifier,
+				timeLimits: section.timeLimits,
+			})),
 			item: { identifier: q.identifier, timeLimits: q.item.timeLimits },
 		});
 
@@ -1750,6 +1872,23 @@ export class AssessmentPlayer {
 		if (!submitted) return false;
 		const current = responses ?? this.sessionCoordinator.getActiveResponses();
 		return responseValuesEqual(submitted, current);
+	}
+
+	/**
+	 * Seed the submitted-response memory from a restored snapshot: an item whose recorded
+	 * result the snapshot carries was accepted with exactly those responses, so moving on
+	 * (or finalizing) with them unchanged re-submits nothing and re-spends no attempt.
+	 */
+	private seedSubmittedResponses(state: AssessmentSessionState): void {
+		const scores = state.itemScores ?? {};
+		for (const [itemIdentifier, responses] of Object.entries(state.itemResponses ?? {})) {
+			if (!scores[itemIdentifier]) continue;
+			if (this.lastSubmittedResponses.has(itemIdentifier)) continue;
+			this.lastSubmittedResponses.set(
+				itemIdentifier,
+				cloneResponseRecord(responses as Record<string, unknown>),
+			);
+		}
 	}
 
 	/** Move back. Serialized with all other transitions; rejects as busy while one is in flight. */
@@ -2117,18 +2256,23 @@ export class AssessmentPlayer {
 	 * Leave the scope ended by an EXIT_TESTPART / EXIT_SECTION branch rule: continue with
 	 * the first delivered item outside it, finalizing the ended test part (or, when nothing
 	 * follows anywhere, the whole test) through the same finalization path as submit().
+	 *
+	 * The literal resolves over the item's full enclosing chain (like the backend's
+	 * branch-rule walk), not the innermost section alone: an outer-section EXIT lands
+	 * outside the whole outer section.
 	 */
 	private async applyExitBoundary(
 		special: 'EXIT_TESTPART' | 'EXIT_SECTION',
 		current: FlatItem,
 	): Promise<void> {
+		const exitedSection = special === 'EXIT_SECTION' ? this.endedEnclosingSection(current) : undefined;
 		let nextIdx = this.items.findIndex((item, i) =>
 			i > this.currentItemIndex &&
-			(special === 'EXIT_SECTION'
-				? item.section.identifier !== current.section.identifier
+			(exitedSection
+				? !item.sections.some((section) => section.identifier === exitedSection.identifier)
 				: item.testPart.identifier !== current.testPart.identifier),
 		);
-		if (special === 'EXIT_SECTION' && nextIdx < 0) {
+		if (exitedSection && nextIdx < 0) {
 			// Nothing follows the section inside this test part: the part ends too.
 			nextIdx = this.items.findIndex(
 				(item, i) => i > this.currentItemIndex && item.testPart !== current.testPart,
@@ -2151,6 +2295,25 @@ export class AssessmentPlayer {
 		}
 		// No further test part: end the test exactly like a normal end of test.
 		await this.endTestInternal();
+	}
+
+	/**
+	 * The enclosing section a literal EXIT_SECTION leaves: the innermost section, walked
+	 * outward while the next enclosing one also ends with the current item — a branch rule
+	 * on an outer section fires at its last item, where the whole outer boundary closes, so
+	 * the EXIT lands outside the entire outer section, not just outside the innermost one.
+	 */
+	private endedEnclosingSection(current: FlatItem): FlatItem['section'] {
+		let ended = current.section;
+		for (let level = current.sections.length - 2; level >= 0; level--) {
+			const section = current.sections[level]!;
+			const continues = this.items.some(
+				(item, i) => i > this.currentItemIndex && item.sections.some((s) => s.identifier === section.identifier),
+			);
+			if (continues) break;
+			ended = section;
+		}
+		return ended;
 	}
 
 	private canPrevious(): boolean {
@@ -2187,7 +2350,9 @@ export class AssessmentPlayer {
 	}
 
 	private async submitSimultaneousItems(items: readonly FlatItem[]): Promise<void> {
-		if (items.every((q) => this.sessionCoordinator.hasItemResult(q.identifier))) return;
+		// Items the backend already accepted with exactly these responses are done; one
+		// whose recorded result predates the current responses still goes out.
+		if (items.every((q) => !this.itemNeedsSubmission(q))) return;
 		const current = this.items[this.currentItemIndex];
 		const submittedItem = current && items.includes(current) ? current : undefined;
 		const preSubmitSession = submittedItem ? this.currentItemSession?.serialize() : undefined;
@@ -2206,7 +2371,7 @@ export class AssessmentPlayer {
 			allItemSessions = cloneData(this.state.itemSessions || {})!;
 
 			for (const q of items) {
-				if (this.sessionCoordinator.hasItemResult(q.identifier)) continue;
+				if (!this.itemNeedsSubmission(q)) continue;
 				const submittedAt = Date.now();
 				const responsesForItem = (allItemResponses?.[q.identifier] || {}) as any;
 				// An item an expired limit closed submits its frozen responses as they are.
@@ -2255,6 +2420,9 @@ export class AssessmentPlayer {
 					maxScore: res.result.maxScore,
 					responses: this.state.itemResponses[q.identifier] || {},
 				});
+				// The accepted response set: a retry, a later collection pass, or finalize
+				// must not re-submit identical responses for this item.
+				this.lastSubmittedResponses.set(q.identifier, cloneResponseRecord(responsesForItem));
 				this.setTestOutcomes(res.outcomes);
 				this.reportOutcomeProcessingError(res.outcomeProcessingError);
 			}
@@ -2339,7 +2507,11 @@ export class AssessmentPlayer {
 	 * the current individual-mode item is submitted if needed, then the backend finalizes
 	 * (outcome processing runs, results are produced) and navigation closes. Individual-
 	 * mode attempts an expired limit closed are collected as well: their responses were
-	 * frozen when the time ran out.
+	 * frozen when the time ran out. The same is true for any visited individual-mode item
+	 * whose responses never reached the backend because the candidate jumped away without
+	 * a forward submission (nonlinear `navigateTo`/`previous` submit nothing): it is
+	 * collected through the same detached end-attempt loop instead of being finalized
+	 * from NULL.
 	 */
 	private async endTestInternal(): Promise<AssessmentResults> {
 		if (this.finalized && this.finalResults) return this.finalResults;
@@ -2347,7 +2519,7 @@ export class AssessmentPlayer {
 		const current = this.items[this.currentItemIndex];
 		if (current && !this.isTimeClosedDelivery()) {
 			this.assertMinimumTime('item', current);
-			this.assertMinimumTime('section', current);
+			this.assertEnclosingSectionMinimumTime(current);
 			this.assertMinimumTime('testPart', current);
 			this.assertMinimumTime('assessment', current);
 		}
@@ -2366,8 +2538,10 @@ export class AssessmentPlayer {
 				(q) =>
 					q !== current &&
 					isIndividual(q) &&
-					this.isItemLocked(q) &&
-					this.navigationManager.isVisited(q.index),
+					this.navigationManager.isVisited(q.index) &&
+					// An expired limit froze the item's responses: always collected. Otherwise
+					// only what the backend has not accepted yet (see below).
+					(this.isItemLocked(q) || this.itemNeedsSubmission(q)),
 			),
 		);
 		const q = this.items[this.currentItemIndex];
@@ -2398,6 +2572,11 @@ export class AssessmentPlayer {
 	private async finalizeInternal(): Promise<AssessmentResults> {
 		if (this.finalized && this.finalResults) return this.finalResults;
 
+		// Persist the final draft before the backend finalizes: outcome processing reads
+		// the stored timing (the built-in durations), so it must see the end-of-test
+		// clocks, not the last debounced autosave. Safe mid-transition (inside the
+		// exclusive lock); a failed save stays non-fatal.
+		await this.autosave?.flushImmediate();
 		const finalized: FinalizeAssessmentResponse = await this.backend.finalizeAssessment({
 			sessionId: this.sessionId,
 		});
@@ -2601,6 +2780,33 @@ export class AssessmentPlayer {
 			allowLateSubmission: nearest?.allowLateSubmission ?? false,
 			paused: this.paused,
 			started: this.started,
+		};
+	}
+
+	/**
+	 * Whether the session is terminal: the test has ended here, or the backend restored a
+	 * session it had already finalized. Shells show their completed view; `submit()`
+	 * returns the stored results without another backend round trip.
+	 */
+	public isFinalized(): boolean {
+		return this.finalized;
+	}
+
+	/** The stored results of a session restored already finalized. */
+	private finalResultsFromInit(init: InitSessionResponse): AssessmentResults {
+		const summary = init.finalResults;
+		const itemScores = summary?.itemScores ?? {};
+		const itemResults: ItemResult[] = Object.values(itemScores).map((r) => ({
+			itemIdentifier: r.itemIdentifier,
+			score: r.score,
+			maxScore: r.maxScore,
+			responses: (this.state.itemResponses[r.itemIdentifier] ?? {}) as Record<string, unknown>,
+		}));
+		return {
+			totalScore: summary?.totalScore ?? 0,
+			maxScore: summary?.maxScore ?? 0,
+			itemResults,
+			completedAt: new Date(summary?.finalizedAt ?? Date.now()),
 		};
 	}
 
@@ -2841,7 +3047,12 @@ export class AssessmentPlayer {
 			return;
 		}
 		this.notifyScopeTimeExpired(scope, identifier, true);
-		this.performNavigateTo(nextIndex, { restoring: true }).catch(() => {});
+		this.pendingEntryIndex = nextIndex;
+		this.performNavigateTo(nextIndex, { restoring: true }).catch((error) => {
+			// The expiry's hop failed: the shell's typed failure screen (localized, with
+			// Retry) replaces the "moving on" flow instead of a silently stuck delivery.
+			this.recordEntryFailure(error);
+		});
 	}
 
 	/**

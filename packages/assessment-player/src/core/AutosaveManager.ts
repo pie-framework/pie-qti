@@ -6,9 +6,10 @@
  * `saveState`. The backend is the store: no offline queue, no client-side storage.
  *
  * Guarantees:
- * - **Non-fatal.** A failed save logs to the console, reports `failed` through
- *   `onStateChange` (plus `onError` for the raw detail) and retries on the next
- *   change or flush; delivery is never interrupted.
+ * - **Non-fatal, with bounded backoff.** A failed save logs to the console, reports
+ *   `failed` through `onStateChange` (plus `onError` for the raw detail) and retries
+ *   with a bounded backoff (2s, 8s, 30s — then it waits for the next change or
+ *   flush); delivery is never interrupted. A success or `stop()` resets the backoff.
  * - **Busy-aware.** While a navigation or submission transition is in flight a
  *   due save is deferred and retried once the transition settles, so the snapshot
  *   is not taken mid-transition.
@@ -41,9 +42,16 @@ export interface AutosaveManagerOptions {
 	onStateChange: (state: AutosaveState) => void;
 	/** Raw failure detail for logs and host callbacks. */
 	onError: (error: Error) => void;
+	/**
+	 * Backoff delays (ms) for the automatic retries of a failed save. Default
+	 * 2s → 8s → 30s; after the last attempt the manager waits for the next candidate
+	 * change or flush. Tests pass shorter delays.
+	 */
+	retryDelaysMs?: number[];
 }
 
 const DEFAULT_INTERVAL_MS = 1500;
+const DEFAULT_RETRY_DELAYS_MS = [2_000, 8_000, 30_000];
 
 export class AutosaveManager {
 	private state: AutosaveState = { status: 'idle' };
@@ -51,9 +59,13 @@ export class AutosaveManager {
 	private flushing: Promise<void> | null = null;
 	private stopped = false;
 	private readonly intervalMs: number;
+	private readonly retryDelays: readonly number[];
+	/** How many of the bounded backoff retries the current failure has spent. */
+	private retryAttempt = 0;
 
 	constructor(private readonly options: AutosaveManagerOptions) {
 		this.intervalMs = Math.max(0, options.intervalMs ?? DEFAULT_INTERVAL_MS);
+		this.retryDelays = options.retryDelaysMs ?? DEFAULT_RETRY_DELAYS_MS;
 	}
 
 	/** The current indicator state. */
@@ -69,6 +81,8 @@ export class AutosaveManager {
 	public notify(): void {
 		if (this.stopped || !this.options.enabled || this.options.isStopped()) return;
 		if (this.timer !== null) clearTimeout(this.timer);
+		// New candidate activity is a fresh snapshot: the backoff starts over.
+		this.retryAttempt = 0;
 		this.setState({ status: 'pending', lastSavedAt: this.state.lastSavedAt });
 		this.timer = setTimeout(() => {
 			this.timer = null;
@@ -100,9 +114,28 @@ export class AutosaveManager {
 		return this.flushing;
 	}
 
+	/**
+	 * Save immediately even while a transition is in flight: the terminal transition
+	 * (finalization) itself calls this so the backend finalizes against the final clocks
+	 * and responses, not the last debounced draft. Must run inside that transition's
+	 * exclusive lock; failures stay non-fatal.
+	 */
+	public flushImmediate(): Promise<void> {
+		if (this.stopped || !this.options.enabled || this.options.isStopped()) return Promise.resolve();
+		if (this.timer !== null) {
+			clearTimeout(this.timer);
+			this.timer = null;
+		}
+		this.flushing ??= this.persist().finally(() => {
+			this.flushing = null;
+		});
+		return this.flushing;
+	}
+
 	/** Stop autosaving for good: nothing runs afterwards, pending timers cleared. */
 	public stop(): void {
 		this.stopped = true;
+		this.retryAttempt = 0;
 		if (this.timer !== null) {
 			clearTimeout(this.timer);
 			this.timer = null;
@@ -116,6 +149,22 @@ export class AutosaveManager {
 			this.timer = null;
 			void this.saveNow();
 		}, this.intervalMs);
+	}
+
+	/**
+	 * A failed save retries with bounded backoff (2s, 8s, 30s): a transient outage
+	 * recovers without waiting for the candidate's next keystroke. After the last
+	 * attempt the state stays `failed` until the next change or flush.
+	 */
+	private scheduleBackoffRetry(): void {
+		if (this.stopped || this.timer !== null) return;
+		if (this.retryAttempt >= this.retryDelays.length) return;
+		const delay = this.retryDelays[this.retryAttempt]!;
+		this.retryAttempt += 1;
+		this.timer = setTimeout(() => {
+			this.timer = null;
+			void this.saveNow();
+		}, delay);
 	}
 
 	private async saveNow(): Promise<void> {
@@ -140,14 +189,17 @@ export class AutosaveManager {
 			if (!response?.success) {
 				throw new Error('Autosave was rejected by the backend.');
 			}
+			this.retryAttempt = 0;
 			this.setState({ status: 'saved', lastSavedAt: Date.now() });
 		} catch (error) {
 			if (this.stopped || this.options.isStopped()) return;
 			const failure = error instanceof Error ? error : new Error(String(error));
-			// Non-fatal: the draft simply is not durable yet; the next change or flush retries.
+			// Non-fatal: the draft is not durable yet. The bounded backoff retries on
+			// its own; the next change or flush also retries.
 			console.error('[AssessmentPlayer] autosave failed:', failure);
 			this.options.onError(failure);
 			this.setState({ status: 'failed', lastSavedAt: this.state.lastSavedAt });
+			this.scheduleBackoffRetry();
 		}
 	}
 

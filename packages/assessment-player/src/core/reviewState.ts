@@ -48,9 +48,16 @@ export function itemAnswerStatus(
  * Response identifiers the item's interactions bind to (`responseIdentifier` in QTI 2.x,
  * `response-identifier` in QTI 3.0), in document order, de-duplicated. Non-interaction
  * response declarations (for example template or state variables) are not included.
+ * Item XML that fails to parse yields no identifiers — the review facts are display
+ * data and must never throw into navigation or shell rendering.
  */
 export function interactionResponseIdentifiers(itemXml: string): string[] {
-	const doc = parseXml(itemXml);
+	let doc: ReturnType<typeof parseXml>;
+	try {
+		doc = parseXml(itemXml);
+	} catch {
+		return [];
+	}
 	const seen = new Set<string>();
 	const ids: string[] = [];
 	// Array.from: xmldom's lists are array-like, not iterable.

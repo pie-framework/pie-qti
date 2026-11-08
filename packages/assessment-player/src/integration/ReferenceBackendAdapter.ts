@@ -172,6 +172,11 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 						assessment: stored.assessment,
 						restoredState: stored.state,
 						outcomes: this.currentOutcomes(stored).outcomes,
+						// A finalized session restores terminal: hosts show the
+						// already-submitted view instead of delivery whose every submit fails.
+						...(stored.finalized
+							? { finalized: true, finalResults: this.storedFinalResults(stored) }
+							: {}),
 					};
 				}
 			}
@@ -455,6 +460,21 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		if (Object.keys(session.state.itemScores ?? {}).length === 0) return {};
 		const run = this.runOutcomeProcessing(session);
 		return { outcomes: run.outcomes ?? undefined, error: run.error };
+	}
+
+	/**
+	 * The stored final totals of a finalized session, for the terminal init response:
+	 * the same fallback totals `finalizeAssessment` reports (per-item scores included so
+	 * a shell can render its completion summary).
+	 */
+	private storedFinalResults(session: StoredSession): NonNullable<InitSessionResponse['finalResults']> {
+		const itemScores = session.state.itemScores ?? {};
+		const results = Object.values(itemScores);
+		return {
+			totalScore: results.reduce((sum, result) => sum + result.score, 0),
+			maxScore: results.reduce((sum, result) => sum + result.maxScore, 0),
+			itemScores,
+		};
 	}
 
 	/**

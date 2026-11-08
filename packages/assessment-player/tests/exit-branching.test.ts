@@ -302,4 +302,35 @@ describe('EXIT_SECTION branching', () => {
 		expect(player.getCurrentItem()?.identifier).toBe('i3');
 		expect(scripted.finalizeCalls).toBe(0);
 	});
+
+	test('resolves over the enclosing chain: an outer-section EXIT leaves the whole outer section', async () => {
+		// part-1 { outer { inner-a { i1, i2 } , inner-b { i3 } } }, part-2 { i4 }.
+		// EXIT_SECTION on i2 — the inner section's boundary — continues with i3 inside the
+		// outer section. EXIT_SECTION on i3 — the item where the whole outer section ends —
+		// leaves the outer section entirely and crosses into part 2.
+		const xml = assessmentTest(
+			part(
+				'part-1',
+				section('outer', `${section('inner-a', `${ref('i1')}${ref('i2')}`)}${section('inner-b', ref('i3'))}`),
+			) + part('part-2', section('s2', ref('i4'))),
+		);
+		const { parsed, backend } = await referenceBackend((x) => x, xml, items('i1', 'i2', 'i3', 'i4'));
+		const scripted = new ScriptedNextBackend(backend, { i2: 'EXIT_SECTION', i3: 'EXIT_SECTION' });
+		const player = await makePlayer(scripted, parsed.identifier);
+
+		player.updateResponse('RESPONSE', 'A');
+		await player.next();
+		expect(player.getCurrentItem()?.identifier).toBe('i2');
+		player.updateResponse('RESPONSE', 'A');
+		await player.submitCurrentItem();
+		// The inner section ended; the outer section continues with its next child.
+		expect(player.getCurrentItem()?.identifier).toBe('i3');
+		expect(scripted.finalizeCalls).toBe(0);
+
+		player.updateResponse('RESPONSE', 'A');
+		await player.submitCurrentItem();
+		// i3 ends the whole outer section: delivery crosses into part 2, outside outer.
+		expect(player.getCurrentItem()?.identifier).toBe('i4');
+		expect(scripted.finalizeCalls).toBe(0);
+	});
 });
