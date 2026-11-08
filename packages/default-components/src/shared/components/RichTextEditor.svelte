@@ -98,22 +98,33 @@
 		editor.commands.focus();
 	}
 
+	/**
+	 * Math typed into the insert dialog but not inserted when a host closed the dialog (a
+	 * proctor pause): offered again the next time the candidate opens the insert dialog in this
+	 * editor. Session-only — it lives as long as this editor, one response field, and is never
+	 * stored. Inserting the math, or the candidate's own cancel, discards it.
+	 */
+	let mathInsertDraft: string | null = null;
+
 	/** Open the math dialog; Cancel or Escape returns focus to `trigger`, Insert to the editor. */
 	function insertMath(isBlock: boolean, trigger: HTMLElement) {
 		if (!editor) return;
 		openMathLiveEditor({
-			initialLatex: '\\frac{a}{b}',
+			initialLatex: mathInsertDraft ?? '\\frac{a}{b}',
 			isBlock,
 			mode: 'insert',
 			returnFocusTo: trigger,
 			i18n,
 			onConfirm: (latex) => {
+				mathInsertDraft = null;
 				if (isBlock) editor?.commands.insertBlockMath({ latex });
 				else editor?.commands.insertInlineMath({ latex });
 				editor?.commands.focus();
 			},
-			onCancel: () => {
+			onCancel: ({ interrupted, latex }) => {
 				// Focus has already returned to the toolbar button that opened the dialog.
+				// A host's close keeps what was typed; the candidate's own cancel discards it.
+				mathInsertDraft = interrupted && latex ? latex : null;
 			},
 		});
 	}
