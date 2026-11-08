@@ -134,10 +134,10 @@ snapshot's `timing.savedAt` dates the resume prompt.
 | `timeLimits.minTime` / `maxTime` (assessment, testPart, section, item) | Runtime enforcement with independent persisted clocks; edge/browser coverage remains |
 | `timeLimits.allowLateSubmission` | Full |
 | `itemSessionControl` cascade (testPart → sections → item ref) | Full, over the QTI defaults |
-| `itemSessionControl.maxAttempts` | Backend-enforced; UI hint (adaptive items unlimited) |
-| `itemSessionControl.allowComment` | Backend-enforced; comments sent with the submission |
+| `itemSessionControl.maxAttempts` | Backend-enforced; UI hint (adaptive items unlimited). With `showFeedback`, more than one attempt delivers the item-level check-answer control ("Attempt N of M"; the control disables with a localized explanation once the attempts are used up) |
+| `itemSessionControl.allowComment` | Backend-enforced; a per-item "Comments for the test team" disclosure sends the comment with the item's next submission |
 | `itemSessionControl.allowReview` / `allowSkipping` | UI hint |
-| `itemSessionControl.showFeedback` / `showSolution` | Applied to the item presentation |
+| `itemSessionControl.showFeedback` / `showSolution` | Applied to the item presentation; `showFeedback` in an individual part also gates the check-answer control and the item feedback the shell surfaces |
 | `itemSessionControl.validateResponses` | Applied when the attempt ends |
 | `preCondition` (testPart, section, item ref) | Evaluated by the backend on entering each |
 | `branchRule` (item ref, section, testPart) | Evaluated by the backend; returned as `nextItemIdentifier`. `EXIT_TEST`/`EXIT_TESTPART`/`EXIT_SECTION` terminate the ended scope through the same finalization path as `submit()` |
@@ -150,12 +150,16 @@ snapshot's `timing.savedAt` dates the resume prompt.
 
 ### Known divergences from spec
 
-- **Modal feedback:** the assessment renders no item `modalFeedback`; `showFeedback` governs the
-  integrated feedback only.
 - **Timing evidence (G-22):** scoped clocks and `minTime`/`maxTime` enforcement exist, and the
   built-in `duration`, `TESTPART_ID.duration` and `SECTION_ID.duration` variables are exposed to
   test-level outcome processing in seconds from the timing clocks. Direct integration coverage for
   every minimum-time scope and simultaneous expiry combination remains.
+- **Item feedback with secured production content:** the check-answer flow and the submit-on-move
+  transition surface item feedback from the candidate session's own response processing (and from
+  a backend `result.feedback` when the session produces no modal feedback). Production item XML
+  delivered without `<responseProcessing>` therefore needs the backend to return feedback through
+  the submission contract; the reference adapter keeps response processing candidate-side, so
+  preview/low-stakes delivery shows authored feedback out of the box.
 
 ---
 
@@ -220,6 +224,26 @@ snapshot's `timing.savedAt` dates the resume prompt.
   (saved answers present), `getRestoredSavedAt()` (the snapshot's `timing.savedAt`) and carries
   `savedAt` on `getStartInfo()`. Restored responses, flags, timer preference and the current
   item are restored by the snapshot, and a restored-paused session reopens paused.
+- **FR-23:** `checkCurrentItem()` submits the active item through the normal per-item path
+  (`countAttempt: true`, branching not followed) and stays on it. It is a coded
+  `maxAttemptsReached` rejection once the resolved attempts are used up and a coded
+  `navigationNotAllowed` rejection outside an individual part with `showFeedback`. While
+  attempts remain, a non-adaptive item whose attempt just ended reopens writable from the
+  pre-submit snapshot with response processing re-run (`scoreAttempt`), so computed outcomes —
+  and the integrated feedback they drive — render during the revision; adaptive items keep
+  their engine loop. Each counted submission captures the item's modal feedback (session-side,
+  else the backend's `result.feedback`) behind the resolved `showFeedback`, exposed through
+  `getLastItemFeedback()` until `clearLastItemFeedback()` or the next submission replaces it.
+- **FR-24:** Moving on from an item whose last counted submission carried exactly these
+  responses (a practice check the candidate did not revise) does not submit again and does not
+  spend an attempt; a changed response re-submits through the normal path. The same rule gates
+  the final current-item submission inside `endTestInternal()`.
+- **FR-25:** `setItemComment()` records the candidate's per-item comment (QTI `allowComment`)
+  into the session state, restarts the autosave debounce like other candidate activity, and the
+  core sends it as `comment` on every submission path for that item.
+- **FR-26:** `getResultsSummary()` returns null before finalization and, after it, the delivered
+  items with their answered status and the backend's per-item score (when returned), plus the
+  finalized totals. The shell renders it only under the opt-in `showResultsSummary` prop.
 
 ---
 
@@ -440,6 +464,48 @@ callbacks with a `bind:open` state.
   count, only legal jump targets are enabled, the current section is `aria-current`, Escape
   or an outside press closes it, and it styles itself on the tokens.
 
+### Practice delivery: check answer, attempts and comments
+
+- **A practice item offers "Check answer" in the navigation bar.** When the active item's
+  resolved `itemSessionControl@showFeedback` is on in an `individual` submission-mode part
+  and more than one attempt is allowed (or the item is adaptive), the bar shows an
+  item-level check control — distinct from the section's Next and the test's outlined
+  Submit — with a polite "Attempt N of M" counter beside it. Activating it submits the
+  item through the normal per-item path (`AssessmentPlayer.checkCurrentItem()`, attempt
+  counted, backend result recorded, `countAttempt: true`) and STAYS on the item: the item
+  body renders its integrated feedback from the computed outcomes, and any modal feedback
+  the submission produced opens in the shell's dialog. While attempts remain, a non-adaptive
+  item reopens writable from its pre-submit state with the outcomes restored, so the
+  candidate revises and checks again; adaptive items keep their engine-driven attempt loop.
+  Once the attempts are used up the control disables with a localized explanation, the
+  item closes, and moving on needs no further submission. `next()` re-submits an
+  already-checked item only when the candidate changed their response; an unchanged
+  response does not spend another attempt.
+- **`showFeedback` with a single attempt delivers feedback on the move.** There is no
+  check control (nothing could be re-attempted); Next submits as always and the captured
+  item feedback opens over the question the candidate arrived on — the only way feedback
+  is seen in a linear part, and the moment it is seen in a nonlinear one (returning to a
+  submitted item re-renders its integrated feedback from the restored outcomes).
+- **Simultaneous parts never offer the control.** QTI gives them no per-item submission;
+  `getCheckAnswerState()` reports them as unavailable and the bar renders without it.
+- **`allowComment` shows a per-item comment disclosure.** A native `<details>` region
+  ("Comments for the test team") with a labelled textarea sits above the navigation bar;
+  the text lives in the session state (`itemComments`), so it autosaves, rides snapshots,
+  and is sent as `SubmitResponsesRequest.comment` with the item's next submission.
+
+### Completion screen and results summary
+
+Finalization replaces the dead last item with a candidate-facing completion screen:
+"You have finished the test" (its time-expired variant when a whole-test limit
+auto-submitted), the test's outcome-matched `testFeedback`, and — only when the host opts
+in through the shell's `showResultsSummary` prop (the element's `show-results-summary`
+attribute, off by default) — a per-question results summary from
+`AssessmentPlayer.getResultsSummary()`: each delivered item's answered status plus the
+backend's score when it returned one, under the finalized total. High-stakes hosts keep
+control by leaving it off; `onSubmit`/`submit` always delivers the full results either
+way. Focus moves to the completion heading like a navigation target, and the view is
+token-styled and keyboard-clean down to 320px.
+
 ### Host CSS reaching item content
 
 Item bodies, passages and rubric blocks are light-DOM HTML, so host page CSS reaches
@@ -553,6 +619,8 @@ to score them.
 | Definition plugins | `AssessmentItemDefinitionPlugin[]` in `BackendAssessmentPlayerConfig.plugins` | Supply a fixed synchronous extractor/renderer plugin list; it is compiled into every cached item definition. | Vendor interaction extraction and tag mapping |
 | Custom outcome processing | Backend adapter / host application | Implement assessment-level outcome policy in the backend or host integration. | Compute aggregate outcomes before returning updated assessment state |
 | Time events | `onTimeWarning()`, `onTimeExpired(event)`, `onScopeTimeExpired(event)`, `onTimeTick()`, `getTimeState()`, `getStartInfo()` | Subscribe after construction and retain the returned unsubscribe function. `onTimeExpired` reports `autoFinalized` (whole-test expiry submitted) or `submissionRequired` (nothing unlocked remains). | Display a countdown banner (`getTimeState()`), react to expiry, host-owned submission |
+| Practice delivery | `getCheckAnswerState()`, `checkCurrentItem()`, `getLastItemFeedback()` / `clearLastItemFeedback()`, `setItemComment()` / `getItemComment()` | Build a check-answer control from the state (attempts, exhaustion), call `checkCurrentItem()` on activation and render `getLastItemFeedback()` in a modal; drive the comment disclosure from `getItemSessionInfo().canComment`. The built-in shell does all of this. | A custom candidate shell around the headless core |
+| Completion / results | `getResultsSummary()`, the shell's `showResultsSummary` prop (`show-results-summary` attribute), `onComplete` / `submit` | Show the built-in completion screen (default) or your own; opt into the per-question summary only for deliveries where candidates may see scores. | High-stakes host keeps the summary off and renders results in its own UI |
 | Begin gate / pause | `beginGate` config, `start()` / `hasStarted()`, `pause(reason?)` / `resume()` / `isPaused()` / `getPauseReason()`, `onPauseChange()` | Set `beginGate: true` (or the `begin-gate` attribute) to hold delivery behind the shell's start screen; call `pause(reason)` for proctor pauses. | Gate delivery until the candidate begins; proctor controls |
 | Persistence | `getState()` / `restoreState()` and `BackendAdapter.saveState()` | Autosave runs by default (see "Why the shell autosaves drafts"); set `autosave: false` (config/`autosave` attribute) or `canSaveState: false` on the adapter to persist yourself, then call `saveState`/`restoreState` on your own cadence; `flushAutosave()` covers page-hide when you keep it on. | Persist to a session table with an optional host storage fallback |
 
@@ -570,6 +638,8 @@ Key types are in `packages/assessment-player/src/integration/api-contract.ts`. I
 - **`BackendAdapter.canSaveState`** (default `true`) is the autosave capability flag: the core debounces drafts through `saveState` unless the adapter reports `false` or the config disables autosave. Adapters that cannot store drafts must say so rather than silently accepting saves.
 - **`AssessmentSessionState.timing.savedAt`** is the client clock of the last autosave written into a snapshot; shells show it on the resume prompt. It is metadata, not an authority — the backend's own timestamps remain authoritative.
 - **`SubmitResponsesRequest.countAttempt`** (default true) carries QTI `endAttempt`'s `countAttempt`: `false` marks a hint / "show me" submission that runs response processing without consuming an attempt. Backends must not count it toward `maxAttempts`, must not record it as the item's result, and must leave the attempt counter unchanged; the candidate continues and a later submission carries the final response.
+- **Item feedback** (`getLastItemFeedback()`) is the shell's view of what an item-level submission produced: the candidate session's outcome-matched `modalFeedback` when the delivered item XML carries response processing, else the backend's `SubmitResponsesResponse.result.feedback` entries. It is gated by the resolved `showFeedback` and lasts until the shell dismisses it or the next submission replaces it; backends that deliver no candidate-side response processing must return `result.feedback` (or outcomes that drive integrated feedback) for candidates to see anything.
+- **`getResultsSummary()`** is derived at finalization from the backend's `FinalizeAssessmentResponse` (`totalScore`, `maxScore`, per-item `itemScores`) plus each delivered item's answered status. It is presentation data for the opt-in completion summary, never a second scoring authority.
 - **`FinalizeAssessmentResponse.itemScores`** is the authoritative score record. Scores in `AssessmentSessionState.itemScores` accumulated during the session are discarded in favour of this.
 - **`AssessmentScoringResult.score`** is a normalized float (0.0–1.0 for most items, but not constrained by the type). `maxScore` is the denominator. `AssessmentResults.totalScore` is the raw sum, not a fraction.
 
@@ -674,6 +744,39 @@ AC-16: A proctor pause freezes every clock and blocks candidate actions
   Then: remaining time, scope times and the item's duration freeze; next/submit/updateResponse
         reject with assessmentPaused; resume() reopens the attempt with responses intact and
         the clocks continue from the frozen point
+
+AC-17: A practice item checks in place and counts attempts
+  Given: An individual testPart whose itemSessionControl sets showFeedback=true maxAttempts=2
+         and a candidate response
+  When: checkCurrentItem() is called
+  Then: submitResponses runs with countAttempt true, the candidate stays on the item,
+        getCheckAnswerState() reports 1 of 2 attempts used, getLastItemFeedback() carries the
+        outcome-matched modal feedback, and the item session is writable again with the
+        computed outcomes restored
+  When: The candidate revises and checks again, then tries a third check
+  Then: The second check records attempt 2; the third rejects with maxAttemptsReached;
+        next() moves on with no further submission and the check control renders disabled
+
+AC-18: Simultaneous parts and showFeedback=false keep submit-on-move
+  Given: A simultaneous testPart with showFeedback=true, and an individual part with
+         showFeedback=false
+  When: getCheckAnswerState() is read on their items
+  Then: available is false with reason 'simultaneous' / 'feedbackOff'; no check control
+        renders; next() still submits per-item in the individual part
+
+AC-19: Submit-on-move feedback is visible on the transition
+  Given: An individual part with showFeedback=true and maxAttempts=1 (or unset) over two items
+  When: The candidate answers item 1 and calls next()
+  Then: The item is submitted before the move and getLastItemFeedback() carries its feedback;
+        a shell that renders it (the built-in one does) shows it over the item they arrived on
+
+AC-20: The completion screen reports the end and (opt-in) the results
+  Given: An assessment the candidate submits (or a whole-test expiry auto-submits)
+  When: finalization completes
+  Then: The shell replaces delivery with "You have finished the test" (the time-expired
+        variant after an auto-finalized expiry), renders the test's outcome-matched
+        testFeedback, and — only with showResultsSummary — lists every delivered item's
+        status and the backend's per-item score under the finalized total
 ```
 
 ```
@@ -768,6 +871,17 @@ AC-A10: Scope expiry is announced and focus follows delivery
   Then: An acknowledge dialog says the scope's time is over and the candidate is moving
         on; after it closes, focus moves to the question and "Question X of Y" is
         announced; the start screen and expiry dialog pass axe AA
+
+AC-A11: The check control, its counter, the feedback dialog and the completion screen
+        are accessible
+  Given: A practice item (showFeedback, maxAttempts 2) with modal feedback, and the
+         assessment then submitted
+  When: The candidate checks the answer, dismisses the feedback dialog and finishes
+  Then: The counter is a polite live region ("Attempt 2 of 2", then the used-up
+        explanation), the disabled control keeps its accessible name with the
+        explanation beside it, the feedback dialog moves focus to its title and
+        returns it on close, and the completion screen moves focus to its heading;
+        all pass axe AA at desktop and 320px widths
 ```
 
 ### Edge cases
@@ -802,7 +916,7 @@ AC-E4: Backend returns updatedState after submitCurrentItem; responses are not l
 
 - QTI spec: §2 (Assessment Architecture), §2.1–2.4
 - Implementation: `packages/assessment-player/src/core/AssessmentPlayer.ts`, `NavigationManager.ts`, `ItemSessionController.ts`, `TimeManager.ts`
-- Shell: `packages/assessment-player/src/components/` (`AssessmentShell`, `NavigationBar`, `AssessmentHeader`, `AssessmentDialog`, `ReviewScreen`, `SectionMenu`); review/answered-state core helpers: `packages/assessment-player/src/core/reviewState.ts`; section layouts and the base layer: `packages/section-player/src/components/` (`SplitPaneResizer`, `SectionPlayerSplitPane`, `SectionPlayerVertical`, `PlayerBaseStyles`)
+- Shell: `packages/assessment-player/src/components/` (`AssessmentShell`, `NavigationBar`, `AssessmentHeader`, `AssessmentDialog`, `ReviewScreen`, `SectionMenu`, `CompletionScreen`); review/answered-state core helpers: `packages/assessment-player/src/core/reviewState.ts`; section layouts and the base layer: `packages/section-player/src/components/` (`SplitPaneResizer`, `SectionPlayerSplitPane`, `SectionPlayerVertical`, `PlayerBaseStyles`)
 - API contract: `packages/assessment-player/src/integration/api-contract.ts`
 - Adjacent PRDs: `docs/prds/architecture/item-player.md`, `docs/prds/architecture/response-processing.md`
 - Existing docs: `packages/assessment-player/BACKEND-INTEGRATION.md`, `packages/assessment-player/EXTENSIBILITY.md`

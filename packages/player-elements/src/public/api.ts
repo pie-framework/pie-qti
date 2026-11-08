@@ -491,6 +491,12 @@ export interface QtiAssessmentPlayerElement extends HTMLElement {
 	headingLevel?: number;
 	/** Opt-in begin gate: a start screen holds delivery and the clocks until Begin. Reflects `begin-gate`. */
 	beginGate: boolean;
+	/**
+	 * Host opt-in: after finalization the completion screen may add a per-question
+	 * results summary (answered state plus the backend's scores). Off by default, so
+	 * high-stakes embeds keep showing no scores. Reflects `show-results-summary`.
+	 */
+	showResultsSummary: boolean;
 	next(): Promise<void>;
 	previous(): Promise<void>;
 	navigateTo(index: number): Promise<void>;

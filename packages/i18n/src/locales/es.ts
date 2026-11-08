@@ -563,6 +563,22 @@ export default {
 			maxReached: 'Intentos máximos alcanzados',
 			required: 'Debe responder antes de continuar',
 			reviewNotAllowed: 'No permitido una vez enviado',
+			attemptOf: 'Intento {current} de {total}',
+			current: 'Intento {current}',
+		},
+
+		// Practice delivery: the item-level check control (stays on the item, shows feedback).
+		checkAnswer: {
+			button: 'Comprobar respuesta',
+			submittedAnnouncement: 'Se ha enviado tu respuesta.',
+			attemptsUsedUp: 'Has usado todos tus intentos para esta pregunta.',
+		},
+
+		// QTI allowComment: the candidate comment disclosure.
+		comments: {
+			heading: 'Comentarios para el equipo de la prueba',
+			label: 'Tus comentarios',
+			placeholder: 'Escribe un comentario para el equipo de la prueba (opcional).',
 		},
 
 		navigation: {
@@ -714,6 +730,15 @@ export default {
 			exit: 'Salir',
 		},
 
+		// The shell completion screen after finalization (+ the opt-in results summary).
+		complete: {
+			finished: 'Has terminado la prueba.',
+			timeExpired: 'Se acabó el tiempo. La prueba ha terminado y tus respuestas se han enviado.',
+			resultsHeading: 'Resumen de resultados',
+			totalScore: 'Puntuación total: {score} de {maxScore}',
+			itemName: 'Pregunta {number}',
+		},
+
 		errors: {
 			navigationFailed: 'Navegación fallida. Por favor intenta de nuevo.',
 			submitFailed: 'Error al enviar evaluación. Por favor intenta de nuevo.',
@@ -733,6 +758,7 @@ export default {
 				responseRequired: 'Debes responder esta pregunta antes de continuar.',
 				responseInvalid: 'Proporciona una respuesta válida antes de continuar.',
 				attemptValidationFailed: 'Revisa tu respuesta. Se requiere una respuesta válida.',
+				maxAttemptsReached: 'Has usado todos tus intentos para esta pregunta.',
 				itemSessionLocked: 'Esta pregunta está cerrada y ya no puede modificarse.',
 				commentsNotAllowed: 'Los comentarios no están permitidos en esta pregunta.',
 				submitFailed: 'No se pudieron enviar tus respuestas. Tus respuestas siguen aquí. Por favor, inténtalo de nuevo.',

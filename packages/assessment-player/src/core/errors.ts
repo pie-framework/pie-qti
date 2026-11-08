@@ -31,6 +31,8 @@ export type AssessmentPlayerErrorCode =
 	| 'responseInvalid'
 	/** Ending the attempt failed response validation. */
 	| 'attemptValidationFailed'
+	/** The item's maxAttempts are used up; no further attempt can be submitted. */
+	| 'maxAttemptsReached'
 	/** The item session lifecycle forbids response updates. */
 	| 'itemSessionLocked'
 	/** The item's session control forbids candidate comments. */

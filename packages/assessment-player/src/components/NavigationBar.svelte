@@ -30,6 +30,20 @@
 		 * time limit left no reachable item, so the candidate can always finish the test.
 		 */
 		showSubmit?: boolean;
+		/**
+		 * Practice delivery (`itemSessionControl@showFeedback` with more than one attempt,
+		 * or an adaptive item): the facts behind the item-level "Check answer" control —
+		 * `null` hides it (simultaneous parts, feedback off, single-attempt items).
+		 */
+		checkAnswer?: {
+			adaptive: boolean;
+			attemptsUsed: number;
+			maxAttempts: number | null;
+			remainingAttempts: number | null;
+			attemptsExhausted: boolean;
+		} | null;
+		/** Submit the current item and stay on it (the shell shows the feedback). */
+		onCheckAnswer?: () => void;
 		/** Blocks interaction and focus while a proctor pause holds the assessment. */
 		inert?: boolean;
 	}
@@ -49,8 +63,12 @@
 		reviewOpen = false,
 		onToggleReview,
 		showSubmit = false,
+		checkAnswer = null,
+		onCheckAnswer,
 		inert = false,
 	}: Props = $props();
+
+	const uid = $props.id();
 
 	const progressPercentage = $derived(
 		navState.totalItems > 0 ? ((navState.currentIndex + 1) / navState.totalItems) * 100 : 0,
@@ -105,9 +123,33 @@
 			flag: i18n?.t('assessment.flag.label') ?? 'Flag for review',
 			reviewOpen: i18n?.t('assessment.review.backToQuestion') ?? 'Back to question',
 			reviewClosed: i18n?.t('assessment.review.open') ?? 'Review questions',
+			checkAnswer: i18n?.t('assessment.checkAnswer.button') ?? 'Check answer',
+			attemptsUsedUp:
+				i18n?.t('assessment.checkAnswer.attemptsUsedUp') ?? 'You have used all your attempts for this question.',
 			// The progress bar's name carries the position and the answered count.
 			progress: answered ? `${progress}. ${answered}` : progress,
 		};
+	});
+
+	/**
+	 * The attempt facts beside the check control: the ordinal the next check would
+	 * consume ("Attempt 2 of 3"), the same counter without a total for unlimited
+	 * (adaptive) items, or the used-up explanation once the last attempt is gone.
+	 */
+	const attemptsLine = $derived.by(() => {
+		if (!checkAnswer) return null;
+		if (checkAnswer.attemptsExhausted) {
+			return { text: translations.attemptsUsedUp, exhausted: true };
+		}
+		const next = checkAnswer.attemptsUsed + 1;
+		if (checkAnswer.maxAttempts !== null && checkAnswer.maxAttempts > 1) {
+			const text =
+				i18n?.t('assessment.attempts.attemptOf', { current: Math.min(next, checkAnswer.maxAttempts), total: checkAnswer.maxAttempts }) ??
+				`Attempt ${Math.min(next, checkAnswer.maxAttempts)} of ${checkAnswer.maxAttempts}`;
+			return { text, exhausted: false };
+		}
+		const text = i18n?.t('assessment.attempts.current', { current: next }) ?? `Attempt ${next}`;
+		return { text, exhausted: false };
 	});
 
 	function handlePrevious() {
@@ -123,6 +165,11 @@
 	function handleSubmit() {
 		if (busy) return;
 		onSubmit?.();
+	}
+
+	function handleCheckAnswer() {
+		if (busy || checkAnswer?.attemptsExhausted) return;
+		onCheckAnswer?.();
 	}
 </script>
 
@@ -228,6 +275,52 @@
 				</svg>
 				<span class="nav-button-label">{translations.flag}</span>
 			</button>
+		{/if}
+
+		{#if checkAnswer && onCheckAnswer}
+			<!--
+				Practice delivery: an item-level submission that stays on the item so its
+				feedback is seen — distinct from the section's Next and the test's Submit.
+				The attempt counter beside it is a polite live region, so a new count (or the
+				"no attempts left" explanation) is heard after each check.
+			-->
+			<div class="check-group">
+				<button
+					type="button"
+					class="nav-button check-button"
+					data-testid="assessment-check-answer"
+					disabled={checkAnswer.attemptsExhausted}
+					aria-disabled={busy ? 'true' : undefined}
+					aria-describedby={attemptsLine ? `${uid}-attempts` : undefined}
+					onclick={handleCheckAnswer}
+				>
+					<svg
+						class="nav-icon"
+						xmlns="http://www.w3.org/2000/svg"
+						width="20"
+						height="20"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+						aria-hidden="true"
+					>
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+					</svg>
+					<span class="nav-button-label">{translations.checkAnswer}</span>
+				</button>
+				{#if attemptsLine}
+					<span
+						id={`${uid}-attempts`}
+						class="check-attempts"
+						class:exhausted={attemptsLine.exhausted}
+						data-testid="assessment-attempts"
+						role="status"
+						aria-live="polite"
+					>
+						{attemptsLine.text}
+					</span>
+				{/if}
+			</div>
 		{/if}
 
 		{#if showSubmitButton}
@@ -447,6 +540,40 @@
 	/* The flag keeps its visible label at every width; it may use more of the row. */
 	.nav-button.flag-button {
 		max-inline-size: 60%;
+	}
+
+	/*
+	 * Practice delivery: the item-level check control and its attempt counter stay
+	 * together and wrap as one unit on narrow bars. The counter reads quieter than the
+	 * control but never below AA contrast; the used-up explanation carries the warning
+	 * tone so "max attempts reached" is not mistaken for a transient state.
+	 */
+	.check-group {
+		display: flex;
+		align-items: center;
+		gap: var(--pie-qti-space-2, 0.5rem);
+		min-inline-size: 0;
+	}
+
+	.check-button {
+		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));
+		color: var(--pie-qti-primary, oklch(45% 0.24 277));
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+	}
+
+	.check-button:hover:not(:disabled, [aria-disabled='true']) {
+		background: color-mix(in oklab, var(--pie-qti-primary, oklch(45% 0.24 277)) 8%, var(--pie-qti-base-100, oklch(100% 0 0)));
+	}
+
+	.check-attempts {
+		font-size: 0.8125em;
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+		white-space: nowrap;
+	}
+
+	.check-attempts.exhausted {
+		color: var(--pie-qti-warning-text, #92400e);
+		font-weight: 600;
 	}
 
 	.nav-button:focus-visible {

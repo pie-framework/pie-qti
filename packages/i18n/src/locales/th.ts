@@ -558,6 +558,22 @@ export default {
 			maxReached: 'ถึงความพยายามสูงสุดแล้ว',
 			required: 'ต้องตอบก่อนดำเนินการต่อ',
 			reviewNotAllowed: 'ไม่อนุญาตเมื่อส่งแล้ว',
+			attemptOf: 'ครั้งที่ {current} จาก {total}',
+			current: 'ครั้งที่ {current}',
+		},
+
+		// Practice delivery: the item-level check control (stays on the item, shows feedback).
+		checkAnswer: {
+			button: 'ตรวจคำตอบ',
+			submittedAnnouncement: 'ส่งคำตอบของคุณแล้ว',
+			attemptsUsedUp: 'คุณใช้จำนวนครั้งที่ตอบได้สำหรับคำถามนี้ครบแล้ว',
+		},
+
+		// QTI allowComment: the candidate comment disclosure.
+		comments: {
+			heading: 'ความคิดเห็นถึงทีมจัดทำข้อสอบ',
+			label: 'ความคิดเห็นของคุณ',
+			placeholder: 'เขียนความคิดเห็นถึงทีมจัดทำข้อสอบ (ไม่บังคับ)',
 		},
 
 		navigation: {
@@ -709,6 +725,15 @@ export default {
 			exit: 'ออก',
 		},
 
+		// The shell completion screen after finalization (+ the opt-in results summary).
+		complete: {
+			finished: 'คุณทำข้อสอบเสร็จแล้ว',
+			timeExpired: 'หมดเวลาแล้ว ข้อสอบสิ้นสุดลงและระบบได้ส่งคำตอบของคุณแล้ว',
+			resultsHeading: 'สรุปผลลัพธ์',
+			totalScore: 'คะแนนรวม: {score} จาก {maxScore}',
+			itemName: 'คำถามที่ {number}',
+		},
+
 		errors: {
 			navigationFailed: 'การนำทางล้มเหลว โปรดลองอีกครั้ง',
 			submitFailed: 'ส่งการประเมินไม่สำเร็จ โปรดลองอีกครั้ง',
@@ -728,6 +753,7 @@ export default {
 				responseRequired: 'คุณต้องตอบคำถามนี้ก่อนจึงจะไปต่อได้',
 				responseInvalid: 'กรุณากรอกคำตอบที่สมบูรณ์ก่อนไปต่อ',
 				attemptValidationFailed: 'กรุณาตรวจสอบคำตอบของคุณ ต้องเป็นคำตอบที่สมบูรณ์',
+				maxAttemptsReached: 'คุณใช้จำนวนครั้งที่ตอบได้สำหรับคำถามนี้ครบแล้ว',
 				itemSessionLocked: 'คำถามนี้ปิดอยู่และไม่สามารถเปลี่ยนแปลงได้อีก',
 				commentsNotAllowed: 'ไม่อนุญาตให้ใส่ความคิดเห็นในคำถามนี้',
 				submitFailed: 'ไม่สามารถส่งคำตอบของคุณได้ คำตอบของคุณยังอยู่ครบถ้วน กรุณาลองอีกครั้ง',

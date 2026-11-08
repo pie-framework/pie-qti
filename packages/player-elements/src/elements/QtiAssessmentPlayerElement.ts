@@ -111,6 +111,8 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 			'full-viewport',
 			'heading-level',
 			'begin-gate',
+			// Completion
+			'show-results-summary',
 			// Autosave
 			'autosave',
 			'autosave-interval-ms',
@@ -136,6 +138,7 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	#fullViewport = false;
 	#headingLevel: number | undefined;
 	#beginGate = false;
+	#showResultsSummary = false;
 	#autosave: boolean | undefined;
 	#autosaveIntervalMs: number | undefined;
 	#backend: BackendAdapter | undefined;
@@ -176,9 +179,15 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	}
 
 	attributeChangedCallback(name: string, _oldValue: string | null, newValue: string | null) {
-		if (name === 'full-viewport' || name === 'heading-level' || name === 'begin-gate') {
+		if (
+			name === 'full-viewport' ||
+			name === 'heading-level' ||
+			name === 'begin-gate' ||
+			name === 'show-results-summary'
+		) {
 			if (name === 'full-viewport') this.#fullViewport = newValue !== null && newValue !== 'false';
 			else if (name === 'begin-gate') this.#beginGate = newValue !== null && newValue !== 'false';
+			else if (name === 'show-results-summary') this.#showResultsSummary = newValue !== null && newValue !== 'false';
 			else this.#headingLevel = parseHeadingLevel(newValue);
 			// Presentation only: never re-resolve the assessment for it. A mounted shell
 			// re-renders with it, like a `config` change.
@@ -289,6 +298,20 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	set beginGate(value: boolean) {
 		if (value) this.setAttribute('begin-gate', '');
 		else this.removeAttribute('begin-gate');
+	}
+
+	/**
+	 * Host opt-in: after finalization the shell's completion screen may add a
+	 * per-question results summary (answered state plus the backend's scores). Off by
+	 * default, so high-stakes embeds keep showing no scores. Reflects the
+	 * `show-results-summary` attribute.
+	 */
+	get showResultsSummary(): boolean {
+		return this.#showResultsSummary;
+	}
+	set showResultsSummary(value: boolean) {
+		if (value) this.setAttribute('show-results-summary', '');
+		else this.removeAttribute('show-results-summary');
 	}
 
 	/**
@@ -818,6 +841,7 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 			config: baseConfig,
 			fullViewport: this.#fullViewport,
 			beginGate: this.#beginGate,
+			showResultsSummary: this.#showResultsSummary,
 			...(this.#autosave === undefined ? {} : { autosave: this.#autosave }),
 			...(this.#autosaveIntervalMs === undefined ? {} : { autosaveIntervalMs: this.#autosaveIntervalMs }),
 			...(this.#headingLevel === undefined ? {} : { headingLevel: this.#headingLevel }),

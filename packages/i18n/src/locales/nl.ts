@@ -557,6 +557,22 @@ export default {
 			maxReached: 'Max. pogingen bereikt',
 			required: 'Moet antwoorden voordat je verder kunt',
 			reviewNotAllowed: 'Niet toegestaan na verzending',
+			attemptOf: 'Poging {current} van {total}',
+			current: 'Poging {current}',
+		},
+
+		// Practice delivery: the item-level check control (stays on the item, shows feedback).
+		checkAnswer: {
+			button: 'Antwoord controleren',
+			submittedAnnouncement: 'Je antwoord is ingediend.',
+			attemptsUsedUp: 'Je hebt al je pogingen voor deze vraag gebruikt.',
+		},
+
+		// QTI allowComment: the candidate comment disclosure.
+		comments: {
+			heading: 'Opmerkingen voor het toetsteam',
+			label: 'Jouw opmerkingen',
+			placeholder: 'Schrijf een opmerking voor het toetsteam (optioneel).',
 		},
 
 		navigation: {
@@ -708,6 +724,15 @@ export default {
 			exit: 'Afsluiten',
 		},
 
+		// The shell completion screen after finalization (+ the opt-in results summary).
+		complete: {
+			finished: 'Je hebt de toets afgerond.',
+			timeExpired: 'De tijd is om. De toets is afgerond en je antwoorden zijn ingediend.',
+			resultsHeading: 'Overzicht van de resultaten',
+			totalScore: 'Totale score: {score} van {maxScore}',
+			itemName: 'Vraag {number}',
+		},
+
 		errors: {
 			navigationFailed: 'Navigatie mislukt. Probeer het opnieuw.',
 			submitFailed: 'Kan toets niet verzenden. Probeer het opnieuw.',
@@ -727,6 +752,7 @@ export default {
 				responseRequired: 'Je moet deze vraag beantwoorden voordat je verdergaat.',
 				responseInvalid: 'Geef een geldig antwoord voordat je verdergaat.',
 				attemptValidationFailed: 'Controleer je antwoord. Een geldige reactie is vereist.',
+				maxAttemptsReached: 'Je hebt al je pogingen voor deze vraag gebruikt.',
 				itemSessionLocked: 'Deze vraag is gesloten en kan niet meer worden gewijzigd.',
 				commentsNotAllowed: 'Opmerkingen zijn niet toegestaan bij deze vraag.',
 				submitFailed: 'Je antwoorden konden niet worden ingediend. Je antwoorden zijn er nog. Probeer het opnieuw.',

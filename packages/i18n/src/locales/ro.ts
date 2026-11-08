@@ -562,6 +562,22 @@ export default {
 			maxReached: 'Încercări maxime atinse',
 			required: 'Trebuie să răspunzi înainte de a continua',
 			reviewNotAllowed: 'Nepermis odată trimis',
+			attemptOf: 'Încercarea {current} din {total}',
+			current: 'Încercarea {current}',
+		},
+
+		// Practice delivery: the item-level check control (stays on the item, shows feedback).
+		checkAnswer: {
+			button: 'Verifică răspunsul',
+			submittedAnnouncement: 'Răspunsul tău a fost predat.',
+			attemptsUsedUp: 'Ai folosit toate încercările pentru această întrebare.',
+		},
+
+		// QTI allowComment: the candidate comment disclosure.
+		comments: {
+			heading: 'Comentarii pentru echipa testului',
+			label: 'Comentariile tale',
+			placeholder: 'Scrie un comentariu pentru echipa testului (opțional).',
 		},
 
 		navigation: {
@@ -713,6 +729,15 @@ export default {
 			exit: 'Ieșire',
 		},
 
+		// The shell completion screen after finalization (+ the opt-in results summary).
+		complete: {
+			finished: 'Ai terminat testul.',
+			timeExpired: 'Timpul a expirat. Testul s-a încheiat, iar răspunsurile tale au fost predate.',
+			resultsHeading: 'Rezumatul rezultatelor',
+			totalScore: 'Scor total: {score} din {maxScore}',
+			itemName: 'Întrebarea {number}',
+		},
+
 		errors: {
 			navigationFailed: 'Navigare eșuată. Te rugăm să încerci din nou.',
 			submitFailed: 'Trimiterea evaluării a eșuat. Te rugăm să încerci din nou.',
@@ -732,6 +757,7 @@ export default {
 				responseRequired: 'Trebuie să răspunzi la această întrebare înainte de a continua.',
 				responseInvalid: 'Te rugăm să oferi un răspuns valid înainte de a continua.',
 				attemptValidationFailed: 'Verifică-ți răspunsul. Este necesar un răspuns valid.',
+				maxAttemptsReached: 'Ai folosit toate încercările pentru această întrebare.',
 				itemSessionLocked: 'Această întrebare este închisă și nu mai poate fi modificată.',
 				commentsNotAllowed: 'Comentariile nu sunt permise la această întrebare.',
 				submitFailed: 'Răspunsurile tale nu au putut fi trimise. Răspunsurile tale sunt în continuare aici. Te rugăm să încerci din nou.',
