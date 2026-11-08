@@ -332,6 +332,19 @@
 		background: var(--pie-qti-base-300, oklch(95% 0 0));
 	}
 
+	/*
+	 * Forced colors drop the pressed fill, so Bold and Italic would look the same on and off.
+	 * A pressed toggle takes the system selection colours instead; disabled toggles keep the
+	 * platform's disabled rendering. The focus outline stays as it is.
+	 */
+	@media (forced-colors: active) {
+		.rte-button[aria-pressed='true']:not(:disabled) {
+			border-color: Highlight;
+			background-color: Highlight;
+			color: HighlightText;
+		}
+	}
+
 	.tiptap-editor-container {
 		background: var(--pie-qti-base-100, oklch(100% 0 0));
 		/* The field boundary identifies the control: 3:1 against the page. */

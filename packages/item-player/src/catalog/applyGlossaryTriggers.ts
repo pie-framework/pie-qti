@@ -296,6 +296,13 @@ function isReservedCatalogUsage(usage: string): boolean {
 }
 
 /**
+ * Hosts dispatch this on `document` when transient UI must close: the assessment shell does on
+ * a proctor pause (`detail.reason: 'pause'`), so no popup stays open, or traps focus, under the
+ * pause overlay.
+ */
+const CLOSE_TRANSIENT_UI_EVENT = 'pie-qti-close-transient-ui';
+
+/**
  * Mount a catalog popup via the component registry. Falls back to a minimal
  * vanilla-JS popup if no 'catalogPopup' component is registered (e.g. in tests
  * that don't load default-components). Returns a cleanup function.
@@ -316,6 +323,7 @@ function mountPopup(
 	function cleanup() {
 		if (closed) return;
 		closed = true;
+		document.removeEventListener(CLOSE_TRANSIENT_UI_EVENT, cleanup);
 		popupEl.remove();
 		triggerBtn.focus();
 		onClose();
@@ -341,6 +349,8 @@ function mountPopup(
 		anchor.appendChild(popupEl);
 	}
 
+	// A host closing transient UI (a proctor pause) closes the popup like its close button.
+	document.addEventListener(CLOSE_TRANSIENT_UI_EVENT, cleanup);
 	return cleanup;
 }
 

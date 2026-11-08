@@ -192,6 +192,13 @@ function sharedVirtualKeyboard(): VirtualKeyboardHandle | undefined {
 }
 
 /**
+ * Hosts dispatch this on `document` when transient UI must close: the assessment shell does on
+ * a proctor pause (`detail.reason: 'pause'`), so no dialog stays open, or traps focus, under the
+ * pause overlay. The dialog closes through its cancel path, as if the candidate pressed Cancel.
+ */
+const CLOSE_TRANSIENT_UI_EVENT = 'pie-qti-close-transient-ui';
+
+/**
  * Opens a modal dialog with MathLive editor for LaTeX input.
  * Resolves to a function that closes the dialog without calling either callback.
  */
@@ -202,8 +209,22 @@ export async function openMathLiveEditor(options: MathLiveEditorOptions): Promis
 	// Capture the opener before loading MathLive, while it still holds focus.
 	const opener = options.returnFocusTo ?? (document.activeElement as HTMLElement | null);
 
-	// Ensure MathLive is loaded and registered before creating the mathfield
-	await ensureMathLiveLoaded();
+	// Ensure MathLive is loaded and registered before creating the mathfield. A request to
+	// close transient UI while it loads cancels the dialog before it ever opens.
+	let closedWhileLoading = false;
+	const cancelWhileLoading = () => {
+		closedWhileLoading = true;
+	};
+	document.addEventListener(CLOSE_TRANSIENT_UI_EVENT, cancelWhileLoading);
+	try {
+		await ensureMathLiveLoaded();
+	} finally {
+		document.removeEventListener(CLOSE_TRANSIENT_UI_EVENT, cancelWhileLoading);
+	}
+	if (closedWhileLoading) {
+		onCancel();
+		return () => {};
+	}
 
 	const id = `pie-qti-math-dialog-${++dialogCount}`;
 
@@ -403,6 +424,7 @@ export async function openMathLiveEditor(options: MathLiveEditorOptions): Promis
 		if (focusTimer !== undefined) clearTimeout(focusTimer);
 		mathfield.removeEventListener('move-out', handleMoveOut);
 		document.removeEventListener('keydown', handleFieldShiftTabCapture, true);
+		document.removeEventListener(CLOSE_TRANSIENT_UI_EVENT, handleCloseTransientUi);
 		cancelButton.removeEventListener('click', handleCancel);
 		confirmButton.removeEventListener('click', handleConfirm);
 		overlay.removeEventListener('click', handleOverlayClick);
@@ -436,6 +458,9 @@ export async function openMathLiveEditor(options: MathLiveEditorOptions): Promis
 
 	const handleCancel = () => close(false);
 	const handleConfirm = () => close(true);
+	// A host closing transient UI (a proctor pause) cancels: the focus trap is released and
+	// focus returns to the opener, so the host's own overlay can take it.
+	const handleCloseTransientUi = () => close(false);
 
 	const handleOverlayClick = (e: MouseEvent) => {
 		// Only a click on the backdrop itself closes; never one on the dialog or the
@@ -448,6 +473,7 @@ export async function openMathLiveEditor(options: MathLiveEditorOptions): Promis
 	cancelButton.addEventListener('click', handleCancel);
 	confirmButton.addEventListener('click', handleConfirm);
 	overlay.addEventListener('click', handleOverlayClick);
+	document.addEventListener(CLOSE_TRANSIENT_UI_EVENT, handleCloseTransientUi);
 
 	// Focus the mathfield (but don't auto-show keyboard)
 	modal.focusInitial();

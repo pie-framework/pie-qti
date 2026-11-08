@@ -52,13 +52,14 @@
 	const isVisibleForRole = (block: QtiSharedHtmlBlock) => isQtiViewVisibleForRole(block.view, role);
 	const visiblePassages = $derived(passages.filter(isVisibleForRole));
 	const visibleRubricBlocks = $derived(rubricBlocks.filter(isVisibleForRole));
-	// Prepared markup docks the passages' SSML; a host-supplied `html` renders as given.
+	// Prepared markup docks the passages' SSML and restates their `xml:lang` as `lang`; a
+	// host-supplied `html` renders as given.
 	const readablePassages = $derived(
 		new Map(
 			visiblePassages.map((passage) => [
 				passage.identifier,
 				passage.html === undefined && passage.rawHtml
-					? prepareReadableBlock(passage.rawHtml)
+					? prepareReadableBlock(passage.rawHtml, passage.language)
 					: { html: passage.rawHtml ?? '', catalogs: [] },
 			]),
 		),

@@ -6,6 +6,7 @@ import type { ExtendedTextInteractionData } from '@pie-qti/item-player';
 vi.mock('mathlive', () => ({}));
 
 import { openMathLiveEditor } from '../../src/shared/extensions/MathLiveEditor';
+import { getFocusableElements } from '../../src/shared/extensions/modalDialog';
 import ExtendedTextInteraction from '../../src/plugins/extended-text/ExtendedTextInteraction.svelte';
 import { cleanupInteraction, type MountedInteraction, mountInteraction, q, settle, waitFor } from './helpers';
 
@@ -59,6 +60,20 @@ function trigger(label = 'Insert inline math'): HTMLButtonElement {
 	document.body.appendChild(button);
 	button.focus();
 	return button;
+}
+
+/** An element outside the dialog that can take focus (a host overlay's heading). */
+function outsideTarget(text: string): HTMLElement {
+	const heading = document.createElement('h3');
+	heading.tabIndex = -1;
+	heading.textContent = text;
+	document.body.appendChild(heading);
+	return heading;
+}
+
+/** What the assessment shell dispatches on a proctor pause. */
+function closeTransientUi() {
+	document.dispatchEvent(new CustomEvent('pie-qti-close-transient-ui', { detail: { reason: 'pause' } }));
 }
 
 describe('MathLive editor dialog', () => {
@@ -220,6 +235,94 @@ describe('MathLive editor dialog', () => {
 		close();
 		expect(document.querySelector('[role="dialog"]')).toBeNull();
 		expect(onSecondCancel).not.toHaveBeenCalled();
+	});
+
+	test('a host closing transient UI (proctor pause) cancels the dialog and releases its focus trap', async () => {
+		const opener = trigger();
+		const onCancel = vi.fn();
+		const onConfirm = vi.fn();
+		document.body.style.overflow = 'auto';
+		await open({ onConfirm, onCancel, initialLatex: 'x^2', mode: 'insert' });
+		expect(document.activeElement).toBe(dialog().querySelector('math-field'));
+
+		closeTransientUi();
+
+		expect(document.querySelector('[role="dialog"]')).toBeNull();
+		expect(onCancel).toHaveBeenCalledTimes(1);
+		expect(onConfirm).not.toHaveBeenCalled();
+		expect(document.activeElement).toBe(opener);
+		expect(document.body.style.overflow).toBe('auto');
+
+		// The trap is gone: focus moved elsewhere (the pause overlay) stays there.
+		const pauseHeading = outsideTarget('Paused');
+		pauseHeading.focus();
+		expect(document.activeElement).toBe(pauseHeading);
+		// The listener went with the dialog: a later request finds nothing to close.
+		closeTransientUi();
+		expect(onCancel).toHaveBeenCalledTimes(1);
+	});
+
+	test('a dialog closed any other way stops listening for transient-UI closes', async () => {
+		trigger();
+		const onCancel = vi.fn();
+		await open({ onConfirm: vi.fn(), onCancel });
+		const removeListener = vi.spyOn(document, 'removeEventListener');
+
+		Array.from(dialog().querySelectorAll('button'))
+			.find((button) => button.textContent === 'Cancel')!
+			.click();
+
+		expect(removeListener).toHaveBeenCalledWith('pie-qti-close-transient-ui', expect.any(Function));
+		removeListener.mockRestore();
+		closeTransientUi();
+		expect(onCancel).toHaveBeenCalledTimes(1);
+	});
+
+	test('a transient-UI close while MathLive loads cancels before the dialog opens', async () => {
+		const opener = trigger();
+		const onCancel = vi.fn();
+		const pending = openMathLiveEditor({ onConfirm: vi.fn(), onCancel });
+
+		closeTransientUi();
+		const close = await pending;
+
+		expect(onCancel).toHaveBeenCalledTimes(1);
+		expect(document.querySelector('[role="dialog"]')).toBeNull();
+		expect(document.activeElement).toBe(opener);
+		expect(document.body.style.overflow).toBe('');
+		close();
+		expect(onCancel).toHaveBeenCalledTimes(1);
+	});
+
+	test('the focus trap never chases focus that another containment takes straight back', async () => {
+		trigger();
+		await open({ onConfirm: vi.fn(), onCancel: vi.fn() });
+		const modal = dialog();
+		const pauseHeading = outsideTarget('Paused');
+		let redirectsIn = 0;
+		modal.addEventListener('focusin', () => redirectsIn++);
+
+		// A host's pause containment, like the shell's: focus that lands outside its overlay
+		// goes straight back to its heading, synchronously, from a window listener.
+		const contain = (event: FocusEvent) => {
+			if (event.target !== pauseHeading) pauseHeading.focus();
+		};
+		window.addEventListener('focusin', contain);
+		try {
+			pauseHeading.focus();
+		} finally {
+			window.removeEventListener('focusin', contain);
+		}
+
+		// One bounded attempt (the field, then each control, then the dialog), never recursion.
+		expect(redirectsIn).toBeGreaterThan(0);
+		expect(redirectsIn).toBeLessThanOrEqual(getFocusableElements(modal).length + 1);
+		expect(document.activeElement).toBe(pauseHeading);
+
+		// Without the competition, the trap works again.
+		const outside = outsideTarget('Elsewhere');
+		outside.focus();
+		expect(modal.contains(document.activeElement)).toBe(true);
 	});
 
 	test('all candidate-visible strings come from the interactions.mathInput catalog', async () => {

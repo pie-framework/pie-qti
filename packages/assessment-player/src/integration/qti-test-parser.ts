@@ -91,6 +91,25 @@ export async function parseAssessmentTestXml(
 	const childrenByTag = (el: Element, tag: string): Element[] =>
 		childElements(el).filter((c) => toCanonicalQtiName(c.localName) === tag);
 
+	/**
+	 * The language `el`'s content is written in, by XML language inheritance (XML 1.0 §2.12):
+	 * its own `xml:lang` (QTI 3 content may also say `lang`), else its nearest ancestor's.
+	 * `xml:lang=""` declares no language and stops the inheritance. The root of an external
+	 * section inherits `inherited`, the language in force at its assessmentSectionRef.
+	 */
+	const contentLanguageOf = (el: Element, inherited?: string): string | undefined => {
+		for (let node: Node | null = el; node && node.nodeType === 1; node = node.parentNode) {
+			const element = node as Element;
+			const name = element.hasAttribute('xml:lang') ? 'xml:lang' : element.hasAttribute('lang') ? 'lang' : null;
+			if (name) return element.getAttribute(name)?.trim() || undefined;
+		}
+		return inherited;
+	};
+
+	/** A rubric block's content language: its content body's (QTI 3), else the block's. */
+	const rubricLanguageOf = (block: Element, inherited?: string): string | undefined =>
+		contentLanguageOf(childrenByTag(block, 'contentBody')[0] ?? block, inherited);
+
 	// Parse itemSessionControl element
 	const parseItemSessionControl = (el: Element): SecureItemSessionControl | undefined => {
 		const isc = childrenByTag(el, 'itemSessionControl')[0];
@@ -287,6 +306,7 @@ export async function parseAssessmentTestXml(
 		sourceHref?: string,
 		ancestorHrefs?: readonly string[],
 		depth?: number,
+		inheritedLanguage?: string,
 	) => Promise<SecureSection | null>;
 
 	const parseItemRef = async (ref: Element, sourceHref?: string): Promise<SecureItemRef> => {
@@ -339,11 +359,14 @@ export async function parseAssessmentTestXml(
 	};
 
 	// Parse a single assessmentSection element without flattening nested sections.
+	// `inheritedLanguage` is the content language at the assessmentSectionRef of an
+	// external section file, whose own root has no ancestors to inherit it from.
 	const parseSection = async (
 		sectionEl: Element,
 		sourceHref?: string,
 		ancestorHrefs: readonly string[] = [],
 		depth = 1,
+		inheritedLanguage?: string,
 	): Promise<SecureSection> => {
 		const identifier = getAttr(sectionEl, 'identifier') ?? 'section';
 		if (depth > maxSectionDepth) {
@@ -364,12 +387,16 @@ export async function parseAssessmentTestXml(
 		// rubricBlocks
 		const rubricBlockEls = childrenByTag(sectionEl, 'rubricBlock');
 		const rubricBlocks = rubricBlockEls.length > 0
-			? rubricBlockEls.map((b, idx) => ({
-				identifier: getAttr(b, 'identifier') ?? `${identifier}-rubric-${idx + 1}`,
-				view: (getAttr(b, 'view') ?? 'candidate').split(/\s+/).filter(Boolean),
-				use: getAttr(b, 'use'),
-				content: serializeXml(b),
-			}))
+			? rubricBlockEls.map((b, idx) => {
+				const language = rubricLanguageOf(b, inheritedLanguage);
+				return {
+					identifier: getAttr(b, 'identifier') ?? `${identifier}-rubric-${idx + 1}`,
+					view: (getAttr(b, 'view') ?? 'candidate').split(/\s+/).filter(Boolean),
+					use: getAttr(b, 'use'),
+					content: serializeXml(b),
+					...(language ? { language } : {}),
+				};
+			})
 			: undefined;
 
 		const assessmentItemRefs: SecureItemRef[] = [];
@@ -382,11 +409,11 @@ export async function parseAssessmentTestXml(
 				assessmentItemRefs.push(item);
 				children.push({ type: 'item', item });
 			} else if (name === 'assessmentSection') {
-				const section = await parseSection(child, sourceHref, ancestorHrefs, depth + 1);
+				const section = await parseSection(child, sourceHref, ancestorHrefs, depth + 1, inheritedLanguage);
 				sections.push(section);
 				children.push({ type: 'section', section });
 			} else if (name === 'assessmentSectionRef') {
-				const section = await resolveSectionRef(child, sourceHref, ancestorHrefs, depth + 1);
+				const section = await resolveSectionRef(child, sourceHref, ancestorHrefs, depth + 1, inheritedLanguage);
 				if (section) {
 					sections.push(section);
 					children.push({ type: 'section', section });
@@ -420,6 +447,7 @@ export async function parseAssessmentTestXml(
 		sourceHref?: string,
 		ancestorHrefs: readonly string[] = [],
 		depth = 1,
+		inheritedLanguage?: string,
 	): Promise<SecureSection | null> => {
 		const href = getAttr(sectionRefEl, 'href');
 		if (!href) {
@@ -459,7 +487,14 @@ export async function parseAssessmentTestXml(
 				);
 				return null;
 			}
-			return parseSection(secRoot, resolvedHref, [...ancestorHrefs, resolvedHref], depth);
+			// The referenced section stands in for the ref: it inherits the ref's language.
+			return parseSection(
+				secRoot,
+				resolvedHref,
+				[...ancestorHrefs, resolvedHref],
+				depth,
+				contentLanguageOf(sectionRefEl, inheritedLanguage),
+			);
 		} catch (err) {
 			if (err instanceof AssessmentSectionReferenceLimitError) throw err;
 			console.warn(
@@ -511,19 +546,22 @@ export async function parseAssessmentTestXml(
 	const outcomeProcessingXml = outcomeProcessingEl
 		? serializeXml(outcomeProcessingEl)
 		: undefined;
-	// QTI 3 wraps testFeedback content in qti-content-body.
+	// QTI 3 wraps testFeedback content in qti-content-body. Only the body's children are
+	// kept as content, so the language it is written in travels as `language`.
 	const parseTestFeedback = (parent: Element): TestFeedbackItem[] | undefined => {
 		const items = childrenByTag(parent, 'testFeedback').flatMap((feedback, index) => {
 			const outcomeIdentifier = getAttr(feedback, 'outcomeIdentifier');
 			if (!outcomeIdentifier) return [];
 			const body = childrenByTag(feedback, 'contentBody')[0] ?? feedback;
 			const content = Array.from(body.childNodes).map((node) => serializeXml(node)).join('');
+			const language = contentLanguageOf(body);
 			return [{
 				identifier: getAttr(feedback, 'identifier') ?? `test-feedback-${index + 1}`,
 				outcomeIdentifier,
 				showHide: (getAttr(feedback, 'showHide') ?? 'show') as 'show' | 'hide',
 				access: (getAttr(feedback, 'access') ?? 'atEnd') as 'atEnd' | 'during',
 				content,
+				...(language ? { language } : {}),
 			}];
 		});
 		return items.length > 0 ? items : undefined;
@@ -557,12 +595,16 @@ export async function parseAssessmentTestXml(
 		const tpTimeLimits = parseTimeLimits(tp);
 		const tpRubricBlockEls = childrenByTag(tp, 'rubricBlock');
 		const tpRubricBlocks = tpRubricBlockEls.length > 0
-			? tpRubricBlockEls.map((b, idx) => ({
-				identifier: getAttr(b, 'identifier') ?? `${tpIdentifier}-rubric-${idx + 1}`,
-				view: (getAttr(b, 'view') ?? 'candidate').split(/\s+/).filter(Boolean),
-				use: getAttr(b, 'use'),
-				content: serializeXml(b),
-			}))
+			? tpRubricBlockEls.map((b, idx) => {
+				const language = rubricLanguageOf(b);
+				return {
+					identifier: getAttr(b, 'identifier') ?? `${tpIdentifier}-rubric-${idx + 1}`,
+					view: (getAttr(b, 'view') ?? 'candidate').split(/\s+/).filter(Boolean),
+					use: getAttr(b, 'use'),
+					content: serializeXml(b),
+					...(language ? { language } : {}),
+				};
+			})
 			: undefined;
 
 		const sections = await parseSectionsForTestPart(tp);

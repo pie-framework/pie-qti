@@ -135,4 +135,23 @@ describe('prepareReadableBlock', () => {
 			catalogs: [],
 		});
 	});
+
+	test('restates xml:lang as lang without SSML, with dir where the direction changes', () => {
+		expect(prepareReadableBlock('<p>Hello <span xml:lang="es">hola</span> and <span xml:lang="ar">مرحبا</span></p>')).toEqual({
+			html: '<p>Hello <span xml:lang="es" lang="es">hola</span> and <span xml:lang="ar" lang="ar" dir="rtl">مرحبا</span></p>',
+			catalogs: [],
+		});
+	});
+
+	test("compares nested languages against the passage's own language", () => {
+		const block = prepareReadableBlock('<p>مرحبا <span xml:lang="en">hello</span> <span xml:lang="ar-EG">مصر</span></p>', 'ar');
+		expect(block.html).toBe(
+			'<p>مرحبا <span xml:lang="en" lang="en" dir="ltr">hello</span> <span xml:lang="ar-EG" lang="ar-EG">مصر</span></p>',
+		);
+	});
+
+	test("restates a rubric block's own xml:lang", () => {
+		const block = prepareReadableBlock('<rubricBlock use="passage" view="candidate" xml:lang="fr"><p>Le cycle</p></rubricBlock>', 'fr');
+		expect(block.html).toBe('<rubricBlock use="passage" view="candidate" xml:lang="fr" lang="fr"><p>Le cycle</p></rubricBlock>');
+	});
 });

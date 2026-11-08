@@ -278,6 +278,7 @@
 			kind: 'test-feedback',
 			scope: item.testPartIdentifier ? 'testPart' : 'assessment',
 			rawHtml: item.content,
+			...(item.language ? { language: item.language } : {}),
 		}))
 	);
 	// The assessmentTest `title`, else a localized generic title — never the identifier.

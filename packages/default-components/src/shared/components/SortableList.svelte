@@ -414,6 +414,18 @@ function itemState(index: number, isGrabbed: boolean, isCorrect: boolean): strin
 		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));
 		background: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 8%, transparent);
 	}
+	/*
+	 * Forced colors drop the tint and the ring (a box-shadow), which leaves the picked-up item
+	 * looking like every other. It keeps a system-colour cue that is not colour alone: a heavier
+	 * Highlight border, whose extra width the padding gives back so nothing shifts. The focus
+	 * outline stays as it is.
+	 */
+	@media (forced-colors: active) {
+		.qti-sortable-item[data-grabbed='true'] {
+			border: 3px solid Highlight;
+			padding: calc(0.75rem - 2px);
+		}
+	}
 	.qti-sortable-item[data-correct='true'] {
 		border-color: var(--pie-qti-success, oklch(76% 0.177 163.223));
 		background: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 8%, transparent);

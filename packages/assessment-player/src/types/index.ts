@@ -100,6 +100,8 @@ export interface VisibleTestFeedback {
 	access: 'atEnd' | 'during';
 	/** Set for feedback authored on a test part. */
 	testPartIdentifier?: string;
+	/** The content's language (`TestFeedbackItem.language`), when it has one. */
+	language?: string;
 }
 
 /**

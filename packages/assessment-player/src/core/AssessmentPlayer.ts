@@ -1282,6 +1282,7 @@ export class AssessmentPlayer {
 					content: fb.content,
 					access: fb.access,
 					...(part ? { testPartIdentifier: part.identifier } : {}),
+					...(fb.language ? { language: fb.language } : {}),
 				});
 			});
 		};

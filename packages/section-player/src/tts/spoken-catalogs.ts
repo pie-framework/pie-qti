@@ -1,5 +1,6 @@
 /// <reference lib="dom" />
 
+import { contentLanguageAttributes } from '@pie-qti/i18n';
 import { enforceItemXmlLimits } from '@pie-qti/item-player/security';
 import type { PlayerSecurityConfig } from '@pie-qti/item-player';
 import { type ContentLink, prepareContentMarkup, readApipAccessElements } from '@pie-qti/qti-common/accessibility';
@@ -110,10 +111,14 @@ function nativeSpokenCatalogs(document: Document, serializer: XMLSerializerLike 
 /**
  * A passage's markup as it reads aloud, and the spoken catalogs its SSML makes: `data-ssml`
  * and inline SSML dock under generated idrefs, the item player's preparation of item content.
+ * Its `xml:lang` is restated as `lang` (with `dir` where the direction changes against the
+ * passage's own `language`), with or without SSML: HTML ignores `xml:lang`.
  */
-export function prepareReadableBlock(rawHtml: string): { html: string; catalogs: SpokenCatalog[] } {
-	if (!/ssml|synthesis/.test(rawHtml)) return { html: rawHtml, catalogs: [] };
-	const open = '<qti-stimulus-body>';
+export function prepareReadableBlock(rawHtml: string, language?: string): { html: string; catalogs: SpokenCatalog[] } {
+	if (!/ssml|synthesis|xml:lang/.test(rawHtml)) return { html: rawHtml, catalogs: [] };
+	// The passage's direction is the one its nested languages are compared against.
+	const dir = contentLanguageAttributes(language)?.dir;
+	const open = dir ? `<qti-stimulus-body dir="${dir}">` : '<qti-stimulus-body>';
 	const close = '</qti-stimulus-body>';
 	const prepared = prepareContentMarkup(`${open}${rawHtml}${close}`, [], { hidingStyles: false });
 	const start = prepared.xml.indexOf(open);
