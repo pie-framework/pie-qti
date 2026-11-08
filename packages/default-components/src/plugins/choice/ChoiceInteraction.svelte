@@ -197,14 +197,20 @@
 
 	// Minimum requirement (minChoices): stated on the question while the response is short of it,
 	// the same minimum response validation enforces; the author's message wins. Only while the
-	// candidate can still answer.
+	// candidate can still answer. minChoices=1 (the single-choice default reading) is exempt from
+	// the default hint — a radio group's affordance already says "pick one" — but an authored
+	// message still shows.
 	const minHintId = `${uid}-min-hint`;
+	const authoredMessage = parsedInteraction?.minSelectionsMessage;
 	const minHint = $derived(
 		minimumHint({
 			i18n,
-			minimum: !disabled && role === 'candidate' ? parsedInteraction?.minChoices : 0,
+			minimum:
+				!disabled && role === 'candidate' && ((parsedInteraction?.minChoices ?? 0) > 1 || authoredMessage)
+					? parsedInteraction?.minChoices
+					: 0,
 			count: selectionCount,
-			authored: parsedInteraction?.minSelectionsMessage,
+			authored: authoredMessage,
 			key: 'interactions.choice.minChoicesHint',
 			fallback: { one: 'Select at least {count} answer.', other: 'Select at least {count} answers.' },
 		})

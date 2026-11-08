@@ -27,7 +27,7 @@ import GraphicOrderInteraction from '../../src/plugins/graphic-order/GraphicOrde
 import HotspotInteraction from '../../src/plugins/hotspot/HotspotInteraction.svelte';
 import MatchInteraction from '../../src/plugins/match/MatchInteraction.svelte';
 import OrderInteraction from '../../src/plugins/order/OrderInteraction.svelte';
-import { check, type MountedInteraction, mountInteraction, q, qa, settle } from './helpers';
+import { check, cleanupInteraction, type MountedInteraction, mountInteraction, q, qa, settle } from './helpers';
 
 let nl: DefaultI18nProvider;
 
@@ -138,10 +138,31 @@ describe('ChoiceInteraction minimum (minChoices)', () => {
 
 	test('the default comes from the localized catalog, with the plural form of the minimum', async () => {
 		const two = mountInteraction(ChoiceInteraction, { interaction: choiceData(), i18n: nl });
-		const one = mountInteraction(ChoiceInteraction, { interaction: choiceData({ minChoices: 1 }), i18n: nl });
+		const three = mountInteraction(ChoiceInteraction, {
+			interaction: choiceData({ minChoices: 3 }),
+			i18n: nl,
+		});
 		await settle();
 		expect(hint(two)?.textContent).toBe('Selecteer minimaal 2 antwoorden.');
-		expect(hint(one)?.textContent).toBe('Selecteer minimaal 1 antwoord.');
+		expect(hint(three)?.textContent).toBe('Selecteer minimaal 3 antwoorden.');
+	});
+
+	// minChoices=1 (the single-choice reading) shows no default hint — the radio affordance
+	// already says "pick one" — but an authored message still shows, and validation still
+	// enforces the minimum.
+	test('minChoices=1 shows no default hint, yet an authored message still shows', async () => {
+		const plain = mountInteraction(ChoiceInteraction, { interaction: choiceData({ minChoices: 1 }) });
+		const authored = mountInteraction(
+			ChoiceInteraction,
+			{
+				interaction: choiceData({ minChoices: 1, minSelectionsMessage: 'Kies precies één antwoord.' }),
+				i18n: nl,
+			},
+		);
+		await settle();
+		expect(hint(plain)).toBeNull();
+		expect(hint(authored)?.textContent).toBe('Kies precies één antwoord.');
+		cleanupInteraction(plain, authored);
 	});
 
 	test('is announced once when a change leaves the minimum unmet, not on every change or on load', async () => {
