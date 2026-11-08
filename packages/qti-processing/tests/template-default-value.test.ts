@@ -1,8 +1,9 @@
 /**
  * setDefaultValue (QTI ASI §10.3): a template rule that CHANGES the variable's
  * default value. The rule carries one expression; later resets of the variable
- * (attempt starts, response-processing outcome resets, templateConstraint
- * restarts) use the new default (§5.1). It is not a response-processing rule.
+ * (attempt starts, response-processing outcome resets) use the new default
+ * (§5.1), while a templateConstraint restart discards it with the rejected pass
+ * (template-constraint-restart.test.ts). It is not a response-processing rule.
  */
 
 import { describe, expect, it } from 'bun:test';
