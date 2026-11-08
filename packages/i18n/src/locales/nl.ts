@@ -726,6 +726,7 @@ export default {
 
 		// The shell completion screen after finalization (+ the opt-in results summary).
 		complete: {
+			alreadySubmitted: 'Deze toets is al ingediend.',
 			finished: 'Je hebt de toets afgerond.',
 			timeExpired: 'De tijd is om. De toets is afgerond en je antwoorden zijn ingediend.',
 			resultsHeading: 'Overzicht van de resultaten',

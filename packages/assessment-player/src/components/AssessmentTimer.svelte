@@ -122,12 +122,14 @@
 	data-testid="assessment-timer"
 	data-timer-state={expired ? 'expired' : paused ? 'paused' : warning ? 'warning' : 'running'}
 >
+	<!-- aria-controls names the readout only while it exists: removed when hidden,
+	     a dangling reference would point at nothing. -->
 	<button
 		type="button"
 		class="timer-toggle"
 		data-testid="assessment-timer-toggle"
 		aria-expanded={!hidden}
-		aria-controls={readoutId}
+		aria-controls={hidden || readoutName === null ? undefined : readoutId}
 		onclick={toggleHidden}
 	>
 		<svg

@@ -19,7 +19,9 @@ for (const width of [1280, 375]) {
 			// the localized submit-failure message (which reassures that answers were kept) and a
 			// support code. The fixture's backend messages ("Connection interrupted…", "Could not
 			// finish submission…") must not appear.
-			const alert = page.getByRole('alert');
+			// The visible alert (not the shell's live-region announcer, which is also
+			// role="alert" while it carries a message).
+			const alert = page.locator('.assessment-submit-error [role="alert"]');
 			await expect(alert).toContainText('Your answers could not be submitted. Your answers are still here.');
 			await expect(alert).toContainText(/Support code: E-[0-9A-F]+/);
 			await expect(alert).not.toContainText('Connection interrupted');
@@ -32,7 +34,9 @@ for (const width of [1280, 375]) {
 			// The built-in completion screen replaces delivery; navigation is closed.
 			await expect(page.getByTestId('assessment-complete')).toBeVisible();
 			await expect(page.getByTestId('assessment-submit')).toHaveCount(0);
-			await expect(page.getByRole('alert')).toHaveCount(0);
+			// The submit-error alert is gone; the announcer regions remain (they are
+			// persistent live regions, emptied after each announcement).
+			await expect(page.locator('.assessment-submit-error [role="alert"]')).toHaveCount(0);
 			await expect(page.getByTestId('request-counts')).toHaveText(
 				stage === 'responses' ? 'Responses: 2; finalizations: 1' : 'Responses: 1; finalizations: 2'
 			);

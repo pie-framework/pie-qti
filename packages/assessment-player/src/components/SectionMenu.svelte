@@ -109,16 +109,18 @@
 
 {#if sections.length > 1}
 	<div class="section-menu" bind:this={menuRoot}>
-		<button
-			bind:this={toggleButton}
-			class="section-menu-toggle"
-			type="button"
-			aria-expanded={isOpen}
-			aria-controls={menuId}
-			onclick={toggleMenu}
-			onkeydown={handleToggleKeydown}
-			disabled={disabled}
-		>
+	<!-- aria-controls names the list only while it exists: removed while closed,
+	     a dangling reference would point at nothing. -->
+	<button
+		bind:this={toggleButton}
+		class="section-menu-toggle"
+		type="button"
+		aria-expanded={isOpen}
+		aria-controls={isOpen ? menuId : undefined}
+		onclick={toggleMenu}
+		onkeydown={handleToggleKeydown}
+		disabled={disabled}
+	>
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
 				class="section-menu-icon"

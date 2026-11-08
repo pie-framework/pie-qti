@@ -57,6 +57,24 @@ export interface InitSessionResponse {
 	currentItemIdentifier?: string;
 	/** Test-level outcome values of a resumed session, once outcome processing has run */
 	outcomes?: TestOutcomeValues;
+	/**
+	 * True when the stored session was already finalized: delivery is over and every
+	 * further submission would fail. Hosts (and the built-in shell) show a terminal
+	 * "already submitted" view instead of delivery UI and never offer the resume prompt.
+	 * `submit()` on such a player returns the stored results instead of failing.
+	 */
+	finalized?: boolean;
+	/**
+	 * With `finalized`, the stored final result for the terminal view: the totals and,
+	 * when kept, the per-item scores. A backend may omit it; shells then render the
+	 * terminal view without scores.
+	 */
+	finalResults?: {
+		totalScore: number;
+		maxScore: number;
+		itemScores?: Record<string, AssessmentScoringResult>;
+		finalizedAt?: number;
+	};
 }
 
 /**

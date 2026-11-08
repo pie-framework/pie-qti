@@ -13,7 +13,8 @@
 	 * - `dead-end`: a 3s test-part limit over three questions; the expiry leaves no
 	 *   reachable question, so Submit must be offered and work from question 1.
 	 * - `pause`: a 60s limit plus proctor Pause/Resume buttons; the overlay names the
-	 *   reason and the countdown freezes.
+	 *   reason and the countdown freezes. `&resume=1` resumes the stored draft, so a
+	 *   reload during the pause reopens paused behind the overlay.
 	 * - `start-gate`: the begin gate; delivery and the clocks wait for Begin.
 	 * - `late`: an expired limit with allowLateSubmission; the test stays open.
 	 */
@@ -30,6 +31,7 @@
 
 	let ready = $state(false);
 	let scenario = $state<Scenario>('auto-submit');
+	let resume = $state(false);
 	let completed = $state(false);
 	let resultsLine = $state('');
 	let shell = $state<AssessmentShell | null>(null);
@@ -176,11 +178,15 @@
 		const { assessment, beginGate } = ASSESSMENTS[selected]();
 		const backend = new ReferenceBackendAdapter();
 		backend.registerAssessment(assessment.identifier, assessment);
-		return {
-			backend,
-			initSession: { assessmentId: assessment.identifier, candidateId: 'timed-candidate' },
-			beginGate,
+		const initSession: { assessmentId: string; candidateId: string; resumeSessionId?: string } = {
+			assessmentId: assessment.identifier,
+			candidateId: 'timed-candidate',
 		};
+		if (resume) {
+			const stored = backend.latestSessionId(assessment.identifier, initSession.candidateId);
+			if (stored) initSession.resumeSessionId = stored;
+		}
+		return { backend, initSession, beginGate };
 	}
 
 	function handleSubmit(results: { totalScore: number; maxScore: number }) {
@@ -189,8 +195,10 @@
 	}
 
 	onMount(() => {
-		const requested = new URLSearchParams(window.location.search).get('scenario') ?? 'auto-submit';
+		const params = new URLSearchParams(window.location.search);
+		const requested = params.get('scenario') ?? 'auto-submit';
 		if (requested in ASSESSMENTS) scenario = requested as Scenario;
+		resume = params.get('resume') === '1';
 		ready = true;
 	});
 </script>
@@ -221,7 +229,6 @@
 					type="button"
 					class="btn btn-sm"
 					data-testid="proctor-resume"
-					disabled={!pausedNow}
 					onclick={() => {
 						shell?.resume();
 						pausedNow = false;

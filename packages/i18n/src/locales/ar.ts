@@ -791,6 +791,7 @@ export default {
 
 		// The shell completion screen after finalization (+ the opt-in results summary).
 		complete: {
+			alreadySubmitted: 'تم تسليم هذا الاختبار بالفعل.',
 			finished: 'لقد أنهيت الاختبار.',
 			timeExpired: 'انتهى الوقت. انتهى الاختبار وتم تسليم إجاباتك.',
 			resultsHeading: 'ملخص النتائج',

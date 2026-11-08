@@ -233,6 +233,11 @@
 	let saveStatus = $state<AutosaveState>({ status: 'idle' });
 	/** A backend snapshot carried prior activity: the shell offers Resume / Start over. */
 	let resumeDialogOpen = $state(false);
+	/**
+	 * A proctor pause closed the resume prompt before the candidate answered it: it
+	 * returns when the pause lifts, if the draft is still there.
+	 */
+	let resumePromptDeferredByPause = $state(false);
 	/** Deleting the saved draft is irreversible: confirmed before `startOver()` runs. */
 	let startOverConfirmOpen = $state(false);
 	let startOverBusy = $state(false);
@@ -252,6 +257,8 @@
 	// Completion: the candidate-facing finished state replaces the dead last item.
 	/** The whole-test limit auto-submitted: the completion heading says so. */
 	let finishedByExpiry = $state(false);
+	/** The session was restored already finalized: the terminal "already submitted" view. */
+	let restoredFinalized = $state(false);
 	let resultsSummary = $state<ResultsSummary | null>(null);
 	let completionScreen = $state<CompletionScreen | null>(null);
 
@@ -406,6 +413,7 @@
 		stillLoading = false;
 		armStillLoadingTimer();
 
+		const hostOnError = config.onError;
 		const playerConfig: BackendAssessmentPlayerConfig = {
 			backend,
 			initSession,
@@ -419,6 +427,23 @@
 			// The shell props and the core options tune the same autosave.
 			...(autosave === undefined ? {} : { autosave }),
 			...(autosaveIntervalMs === undefined ? {} : { autosaveIntervalMs }),
+			// The host's error hook stays; a failed item entry (the first item, or an
+			// expiry hop) additionally routes to the shell's typed failure screen instead
+			// of an eternal bare loading state.
+			onError: (err) => {
+				hostOnError?.(err);
+				if (player?.hasEntryFailure() && !isComplete) {
+					// Assign once per distinct message: a retry that fails with the same
+					// error must not recreate the alert (and churn its focus).
+					const message = localizeError(err);
+					if (!error || error.message !== message.message) {
+						error = message;
+						stillLoading = false;
+						clearStillLoadingTimer();
+						announcer?.announce(message.message, 3000, 'assertive');
+					}
+				}
+			},
 		};
 
 		try {
@@ -426,8 +451,44 @@
 			startPending = !created.hasStarted();
 			player = created;
 
+			// A snapshot saved during a proctor pause reopens paused: no `onPauseChange`
+			// fired (the shell had no listener yet), so the overlay state syncs from the
+			// core here. The resume prompt below stays suppressed while it holds.
+			if (created.isPaused()) {
+				paused = true;
+				pauseReason = created.getPauseReason();
+			}
+
+			// A session the backend stored as finalized is terminal: show the
+			// already-submitted completion view instead of delivery whose every action
+			// rejects, and never offer the resume prompt for it.
+			if (created.isFinalized()) {
+				restoredFinalized = true;
+				isComplete = true;
+				testFeedback = created.getVisibleFeedback();
+				resultsSummary = created.getResultsSummary();
+				sections = created.getAllSections();
+				announcer?.announce(
+					i18n.t('assessment.complete.alreadySubmitted', 'This test was already submitted.'),
+					4000,
+					'assertive',
+				);
+				return;
+			}
+
 			// Get sections
 			sections = player.getAllSections();
+
+			// An item entry that already failed during creation (the first item could not
+			// be entered) routes here: the typed failure screen replaces the bare loading
+			// state. Later entry failures (an expiry hop) report through onError.
+			if (created.hasEntryFailure()) {
+				error = localizeError(created.getEntryError()!);
+				stillLoading = false;
+				clearStillLoadingTimer();
+				announcer?.announce(error.message, 3000, 'assertive');
+				return;
+			}
 
 			// Set up event listeners
 			player.onItemChange(async () => {
@@ -535,6 +596,9 @@
 					if (!wasPaused) {
 						const active = document.activeElement;
 						focusBeforePause = active instanceof HTMLElement && active !== document.body ? active : null;
+						// No dialog survives a pause: a candidate must never answer or submit
+						// underneath one. The resume prompt returns when the pause lifts.
+						closeDialogsForPause();
 					}
 					const message = reason
 						? i18n.t('assessment.pause.withReason', 'The assessment is paused: {reason}', { reason })
@@ -552,6 +616,11 @@
 						if (target?.isConnected && !target.closest('[inert]')) target.focus();
 						else await manageFocusAfterNavigation();
 					});
+					// A resume prompt the pause interrupted returns once delivery continues.
+					if (resumePromptDeferredByPause) {
+						resumePromptDeferredByPause = false;
+						if (!isComplete && player?.hasRestoredProgress()) resumeDialogOpen = true;
+					}
 				}
 			});
 
@@ -570,18 +639,31 @@
 
 			// A restored snapshot with prior activity is a resume: ask the candidate
 			// whether to continue or start over. A restored-paused session stays behind
-			// the pause overlay (a proctor resumes it); a begin gate already says
-			// "Continue" on its start screen.
-			if (!startPending && !paused && player.hasRestoredProgress()) {
-				resumeDialogOpen = true;
+			// the pause overlay (a proctor resumes it) — the prompt is deferred there and
+			// returns when the pause lifts; a begin gate already says "Continue" on its
+			// start screen.
+			if (!startPending && player.hasRestoredProgress()) {
+				if (paused) resumePromptDeferredByPause = true;
+				else resumeDialogOpen = true;
+			}
+
+			// The restored pause was never observed as a change: announce it like a live
+			// one. Focus lands on the overlay heading through the pause effect below.
+			if (paused && !startPending) {
+				announcer?.announce(
+					pauseReason
+						? i18n.t('assessment.pause.withReason', 'The assessment is paused: {reason}', { reason: pauseReason })
+						: i18n.t('assessment.pause.announcement', 'The assessment is paused.'),
+					4000,
+					'assertive',
+				);
 			}
 		} catch (err) {
 			console.error('Failed to initialize assessment player:', err);
 			error = localizeError(err);
 			announcer?.announce(error.message, 3000, 'assertive');
-			// The failure alert is announced; focus lands on its Retry control.
-			await tick();
-			retryButton?.focus();
+			// The failure alert is announced; focus lands on its Retry control (the
+			// error-focus effect below).
 		} finally {
 			initializing = false;
 			clearStillLoadingTimer();
@@ -589,11 +671,33 @@
 	}
 
 	/**
-	 * Retry a failed load: tear the half-created player down and initialize again.
-	 * On another failure the alert is re-announced and focus returns to Retry.
+	 * Retry a failure. A failed item entry (the first item, or an expiry hop) retries
+	 * just that entry in the live session; a failed load tears the half-created player
+	 * down and initializes again. On another failure the alert is re-announced and
+	 * focus returns to Retry.
 	 */
 	async function handleRetryInitialize() {
 		if (initializing) return;
+		if (player?.hasEntryFailure()) {
+			initializing = true;
+			error = null;
+			try {
+				await player.retryEntry();
+				navError = null;
+				hasFirstItem = true;
+				stillLoading = false;
+				updateState();
+				await manageFocusAfterNavigation();
+				announceCurrentQuestion();
+			} catch (err) {
+				// The failure is already on screen: the core reported it through onError
+				// (the entry-failure mapping above), which owns the error state.
+				if (!isBusyRejection(err)) console.error('Retrying the failed item entry:', err);
+			} finally {
+				initializing = false;
+			}
+			return;
+		}
 		teardownPlayer();
 		hasFirstItem = false;
 		stillLoading = false;
@@ -615,6 +719,20 @@
 		void tick().then(() => screen.focusHeading());
 	});
 
+	$effect(() => {
+		// The pause overlay — live or restored — holds focus like a dialog: the shell
+		// beneath is inert, so focus must not linger outside it.
+		if (!paused) return;
+		void tick().then(() => pauseHeadingEl?.focus());
+	});
+
+	$effect(() => {
+		// A failure alert carries the recovery control: once the alert renders and the
+		// retry settles (a retry failure remounts it enabled), focus lands on Retry.
+		if (!error || initializing) return;
+		void tick().then(() => retryButton?.focus());
+	});
+
 	function updateState() {
 		if (!player) return;
 
@@ -629,6 +747,47 @@
 		checkAnswer = player.getCheckAnswerState();
 		allowComment = player.getItemSessionInfo()?.canComment === true;
 		stateVersion += 1;
+	}
+
+	/**
+	 * A proctor pause closes every shell dialog — submit confirmation, expiry notice,
+	 * feedback, resume prompt, start-over confirmation: a candidate must never answer or
+	 * submit underneath a pause (WCAG). The chrome wrapper's `inert` hard-disables
+	 * whatever remains. The unanswered resume prompt is remembered and returns when the
+	 * pause lifts.
+	 */
+	function closeDialogsForPause(): void {
+		if (resumeDialogOpen) {
+			resumeDialogOpen = false;
+			resumePromptDeferredByPause = true;
+		}
+		submitDialogOpen = false;
+		leavePartDialogOpen = false;
+		feedbackDialogOpen = false;
+		startOverConfirmOpen = false;
+		expiryDialogOpen = false;
+		expiryDialog = null;
+	}
+
+	/**
+	 * While a proctor pause holds, the inert chrome and the modal overlay leave exactly
+	 * one focus target: the overlay heading. Tab (either direction) stays on it instead
+	 * of wandering into the host page behind the opaque overlay (WCAG 2.4.11).
+	 */
+	function handlePauseFocusKeydown(event: KeyboardEvent) {
+		if (!paused || !pauseHeadingEl || event.key !== 'Tab') return;
+		if (event.altKey || event.ctrlKey || event.metaKey) return;
+		event.preventDefault();
+		pauseHeadingEl.focus();
+	}
+
+	/** Focus that lands outside the modal overlay while paused returns to its heading. */
+	function handlePauseFocusContainment(event: FocusEvent) {
+		if (!paused || !pauseHeadingEl) return;
+		const target = event.target;
+		if (target instanceof Node && target.isConnected && !shellRootEl?.contains(target)) {
+			pauseHeadingEl.focus();
+		}
 	}
 
 	/** In-flight transitions reject further navigation; the busy UI already covers them. */
@@ -785,10 +944,17 @@
 	/**
 	 * Focus the active question through its section layout — which first selects the
 	 * question tab when passage and question share a narrow viewport — falling back to
-	 * the content region.
+	 * the content region. A crashed question shows the boundary's fallback instead: its
+	 * recovery control is the focus target, so focus never drops to the body or to the
+	 * empty content region.
 	 */
 	async function focusQuestion(): Promise<void> {
 		await tick(); // Wait for DOM updates
+		const fallbackRetry = contentEl?.querySelector<HTMLElement>('[data-testid="assessment-content-retry"]');
+		if (fallbackRetry) {
+			fallbackRetry.focus();
+			return;
+		}
 		const layout = hasSplitPane ? splitLayout : verticalLayout;
 		if ((await layout?.focusActiveItem()) === true) return;
 		contentEl?.focus();
@@ -1020,6 +1186,11 @@
 		// Remember the reset so the fallback's actions can recover the subtree.
 		contentBoundaryReset = reset;
 		announcer?.announce(i18n.t('assessment.itemError.title', 'This question could not be displayed.'), 4000, 'assertive');
+		// Focus follows the announcement to the fallback's recovery control; without it,
+		// focus silently drops to the page body.
+		void tick().then(() => {
+			contentEl?.querySelector<HTMLElement>('[data-testid="assessment-content-retry"]')?.focus();
+		});
 	}
 
 	let contentBoundaryReset: (() => void) | null = null;
@@ -1088,13 +1259,20 @@
 
 	async function handleExpiryConfirm() {
 		const mode = expiryDialog?.mode;
-		expiryDialogOpen = false;
 		if (mode === 'submit') {
 			// The dialog carries the Submit action: an expired test ends here (or shows
-			// the retry alert when the backend refused).
-			await performSubmit();
+			// the retry alert when the backend refused). A busy rejection — another
+			// transition owns the lock — keeps the dialog open in its busy state instead
+			// of closing silently, so Submit stays reachable once it settles.
+			const succeeded = await performSubmit();
+			if (!succeeded && !submitError) {
+				expiryDialogOpen = true;
+				return;
+			}
+			expiryDialogOpen = false;
 			return;
 		}
+		expiryDialogOpen = false;
 		// Delivery already moved on: focus and announce the new question like a navigation.
 		await manageFocusAfterNavigation();
 		announceCurrentQuestion();
@@ -1299,6 +1477,8 @@
 		if (document.visibilityState === 'hidden') void player?.flushAutosave();
 	}}
 	onpagehide={() => void player?.flushAutosave()}
+	onkeydown={handlePauseFocusKeydown}
+	onfocusin={handlePauseFocusContainment}
 />
 
 <!-- Accessibility announcer for screen readers -->
@@ -1406,6 +1586,32 @@
 			</button>
 		</div>
 	</svelte:element>
+{:else if isComplete && player}
+	<!--
+		The candidate-facing completion state: "You have finished the test" (or the
+		time-expired variant when the whole-test limit auto-submitted; the
+		already-submitted variant when a finalized session was restored), the test's
+		outcome-matched testFeedback, and — only when the host opts in via
+		`showResultsSummary` — a per-question results summary. Navigation is closed;
+		the host's `onSubmit` still received the full results.
+	-->
+	<CompletionScreen
+		bind:this={completionScreen}
+		headingLevel={titleHeadingLevel}
+		finishedByTimeExpiry={finishedByExpiry}
+		alreadySubmitted={restoredFinalized}
+		testFeedback={testFeedbackBlocks}
+		resultsSummary={resultsSummary}
+		{showResultsSummary}
+		role={sectionRole}
+		{i18n}
+		security={config.security}
+		host={config.sectionHost}
+		{typeset}
+		{fullViewport}
+		lang={interfaceAttributes?.lang}
+		dir={interfaceAttributes?.dir}
+	/>
 {:else if !player || navState.currentIndex < 0}
 	<div class="assessment-loading pie-qti-chrome" lang={interfaceAttributes?.lang} dir={interfaceAttributes?.dir}>
 		<div class="assessment-loading-status" role="status" aria-live="polite">
@@ -1420,30 +1626,6 @@
 			{/if}
 		</div>
 	</div>
-{:else if isComplete && player}
-	<!--
-		The candidate-facing completion state: "You have finished the test" (or the
-		time-expired variant when the whole-test limit auto-submitted), the test's
-		outcome-matched testFeedback, and — only when the host opts in via
-		`showResultsSummary` — a per-question results summary. Navigation is closed;
-		the host's `onSubmit` still received the full results.
-	-->
-	<CompletionScreen
-		bind:this={completionScreen}
-		headingLevel={titleHeadingLevel}
-		finishedByTimeExpiry={finishedByExpiry}
-		testFeedback={testFeedbackBlocks}
-		resultsSummary={resultsSummary}
-		{showResultsSummary}
-		role={sectionRole}
-		{i18n}
-		security={config.security}
-		host={config.sectionHost}
-		{typeset}
-		{fullViewport}
-		lang={interfaceAttributes?.lang}
-		dir={interfaceAttributes?.dir}
-	/>
 {:else}
 	<!--
 		Embedded, the shell is one region named by the assessment title inside the host
@@ -1459,7 +1641,15 @@
 		aria-labelledby={fullViewport ? undefined : titleId}
 		aria-busy={isSubmitting || navState.isLoading}
 	>
-		<a class="skip-link" href={`#${contentId}`} onclick={handleSkipToQuestion}>
+		<!--
+			All shell chrome in one wrapper that the proctor pause makes inert (WCAG
+			2.4.11): the skip link, the comments disclosure and the submit-error retry
+			cannot be tabbed into beneath the opaque overlay. The pause overlay itself
+			sits OUTSIDE this wrapper, so it stays operable while everything under it is
+			inert. `display: contents` keeps the wrapper out of the layout.
+		-->
+		<div class="shell-chrome" inert={paused || undefined}>
+			<a class="skip-link" href={`#${contentId}`} onclick={handleSkipToQuestion}>
 			{i18n.t('assessment.skipToQuestion', 'Skip to question')}
 		</a>
 
@@ -1962,8 +2152,10 @@
 				</div>
 			{/snippet}
 		</svelte:boundary>
+		</div>
 
-		<!-- Proctor pause: an overlay replaces the blocked shell, naming the reason. -->
+		<!-- Proctor pause: an overlay replaces the blocked shell, naming the reason.
+		     It sits OUTSIDE the inert chrome wrapper, so it stays operable. -->
 		{#if paused}
 			<div class="pause-overlay" data-testid="assessment-pause-overlay">
 				<div class="pause-card" role="status" aria-live="assertive">
@@ -2022,6 +2214,16 @@
 		.assessment-shell.full-viewport {
 			block-size: 100vh;
 		}
+	}
+
+	/*
+	 * All chrome in one wrapper the proctor pause makes inert. `display: contents`
+	 * keeps it out of the layout entirely — the shell's flex column, the pause
+	 * overlay's absolute positioning and the landmarks are untouched; only focus and
+	 * pointer interaction beneath the overlay are blocked (WCAG 2.4.11).
+	 */
+	.shell-chrome {
+		display: contents;
 	}
 
 	.assessment-content {

@@ -119,7 +119,9 @@ test.describe('cross-browser smoke: assessment navigation and submission', () =>
 		await dialog.getByTestId('assessment-dialog-confirm').click();
 		await expect(dialog).toBeHidden();
 		await expect(page.getByText('Assessment completed', { exact: true })).toBeVisible();
-		await expect(page.getByRole('alert')).toHaveCount(0);
+		// No submit-error alert; the shell's announcer regions stay mounted (persistent
+		// live regions, emptied after each announcement).
+		await expect(page.locator('.assessment-submit-error [role="alert"]')).toHaveCount(0);
 		await expect(page.getByTestId('request-counts')).toHaveText('Responses: 1; finalizations: 1');
 	});
 });

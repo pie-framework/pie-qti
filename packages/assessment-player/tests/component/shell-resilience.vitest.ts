@@ -112,6 +112,44 @@ describe('load failure', () => {
 	});
 });
 
+describe('item entry failure', () => {
+	test('a broken first question shows the failure screen with Retry instead of eternal loading', { timeout: 20000 }, async () => {
+		const parsed = await ReferenceBackendAdapter.parseAssessmentTestXml(TEST_XML, {
+			itemXmlMap: { ...ITEMS, 'q1.xml': 'this is not xml <<<' },
+		});
+		const backend = new ReferenceBackendAdapter();
+		backend.registerAssessment(parsed.identifier, parsed);
+		let coreErrors = 0;
+
+		const m = mountInto(AssessmentShell, {
+			backend,
+			initSession: { assessmentId: parsed.identifier, candidateId: 'candidate' },
+			config: { i18nProvider: i18n, onError: () => (coreErrors += 1) },
+		});
+		mounted.push(m);
+
+		// The typed failure screen replaces the bare loading state; raw engine text stays
+		// out of the candidate view.
+		const errorCard = () => m.host.querySelector<HTMLElement>('.assessment-error');
+		await until(() => errorCard() !== null);
+		expect(errorCard()!.textContent).toMatch(/something went wrong/i);
+		expect(m.host.querySelector('[data-testid="assessment-load-retry"]')).not.toBeNull();
+		expect(m.host.querySelector('[data-testid="assessment-still-loading"]')).toBeNull();
+
+		// Retry re-attempts the entry (still broken): the alert re-announces and focus
+		// returns to Retry once the alert remounts.
+		m.host.querySelector<HTMLButtonElement>('[data-testid="assessment-load-retry"]')!.click();
+		// Wait for the retry's renewed failure to be reported (the initial one plus this
+		// one), then for the alert to settle with focus back on the enabled Retry control.
+		await until(() => coreErrors >= 2, 8000);
+		await until(() => {
+			const button = m.host.querySelector<HTMLButtonElement>('[data-testid="assessment-load-retry"]');
+			return errorCard() !== null && button !== null && !button.disabled && document.activeElement === button;
+		}, 8000);
+		expect(errorCard()).not.toBeNull();
+	});
+});
+
 describe('content boundary', () => {
 	test('a crashing question shows the fallback and the candidate continues', { timeout: 25000 }, async () => {
 		const parsed = await ReferenceBackendAdapter.parseAssessmentTestXml(TEST_XML, { itemXmlMap: ITEMS });
@@ -141,6 +179,10 @@ describe('content boundary', () => {
 		const fallback = () => m.host.querySelector<HTMLElement>('[data-testid="assessment-content-fallback"]');
 		await until(() => fallback() !== null, 10000);
 		expect(fallback()!.textContent).toContain('This question could not be displayed.');
+		// Focus follows the announcement to the fallback's recovery control; it must not
+		// silently drop to the page body.
+		await settle();
+		expect(document.activeElement).toBe(fallback()!.querySelector('[data-testid="assessment-content-retry"]'));
 		// The shell is intact: navigation stays reachable.
 		expect(m.host.querySelector('[data-testid="assessment-next"]')).not.toBeNull();
 

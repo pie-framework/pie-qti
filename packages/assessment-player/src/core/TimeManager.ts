@@ -51,7 +51,14 @@ export interface TimeManagerConfig {
 
 export interface ActiveTimeScopes {
 	testPart?: { identifier: string; timeLimits?: TimeLimits };
+	/** The innermost enclosing section. */
 	section?: { identifier: string; timeLimits?: TimeLimits };
+	/**
+	 * Every enclosing section, outermost first. Delivery is nested inside all of them, so
+	 * each runs its own clock and its `timeLimits` expire and gate like any other scope.
+	 * When set, `section` must be its last entry (kept in sync by the caller).
+	 */
+	sections?: Array<{ identifier: string; timeLimits?: TimeLimits }>;
 	item?: { identifier: string; timeLimits?: TimeLimits };
 }
 
@@ -124,6 +131,12 @@ export class TimeManager {
 	private warningTriggered = new Set<string>();
 	private expirationTriggered = new Set<string>();
 	private activeScopes: ActiveTimeScopes = {};
+	/**
+	 * Sections currently being timed (every enclosing scope), identifier → start (ms).
+	 * Nested sections run alongside each other, so a single "current section" start
+	 * cannot hold them; completed segments accumulate into `state.sectionTimes`.
+	 */
+	private readonly sectionStarts = new Map<string, number>();
 	private lastTickAt: number;
 
 	constructor(config: TimeManagerConfig) {
@@ -244,16 +257,38 @@ export class TimeManager {
 				allowLateSubmission: this.config.assessmentTimeLimits?.allowLateSubmission === true,
 			});
 		}
-		for (const scope of ['testPart', 'section', 'item'] as const) {
-			const active = this.activeScopes[scope];
-			const max = this.applyExtendedTime(active?.timeLimits?.maxTime);
-			if (!active || max === null) continue;
+		const testPart = this.activeScopes.testPart;
+		const testPartMax = this.applyExtendedTime(testPart?.timeLimits?.maxTime);
+		if (testPart && testPartMax !== null) {
 			candidates.push({
-				key: `${scope}:${active.identifier}`,
-				scope,
-				identifier: active.identifier,
-				remainingSeconds: max - this.getScopeElapsedMs(scope, active.identifier) / 1000,
-				allowLateSubmission: active.timeLimits?.allowLateSubmission === true,
+				key: `testPart:${testPart.identifier}`,
+				scope: 'testPart',
+				identifier: testPart.identifier,
+				remainingSeconds: testPartMax - this.getScopeElapsedMs('testPart', testPart.identifier) / 1000,
+				allowLateSubmission: testPart.timeLimits?.allowLateSubmission === true,
+			});
+		}
+		// Every enclosing section carries its own limit, outermost included.
+		for (const section of this.activeSectionScopes()) {
+			const max = this.applyExtendedTime(section.timeLimits?.maxTime);
+			if (max === null) continue;
+			candidates.push({
+				key: `section:${section.identifier}`,
+				scope: 'section',
+				identifier: section.identifier,
+				remainingSeconds: max - this.getScopeElapsedMs('section', section.identifier) / 1000,
+				allowLateSubmission: section.timeLimits?.allowLateSubmission === true,
+			});
+		}
+		const item = this.activeScopes.item;
+		const itemMax = this.applyExtendedTime(item?.timeLimits?.maxTime);
+		if (item && itemMax !== null) {
+			candidates.push({
+				key: `item:${item.identifier}`,
+				scope: 'item',
+				identifier: item.identifier,
+				remainingSeconds: itemMax - this.getScopeElapsedMs('item', item.identifier) / 1000,
+				allowLateSubmission: item.timeLimits?.allowLateSubmission === true,
 			});
 		}
 		return candidates;
@@ -323,8 +358,12 @@ export class TimeManager {
 		this.state.isPaused = false;
 		const now = this.now();
 		if (this.state.currentItemId) this.state.currentItemStartTime = now;
-		if (this.state.currentSectionId) this.state.currentSectionStartTime = now;
 		if (this.state.currentTestPartId) this.state.currentTestPartStartTime = now;
+		// Every enclosing section the delivery sits in restarts where it froze.
+		for (const section of this.activeSectionScopes()) {
+			const start = this.sectionStarts.get(section.identifier);
+			if (start === undefined || !Number.isFinite(start)) this.sectionStarts.set(section.identifier, now);
+		}
 		this.lastTickAt = now;
 	}
 
@@ -374,16 +413,6 @@ export class TimeManager {
 		this.state.currentItemId = undefined;
 	}
 
-	/**
-	 * Start tracking time for a section
-	 */
-	startSection(sectionIdentifier: string): void {
-		if (this.state.currentSectionId === sectionIdentifier && this.state.currentSectionStartTime) return;
-		this.endCurrentSection();
-		this.state.currentSectionId = sectionIdentifier;
-		this.state.currentSectionStartTime = this.state.isPaused ? undefined : this.now();
-	}
-
 	startTestPart(testPartIdentifier: string): void {
 		if (this.state.currentTestPartId === testPartIdentifier && this.state.currentTestPartStartTime) return;
 		this.endCurrentTestPart();
@@ -391,20 +420,60 @@ export class TimeManager {
 		this.state.currentTestPartStartTime = this.state.isPaused ? undefined : this.now();
 	}
 
+	/**
+	 * Enter a new item's scope chain: every enclosing section runs its own clock, so
+	 * entering starts the newly enclosed ones and leaving folds the exited ones into
+	 * their persisted `sectionTimes`. An outer section shared with the previous item
+	 * keeps its running clock.
+	 */
 	activateScopes(scopes: ActiveTimeScopes): void {
 		if (scopes.testPart) this.startTestPart(scopes.testPart.identifier);
-		if (scopes.section) this.startSection(scopes.section.identifier);
+		this.activateSections(this.activeSectionScopes(scopes));
 		if (scopes.item) this.startItem(scopes.item.identifier);
 		this.activeScopes = scopes;
 	}
 
-	private endCurrentSection(): void {
-		if (this.state.currentSectionId && this.state.currentSectionStartTime) {
-			const elapsed = Math.max(0, this.now() - this.state.currentSectionStartTime);
-			this.state.sectionTimes[this.state.currentSectionId] =
-				(this.state.sectionTimes[this.state.currentSectionId] || 0) + elapsed;
+	/** The enclosing section scopes of an activation, outermost first. */
+	private activeSectionScopes(scopes: ActiveTimeScopes = this.activeScopes): Array<{
+		identifier: string;
+		timeLimits?: TimeLimits;
+	}> {
+		if (scopes.sections) return scopes.sections;
+		return scopes.section ? [scopes.section] : [];
+	}
+
+	private activateSections(
+		sections: ReadonlyArray<{ identifier: string; timeLimits?: TimeLimits }>,
+	): void {
+		const now = this.now();
+		const wanted = new Set(sections.map((section) => section.identifier));
+		// Sections delivery left: fold their running time into the persisted clock.
+		for (const [identifier, start] of this.sectionStarts) {
+			if (wanted.has(identifier)) continue;
+			const elapsed = Math.max(0, now - start);
+			this.state.sectionTimes[identifier] = (this.state.sectionTimes[identifier] || 0) + elapsed;
+			this.sectionStarts.delete(identifier);
 		}
-		this.state.currentSectionStartTime = undefined;
+		// Sections delivery entered (or the clocks were checkpointed): start them. While
+		// paused the start is recorded but no elapsed time accrues until resume reseeds.
+		for (const section of sections) {
+			if (this.sectionStarts.has(section.identifier)) continue;
+			this.sectionStarts.set(section.identifier, this.state.isPaused ? Number.NaN : now);
+		}
+		// The innermost section stays the "current" one for the persisted snapshot.
+		this.state.currentSectionId = sections[sections.length - 1]?.identifier;
+	}
+
+	/** Fold every running section clock into `sectionTimes` and stop them. */
+	private endRunningSections(): void {
+		const now = this.now();
+		for (const [identifier, start] of this.sectionStarts) {
+			if (Number.isFinite(start)) {
+				const elapsed = Math.max(0, now - start);
+				this.state.sectionTimes[identifier] = (this.state.sectionTimes[identifier] || 0) + elapsed;
+			}
+			this.sectionStarts.delete(identifier);
+		}
 	}
 
 	private endCurrentTestPart(): void {
@@ -421,7 +490,7 @@ export class TimeManager {
 		const sectionId = this.state.currentSectionId;
 		const testPartId = this.state.currentTestPartId;
 		this.endCurrentItem();
-		this.endCurrentSection();
+		this.endRunningSections();
 		this.endCurrentTestPart();
 		this.state.currentItemId = itemId;
 		this.state.currentSectionId = sectionId;
@@ -429,7 +498,7 @@ export class TimeManager {
 		if (restart && !this.state.isPaused) {
 			const now = this.now();
 			if (itemId) this.state.currentItemStartTime = now;
-			if (sectionId) this.state.currentSectionStartTime = now;
+			for (const section of this.activeSectionScopes()) this.sectionStarts.set(section.identifier, now);
 			if (testPartId) this.state.currentTestPartStartTime = now;
 		}
 	}
@@ -484,8 +553,9 @@ export class TimeManager {
 		if (scope === 'section') {
 			const id = identifier ?? this.state.currentSectionId;
 			if (!id) return 0;
-			const active = id === this.state.currentSectionId && this.state.currentSectionStartTime && !this.state.isPaused
-				? Math.max(0, now - this.state.currentSectionStartTime)
+			const start = this.sectionStarts.get(id);
+			const active = start !== undefined && Number.isFinite(start) && !this.state.isPaused
+				? Math.max(0, now - start)
 				: 0;
 			return (this.state.sectionTimes[id] || 0) + active;
 		}
@@ -527,10 +597,13 @@ export class TimeManager {
 			currentSectionStartTime: undefined,
 			currentTestPartStartTime: undefined,
 		};
+		this.sectionStarts.clear();
 		if (!this.state.isPaused) {
 			const now = this.now();
 			if (this.state.currentItemId) this.state.currentItemStartTime = now;
-			if (this.state.currentSectionId) this.state.currentSectionStartTime = now;
+			// The innermost section restarts at once; the enclosing scopes start when
+			// delivery activates them (the restoring navigation follows immediately).
+			if (this.state.currentSectionId) this.sectionStarts.set(this.state.currentSectionId, now);
 			if (this.state.currentTestPartId) this.state.currentTestPartStartTime = now;
 			this.lastTickAt = now;
 		}
