@@ -844,6 +844,29 @@ At test level, `duration` is the time spent on the whole test, and `PART.duratio
 the time spent in a test part or section, also in seconds. Both QTI versions report all of them in
 Results Reporting as `responseVariable` elements.
 
+### Outcome Values Between Response-Processing Runs
+
+Before each invocation of response processing, a non-adaptive item's outcome variables are reset
+to their defaults. An adaptive item's outcomes "retain the values that were assigned to them during
+the previous invocation" (QTI ASI §5.2), so its rules can build on earlier attempts, for example a
+try counter that gates partial credit:
+
+```xml
+<setOutcomeValue identifier="TRIES">
+  <sum>
+    <variable identifier="TRIES"/>
+    <baseValue baseType="integer">1</baseValue>
+  </sum>
+</setOutcomeValue>
+```
+
+In the item player, an adaptive item's outcomes start from their defaults at session start and on
+`newTemplate`. A saved item session carries them, and a restored one continues from them. Every
+response-processing run of an adaptive item builds on the current values, `scoreAttempt` included,
+so rescoring a restored adaptive session applies its rules again; report such a session's score
+from its restored outcome values. The built-in `numAttempts`, `completionStatus` and `duration` are
+maintained by the player and are never reset by response processing.
+
 ## 4.2 Standard Response Processing Templates
 
 QTI provides three standard templates that cover most scoring needs while maximizing interoperability:
