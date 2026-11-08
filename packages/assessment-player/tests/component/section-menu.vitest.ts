@@ -28,7 +28,9 @@ describe('SectionMenu disclosure', () => {
 		const m = await renderMenu();
 		const toggle = m.host.querySelector<HTMLButtonElement>('.section-menu-toggle')!;
 		expect(toggle.getAttribute('aria-expanded')).toBe('false');
-		expect(toggle.getAttribute('aria-controls')).toBeTruthy();
+		// While closed the list is not in the DOM: aria-controls is dropped rather than
+		// left dangling; it names the list only while the menu is open.
+		expect(toggle.getAttribute('aria-controls')).toBeNull();
 		expect(m.host.querySelector('[role="menu"]')).toBeNull();
 		expect(m.host.querySelector('[role="menuitemradio"]')).toBeNull();
 	});

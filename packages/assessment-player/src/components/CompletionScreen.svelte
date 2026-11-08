@@ -21,6 +21,11 @@
 		headingLevel: number;
 		/** True when a whole-test time expiry auto-submitted: the heading says so. */
 		finishedByTimeExpiry?: boolean;
+		/**
+		 * True when the session was restored already finalized: the terminal
+		 * "already submitted" view, shown instead of delivery whose every action fails.
+		 */
+		alreadySubmitted?: boolean;
 		/** The test's outcome-matched feedback blocks, as the shell renders them in delivery. */
 		testFeedback?: QtiSharedHtmlBlock[];
 		/** The finalized per-question results; rendered only with `showResultsSummary`. */
@@ -42,6 +47,7 @@
 	const {
 		headingLevel,
 		finishedByTimeExpiry = false,
+		alreadySubmitted = false,
 		testFeedback = [],
 		resultsSummary = null,
 		showResultsSummary = false,
@@ -66,9 +72,11 @@
 	let headingEl = $state<HTMLElement | null>(null);
 
 	const title = $derived(
-		finishedByTimeExpiry
-			? (i18n?.t('assessment.complete.timeExpired') ?? 'Time is up. The test is finished and your answers have been submitted.')
-			: (i18n?.t('assessment.complete.finished') ?? 'You have finished the test.')
+		alreadySubmitted
+			? (i18n?.t('assessment.complete.alreadySubmitted') ?? 'This test was already submitted.')
+			: finishedByTimeExpiry
+				? (i18n?.t('assessment.complete.timeExpired') ?? 'Time is up. The test is finished and your answers have been submitted.')
+				: (i18n?.t('assessment.complete.finished') ?? 'You have finished the test.')
 	);
 
 	const statusText = $derived.by(() => ({

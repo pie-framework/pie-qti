@@ -739,6 +739,7 @@ export default {
 
 		// The shell completion screen after finalization (+ the opt-in results summary).
 		complete: {
+			alreadySubmitted: '该测试已提交。',
 			finished: '你已完成测试。',
 			timeExpired: '时间到。测试已结束，你的答案已提交。',
 			resultsHeading: '结果摘要',

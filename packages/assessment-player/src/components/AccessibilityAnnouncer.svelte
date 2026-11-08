@@ -4,8 +4,12 @@
 	/**
 	 * Accessibility Announcer Component
 	 *
-	 * Provides ARIA live region for announcing dynamic content changes
-	 * to screen reader users, particularly for state restoration.
+	 * Two persistent ARIA live regions — one polite, one assertive — both mounted for
+	 * the component's whole lifetime, with `announce()` routing each message by
+	 * priority. Several screen readers sample a region's politeness when the region is
+	 * created, so a single region whose `aria-live` flips polite↔assertive per
+	 * announcement would deliver urgent messages through a polite-born region; two
+	 * fixed regions keep every announcement at its authored priority.
 	 *
 	 * Usage:
 	 * ```svelte
@@ -13,11 +17,12 @@
 	 *
 	 * // Later announce something
 	 * announcer.announce('Session restored from previous attempt');
+	 * announcer.announce('Time has expired', 4000, 'assertive');
 	 * ```
 	 */
 
 	interface Props {
-		/** Priority level for announcements */
+		/** Default priority for announcements that pass none. */
 		priority?: 'polite' | 'assertive';
 		/** The interface locale's `lang` and `dir`, which announcements are in. */
 		lang?: string;
@@ -26,15 +31,9 @@
 
 	const { priority = 'polite', lang, dir }: Props = $props();
 
-	let announcement = $state('');
-	let currentPriority = $state<'polite' | 'assertive'>('polite');
+	let politeMessage = $state('');
+	let assertiveMessage = $state('');
 	let announceTimeout: ReturnType<typeof setTimeout> | null = null;
-
-	$effect(() => {
-		if (!announcement) {
-			currentPriority = priority;
-		}
-	});
 
 	// Clean up timeout on destroy to prevent memory leaks
 	onDestroy(() => {
@@ -45,7 +44,7 @@
 	});
 
 	/**
-	 * Announce a message to screen readers
+	 * Announce a message to screen readers on the region matching its priority
 	 *
 	 * @param message - Text to announce
 	 * @param clearAfter - Milliseconds to wait before clearing (default: 1000)
@@ -58,15 +57,21 @@
 			announceTimeout = null;
 		}
 
-		// Set the new announcement
-		currentPriority = nextPriority;
-		announcement = message;
+		// Route by priority: the two regions never trade roles, so an assertive
+		// message always rides the assertive-born region.
+		if (nextPriority === 'assertive') {
+			assertiveMessage = message;
+			politeMessage = '';
+		} else {
+			politeMessage = message;
+			assertiveMessage = '';
+		}
 
 		// Clear after delay to allow screen readers to announce
 		// and prepare for next announcement
 		announceTimeout = setTimeout(() => {
-			announcement = '';
-			currentPriority = priority;
+			politeMessage = '';
+			assertiveMessage = '';
 			announceTimeout = null;
 		}, clearAfter);
 	}
@@ -79,27 +84,22 @@
 			clearTimeout(announceTimeout);
 			announceTimeout = null;
 		}
-		announcement = '';
-		currentPriority = priority;
+		politeMessage = '';
+		assertiveMessage = '';
 	}
 </script>
 
 <!--
-	ARIA live region for screen reader announcements
-	- visually-hidden: Hide from sighted users but available to screen readers
-	- aria-live: Announce changes to this region
-	- aria-atomic: Read entire region content when it changes
-	- role="status": Indicates this is a status message
+	Two persistent live regions, present before their content changes so assistive
+	technology picks the updates up:
+	- polite `role="status"` for routine announcements (question position, saves);
+	- assertive `role="alert"` for urgent ones (pause, expiry, failures).
 -->
-<div
-	{lang}
-	{dir}
-	class="sr-only"
-	role="status"
-	aria-live={currentPriority}
-	aria-atomic="true"
->
-	{announcement}
+<div {lang} {dir} class="sr-only" role="status" aria-live="polite" aria-atomic="true" data-announcer="polite">
+	{politeMessage}
+</div>
+<div {lang} {dir} class="sr-only" role="alert" aria-live="assertive" aria-atomic="true" data-announcer="assertive">
+	{assertiveMessage}
 </div>
 
 <style>

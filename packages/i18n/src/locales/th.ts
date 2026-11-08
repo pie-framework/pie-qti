@@ -727,6 +727,7 @@ export default {
 
 		// The shell completion screen after finalization (+ the opt-in results summary).
 		complete: {
+			alreadySubmitted: 'ส่งข้อสอบนี้ไปแล้ว',
 			finished: 'คุณทำข้อสอบเสร็จแล้ว',
 			timeExpired: 'หมดเวลาแล้ว ข้อสอบสิ้นสุดลงและระบบได้ส่งคำตอบของคุณแล้ว',
 			resultsHeading: 'สรุปผลลัพธ์',

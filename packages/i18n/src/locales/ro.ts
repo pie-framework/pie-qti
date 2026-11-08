@@ -731,6 +731,7 @@ export default {
 
 		// The shell completion screen after finalization (+ the opt-in results summary).
 		complete: {
+			alreadySubmitted: 'Acest test a fost deja trimis.',
 			finished: 'Ai terminat testul.',
 			timeExpired: 'Timpul a expirat. Testul s-a încheiat, iar răspunsurile tale au fost predate.',
 			resultsHeading: 'Rezumatul rezultatelor',

@@ -732,6 +732,7 @@ export default {
 
 		// The shell completion screen after finalization (+ the opt-in results summary).
 		complete: {
+			alreadySubmitted: 'Esta prueba ya se envió.',
 			finished: 'Has terminado la prueba.',
 			timeExpired: 'Se acabó el tiempo. La prueba ha terminado y tus respuestas se han enviado.',
 			resultsHeading: 'Resumen de resultados',
