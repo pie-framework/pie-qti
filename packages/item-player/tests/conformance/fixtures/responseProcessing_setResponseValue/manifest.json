@@ -1,0 +1,13 @@
+{
+  "id": "responseProcessing_setResponseValue",
+  "title": "responseProcessing: setResponseValue",
+  "specVersion": "imsqti_v2p2",
+  "license": "CC0-1.0",
+  "source": "authored",
+  "notes": "Exercises setResponseValue: B is rewritten to A before scoring. setDefaultValue was removed from this fixture: it is a templateProcessing rule (QTI ASI §10.3), not a responseProcessing rule — see templateProcessing_setDefaultValue.",
+  "covers": [
+    "responseProcessing",
+    "setResponseValue",
+    "stmt.setResponseValue"
+  ]
+}
