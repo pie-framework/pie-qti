@@ -55,26 +55,19 @@ extra minutes, and the job still finishes inside the full Chromium end-to-end jo
 | customInteraction fallback: the unsupported-interaction explanation, a labelled manual-entry field reporting through `qti-change`, disabled state, authored group name and description | 3.3.2, 4.1.2 | `custom.vitest.ts` | jsdom |
 | Static rule violations of every component fixture and the QTI 3 PNP/catalog/stimulus fixture | WCAG 2.2 AA axe rules | `component-fixtures-a11y.pw.ts`, `qti3-stage5-a11y.pw.ts` | Chromium |
 
-### Known failures kept as reminders
+### Known product bugs
 
-These tests document real product bugs and are skipped until the bug is fixed (remove the
-marker in the same change as the fix). Vitest has no `test.fixme`, so the component tests use
-`test.skip` with a `FIXME` comment:
+There are no known-failing accessibility tests right now. The three failures this page used to
+carry as reminders — the math-input dialog's dead Shift+Tab wrap, the customInteraction
+fallback's duplicate textarea ids, and its untranslated fallback text — are all fixed, and
+their tests run as active regressions (`a11y-regression.pw.ts`, `custom.vitest.ts`; the two
+table rows above reference them).
 
-- `a11y-regression.pw.ts` › "the math-input dialog wraps Shift+Tab from the math field to
-  the last control" (`test.fixme`): MathLive handles Shift+Tab inside the field and prevents
-  the default, and the dialog's trap (`packages/default-components/src/shared/extensions/modalDialog.ts`,
-  `handleTab`) defers to any prevented Tab, so Shift+Tab from the field does nothing: focus
-  stays in the field instead of wrapping to Insert. Not a keyboard trap (Tab and Escape still
-  work), but backward navigation is dead. Reproduces in Chromium, WebKit and Firefox.
-- `custom.vitest.ts` › "two renderings of the same item keep unique textarea ids and labels"
-  (`test.skip`): the customInteraction fallback's textarea id is `custom-${responseId}`, so
-  two renderings of one item in one tree duplicate the id and the second label points at the
-  first textarea.
-- `custom.vitest.ts` › "the fallback speaks the language of the provided i18n provider"
-  (`test.skip`): `CustomInteraction.svelte` does not pass its `i18n` provider to
-  `CustomInteractionFallback`, so the fallback's warning, label, placeholder and details
-  toggle stay English in every locale, although the catalog translates them.
+When a change exposes a real product bug that should not block delivery, keep its test but
+mark it: `test.fixme(...)` in Playwright, or `test.skip(...)` plus a `FIXME` comment in Vitest
+(which has no `test.fixme`). The comment names the bug, the WCAG criterion and how it
+reproduces. The change that fixes the bug removes the marker so the test becomes an active
+"Regression: …" guard — exactly what happened to the three above.
 
 ## Still needs manual screen-reader testing
 
