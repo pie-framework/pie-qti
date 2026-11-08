@@ -131,6 +131,11 @@ export interface TestFeedbackItem {
 	access: 'atEnd' | 'during';
 	/** HTML content to display */
 	content: string;
+	/**
+	 * The content's language: the feedback's `xml:lang`, else the test part's or the test's
+	 * (XML inheritance). Shells render it as the feedback's `lang` and `dir`.
+	 */
+	language?: string;
 }
 
 export interface SecureTimeLimits {
@@ -307,6 +312,11 @@ export interface AssessmentRubricBlock {
 	view: string[];
 	/** Optional rubric use (QTI rubricBlock@use), e.g. "passage" */
 	use?: string;
+	/**
+	 * The content's language: the block's `xml:lang`, else its nearest enclosing element's
+	 * (XML inheritance). Section layouts render it as the block's `lang`, `dir` and read-aloud voice.
+	 */
+	language?: string;
 }
 
 // ============================================================================

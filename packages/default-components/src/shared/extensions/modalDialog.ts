@@ -148,13 +148,23 @@ export function createModalDialog(dialog: HTMLElement, options: ModalDialogOptio
 		}
 	};
 
-	// Focus that escapes by other means (a click on the page behind) comes back.
+	// Focus that escapes by other means (a click on the page behind) comes back. The focus
+	// moves this handler makes are not handled again: when another containment (a host's
+	// pause overlay) takes focus straight back, the two must not chase each other into
+	// unbounded recursion. That containment then keeps focus; the dialog takes it back on
+	// the candidate's next move.
+	let redirecting = false;
 	const handleFocusIn = (event: FocusEvent) => {
-		if (detached()) return;
+		if (redirecting || detached()) return;
 		const target = event.target;
 		if (isInside(dialog, target)) return;
 		if (target instanceof Element && target.closest(allowedOutside)) return;
-		ensureFocusInside();
+		redirecting = true;
+		try {
+			ensureFocusInside();
+		} finally {
+			redirecting = false;
+		}
 	};
 
 	// Listening on the document covers focus that fell to the page body.

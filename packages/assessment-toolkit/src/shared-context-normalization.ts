@@ -8,6 +8,8 @@ export interface QtiRubricLikeBlock {
   view?: string[];
   tools?: QtiSectionToolConfig[];
   content: string;
+  /** The content's language (its `xml:lang`, inherited when the block declares none); becomes the block's `language`. */
+  language?: string;
 }
 
 export interface NormalizeQtiSharedContextOptions {
@@ -58,6 +60,9 @@ function toSharedHtmlBlock(
     view: block.view,
     ...(tools.length > 0 ? { tools } : {}),
     rawHtml: block.content,
+    // Passages, instructions and rubrics keep their content language: it sets their `lang`,
+    // `dir` and read-aloud voice instead of the surrounding interface language.
+    ...(block.language ? { language: block.language } : {}),
   };
 }
 

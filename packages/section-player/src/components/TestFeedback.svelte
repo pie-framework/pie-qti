@@ -21,12 +21,14 @@
 {#if visibleFeedback.length > 0}
 	<section class="test-feedback" aria-live="polite" aria-label={i18n?.t('feedback.testFeedback') ?? 'Test feedback'}>
 		{#each visibleFeedback as item (item.identifier)}
+			<!-- The section's name is interface text; each block reads in its content language. -->
 			<SanitizedHtml
 				rawHtml={item.rawHtml}
 				html={item.html}
 				{security}
 				{host}
 				sanitizeContext={{ kind: 'test-feedback', source: item.source }}
+				language={item.language}
 				class="test-feedback-content pie-qti-content"
 				{typeset}
 			/>

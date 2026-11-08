@@ -132,8 +132,23 @@ class FakeEvent {
 }
 
 class FakeDocument {
+	listeners: EventMap = {};
+
 	createElement(tag: string): FakeElement {
 		return new FakeElement(tag);
+	}
+
+	addEventListener(type: string, handler: (...args: any[]) => void) {
+		(this.listeners[type] ??= []).push(handler);
+	}
+
+	removeEventListener(type: string, handler: (...args: any[]) => void) {
+		this.listeners[type] = (this.listeners[type] ?? []).filter((h) => h !== handler);
+	}
+
+	dispatchEvent(event: any): boolean {
+		for (const h of [...(this.listeners[event.type] ?? [])]) h(event);
+		return true;
 	}
 }
 
@@ -349,6 +364,64 @@ describe('applyGlossaryTriggers', () => {
 
 		btn.dispatchEvent(new FakeEvent('click', {}));
 		expect(wrapper.children.some((c: FakeElement) => c.getAttribute('role') === 'dialog')).toBe(false);
+	});
+
+	it('closes an open popup when the host closes transient UI (proctor pause)', () => {
+		const container = new FakeElement('div') as any;
+		const term = new FakeElement('span') as any;
+		term.setAttribute('data-catalog-idref', 'word-osmosis');
+		term.textContent = 'osmosis';
+		container.appendChild(term);
+
+		const player = makeMockPlayer(
+			{ content: { glossaryOnScreen: true } },
+			{ 'word-osmosis': { 'glossary-on-screen': 'Movement of water.' } }
+		);
+
+		applyGlossaryTriggers(container, player);
+		const wrapper = container.children[0];
+		const btn = wrapper.children[1];
+		let focusReturned = 0;
+		btn.focus = () => {
+			focusReturned++;
+		};
+		const doc = (globalThis as any).document as FakeDocument;
+		const isOpen = () => wrapper.children.some((c: FakeElement) => c.getAttribute('role') === 'dialog');
+
+		btn.dispatchEvent(new FakeEvent('click', {}));
+		expect(isOpen()).toBe(true);
+		expect(doc.listeners['pie-qti-close-transient-ui']).toHaveLength(1);
+
+		doc.dispatchEvent(new FakeEvent('pie-qti-close-transient-ui', { detail: { reason: 'pause' } }));
+
+		expect(isOpen()).toBe(false);
+		expect(focusReturned).toBe(1);
+		expect(doc.listeners['pie-qti-close-transient-ui']).toHaveLength(0);
+
+		// The closed popup is forgotten: the trigger opens a fresh one instead of closing it.
+		btn.dispatchEvent(new FakeEvent('click', {}));
+		expect(isOpen()).toBe(true);
+	});
+
+	it('stops listening for transient-UI closes once the triggers are cleaned up', () => {
+		const container = new FakeElement('div') as any;
+		const term = new FakeElement('span') as any;
+		term.setAttribute('data-catalog-idref', 'word-osmosis');
+		term.textContent = 'osmosis';
+		container.appendChild(term);
+
+		const cleanup = applyGlossaryTriggers(
+			container,
+			makeMockPlayer({ content: { glossaryOnScreen: true } }, { 'word-osmosis': { 'glossary-on-screen': 'Movement of water.' } })
+		);
+		const doc = (globalThis as any).document as FakeDocument;
+		container.children[0].children[1].dispatchEvent(new FakeEvent('click', {}));
+		expect(doc.listeners['pie-qti-close-transient-ui']).toHaveLength(1);
+
+		cleanup();
+
+		expect(doc.listeners['pie-qti-close-transient-ui']).toHaveLength(0);
+		expect(container.children[0]).toBe(term);
 	});
 
 	it('does not open popup when catalog entry is null', () => {
