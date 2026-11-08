@@ -13,6 +13,7 @@ import {
 } from '@pie-qti/item-player/pci';
 import {
 	createPciRunnerController,
+	type PciRunnerFrameDocument,
 	type PciRunnerTransport,
 } from '../src/runnerController.js';
 
@@ -78,7 +79,10 @@ const echoModule = (typeIdentifier: string, callsOnready = true) => `
 let typeCounter = 0;
 const nextType = () => `urn:test:runner-echo-${++typeCounter}`;
 
-function createHarness(buildFiles: (type: string) => Record<string, string>) {
+function createHarness(
+	buildFiles: (type: string) => Record<string, string>,
+	options: { frameDocument?: PciRunnerFrameDocument } = {},
+) {
 	// A unique type per harness: the registry global persists for the process,
 	// so a reused identifier would leak registrations across tests.
 	const type = nextType();
@@ -98,6 +102,7 @@ function createHarness(buildFiles: (type: string) => Record<string, string>) {
 	const mount = fakeElement();
 	const controller = createPciRunnerController({
 		transport,
+		frameDocument: options.frameDocument,
 		mount: mount as unknown as HTMLElement,
 		createContainer: () => {
 			const element = fakeElement();
@@ -345,5 +350,42 @@ describe('protocol hygiene', () => {
 		harness.deliver({ protocol: 'pie-qti-pci-sandbox', version: '9.9.9', type: 'init', payload: {} });
 		await sleep(10);
 		expect(harness.last('module-loaded')).toBeUndefined();
+	});
+});
+
+describe('frame language (round 6)', () => {
+	function fakeFrameDocument(): PciRunnerFrameDocument {
+		return {
+			documentElement: {},
+			title: 'PCI runner',
+		};
+	}
+
+	test('an init payload carrying language, direction and title states them on the frame document', async () => {
+		const frame = fakeFrameDocument();
+		const harness = createHarness((type) => ({ [ENTRY_URL]: echoModule(type) }), { frameDocument: frame });
+		harness.hello();
+		harness.init({ language: 'ar-EG', direction: 'rtl', frameTitle: 'محتوى تفاعلي' });
+		await sleep(10);
+		harness.instantiate();
+		await sleep(10);
+
+		expect(frame.documentElement.lang).toBe('ar-EG');
+		expect(frame.documentElement.dir).toBe('rtl');
+		expect(frame.title).toBe('محتوى تفاعلي');
+		// Applied while the module loaded, before the instance existed.
+		expect(harness.last('instance-ready')).toBeDefined();
+	});
+
+	test('an init payload without language fields leaves the frame document untouched', async () => {
+		const frame = fakeFrameDocument();
+		const harness = createHarness((type) => ({ [ENTRY_URL]: echoModule(type) }), { frameDocument: frame });
+		harness.hello();
+		harness.init();
+		await sleep(10);
+
+		expect(frame.documentElement.lang).toBeUndefined();
+		expect(frame.documentElement.dir).toBeUndefined();
+		expect(frame.title).toBe('PCI runner');
 	});
 });
