@@ -349,6 +349,8 @@ export interface SubmitResponsesRequest {
 	/**
 	 * Serialized item session used by backends to restore template/context variables while scoring.
 	 * Production backends should treat this as a client save format and validate against server-owned state.
+	 * Sent when the host enables `sendItemSessionToBackend`, and always to a backend that
+	 * declares `requiresItemSession` (the reference adapter does).
 	 */
 	itemSession?: SerializedItemSessionState;
 	/** Candidate comment, accepted only when the item's allowComment is on. */
@@ -373,14 +375,20 @@ export interface SubmitTimingEvidence {
 	 * Why this submission runs: `candidate` (default) for a normal candidate action,
 	 * `time-expired` for the terminal response collection a hard time limit triggers
 	 * (the whole-test auto-submit, and the submit from an expiry dead end), `proctor` for
-	 * the collection a proctor's forced end of the test (`submit({ force: true })`) runs.
+	 * the collection a proctor's forced end of the test (`submit({ force: true })`) runs,
+	 * `unreachable` for a question the end of the test collects as it stands although its
+	 * QTI `allowSkipping` / `validateResponses` control would refuse it, because the
+	 * candidate can no longer reach it (its test part was left — a session restored from
+	 * before the part-leave gate, a branch rule).
 	 * Backends must accept a `time-expired` submission whose scope expired: the delivery
 	 * window closed with the expiry, and collecting the pending responses is the mandated
 	 * terminal step. A `proctor` collection is an administrative end of the test, made
 	 * during a pause or ahead of the candidate's own submit; record it as such (it
-	 * bypasses the candidate-side skipping and validation controls).
+	 * bypasses the candidate-side skipping and validation controls). Record an
+	 * `unreachable` one as skipped (or incomplete) as it stands, never as a normal
+	 * candidate submission.
 	 */
-	submissionReason?: 'candidate' | 'time-expired' | 'proctor';
+	submissionReason?: 'candidate' | 'time-expired' | 'proctor' | 'unreachable';
 }
 
 /**
@@ -636,6 +644,16 @@ export interface BackendAdapter {
 	 * state itself and wants the shell's autosave and its save indicator off.
 	 */
 	canSaveState?: boolean;
+
+	/**
+	 * Whether this backend scores from the candidate's serialized item session
+	 * (`SubmitResponsesRequest.itemSession`) and therefore must always receive it: a
+	 * templated item's instance (the key the candidate saw) and an adaptive item's
+	 * accumulated outcomes live there. When true the player sends it on every submission,
+	 * whatever `sendItemSessionToBackend` says. `ReferenceBackendAdapter` sets it; a
+	 * production backend that owns the item session server-side leaves it unset.
+	 */
+	requiresItemSession?: boolean;
 
 	/**
 	 * Finalize assessment and get results

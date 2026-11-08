@@ -182,6 +182,47 @@ test('leaving a linear test part warns that you cannot return', async ({ page })
 	await expect(page.locator('.progress-question')).toHaveText('Question 2 of 2');
 });
 
+test('leaving a part names the questions it still owes and holds Continue until they are answered', async ({ page }) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.goto('fixtures/assessment-review?layout=required-parts');
+	await expect(page.locator('.assessment-shell')).toBeVisible({ timeout: 15000 });
+
+	// Jump past question 1 (navigation within a part is not submission), answer question 2.
+	await page.getByRole('button', { name: 'Review questions' }).click();
+	await page.getByRole('button', { name: 'Go to question 2' }).click();
+	await expect(page.locator('.progress-question')).toHaveText('Question 2 of 3');
+	await page.getByRole('radio', { name: 'Beta', exact: true }).check();
+
+	// Next would leave the part for good: the warning names question 1 and holds Continue.
+	await page.getByTestId('assessment-next').click();
+	const dialog = page.getByRole('dialog', { name: 'Leave this part?' });
+	await expect(dialog).toBeVisible();
+	await expect(dialog.getByTestId('leave-part-needs-answer')).toHaveText(
+		'1 question in this part needs an answer before you can leave it',
+	);
+	const proceed = dialog.getByTestId('assessment-dialog-confirm');
+	await expect(proceed).toHaveAttribute('aria-disabled', 'true');
+	await expect(proceed).toHaveAccessibleDescription('1 question in this part needs an answer before you can leave it');
+	await scan(page, 'dialog[open]');
+	await proceed.focus();
+	await page.keyboard.press('Enter');
+	await expect(dialog).toBeVisible();
+	await expect(page.locator('.progress-question')).toHaveText('Question 2 of 3');
+
+	// The named question is one jump away; answered, the part can be left.
+	await dialog.getByTestId('leave-part-needs-answer-jump-1').click();
+	await expect(page.locator('.progress-question')).toHaveText('Question 1 of 3');
+	await page.getByRole('radio', { name: 'Alpha', exact: true }).check();
+	await page.getByRole('button', { name: 'Review questions' }).click();
+	await page.getByRole('button', { name: 'Go to question 2' }).click();
+	await expect(page.locator('.progress-question')).toHaveText('Question 2 of 3');
+	await page.getByTestId('assessment-next').click();
+	await expect(dialog).toBeVisible();
+	await expect(dialog.getByTestId('leave-part-needs-answer')).toHaveCount(0);
+	await dialog.getByRole('button', { name: 'Continue' }).click();
+	await expect(page.locator('.progress-question')).toHaveText('Question 3 of 3');
+});
+
 test('questions that may not be skipped are named in the confirmation, and Submit waits for them @cross-browser', async ({ page }) => {
 	await page.setViewportSize({ width: 1280, height: 900 });
 	await page.goto('fixtures/assessment-review?layout=required');

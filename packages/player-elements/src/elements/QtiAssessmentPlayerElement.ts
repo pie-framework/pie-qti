@@ -62,7 +62,8 @@ export type QtiAssessmentScopeTimeExpiredDetail = ScopeTimeExpiryEvent;
 
 /**
  * The session is terminal (`session-finalized`): finalized in this delivery
- * (`restored: false`), or restored already finalized at mount (`restored: true`).
+ * (`restored: false`, `endReason` says which path ended the test), or restored already
+ * finalized at mount (`restored: true`).
  */
 export type QtiAssessmentSessionFinalizedDetail = AssessmentFinalizedEvent;
 
@@ -530,8 +531,11 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	/**
 	 * End the test. A candidate's submit is refused while paused (and while questions in
 	 * individual parts still need an answer). `{ force: true }` is the proctor's
-	 * force-submit: it ends the test during a pause too, collecting every response as it
-	 * stands (`timing.submissionReason: 'proctor'`).
+	 * force-submit: it ends the test during a pause too and never fails for a transition
+	 * in flight — it is queued behind the candidate's action and lands
+	 * (`timing.submissionReason: 'proctor'`). Whichever path ends the test, the shell's
+	 * `onSubmit` (the `submit` event) hands the results over once, with
+	 * `results.endReason` on the finalized event and `session-finalized` detail.
 	 */
 	async submit(options?: { force?: boolean }): Promise<AssessmentResults | undefined> {
 		return this._instance?.submit?.(options);
@@ -864,7 +868,11 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 				);
 			},
 			onFinalized: (event: AssessmentFinalizedEvent) => {
-				const detail: QtiAssessmentSessionFinalizedDetail = { restored: event.restored, results: event.results };
+				const detail: QtiAssessmentSessionFinalizedDetail = {
+					restored: event.restored,
+					results: event.results,
+					...(event.endReason === undefined ? {} : { endReason: event.endReason }),
+				};
 				this.dispatchEvent(
 					new CustomEvent<QtiAssessmentSessionFinalizedDetail>('session-finalized', {
 						detail,

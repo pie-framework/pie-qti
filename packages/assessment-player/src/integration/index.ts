@@ -76,8 +76,11 @@ export type {
 // Export reference implementation (for development/demos)
 export { ReferenceBackendAdapter } from './ReferenceBackendAdapter.js';
 export {
+	AssessmentItemScoringError,
 	getAssessmentItemIdentifier,
+	itemScoringRequiresSession,
 	scoreAssessmentItem,
+	type AssessmentItemScoringErrorCode,
 	type AssessmentItemScoringInput,
 } from './assessment-item-scorer.js';
 export { toSectionComposition } from './toSectionComposition.js';

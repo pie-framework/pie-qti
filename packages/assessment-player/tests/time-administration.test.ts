@@ -351,7 +351,7 @@ describe('scope expiry', () => {
 		player.updateResponse('RESPONSE', 'A');
 		advance(4_000);
 		await tick();
-		expect(scopes).toEqual([{ scope: 'section', identifier: 's1', deliveryContinues: true }]);
+		expect(scopes).toEqual([{ scope: 'section', identifier: 's1', deliveryContinues: true, nextIndex: 2 }]);
 		expect(player.getCurrentItem()?.identifier).toBe('i3');
 
 		player.updateResponse('RESPONSE', 'A');

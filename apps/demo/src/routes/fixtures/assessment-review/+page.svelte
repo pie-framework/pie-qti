@@ -9,7 +9,9 @@
 	 * `?layout=linear-parts` delivers a linear part followed by a nonlinear part
 	 * (for the "you cannot return" warning); `?layout=required` delivers a nonlinear
 	 * individual part whose itemSessionControl forbids skipping (the submit confirmation
-	 * names the questions that still need an answer); the default is one nonlinear section.
+	 * names the questions that still need an answer); `?layout=required-parts` adds a second
+	 * part after that one (the "Leave this part?" warning names the questions the part still
+	 * owes and holds Continue); the default is one nonlinear section.
 	 */
 
 	const NS = 'xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"';
@@ -105,6 +107,44 @@
 								{ identifier: 'q1', role: 'candidate', itemXml: choiceItem('q1', 'Question one') },
 								{ identifier: 'q2', role: 'candidate', itemXml: choiceItem('q2', 'Question two') },
 							],
+						},
+					],
+				},
+			],
+		},
+		'required-parts': {
+			identifier: 'required-parts',
+			title: 'Required parts check',
+			navigationMode: 'nonlinear',
+			submissionMode: 'individual',
+			testParts: [
+				{
+					identifier: 'part-1',
+					navigationMode: 'nonlinear',
+					submissionMode: 'individual',
+					itemSessionControl: { allowSkipping: false },
+					sections: [
+						{
+							identifier: 'section-1',
+							title: 'Required',
+							visible: true,
+							assessmentItemRefs: [
+								{ identifier: 'q1', role: 'candidate', itemXml: choiceItem('q1', 'Question one') },
+								{ identifier: 'q2', role: 'candidate', itemXml: choiceItem('q2', 'Question two') },
+							],
+						},
+					],
+				},
+				{
+					identifier: 'part-2',
+					navigationMode: 'nonlinear',
+					submissionMode: 'individual',
+					sections: [
+						{
+							identifier: 'section-2',
+							title: 'Next part',
+							visible: true,
+							assessmentItemRefs: [{ identifier: 'q3', role: 'candidate', itemXml: choiceItem('q3', 'Question three') }],
 						},
 					],
 				},

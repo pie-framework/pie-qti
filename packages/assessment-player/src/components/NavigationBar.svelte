@@ -549,11 +549,15 @@
 
 	/*
 	 * Forced colors drop the token colors and the SVG fill, which would leave the pressed
-	 * flag indistinguishable: Highlight/HighlightText is the system's selection pair.
+	 * flag indistinguishable: Highlight/HighlightText is the system's selection pair. With
+	 * forced-color-adjust off the browser keeps the authored background too, so it must be
+	 * the pair's background (Highlight) — never the token base colour, which would put
+	 * HighlightText on white in light high-contrast themes.
 	 */
 	@media (forced-colors: active) {
 		.nav-button.flag-button[aria-pressed='true'] {
 			border-color: Highlight;
+			background-color: Highlight;
 			color: HighlightText;
 			forced-color-adjust: none;
 		}

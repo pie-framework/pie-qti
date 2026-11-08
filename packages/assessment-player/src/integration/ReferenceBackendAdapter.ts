@@ -101,7 +101,12 @@ import {
 	saveSession,
 	type StoredSession,
 } from './session-store.js';
-import { defaultItemTestState, type ItemTestState, scoreAssessmentItemForTest } from './assessment-item-scorer.js';
+import {
+	AssessmentItemScoringError,
+	defaultItemTestState,
+	type ItemTestState,
+	scoreAssessmentItemForTest,
+} from './assessment-item-scorer.js';
 
 /**
  * Storage key prefix for localStorage
@@ -133,6 +138,13 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 	 * the candidate's snapshot into them, so shell autosave is ON by default.
 	 */
 	readonly canSaveState = true;
+	/**
+	 * The adapter scores from the candidate's serialized item session: a templated item is
+	 * scored against the instance the candidate saw (never a fresh template draw), and an
+	 * adaptive item's accumulated outcomes are taken as submitted. The player therefore
+	 * always sends it (reference mode); a templated or adaptive item without one is refused.
+	 */
+	readonly requiresItemSession = true;
 	private registeredAssessments: Map<string, SecureAssessment> = new Map();
 	private readonly rng: () => number;
 
@@ -268,9 +280,13 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		const assessmentAllowsLate = assessmentLimit?.allowLateSubmission ?? request.timing?.allowLateSubmission;
 		// A `time-expired` submission is the terminal collection a hard limit triggers:
 		// the window closed with the expiry, and the pending responses must be accepted.
-		// A `proctor` collection is the administrative end of the test, accepted alike.
+		// A `proctor` collection is the administrative end of the test, accepted alike, and
+		// so is an `unreachable` one (a question the candidate can no longer reach,
+		// collected as it stands at the end of the test).
 		const timeExpiredCollection =
-			request.timing?.submissionReason === 'time-expired' || request.timing?.submissionReason === 'proctor';
+			request.timing?.submissionReason === 'time-expired' ||
+			request.timing?.submissionReason === 'proctor' ||
+			request.timing?.submissionReason === 'unreachable';
 		if (
 			!timeExpiredCollection &&
 			effectiveAssessmentLimitSeconds !== undefined &&
@@ -323,11 +339,23 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 
 		// **SECURITY WARNING**: Client-side scoring is INSECURE
 		// In production, this MUST be done server-side
-		const { result, testState } = scoreAssessmentItemForTest({
-			itemXml,
-			responses: request.responses,
-			itemSession: request.itemSession,
-		});
+		// A templated (or adaptive) item is scored from the candidate's item session only —
+		// an item ref's templateDefault also sets template values the XML alone does not show.
+		let scored: ReturnType<typeof scoreAssessmentItemForTest>;
+		try {
+			scored = scoreAssessmentItemForTest({
+				itemXml,
+				responses: request.responses,
+				itemSession: request.itemSession,
+				requireItemSession: (current.item.templateDefaults?.length ?? 0) > 0,
+			});
+		} catch (error) {
+			if (error instanceof AssessmentItemScoringError) {
+				return { success: false, error: `${error.code}: ${error.message}` };
+			}
+			throw error;
+		}
+		const { result, testState } = scored;
 
 		// Store responses and result. An uncounted submission (countAttempt=false) persists the
 		// response but records no score, presented state, or attempt: response processing ran,
@@ -358,7 +386,9 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			[request.itemIdentifier]: {
 				itemIdentifier: request.itemIdentifier,
 				attemptCount: (previousItemSession?.attemptCount ?? 0) + (countAttempt ? 1 : 0),
-				isAnswered: this.hasAnyResponse(request.responses),
+				// QTI: a response still equal to its declared default is no response (the
+				// numberResponded test), so a default-valued untouched item is not answered.
+				isAnswered: testState?.responded ?? this.hasAnyResponse(request.responses),
 				isSubmitted: countAttempt ? true : (previousItemSession?.isSubmitted ?? false),
 				lastSubmissionTime: countAttempt ? request.submittedAt : previousItemSession?.lastSubmissionTime,
 			},

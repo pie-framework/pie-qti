@@ -362,6 +362,11 @@ export interface QtiAssessmentPlayerConfig {
 	sectionTools?: QtiSectionToolConfig[];
 	passageTools?: QtiSectionToolConfig[];
 	itemTools?: QtiSectionToolConfig[];
+	/**
+	 * Send the serialized item session with each submission to a production backend (off by
+	 * default: template variables can hold answer keys). Reference mode always sends it —
+	 * its local backend scores from it (`requiresItemSession`).
+	 */
 	sendItemSessionToBackend?: boolean;
 	showSections?: boolean;
 	allowSectionNavigation?: boolean;
@@ -389,11 +394,20 @@ export interface QtiAssessmentItemResult {
 	responses: Record<string, unknown>;
 }
 
+/**
+ * Why the test ended: the candidate's submit, a whole-test time expiry, a proctor's
+ * forced submit, or a QTI branch rule (`EXIT_TEST`, or an `EXIT_TESTPART`/`EXIT_SECTION`
+ * with nothing following).
+ */
+export type QtiAssessmentEndReason = 'candidate' | 'expiry' | 'proctor' | 'branch';
+
 export interface QtiAssessmentResults {
 	totalScore: number;
 	maxScore: number;
 	itemResults: QtiAssessmentItemResult[];
 	completedAt: Date;
+	/** Why the test ended in this delivery; absent for a session restored already finalized. */
+	endReason?: QtiAssessmentEndReason;
 }
 
 export interface QtiAssessmentResponseChangeDetail {
@@ -453,15 +467,25 @@ export interface QtiAssessmentScopeTimeExpiredDetail {
 	scope: 'testPart' | 'section' | 'item';
 	identifier: string;
 	deliveryContinues: boolean;
+	/**
+	 * The flat index of the open question delivery moves to (forward in the part, an open
+	 * question earlier in a nonlinear part, or the next part); absent when the candidate
+	 * was outside the expired scope, and at a dead end.
+	 */
+	nextIndex?: number;
 }
 
 /**
  * The session is terminal (`session-finalized`): finalized in this delivery
- * (`restored: false`), or restored already finalized at mount (`restored: true`).
+ * (`restored: false`, `endReason` says which path ended the test — the candidate's
+ * submit, a time expiry, a proctor's force-submit, or a QTI branch rule), or restored
+ * already finalized at mount (`restored: true`).
  */
 export interface QtiAssessmentSessionFinalizedDetail {
 	restored: boolean;
 	results: QtiAssessmentResults;
+	/** Why this delivery ended the test; absent when it was already finalized (`restored`). */
+	endReason?: QtiAssessmentEndReason;
 }
 
 /** The countdown state a proctor console reads (`getTimeState()`). */

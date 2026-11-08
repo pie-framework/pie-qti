@@ -79,6 +79,13 @@ export interface ItemResult {
 	responses: Record<string, unknown>;
 }
 
+/**
+ * Why the test ended: the candidate's submit, a whole-test time expiry, a proctor's
+ * forced submit, or a QTI branch rule (`EXIT_TEST`, or an `EXIT_TESTPART`/`EXIT_SECTION`
+ * with nothing following).
+ */
+export type AssessmentEndReason = 'candidate' | 'expiry' | 'proctor' | 'branch';
+
 export interface AssessmentResults {
 	totalScore: number;
 	maxScore: number;
@@ -89,6 +96,8 @@ export interface AssessmentResults {
 	 * accepted and persisted, but SCORE/testFeedback outcomes could not be computed.
 	 */
 	outcomeProcessingError?: OutcomeProcessingError;
+	/** Why the test ended in this delivery; absent for a session restored already finalized. */
+	endReason?: AssessmentEndReason;
 }
 
 /** A test feedback block `AssessmentPlayer.getVisibleFeedback()` shows now. */

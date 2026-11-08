@@ -246,7 +246,8 @@ interface SubmitResponsesRequest {
 }
 ```
 
-The rich item session is included only when `sendItemSessionToBackend` is enabled. A production
+The rich item session is included when `sendItemSessionToBackend` is enabled, and always for a
+backend that declares `requiresItemSession` (the reference adapter scores from it). A production
 backend must validate it against server-owned item source and state rather than accepting template,
 context, lifecycle, attempt, or timing values as authoritative.
 

@@ -1,16 +1,58 @@
 import {
 	createAssessmentItemDefinition,
-	type ItemSession,
 	type SerializedItemSessionState,
 	type SerializedItemSessionVariable,
 } from '@pie-qti/item-player';
 import { parseXml, type QtiValue, qtiNull, qtiValue, type TestItemState } from '@pie-qti/qti-processing';
+import { isAdaptiveItemXml } from '../core/testStructure.js';
 import type { AssessmentScoringResult, ResponseValue } from './api-contract.js';
 
 export interface AssessmentItemScoringInput {
 	itemXml: string;
 	responses: Record<string, ResponseValue>;
+	/**
+	 * The candidate's serialized item session for this submission. Required for a templated
+	 * item (template processing drew the instance the candidate saw) and for an adaptive item
+	 * (its outcomes accumulate across attempts): the scorer restores it instead of
+	 * re-templating, and takes an adaptive item's outcomes as submitted.
+	 */
 	itemSession?: SerializedItemSessionState;
+	/**
+	 * Force the item-session requirement on (an assessmentItemRef `templateDefault` sets
+	 * template values the item XML alone does not show).
+	 */
+	requireItemSession?: boolean;
+}
+
+/** Why the reference scorer refused to score a submission. */
+export type AssessmentItemScoringErrorCode = 'itemSessionRequired';
+
+/**
+ * A submission the scorer must not score: a templated or adaptive item without the
+ * candidate's item session (scoring its responses alone would re-run template processing
+ * against a different instance, or lose an adaptive item's accumulated outcomes).
+ */
+export class AssessmentItemScoringError extends Error {
+	readonly code: AssessmentItemScoringErrorCode;
+	readonly itemIdentifier: string;
+
+	constructor(code: AssessmentItemScoringErrorCode, itemIdentifier: string, message: string) {
+		super(message);
+		this.name = 'AssessmentItemScoringError';
+		this.code = code;
+		this.itemIdentifier = itemIdentifier;
+	}
+}
+
+const TEMPLATE_PROCESSING = /<(?:[\w-]+:)?(?:templateProcessing|qti-template-processing)\b/;
+
+/**
+ * Whether scoring the item needs the candidate's item session: template processing draws
+ * a per-session instance (the key the candidate saw), and an adaptive item's outcomes
+ * accumulate across its attempts.
+ */
+export function itemScoringRequiresSession(itemXml: string): boolean {
+	return isAdaptiveItemXml(itemXml) || TEMPLATE_PROCESSING.test(itemXml);
 }
 
 export function getAssessmentItemIdentifier(itemXml: string): string {
@@ -23,19 +65,37 @@ export type ItemTestState = Pick<TestItemState, 'variables' | 'outcomeBounds' | 
 
 /**
  * Runs QTI ResponseProcessing for one AssessmentItem and normalizes the result
- * to the BackendAdapter scoring shape used by AssessmentPlayer.
+ * to the BackendAdapter scoring shape used by AssessmentPlayer. Throws an
+ * `AssessmentItemScoringError` (`itemSessionRequired`) for a templated or adaptive item
+ * that arrives without the candidate's item session.
  */
 export function scoreAssessmentItem(input: AssessmentItemScoringInput): AssessmentScoringResult {
 	return scoreAssessmentItemForTest(input).result;
 }
 
-/** Scores one item and snapshots the variables and flags test-level outcome processing reads. */
+/**
+ * Scores one item and snapshots the variables and flags test-level outcome processing reads.
+ *
+ * With the candidate's item session the scorer restores it — the template instance the
+ * candidate saw, never a fresh draw — and re-runs response processing on it; an adaptive
+ * item's outcomes are taken as submitted (they accumulate across attempts, so running
+ * response processing again would apply the attempt twice or reset what earlier attempts
+ * accumulated). Without a session only a non-templated, non-adaptive item is scored.
+ */
 export function scoreAssessmentItemForTest({
 	itemXml,
 	responses,
 	itemSession,
+	requireItemSession,
 }: AssessmentItemScoringInput): { result: AssessmentScoringResult; testState?: ItemTestState } {
 	const itemIdentifier = getAssessmentItemIdentifier(itemXml);
+	if (!itemSession && (requireItemSession === true || itemScoringRequiresSession(itemXml))) {
+		throw new AssessmentItemScoringError(
+			'itemSessionRequired',
+			itemIdentifier,
+			`Item "${itemIdentifier}" is templated or adaptive: score it from the candidate's item session, not from its responses alone.`,
+		);
+	}
 
 	try {
 		// Use a scorer-grade view of the item for accurate scoring.
@@ -45,25 +105,35 @@ export function scoreAssessmentItemForTest({
 			itemXml,
 			role: 'scorer',
 		});
+		// A restored session keeps its template and context values: template processing
+		// does not run again for a restore.
 		const session = definition.openSession(
 			itemSession ? { restore: itemSession } : { responses },
 		);
-		let result;
+		let result: ScoringOutcome;
 		let testState: ItemTestState;
 		try {
 			const adaptive = session.state().adaptive;
-			result = session.dispatch(
-				itemSession
-					? { action: 'scoreAttempt' }
-					: { action: 'endAttempt', countAttempt: false, validateResponses: false },
-			).result?.scoring;
-			if (!result) throw new Error('QTI scoring produced no result');
-			testState = snapshotTestState(itemXml, session, result.correct);
-			// The scorer keeps its throwaway session uncounted (countAttempt:false), which since the
-			// QTI countAttempt semantics no longer finalizes a non-adaptive item. A scored submission
-			// of a non-adaptive item is still the end of its attempt; only adaptive items report
-			// completion from their own completionStatus.
-			result = { ...result, completed: adaptive ? result.completed : true };
+			if (itemSession && adaptive) {
+				const submitted = session.serialize();
+				// Correctness (QTI numberCorrect) only: this pass's outcomes are discarded.
+				const correct = session.dispatch({ action: 'scoreAttempt' }).result?.scoring?.correct;
+				result = scoringFromSubmittedOutcomes(submitted, correct);
+				testState = snapshotTestState(itemXml, submitted, correct);
+			} else {
+				const scoring = session.dispatch(
+					itemSession
+						? { action: 'scoreAttempt' }
+						: { action: 'endAttempt', countAttempt: false, validateResponses: false },
+				).result?.scoring;
+				if (!scoring) throw new Error('QTI scoring produced no result');
+				testState = snapshotTestState(itemXml, session.serialize(), scoring.correct);
+				// The scorer keeps its throwaway session uncounted (countAttempt:false), which since the
+				// QTI countAttempt semantics no longer finalizes a non-adaptive item. A scored submission
+				// of a non-adaptive item is still the end of its attempt; only adaptive items report
+				// completion from their own completionStatus.
+				result = { ...scoring, completed: adaptive ? scoring.completed : true };
+			}
 		} finally {
 			session.dispose();
 		}
@@ -92,6 +162,42 @@ export function scoreAssessmentItemForTest({
 	}
 }
 
+type ScoringOutcome = {
+	score: number;
+	maxScore: number;
+	completed: boolean;
+	outcomeValues: Record<string, unknown>;
+	correct?: boolean;
+};
+
+/** An adaptive item's scoring as its submitted session holds it (no response processing re-run). */
+function scoringFromSubmittedOutcomes(state: SerializedItemSessionState, correct: boolean | undefined): ScoringOutcome {
+	const outcomeValues: Record<string, unknown> = {};
+	for (const variable of Object.values(state.outcomeVariables)) {
+		outcomeValues[variable.identifier] = publicValue(variable);
+	}
+	outcomeValues.completionStatus = state.completionStatus;
+	outcomeValues.numAttempts = state.numAttempts;
+	if (outcomeValues.MAXSCORE === null || outcomeValues.MAXSCORE === undefined) outcomeValues.MAXSCORE = 1;
+	const score = Number(outcomeValues.SCORE ?? 0);
+	const maxScore = Number(outcomeValues.MAXSCORE);
+	return {
+		score: Number.isFinite(score) ? score : 0,
+		maxScore: Number.isFinite(maxScore) ? maxScore : 1,
+		completed: state.completionStatus === 'completed',
+		outcomeValues,
+		correct,
+	};
+}
+
+function publicValue({ cardinality, value }: Pick<SerializedItemSessionVariable, 'cardinality' | 'value'>): unknown {
+	if (value === null || value === undefined) return null;
+	if (cardinality !== 'record' || typeof value !== 'object') return value;
+	return Object.fromEntries(
+		Object.entries(value as Record<string, { value?: unknown }>).map(([field, entry]) => [field, entry?.value ?? null]),
+	);
+}
+
 const defaultTestStates = new Map<string, ItemTestState | undefined>();
 
 /** Variables of an item nobody has attempted: declared defaults, with no response processing run. */
@@ -101,7 +207,7 @@ export function defaultItemTestState(itemXml: string): ItemTestState | undefined
 		try {
 			const session = createAssessmentItemDefinition({ itemXml, role: 'scorer' }).openSession({ responses: {} });
 			try {
-				state = { ...snapshotTestState(itemXml, session, undefined), responded: false };
+				state = { ...snapshotTestState(itemXml, session.serialize(), undefined), responded: false };
 			} finally {
 				session.dispose();
 			}
@@ -113,8 +219,11 @@ export function defaultItemTestState(itemXml: string): ItemTestState | undefined
 	return defaultTestStates.get(itemXml);
 }
 
-function snapshotTestState(itemXml: string, session: ItemSession, correct: boolean | undefined): ItemTestState {
-	const serialized = session.serialize();
+function snapshotTestState(
+	itemXml: string,
+	serialized: SerializedItemSessionState,
+	correct: boolean | undefined,
+): ItemTestState {
 	const responses = Object.values(serialized.responseVariables);
 	const variables: Record<string, QtiValue> = {};
 	for (const group of [

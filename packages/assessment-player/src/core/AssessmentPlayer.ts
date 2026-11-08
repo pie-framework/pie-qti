@@ -43,6 +43,7 @@ import type {
 	TestOutcomeValues,
 } from '../integration/api-contract.js';
 import type {
+	AssessmentEndReason,
 	AssessmentResults,
 	CandidateSectionView,
 	CheckAnswerState,
@@ -54,7 +55,7 @@ import type {
 	TimeLimits,
 	VisibleTestFeedback,
 } from '../types/index.js';
-import { AssessmentSessionCoordinator, hasAnyResponse } from './AssessmentSessionCoordinator.js';
+import { AssessmentSessionCoordinator, isSkippedResponseSet, type ResponseDefault } from './AssessmentSessionCoordinator.js';
 import { AutosaveManager, type AutosaveState } from './AutosaveManager.js';
 import { AssessmentPlayerError, type AssessmentPlayerErrorCode } from './errors.js';
 import { NavigationManager } from './NavigationManager.js';
@@ -73,6 +74,7 @@ import {
 } from './testStructure.js';
 import { extendTimeLimit, TimeManager } from './TimeManager.js';
 import {
+	interactionRequirementFromXml,
 	interactionResponseIdentifiers,
 	itemAnswerStatus,
 	itemTitleFromXml,
@@ -126,9 +128,11 @@ export interface BackendAssessmentPlayerConfig {
 	/** Optional tools rendered in item headers. */
 	itemTools?: QtiSectionToolConfig[];
 	/**
-	 * Demo/reference-only escape hatch. When false (default), rich item-session
-	 * variables stay client-local and are not submitted because template variables
-	 * can contain answer keys. Production backends should own this state server-side.
+	 * Include the rich serialized item session (`SubmitResponsesRequest.itemSession`) in
+	 * submissions. Off by default for production backends: template variables can contain
+	 * answer keys, and such a backend should own that state server-side. A backend that
+	 * scores from the item session declares `requiresItemSession` (the reference adapter —
+	 * reference/preview mode — does) and always receives it, whatever this says.
 	 */
 	sendItemSessionToBackend?: boolean;
 	// UI options
@@ -180,7 +184,11 @@ export interface BackendAssessmentPlayerConfig {
 	onItemChange?: (itemIndex: number, totalItems: number) => void;
 	onSectionChange?: (sectionIndex: number, totalSections: number) => void;
 	onResponseChange?: (responses: Record<string, unknown>) => void;
-	onComplete?: () => void;
+	/**
+	 * The test ended in this delivery (every ending: a candidate submit, a proctor's
+	 * force-submit, a QTI EXIT_TEST branch, a whole-test expiry), with its results.
+	 */
+	onComplete?: (results: AssessmentResults) => void;
 	/**
 	 * A hard time limit ran out with no late submission: the whole test (the core then
 	 * finalizes automatically), or a scope whose expiry leaves nothing unlocked.
@@ -291,8 +299,14 @@ export interface AssessmentTimeExpiryEvent {
 export interface ScopeTimeExpiryEvent {
 	scope: 'testPart' | 'section' | 'item';
 	identifier: string;
-	/** True when delivery moved on to the next unlocked item; false when nothing unlocked remains. */
+	/** True when delivery moved on to an open item; false when nothing open remains (a dead end). */
 	deliveryContinues: boolean;
+	/**
+	 * The flat index of the open item delivery moves to (forward in the part, an open
+	 * question earlier in a nonlinear part, or the next part). Absent when the candidate
+	 * was outside the expired scope and stays where they are, and at a dead end.
+	 */
+	nextIndex?: number;
 }
 
 /** Fired through `onFinalized` once the session is terminal. */
@@ -300,7 +314,15 @@ export interface AssessmentFinalizedEvent {
 	/** True for a session the backend restored already finalized; false for a finalization in this delivery. */
 	restored: boolean;
 	results: AssessmentResults;
+	/**
+	 * Why the test ended, for a finalization in this delivery: a candidate submit, a time
+	 * expiry, a proctor's forced submit, or a QTI branch rule (`EXIT_TEST` and friends).
+	 * Absent for a session restored already finalized (this delivery did not end it).
+	 */
+	endReason?: AssessmentEndReason;
 }
+
+export type { AssessmentEndReason };
 
 /**
  * An item a candidate-initiated end of the test would refuse to submit
@@ -317,6 +339,14 @@ export interface SubmissionBlocker {
 	reason: 'required' | 'invalid';
 	/** Whether the navigation rules let the candidate jump to it now. */
 	jumpAllowed: boolean;
+	/** False when the candidate can no longer reach the question (its part was left). */
+	reachable: boolean;
+	/**
+	 * What the response still owes, when derivable from the item's interaction constraints
+	 * (a minimum number of selections, strings, associations or plays); absent when the
+	 * item only needs an answer. The shell localizes it into the entry text.
+	 */
+	requirement?: { kind: 'minChoices' | 'minStrings' | 'minAssociations' | 'minPlays' | 'incomplete'; count?: number };
 }
 
 /** What the presentation of an item session shows: QTI showFeedback / showSolution, resolved. */
@@ -432,6 +462,22 @@ export class AssessmentPlayer {
 	private liveSessionPresentation: PresentationPolicy | null = null;
 	/** Set during a proctor force-submit: submissions carry `submissionReason: 'proctor'`. */
 	private administrativeReason: 'proctor' | null = null;
+	/**
+	 * Items the running end of the test collects although their QTI skipping/validation
+	 * control would refuse them, because the candidate can no longer reach them (their
+	 * test part was left): they go out as they stand, `submissionReason: 'unreachable'`.
+	 */
+	private unreachableCollection = new Set<string>();
+	/** Why the running (or finished) end of the test happens; the first caller decides. */
+	private endReason: AssessmentEndReason | null = null;
+	/**
+	 * A branch rule (`EXIT_TESTPART`, `EXIT_SECTION` or a target outside the part) that would
+	 * have left a test part with questions still owing an answer: the candidate stayed, and
+	 * the next `next()` from the same item follows it once the questions are answered.
+	 */
+	private pendingBranchExit: { itemIdentifier: string; target: string } | null = null;
+	/** Rejections for force-submits queued behind a transition, settled on destroy(). */
+	private readonly queuedForceSubmits = new Set<(error: Error) => void>();
 	/** A restored whole-test expiry's automatic finalize is scheduled (or ran). */
 	private restoredExpiryFinalizeScheduled = false;
 
@@ -439,7 +485,7 @@ export class AssessmentPlayer {
 	private itemChangeListeners = new Set<(index: number, total: number) => void>();
 	private sectionChangeListeners = new Set<(index: number, total: number) => void>();
 	private responseChangeListeners = new Set<(responses: Record<string, unknown>) => void>();
-	private completeListeners = new Set<() => void>();
+	private completeListeners = new Set<(results: AssessmentResults) => void>();
 	private busyChangeListeners = new Set<(busy: boolean) => void>();
 	private testFeedbackChangeListeners = new Set<() => void>();
 	private timeWarningListeners = new Set<(remainingSeconds: number) => void>();
@@ -451,6 +497,8 @@ export class AssessmentPlayer {
 	private autosaveChangeListeners = new Set<(state: AutosaveState) => void>();
 	/** Item XML–derived review facts (interaction response ids, item title) per item identifier. */
 	private readonly reviewInfoCache = new Map<string, { responseIds: string[]; title?: string }>();
+	/** Declared response default values per item (QTI: a response equal to its default is no response). */
+	private readonly responseDefaultsCache = new Map<string, Record<string, unknown>>();
 
 	private constructor(private config: BackendAssessmentPlayerConfig, init: InitSessionResponse) {
 		this.backend = config.backend;
@@ -565,15 +613,16 @@ export class AssessmentPlayer {
 	}
 
 	/**
-	 * Where a restoring entry lands: the requested item when it is open; else the next
-	 * open item after it — the hop the live expiry would have made; else (nothing open
-	 * follows) the requested item itself, shown read-only, as an expiry dead end.
+	 * Where a restoring entry lands: the requested item when it is open; else the open item
+	 * the live expiry would have moved the candidate to (forward in the part, an open earlier
+	 * question of a nonlinear part, the next part); else — nothing open remains — the
+	 * requested item itself, shown read-only, as an expiry dead end.
 	 */
 	private restoringEntryTarget(index: number): { index: number; deadEnd: boolean } {
 		const q = this.items[index];
 		if (!q || !this.isItemLocked(q)) return { index, deadEnd: false };
-		const next = this.nextUnlockedIndex(index);
-		return next >= 0 ? { index: next, deadEnd: false } : { index, deadEnd: true };
+		const open = this.openItemAfterClosure(index);
+		return open >= 0 ? { index: open, deadEnd: false } : { index, deadEnd: true };
 	}
 
 	/** Flat indexes of the snapshot's visited item identifiers. */
@@ -846,30 +895,43 @@ export class AssessmentPlayer {
 				throw new AssessmentPlayerError('testFinalized', 'Cannot start over: the assessment has ended.');
 			}
 			const snapshot = this.getState({ includeItemSessions: true });
+			// Test parts are delivered in order and a left part is never re-entered — not
+			// even by a restart. The restart covers the furthest part reached and what
+			// follows; questions of parts already left stay closed exactly as they stand
+			// (the end of the test collects them so), visited marks included.
+			const reachedIndex = Math.max(this.currentItemIndex, ...this.navigationManager.getVisited(), 0);
+			const reachedPart = this.partOrder(this.items[reachedIndex]);
+			const left = new Set(
+				this.items.filter((q) => this.partOrder(q) < reachedPart).map((q) => q.identifier),
+			);
 			// Accepted items keep their recorded state; everything else is the draft.
 			const accepted = new Set(
 				this.items.filter((q) => this.sessionCoordinator.hasItemResult(q.identifier)).map((q) => q.identifier),
 			);
 			const keepAccepted = <T>(record: Record<string, T> | undefined): Record<string, T> =>
-				Object.fromEntries(Object.entries(record ?? {}).filter(([identifier]) => accepted.has(identifier)));
+				Object.fromEntries(
+					Object.entries(record ?? {}).filter(([identifier]) => accepted.has(identifier) || left.has(identifier)),
+				);
+			const keepLeft = <T>(record: Record<string, T> | undefined): Record<string, T> =>
+				Object.fromEntries(Object.entries(record ?? {}).filter(([identifier]) => left.has(identifier)));
 			const fresh: AssessmentSessionState = {
 				currentItemIdentifier: this.items[0]?.identifier ?? '',
-				visitedItems: [],
+				visitedItems: snapshot.visitedItems.filter((identifier) => left.has(identifier)),
 				itemResponses: keepAccepted(snapshot.itemResponses),
 				itemScores: keepAccepted(snapshot.itemScores),
 				itemSessions: keepAccepted(snapshot.itemSessions),
 				itemSessionStates: keepAccepted(snapshot.itemSessionStates),
-				itemFlags: {},
-				itemComments: {},
+				itemFlags: keepLeft(snapshot.itemFlags),
+				itemComments: keepLeft(snapshot.itemComments),
 				// The clocks continue: the live TimeManager is not reset, and the draft's
 				// timing reflects it.
 				timing: snapshot.timing,
 			};
 			// Replaces coordinator state (responses, sessions, results, flags) and clears
-			// visited/navigation state. Locked scopes, the whole-test expiry and the timer's
-			// fired-limit record stay as they are.
+			// visited/navigation state beyond the left parts. Locked scopes, the whole-test
+			// expiry and the timer's fired-limit record stay as they are.
 			this.state = fresh;
-			this.navigationManager.restoreState([]);
+			this.navigationManager.restoreState(this.visitedIndexes(fresh.visitedItems));
 			// (A pause cannot be in force here: startOver is a candidate transition, and a
 			// pause requested while it runs applies once it settles.)
 			// The resumable draft is gone; the shell's resume prompt must not reappear.
@@ -881,11 +943,16 @@ export class AssessmentPlayer {
 			}
 			this.lastItemFeedback = null;
 			this.lastPreSubmitSession = null;
+			this.pendingBranchExit = null;
 			this.templateDefaultsByPart.clear();
-			// Delivery repositions to the first item still open; with none left, the
-			// expiry dead end: the candidate's way out is the submission.
-			const firstOpen = this.items.findIndex((q) => !this.isItemLocked(q));
-			const target = firstOpen >= 0 ? firstOpen : Math.max(0, this.currentItemIndex);
+			// Delivery repositions to the first open item of the furthest part reached (else
+			// the first open item after it); with none left, the expiry dead end: the
+			// candidate's way out is the submission.
+			const inReach = (q: FlatItem) => this.partOrder(q) >= reachedPart;
+			const inPart = this.items.findIndex((q) => this.partOrder(q) === reachedPart && this.isOpenTarget(q));
+			const firstOpen =
+				inPart >= 0 ? inPart : this.items.findIndex((q) => this.partOrder(q) > reachedPart && !this.isItemLocked(q));
+			const target = firstOpen >= 0 ? firstOpen : Math.max(0, this.items.findIndex(inReach));
 			if (this.items[target]) {
 				this.state.currentItemIdentifier = this.items[target]!.identifier;
 				await this.performNavigateTo(target, { restoring: true });
@@ -894,6 +961,12 @@ export class AssessmentPlayer {
 			// Persist the blank draft now so a refresh cannot resurrect the discarded answers.
 			await this.autosave?.flushImmediate();
 		});
+	}
+
+	/** Delivery order of the item's test part (parts are delivered in sequence). */
+	private partOrder(q: FlatItem | undefined): number {
+		if (!q) return 0;
+		return (this.assessment.testParts ?? []).findIndex((part) => part.identifier === q.testPart.identifier);
 	}
 
 	private getEffectiveItemTimeLimits(flat: FlatItem): EffectiveItemTimeLimits {
@@ -1063,6 +1136,15 @@ export class AssessmentPlayer {
 		return (q.testPart.submissionMode ?? this.assessment.submissionMode) === 'individual';
 	}
 
+	/**
+	 * Whether submissions carry the serialized item session: always for a backend that
+	 * scores from it (`requiresItemSession` — the reference adapter: a templated item must be
+	 * scored against the instance the candidate saw), else as the host configured.
+	 */
+	private sendsItemSession(): boolean {
+		return this.backend.requiresItemSession === true || this.config.sendItemSessionToBackend === true;
+	}
+
 	/** The item's current responses: the live session's for the active item, else the stored ones. */
 	private currentResponsesFor(q: FlatItem): Record<string, unknown> {
 		if (this.items[this.currentItemIndex] === q && this.currentItemSession) {
@@ -1075,14 +1157,14 @@ export class AssessmentPlayer {
 	 * QTI itemSessionControl `allowSkipping` / `validateResponses` for one item's
 	 * responses. Both are "only applicable when the item is in a testPart with individual
 	 * submission mode", so a simultaneous part is never gated. A skipped item (no
-	 * response at all: every response NULL or empty) may be submitted only when skipping
-	 * is allowed, and is then not validated; an answered item validates when the item
-	 * asks for it.
+	 * response at all: every response NULL, empty or still equal to its declared default —
+	 * the test `numberResponded` applies) may be submitted only when skipping is allowed,
+	 * and is then not validated; an answered item validates when the item asks for it.
 	 */
 	private submissionGate(q: FlatItem, responses: Record<string, unknown>): { mustAnswer: boolean; validate: boolean } {
 		if (!this.isIndividual(q)) return { mustAnswer: false, validate: false };
 		const settings = this.sessionCoordinator.getItemSettings(q.identifier);
-		const skipped = !hasAnyResponse(responses);
+		const skipped = isSkippedResponseSet(responses, this.responseDefaultsFor(q));
 		return {
 			mustAnswer: skipped && settings.allowSkipping === false,
 			validate: !skipped && settings.validateResponses === true,
@@ -1090,12 +1172,38 @@ export class AssessmentPlayer {
 	}
 
 	/**
-	 * Whether the item's responses satisfy their interactions' constraints (a QTI valid
-	 * response): every value well-formed and, where an interaction requires input
-	 * (minChoices, minStrings, matchMin…), complete. Checked on a detached session so the
-	 * live attempt is untouched; an item whose attempt already closed was accepted as it is.
+	 * The declared default of each response variable, as the item's own session holds it
+	 * (template processing may set it): the live session for the active item, the persisted
+	 * handoff otherwise, else — for an item never opened — a fresh session's declarations.
 	 */
-	private responsesSatisfyConstraints(q: FlatItem): boolean {
+	private responseDefaultsFor(q: FlatItem): Record<string, ResponseDefault> {
+		const live = this.items[this.currentItemIndex] === q ? this.currentItemSession : null;
+		const serialized = live ? live.serialize() : this.state.itemSessions?.[q.identifier];
+		if (serialized) return responseDefaultsOf(serialized);
+		const cached = this.responseDefaultsCache.get(q.identifier);
+		if (cached) return cached as Record<string, ResponseDefault>;
+		let defaults: Record<string, ResponseDefault> = {};
+		let session: ItemSession | null = null;
+		try {
+			session = this.getItemDefinition(q).openSession({});
+			defaults = responseDefaultsOf(session.serialize());
+		} catch {
+			// An item that cannot even open has no defaults to honour; the gate stays NULL-based.
+		} finally {
+			session?.dispose();
+		}
+		this.responseDefaultsCache.set(q.identifier, defaults);
+		return defaults;
+	}
+
+	/**
+	 * The item's response validation (a QTI valid response: every value well-formed and,
+	 * where an interaction requires input — minChoices, minStrings, matchMin… — complete),
+	 * checked on a detached session so the live attempt is untouched. Null when nothing is
+	 * left to validate: the attempt already closed (accepted as it is), or the session could
+	 * not be opened (the submission reports that, the gate invents no failure).
+	 */
+	private responseValidationFor(q: FlatItem): { ok: boolean; requirement?: SubmissionBlocker['requirement'] } | null {
 		const live = this.items[this.currentItemIndex] === q ? this.currentItemSession : null;
 		const restore = live ? live.serialize() : this.state.itemSessions?.[q.identifier];
 		let session: ItemSession | null = null;
@@ -1105,20 +1213,25 @@ export class AssessmentPlayer {
 				responses: live ? undefined : this.sessionCoordinator.getResponses(q.identifier),
 				activate: true,
 			});
-			if (!isWritableItemLifecycle(session.state().lifecycleStatus)) return true;
+			if (!isWritableItemLifecycle(session.state().lifecycleStatus)) return null;
 			const validation = session.dispatch({ action: 'suspendAttempt' }).result?.validation;
-			if (!validation) return true;
-			return (
-				validation.valid &&
-				Object.values(validation.entries).every((entry) => entry.valid && (!entry.required || entry.complete))
+			if (!validation) return null;
+			const unmet = Object.values(validation.entries).find(
+				(entry) => !entry.valid || (entry.required && !entry.complete),
 			);
+			if (validation.valid && !unmet) return { ok: true };
+			const constraint = unmet?.valid ? interactionRequirementFromXml(q.item.itemXml, unmet.responseId) : undefined;
+			return { ok: false, requirement: constraint ?? { kind: 'incomplete' } };
 		} catch {
-			// A session that cannot even be opened for the check is the submission's problem
-			// to report; the gate does not invent a validation failure.
-			return true;
+			return null;
 		} finally {
 			session?.dispose();
 		}
+	}
+
+	/** Whether the item's responses satisfy their interactions' constraints (see `responseValidationFor`). */
+	private responsesSatisfyConstraints(q: FlatItem): boolean {
+		return this.responseValidationFor(q)?.ok !== false;
 	}
 
 	/**
@@ -1142,51 +1255,125 @@ export class AssessmentPlayer {
 	}
 
 	/**
-	 * Items a candidate-initiated end of the test would refuse to submit: in individual
-	 * parts, an item without any response while `allowSkipping=false` (`required`), or an
-	 * answered item whose responses fail validation while `validateResponses=true`
-	 * (`invalid`). Only items the end of the test would actually submit are considered
-	 * (presented ones the backend has not accepted); an item an expired limit closed is
-	 * collected as it stands. Empty once the delivery is closed by time or finalized.
-	 * Shells list these in the submit confirmation; `submit()` rejects naming them.
+	 * The QTI submission control that would refuse this item's submission now, if any:
+	 * `required` (allowSkipping=false, no response) or `invalid` (validateResponses=true,
+	 * responses that do not satisfy the interactions), with what the response still owes.
 	 */
-	public getSubmissionBlockers(): SubmissionBlocker[] {
-		if (this.finalized || this.isTimeClosedDelivery()) return [];
+	private blockerFor(q: FlatItem): SubmissionBlocker | null {
+		const gate = this.submissionGate(q, this.currentResponsesFor(q));
+		let reason: SubmissionBlocker['reason'] | null = gate.mustAnswer ? 'required' : null;
+		let requirement: SubmissionBlocker['requirement'];
+		if (!reason && gate.validate) {
+			const validation = this.responseValidationFor(q);
+			if (validation && !validation.ok) {
+				reason = 'invalid';
+				requirement = validation.requirement;
+			}
+		}
+		if (!reason) return null;
+		const jumpAllowed = this.isNavigationTargetLegal(q.index);
+		return {
+			identifier: q.identifier,
+			index: q.index,
+			number: q.index + 1,
+			reason,
+			jumpAllowed,
+			reachable: jumpAllowed,
+			...(requirement ? { requirement } : {}),
+		};
+	}
+
+	/** Every item the end of the test would collect against its submission controls, reachable or not. */
+	private blockerCandidates(filter: (q: FlatItem) => boolean = () => true): SubmissionBlocker[] {
+		if (this.finalized) return [];
 		const blockers: SubmissionBlocker[] = [];
 		for (const q of this.items) {
-			if (!this.wouldCollectAtFinalize(q)) continue;
-			const gate = this.submissionGate(q, this.currentResponsesFor(q));
-			const reason = gate.mustAnswer
-				? 'required'
-				: gate.validate && !this.responsesSatisfyConstraints(q)
-					? 'invalid'
-					: null;
-			if (!reason) continue;
-			blockers.push({
-				identifier: q.identifier,
-				index: q.index,
-				number: q.index + 1,
-				reason,
-				jumpAllowed: this.isNavigationTargetLegal(q.index),
-			});
+			if (!filter(q) || !this.wouldCollectAtFinalize(q)) continue;
+			const blocker = this.blockerFor(q);
+			if (blocker) blockers.push(blocker);
 		}
 		return blockers;
 	}
 
+	/**
+	 * Items a candidate-initiated end of the test would refuse to submit: in individual
+	 * parts, an item without any response while `allowSkipping=false` (`required`), or an
+	 * answered item whose responses fail validation while `validateResponses=true`
+	 * (`invalid`). Only items the end of the test would actually submit are considered
+	 * (presented ones the backend has not accepted), and only those the candidate can still
+	 * reach: a question in a test part already left cannot hold Submit — it is collected as
+	 * it stands (`getUnreachableSubmissionBlockers()`, `submissionReason: 'unreachable'`).
+	 * An item an expired limit closed is collected as it stands too. Empty once the delivery
+	 * is closed by time or finalized. Shells list these in the submit confirmation;
+	 * `submit()` rejects naming them.
+	 */
+	public getSubmissionBlockers(): SubmissionBlocker[] {
+		if (this.isTimeClosedDelivery()) return [];
+		return this.blockerCandidates().filter((blocker) => blocker.reachable);
+	}
+
+	/**
+	 * Questions the end of the test collects although their QTI skipping/validation control
+	 * would refuse them, because the candidate can no longer reach them (their test part was
+	 * left — a session restored from before the leave gate, a branch rule). They never hold
+	 * Submit: the end of the test sends them as they stand with `submissionReason: 'unreachable'`.
+	 */
+	public getUnreachableSubmissionBlockers(): SubmissionBlocker[] {
+		return this.blockerCandidates().filter((blocker) => !blocker.reachable);
+	}
+
+	/**
+	 * Questions of the current test part that would be left behind owing an answer: QTI
+	 * parts cannot be re-entered, so leaving an individual part with them would strand them.
+	 * The shell's "Leave this part?" confirmation lists them (with jumps) and holds Continue;
+	 * `next()` / `navigateTo()` refuse to leave the part while any remains
+	 * (`leavePartResponseRequired` / `leavePartResponseInvalid`). Empty for a simultaneous
+	 * part (QTI: the controls do not apply), once finalized, and in a time-closed delivery.
+	 */
+	public getTestPartBlockers(): SubmissionBlocker[] {
+		const current = this.items[this.currentItemIndex];
+		if (!current || this.isTimeClosedDelivery()) return [];
+		return this.blockerCandidates((q) => q.testPart === current.testPart);
+	}
+
 	/** Reject a candidate-initiated end of the test that would submit held-back items, naming them. */
 	private assertNoSubmissionBlockers(): void {
-		const blockers = this.getSubmissionBlockers();
+		this.throwForBlockers(this.getSubmissionBlockers(), 'finalize');
+	}
+
+	/**
+	 * Reject leaving the test part `from` belongs to while questions in it (or, for an
+	 * EXIT_SECTION, in the ended scope) still owe an answer. `exclude` is the item the move
+	 * itself submits (next() submits the current item before it moves).
+	 */
+	private assertCanLeaveScope(from: FlatItem, options: { exclude?: FlatItem; scope?: (q: FlatItem) => boolean } = {}): void {
+		if (!this.isIndividual(from)) return;
+		const inScope = options.scope ?? ((q: FlatItem) => q.testPart === from.testPart);
+		this.throwForBlockers(
+			this.blockerCandidates((q) => q !== options.exclude && inScope(q)),
+			'leavePart',
+		);
+	}
+
+	private throwForBlockers(blockers: SubmissionBlocker[], context: 'finalize' | 'leavePart'): void {
 		const required = blockers.filter((blocker) => blocker.reason === 'required');
 		const named = required.length > 0 ? required : blockers;
 		if (named.length === 0) return;
 		const code: AssessmentPlayerErrorCode =
-			required.length > 0 ? 'finalizeResponseRequired' : 'finalizeResponseInvalid';
+			context === 'finalize'
+				? required.length > 0
+					? 'finalizeResponseRequired'
+					: 'finalizeResponseInvalid'
+				: required.length > 0
+					? 'leavePartResponseRequired'
+					: 'leavePartResponseInvalid';
 		const identifiers = named.map((blocker) => blocker.identifier);
+		const what = context === 'finalize' ? 'the test can end' : 'leaving this test part';
 		throw new AssessmentPlayerError(
 			code,
 			required.length > 0
-				? `These items need a response before the test can end: ${identifiers.join(', ')}`
-				: `These items have responses that do not satisfy their interactions: ${identifiers.join(', ')}`,
+				? `These items need a response before ${what}: ${identifiers.join(', ')}`
+				: `These items have responses that do not satisfy their interactions (before ${what}): ${identifiers.join(', ')}`,
 			{
 				items: named.map((blocker) => blocker.number).join(', '),
 				itemIdentifiers: identifiers.join(','),
@@ -1296,7 +1483,7 @@ export class AssessmentPlayer {
 			(q) =>
 				q.testPart === current.testPart &&
 				!this.isItemLocked(q) &&
-				this.sessionCoordinator.canReview(q.identifier),
+				this.canReviewItem(q),
 		);
 	}
 
@@ -1340,7 +1527,7 @@ export class AssessmentPlayer {
 		if (!target) return false;
 		if (target !== this.items[this.currentItemIndex]) {
 			if (this.isItemLocked(target)) return false;
-			if (!this.sessionCoordinator.canReview(target.identifier)) return false;
+			if (!this.canReviewItem(target)) return false;
 			if (!this.canNavigateByTestPart(index, this.currentItemIndex)) return false;
 		}
 		return true;
@@ -1423,6 +1610,19 @@ export class AssessmentPlayer {
 	 */
 	public getForwardTransitionInfo(): ForwardTransitionInfo {
 		const current = this.items[this.currentItemIndex];
+		// A branch exit the backend decided for this item, held back while questions of the
+		// part still owed an answer, is what Next does now.
+		const pending =
+			current && !this.finalized && this.pendingBranchExit?.itemIdentifier === current.identifier
+				? this.pendingBranchExit
+				: null;
+		if (current && pending) {
+			const target = this.branchTargetIndex(current, pending.target);
+			return {
+				nextIndex: target >= 0 ? target : null,
+				leavesTestPart: this.branchExitLeavesPart(current, pending.target),
+			};
+		}
 		const nextIndex =
 			this.finalized || this.currentItemIndex < 0 ? -1 : this.nextUnlockedIndex(this.currentItemIndex);
 		const next = nextIndex >= 0 ? this.items[nextIndex] : undefined;
@@ -2085,7 +2285,7 @@ export class AssessmentPlayer {
 		if (!options.restoring && target && this.isItemLocked(target)) {
 			throw new AssessmentPlayerError('itemTimeExpired', 'The time limit for this question has expired.');
 		}
-		if (!options.restoring && target && !this.sessionCoordinator.canReview(target.identifier)) {
+		if (!options.restoring && target && !this.canReviewItem(target)) {
 			throw new AssessmentPlayerError(
 				'reviewNotAllowed',
 				'You cannot go back to previous questions in this assessment.',
@@ -2095,8 +2295,16 @@ export class AssessmentPlayer {
 		const currentItem = this.items[this.currentItemIndex];
 		if (!options.restoring && currentItem && target) {
 			this.assertTransitionMinimum(currentItem, target);
-			if (currentItem.testPart !== target.testPart
-				&& (currentItem.testPart.submissionMode ?? this.assessment.submissionMode) === 'simultaneous') {
+			// QTI parts cannot be re-entered: a candidate-initiated step into the next part
+			// refuses while questions of the current part still owe an answer (a left part
+			// can never be revisited, and the end of the test only collects unreachable
+			// questions as they stand). The move's own submission already ran for next();
+			// a direct jump leaves the current item behind, so it is included here.
+			if (target.testPart !== currentItem.testPart) this.assertCanLeaveScope(currentItem);
+			if (
+				target.testPart !== currentItem.testPart &&
+				(currentItem.testPart.submissionMode ?? this.assessment.submissionMode) === 'simultaneous'
+			) {
 				// Commit this part before leaving it; a failed request keeps the learner
 				// in the current part so its remaining answers can be retried.
 				await this.submitSimultaneousItems(this.items.filter((q) => q.testPart === currentItem.testPart));
@@ -2204,9 +2412,10 @@ export class AssessmentPlayer {
 
 	private async performNext(): Promise<void> {
 		const state = this.getNavigationState();
-		if (!state.canNext) return;
-
 		const q = this.items[this.currentItemIndex];
+		const pendingExit = q && this.pendingBranchExit?.itemIdentifier === q.identifier ? this.pendingBranchExit : null;
+		if (!state.canNext && !pendingExit) return;
+
 		if (q) {
 			const responses = this.sessionCoordinator.getActiveResponses();
 			this.sessionCoordinator.markAnswered(q.identifier, responses);
@@ -2227,12 +2436,27 @@ export class AssessmentPlayer {
 			if (submits && !this.isItemLocked(q) && this.submissionGate(q, responses).mustAnswer) {
 				throw new AssessmentPlayerError('responseRequired', 'You must answer this question before continuing.');
 			}
+			// A step out of the part (the adjacent next item lies in the next part, or a
+			// branch exit refused earlier is due) is refused before anything is submitted
+			// while another question of the part still owes an answer: the part cannot be
+			// re-entered. The current item is this move's own submission.
+			const forward = this.nextUnlockedIndex(this.currentItemIndex);
+			const leavesPart = pendingExit
+				? this.branchExitLeavesPart(q, pendingExit.target)
+				: forward >= 0 && this.items[forward]!.testPart !== q.testPart;
+			if (leavesPart && !this.isItemLocked(q)) this.assertCanLeaveScope(q, { exclude: q });
 			if (submits) {
 				const before = this.currentItemIndex;
+				this.pendingBranchExit = null;
 				await this.submitCurrentItemInternal();
 				// The submission may branch, navigate, or finalize the test (EXIT_TEST);
 				// in those cases navigation stops here.
 				if (this.currentItemIndex !== before || this.finalized) return;
+			} else if (pendingExit) {
+				// The candidate answered what the part owed: the branch decision the backend
+				// made for this item's submission is followed now.
+				await this.followBranch(q, pendingExit.target);
+				return;
 			}
 			// The candidate may still return and re-attempt this item: reopen it writable
 			// while attempts remain (a no-op for closed single-attempt or writable items),
@@ -2514,7 +2738,7 @@ export class AssessmentPlayer {
 				countAttempt,
 				timeSpent: itemSession?.duration,
 				timing: this.getSubmitTimingEvidence(q, itemSession?.duration ?? 0, submissionReason),
-				itemSession: this.config.sendItemSessionToBackend ? itemSession : undefined,
+				itemSession: this.sendsItemSession() ? itemSession : undefined,
 				comment: this.sessionCoordinator.getItemComment(q.identifier),
 			});
 
@@ -2625,17 +2849,7 @@ export class AssessmentPlayer {
 			//   Delivery continues with the next item outside the ended scope; when none follows
 			//   (for the part, or the test), the ended scope finalizes like a normal end of test.
 			if (options.followBranching !== false && res.nextItemIdentifier) {
-				const special = res.nextItemIdentifier;
-				if (special === 'EXIT_TEST') {
-					await this.endTestInternal();
-				} else if (special === 'EXIT_TESTPART' || special === 'EXIT_SECTION') {
-					await this.applyExitBoundary(special, q);
-				} else {
-					const nextIdx = this.items.findIndex((x) => x.identifier === special);
-					if (nextIdx >= 0) {
-						await this.performNavigateTo(nextIdx, { restoring: true });
-					}
-				}
+				await this.followBranch(q, res.nextItemIdentifier);
 			}
 			// Still on the item (a check, a hint, the last item): what it shows follows the
 			// attempt count — a final attempt hides feedback a non-final one revealed.
@@ -2653,6 +2867,71 @@ export class AssessmentPlayer {
 			maxScore: res.result.maxScore,
 			responses: { ...responses },
 		};
+	}
+
+	/**
+	 * Follow the backend's branching decision for the item just submitted. A decision that
+	 * would leave the test part (EXIT_TESTPART, an EXIT_SECTION with nothing after it in
+	 * the part, a target in a later part) or end the test (EXIT_TEST) while other questions
+	 * of the part still owe an answer is refused like a candidate's own step out of the
+	 * part: the candidate stays, the coded error names the questions, and the decision is
+	 * kept — the next `next()` from this item follows it once they are answered (a changed
+	 * response re-submits and replaces it). Inside an end of the test nothing is gated.
+	 */
+	private async followBranch(q: FlatItem, target: string): Promise<void> {
+		if (this.endReason === null) {
+			try {
+				if (target === 'EXIT_TEST') this.assertNoSubmissionBlockers();
+				else if (this.branchExitLeavesPart(q, target)) this.assertCanLeaveScope(q, { exclude: q });
+			} catch (error) {
+				this.pendingBranchExit = { itemIdentifier: q.identifier, target };
+				throw error;
+			}
+		}
+		this.pendingBranchExit = null;
+		if (target === 'EXIT_TEST') {
+			await this.endTestInternal({ reason: 'branch' });
+			return;
+		}
+		if (target === 'EXIT_TESTPART' || target === 'EXIT_SECTION') {
+			await this.applyExitBoundary(target, q);
+			return;
+		}
+		const nextIdx = this.items.findIndex((x) => x.identifier === target);
+		if (nextIdx >= 0) {
+			// A target in the same part leaves this item revisitable: while attempts remain
+			// (QTI allowReview governs only after the last one) its handoff must be
+			// attemptable, exactly as on the candidate's own move — reopen it writable and
+			// hand it off before the hop (a branch hop does not save the outgoing session).
+			if (this.items[nextIdx]!.testPart === q.testPart && this.items[this.currentItemIndex] === q) {
+				this.reopenForRemainingAttempts(q);
+				const status = this.currentItemSession?.state().lifecycleStatus;
+				if (status !== undefined && isWritableItemLifecycle(status)) this.saveCurrentItemSession();
+			}
+			await this.performNavigateTo(nextIdx, { restoring: true });
+		}
+	}
+
+	/** Where a branch decision lands: an item index, or -1 when it ends the test. */
+	private branchTargetIndex(q: FlatItem, target: string): number {
+		if (target === 'EXIT_TEST') return -1;
+		if (target === 'EXIT_TESTPART') {
+			return this.items.findIndex((item, i) => i > q.index && item.testPart !== q.testPart);
+		}
+		if (target === 'EXIT_SECTION') {
+			const exited = this.endedEnclosingSection(q);
+			const inside = this.items.findIndex(
+				(item, i) => i > q.index && !item.sections.some((section) => section.identifier === exited.identifier),
+			);
+			return inside >= 0 ? inside : this.items.findIndex((item, i) => i > q.index && item.testPart !== q.testPart);
+		}
+		return this.items.findIndex((item) => item.identifier === target);
+	}
+
+	/** Whether a branch decision takes delivery out of the item's test part (or ends the test). */
+	private branchExitLeavesPart(q: FlatItem, target: string): boolean {
+		const index = this.branchTargetIndex(q, target);
+		return index < 0 || this.items[index]!.testPart !== q.testPart;
 	}
 
 	/**
@@ -2697,7 +2976,7 @@ export class AssessmentPlayer {
 			return;
 		}
 		// No further test part: end the test exactly like a normal end of test.
-		await this.endTestInternal();
+		await this.endTestInternal({ reason: 'branch' });
 	}
 
 	/**
@@ -2724,7 +3003,30 @@ export class AssessmentPlayer {
 		const prev = this.items[this.currentItemIndex - 1];
 		if (!prev || this.isItemLocked(prev)) return false;
 		if (!this.canNavigateByTestPart(this.currentItemIndex - 1, this.currentItemIndex)) return false;
-		return this.sessionCoordinator.canReview(prev.identifier);
+		return this.canReviewItem(prev);
+	}
+
+	/**
+	 * QTI `allowReview` for returning to an item: it governs only once the item's session is
+	 * over — after its last attempt, or (adaptive) once it completed. While attempts remain
+	 * the candidate may come back and use them.
+	 */
+	private canReviewItem(q: FlatItem): boolean {
+		const completed =
+			isAdaptiveItemXml(q.item.itemXml) && this.itemLifecycleOf(q.identifier) === 'closed';
+		return this.sessionCoordinator.canReview(q.identifier, { completed });
+	}
+
+	/** The lifecycle of an item's session: the live one for the active item, else the persisted handoff. */
+	private itemLifecycleOf(itemIdentifier: string): SerializedItemSessionState['lifecycleStatus'] | undefined {
+		const current = this.items[this.currentItemIndex];
+		if (current?.identifier === itemIdentifier) {
+			return (
+				this.currentItemSession?.state().lifecycleStatus ??
+				this.state.itemSessions?.[itemIdentifier]?.lifecycleStatus
+			);
+		}
+		return this.state.itemSessions?.[itemIdentifier]?.lifecycleStatus;
 	}
 
 	private canNext(): boolean {
@@ -2795,7 +3097,7 @@ export class AssessmentPlayer {
 					submittedAt,
 					timeSpent: itemSession.duration,
 					timing: this.getSubmitTimingEvidence(q, itemSession.duration, submissionReason),
-					itemSession: this.config.sendItemSessionToBackend ? itemSession : undefined,
+					itemSession: this.sendsItemSession() ? itemSession : undefined,
 					comment: this.sessionCoordinator.getItemComment(q.identifier),
 				});
 				if (!res.success || !res.result) {
@@ -2894,42 +3196,78 @@ export class AssessmentPlayer {
 	 *
 	 * `{ force: true }` is the proctor's administrative end of the test: it runs during a
 	 * pause, and neither minimum times nor the skipping/validation gates hold it back; the
-	 * collected submissions carry `timing.submissionReason: 'proctor'`.
+	 * collected submissions carry `timing.submissionReason: 'proctor'`. It never fails for
+	 * concurrency: while a candidate's navigation or submission is in flight, it waits for
+	 * that transition to settle and then ends the test (when the transition itself ended
+	 * the test, it resolves with those results).
 	 */
 	public submit(options: { force?: boolean } = {}): Promise<AssessmentResults> {
 		if (options.force === true) {
-			return this.runExclusive(async () => {
+			return this.runWhenIdle(async () => {
 				this.administrativeReason = 'proctor';
 				try {
-					return await this.endTestInternal({ administrative: true });
+					return await this.endTestInternal({ administrative: true, reason: 'proctor' });
 				} finally {
 					this.administrativeReason = null;
 				}
 			});
 		}
-		return this.runCandidateTransition(() => this.endTestInternal());
+		return this.runCandidateTransition(() => this.endTestInternal({ reason: 'candidate' }));
 	}
 
 	/**
-	 * Whether an expired hard limit closed the delivery the candidate is in: the whole
-	 * test expired, or the current item sits inside an expired scope (an expiry dead end).
-	 * Minimum times cannot hold such a test open.
+	 * Run an administrative transition exclusively as soon as the lock is free: queued
+	 * behind the transition in flight (like a pause) instead of rejecting as busy. The
+	 * lock is taken synchronously when the in-flight transition releases it, so no
+	 * candidate action can slip in between. Rejects only when the player is destroyed.
+	 */
+	private runWhenIdle<T>(operation: () => Promise<T>): Promise<T> {
+		if (this.destroyed) {
+			return Promise.reject(new AssessmentPlayerError('navigationNotAllowed', 'The assessment player was destroyed.'));
+		}
+		if (!this.transitionInFlight) return this.runExclusive(operation);
+		return new Promise<T>((resolve, reject) => {
+			const cancel = (error: Error) => {
+				off();
+				reject(error);
+			};
+			const off = this.onBusyChange((busy) => {
+				if (busy || this.transitionInFlight) return;
+				off();
+				this.queuedForceSubmits.delete(cancel);
+				this.runWhenIdle(operation).then(resolve, reject);
+			});
+			this.queuedForceSubmits.add(cancel);
+		});
+	}
+
+	/**
+	 * Whether an expired hard limit closed the delivery: the whole test expired, or the
+	 * current item sits inside an expired scope and no open question remains reachable from
+	 * it (an expiry dead end). An earlier question still open in the part keeps delivery
+	 * open — the expiry moves the candidate there instead — so its skipping/validation
+	 * controls and minimum times keep applying. Only a closed delivery is collected as
+	 * `time-expired` without them.
 	 */
 	private isTimeClosedDelivery(): boolean {
 		if (this.assessmentExpired) return true;
 		const current = this.items[this.currentItemIndex];
-		return current !== undefined && this.isItemLocked(current);
+		return current !== undefined && this.isItemLocked(current) && this.openItemAfterClosure(current.index) < 0;
 	}
 
 	/**
 	 * Why an item's submission runs: an item an expired hard limit closed submits the
 	 * responses frozen at the expiry (`time-expired`) — its own scope expired, or the
-	 * whole test did; a proctor's forced end of the test collects as `proctor`;
-	 * everything else is a normal candidate submission.
+	 * whole test did; a proctor's forced end of the test collects as `proctor`; a question
+	 * the candidate can no longer reach although its QTI skipping/validation control would
+	 * refuse it is collected as it stands (`unreachable`); everything else is a normal
+	 * candidate submission.
 	 */
 	private submissionReasonFor(q: FlatItem): SubmitTimingEvidence['submissionReason'] {
 		if (this.assessmentExpired || this.isItemLocked(q)) return 'time-expired';
-		return this.administrativeReason ?? undefined;
+		if (this.administrativeReason) return this.administrativeReason;
+		if (this.unreachableCollection.has(q.identifier)) return 'unreachable';
+		return undefined;
 	}
 
 	/**
@@ -2946,22 +3284,53 @@ export class AssessmentPlayer {
 	 * A candidate-initiated end of the test first checks the QTI submission controls of
 	 * individual parts: it never submits an item without a response while
 	 * `allowSkipping=false`, nor an answered item whose responses fail validation while
-	 * `validateResponses=true` — it rejects naming them instead. An administrative end
-	 * (a time expiry, a proctor's forced submit) collects everything as it stands; an
-	 * item a skipping control held back is then recorded as skipped.
+	 * `validateResponses=true` — it rejects naming them instead, as long as the candidate
+	 * can still reach them. A question in a test part already left cannot hold the end of
+	 * the test: it is collected as it stands (`submissionReason: 'unreachable'`). An
+	 * administrative end (a time expiry, a proctor's forced submit) collects everything as
+	 * it stands; an item a skipping control held back is then recorded as skipped.
+	 *
+	 * `reason` records why the test ends; the outermost caller decides (a candidate's
+	 * submit whose final submission branches to EXIT_TEST stays a candidate end).
 	 */
-	private async endTestInternal(options: { administrative?: boolean } = {}): Promise<AssessmentResults> {
+	private async endTestInternal(
+		options: { administrative?: boolean; reason?: AssessmentEndReason } = {},
+	): Promise<AssessmentResults> {
 		if (this.finalized && this.finalResults) return this.finalResults;
+		const outermost = this.endReason === null;
+		if (outermost) this.endReason = options.reason ?? 'candidate';
+		try {
+			return await this.collectAndFinalize(options.administrative === true);
+		} finally {
+			if (outermost) {
+				this.unreachableCollection = new Set();
+				// A refused or failed end leaves the test running: no reason is pending.
+				if (!this.finalized) this.endReason = null;
+			}
+		}
+	}
 
-		const closed = options.administrative === true || this.isTimeClosedDelivery();
+	private async collectAndFinalize(administrative: boolean): Promise<AssessmentResults> {
+		const closed = administrative || this.isTimeClosedDelivery();
 		const current = this.items[this.currentItemIndex];
 		if (current && !closed) {
-			this.assertMinimumTime('item', current);
-			this.assertEnclosingSectionMinimumTime(current);
-			this.assertMinimumTime('testPart', current);
+			// A current item an expired limit closed is collected as it stands: its own and
+			// its scopes' minimum times cannot hold the end of the test.
+			if (!this.isItemLocked(current)) {
+				this.assertMinimumTime('item', current);
+				this.assertEnclosingSectionMinimumTime(current);
+				this.assertMinimumTime('testPart', current);
+			}
 			this.assertMinimumTime('assessment', current);
 		}
 		if (!closed) this.assertNoSubmissionBlockers();
+		// Questions the candidate can no longer reach go out as they stand, marked so the
+		// backend never mistakes them for a normal candidate submission.
+		if (!administrative) {
+			this.unreachableCollection = new Set(
+				this.getUnreachableSubmissionBlockers().map((blocker) => blocker.identifier),
+			);
+		}
 		const isIndividual = (q: FlatItem) => this.isIndividual(q);
 		// Submission modes belong to test parts. The assessment-level field is only
 		// a fallback for older hosts that do not supply a mode on each part.
@@ -3048,23 +3417,38 @@ export class AssessmentPlayer {
 		this.notifyTestFeedbackChange();
 		this.reportOutcomeProcessingError(finalized.outcomeProcessingError);
 
+		const endReason: AssessmentEndReason = this.endReason ?? 'candidate';
+		this.endReason = endReason;
 		const results: AssessmentResults = {
 			totalScore: finalized.totalScore,
 			maxScore: finalized.maxScore,
 			itemResults,
 			completedAt: new Date(finalized.finalizedAt),
+			endReason,
 		};
 		if (this.reportedOutcomeProcessingError) {
 			results.outcomeProcessingError = this.reportedOutcomeProcessingError;
 		}
 		this.finalResults = results;
+		this.pendingBranchExit = null;
 
 		// Completion listeners run once the results exist, so `getResultsSummary()` (the
-		// shell's completion screen) and `submit()` already report them.
-		this.notifyComplete();
-		if (this.config.onComplete) this.config.onComplete();
-		this.config.onFinalized?.({ restored: false, results });
+		// shell's completion screen), `getEndReason()` and `submit()` already report them.
+		// Every ending reaches them alike — a candidate submit, a proctor's force-submit, an
+		// EXIT_TEST branch, a whole-test expiry — so a shell hands the results to its host
+		// from here.
+		this.notifyComplete(results);
+		if (this.config.onComplete) this.config.onComplete(results);
+		this.config.onFinalized?.({ restored: false, results, endReason });
 		return results;
+	}
+
+	/**
+	 * Why the test ended in this delivery (`candidate`, `expiry`, `proctor` or `branch`);
+	 * null while it runs and for a session restored already finalized.
+	 */
+	public getEndReason(): AssessmentEndReason | null {
+		return this.finalized ? this.endReason : null;
 	}
 
 	/**
@@ -3153,7 +3537,8 @@ export class AssessmentPlayer {
 	 * force keeps the clocks frozen until `resume()`.
 	 */
 	public start(): void {
-		if (this.started || this.destroyed) return;
+		// A test that already ended (a proctor's force-submit behind the gate) never starts.
+		if (this.started || this.destroyed || this.finalized) return;
 		this.started = true;
 		if (!this.paused) this.timeManager?.resume();
 		this.enterInitialItem();
@@ -3315,7 +3700,11 @@ export class AssessmentPlayer {
 		return () => this.responseChangeListeners.delete(listener);
 	}
 
-	public onComplete(listener: () => void): () => void {
+	/**
+	 * The test ended in this delivery — by any path: a candidate submit, a proctor's
+	 * force-submit, a QTI EXIT_TEST branch, a whole-test expiry — with its results.
+	 */
+	public onComplete(listener: (results: AssessmentResults) => void): () => void {
 		this.completeListeners.add(listener);
 		return () => this.completeListeners.delete(listener);
 	}
@@ -3367,6 +3756,11 @@ export class AssessmentPlayer {
 
 	public destroy(): void {
 		this.destroyed = true;
+		// A force-submit still queued behind a transition can no longer run.
+		for (const cancel of [...this.queuedForceSubmits]) {
+			cancel(new AssessmentPlayerError('navigationNotAllowed', 'The assessment player was destroyed.'));
+		}
+		this.queuedForceSubmits.clear();
 		this.autosave?.stop();
 		this.timeManager?.destroy();
 		this.releaseCurrentItemSession();
@@ -3416,8 +3810,8 @@ export class AssessmentPlayer {
 		this.notifyAutosaveActivity();
 	}
 
-	private notifyComplete(): void {
-		for (const l of this.completeListeners) l();
+	private notifyComplete(results: AssessmentResults): void {
+		for (const l of this.completeListeners) l(results);
 	}
 
 	private notifyBusyChange(busy: boolean): void {
@@ -3534,8 +3928,51 @@ export class AssessmentPlayer {
 	}
 
 	/**
+	 * Whether delivery may land on the item after a closure: no expired limit closed it and
+	 * the review policy lets the candidate be there (QTI `allowReview` once its attempts are
+	 * used up). Later parts are entered fresh, so only the time lock applies to them.
+	 */
+	private isOpenTarget(q: FlatItem): boolean {
+		return !this.isItemLocked(q) && this.canReviewItem(q);
+	}
+
+	/**
+	 * Where delivery goes when the item at `fromIndex` closes (a scope expiry, or a restore
+	 * that lands on a closed item), looking across the whole reachable delivery rather than
+	 * only forward: the next open item of its test part; else — in a nonlinear part — the
+	 * nearest open item before it; else the first open item of a later part (parts are
+	 * delivered in order, so earlier parts are never re-entered, and a part is left only
+	 * when nothing in it is open any more). -1 when nothing open remains: the expiry dead
+	 * end, where the candidate's way out is the submission.
+	 */
+	private openItemAfterClosure(fromIndex: number): number {
+		const from = this.items[fromIndex];
+		if (!from) return -1;
+		for (let i = fromIndex + 1; i < this.items.length; i++) {
+			const q = this.items[i]!;
+			if (q.testPart !== from.testPart) break;
+			if (this.isOpenTarget(q)) return i;
+		}
+		const mode = from.testPart.navigationMode ?? this.assessment.navigationMode ?? 'nonlinear';
+		if (mode === 'nonlinear') {
+			for (let i = fromIndex - 1; i >= 0; i--) {
+				const q = this.items[i]!;
+				if (q.testPart !== from.testPart) break;
+				if (this.isOpenTarget(q)) return i;
+			}
+		}
+		for (let i = fromIndex + 1; i < this.items.length; i++) {
+			const q = this.items[i]!;
+			if (q.testPart !== from.testPart && !this.isItemLocked(q)) return i;
+		}
+		return -1;
+	}
+
+	/**
 	 * A test part, section or item without late submission ran out of time: its items close for the
-	 * candidate, and delivery moves to the next item outside it.
+	 * candidate, and delivery moves to the next open item — forward in the part, else an open
+	 * question earlier in a nonlinear part, else the next part. Only when nothing open
+	 * remains anywhere reachable is it the expiry dead end.
 	 */
 	private handleScopeExpired(scope: 'testPart' | 'section' | 'item', identifier: string): void {
 		this.lockedScopes.add(`${scope}:${identifier}`);
@@ -3547,7 +3984,7 @@ export class AssessmentPlayer {
 		}
 		this.saveCurrentItemSession();
 		this.notifyItemChange();
-		const nextIndex = this.nextUnlockedIndex(this.currentItemIndex);
+		const nextIndex = this.openItemAfterClosure(this.currentItemIndex);
 		if (nextIndex < 0) {
 			// Nothing unlocked remains: the candidate must submit now (a later expiry of
 			// another already-covered scope reports through its own scope event).
@@ -3560,7 +3997,7 @@ export class AssessmentPlayer {
 			this.notifyScopeTimeExpired(scope, identifier, false);
 			return;
 		}
-		this.notifyScopeTimeExpired(scope, identifier, true);
+		this.notifyScopeTimeExpired(scope, identifier, true, nextIndex);
 		this.pendingEntryIndex = nextIndex;
 		this.performNavigateTo(nextIndex, { restoring: true }).catch((error) => {
 			// The expiry's hop failed: the shell's typed failure screen (localized, with
@@ -3586,7 +4023,7 @@ export class AssessmentPlayer {
 
 	private autoFinalizeForTimeExpiry(attempt: number): void {
 		if (this.destroyed || this.finalized) return;
-		void this.runExclusive(() => this.endTestInternal())
+		void this.runExclusive(() => this.endTestInternal({ reason: 'expiry' }))
 			.then(() => {
 				if (this.destroyed || !this.finalized) return;
 				this.notifyTimeExpired({ scope: 'assessment', autoFinalized: true, submissionRequired: false });
@@ -3623,8 +4060,14 @@ export class AssessmentPlayer {
 		scope: ScopeTimeExpiryEvent['scope'],
 		identifier: string,
 		deliveryContinues: boolean,
+		nextIndex?: number,
 	): void {
-		const event: ScopeTimeExpiryEvent = { scope, identifier, deliveryContinues };
+		const event: ScopeTimeExpiryEvent = {
+			scope,
+			identifier,
+			deliveryContinues,
+			...(nextIndex === undefined ? {} : { nextIndex }),
+		};
 		for (const l of this.scopeTimeExpiredListeners) l(event);
 		this.config.onScopeTimeExpired?.(event);
 	}
@@ -3669,6 +4112,22 @@ function valuesFromItemSession(
 			cloneData(variable.value),
 		]),
 	);
+}
+
+/**
+ * Each response variable's declared default from a serialized session (QTI: a response
+ * still equal to its default is no response — the `numberResponded` test). Variables
+ * without a declared default carry none, so NULL/empty stays the only skipped shape.
+ */
+function responseDefaultsOf(
+	state: Pick<SerializedItemSessionState, 'responseVariables'>,
+): Record<string, ResponseDefault> {
+	const out: Record<string, ResponseDefault> = {};
+	for (const [identifier, variable] of Object.entries(state.responseVariables)) {
+		if (variable.defaultValue === null || variable.defaultValue === undefined) continue;
+		out[identifier] = { value: variable.defaultValue, cardinality: variable.cardinality };
+	}
+	return out;
 }
 
 function responseValuesEqual(left: unknown, right: unknown): boolean {

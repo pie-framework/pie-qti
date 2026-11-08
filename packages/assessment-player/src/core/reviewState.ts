@@ -83,6 +83,52 @@ export function itemTitleFromXml(itemXml: string): string | undefined {
 	return title || undefined;
 }
 
+/**
+ * What an interaction asks of its response before it is complete, read from its QTI
+ * constraint attributes (QTI 2.x camelCase or QTI 3.0 kebab-case): a minimum number of
+ * selections (`minChoices`), text entries (`minStrings`), associations (`minAssociations`)
+ * or media plays (`minPlays`). Shells turn it into "Question 2: select at least 2".
+ */
+export interface InteractionRequirement {
+	kind: 'minChoices' | 'minStrings' | 'minAssociations' | 'minPlays';
+	count: number;
+}
+
+const REQUIREMENT_ATTRIBUTES: ReadonlyArray<{ kind: InteractionRequirement['kind']; names: readonly string[] }> = [
+	{ kind: 'minChoices', names: ['minChoices', 'min-choices'] },
+	{ kind: 'minAssociations', names: ['minAssociations', 'min-associations'] },
+	{ kind: 'minStrings', names: ['minStrings', 'min-strings'] },
+	{ kind: 'minPlays', names: ['minPlays', 'min-plays'] },
+];
+
+/**
+ * The constraint the interaction bound to `responseIdentifier` puts on its response, or
+ * undefined when it declares no positive minimum (or the XML does not parse — this is
+ * display data and must never throw into delivery).
+ */
+export function interactionRequirementFromXml(
+	itemXml: string,
+	responseIdentifier: string,
+): InteractionRequirement | undefined {
+	let doc: ReturnType<typeof parseXml>;
+	try {
+		doc = parseXml(itemXml);
+	} catch {
+		return undefined;
+	}
+	for (const element of Array.from(doc.getElementsByTagName('*'))) {
+		const bound = element.getAttribute?.('responseIdentifier') ?? element.getAttribute?.('response-identifier');
+		if (bound !== responseIdentifier) continue;
+		for (const { kind, names } of REQUIREMENT_ATTRIBUTES) {
+			for (const name of names) {
+				const count = Number.parseInt(element.getAttribute?.(name) ?? '', 10);
+				if (Number.isFinite(count) && count > 0) return { kind, count };
+			}
+		}
+	}
+	return undefined;
+}
+
 /** One delivered item as the review screen and submit confirmation list it. */
 export interface ReviewItemView {
 	identifier: string;

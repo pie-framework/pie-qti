@@ -154,7 +154,10 @@ document.body.append(assessment);
 
 Instead of `items`, set `itemBaseUrl` for bounded `assessmentItemRef@href` resolution and optionally
 configure `itemFetchPolicy`. Reference mode puts item XML, correct answers, and scoring rules in the
-browser. It is for demos/offline preview, not authoritative assessment delivery.
+browser. It is for demos/offline preview, not authoritative assessment delivery. Its local backend
+scores from the candidate's serialized item session, so every submission carries it
+(`config.sendItemSessionToBackend` cannot turn that off there): a templated item is scored against
+the instance the candidate saw, an adaptive item from its outcomes as submitted.
 
 Navigation and submission modes come from the QTI assessment structure; `config` does not override
 them.
@@ -167,7 +170,7 @@ assessment.addEventListener('load-error', (event) => console.error(event.detail.
 assessment.addEventListener('item-change', (event) => {});
 assessment.addEventListener('section-change', (event) => {});
 assessment.addEventListener('response-change', (event) => {});
-assessment.addEventListener('submit', (event) => {});
+assessment.addEventListener('submit', (event) => {}); // { results } — once, for every ending
 assessment.addEventListener('complete', () => {});
 
 await assessment.next();
@@ -192,21 +195,28 @@ assessment.getPauseReason();    // the reason shown, if any
 assessment.getTimeState();      // { limited, remainingSeconds, elapsedSeconds, expired, scope, paused, started, ... }
 assessment.isFinalized();       // true once the session is terminal
 await assessment.flushAutosave(); // save the draft now
-await assessment.submit({ force: true }); // proctor force-submit, works during a pause
+await assessment.submit({ force: true }); // proctor force-submit: during a pause, queued behind a candidate action
 
 assessment.addEventListener('player-pause', (event) => console.log(event.detail.reason));
 assessment.addEventListener('player-resume', () => {});
 assessment.addEventListener('time-expired', (event) => {}); // whole test, or nothing left open
-assessment.addEventListener('scope-time-expired', (event) => {}); // { scope, identifier, deliveryContinues }
-assessment.addEventListener('session-finalized', (event) => {}); // { restored, results }
+assessment.addEventListener('scope-time-expired', (event) => {}); // { scope, identifier, deliveryContinues, nextIndex }
+assessment.addEventListener('session-finalized', (event) => {}); // { restored, results, endReason }
 ```
 
 - A candidate's `submit()` is refused while paused; `submit({ force: true })` is the administrative
   end of the test: it ignores minimum times and the QTI `allowSkipping` / `validateResponses`
-  controls, and each collected submission carries `timing.submissionReason: 'proctor'`.
+  controls, and each collected submission carries `timing.submissionReason: 'proctor'`. It never
+  fails because the candidate is mid-action: it waits for the navigation or submission in flight
+  and then ends the test. Behind the begin gate it ends the test too (the completion screen
+  replaces the start screen).
+- Every ending — the candidate's submit, a proctor's force-submit, a QTI `EXIT_TEST` branch, a
+  whole-test time expiry — fires `complete`, `session-finalized` (`restored: false`) and `submit`
+  (`{ results }`) once. `session-finalized` and `results.endReason` say which: `candidate`,
+  `expiry`, `proctor` or `branch`; a proctor's ending shows "Your test was submitted by your
+  proctor." and announces it.
 - A session restored paused fires `player-pause` once at mount; a session restored already
-  finalized fires `session-finalized` with `restored: true` (a finalization during delivery
-  fires it with `restored: false`, alongside `complete` and `submit`).
+  finalized fires `session-finalized` with `restored: true` (and no `endReason`, nor `submit`).
 - While paused, the player closes every dialog it contains and dispatches
   `pie-qti-close-transient-ui` (`detail: { reason: 'pause' }`) on `document` for editors and popups
   outside dialogs. Focus containment covers only the player: the host page stays operable.

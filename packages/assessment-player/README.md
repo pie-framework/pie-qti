@@ -190,8 +190,11 @@ the part is current and its `atEnd` once the candidate has moved past it or the 
 `onTestFeedbackChange(listener)` reports each change and returns an unsubscribe function.
 
 The optional `sendItemSessionToBackend` flag includes the rich serialized item-session snapshot in
-submission requests. Treat that snapshot as untrusted client save data; a production backend should
-validate it against server-owned source and state.
+submission requests. A backend that scores from that snapshot declares `requiresItemSession` and
+always receives it: `ReferenceBackendAdapter` (reference/preview mode) does, so a templated item is
+scored against the instance the candidate saw and an adaptive item's outcomes are taken as
+submitted. Treat that snapshot as untrusted client save data; a production backend should validate
+it against server-owned source and state.
 
 ## Core configuration
 

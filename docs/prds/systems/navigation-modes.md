@@ -109,9 +109,9 @@ rejecting hard-limit submissions from assessment elapsed time or submitted timin
 | `timeLimits.allowLateSubmission` | Partial | Used for expiry callbacks/evidence; the default shell does not itself block or auto-submit |
 | Save/resume of timing | Implemented | Total, item, section, and test-part elapsed milliseconds plus active identifiers and pause state are persisted |
 | PNP extended time | Implemented for `maxTime` | Finite multipliers apply to every active max-time scope; `Infinity` removes those client limits |
-| `itemSessionControl.allowSkipping` | Implemented (individual parts) | Gates submission, not navigation: `next()`, `submitCurrentItem()`, `checkCurrentItem()` and the end of the test never submit an item with no response while false; the end of the test rejects naming the items. A nonlinear jump away is navigation and stays allowed; time expiry and a proctor's forced submit collect the item as skipped. Not applicable to simultaneous parts (QTI) |
-| `itemSessionControl.validateResponses` | Implemented (individual parts) | An answered item whose responses do not satisfy its interactions is not submitted by `next()`, `submitCurrentItem()`, `checkCurrentItem()` or the end of the test (rejected naming the items); not applicable to simultaneous parts (QTI) |
-| `itemSessionControl.allowReview` | Partial | Consulted for nonlinear review through `AssessmentPlayer`; the standalone `NavigationManager` has no session-control policy |
+| `itemSessionControl.allowSkipping` | Implemented (individual parts) | Gates submission, not navigation: `next()`, `submitCurrentItem()`, `checkCurrentItem()` and the end of the test never submit a skipped item (every response NULL, empty or equal to its declared default) while false; the end of the test rejects naming the reachable items, and leaving the part rejects naming the part's (a left part cannot be re-entered). A nonlinear jump within the part is navigation and stays allowed; a question no longer reachable is collected as it stands (`unreachable`); time expiry and a proctor's forced submit collect the item as skipped. Not applicable to simultaneous parts (QTI) |
+| `itemSessionControl.validateResponses` | Implemented (individual parts) | An answered item whose responses do not satisfy its interactions is not submitted by `next()`, `submitCurrentItem()`, `checkCurrentItem()` or the end of the test (rejected naming the items), nor left behind when the part is left; not applicable to simultaneous parts (QTI) |
+| `itemSessionControl.allowReview` | Partial | Consulted for nonlinear review through `AssessmentPlayer`, and only once an item's session is over: after its last attempt (an adaptive item: once completed) — while attempts remain the candidate may return to use them. The standalone `NavigationManager` has no session-control policy |
 
 ### Compatibility fields
 
@@ -138,11 +138,19 @@ first test part. New code must treat `SecureTestPart.navigationMode` and
 - **FR-6:** In a simultaneous-submission part, normal navigation must retain responses without
   calling `submitResponses()` for each move.
 - **FR-7:** In an individual-submission part, no candidate-initiated submission may send an
-  unanswered item when the effective `itemSessionControl.allowSkipping` is false: `next()` is
-  rejected before it submits, and the end of the test is rejected naming the items. Navigation
-  itself is not submission: in a nonlinear part the candidate may jump away from an unanswered
-  item, and the gate applies when the item would be submitted. Simultaneous parts are not gated
-  (QTI scopes `allowSkipping` and `validateResponses` to individual submission).
+  unanswered item (every response NULL, empty or equal to its declared default) when the effective
+  `itemSessionControl.allowSkipping` is false: `next()` is rejected before it submits, and the end
+  of the test is rejected naming the reachable items. Navigation within a part is not submission:
+  in a nonlinear part the candidate may jump away from an unanswered item, and the gate applies when
+  the item would be submitted. Leaving the part is gated too — a left part cannot be re-entered, so
+  Next, a jump into the next part, or a branch decision leaving it is refused while a question of
+  the part still owes an answer (`leavePartResponseRequired`). A question that is no longer
+  reachable never holds the end of the test; it is collected as it stands
+  (`submissionReason: 'unreachable'`). Simultaneous parts are not gated (QTI scopes
+  `allowSkipping` and `validateResponses` to individual submission).
+- **FR-7a:** `allowReview=false` applies only once an item's session is over (after its last
+  attempt; an adaptive item once completed). With attempts left, returning to the item stays
+  allowed and it reopens attemptable.
 - **FR-8:** Effective item-session controls must use section values over test-part values when both
   are declared.
 - **FR-9:** `TimeManager` must accumulate assessment, test-part, section, and item elapsed time
@@ -396,9 +404,10 @@ And: No warning or expiry callback is emitted
   crossed, and an assessment that mixes individual and simultaneous parts is therefore not fully
   modeled.
 
-- [ ] **Test-part end lifecycle is implicit.** Crossing from one part to the next is an adjacent
-  item transition; there is no explicit part-end confirmation, part-scoped simultaneous processing,
-  or part result state.
+- [ ] **Test-part end lifecycle is partly implicit.** Crossing from one part to the next is an
+  adjacent item transition. The shell confirms it ("Leave this part?", naming the part's questions
+  that still owe an answer, and the core refuses the step while they do), and a simultaneous part
+  commits its responses when it is left; there is no part result state.
 
 - [ ] **Nested ancestor section clocks are not represented.** A flat item retains its direct
   containing section only. A `timeLimits` declaration on an ancestor of a nested section is not an
@@ -420,12 +429,15 @@ And: No warning or expiry callback is emitted
 
 - [x] **Direct navigation and `allowSkipping` (resolved 2026-11-08).** The rule is precise now:
   `allowSkipping` (and `validateResponses`) gate *submission* in individual parts, never
-  navigation. A nonlinear `navigateTo()` or section-menu jump away from an unanswered item is
-  allowed because it submits nothing; the item cannot be submitted unanswered later either — the
-  end of the test refuses (`finalizeResponseRequired` / `finalizeResponseInvalid`, naming the
-  items) instead of force-submitting it from NULL, and the shell's submit confirmation lists those
-  items with jumps. Only an administrative end (time expiry, a proctor's forced submit) collects
-  them as skipped.
+  navigation within a part. A nonlinear `navigateTo()` or section-menu jump away from an
+  unanswered item is allowed because it submits nothing; the item cannot be submitted unanswered
+  later either — the end of the test refuses (`finalizeResponseRequired` /
+  `finalizeResponseInvalid`, naming the items) instead of force-submitting it from NULL, and the
+  shell's submit confirmation lists those items with jumps. Leaving the part refuses the same way
+  (round 4), so such an item can never be stranded in a part that cannot be re-entered; one that is
+  unreachable anyway (a session restored from before that gate) is collected as it stands
+  (`unreachable`) and never holds Submit. Only an administrative end (time expiry, a proctor's
+  forced submit) collects them as skipped.
 
 - [ ] **Parent minimums are not checked by `submitCurrentItem()`.** That method checks item
   `minTime`; section, test-part, and assessment minimums are checked on scope exit or final

@@ -2,9 +2,10 @@
 	/**
 	 * The candidate-facing completion state the shell shows after finalization:
 	 * a localized "You have finished the test" (or its time-expired variant when the
-	 * whole-test limit auto-submitted), the test's own `testFeedback` (outcome-matched,
-	 * already filtered by the core), and — only when the host opts in through
-	 * `showResultsSummary` — a per-question results summary with the backend's scores.
+	 * whole-test limit auto-submitted, its proctor variant when a proctor force-submitted),
+	 * the test's own `testFeedback` (outcome-matched, already filtered by the core), and —
+	 * only when the host opts in through `showResultsSummary` — a per-question results
+	 * summary with the backend's scores.
 	 *
 	 * Token-styled, keyboard-clean: the heading takes focus like a navigation target,
 	 * and the summary is a plain list that reflows to 320px.
@@ -14,13 +15,18 @@
 	import type { QtiSectionRole, QtiSectionRuntimeHostContract } from '@pie-qti/section-player';
 	import type { QtiSharedHtmlBlock } from '@pie-qti/section-player';
 	import { TestFeedback as SectionTestFeedback } from '../../../section-player/src/components/index.js';
-	import type { ResultsSummary } from '../types/index.js';
+	import type { AssessmentEndReason, ResultsSummary } from '../types/index.js';
 
 	interface Props {
 		/** Heading level of the completion title, matching the shell's outline. */
 		headingLevel: number;
 		/** True when a whole-test time expiry auto-submitted: the heading says so. */
 		finishedByTimeExpiry?: boolean;
+		/**
+		 * Why the test ended in this delivery. A proctor's force-submit (`proctor`) and a
+		 * whole-test expiry (`expiry`) have their own headings; the others read as finished.
+		 */
+		endReason?: AssessmentEndReason | null;
 		/**
 		 * True when the session was restored already finalized: the terminal
 		 * "already submitted" view, shown instead of delivery whose every action fails.
@@ -47,6 +53,7 @@
 	const {
 		headingLevel,
 		finishedByTimeExpiry = false,
+		endReason = null,
 		alreadySubmitted = false,
 		testFeedback = [],
 		resultsSummary = null,
@@ -74,9 +81,11 @@
 	const title = $derived(
 		alreadySubmitted
 			? (i18n?.t('assessment.complete.alreadySubmitted') ?? 'This test was already submitted.')
-			: finishedByTimeExpiry
-				? (i18n?.t('assessment.complete.timeExpired') ?? 'Time is up. The test is finished and your answers have been submitted.')
-				: (i18n?.t('assessment.complete.finished') ?? 'You have finished the test.')
+			: endReason === 'proctor'
+				? (i18n?.t('assessment.complete.byProctor') ?? 'Your test was submitted by your proctor.')
+				: finishedByTimeExpiry || endReason === 'expiry'
+					? (i18n?.t('assessment.complete.timeExpired') ?? 'Time is up. The test is finished and your answers have been submitted.')
+					: (i18n?.t('assessment.complete.finished') ?? 'You have finished the test.')
 	);
 
 	const statusText = $derived.by(() => ({

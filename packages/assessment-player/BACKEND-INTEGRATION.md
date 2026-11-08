@@ -61,11 +61,12 @@ export class HttpBackend implements BackendAdapter {
 }
 ```
 
-`canSaveState?`, `resumeSession(sessionId)` and `queryItemBank(request)` are optional. A host may
-instead resume by passing `resumeSessionId` to `initSession()`. `canSaveState` declares whether
-the backend can persist candidate drafts through `saveState()` at all; it defaults to enabled, so
-an adapter that implements `saveState` gets the shell's autosave without extra wiring (see
-[Autosave](#autosave) for the opt-outs).
+`canSaveState?`, `requiresItemSession?`, `resumeSession(sessionId)` and `queryItemBank(request)` are
+optional. A host may instead resume by passing `resumeSessionId` to `initSession()`. `canSaveState`
+declares whether the backend can persist candidate drafts through `saveState()` at all; it defaults
+to enabled, so an adapter that implements `saveState` gets the shell's autosave without extra wiring
+(see [Autosave](#autosave) for the opt-outs). `requiresItemSession` declares that the backend scores
+from the candidate's serialized item session (see [Item submission](#item-submission)).
 
 ## Initialization response
 
@@ -149,9 +150,16 @@ interface SubmitResponsesRequest {
 }
 ```
 
-The serialized `itemSession` is omitted unless `sendItemSessionToBackend` is enabled. It can contain
-template and context variables and is useful for save/resume scoring, but it is still untrusted
-client data. Validate it against the server-owned item, declarations, lifecycle, and session record.
+The serialized `itemSession` is sent when the host enables `sendItemSessionToBackend`, and always to a
+backend that declares `requiresItemSession: true` — whatever the host flag says. It can contain
+template and context variables (the instance a templated item drew, possibly its key) and an
+adaptive item's accumulated outcomes, so it is still untrusted client data: validate it against the
+server-owned item, declarations, lifecycle, and session record. `ReferenceBackendAdapter`
+(reference/preview mode) declares it and scores from it: a templated item against the instance the
+candidate saw (never a fresh template draw), an adaptive item from its outcomes as submitted. It
+refuses a templated or adaptive item that arrives without one (`success: false`,
+`itemSessionRequired`). A production backend that owns item sessions server-side leaves the flag
+unset, and the session stays client-local.
 
 Return a successful scoring result and, when applicable, an authoritative branch/state update:
 
@@ -199,27 +207,42 @@ comment survives autosave and resume.
 
 **Timing and expiry.** `timing` is client evidence and production backends stay authoritative,
 but `timing.submissionReason` is part of the flow contract: `candidate` (default) for a normal
-candidate action, `time-expired` for the response collection a hard time limit triggers, and
+candidate action, `time-expired` for the response collection a hard time limit triggers,
 `proctor` for the collection a proctor's forced end of the test runs (`submit({ force: true })`,
-see [Proctor controls](#proctor-controls)). After a whole-test expiry the player finalizes
-through the same path; a test-part, section or item limit without late submission collects the
-closed scope's previously answered items as `time-expired` submissions whose own scope has
-expired. Accept them: the delivery window closed with the expiry, and collecting the pending
-responses is the mandated terminal step — rejecting them as late loses candidate work. A
-`proctor` collection is an administrative end of the test; record it as such. A session restored
-after one of its limits ran out locks that scope from the restored clocks before any item is
-entered, and a restored whole-test expiry finalizes as soon as delivery runs.
+see [Proctor controls](#proctor-controls)), and `unreachable` for a question the end of the test
+collects as it stands because the candidate can no longer reach it (see the skipping rule below).
+After a whole-test expiry the player finalizes through the same path; a test-part, section or item
+limit without late submission collects the closed scope's previously answered items as
+`time-expired` submissions whose own scope has expired. Accept them: the delivery window closed
+with the expiry, and collecting the pending responses is the mandated terminal step — rejecting
+them as late loses candidate work. A `proctor` collection is an administrative end of the test;
+record it as such. A scope expiry looks across the whole reachable delivery: the candidate moves to
+the next open question of the part, else to an open question earlier in a nonlinear part, else to
+the next part — only when no open question remains anywhere is it the dead end that asks for the
+submission. A session restored after one of its limits ran out locks that scope from the restored
+clocks before any item is entered and lands the same way, and a restored whole-test expiry
+finalizes as soon as delivery runs.
 
 **Skipping and validation (QTI `allowSkipping` / `validateResponses`).** Both controls apply only
 to items in `individual` submission-mode parts, and they gate *submission*, not navigation: in a
 nonlinear part the candidate may move away from an unanswered item (navigation is not
-submission). A candidate-initiated submission never sends an item without any response (every
-response NULL or empty) while `allowSkipping=false`, nor an answered item whose responses do not
-satisfy its interactions (minChoices, minStrings, matchMin…) while `validateResponses=true`:
-`next()`, `submitCurrentItem()` and `checkCurrentItem()` reject with the coded `responseRequired` /
+submission). An item is skipped when every response is NULL, empty, or still equal to its declared
+default (the test QTI `numberResponded` applies). A candidate-initiated submission never sends a
+skipped item while `allowSkipping=false`, nor an answered item whose responses do not satisfy its
+interactions (minChoices, minStrings, matchMin…) while `validateResponses=true`: `next()`,
+`submitCurrentItem()` and `checkCurrentItem()` reject with the coded `responseRequired` /
 `attemptValidationFailed`, and the end of the test rejects with `finalizeResponseRequired` /
 `finalizeResponseInvalid`, naming the items (`params.items`, `params.itemIdentifiers`;
-`getSubmissionBlockers()` lists them for a confirmation UI). An administrative end — a time expiry
+`getSubmissionBlockers()` lists them for a confirmation UI, an incomplete answer with the
+interaction's `requirement`). Because a test part cannot be re-entered, leaving an individual part
+with such questions is refused the same way (`leavePartResponseRequired` /
+`leavePartResponseInvalid`; `getTestPartBlockers()` lists them) — on Next, on a direct jump into the
+next part, and on a branch decision (`EXIT_TESTPART`, `EXIT_SECTION`, a target in a later part,
+`EXIT_TEST`) that would leave the part: the candidate stays, and the next `next()` from that item
+follows the decision once the questions are answered. A question the candidate can no longer reach
+never holds the end of the test (a session restored from before this gate, a branch rule's own
+consequences): it is collected as it stands with `submissionReason: 'unreachable'` — record it as
+skipped or incomplete, never as a normal candidate submission. An administrative end — a time expiry
 or a proctor's forced submit — collects every item as it stands, so an unanswered required item
 reaches you as an empty, `time-expired` (or `proctor`) submission: record it as skipped by the
 expiry. Simultaneous parts are never gated (QTI: the controls are not applicable there).
@@ -245,8 +268,10 @@ The end of the test also collects **individual-mode items** the backend has not 
 open current item, and every item the candidate visited and answered but left through a nonlinear
 jump (navigation submits nothing) or whose answer changed after a practice check. They arrive as
 normal candidate submissions (`countAttempt: true`, no `submissionReason`) before
-`finalizeAssessment()`; responses you already accepted unchanged are never re-sent, so no attempt is
-spent twice.
+`finalizeAssessment()` — except a question the candidate can no longer reach whose skipping or
+validation control would refuse it, which arrives as it stands with `submissionReason:
+'unreachable'`. Responses you already accepted unchanged are never re-sent, so no attempt is spent
+twice.
 
 ## Server-side scoring
 
@@ -274,9 +299,14 @@ export function scoreItem(itemXml: string, responses: Record<string, unknown>) {
 ```
 
 Restore serialized state through `definition.openSession({ restore })`; closed sessions reject
-response overrides. The helper `scoreAssessmentItem()` from
-`@pie-qti/assessment-player/integration` performs the same normalization used by the reference
-adapter, but production code still owns validation and error handling.
+response overrides. A restored session keeps its template values (template processing does not run
+again), which is how a templated item must be scored: against the instance the candidate saw. The
+helper `scoreAssessmentItem()` from `@pie-qti/assessment-player/integration` performs the same
+normalization used by the reference adapter: given an `itemSession` it restores it (an adaptive
+item's outcomes are taken as submitted, never recomputed), and it throws an
+`AssessmentItemScoringError` with code `itemSessionRequired` for a templated or adaptive item that
+comes without one (`itemScoringRequiresSession(itemXml)` tells you in advance). Production code
+still owns validation and error handling.
 
 ## State persistence
 
@@ -325,10 +355,12 @@ immediately, so a refresh cannot resurrect discarded answers. It **keeps the tim
 every clock, each expired scope and a whole-test expiry persist, so restarting never grants a fresh
 time allowance after the questions were seen. Items you already accepted keep their recorded
 results (and responses): the backend stays authoritative for them, and the end of the test does not
-re-send them. Delivery repositions to the first question that is still open; when nothing is open
-(the expired scopes cover every remaining question, or the whole test expired), the player reports
-the expiry dead end again (`onTimeExpired` with `submissionRequired`) and the candidate's way out is
-Submit. Hosts that never let a candidate discard saved work turn the action off with the shell prop
+re-send them. A test part the candidate already left is never re-entered: the restart covers the
+furthest part reached, and questions of earlier parts stay closed exactly as they stand (visited,
+collected at the end of the test as they are). Delivery repositions to the first question of that
+part that is still open (else the first open question after it); when nothing is open (the expired
+scopes cover every remaining question, or the whole test expired), the player reports the expiry
+dead end again (`onTimeExpired` with `submissionRequired`) and the candidate's way out is Submit. Hosts that never let a candidate discard saved work turn the action off with the shell prop
 `allowStartOver={false}` (element attribute `allow-start-over="false"`): a restored draft then
 simply continues.
 
@@ -348,14 +380,21 @@ A proctor console drives the player through the core (`AssessmentPlayer`) or the
 | Force-submit | `submit({ force: true })` | `submit({ force: true })` |
 
 A candidate's `submit()` is rejected while paused; `submit({ force: true })` is the administrative
-end of the test: it runs during a pause, ignores minimum times and the skipping/validation
-controls, and every collected submission carries `timing.submissionReason: 'proctor'`.
+end of the test: it runs during a pause and behind the begin gate, ignores minimum times and the
+skipping/validation controls, and every collected submission carries
+`timing.submissionReason: 'proctor'`. It never fails for concurrency: while a candidate's navigation
+or submission is in flight it is queued behind that transition and lands once it settles (when the
+transition itself ended the test, it resolves with those results).
 
 Events for the console: `onPauseChange` (`player-pause` / `player-resume`) — a session restored
 paused reports its pause once right after creation, so the console never misses it;
-`onTimeExpired` (`time-expired`) and `onScopeTimeExpired` (`scope-time-expired`) for limits that
-ran out; `onFinalized` (`session-finalized`, `{ restored, results }`) once the session is terminal,
-including a session restored already finalized. While paused, the shell closes every dialog it
+`onTimeExpired` (`time-expired`) and `onScopeTimeExpired` (`scope-time-expired`, with the `nextIndex`
+delivery moved to) for limits that ran out; `onFinalized` (`session-finalized`,
+`{ restored, results, endReason }`) once the session is terminal, including a session restored
+already finalized. `endReason` (also `results.endReason` and `getEndReason()`) says which path ended
+the test in this delivery: `candidate`, `expiry`, `proctor` or `branch`. Every ending — a proctor's
+force-submit and a QTI `EXIT_TEST` included — fires `onComplete` with the results and the shell's
+`onSubmit` (the element's `submit` event) once. While paused, the shell closes every dialog it
 contains and dispatches `pie-qti-close-transient-ui` (`{ reason: 'pause' }`) on `document` so
 editors and popups outside dialogs close too; the host page around an embedded player stays
 operable.

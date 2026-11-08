@@ -130,6 +130,24 @@ describe('events', () => {
 		expect(finalized).toEqual([{ restored: false, results }]);
 	});
 
+	test('session-finalized names why the test ended; the submit event carries the results of every ending', () => {
+		const element = createElement();
+		const finalized = collect<{ endReason?: string }>(element, 'session-finalized');
+		const submitted = collect<{ results: unknown }>(element, 'submit');
+		const props = element.exposeProps() as unknown as {
+			config: Partial<BackendAssessmentPlayerConfig>;
+			onSubmit: (results: unknown) => void;
+		};
+		const results = { totalScore: 0, maxScore: 1, itemResults: [], completedAt: new Date(0), endReason: 'proctor' as const };
+
+		props.config.onFinalized?.({ restored: false, results, endReason: 'proctor' });
+		// The shell calls onSubmit once for every ending (proctor, branch, expiry, candidate).
+		props.onSubmit(results);
+
+		expect(finalized).toEqual([{ restored: false, results, endReason: 'proctor' }]);
+		expect(submitted).toEqual([{ results }]);
+	});
+
 	test('a session restored paused fires player-pause at mount', async () => {
 		const element = createElement();
 		const pauses = collect<{ reason?: string }>(element, 'player-pause');
