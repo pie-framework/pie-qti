@@ -11,6 +11,11 @@
 		showProgress?: boolean;
 		/** Items carrying a response (answered or partially answered), for the "8 of 12 answered" count. */
 		answeredCount?: number;
+		/**
+		 * Autosave status line ("Saved · 12:04" / "Saving…" / "Not saved"), announced
+		 * politely on change. Absent (undefined) when autosave is off: nothing renders.
+		 */
+		saveLabel?: string | null;
 		/** Whether the candidate has flagged the current item for review. */
 		flagged?: boolean;
 		/** Toggle the current item's flag-for-review. */
@@ -37,6 +42,7 @@
 		onSubmit,
 		showProgress = true,
 		answeredCount,
+		saveLabel = null,
 		flagged = false,
 		onToggleFlag,
 		showReview = false,
@@ -152,9 +158,15 @@
 					{#if translations.section}
 						<span class="progress-section-title">{translations.section}</span>
 					{/if}
-					{#if translations.answered}
-						<span class="progress-answered" data-testid="assessment-answered-count">{translations.answered}</span>
-					{/if}
+				{#if translations.answered}
+					<span class="progress-answered" data-testid="assessment-answered-count">{translations.answered}</span>
+				{/if}
+				{#if saveLabel}
+					<!-- The autosave indicator: a polite live region so a "Not saved" turn is heard. -->
+					<span class="progress-saved" data-testid="assessment-save-status" role="status" aria-live="polite">
+						{saveLabel}
+					</span>
+				{/if}
 				</div>
 				<progress class="progress-bar" value={progressPercentage} max="100" aria-label={translations.progress}></progress>
 			</div>
@@ -324,6 +336,12 @@
 		color: var(--pie-qti-base-content, oklch(21% 0 0));
 	}
 
+	/* The autosave status reads quieter than the position, but never below AA contrast. */
+	.progress-saved {
+		font-size: 0.8125em;
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+	}
+
 	.progress-bar {
 		appearance: none;
 		-webkit-appearance: none;
@@ -483,7 +501,8 @@
 		}
 
 		.progress-section-title,
-		.progress-answered {
+		.progress-answered,
+		.progress-saved {
 			font-size: 0.8125em;
 		}
 

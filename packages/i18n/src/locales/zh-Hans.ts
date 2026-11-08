@@ -549,7 +549,9 @@ export default {
 	assessment: {
 		title: '评估',
 		loading: '加载评估中...',
-		loadingError: '加载评估超时。此评估可能无效或播放器初始化失败。',
+		loadingError: '无法加载此测评。请重试。',
+		stillLoading: '仍在加载。请稍候。',
+		loadingRetry: '重试',
 		question: '问题 {current} / {total}',
 		questionAnnouncement: '问题 {current} / {total}',
 		section: '部分 {current} / {total}',
@@ -667,6 +669,37 @@ export default {
 			announcement: '评估已暂停。',
 			withReason: '评估已暂停:{reason}',
 			resumed: '评估已恢复。',
+		},
+
+		// 自动保存：已答数量旁的保存状态指示。
+		autosave: {
+			saved: '已保存 · {time}',
+			savedShort: '已保存',
+			saving: '保存中…',
+			notSaved: '未保存',
+		},
+
+		// 恢复的快照带有已保存的答案：继续作答或重新开始。
+		resume: {
+			title: '继续作答？',
+			description: '你在 {time} 保存了答案。',
+			descriptionNoTime: '你有上次会话保存的答案。',
+			resumeAction: '从上次作答处继续',
+			startOver: '重新开始',
+			confirmTitle: '重新开始并删除已保存的答案？',
+			confirmDescription:
+				'已保存的答案将被删除，测评将从头开始。此操作无法撤销。',
+			confirmAction: '删除并重新开始',
+			cancel: '保留已保存的答案',
+			resumedAnnouncement: '已恢复你保存的答案。',
+			restartedAnnouncement: '测评已从头重新开始。',
+		},
+
+		// 题目内容渲染失败：使用平实语言，不显示技术文本，测评继续进行。
+		itemError: {
+			title: '无法显示此题。',
+			tryAgain: '重试',
+			continue: '继续',
 		},
 
 		feedback: {

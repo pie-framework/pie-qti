@@ -96,6 +96,7 @@ import {
 } from './test-navigation.js';
 import {
 	generateSessionId,
+	findLatestSession,
 	loadSession,
 	saveSession,
 	type StoredSession,
@@ -127,6 +128,11 @@ export interface ReferenceBackendAdapterOptions {
 export class ReferenceBackendAdapter implements BackendAdapter {
 	/** @see ./qti-test-parser.ts — the parser lives in its own module. */
 	static parseAssessmentTestXml = parseAssessmentTestXml;
+	/**
+	 * The adapter persists drafts: sessions live in localStorage and `saveState` writes
+	 * the candidate's snapshot into them, so shell autosave is ON by default.
+	 */
+	readonly canSaveState = true;
 	private registeredAssessments: Map<string, SecureAssessment> = new Map();
 	private readonly rng: () => number;
 
@@ -530,6 +536,15 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			candidateId: '',
 			resumeSessionId: sessionId,
 		});
+	}
+
+	/**
+	 * The identifier of this adapter's most recent unfinalized session for an
+	 * assessment and candidate, or null. Hosts pass it as `initSession.resumeSessionId`
+	 * to resume the stored draft — the reference resume path after a refresh.
+	 */
+	latestSessionId(assessmentId: string, candidateId: string): SessionId | null {
+		return findLatestSession(assessmentId, candidateId)?.sessionId ?? null;
 	}
 
 	/**

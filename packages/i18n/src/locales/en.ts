@@ -549,7 +549,11 @@ export default {
 	assessment: {
 		title: 'Assessment',
 		loading: 'Loading assessment...',
-		loadingError: 'Timeout loading assessment. This assessment may be invalid or the player failed to initialize.',
+		// Candidate-safe: the load failed but the candidate can retry; raw backend and
+		// developer text never reaches this screen.
+		loadingError: 'This assessment could not be loaded. Please try again.',
+		stillLoading: 'Still loading. Please wait a moment.',
+		loadingRetry: 'Try again',
 		question: 'Question {current} of {total}',
 		questionAnnouncement: 'Question {current} of {total}',
 		section: 'Section {current} of {total}',
@@ -668,6 +672,37 @@ export default {
 			announcement: 'The assessment is paused.',
 			withReason: 'The assessment is paused: {reason}',
 			resumed: 'The assessment is running again.',
+		},
+
+		// Autosave: the save indicator next to the answered count.
+		autosave: {
+			saved: 'Saved · {time}',
+			savedShort: 'Saved',
+			saving: 'Saving…',
+			notSaved: 'Not saved',
+		},
+
+		// A restored snapshot with saved answers: continue or start over.
+		resume: {
+			title: 'Resume your test?',
+			description: 'You have answers saved from {time}.',
+			descriptionNoTime: 'You have saved answers from a previous session.',
+			resumeAction: 'Resume where you left off',
+			startOver: 'Start over',
+			confirmTitle: 'Start over and delete your saved answers?',
+			confirmDescription:
+				'Your saved answers will be deleted and the test starts from the beginning. This cannot be undone.',
+			confirmAction: 'Delete and start over',
+			cancel: 'Keep my saved answers',
+			resumedAnnouncement: 'Your saved answers were restored.',
+			restartedAnnouncement: 'The test was restarted from the beginning.',
+		},
+
+		// A question's content crashed: plain language, no developer text, and the test goes on.
+		itemError: {
+			title: 'This question could not be displayed.',
+			tryAgain: 'Try again',
+			continue: 'Continue',
 		},
 
 		feedback: {

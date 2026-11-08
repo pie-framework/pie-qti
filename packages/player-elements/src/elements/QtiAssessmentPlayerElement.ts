@@ -64,6 +64,18 @@ export type QtiAssessmentErrorDetail = {
 	message: string;
 };
 
+/** Autosave indicator state changed (`autosave-change`); `status` drives host UI. */
+export type QtiAssessmentAutosaveChangeDetail = {
+	status: 'idle' | 'pending' | 'saving' | 'saved' | 'failed';
+	/** Client clock (ms) of the last successful save; undefined until one lands. */
+	lastSavedAt?: number;
+};
+
+/** A debounced or flushed autosave failed (`autosave-failed`); the draft retries on the next change. */
+export type QtiAssessmentAutosaveFailedDetail = {
+	message: string;
+};
+
 export interface QtiAssessmentPlayerEventMap {
 	ready: CustomEvent<void>;
 	'load-start': CustomEvent<void>;
@@ -78,6 +90,8 @@ export interface QtiAssessmentPlayerEventMap {
 	'time-expired': CustomEvent<QtiAssessmentTimeExpiredDetail>;
 	'player-pause': CustomEvent<QtiAssessmentPauseDetail>;
 	'player-resume': CustomEvent<void>;
+	'autosave-change': CustomEvent<QtiAssessmentAutosaveChangeDetail>;
+	'autosave-failed': CustomEvent<QtiAssessmentAutosaveFailedDetail>;
 }
 
 export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<string, unknown>> {
@@ -97,6 +111,9 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 			'full-viewport',
 			'heading-level',
 			'begin-gate',
+			// Autosave
+			'autosave',
+			'autosave-interval-ms',
 		];
 	}
 
@@ -119,6 +136,8 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	#fullViewport = false;
 	#headingLevel: number | undefined;
 	#beginGate = false;
+	#autosave: boolean | undefined;
+	#autosaveIntervalMs: number | undefined;
 	#backend: BackendAdapter | undefined;
 	#hostBackend: BackendAdapter | undefined;
 	#initSession: InitSessionRequest | undefined;
@@ -163,6 +182,19 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 			else this.#headingLevel = parseHeadingLevel(newValue);
 			// Presentation only: never re-resolve the assessment for it. A mounted shell
 			// re-renders with it, like a `config` change.
+			if (this.#allowMount) this._mountOrUpdate();
+			return;
+		}
+
+		if (name === 'autosave') {
+			this.#autosave = newValue === null ? undefined : newValue !== 'false';
+			if (this.#allowMount) this._mountOrUpdate();
+			return;
+		}
+
+		if (name === 'autosave-interval-ms') {
+			const parsed = newValue === null ? Number.NaN : Number(newValue);
+			this.#autosaveIntervalMs = Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 			if (this.#allowMount) this._mountOrUpdate();
 			return;
 		}
@@ -257,6 +289,33 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	set beginGate(value: boolean) {
 		if (value) this.setAttribute('begin-gate', '');
 		else this.removeAttribute('begin-gate');
+	}
+
+	/**
+	 * Autosave of the candidate's draft through the backend's `saveState`, with the
+	 * shell's save indicator and resume prompt. Default ON when the backend reports
+	 * the save capability; `false` disables it for hosts that persist state
+	 * themselves. Reflects the `autosave` attribute.
+	 */
+	get autosave(): boolean | undefined {
+		return this.#autosave;
+	}
+	set autosave(value: boolean | undefined) {
+		if (value === undefined) this.removeAttribute('autosave');
+		else if (value) this.setAttribute('autosave', '');
+		else this.setAttribute('autosave', 'false');
+	}
+
+	/** Autosave debounce window in ms. Reflects the `autosave-interval-ms` attribute. */
+	get autosaveIntervalMs(): number | undefined {
+		return this.#autosaveIntervalMs;
+	}
+	set autosaveIntervalMs(value: number | undefined) {
+		if (value === undefined || !Number.isFinite(value) || value <= 0) {
+			this.removeAttribute('autosave-interval-ms');
+			return;
+		}
+		this.setAttribute('autosave-interval-ms', String(Math.round(value)));
 	}
 
 	get security() {
@@ -728,6 +787,29 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 					}),
 				);
 			},
+			onAutosaveChange: (state) => {
+				const detail: QtiAssessmentAutosaveChangeDetail = {
+					status: state.status,
+					...(state.lastSavedAt === undefined ? {} : { lastSavedAt: state.lastSavedAt }),
+				};
+				this.dispatchEvent(
+					new CustomEvent<QtiAssessmentAutosaveChangeDetail>('autosave-change', {
+						detail,
+						bubbles: true,
+						composed: true,
+					}),
+				);
+			},
+			onAutosaveFailed: (error: Error) => {
+				const detail: QtiAssessmentAutosaveFailedDetail = { message: error.message };
+				this.dispatchEvent(
+					new CustomEvent<QtiAssessmentAutosaveFailedDetail>('autosave-failed', {
+						detail,
+						bubbles: true,
+						composed: true,
+					}),
+				);
+			},
 		};
 
 		const props: any = {
@@ -736,6 +818,8 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 			config: baseConfig,
 			fullViewport: this.#fullViewport,
 			beginGate: this.#beginGate,
+			...(this.#autosave === undefined ? {} : { autosave: this.#autosave }),
+			...(this.#autosaveIntervalMs === undefined ? {} : { autosaveIntervalMs: this.#autosaveIntervalMs }),
 			...(this.#headingLevel === undefined ? {} : { headingLevel: this.#headingLevel }),
 			onSubmit: (results: AssessmentResults) => {
 				const detail: QtiAssessmentSubmitDetail = { results };

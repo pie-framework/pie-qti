@@ -1,7 +1,9 @@
 <script lang="ts">
-	import { onMount, tick, getContext } from 'svelte';
+	import { onDestroy, onMount, tick, getContext } from 'svelte';
 	import { DefaultI18nProvider, interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
+	import { applyPnpToSurface, clearPnpSurface, type PnpProfile } from '@pie-qti/item-player';
 	import { normalizeQtiSharedContext } from '@pie-qti/assessment-toolkit';
+	import { withDisplaySettings, type QtiCandidateDisplaySettings } from '@pie-qti/section-player';
 	import type { QtiSharedHtmlBlock } from '@pie-qti/section-player';
 	import {
 		PlayerBaseStyles,
@@ -12,6 +14,7 @@
 	} from '../../../section-player/src/components/index.js';
 	import type { BackendAssessmentPlayerConfig } from '../core/AssessmentPlayer.js';
 	import { AssessmentPlayer } from '../core/AssessmentPlayer.js';
+	import type { AutosaveState } from '../core/AutosaveManager.js';
 	import { assessmentErrorDisplay, isAssessmentPlayerError } from '../core/errors.js';
 	import { TimeManager } from '../core/TimeManager.js';
 	import type { ReviewGroup } from './ReviewScreen.svelte';
@@ -60,9 +63,29 @@
 		 * session creation, as before.
 		 */
 		beginGate?: boolean;
+		/**
+		 * Autosave of the candidate's draft through the backend's `saveState`, with a
+		 * save indicator and a resume prompt on reload. Default ON when the backend
+		 * reports the save capability; set `false` for hosts that persist state
+		 * themselves (the indicator stays hidden).
+		 */
+		autosave?: boolean;
+		/** Autosave debounce window in ms. Default 1500. */
+		autosaveIntervalMs?: number;
 	}
 
-	const { backend, initSession, config = {}, onSubmit, typeset, fullViewport = false, headingLevel, beginGate = false }: Props = $props();
+	const {
+		backend,
+		initSession,
+		config = {},
+		onSubmit,
+		typeset,
+		fullViewport = false,
+		headingLevel,
+		beginGate = false,
+		autosave,
+		autosaveIntervalMs,
+	}: Props = $props();
 
 	// Get i18n from context (set by +layout.svelte)
 	const contextI18nWrapper = getContext<{ value: I18nProvider | null } | undefined>('i18n');
@@ -127,7 +150,6 @@
 	});
 	let currentItem = $state<any>(null);
 	let currentRubricBlocks = $state<any[]>([]);
-	let currentResponses = $state<Record<string, unknown>>({});
 	let sections = $state<CandidateSectionView[]>([]);
 	let error = $state<{ message: string; supportCode: string | null } | null>(null);
 	let navError = $state<{ message: string; supportCode: string | null } | null>(null);
@@ -140,11 +162,22 @@
 	let verticalLayout = $state<SectionPlayerVertical | null>(null);
 	let testFeedback = $state<VisibleTestFeedback[]>([]);
 	let isComplete = $state(false);
-	let initTimeout: ReturnType<typeof setTimeout> | null = null;
 	let hasFirstItem = $state(false);
 	let announcer = $state<AccessibilityAnnouncer | null>(null);
+	/**
+	 * Two version counters keep response updates targeted (O(item), not O(assessment)):
+	 * `responseVersion` ticks on candidate input and drives the answered counts; the
+	 * section composition — the whole section view — rebuilds only when the item,
+	 * section or delivery state actually changes (`compositionVersion`). The active
+	 * item renders from its live session object, which the composition carries by
+	 * reference, so keystrokes never need a rebuild.
+	 */
 	let responseVersion = $state(0);
+	let compositionVersion = $state(0);
 	let stateVersion = $state(0);
+	/** Loading is taking long: a polite status, never a permanent error on its own. */
+	let stillLoading = $state(false);
+	let initializing = $state(false);
 	// Review screen + flag toggle
 	let reviewOpen = $state(false);
 	let reviewScreen = $state<ReviewScreen | null>(null);
@@ -177,12 +210,26 @@
 	let expiryDialogOpen = $state(false);
 	/** An expiry left no reachable item; Submit must be offered wherever the candidate is. */
 	let submitRequired = $state(false);
+	// Autosave: the save indicator rides the core's real save state.
+	let saveStatus = $state<AutosaveState>({ status: 'idle' });
+	/** A backend snapshot carried prior activity: the shell offers Resume / Start over. */
+	let resumeDialogOpen = $state(false);
+	/** Deleting the saved draft is irreversible: confirmed before `startOver()` runs. */
+	let startOverConfirmOpen = $state(false);
+	let startOverBusy = $state(false);
+	// Candidate display settings (PNP): the section layouts own the settings tool and
+	// report changes; the shell root is a PNP surface so the profile also covers the
+	// header, navigation and timer chrome around the item.
+	let shellRootEl = $state<HTMLElement | null>(null);
+	let candidateDisplaySettings = $state<QtiCandidateDisplaySettings>({});
 
 	const sectionComposition = $derived.by(() => {
-		responseVersion;
+		compositionVersion;
 		stateVersion;
 		return player ? toSectionComposition(player, config) : null;
 	});
+	/** The PNP profile the shell chrome renders with: the host profile with the candidate's display settings applied. */
+	const shellPnp = $derived<PnpProfile>(withDisplaySettings(config.pnp, candidateDisplaySettings));
 	const hasSplitPane = $derived(sectionComposition?.layout === 'split-pane');
 	const sectionRole = $derived(config.role ?? 'candidate');
 	const titleHeadingLevel = $derived(Math.min(5, Math.max(1, Math.round(headingLevel ?? (fullViewport ? 1 : 2)))));
@@ -259,37 +306,73 @@
 		return player ? player.isItemFlagged() : false;
 	});
 	// The section menu lists every candidate-visible section with its live answered
-	// count; only legal jump targets are enabled inside the menu.
+	// count; only legal jump targets are enabled inside the menu. Derived from the
+	// review data so a keystroke computes the item statuses once, not twice.
 	const headerSections = $derived.by(() => {
-		responseVersion;
-		stateVersion;
 		navState.currentSection?.id;
-		if (!player || navState.currentIndex < 0) return [];
-		const items = player.getReviewItems();
-		return player.getAllSections().map((section) => {
-			const members = items.filter((item) => item.sectionId === section.id);
-			return {
-				id: section.id,
-				title: section.title,
-				index: section.index,
-				navigable: section.navigable,
-				answered: members.filter((item) => item.status !== 'unanswered').length,
-				total: members.length,
-				isCurrent: navState.currentSection?.id === section.id,
-			};
-		});
+		if (!reviewData) return [];
+		return reviewData.groups
+			.filter((group) => group.id !== null)
+			.map((group) => {
+				const members = reviewData.groups
+					.filter((candidate) => candidate.id === group.id)
+					.flatMap((candidate) => candidate.items);
+				return {
+					id: group.id as string,
+					title: group.title,
+					index: group.index,
+					navigable: group.navigable,
+					answered: members.filter((item) => item.status !== 'unanswered').length,
+					total: members.length,
+					isCurrent: navState.currentSection?.id === group.id,
+				};
+			});
 	});
 
-	// Initialize player
-	onMount(() => {
-		// Never allow infinite "Loading assessment..." state. Behind a begin gate the
-		// clock only starts once the candidate has begun.
-		initTimeout = setTimeout(() => {
+	// Initialize the player; `retryInitialize()` runs this again after a load failure.
+	// A slow load is a polite status ("still loading"), never a permanent error: if the
+	// backend recovers later, the shell proceeds on its own.
+	let stillLoadingTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function clearStillLoadingTimer() {
+		if (stillLoadingTimer) {
+			clearTimeout(stillLoadingTimer);
+			stillLoadingTimer = null;
+		}
+	}
+
+	function armStillLoadingTimer() {
+		clearStillLoadingTimer();
+		// Behind a begin gate the start screen is the expected view, not a slow load.
+		stillLoadingTimer = setTimeout(() => {
+			stillLoadingTimer = null;
 			if (!hasFirstItem && !error && !startPending) {
-				error = { message: i18n.t('assessment.loadingError'), supportCode: null };
-				announcer?.announce(error.message, 3000, 'assertive');
+				stillLoading = true;
 			}
 		}, 10000);
+	}
+
+	onMount(() => {
+		void initialize();
+
+		return () => {
+			clearStillLoadingTimer();
+			teardownPlayer();
+		};
+	});
+
+	function teardownPlayer() {
+		const current = player;
+		player = null;
+		current?.destroy();
+	}
+
+	async function initialize() {
+		if (initializing) return;
+		initializing = true;
+		error = null;
+		stillLoading = false;
+		armStillLoadingTimer();
 
 		const playerConfig: BackendAssessmentPlayerConfig = {
 			backend,
@@ -301,9 +384,12 @@
 			// The shell prop and the core option open the same gate.
 			beginGate: beginGate || config.beginGate === true,
 			i18nProvider: playerI18n,
+			// The shell props and the core options tune the same autosave.
+			...(autosave === undefined ? {} : { autosave }),
+			...(autosaveIntervalMs === undefined ? {} : { autosaveIntervalMs }),
 		};
 
-		(async () => {
+		try {
 			const created = await AssessmentPlayer.create(playerConfig);
 			startPending = !created.hasStarted();
 			player = created;
@@ -316,10 +402,8 @@
 				updateState();
 				navError = null;
 				hasFirstItem = true;
-				if (initTimeout) {
-					clearTimeout(initTimeout);
-					initTimeout = null;
-				}
+				stillLoading = false;
+				clearStillLoadingTimer();
 				await tick();
 				// A new item starts at its top, whichever region scrolls.
 				contentEl?.scrollTo?.({ top: 0, behavior: 'auto' });
@@ -334,8 +418,9 @@
 				if (player) testFeedback = player.getVisibleFeedback();
 			});
 
-			player.onResponseChange((responses) => {
-				currentResponses = responses;
+			player.onResponseChange(() => {
+				// Targeted update: only the answered counts recompute; the section view
+				// renders from the live session and needs no rebuild per keystroke.
 				responseVersion += 1;
 			});
 
@@ -346,6 +431,10 @@
 			player.onFlagChange(() => {
 				// Flag state lives in the core session state; re-render whatever shows it.
 				stateVersion += 1;
+			});
+
+			player.onAutosaveChange((state) => {
+				saveStatus = state;
 			});
 
 			// Terminal branching (QTI EXIT_TEST) and the whole-test time expiry finalize the
@@ -431,28 +520,42 @@
 				updateState();
 				if (!startPending) {
 					hasFirstItem = true;
-					if (initTimeout) {
-						clearTimeout(initTimeout);
-						initTimeout = null;
-					}
+					stillLoading = false;
+					clearStillLoadingTimer();
 				}
 			}
-		})().catch((err) => {
+
+			// A restored snapshot with prior activity is a resume: ask the candidate
+			// whether to continue or start over. A restored-paused session stays behind
+			// the pause overlay (a proctor resumes it); a begin gate already says
+			// "Continue" on its start screen.
+			if (!startPending && !paused && player.hasRestoredProgress()) {
+				resumeDialogOpen = true;
+			}
+		} catch (err) {
 			console.error('Failed to initialize assessment player:', err);
 			error = localizeError(err);
 			announcer?.announce(error.message, 3000, 'assertive');
-		});
+			// The failure alert is announced; focus lands on its Retry control.
+			await tick();
+			retryButton?.focus();
+		} finally {
+			initializing = false;
+			clearStillLoadingTimer();
+		}
+	}
 
-		return () => {
-			if (initTimeout) {
-				clearTimeout(initTimeout);
-				initTimeout = null;
-			}
-			if (player) {
-				player.destroy();
-			}
-		};
-	});
+	/**
+	 * Retry a failed load: tear the half-created player down and initialize again.
+	 * On another failure the alert is re-announced and focus returns to Retry.
+	 */
+	async function handleRetryInitialize() {
+		if (initializing) return;
+		teardownPlayer();
+		hasFirstItem = false;
+		stillLoading = false;
+		await initialize();
+	}
 
 	$effect(() => {
 		// The start screen lands focus on its heading, like a dialog.
@@ -467,7 +570,6 @@
 		navState = player.getNavigationState();
 		currentItem = player.getCurrentItem();
 		currentRubricBlocks = player.getCurrentRubricBlocks();
-		currentResponses = player.getResponses();
 		testFeedback = player.getVisibleFeedback();
 		timerLimited = player.getTimeState().limited;
 		timerHidden = player.isTimerHidden();
@@ -664,6 +766,199 @@
 		player.setTimerHidden(hidden);
 		timerHidden = hidden;
 	}
+
+	// ---------------------------------------------------------------------------
+	// Autosave: save indicator, page-lifecycle flush, resume / start over
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * The indicator's localized text from the real save state. `pending` (activity in
+	 * the debounce window) and `saving` both read as "Saving…"; a failure stays "Not
+	 * saved" until the next change retries it.
+	 */
+	const saveLabel = $derived.by(() => {
+		if (!player?.isAutosaveEnabled()) return null;
+		switch (saveStatus.status) {
+			case 'pending':
+			case 'saving':
+				return i18n.t('assessment.autosave.saving', 'Saving…');
+			case 'saved': {
+				const time = saveStatus.lastSavedAt !== undefined
+					? formatClockTime(new Date(saveStatus.lastSavedAt))
+					: null;
+				return time
+					? i18n.t('assessment.autosave.saved', 'Saved · {time}', { time })
+					: i18n.t('assessment.autosave.savedShort', 'Saved');
+			}
+			case 'failed':
+				return i18n.t('assessment.autosave.notSaved', 'Not saved');
+			default:
+				return null;
+		}
+	});
+
+	function formatClockTime(date: Date): string {
+		const formatted = i18n.formatDate?.(date, { hour: '2-digit', minute: '2-digit' });
+		if (formatted) return formatted;
+		return new Intl.DateTimeFormat(i18n.getLocale(), { hour: '2-digit', minute: '2-digit' }).format(date);
+	}
+
+	/** The restored draft's save time for the resume prompt, in the interface locale. */
+	const resumeSavedAtLine = $derived.by(() => {
+		const savedAt = player?.getRestoredSavedAt();
+		if (!savedAt) {
+			return i18n.t('assessment.resume.descriptionNoTime', 'You have saved answers from a previous session.');
+		}
+		const formatted = i18n.formatDate?.(new Date(savedAt), {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit',
+		}) ?? new Intl.DateTimeFormat(i18n.getLocale(), {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit',
+		}).format(new Date(savedAt));
+		return i18n.t('assessment.resume.description', 'You have answers saved from {time}.', { time: formatted });
+	});
+
+	/** The candidate keeps their saved draft: close the prompt and continue. */
+	function handleResume() {
+		resumeDialogOpen = false;
+		announcer?.announce(
+			i18n.t('assessment.resume.resumedAnnouncement', 'Your saved answers were restored.'),
+			3000,
+			'assertive',
+		);
+	}
+
+	/** "Start over" chosen: the irreversible deletion is confirmed before it runs. */
+	function handleStartOverRequested() {
+		resumeDialogOpen = false;
+		startOverConfirmOpen = true;
+	}
+
+	function handleStartOverCancelled() {
+		startOverConfirmOpen = false;
+		resumeDialogOpen = true;
+	}
+
+	async function handleStartOverConfirmed() {
+		if (!player || startOverBusy) return;
+		// The confirmation stays open (busy) while the restart runs; it closes after.
+		startOverBusy = true;
+		try {
+			await player.startOver();
+			navError = null;
+			sections = player.getAllSections();
+			updateState();
+			startOverConfirmOpen = false;
+			announcer?.announce(
+				i18n.t('assessment.resume.restartedAnnouncement', 'The test was restarted from the beginning.'),
+				4000,
+				'assertive',
+			);
+			await tick();
+			await manageFocusAfterNavigation();
+			announceCurrentQuestion();
+		} catch (err) {
+			startOverConfirmOpen = false;
+			if (isBusyRejection(err)) {
+				resumeDialogOpen = true;
+				return;
+			}
+			console.error('Start over failed:', err);
+			navError = localizeError(err);
+			announcer?.announce(navError.message, 3000, 'assertive');
+		} finally {
+			startOverBusy = false;
+		}
+	}
+
+	// ---------------------------------------------------------------------------
+	// Content boundaries: a crashing question never takes the test down
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * A component inside the question content crashed (a broken interaction, a
+	 * malformed passage). The boundary's fallback tells the candidate in plain
+	 * language and keeps Previous/Next working, so they can move on where navigation
+	 * rules allow; the raw error goes to the console and the host only.
+	 */
+	function handleContentCrash(error: unknown, reset: () => void) {
+		console.error('Question content failed to render:', error);
+		config.onError?.(error instanceof Error ? error : new Error(String(error)));
+		// Remember the reset so the fallback's actions can recover the subtree.
+		contentBoundaryReset = reset;
+		announcer?.announce(i18n.t('assessment.itemError.title', 'This question could not be displayed.'), 4000, 'assertive');
+	}
+
+	let contentBoundaryReset: (() => void) | null = null;
+
+	/** Whether "Continue" can move past a crashed question (navigation rules still apply). */
+	const canContinueAfterCrash = $derived(
+		!isComplete && !paused && navState.canNext && navState.currentIndex >= 0,
+	);
+
+	async function handleContentFallbackRetry(reset: () => void) {
+		contentBoundaryReset = null;
+		reset();
+		await tick();
+		await focusQuestion();
+	}
+
+	async function handleContentFallbackContinue(reset: () => void) {
+		contentBoundaryReset = null;
+		reset();
+		await doNext();
+	}
+
+	/**
+	 * A dialog body crashed (a broken summary, a malformed notice). The shell stays
+	 * usable: the fallback explains and closes the crashed dialog instead of blanking
+	 * the page behind a broken modal.
+	 */
+	function handleDialogCrash(error: unknown, reset: () => void) {
+		console.error('Assessment dialog failed to render:', error);
+		config.onError?.(error instanceof Error ? error : new Error(String(error)));
+		dialogBoundaryReset = reset;
+	}
+
+	let dialogBoundaryReset: (() => void) | null = null;
+
+	function handleDialogFallbackDismiss(reset: () => void) {
+		submitDialogOpen = false;
+		leavePartDialogOpen = false;
+		expiryDialog = null;
+		expiryDialogOpen = false;
+		dialogBoundaryReset = null;
+		reset();
+	}
+
+	// ---------------------------------------------------------------------------
+	// PNP surface: the shell chrome follows the candidate's display settings
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * The section layouts repaint their own surface when the candidate changes their
+	 * display settings; the shell root is a separate PNP surface so the header,
+	 * navigation bar and timer follow too (nested inverting filters are neutralized
+	 * by the surface mechanism, and nothing outside the shell changes).
+	 */
+	function handleDisplaySettingsChange(event: { settings: QtiCandidateDisplaySettings }) {
+		candidateDisplaySettings = event.settings;
+	}
+
+	$effect(() => {
+		const root = shellRootEl;
+		if (!root) return;
+		const pnp = shellPnp;
+		applyPnpToSurface(root, pnp);
+		return () => clearPnpSurface(root);
+	});
 
 	async function handleExpiryConfirm() {
 		const mode = expiryDialog?.mode;
@@ -869,10 +1164,26 @@
 
 <PlayerBaseStyles />
 
+<!--
+	Page lifecycle: an immediate, best-effort autosave when the tab is hidden or the
+	page is unloaded, so a refresh or crash loses at most the debounce window.
+-->
+<svelte:window
+	onvisibilitychange={() => {
+		if (document.visibilityState === 'hidden') void player?.flushAutosave();
+	}}
+	onpagehide={() => void player?.flushAutosave()}
+/>
+
 <!-- Accessibility announcer for screen readers -->
 <AccessibilityAnnouncer bind:this={announcer} lang={interfaceAttributes?.lang} dir={interfaceAttributes?.dir} />
 
 {#if error}
+	<!--
+		A failed load: the localized coded-error message (never raw backend text), a
+		retry control that re-initializes the session, and focus on Retry when a retry
+		fails again. A slow backend is not this screen — see the loading branch.
+	-->
 	<div class="assessment-error pie-qti-chrome" lang={interfaceAttributes?.lang} dir={interfaceAttributes?.dir}>
 		<div class="assessment-alert error" role="alert" aria-live="assertive">
 			<svg
@@ -898,6 +1209,16 @@
 					<span class="support-code">{i18n.t('assessment.errors.supportCode', { code: error.supportCode })}</span>
 				{/if}
 			</p>
+			<button
+				bind:this={retryButton}
+				type="button"
+				class="retry-button"
+				data-testid="assessment-load-retry"
+				disabled={initializing}
+				onclick={() => void handleRetryInitialize()}
+			>
+				{i18n.t('assessment.loadingRetry', 'Try again')}
+			</button>
 		</div>
 	</div>
 {:else if awaitingBegin}
@@ -964,6 +1285,13 @@
 		<div class="assessment-loading-status" role="status" aria-live="polite">
 			<span class="assessment-spinner" aria-hidden="true"></span>
 			<span>{i18n.t('assessment.loading')}</span>
+			{#if stillLoading}
+				<!-- Still working after 10s: a status update, not an error. If the
+				     backend recovers, delivery proceeds without any action. -->
+				<span class="assessment-still-loading" data-testid="assessment-still-loading" role="status" aria-live="polite">
+					{i18n.t('assessment.stillLoading', 'Still loading. Please wait a moment.')}
+				</span>
+			{/if}
 		</div>
 	</div>
 {:else}
@@ -973,6 +1301,7 @@
 	-->
 	<svelte:element
 		this={fullViewport ? 'div' : 'section'}
+		bind:this={shellRootEl}
 		class="assessment-shell pie-qti-chrome"
 		class:full-viewport={fullViewport}
 		lang={interfaceAttributes?.lang}
@@ -1063,45 +1392,101 @@
 			aria-label={i18n?.t('accessibility.itemBody') ?? 'Question content'}
 			inert={paused || undefined}
 		>
-			{#if reviewOpen && reviewData}
-				<ReviewScreen
-					bind:this={reviewScreen}
-					groups={reviewData.groups}
-					answeredCount={reviewData.answeredCount}
-					totalItems={reviewData.totalItems}
-					flaggedCount={reviewData.flaggedCount}
-					headingLevel={titleHeadingLevel + 1}
-					busy={navState.isLoading || isSubmitting}
-					{i18n}
-					onJump={handleReviewJump}
-				/>
-			{:else if sectionComposition}
-				{#if sectionComposition.layout === 'split-pane'}
-					<SectionPlayerSplitPane
-						bind:this={splitLayout}
-						composition={sectionComposition}
-						{i18n}
-						security={config.security}
-						pci={config.pci}
-						pnp={config.pnp}
-						{typeset}
+			<!--
+				Error boundary around the question content: a crashing interaction (or a
+				malformed passage) shows a plain-language fallback and keeps the test
+				usable — Previous/Next still work, so the candidate moves on wherever
+				navigation rules allow. The raw error goes to the console and the host.
+			-->
+			<svelte:boundary onerror={handleContentCrash}>
+				{#if reviewOpen && reviewData}
+					<ReviewScreen
+						bind:this={reviewScreen}
+						groups={reviewData.groups}
+						answeredCount={reviewData.answeredCount}
+						totalItems={reviewData.totalItems}
+						flaggedCount={reviewData.flaggedCount}
 						headingLevel={titleHeadingLevel + 1}
-						onItemPaneReady={(el) => (itemPaneEl = el)}
-					/>
-				{:else}
-					<SectionPlayerVertical
-						bind:this={verticalLayout}
-						composition={sectionComposition}
+						busy={navState.isLoading || isSubmitting}
 						{i18n}
-						security={config.security}
-						pci={config.pci}
-						pnp={config.pnp}
-						{typeset}
-						headingLevel={titleHeadingLevel + 1}
-						onItemPaneReady={(el) => (itemPaneEl = el)}
+						onJump={handleReviewJump}
 					/>
+				{:else if sectionComposition}
+					{#if sectionComposition.layout === 'split-pane'}
+						<SectionPlayerSplitPane
+							bind:this={splitLayout}
+							composition={sectionComposition}
+							{i18n}
+							security={config.security}
+							pci={config.pci}
+							pnp={config.pnp}
+							{typeset}
+							headingLevel={titleHeadingLevel + 1}
+							onItemPaneReady={(el) => (itemPaneEl = el)}
+							onDisplaySettingsChange={handleDisplaySettingsChange}
+						/>
+					{:else}
+						<SectionPlayerVertical
+							bind:this={verticalLayout}
+							composition={sectionComposition}
+							{i18n}
+							security={config.security}
+							pci={config.pci}
+							pnp={config.pnp}
+							{typeset}
+							headingLevel={titleHeadingLevel + 1}
+							onItemPaneReady={(el) => (itemPaneEl = el)}
+							onDisplaySettingsChange={handleDisplaySettingsChange}
+						/>
+					{/if}
 				{/if}
-			{/if}
+				{#snippet failed(_error, reset)}
+					<div class="content-fallback" role="alert" data-testid="assessment-content-fallback">
+						<svg
+							class="assessment-alert-icon"
+							xmlns="http://www.w3.org/2000/svg"
+							width="24"
+							height="24"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							aria-hidden="true"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+							/>
+						</svg>
+						<div class="content-fallback-body">
+							<p class="content-fallback-title">
+								{i18n.t('assessment.itemError.title', 'This question could not be displayed.')}
+							</p>
+							<div class="content-fallback-actions">
+								<button
+									type="button"
+									class="retry-button"
+									data-testid="assessment-content-retry"
+									onclick={() => void handleContentFallbackRetry(reset)}
+								>
+									{i18n.t('assessment.itemError.tryAgain', 'Try again')}
+								</button>
+								{#if canContinueAfterCrash}
+									<button
+										type="button"
+										class="content-fallback-continue"
+										data-testid="assessment-content-continue"
+										onclick={() => void handleContentFallbackContinue(reset)}
+									>
+										{i18n.t('assessment.itemError.continue', 'Continue')}
+									</button>
+								{/if}
+							</div>
+						</div>
+					</div>
+				{/snippet}
+			</svelte:boundary>
 		</svelte:element>
 
 		{#if submitError}
@@ -1131,6 +1516,7 @@
 				onSubmit={openSubmitDialog}
 				showProgress={config.showProgress !== false}
 				answeredCount={reviewData?.answeredCount}
+				saveLabel={saveLabel}
 				flagged={currentFlagged}
 				onToggleFlag={handleToggleFlag}
 				showReview={!isComplete && reviewData !== null}
@@ -1142,12 +1528,81 @@
 		{/if}
 
 		<!--
-			Submit confirmation: names the unanswered and flagged questions, links back to
-			them when the navigation rules allow, and requires an explicit confirm. Focus
-			returns to the Submit control on cancel.
+			The shell's dialogs, inside one error boundary: a crashing dialog body cannot
+			blank the shell or strand the candidate behind a broken modal. The fallback
+			explains, dismisses the crashed dialogs and keeps delivery usable.
 		-->
-		<AssessmentDialog
-			bind:open={submitDialogOpen}
+		<svelte:boundary onerror={handleDialogCrash}>
+			<!--
+				Resume prompt: the backend restored a snapshot with prior activity. The
+				candidate continues where they left off, or — after confirming, because it
+				cannot be undone (WCAG 3.3.4) — deletes the saved draft and starts over.
+			-->
+			{#if resumeDialogOpen}
+				<AssessmentDialog
+					bind:open={resumeDialogOpen}
+					title={i18n.t('assessment.resume.title', 'Resume your test?')}
+					description={resumeSavedAtLine}
+					{i18n}
+					// Escape keeps the saved answers and continues — it must never be one
+					// step away from the irreversible deletion.
+					onCancel={handleResume}
+				>
+					{#snippet actions({ close })}
+						<!-- svelte-ignore a11y_autofocus -->
+						<button
+							type="button"
+							class="submit-dialog-action"
+							data-testid="assessment-resume-start-over"
+							autofocus
+							onclick={() => {
+								close('cancel');
+								handleStartOverRequested();
+							}}
+						>
+							{i18n.t('assessment.resume.startOver', 'Start over')}
+						</button>
+						<button
+							type="button"
+							class="submit-dialog-action primary"
+							data-testid="assessment-resume-continue"
+							onclick={() => {
+								close('confirm');
+								handleResume();
+							}}
+						>
+							{i18n.t('assessment.resume.resumeAction', 'Resume where you left off')}
+						</button>
+					{/snippet}
+				</AssessmentDialog>
+			{/if}
+
+			{#if startOverConfirmOpen}
+				<AssessmentDialog
+					bind:open={startOverConfirmOpen}
+					title={i18n.t('assessment.resume.confirmTitle', 'Start over and delete your saved answers?')}
+					description={i18n.t(
+						'assessment.resume.confirmDescription',
+						'Your saved answers will be deleted and the test starts from the beginning. This cannot be undone.',
+					)}
+					confirmLabel={i18n.t('assessment.resume.confirmAction', 'Delete and start over')}
+					cancelLabel={i18n.t('assessment.resume.cancel', 'Keep my saved answers')}
+					tone="danger"
+					dismissible={false}
+					busy={startOverBusy}
+					{i18n}
+					onConfirm={handleStartOverConfirmed}
+					onCancel={handleStartOverCancelled}
+				/>
+			{/if}
+
+			<!--
+				Submit confirmation: names the unanswered and flagged questions, links back to
+				them when the navigation rules allow, and requires an explicit confirm. Focus
+				returns to the Submit control on cancel.
+			-->
+			<AssessmentDialog
+				bind:open={submitDialogOpen}
 			title={submitTranslations.dialogTitle}
 			description={submitTranslations.dialogDescription}
 			tone="danger"
@@ -1279,6 +1734,20 @@
 				onClose={handleExpiryClose}
 			/>
 		{/if}
+			{#snippet failed(_error, reset)}
+				<div class="dialog-fallback" role="alert" data-testid="assessment-dialog-fallback">
+					<p>{i18n.t('assessment.itemError.title', 'This question could not be displayed.')}</p>
+					<button
+						type="button"
+						class="retry-button"
+						data-testid="assessment-dialog-fallback-dismiss"
+						onclick={() => handleDialogFallbackDismiss(reset)}
+					>
+						{i18n.t('common.close', 'Close')}
+					</button>
+				</div>
+			{/snippet}
+		</svelte:boundary>
 
 		<!-- Proctor pause: an overlay replaces the blocked shell, naming the reason. -->
 		{#if paused}
@@ -1428,6 +1897,13 @@
 		align-items: center;
 		justify-content: center;
 		gap: var(--pie-qti-space-4, 1rem);
+		flex-wrap: wrap;
+	}
+
+	.assessment-still-loading {
+		flex: 1 1 100%;
+		text-align: center;
+		font-weight: 600;
 	}
 
 	.assessment-spinner {
@@ -1661,6 +2137,105 @@
 		padding-inline-start: var(--pie-qti-space-2, 0.5rem);
 		font-size: 0.85em;
 		color: var(--pie-qti-warning-text, #92400e);
+	}
+
+	/* Crashed question content: plain-language fallback with recovery actions. */
+	.content-fallback {
+		box-sizing: border-box;
+		display: flex;
+		align-items: flex-start;
+		gap: var(--pie-qti-space-3, 0.75rem);
+		margin: var(--pie-qti-space-5, 1.5rem);
+		padding: var(--pie-qti-space-4, 1rem);
+		border: 1px solid var(--pie-qti-error-text, #b91c1c);
+		border-inline-start-width: 4px;
+		border-radius: var(--pie-qti-radius, 0.5rem);
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+	}
+
+	.content-fallback .assessment-alert-icon {
+		color: var(--pie-qti-error-text, #b91c1c);
+	}
+
+	.content-fallback-body {
+		min-inline-size: 0;
+	}
+
+	.content-fallback-title {
+		margin: 0 0 var(--pie-qti-space-3, 0.75rem);
+		font-weight: 600;
+		overflow-wrap: anywhere;
+	}
+
+	.content-fallback-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--pie-qti-space-3, 0.75rem);
+	}
+
+	.content-fallback-continue {
+		box-sizing: border-box;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-inline-size: var(--pie-qti-control-min-size, 2.75rem);
+		min-block-size: var(--pie-qti-control-min-size, 2.75rem);
+		padding-block: var(--pie-qti-space-2, 0.5rem);
+		padding-inline: var(--pie-qti-space-5, 1.5rem);
+		border: 1px solid var(--pie-qti-border-strong, #767676);
+		border-radius: var(--pie-qti-radius, 0.5rem);
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+		font: inherit;
+		font-weight: 600;
+		line-height: 1.25;
+		cursor: pointer;
+	}
+
+	.content-fallback-continue:hover {
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
+	}
+
+	.content-fallback-continue:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
+	}
+
+	/* Crashed dialog body: the shell dismisses the broken modal and stays usable. */
+	.dialog-fallback {
+		box-sizing: border-box;
+		position: fixed;
+		inset-block-start: var(--pie-qti-space-4, 1rem);
+		inset-inline-start: 50%;
+		transform: translateX(-50%); /* i18n-physical */
+		z-index: 2147483000;
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: var(--pie-qti-space-3, 0.75rem);
+		max-inline-size: min(32rem, calc(100% - 2 * var(--pie-qti-space-4, 1rem)));
+		padding: var(--pie-qti-space-3, 0.75rem) var(--pie-qti-space-4, 1rem);
+		border: 1px solid var(--pie-qti-error-text, #b91c1c);
+		border-radius: var(--pie-qti-radius, 0.5rem);
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+		box-shadow: 0 1.25rem 2.75rem rgb(0 0 0 / 0.25);
+	}
+
+	.dialog-fallback p {
+		margin: 0;
+		overflow-wrap: anywhere;
+	}
+
+	.submit-dialog-action.primary {
+		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));
+		background: var(--pie-qti-primary, oklch(45% 0.24 277));
+		color: var(--pie-qti-primary-content, oklch(98% 0.01 277));
+	}
+
+	.submit-dialog-action.primary:hover:not([aria-disabled='true']) {
+		background: color-mix(in oklab, var(--pie-qti-primary, oklch(45% 0.24 277)) 85%, black);
 	}
 
 	/* Begin gate: the start screen before the clocks run. */

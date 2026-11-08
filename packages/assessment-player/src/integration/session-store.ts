@@ -66,3 +66,40 @@ export function saveSession(session: StoredSession): void {
 		console.error('Failed to save session to localStorage:', error);
 	}
 }
+
+/**
+ * The most recent stored session for an assessment and candidate, or null. Unfinalized
+ * sessions only by default: a finalized test has nothing left to resume. This is the
+ * reference loader behind `ReferenceBackendAdapter.latestSessionId()`, which demos and
+ * tests use to resume a draft after a refresh.
+ */
+export function findLatestSession(
+	assessmentId: string,
+	candidateId: string,
+	options: { includeFinalized?: boolean } = {},
+): StoredSession | null {
+	let latest: StoredSession | null = null;
+	try {
+		for (let index = 0; index < localStorage.length; index++) {
+			const key = localStorage.key(index);
+			if (!key?.startsWith(STORAGE_PREFIX)) continue;
+			const session = loadSession(key.slice(STORAGE_PREFIX.length));
+			if (!session) continue;
+			if (session.assessmentId !== assessmentId || session.candidateId !== candidateId) continue;
+			if (session.finalized && !options.includeFinalized) continue;
+			if (!latest || session.createdAt > latest.createdAt) latest = session;
+		}
+	} catch {
+		return null;
+	}
+	return latest;
+}
+
+/** Remove a stored session (reference "start over" clears its draft through `saveState`). */
+export function removeSession(sessionId: SessionId): void {
+	try {
+		localStorage.removeItem(STORAGE_PREFIX + sessionId);
+	} catch {
+		// Storage unavailable: nothing to remove.
+	}
+}

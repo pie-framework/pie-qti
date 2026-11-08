@@ -542,7 +542,9 @@ export default {
 	assessment: {
 		title: 'Evaluación',
 		loading: 'Cargando evaluación...',
-		loadingError: 'Tiempo de espera agotado al cargar evaluación. Esta evaluación puede ser inválida o el reproductor no pudo inicializarse.',
+		loadingError: 'No se pudo cargar esta evaluación. Inténtalo de nuevo.',
+		stillLoading: 'Sigue cargando. Espera un momento.',
+		loadingRetry: 'Intentar de nuevo',
 		question: 'Pregunta {current} de {total}',
 		questionAnnouncement: 'Pregunta {current} de {total}',
 		section: 'Sección {current} de {total}',
@@ -660,6 +662,37 @@ export default {
 			announcement: 'La evaluación está en pausa.',
 			withReason: 'La evaluación está en pausa: {reason}',
 			resumed: 'La evaluación se ha reanudado.',
+		},
+
+		// Autosave: el indicador de guardado junto al conteo de respuestas.
+		autosave: {
+			saved: 'Guardado · {time}',
+			savedShort: 'Guardado',
+			saving: 'Guardando…',
+			notSaved: 'Sin guardar',
+		},
+
+		// Una instantánea restaurada con respuestas guardadas: continuar o empezar de nuevo.
+		resume: {
+			title: '¿Reanudar tu prueba?',
+			description: 'Tienes respuestas guardadas del {time}.',
+			descriptionNoTime: 'Tienes respuestas guardadas de una sesión anterior.',
+			resumeAction: 'Reanudar donde lo dejaste',
+			startOver: 'Empezar de nuevo',
+			confirmTitle: '¿Empezar de nuevo y borrar tus respuestas guardadas?',
+			confirmDescription:
+				'Tus respuestas guardadas se borrarán y la prueba empezará desde el principio. Esto no se puede deshacer.',
+			confirmAction: 'Borrar y empezar de nuevo',
+			cancel: 'Conservar mis respuestas guardadas',
+			resumedAnnouncement: 'Tus respuestas guardadas se han restaurado.',
+			restartedAnnouncement: 'La prueba se ha reiniciado desde el principio.',
+		},
+
+		// El contenido de una pregunta falló: lenguaje claro, sin texto técnico, y la prueba continúa.
+		itemError: {
+			title: 'No se pudo mostrar esta pregunta.',
+			tryAgain: 'Intentar de nuevo',
+			continue: 'Continuar',
 		},
 
 		feedback: {

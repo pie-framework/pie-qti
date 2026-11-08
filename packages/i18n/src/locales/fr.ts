@@ -541,7 +541,9 @@ export default {
 	assessment: {
 		title: 'Évaluation',
 		loading: 'Chargement de l\'évaluation...',
-		loadingError: 'Délai d\'attente dépassé pour le chargement de l\'évaluation. Cette évaluation peut être invalide ou le lecteur n\'a pas pu s\'initialiser.',
+		loadingError: 'Cette évaluation n\'a pas pu être chargée. Veuillez réessayer.',
+		stillLoading: 'Chargement en cours. Veuillez patienter un instant.',
+		loadingRetry: 'Réessayer',
 		question: 'Question {current} sur {total}',
 		questionAnnouncement: 'Question {current} sur {total}',
 		section: 'Section {current} sur {total}',
@@ -660,6 +662,37 @@ export default {
 			announcement: 'L\'évaluation est en pause.',
 			withReason: 'L\'évaluation est en pause : {reason}',
 			resumed: 'L\'évaluation a repris.',
+		},
+
+		// Autosave : l'indicateur d'enregistrement à côté du compteur de réponses.
+		autosave: {
+			saved: 'Enregistré · {time}',
+			savedShort: 'Enregistré',
+			saving: 'Enregistrement…',
+			notSaved: 'Non enregistré',
+		},
+
+		// Un instantané restauré avec des réponses enregistrées : continuer ou recommencer.
+		resume: {
+			title: 'Reprendre votre test ?',
+			description: 'Vous avez des réponses enregistrées à partir du {time}.',
+			descriptionNoTime: 'Vous avez des réponses enregistrées d\'une session précédente.',
+			resumeAction: 'Reprendre où vous en étiez',
+			startOver: 'Recommencer',
+			confirmTitle: 'Recommencer et supprimer vos réponses enregistrées ?',
+			confirmDescription:
+				'Vos réponses enregistrées seront supprimées et le test recommencera depuis le début. Cette action est irréversible.',
+			confirmAction: 'Supprimer et recommencer',
+			cancel: 'Garder mes réponses enregistrées',
+			resumedAnnouncement: 'Vos réponses enregistrées ont été restaurées.',
+			restartedAnnouncement: 'Le test a recommencé depuis le début.',
+		},
+
+		// Le contenu d'une question a échoué : en clair, sans texte technique, et le test continue.
+		itemError: {
+			title: 'Cette question n\'a pas pu être affichée.',
+			tryAgain: 'Réessayer',
+			continue: 'Continuer',
 		},
 
 		feedback: {
