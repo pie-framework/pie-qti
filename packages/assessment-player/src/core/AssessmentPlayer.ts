@@ -62,16 +62,19 @@ import { NavigationManager } from './NavigationManager.js';
 import {
 	addItemVariableDeclarations,
 	applyVariableMappings,
+	type DeliveredItem,
 	deliveredItems,
 	endAttemptInteractionInfo,
 	evaluateTestExpression,
 	isAdaptiveItemXml,
 	itemSessionVariableValues,
 	plainQtiValue,
+	recordedItemVariableValues,
 	resolveItemSessionControl,
 	sectionComponents,
 	testOutcomeDeclarations,
 } from './testStructure.js';
+import { firstEligibleItem, nextItemIdentifier } from '../integration/test-navigation.js';
 import { extendTimeLimit, TimeManager } from './TimeManager.js';
 import {
 	interactionRequirementFromXml,
@@ -442,12 +445,6 @@ export class AssessmentPlayer {
 	 */
 	private lastItemFeedback: ItemFeedbackView | null = null;
 	/**
-	 * The writable session snapshot taken immediately before the last item-level
-	 * submission ended its attempt; the check-answer flow reopens the item from it while
-	 * attempts remain, so the candidate can revise and check again.
-	 */
-	private lastPreSubmitSession: { itemIdentifier: string; state: SerializedItemSessionState } | null = null;
-	/**
 	 * The responses each item's last counted submission carried. Moving on from an item
 	 * that already has a recorded result (a practice check) re-submits only when the
 	 * candidate changed something: an unchanged response does not spend another attempt.
@@ -476,11 +473,27 @@ export class AssessmentPlayer {
 	 */
 	private readonly expiriesDuringEnd: Array<{ scope: 'testPart' | 'section' | 'item'; identifier: string }> = [];
 	/**
-	 * A branch rule (`EXIT_TESTPART`, `EXIT_SECTION` or a target outside the part) that would
-	 * have left a test part with questions still owing an answer: the candidate stayed, and
-	 * the next `next()` from the same item follows it once the questions are answered.
+	 * The backend's decision for leaving an item (`nextItemIdentifier`) that delivery has not
+	 * followed yet: a submission that stays on the item (a practice check, a counted
+	 * endAttemptInteraction) keeps it; so does a branch exit refused while questions of the part
+	 * still owed an answer, and the end of the test's own collection (which never navigates).
+	 * The next forward step from that item that submits nothing — the candidate moves on with
+	 * the response unchanged — follows it; a changed response re-submits and the fresh decision
+	 * replaces it. One decision is kept at a time: any later counted submission replaces it (the
+	 * outcomes it was decided on have moved), and following it clears it.
 	 */
-	private pendingBranchExit: { itemIdentifier: string; target: string } | null = null;
+	private keptBranchDecision: { itemIdentifier: string; target: string } | null = null;
+	/** The delivered items as the delivery rules walk them (index-aligned with `items`). */
+	private deliveredForRules: DeliveredItem[] = [];
+	/** Flat index per item identifier. */
+	private readonly indexByIdentifier = new Map<string, number>();
+	/**
+	 * Whether the test carries branch rules or preconditions at all; without them the next item
+	 * is always the adjacent open one, and no rule is evaluated.
+	 */
+	private hasDeliveryRules = false;
+	/** Set while the end of the test persists its final snapshot: every item session in it is closed. */
+	private snapshotsCloseItemSessions = false;
 	/** Rejections for force-submits queued behind a transition, settled on destroy(). */
 	private readonly queuedForceSubmits = new Set<(error: Error) => void>();
 	/** A restored whole-test expiry's automatic finalize is scheduled (or ran). */
@@ -523,6 +536,13 @@ export class AssessmentPlayer {
 			} as AssessmentSessionState);
 
 		this.items = this.flattenItems(this.assessment);
+		this.deliveredForRules = this.items.map(({ item, testPart, sections }) => ({ item, testPart, sections }));
+		for (const q of this.items) this.indexByIdentifier.set(q.identifier, q.index);
+		const ruled = (holder: { preConditions?: string[]; branchRule?: unknown[] }) =>
+			(holder.preConditions?.length ?? 0) > 0 || (holder.branchRule?.length ?? 0) > 0;
+		this.hasDeliveryRules = this.items.some(
+			(q) => ruled(q.item) || ruled(q.testPart) || q.sections.some((section) => ruled(section)),
+		);
 
 		this.navigationManager = new NavigationManager();
 		// Visited marks ride the snapshot: a resumed session keeps them, not only a
@@ -811,6 +831,14 @@ export class AssessmentPlayer {
 			intervalMs: this.config.autosaveIntervalMs ?? 1500,
 			collect: () => {
 				const snapshot = this.getState({ includeItemSessions: true });
+				if (this.snapshotsCloseItemSessions && snapshot.itemSessions) {
+					snapshot.itemSessions = Object.fromEntries(
+						Object.entries(snapshot.itemSessions).map(([identifier, session]) => [
+							identifier,
+							closedItemSession(session),
+						]),
+					);
+				}
 				snapshot.timing = { ...snapshot.timing, savedAt: Date.now() };
 				return { sessionId: this.sessionId, state: snapshot };
 			},
@@ -947,8 +975,7 @@ export class AssessmentPlayer {
 				if (!accepted.has(identifier)) this.lastSubmittedResponses.delete(identifier);
 			}
 			this.lastItemFeedback = null;
-			this.lastPreSubmitSession = null;
-			this.pendingBranchExit = null;
+			this.keptBranchDecision = null;
 			this.templateDefaultsByPart.clear();
 			// Delivery repositions to the first open item of the furthest part reached (else
 			// the first open item after it); with none left, the expiry dead end: the
@@ -1531,13 +1558,18 @@ export class AssessmentPlayer {
 	 * status-only; `navigateTo()` still enforces this authoritatively.
 	 */
 	public isNavigationTargetLegal(index: number): boolean {
+		return this.isNavigationTargetLegalWith(index, this.lazyForward());
+	}
+
+	/** `isNavigationTargetLegal` with the forward step computed once for a batch of targets. */
+	private isNavigationTargetLegalWith(index: number, forward: () => number): boolean {
 		if (this.finalized || this.currentItemIndex < 0) return false;
 		const target = this.items[index];
 		if (!target) return false;
 		if (target !== this.items[this.currentItemIndex]) {
 			if (this.isItemLocked(target)) return false;
 			if (!this.canReviewItem(target)) return false;
-			if (!this.canNavigateByTestPart(index, this.currentItemIndex)) return false;
+			if (!this.canNavigateByTestPart(index, this.currentItemIndex, forward)) return false;
 		}
 		return true;
 	}
@@ -1573,6 +1605,7 @@ export class AssessmentPlayer {
 
 	/** Every delivered item as the review screen lists it: status, flag, visited, jump legality. */
 	public getReviewItems(): ReviewItemView[] {
+		const forward = this.lazyForward();
 		return this.items.map((item) => ({
 			identifier: item.identifier,
 			index: item.index,
@@ -1582,7 +1615,7 @@ export class AssessmentPlayer {
 			status: this.getItemAnswerStatus(item.identifier),
 			flagged: this.sessionCoordinator.isItemFlagged(item.identifier),
 			visited: this.navigationManager.isVisited(item.index) || item.index === this.currentItemIndex,
-			jumpAllowed: this.isNavigationTargetLegal(item.index),
+			jumpAllowed: this.isNavigationTargetLegalWith(item.index, forward),
 			isCurrent: item.index === this.currentItemIndex,
 		}));
 	}
@@ -1619,25 +1652,23 @@ export class AssessmentPlayer {
 	 */
 	public getForwardTransitionInfo(): ForwardTransitionInfo {
 		const current = this.items[this.currentItemIndex];
-		// A branch exit the backend decided for this item, held back while questions of the
-		// part still owed an answer, is what Next does now.
-		const pending =
-			current && !this.finalized && this.pendingBranchExit?.itemIdentifier === current.identifier
-				? this.pendingBranchExit
-				: null;
-		if (current && pending) {
-			const target = this.branchTargetIndex(current, pending.target);
+		if (!current || this.finalized) return { nextIndex: null, leavesTestPart: false };
+		// A decision the backend made for this item and delivery has not followed yet (a
+		// check's, a branch exit held back while questions of the part still owed an answer)
+		// is what Next does now — unless Next re-submits a changed response, which decides anew.
+		const kept = this.nextSubmits(current) ? null : this.keptBranchDecisionFor(current);
+		if (kept) {
+			const target = this.branchTargetIndex(current, kept.target);
 			return {
 				nextIndex: target >= 0 ? target : null,
-				leavesTestPart: this.branchExitLeavesPart(current, pending.target),
+				leavesTestPart: this.branchExitLeavesPart(current, kept.target),
 			};
 		}
-		const nextIndex =
-			this.finalized || this.currentItemIndex < 0 ? -1 : this.nextUnlockedIndex(this.currentItemIndex);
+		const nextIndex = this.forwardStepIndex(current);
 		const next = nextIndex >= 0 ? this.items[nextIndex] : undefined;
 		return {
 			nextIndex: next ? nextIndex : null,
-			leavesTestPart: Boolean(current && next && next.testPart !== current.testPart),
+			leavesTestPart: Boolean(next && next.testPart !== current.testPart),
 		};
 	}
 
@@ -2213,6 +2244,8 @@ export class AssessmentPlayer {
 			this.timeManager?.resetExpiryRecord();
 			this.lockExpiredScopesFromClocks(state.timing);
 			this.templateDefaultsByPart.clear();
+			// The snapshot replaces delivery: a backend decision kept for the old position is void.
+			this.keptBranchDecision = null;
 			// The snapshot carries the proctor pause; the begin gate keeps holding the clocks.
 			const wasPaused = this.paused;
 			this.paused = state.timing?.isPaused === true;
@@ -2420,65 +2453,195 @@ export class AssessmentPlayer {
 	}
 
 	private async performNext(): Promise<void> {
-		const state = this.getNavigationState();
 		const q = this.items[this.currentItemIndex];
-		const pendingExit = q && this.pendingBranchExit?.itemIdentifier === q.identifier ? this.pendingBranchExit : null;
-		if (!state.canNext && !pendingExit) return;
+		if (!q || this.finalized) return;
+		const responses = this.sessionCoordinator.getActiveResponses();
+		// In individual submission mode the move submits the current item unless its attempts
+		// are used up, it is already closed, or its recorded result already carries these exact
+		// responses (a practice item moved on unchanged): the backend then decides where it goes.
+		const submits = this.nextSubmits(q, responses);
+		// A move that submits nothing follows the backend's decision kept for this item (a
+		// check's, an end-attempt's, a branch exit held back, an end of the test that did not
+		// complete); with none on record, the delivery rules decide (`ruleForwardIndex`).
+		const kept = submits ? null : this.keptBranchDecisionFor(q);
+		const forward = submits ? this.nextUnlockedIndex(q.index) : kept ? -1 : this.ruleForwardIndex(q);
+		if (!kept && forward < 0) return;
 
-		if (q) {
-			const responses = this.sessionCoordinator.getActiveResponses();
-			this.sessionCoordinator.markAnswered(q.identifier, responses);
-
-			// In individual submission mode, submit the current item before moving forward
-			// unless its attempts are used up, it is already closed, or its recorded result
-			// already carries these exact responses (a practice item moved on unchanged).
-			const lifecycle = this.currentItemSession?.state().lifecycleStatus;
-			const submits =
-				this.isIndividual(q) &&
-				this.sessionCoordinator.canSubmit(q.identifier) &&
-				lifecycle !== 'closed' &&
-				!this.responsesUnchangedSinceSubmission(q.identifier, responses);
-			// QTI allowSkipping (individual parts only): an item that is about to be
-			// submitted without any response may only be skipped when skipping is allowed.
-			// A simultaneous part, an item already closed, or one an expired limit closed
-			// (collected as it stands) is never held here.
-			if (submits && !this.isItemLocked(q) && this.submissionGate(q, responses).mustAnswer) {
-				throw new AssessmentPlayerError('responseRequired', 'You must answer this question before continuing.');
-			}
-			// A step out of the part (the adjacent next item lies in the next part, or a
-			// branch exit refused earlier is due) is refused before anything is submitted
-			// while another question of the part still owes an answer: the part cannot be
-			// re-entered. The current item is this move's own submission.
-			const forward = this.nextUnlockedIndex(this.currentItemIndex);
-			const leavesPart = pendingExit
-				? this.branchExitLeavesPart(q, pendingExit.target)
-				: forward >= 0 && this.items[forward]!.testPart !== q.testPart;
-			if (leavesPart && !this.isItemLocked(q)) this.assertCanLeaveScope(q, { exclude: q });
-			if (submits) {
-				const before = this.currentItemIndex;
-				this.pendingBranchExit = null;
-				await this.submitCurrentItemInternal();
-				// The submission may branch, navigate, or finalize the test (EXIT_TEST);
-				// in those cases navigation stops here.
-				if (this.currentItemIndex !== before || this.finalized) return;
-			} else if (pendingExit) {
-				// The candidate answered what the part owed: the branch decision the backend
-				// made for this item's submission is followed now. A decision that can no
-				// longer be followed (it would re-enter a part already left) leaves the
-				// candidate's own forward step.
-				const before = this.currentItemIndex;
-				await this.followBranch(q, pendingExit.target);
-				if (this.currentItemIndex !== before || this.finalized) return;
-			}
-			// The candidate may still return and re-attempt this item: reopen it writable
-			// while attempts remain (a no-op for closed single-attempt or writable items),
-			// so the revisit restores an attemptable state instead of the closed one.
-			this.reopenForRemainingAttempts(q);
+		this.sessionCoordinator.markAnswered(q.identifier, responses);
+		// QTI allowSkipping (individual parts only): an item that is about to be submitted
+		// without any response may only be skipped when skipping is allowed. A simultaneous
+		// part, an item already closed, or one an expired limit closed (collected as it
+		// stands) is never held here.
+		if (submits && !this.isItemLocked(q) && this.submissionGate(q, responses).mustAnswer) {
+			throw new AssessmentPlayerError('responseRequired', 'You must answer this question before continuing.');
 		}
-
-		const nextIndex = this.nextUnlockedIndex(this.currentItemIndex);
+		// A step out of the part (the next item lies in the next part, or a kept decision
+		// leaves it) is refused before anything is submitted while another question of the
+		// part still owes an answer: the part cannot be re-entered. The current item is this
+		// move's own submission (or already accepted as it stands).
+		const leavesPart = kept
+			? this.branchExitLeavesPart(q, kept.target)
+			: this.items[forward]!.testPart !== q.testPart;
+		if (leavesPart && !this.isItemLocked(q)) this.assertCanLeaveScope(q, { exclude: q });
+		if (submits) {
+			const before = this.currentItemIndex;
+			this.keptBranchDecision = null;
+			await this.submitCurrentItemInternal();
+			// The submission may branch, navigate, or finalize the test (EXIT_TEST); in those
+			// cases navigation stops here.
+			if (this.currentItemIndex !== before || this.finalized) return;
+		} else if (kept) {
+			// The decision the backend made for this item's accepted submission is followed now.
+			// The move submits nothing, so its minimum times are checked here (an end of the
+			// test checks its own). One that can no longer be followed (it would re-enter a part
+			// already left) leaves the forward step to the delivery rules.
+			const target = this.items[this.branchTargetIndex(q, kept.target)];
+			if (target && !this.isItemLocked(q)) this.assertTransitionMinimum(q, target);
+			const before = this.currentItemIndex;
+			await this.followBranch(q, kept.target);
+			if (this.currentItemIndex !== before || this.finalized) return;
+		}
+		// The candidate may still return and re-attempt this item: reopen it writable while
+		// attempts remain (a no-op for closed single-attempt or writable items), so the
+		// revisit restores an attemptable state instead of the closed one.
+		this.reopenForRemainingAttempts(q);
+		// No backend decision moved delivery (none was returned, or it could not be followed):
+		// the delivery rules decide, as the navigation rules check them.
+		const nextIndex = this.unsubmittedForwardIndex(q);
 		if (nextIndex < 0) return;
 		await this.performNavigateTo(nextIndex);
+	}
+
+	/**
+	 * Whether `next()` from the item submits it: an individual part's item whose attempts
+	 * remain, that is not closed, and whose responses differ from its last counted submission
+	 * (or that has none).
+	 */
+	private nextSubmits(q: FlatItem, responses = this.sessionCoordinator.getActiveResponses()): boolean {
+		return (
+			this.isIndividual(q) &&
+			this.sessionCoordinator.canSubmit(q.identifier) &&
+			this.itemLifecycleOf(q.identifier) !== 'closed' &&
+			!this.responsesUnchangedSinceSubmission(q.identifier, responses)
+		);
+	}
+
+	/**
+	 * The backend decision kept for leaving `q`, if delivery has not followed it yet. A decision
+	 * onto an item an expired time limit has closed since is passed over like the item itself:
+	 * the delivery rules then find the next open item.
+	 */
+	private keptBranchDecisionFor(q: FlatItem): { itemIdentifier: string; target: string } | null {
+		const kept = this.keptBranchDecision?.itemIdentifier === q.identifier ? this.keptBranchDecision : null;
+		if (!kept) return null;
+		const target = this.items[this.indexOfItem(kept.target)];
+		return target && this.isItemLocked(target) ? null : kept;
+	}
+
+	/**
+	 * Where the candidate's Next goes from `q`: when it submits the item, the backend decides
+	 * once the submission is accepted (the adjacent open item stands for that decision until
+	 * then); otherwise the destination is known now (`unsubmittedForwardIndex`). -1 when
+	 * nothing follows — Submit is the way on.
+	 */
+	private forwardStepIndex(q: FlatItem): number {
+		return this.nextSubmits(q) ? this.nextUnlockedIndex(q.index) : this.unsubmittedForwardIndex(q);
+	}
+
+	/**
+	 * Where a forward step from `q` that submits nothing lands — a move on after a practice
+	 * check, a move out of a simultaneous part, a jump into the next test part: the backend's
+	 * decision kept for `q`, else the next item the delivery rules make eligible
+	 * (`ruleForwardIndex`). -1 when nothing follows (an EXIT_TEST decision, nothing eligible).
+	 */
+	private unsubmittedForwardIndex(q: FlatItem): number {
+		const kept = this.keptBranchDecisionFor(q);
+		return kept ? this.branchTargetIndex(q, kept.target) : this.ruleForwardIndex(q);
+	}
+
+	/**
+	 * The next item after `q` when no backend decision applies, by the reference backend's own
+	 * rules (`nextItemIdentifier`): branch rules first — in a linear part the item's and those
+	 * of each section it ends, the test part's at its end — then preconditions: a test part's on
+	 * entering it in any navigation mode, a linear part's sections and items on reaching them.
+	 * They read the test outcomes the backend last returned and the recorded variables of every
+	 * item it accepted (`ITEM.VARIABLE`), as the backend does. Items an expired time limit closed
+	 * are passed over. A test without branch rules or preconditions moves to the adjacent open item.
+	 */
+	private ruleForwardIndex(q: FlatItem): number {
+		if (!this.hasDeliveryRules) return this.nextUnlockedIndex(q.index);
+		const decls = this.navigationDeclarationsFor(q);
+		const first = this.indexOfItem(nextItemIdentifier(this.assessment, this.deliveredForRules, q.index, decls, Math.random));
+		if (first < 0) return -1;
+		if (!this.isItemLocked(this.items[first]!)) return first;
+		for (const index of this.eligibleIndexesAfter(first, decls)) {
+			if (!this.isItemLocked(this.items[index]!)) return index;
+		}
+		return -1;
+	}
+
+	/**
+	 * The items the delivery rules reach after `fromIndex`, in order: each one whose
+	 * preconditions hold as the sequence enters its test part (any navigation mode) and, in a
+	 * linear part, its sections and the item itself. Without rules, every following item.
+	 */
+	private *eligibleIndexesAfter(fromIndex: number, decls?: DeclarationMap): Generator<number> {
+		if (!this.hasDeliveryRules) {
+			for (let index = fromIndex + 1; index < this.items.length; index++) yield index;
+			return;
+		}
+		const from = this.items[fromIndex];
+		if (!from) return;
+		const declarations = decls ?? this.navigationDeclarationsFor(from);
+		let previous = this.deliveredForRules[fromIndex];
+		let start = fromIndex + 1;
+		while (start < this.items.length) {
+			const index = this.indexOfItem(
+				firstEligibleItem(this.assessment, this.deliveredForRules, start, previous, declarations, Math.random),
+			);
+			if (index < 0) return;
+			yield index;
+			previous = this.deliveredForRules[index];
+			start = index + 1;
+		}
+	}
+
+	/**
+	 * The declarations branch rules and preconditions read, built as the reference backend
+	 * builds them for a decision about leaving `from`: the test outcomes the backend last
+	 * returned, every item with a recorded result as `ITEM.VARIABLE` (an item without one reads
+	 * as NULL), and `from`'s own variables unprefixed where the test declares no such outcome.
+	 */
+	private navigationDeclarationsFor(from: FlatItem): DeclarationMap {
+		const recorded: Record<string, Record<string, QtiValue>> = {};
+		for (const item of this.items) {
+			const scoring = this.state.itemScores?.[item.identifier];
+			if (!scoring && !this.sessionCoordinator.hasItemResult(item.identifier)) continue;
+			const variables = recordedItemVariableValues(this.state.itemSessions?.[item.identifier], scoring?.outcomeValues);
+			if (scoring && !variables.SCORE) variables.SCORE = { kind: 'value', baseType: 'float', cardinality: 'single', value: scoring.score };
+			recorded[item.identifier] = applyVariableMappings(variables, item.item.variableMappings);
+		}
+		return addItemVariableDeclarations(
+			testOutcomeDeclarations(this.assessment, this.testOutcomes ?? undefined),
+			recorded,
+			recorded[from.identifier] ?? {},
+		);
+	}
+
+	private indexOfItem(identifier: string | undefined): number {
+		return identifier === undefined ? -1 : (this.indexByIdentifier.get(identifier) ?? -1);
+	}
+
+	/** The forward step, computed at most once for a batch of legality checks. */
+	private lazyForward(): () => number {
+		let forward: number | undefined;
+		return () => {
+			if (forward === undefined) {
+				const current = this.items[this.currentItemIndex];
+				forward = current ? this.unsubmittedForwardIndex(current) : -1;
+			}
+			return forward;
+		};
 	}
 
 	/**
@@ -2612,34 +2775,29 @@ export class AssessmentPlayer {
 	}
 
 	/**
-	 * While counted attempts remain on a non-adaptive item whose check-answer submission
-	 * just ended its live attempt, reopen a writable session from the pre-submit state
-	 * and re-run response processing (`scoreAttempt`) so the computed outcomes — and with
-	 * them the item's integrated feedback — render while the candidate revises.
+	 * While counted attempts remain on a non-adaptive item whose attempt just ended (a
+	 * practice check, a submit-on-move the candidate may come back to), reopen it writable
+	 * from that processed attempt: the session keeps the attempt count (the engine restores
+	 * `contextVariables.numAttempts`, so the next counted attempt runs response processing as
+	 * attempt k+1) and the outcomes response processing computed — the integrated feedback
+	 * renders from them while the candidate revises — with its lifecycle set back to
+	 * `interacting`. What the item persists from then on is the attempt the backend accepted.
 	 */
 	private reopenForRemainingAttempts(q: FlatItem): void {
 		if (isAdaptiveItemXml(q.item.itemXml)) return;
 		// Only the item delivery stands on (a scope expiry may have moved the candidate away
 		// while its submission was in flight): another item's live session is never replaced.
 		if (this.items[this.currentItemIndex] !== q) return;
+		// An item an expired time limit closed stays closed.
+		if (this.isItemLocked(q)) return;
 		const live = this.currentItemSession;
-		if (!live || isWritableItemLifecycle(live.state().lifecycleStatus)) return;
+		if (!live || live.state().lifecycleStatus !== 'closed') return;
 		if (!this.sessionCoordinator.canSubmit(q.identifier)) return;
-		const pre = this.lastPreSubmitSession;
-		if (!pre || pre.itemIdentifier !== q.identifier) return;
 		const presentation = this.presentationFor(q);
 		const session = this.getItemDefinition(q).openSession({
-			restore: pre.state,
+			restore: { ...live.serialize(), lifecycleStatus: 'interacting' },
 			presentation,
 		});
-		try {
-			// Recompute outcomes from the submitted responses: integrated feedback
-			// (feedbackInline / feedbackBlock) renders from the session's outcome values.
-			session.dispatch({ action: 'scoreAttempt' });
-		} catch {
-			// The writable pre-submit state stays usable even if the scoring pass fails.
-		}
-		this.lastPreSubmitSession = null;
 		this.releaseCurrentItemSession();
 		this.attachCurrentItemSession(q, session, presentation);
 		this.notifyItemChange();
@@ -2720,8 +2878,6 @@ export class AssessmentPlayer {
 		let itemSession: SerializedItemSessionState | undefined;
 		const submittedSession = this.currentItemSession;
 		const preSubmitSession = submittedSession?.serialize();
-		// The writable snapshot the check-answer flow reopens from while attempts remain.
-		this.lastPreSubmitSession = preSubmitSession ? { itemIdentifier: q.identifier, state: preSubmitSession } : null;
 		let res: Awaited<ReturnType<BackendAdapter['submitResponses']>>;
 		try {
 			if (submittedSession) {
@@ -2794,9 +2950,8 @@ export class AssessmentPlayer {
 				);
 				this.notifyItemChange();
 			}
-			// Nothing committed: no feedback and no reopen snapshot belong to this attempt.
+			// Nothing committed: no feedback belongs to this attempt.
 			this.lastItemFeedback = null;
-			this.lastPreSubmitSession = null;
 			throw error;
 		}
 
@@ -2865,7 +3020,16 @@ export class AssessmentPlayer {
 			// - EXIT_TESTPART ends the current test part; EXIT_SECTION ends the current section.
 			//   Delivery continues with the next item outside the ended scope; when none follows
 			//   (for the part, or the test), the ended scope finalizes like a normal end of test.
-			if (options.followBranching !== false && res.nextItemIdentifier) {
+			// A submission that stays on the item (a practice check, a counted end-attempt) keeps
+			// the decision instead: the next forward step from the item that submits nothing
+			// follows it. Either way it replaces a decision kept for another item, which was made
+			// on outcomes this submission has moved.
+			this.keptBranchDecision = null;
+			if (options.followBranching === false) {
+				if (res.nextItemIdentifier) {
+					this.keptBranchDecision = { itemIdentifier: q.identifier, target: res.nextItemIdentifier };
+				}
+			} else if (res.nextItemIdentifier) {
 				await this.followBranch(q, res.nextItemIdentifier);
 			}
 			// Still on the item (a check, a hint, the last item): what it shows follows the
@@ -2906,12 +3070,12 @@ export class AssessmentPlayer {
 		const standing = this.items[this.currentItemIndex] ?? q;
 		// A test part delivery already left is never re-entered, whatever the decision says.
 		if (targetIndex >= 0 && this.partOrder(this.items[targetIndex]) < this.partOrder(standing)) {
-			this.pendingBranchExit = null;
+			this.keptBranchDecision = null;
 			return;
 		}
 		// An end of the test is running: it collects where the candidate stands.
 		if (this.endReason !== null) {
-			this.pendingBranchExit = { itemIdentifier: q.identifier, target };
+			this.keptBranchDecision = { itemIdentifier: q.identifier, target };
 			return;
 		}
 		// Delivery moved on while the submission was in flight: the decision no longer applies.
@@ -2920,10 +3084,10 @@ export class AssessmentPlayer {
 			if (target === 'EXIT_TEST') this.assertNoSubmissionBlockers();
 			else if (this.branchExitLeavesPart(q, target)) this.assertCanLeaveScope(q, { exclude: q });
 		} catch (error) {
-			this.pendingBranchExit = { itemIdentifier: q.identifier, target };
+			this.keptBranchDecision = { itemIdentifier: q.identifier, target };
 			throw error;
 		}
-		this.pendingBranchExit = null;
+		this.keptBranchDecision = null;
 		if (target === 'EXIT_TEST') {
 			await this.endTestInternal({ reason: 'branch' });
 			return;
@@ -3064,28 +3228,38 @@ export class AssessmentPlayer {
 	}
 
 	private canNext(): boolean {
-		if (this.currentItemIndex < 0) return false;
-		const nextIdx = this.nextUnlockedIndex(this.currentItemIndex);
-		if (nextIdx < 0) return false;
-		if (!this.canNavigateByTestPart(nextIdx, this.currentItemIndex)) return false;
+		const current = this.items[this.currentItemIndex];
+		if (!current) return false;
 		// Note: itemSessionControl constraints on leaving current item are enforced in next().
-		return true;
+		return this.forwardStepIndex(current) >= 0;
 	}
 
-	private canNavigateByTestPart(targetIndex: number, currentIndex: number): boolean {
+	/**
+	 * Whether a candidate-initiated move from `currentIndex` to `targetIndex` follows the
+	 * navigation rules. Within a nonlinear test part any item is reachable. Otherwise the only
+	 * forward move is the forward step itself — `forward`, the item the backend's decision kept
+	 * for the current item or the delivery rules (branch rules, preconditions) deliver next,
+	 * passing over items an expired limit closed: in a linear part no item is skipped or
+	 * revisited, and test parts are entered in sequence — never a jump across a part, never
+	 * one back, never into a part whose precondition fails.
+	 */
+	private canNavigateByTestPart(
+		targetIndex: number,
+		currentIndex: number,
+		forward: () => number = () => {
+			const current = this.items[currentIndex];
+			return current ? this.unsubmittedForwardIndex(current) : -1;
+		},
+	): boolean {
 		if (targetIndex < 0 || targetIndex >= this.items.length) return false;
 		const current = this.items[currentIndex];
 		const target = this.items[targetIndex];
 		if (!current || !target) return false;
-		// Items locked by an expired time limit are passed over.
-		const nextIndex = this.nextUnlockedIndex(currentIndex);
-		if (current.testPart !== target.testPart) {
-			// QTI testParts are delivered in sequence. A candidate may enter the next
-			// part, but cannot jump across parts or return to a completed part.
-			return targetIndex === nextIndex;
-		}
+		if (targetIndex === currentIndex) return true;
 		const mode = current.testPart.navigationMode ?? this.assessment.navigationMode ?? 'nonlinear';
-		return mode === 'nonlinear' || targetIndex === currentIndex || targetIndex === nextIndex;
+		if (current.testPart === target.testPart && mode === 'nonlinear') return true;
+		if (targetIndex < currentIndex) return false;
+		return targetIndex === forward();
 	}
 
 	private async submitSimultaneousItems(items: readonly FlatItem[]): Promise<void> {
@@ -3164,6 +3338,8 @@ export class AssessmentPlayer {
 				// The accepted response set: a retry, a later collection pass, or finalize
 				// must not re-submit identical responses for this item.
 				this.lastSubmittedResponses.set(q.identifier, cloneResponseRecord(responsesForItem));
+				// A decision kept for another item was made on outcomes this one has moved.
+				this.keptBranchDecision = null;
 				this.setTestOutcomes(res.outcomes);
 				this.reportOutcomeProcessingError(res.outcomeProcessingError);
 			}
@@ -3433,12 +3609,26 @@ export class AssessmentPlayer {
 		// Persist the final draft before the backend finalizes: outcome processing reads
 		// the stored timing (the built-in durations), so it must see the end-of-test
 		// clocks, not the last debounced autosave. Safe mid-transition (inside the
-		// exclusive lock); a failed save stays non-fatal.
-		await this.autosave?.flushImmediate();
-		const finalized: FinalizeAssessmentResponse = await this.backend.finalizeAssessment({
-			sessionId: this.sessionId,
-		});
-		if (!finalized.success) throw new AssessmentPlayerError('finalizeFailed', 'Finalize failed');
+		// exclusive lock); a failed save stays non-fatal. It is the record of the ended
+		// test, so every item session in it is over: a practice item reopened for attempts
+		// the candidate did not use stands closed, as the backend last accepted it (the
+		// collection re-sent every changed response).
+		this.snapshotsCloseItemSessions = true;
+		try {
+			await this.autosave?.flushImmediate();
+		} finally {
+			this.snapshotsCloseItemSessions = false;
+		}
+		let finalized: FinalizeAssessmentResponse;
+		try {
+			finalized = await this.backend.finalizeAssessment({ sessionId: this.sessionId });
+			if (!finalized.success) throw new AssessmentPlayerError('finalizeFailed', 'Finalize failed');
+		} catch (error) {
+			// The test goes on: the stored draft gets its open sessions back, so attempts the
+			// candidate may still use survive a reload.
+			await this.autosave?.flushImmediate();
+			throw error;
+		}
 
 		// Map backend itemScores to ItemResult[]
 		const itemScores = finalized.itemScores || {};
@@ -3480,7 +3670,10 @@ export class AssessmentPlayer {
 			results.outcomeProcessingError = this.reportedOutcomeProcessingError;
 		}
 		this.finalResults = results;
-		this.pendingBranchExit = null;
+		this.keptBranchDecision = null;
+		// Every delivered item session is over, the active one included: the player's record
+		// of the ended test reports each as final, never as owing a submission.
+		this.closeItemSessionsForEnd();
 
 		// Completion listeners run once the results exist, so `getResultsSummary()` (the
 		// shell's completion screen), `getEndReason()` and `submit()` already report them.
@@ -3499,6 +3692,30 @@ export class AssessmentPlayer {
 	 */
 	public getEndReason(): AssessmentEndReason | null {
 		return this.finalized ? this.endReason : null;
+	}
+
+	/**
+	 * The test ended: close every delivered item session in the player's record. Nothing
+	 * can be submitted any more, so an item a practice check reopened for attempts the
+	 * candidate did not use stands as the backend accepted it; the active item's live
+	 * session is replaced by a closed one (read-only; no item change — the end never
+	 * navigates).
+	 */
+	private closeItemSessionsForEnd(): void {
+		const sessions = this.state.itemSessions;
+		if (sessions) {
+			this.state.itemSessions = Object.fromEntries(
+				Object.entries(sessions).map(([identifier, session]) => [identifier, closedItemSession(session)]),
+			);
+		}
+		const q = this.items[this.currentItemIndex];
+		const live = this.currentItemSession;
+		if (!q || !live || live.state().lifecycleStatus === 'closed') return;
+		const closed = closedItemSession(live.serialize());
+		this.sessionCoordinator.setItemSession(q.identifier, closed);
+		const presentation = this.presentationFor(q);
+		this.releaseCurrentItemSession();
+		this.attachCurrentItemSession(q, this.getItemDefinition(q).openSession({ restore: closed, presentation }), presentation);
 	}
 
 	/**
@@ -3815,7 +4032,7 @@ export class AssessmentPlayer {
 		this.timeManager?.destroy();
 		this.releaseCurrentItemSession();
 		this.lastItemFeedback = null;
-		this.lastPreSubmitSession = null;
+		this.keptBranchDecision = null;
 		this.itemDefinitions.clear();
 		this.itemChangeListeners.clear();
 		this.sectionChangeListeners.clear();
@@ -3992,13 +4209,16 @@ export class AssessmentPlayer {
 	 * only forward: the next open item of its test part; else — in a nonlinear part — the
 	 * nearest open item before it; else the first open item of a later part (parts are
 	 * delivered in order, so earlier parts are never re-entered, and a part is left only
-	 * when nothing in it is open any more). -1 when nothing open remains: the expiry dead
-	 * end, where the candidate's way out is the submission.
+	 * when nothing in it is open any more). Forward, only items the delivery rules reach
+	 * count: a part (or, in a linear part, a section or item) whose precondition fails is
+	 * skipped as on any forward step. -1 when nothing open remains: the expiry dead end,
+	 * where the candidate's way out is the submission.
 	 */
 	private openItemAfterClosure(fromIndex: number): number {
 		const from = this.items[fromIndex];
 		if (!from) return -1;
-		for (let i = fromIndex + 1; i < this.items.length; i++) {
+		const decls = this.hasDeliveryRules ? this.navigationDeclarationsFor(from) : undefined;
+		for (const i of this.eligibleIndexesAfter(fromIndex, decls)) {
 			const q = this.items[i]!;
 			if (q.testPart !== from.testPart) break;
 			if (this.isOpenTarget(q)) return i;
@@ -4011,7 +4231,7 @@ export class AssessmentPlayer {
 				if (this.isOpenTarget(q)) return i;
 			}
 		}
-		for (let i = fromIndex + 1; i < this.items.length; i++) {
+		for (const i of this.eligibleIndexesAfter(fromIndex, decls)) {
 			const q = this.items[i]!;
 			if (q.testPart !== from.testPart && !this.isItemLocked(q)) return i;
 		}
@@ -4216,4 +4436,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isWritableItemLifecycle(lifecycleStatus: SerializedItemSessionState['lifecycleStatus']): boolean {
 	return lifecycleStatus === 'initial' || lifecycleStatus === 'interacting';
+}
+
+/** A serialized item session as the end of the test leaves it: an open or suspended one is closed. */
+function closedItemSession(session: SerializedItemSessionState): SerializedItemSessionState {
+	const open =
+		session.lifecycleStatus === 'initial' ||
+		session.lifecycleStatus === 'interacting' ||
+		session.lifecycleStatus === 'suspended';
+	return open ? { ...session, lifecycleStatus: 'closed' } : session;
 }

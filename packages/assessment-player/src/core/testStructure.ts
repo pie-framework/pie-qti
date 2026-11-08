@@ -508,3 +508,48 @@ export function itemSessionVariableValues(session: {
 	}
 	return out;
 }
+
+/**
+ * An item's variables as test-level branch rules and preconditions read them (`ITEM.VARIABLE`),
+ * in the shape the reference backend records after a counted submission (its item test state):
+ * the session's context (numAttempts, duration, completionStatus), template, outcome and response
+ * variables, with `scoredOutcomes` — the backend's scored outcome values, authoritative where the
+ * delivered item carries no response processing — over them, typed by the session's own
+ * declarations (a value without one is read as the reference backend reads a bare score: a
+ * number as float, anything else as string). Record outcomes keep the session's value.
+ */
+export function recordedItemVariableValues(
+	session:
+		| {
+				contextVariables?: Record<string, SerializedVariableShape>;
+				responseVariables?: Record<string, SerializedVariableShape>;
+				outcomeVariables?: Record<string, SerializedVariableShape>;
+				templateVariables?: Record<string, SerializedVariableShape>;
+		  }
+		| undefined,
+	scoredOutcomes: Record<string, unknown> | undefined,
+): Record<string, QtiValue> {
+	const out: Record<string, QtiValue> = {};
+	for (const group of [
+		session?.contextVariables,
+		session?.templateVariables,
+		session?.outcomeVariables,
+		session?.responseVariables,
+	]) {
+		for (const [identifier, variable] of Object.entries(group ?? {})) {
+			out[identifier] = toQtiValue(variable.baseType as string, variable.cardinality, variable.value);
+		}
+	}
+	for (const [identifier, value] of Object.entries(scoredOutcomes ?? {})) {
+		const declared = out[identifier];
+		if (value === undefined || declared?.cardinality === 'record') continue;
+		if (declared?.baseType) {
+			out[identifier] = toQtiValue(declared.baseType, declared.cardinality ?? 'single', value);
+		} else if (typeof value === 'number') {
+			out[identifier] = qtiValue('float', 'single', value);
+		} else if (value !== null && typeof value !== 'object') {
+			out[identifier] = qtiValue('string', 'single', String(value));
+		}
+	}
+	return out;
+}

@@ -4,13 +4,13 @@
   Status: current
   Type: architecture
   Packages: @pie-qti/assessment-player
-  Last reviewed: 2026-11-08
+  Last reviewed: 2026-11-09
 -->
 
 **Status:** current
 **Type:** architecture
 **Packages:** `@pie-qti/assessment-player`
-**Last reviewed:** 2026-11-08
+**Last reviewed:** 2026-11-09
 
 ---
 
@@ -80,6 +80,35 @@ complete (a failed finalize), the next `next()` from that item follows it — so
 never records an unseen item as current or visited, and a retry is never held by a question the
 candidate was moved onto. A scope that expires while the end runs closes at once (its items go out
 as they stand, `time-expired`); delivery moves off it only if that end does not finalize.
+
+The end of the test is also the end of every item session: the snapshot persisted before the
+backend finalizes, and after it the player's own record (the live session included), carry each
+delivered item session closed. A practice item reopened for attempts the candidate did not use
+stands as the backend last accepted it — the collection re-sent every changed response — so Results
+Reporting reports it `final`, never `pendingSubmission`. An end that does not finalize leaves the
+sessions open (the stored draft is saved again), so the remaining attempts survive.
+
+### Why a move without a submission still applies branch rules and preconditions
+
+QTI branch rules and preconditions decide every forward move, not only the ones that submit an
+item. The backend decides the moves it sees: each counted submission returns its decision for
+leaving the item (`nextItemIdentifier`, built from the test's branch rules and the preconditions of
+what follows). A submission that stays on the item — a practice check, a counted
+`endAttemptInteraction` — keeps that decision on record (one at a time: any later counted
+submission replaces it, because the outcomes it was made on have moved), and the candidate's next
+move on from the item that submits nothing — the response unchanged — follows it. A changed
+response re-submits and the fresh decision replaces it.
+
+A move with no backend decision on record — a nonlinear jump into the next test part, a move on from
+a simultaneous part, a session resumed after a reload, a backend that returns no decision — is
+decided by the player with the reference backend's own rules (`test-navigation.ts`:
+`nextItemIdentifier`, `firstEligibleItem`), against the test outcomes the backend last returned and
+the item results it recorded (its `result.outcomeValues` over the accepted item session). The same
+forward step feeds `next()`, `canNext`, `getForwardTransitionInfo()`, `navigateTo()` legality, the
+review screen's jumps and the scope-expiry hop, so a test part whose precondition fails is never
+entered and, in a linear part, a section or item whose precondition fails is skipped. When nothing
+eligible follows, Next gives way to Submit. A test without branch rules or preconditions evaluates
+nothing and moves to the adjacent open item, as before.
 
 ### Why navigation transitions are serialized
 
@@ -165,8 +194,8 @@ A test part cannot be re-entered, so a question left owing an answer in a part t
 | `itemSessionControl.allowSkipping` | Individual parts only (QTI): a candidate submission — `next()`, check, `submitCurrentItem()`, the end of the test — never sends a skipped item (every response NULL, empty or equal to its declared default) while false; the end of the test rejects naming the items (`finalizeResponseRequired`), and so does leaving the part (`leavePartResponseRequired`). Navigation within a part is not submission. A question no longer reachable is collected as it stands (`unreachable`); time expiry and proctor force-submit collect regardless |
 | `itemSessionControl.showFeedback` / `showSolution` | Applied to the item presentation. Feedback visibility is attempt-relative: with more than one attempt, feedback shows for every non-final attempt; after the last attempt `showFeedback` governs (presentation, captured item feedback, and the check-answer control alike) |
 | `itemSessionControl.validateResponses` | Individual parts only (QTI): an answered item whose responses do not satisfy its interactions (minChoices, minStrings, matchMin…) is not submitted; the end of the test rejects naming the items (`finalizeResponseInvalid`), and so does leaving the part (`leavePartResponseInvalid`). The blocker carries the interaction's `requirement` (minimum selections, strings, associations, plays). A skipped item is the `allowSkipping` rule's domain |
-| `preCondition` (testPart, section, item ref) | Evaluated by the backend on entering each |
-| `branchRule` (item ref, section, testPart) | Evaluated by the backend; returned as `nextItemIdentifier`. `EXIT_TEST`/`EXIT_TESTPART`/`EXIT_SECTION` terminate the ended scope through the same finalization path as `submit()` |
+| `preCondition` (testPart, section, item ref) | Evaluated on entering each (a test part in any navigation mode; a section or item in a linear part): by the backend for the moves it decides, by the player with the same rules for a move without a backend decision (a jump into the next part, a move on from a simultaneous part, a resumed session). A failing part is never entered |
+| `branchRule` (item ref, section, testPart) | Evaluated by the backend; returned as `nextItemIdentifier`. A submission that stays on the item (a practice check, a counted end-attempt) keeps the decision, and the next move on that submits nothing follows it; without a backend decision the player applies the rules itself. `EXIT_TEST`/`EXIT_TESTPART`/`EXIT_SECTION` terminate the ended scope through the same finalization path as `submit()` |
 | `variableMapping` / `templateDefault` | Full. In a nonlinear test part every item ref's `templateDefault` is evaluated once at part entry (cached per part) with the test outcomes and the other items' persisted variables (`ITEM.VARIABLE`) in scope; linear parts evaluate on entering each item |
 | `testFeedback` (outcome-based) | Full for preserved structured feedback and finalized backend feedback |
 | `assessmentSection.selection` (direct children, with replacement) | Drawn by the backend at session start |
@@ -180,6 +209,12 @@ A test part cannot be re-entered, so a question left owing an answer in a part t
   built-in `duration`, `TESTPART_ID.duration` and `SECTION_ID.duration` variables are exposed to
   test-level outcome processing in seconds from the timing clocks. Direct integration coverage for
   every minimum-time scope and simultaneous expiry combination remains.
+- **Client-evaluated navigation rules:** for a move without a backend decision the player
+  evaluates branch rules and preconditions itself. It reads the item variables the client holds
+  (the accepted item session, with the backend's `result.outcomeValues` over its outcomes), and a
+  condition using a `random*` operator draws from the client's `Math.random`, not the backend's
+  rng. A production backend stays authoritative and must refuse a submission for an item its own
+  rules make ineligible.
 - **Item feedback with secured production content:** the check-answer flow and the submit-on-move
   transition surface item feedback from the candidate session's own response processing (and from
   a backend `result.feedback` when the session produces no modal feedback). Production item XML
@@ -195,7 +230,7 @@ A test part cannot be re-entered, so a question left owing an answer in a part t
 - **FR-2:** In a linear testPart, `navigateTo(index)` must permit only the current item or immediate
   next item; once the candidate advances, earlier items in that part cannot be revisited.
 - **FR-3:** In nonlinear navigation mode, `navigateTo(index)` must allow any in-bounds index.
-- **FR-4:** In `individual` submission mode, `next()` must call `submitCurrentItem()` and await its result before advancing the index. If the backend returns a `nextItemIdentifier`, the player must navigate to that item instead of `currentIndex + 1`.
+- **FR-4:** In `individual` submission mode, `next()` must call `submitCurrentItem()` and await its result before advancing the index. If the backend returns a `nextItemIdentifier`, the player must navigate to that item instead of `currentIndex + 1`; when it returns none, the player moves to the next item the delivery rules make eligible (FR-31).
 - **FR-5:** In `simultaneous` submission mode, `submit()` must send all unsubmitted items to the backend before calling `finalizeAssessment()`. Client-collected responses must survive across backend state-update responses during the submission loop.
 - **FR-6:** `getNavigationState()` must return `canPrevious: false` throughout a linear testPart and
   when review policy forbids the previous item in nonlinear delivery.
@@ -262,18 +297,21 @@ A test part cannot be re-entered, so a question left owing an answer in a part t
   session once at creation (`onPauseChange`, `onFinalized`), so an embedding's events (the
   element's `player-pause`, `session-finalized`) never miss them.
 - **FR-23:** `checkCurrentItem()` submits the active item through the normal per-item path
-  (`countAttempt: true`, branching not followed) and stays on it. It is a coded
+  (`countAttempt: true`, branching not followed) and stays on it, keeping the backend's
+  `nextItemIdentifier` as the decision for leaving the item (FR-31). It is a coded
   `maxAttemptsReached` rejection once the resolved attempts are used up and a coded
   `navigationNotAllowed` rejection outside an individual part with `showFeedback`. While
-  attempts remain, a non-adaptive item whose attempt just ended reopens writable from the
-  pre-submit snapshot with response processing re-run (`scoreAttempt`), so computed outcomes —
-  and the integrated feedback they drive — render during the revision; adaptive items keep
+  attempts remain, a non-adaptive item whose attempt just ended reopens writable from that
+  processed attempt — its attempt count (`contextVariables.numAttempts`, so attempt k runs response
+  processing as attempt k) and its computed outcomes, with the lifecycle back to `interacting` — so
+  the integrated feedback the outcomes drive renders during the revision; adaptive items keep
   their engine loop. Each counted submission captures the item's modal feedback (session-side,
   else the backend's `result.feedback`) behind the resolved `showFeedback`, exposed through
   `getLastItemFeedback()` until `clearLastItemFeedback()` or the next submission replaces it.
 - **FR-24:** Moving on from an item whose last counted submission carried exactly these
   responses (a practice check the candidate did not revise) does not submit again and does not
-  spend an attempt; a changed response re-submits through the normal path. The same rule gates
+  spend an attempt; it follows the backend decision that submission returned (FR-31). A changed
+  response re-submits through the normal path. The same rule gates
   the final current-item submission inside `endTestInternal()`, and extends to the whole
   collection: at finalize, every visited individual-mode item whose live responses differ from
   its last counted submission — or that has no recorded result — is submitted once through the
@@ -311,6 +349,23 @@ A test part cannot be re-entered, so a question left owing an answer in a part t
   from its outcomes as submitted. A templated or adaptive item without a session is refused
   (`AssessmentItemScoringError` `itemSessionRequired`). Production backends keep the
   `sendItemSessionToBackend` default (off).
+- **FR-31:** Every forward move applies the test's branch rules and preconditions. A counted
+  submission that moves (`next()`, `submitCurrentItem()`) follows its `nextItemIdentifier`; one
+  that stays on the item (a practice check, a counted `endAttemptInteraction`) keeps it — one
+  decision at a time, replaced by any later counted submission — and the next forward move from
+  that item that submits nothing follows it (its minimum times checked). A move without a backend
+  decision (a nonlinear jump into the next test part, a move on from a simultaneous part, a resumed
+  session, a backend that returns none) lands on the item the reference rules
+  (`test-navigation.ts`) deliver, evaluated against the backend's last test outcomes and the
+  recorded item results: a test part whose precondition fails is never entered (a jump into it is
+  a coded `navigationNotAllowed`; the forward step lands past it), and in a linear part a section
+  or item whose precondition fails is skipped. `next()`, `canNext`, `getForwardTransitionInfo()`,
+  `isNavigationTargetLegal()`/`getReviewItems()` and the scope-expiry hop share that forward step;
+  with nothing eligible after the item, `canNext` is false and Submit is the way on.
+- **FR-32:** Once the test ends every delivered item session is closed: the snapshot persisted
+  before `finalizeAssessment()` and the player's record afterwards (`getState()`, the live
+  session) carry them closed, so Results Reporting reports each scored item `final`. An end that
+  does not finalize re-saves the open draft.
 
 ---
 
@@ -590,12 +645,12 @@ callbacks with a `bind:open` state.
   counted, backend result recorded, `countAttempt: true`) and STAYS on the item: the item
   body renders its integrated feedback from the computed outcomes, and any modal feedback
   the submission produced opens in the shell's dialog. While attempts remain, a non-adaptive
-  item reopens writable from its pre-submit state with the outcomes restored, so the
+  item reopens writable from the attempt it just made (its attempt count and outcomes), so the
   candidate revises and checks again; adaptive items keep their engine-driven attempt loop.
   Once the attempts are used up the control disables with a localized explanation, the
   item closes, and moving on needs no further submission. `next()` re-submits an
   already-checked item only when the candidate changed their response; an unchanged
-  response does not spend another attempt.
+  response does not spend another attempt and moves where the backend decided for the check.
 - **`showFeedback` with a single attempt delivers feedback on the move.** There is no
   check control (nothing could be re-attempted); Next submits as always and the captured
   item feedback opens over the question the candidate arrived on — the only way feedback
@@ -703,7 +758,10 @@ first part's behavior.
 valid mixed-part delivery semantics.
 **Consequences:** Linear parts allow only the immediate forward transition and cannot be re-entered.
 Nonlinear parts permit in-part navigation subject to ItemSessionControl. Branch rules and
-preconditions resolve in the backend, which returns the next eligible item as `nextItemIdentifier`.
+preconditions resolve in the backend, which returns the next eligible item as `nextItemIdentifier`;
+a move without a backend decision applies the same rules in the player (see "Why a move without a
+submission still applies branch rules and preconditions"), so "the immediate forward transition"
+is the next item those rules deliver.
 
 ### Event listeners use `Set<listener>`, not an event emitter library
 
@@ -756,7 +814,7 @@ Key types are in `packages/assessment-player/src/integration/api-contract.ts`. I
 - **`SecureItemRef.itemXml`** must be pre-filtered by the server. For `candidate` role, `<correctResponse>` and `<responseProcessing>` must be absent. The client does not validate this; it trusts the server.
 - **`AssessmentSessionState.itemResponses`** is keyed by item identifier, then by response variable identifier. The inner value type is `Record<string, ResponseValue>`. A missing outer key means the item has never been visited; an empty inner object means the item was visited but no response was entered.
 - **`AssessmentSessionState.itemSessions`** contains serialized handoff values for inactive/restorable items. It never contains or represents a second live session. `getCurrentItemSession()` is the sole live reference and is not persistence data.
-- **`SubmitResponsesResponse.nextItemIdentifier`** is the server's branching decision. When present, the client must navigate to that item — on a candidate's move. The end of the test never navigates (a decision returned for its own collection is kept on record and followed by the next `next()` only if the end does not complete), a decision that arrives after a scope expiry moved delivery is not followed, and no decision re-enters a test part already left. When absent, the client falls back to `currentIndex + 1` (individual mode) or stays in place (simultaneous mode). Servers that do not implement branching should omit this field entirely.
+- **`SubmitResponsesResponse.nextItemIdentifier`** is the server's branching decision. When present, the client must navigate to that item — on a candidate's move. A submission that stays on the item (a practice check, a counted end-attempt) keeps it, and the next move on from the item that submits nothing follows it. The end of the test never navigates (a decision returned for its own collection is kept on record and followed by the next `next()` only if the end does not complete), a decision that arrives after a scope expiry moved delivery is not followed, and no decision re-enters a test part already left. When absent — and for a move without any backend decision — the client moves to the next item the test's branch rules and preconditions deliver, evaluating them itself with the reference rules (for a test without any: `currentIndex + 1`). Servers that do not implement branching should omit this field entirely.
 - **`SubmitResponsesResponse.updatedState`** carries the backend's scores and attempt records; it never moves the candidate. The client keeps its own `currentItemIdentifier` across the replacement (delivery moves through `nextItemIdentifier` only), so a stale backend position cannot redirect responses or the next snapshot.
 - **`BackendAdapter.canSaveState`** (default `true`) is the autosave capability flag: the core debounces drafts through `saveState` unless the adapter reports `false` or the config disables autosave. Adapters that cannot store drafts must say so rather than silently accepting saves.
 - **`BackendAdapter.requiresItemSession`** (default unset) declares a backend that scores from `SubmitResponsesRequest.itemSession`; the core then sends it on every submission whatever `sendItemSessionToBackend` says. The reference adapter declares it.
@@ -930,6 +988,26 @@ AC-24: An ending the time forced is an expiry ending
   Given: A whole-test expiry whose automatic finalize failed, or a scope expiry that left nothing open
   When: The candidate (or a proctor) submits
   Then: endReason is 'expiry' and the completion screen shows its time-expired variant
+
+AC-25: A practice check's branch decision is followed when the candidate moves on unchanged
+  Given: A linear individual part q1, q2 (preCondition false), q3 with maxAttempts 2
+  When: The candidate checks q1, then calls next() without changing the response
+  Then: Delivery lands on q3, q1 is not submitted again, and getForwardTransitionInfo() reported
+        nextIndex 2 before the move; a changed response re-submits and follows the fresh decision
+
+AC-26: A test part whose precondition fails is never entered
+  Given: A nonlinear part [q1], a part [q2] whose preCondition is false, a part [q3]
+  When: navigateTo(1) is called from q1
+  Then: It rejects with navigationNotAllowed, isNavigationTargetLegal(1) is false, and the
+        forward step (next(), navigateTo(2)) lands on q3; with the precondition true, navigateTo(1)
+        enters q2
+
+AC-27: A checked item is reported final once the test ends
+  Given: An individual part c1, c2 with maxAttempts 2
+  When: The candidate checks c1, moves on unchanged, answers c2 and submits
+  Then: The result report built from getState({ includeItemSessions: true }) and from the
+        snapshot saved before finalize reports c1 and c2 'final'; a second check of c1 would
+        have run response processing with numAttempts 2
 ```
 
 ```
