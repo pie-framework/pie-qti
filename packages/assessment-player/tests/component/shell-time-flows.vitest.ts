@@ -131,8 +131,11 @@ describe('whole-test expiry', () => {
 		expect(ui.timerWarning()?.getAttribute('aria-live')).toBe('polite');
 
 		await until(() => onSubmit.mock.calls.length > 0, 8000);
-		// The test ended from the expiry alone: the results reached the host.
-		expect(ui.nav()).not.toBeNull();
+		// The test ended from the expiry alone: the completion view replaces delivery
+		// with its time-expired variant, and the results reached the host.
+		await until(() => m.host.querySelector('[data-testid="assessment-complete"]') !== null);
+		expect(ui.nav()).toBeNull();
+		expect(m.host.querySelector('.complete-title')?.textContent).toContain('Time is up');
 		expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({ totalScore: 0 });
 	});
 

@@ -2,6 +2,7 @@
 	import { onDestroy, onMount, tick, getContext } from 'svelte';
 	import { DefaultI18nProvider, interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
 	import { applyPnpToSurface, clearPnpSurface, type PnpProfile } from '@pie-qti/item-player';
+	import { sanitizeHtml } from '@pie-qti/item-player/security';
 	import { normalizeQtiSharedContext } from '@pie-qti/assessment-toolkit';
 	import { withDisplaySettings, type QtiCandidateDisplaySettings } from '@pie-qti/section-player';
 	import type { QtiSharedHtmlBlock } from '@pie-qti/section-player';
@@ -23,13 +24,17 @@
 	import type {
 		AssessmentResults,
 		CandidateSectionView,
+		CheckAnswerState,
+		ItemFeedbackEntry,
 		NavigationState,
+		ResultsSummary,
 		VisibleTestFeedback,
 	} from '../types/index.js';
 	import AccessibilityAnnouncer from './AccessibilityAnnouncer.svelte';
 	import AssessmentDialog from './AssessmentDialog.svelte';
 	import AssessmentHeader from './AssessmentHeader.svelte';
 	import AssessmentTimer from './AssessmentTimer.svelte';
+	import CompletionScreen from './CompletionScreen.svelte';
 	import NavigationBar from './NavigationBar.svelte';
 	import ReviewScreen from './ReviewScreen.svelte';
 
@@ -72,6 +77,13 @@
 		autosave?: boolean;
 		/** Autosave debounce window in ms. Default 1500. */
 		autosaveIntervalMs?: number;
+		/**
+		 * Host opt-in: after finalization the built-in completion screen may add a
+		 * per-question results summary (answered state plus the backend's scores).
+		 * Off by default so high-stakes deliveries show no scores; `onSubmit` always
+		 * receives the full results either way.
+		 */
+		showResultsSummary?: boolean;
 	}
 
 	const {
@@ -85,6 +97,7 @@
 		beginGate = false,
 		autosave,
 		autosaveIntervalMs,
+		showResultsSummary = false,
 	}: Props = $props();
 
 	// Get i18n from context (set by +layout.svelte)
@@ -137,6 +150,12 @@
 	const uid = $props.id();
 	const titleId = `${uid}-title`;
 	const contentId = `${uid}-content`;
+
+	/** Svelte action: run the host's math typesetting over a mounted content node. */
+	function typesetNode(node: HTMLElement) {
+		if (!typeset) return;
+		void Promise.resolve(typeset(node)).catch(() => {});
+	}
 
 	let player = $state<AssessmentPlayer | null>(null);
 	let navState = $state<NavigationState>({
@@ -222,6 +241,19 @@
 	// header, navigation and timer chrome around the item.
 	let shellRootEl = $state<HTMLElement | null>(null);
 	let candidateDisplaySettings = $state<QtiCandidateDisplaySettings>({});
+	// Practice delivery: the item-level check control, the feedback it surfaces, and
+	// the candidate's comment for the test team (QTI allowComment).
+	let checkAnswer = $state<CheckAnswerState | null>(null);
+	let allowComment = $state(false);
+	let commentDraft = $state('');
+	/** Item feedback from a check-answer (or a submit-on-move), shown in a dialog. */
+	let feedbackEntries = $state<ItemFeedbackEntry[]>([]);
+	let feedbackDialogOpen = $state(false);
+	// Completion: the candidate-facing finished state replaces the dead last item.
+	/** The whole-test limit auto-submitted: the completion heading says so. */
+	let finishedByExpiry = $state(false);
+	let resultsSummary = $state<ResultsSummary | null>(null);
+	let completionScreen = $state<CompletionScreen | null>(null);
 
 	const sectionComposition = $derived.by(() => {
 		compositionVersion;
@@ -404,6 +436,8 @@
 				hasFirstItem = true;
 				stillLoading = false;
 				clearStillLoadingTimer();
+				// The comment disclosure follows the active item's own comment.
+				commentDraft = player?.getItemComment() ?? '';
 				await tick();
 				// A new item starts at its top, whichever region scrolls.
 				contentEl?.scrollTo?.({ top: 0, behavior: 'auto' });
@@ -443,6 +477,14 @@
 				isComplete = true;
 				submitRequired = false;
 				sections = player?.getAllSections() ?? [];
+				// The completion view replaces delivery: nothing modal may survive it.
+				submitDialogOpen = false;
+				leavePartDialogOpen = false;
+				expiryDialog = null;
+				expiryDialogOpen = false;
+				reviewOpen = false;
+				feedbackDialogOpen = false;
+				resultsSummary = player?.getResultsSummary() ?? null;
 				updateState();
 			});
 
@@ -453,6 +495,7 @@
 				if (event.autoFinalized) {
 					// The completed view arrives through onComplete; say why it happened, and
 					// hand the results to the host like a Submit (submit() returns them now).
+					finishedByExpiry = true;
 					announcer?.announce(i18n.t('assessment.timeExpiry.autoSubmitted'), 4000, 'assertive');
 					submitDialogOpen = false;
 					leavePartDialogOpen = false;
@@ -564,6 +607,14 @@
 		}
 	});
 
+	$effect(() => {
+		// The completion view replaces delivery: focus moves to its heading so screen
+		// readers hear "You have finished the test" (or the time-expired variant).
+		const screen = completionScreen;
+		if (!isComplete || !screen) return;
+		void tick().then(() => screen.focusHeading());
+	});
+
 	function updateState() {
 		if (!player) return;
 
@@ -573,6 +624,10 @@
 		testFeedback = player.getVisibleFeedback();
 		timerLimited = player.getTimeState().limited;
 		timerHidden = player.isTimerHidden();
+		// Practice delivery (check answer + attempts) and QTI allowComment both follow
+		// the active item's resolved session control.
+		checkAnswer = player.getCheckAnswerState();
+		allowComment = player.getItemSessionInfo()?.canComment === true;
 		stateVersion += 1;
 	}
 
@@ -602,10 +657,81 @@
 			await player.next();
 			await manageFocusAfterNavigation();
 			announceCurrentQuestion();
+			// Submit-on-move feedback (`showFeedback` with a single attempt): the item was
+			// scored as the candidate moved on — show what it produced before work continues.
+			showCapturedItemFeedback({ focusQuestionOnClose: true });
 		} catch (err) {
 			if (isBusyRejection(err)) return;
 			console.error('Next navigation failed:', err);
 			navError = localizeError(err);
+		}
+	}
+
+	/**
+	 * Open the captured item feedback dialog, if the last item-level submission produced
+	 * any. Used after a check-answer (the candidate stayed on the item) and after a
+	 * submit-on-move next() (the feedback rides the transition). Closing clears the
+	 * capture, so it never re-appears uninvited.
+	 */
+	function showCapturedItemFeedback({ focusQuestionOnClose = false } = {}): void {
+		if (!player || feedbackDialogOpen || isComplete) return;
+		const feedback = player.getLastItemFeedback();
+		if (!feedback || feedback.feedback.length === 0) return;
+		feedbackEntries = feedback.feedback;
+		feedbackFocusQuestionOnClose = focusQuestionOnClose;
+		feedbackDialogOpen = true;
+		player.clearLastItemFeedback();
+	}
+
+	/** After a submit-on-move the trigger (Next) belongs to the previous item: land on the question. */
+	let feedbackFocusQuestionOnClose = false;
+
+	function handleFeedbackDialogClose() {
+		feedbackDialogOpen = false;
+		feedbackEntries = [];
+		// A check-answer returns focus to the check control (the dialog restores it); a
+		// submit-on-move lands on the new question instead.
+		if (feedbackFocusQuestionOnClose) {
+			feedbackFocusQuestionOnClose = false;
+			void manageFocusAfterNavigation();
+		}
+	}
+
+	/**
+	 * Practice flow: submit the current item through the normal per-item path and stay
+	 * on it. The item player's body then renders the item's integrated feedback from the
+	 * computed outcomes, and any modal feedback opens here; the attempts counter beside
+	 * the check control reads the new state.
+	 */
+	async function handleCheckAnswer() {
+		if (!player || isSubmitting || isComplete) return;
+		try {
+			navError = null;
+			await player.checkCurrentItem();
+			updateState();
+			showCapturedItemFeedback();
+			if (!feedbackDialogOpen) {
+				announcer?.announce(i18n.t('assessment.checkAnswer.submittedAnnouncement'), 3000);
+			}
+		} catch (err) {
+			if (isBusyRejection(err)) return;
+			console.error('Check answer failed:', err);
+			navError = localizeError(err);
+		}
+	}
+
+	// ---------------------------------------------------------------------------
+	// Candidate comments (QTI allowComment)
+	// ---------------------------------------------------------------------------
+
+	/** Persist the comment into the session state (snapshot + next submission payload). */
+	function saveComment() {
+		if (!player || !allowComment) return;
+		try {
+			player.setItemComment(commentDraft);
+		} catch (err) {
+			// The control only renders when comments are allowed; guard anyway.
+			console.error('Saving the comment failed:', err);
 		}
 	}
 
@@ -1294,6 +1420,30 @@
 			{/if}
 		</div>
 	</div>
+{:else if isComplete && player}
+	<!--
+		The candidate-facing completion state: "You have finished the test" (or the
+		time-expired variant when the whole-test limit auto-submitted), the test's
+		outcome-matched testFeedback, and — only when the host opts in via
+		`showResultsSummary` — a per-question results summary. Navigation is closed;
+		the host's `onSubmit` still received the full results.
+	-->
+	<CompletionScreen
+		bind:this={completionScreen}
+		headingLevel={titleHeadingLevel}
+		finishedByTimeExpiry={finishedByExpiry}
+		testFeedback={testFeedbackBlocks}
+		resultsSummary={resultsSummary}
+		{showResultsSummary}
+		role={sectionRole}
+		{i18n}
+		security={config.security}
+		host={config.sectionHost}
+		{typeset}
+		{fullViewport}
+		lang={interfaceAttributes?.lang}
+		dir={interfaceAttributes?.dir}
+	/>
 {:else}
 	<!--
 		Embedded, the shell is one region named by the assessment title inside the host
@@ -1506,6 +1656,31 @@
 			<p class="assessment-submit-status" role="status">{i18n?.t('common.submitting') ?? 'Submitting...'}</p>
 		{/if}
 
+		{#if allowComment && !isComplete}
+			<!--
+				QTI itemSessionControl allowComment: the candidate's comment for the test team
+				on the active item. It lives in the session state (so it autosaves and rides
+				snapshots) and is sent with the item's next submission payload.
+			-->
+			<details class="item-comments" data-testid="assessment-comments">
+				<summary class="item-comments-summary">{i18n.t('assessment.comments.heading', 'Comments for the test team')}</summary>
+				<div class="item-comments-body">
+					<label class="item-comments-label" for={`${uid}-comment-input`}>
+						{i18n.t('assessment.comments.label', 'Your comments')}
+					</label>
+					<textarea
+						id={`${uid}-comment-input`}
+						class="item-comments-input"
+						data-testid="assessment-comments-input"
+						rows="3"
+						bind:value={commentDraft}
+						placeholder={i18n.t('assessment.comments.placeholder', 'Write a comment for the test team (optional).')}
+						oninput={() => saveComment()}
+					></textarea>
+				</div>
+			</details>
+		{/if}
+
 		<!-- Navigation bar -->
 		{#if i18n}
 			<NavigationBar
@@ -1523,6 +1698,16 @@
 				{reviewOpen}
 				onToggleReview={toggleReview}
 				showSubmit={submitRequired && !isComplete}
+				checkAnswer={checkAnswer?.available && !isComplete
+					? {
+						adaptive: checkAnswer.adaptive,
+						attemptsUsed: checkAnswer.attemptsUsed,
+						maxAttempts: checkAnswer.maxAttempts,
+						remainingAttempts: checkAnswer.remainingAttempts,
+						attemptsExhausted: checkAnswer.attemptsExhausted,
+					}
+					: null}
+				onCheckAnswer={() => void handleCheckAnswer()}
 				inert={paused}
 			/>
 		{/if}
@@ -1695,6 +1880,35 @@
 			{i18n}
 			onConfirm={handleLeavePartConfirm}
 		/>
+
+		<!--
+			Item feedback from a check-answer (or a submit-on-move with single-attempt
+			feedback): the item's modal feedback, sanitized with the host's URL policy and
+			shown with the shell's dialog semantics (focus in, Escape/Continue to close).
+		-->
+		{#if feedbackDialogOpen}
+			<AssessmentDialog
+				bind:open={feedbackDialogOpen}
+				title={i18n.t('assessment.feedback.title', 'Feedback')}
+				confirmLabel={i18n.t('common.continue', 'Continue')}
+				showCancel={false}
+				{i18n}
+				onClose={() => handleFeedbackDialogClose()}
+			>
+				{#snippet children()}
+					<div class="feedback-dialog-body pie-qti-content" data-testid="assessment-item-feedback" use:typesetNode>
+						{#each feedbackEntries as entry, index (`${entry.identifier}:${index}`)}
+							<div class="feedback-dialog-entry">
+								{#if entry.title}
+									<p class="feedback-dialog-entry-title">{entry.title}</p>
+								{/if}
+								{@html sanitizeHtml(entry.content, { security: config.security })}
+							</div>
+						{/each}
+					</div>
+				{/snippet}
+			</AssessmentDialog>
+		{/if}
 
 		<!--
 			Time expiry notices. Scope expiry: acknowledge the move to the next question.
@@ -2028,6 +2242,89 @@
 		margin: 0;
 		padding-block: var(--pie-qti-space-2, 0.5rem);
 		padding-inline: var(--pie-qti-space-4, 1rem);
+	}
+
+	/*
+	 * Candidate comments (QTI allowComment): a native disclosure above the navigation
+	 * bar. The summary is a ≥44px target with a visible focus ring; the textarea takes
+	 * the full width and resizes vertically only, so it never forces horizontal scroll.
+	 */
+	.item-comments {
+		box-sizing: border-box;
+		padding-block: var(--pie-qti-space-2, 0.5rem);
+		padding-inline: var(--pie-qti-space-4, 1rem);
+		border-block-start: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+	}
+
+	.item-comments-summary {
+		display: flex;
+		align-items: center;
+		min-block-size: var(--pie-qti-control-min-size, 2.75rem);
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	.item-comments-summary:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
+	}
+
+	.item-comments-body {
+		display: flex;
+		flex-direction: column;
+		gap: var(--pie-qti-space-1, 0.25rem);
+		padding-block-end: var(--pie-qti-space-2, 0.5rem);
+	}
+
+	.item-comments-label {
+		font-size: 0.9375em;
+	}
+
+	.item-comments-input {
+		box-sizing: border-box;
+		inline-size: 100%;
+		min-block-size: 4.5rem;
+		padding: var(--pie-qti-space-2, 0.5rem);
+		border: 1px solid var(--pie-qti-border-strong, #767676);
+		border-radius: var(--pie-qti-radius-sm, 0.25rem);
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+		font: inherit;
+		line-height: 1.4;
+		resize: vertical;
+	}
+
+	.item-comments-input:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
+	}
+
+	/* Item feedback inside the shell dialog (snippet content keeps the shell's CSS scope). */
+	.feedback-dialog-body {
+		display: flex;
+		flex-direction: column;
+		gap: var(--pie-qti-space-3, 0.75rem);
+		overflow-wrap: anywhere;
+	}
+
+	.feedback-dialog-entry + .feedback-dialog-entry {
+		padding-block-start: var(--pie-qti-space-3, 0.75rem);
+		border-block-start: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+	}
+
+	.feedback-dialog-entry-title {
+		margin: 0 0 var(--pie-qti-space-2, 0.5rem);
+		font-weight: 700;
+	}
+
+	.feedback-dialog-entry :global(> :first-child) {
+		margin-block-start: 0;
+	}
+
+	.feedback-dialog-entry :global(> :last-child) {
+		margin-block-end: 0;
 	}
 
 	/* Submit-confirmation dialog body */
@@ -2372,6 +2669,10 @@
 
 		.assessment-content {
 			scroll-padding-block: var(--pie-qti-space-3, 0.75rem);
+		}
+
+		.item-comments {
+			padding-inline: var(--pie-qti-space-3, 0.75rem);
 		}
 	}
 </style>
