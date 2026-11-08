@@ -1,0 +1,35 @@
+{
+  "id": "mapResponse_null_empty_container",
+  "cases": [
+    {
+      "name": "no response (NULL) maps as the empty container: 0 within the bounds, not defaultValue",
+      "responses": {},
+      "expect": { "outcomes": { "SCORE": 0 } }
+    },
+    {
+      "name": "empty selection maps to 0 within the bounds",
+      "responses": { "RESPONSE": [] },
+      "expect": { "outcomes": { "SCORE": 0 } }
+    },
+    {
+      "name": "an unmapped choice takes defaultValue, clamped to lowerBound",
+      "responses": { "RESPONSE": ["N"] },
+      "expect": { "outcomes": { "SCORE": 0 } }
+    },
+    {
+      "name": "a partial selection sums its mapped values",
+      "responses": { "RESPONSE": ["H"] },
+      "expect": { "outcomes": { "SCORE": 1 } }
+    },
+    {
+      "name": "a penalised selection sums to the mapped total",
+      "responses": { "RESPONSE": ["H", "O", "Cl"] },
+      "expect": { "outcomes": { "SCORE": 1 } }
+    },
+    {
+      "name": "the full key reaches upperBound",
+      "responses": { "RESPONSE": ["H", "O"] },
+      "expect": { "outcomes": { "SCORE": 2 } }
+    }
+  ]
+}

@@ -56,7 +56,7 @@ const QTI22_TEMPLATE_CORRECT_ITEM = `<?xml version="1.0" encoding="UTF-8"?>
 
 /**
  * QTI ASI §10.3 + §5.1: setDefaultValue is a template rule that CHANGES the
- * variable's default value; later resets (attempt starts, newTemplate) use the
+ * variable's default value; later resets (attempt starts, outcome resets) use the
  * new default. A restored session keeps the default fixed by template processing.
  */
 const QTI22_TEMPLATE_DEFAULT_ITEM = `<?xml version="1.0" encoding="UTF-8"?>
@@ -147,7 +147,10 @@ describe('templated item session restore', () => {
 		expect(saved.responseVariables.R.defaultValue).toBe('C');
 
 		const reopened = definition.openSession({ restore: saved });
-		// A later reset (newTemplate) starts responses from the template-fixed default.
+		// The restored session keeps the default its template processing fixed.
+		expect(reopened.serialize().responseVariables.R?.defaultValue).toBe('C');
+		// A new instance (newTemplate) starts from the declarations and its template
+		// processing fixes the default again.
 		reopened.dispatch({ action: 'newTemplate' });
 		expect(reopened.state().responses.R).toBe('C');
 		reopened.dispose();

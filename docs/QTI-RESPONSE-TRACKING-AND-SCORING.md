@@ -158,10 +158,16 @@ if (transition.result?.validation?.valid === false) {
 
 Assessment submission uses this command before sending a serialized attempt to its backend.
 
+A counted attempt increments `numAttempts` before response processing, for adaptive and
+non-adaptive items alike, so the item's rules read the attempt's own number (1 on the first).
+`countAttempt: false` runs response processing with the current count and does not finalize a
+non-adaptive item.
+
 ### Other lifecycle commands
 
 - `suspendAttempt` creates a resumable handoff state.
-- `newTemplate` creates a new template instance, optionally resetting responses.
+- `newTemplate` creates a new template instance from the declared defaults and correct responses,
+  optionally resetting responses.
 - `updatePnp` applies a partial PNP update through the same transition stream.
 
 ## Serialize and dispose

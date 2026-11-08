@@ -1,0 +1,17 @@
+---
+'@pie-qti/qti-processing': patch
+'@pie-qti/item-player': patch
+---
+
+Spec-compliance fixes for attempt counting, new template instances, numeric `base` input and mapping a NULL container (QTI ASI §5.1, §10.3, stringInteraction `base`, mapping bounds).
+
+**Timing change, stated plainly (hosts that read `numAttempts` during processing):**
+
+- `numAttempts` on a non-adaptive item is now incremented at the start of a counted attempt, before response processing, as it already was for adaptive items (§5.1). Response processing and item outcome processing now read the attempt's own number: 1 on the first attempt, 2 on the second. Before, they read the count before the attempt (0 on the first attempt) and the increment came afterwards, so a rule such as "half credit when `numAttempts > 1`" never applied. The count after the attempt is unchanged: the action result, the session view and `serialize()` (both the top-level `numAttempts` and `contextVariables.numAttempts`) report 1 after the first counted attempt. Code that reads `numAttempts` while response processing runs, such as a custom operator, now sees the incremented value. `scoreAttempt` and an uncounted attempt (`countAttempt: false`) never increment. `submitAttempt` with `countAttempt: false` on a non-adaptive item no longer counts or finalizes the attempt, matching `endAttempt`. A restored session reads the count from `contextVariables.numAttempts`; a host that reopens an item for its next attempt must restore a state that carries the attempts already counted.
+
+**Scoring changes, stated plainly:**
+
+- `newTemplate` starts the new instance from the declared defaults and correct responses (§10.3 with §5.1). A correct response set by `setCorrectResponse`, or a default set by `setDefaultValue`, in the previous instance no longer carries into a draw whose template processing skips that rule; before, such a draw scored the declared key as wrong. `assessmentItemRef` `templateDefault` values still apply to every instance.
+- An `extendedTextInteraction` with a non-decimal `base` no longer changes its numeric response when the value reaches the session again. The base now applies only to text the candidate enters; a value that already is a number (the delivered extended-text component's response, which it converts from the typed text itself, a restored session, the declared correct response or default, a value read back from the session) passes through unchanged. Before, a base-16 answer `FF` (255) arriving as a number was read again as base-16 `255` (597) on entry and on every restore, and a base-2 answer restored as NULL; restored correct responses and defaults changed the same way.
+- `textEntryInteraction` now honours its `base` attribute for an integer or float response: `101` typed into a base-2 entry is 5. Before, it was read as decimal 101. The extracted interaction data carries `base` when it is not 10.
+- `mapResponse` and `mapOutcome` map a NULL multiple or ordered variable as the empty container: 0, clamped to the mapping's `lowerBound` and `upperBound`. Before, a NULL container returned the mapping's `defaultValue` unclamped, so an unanswered canonical multi-select with `defaultValue="-2" lowerBound="0"` scored -2 instead of 0 in rules that call `mapResponse` without an `isNull` guard. A NULL single value still takes `defaultValue`, now within the bounds like any unmapped value. `mapResponsePoint` treats a NULL point the same way. The standard `map_response` templates, which guard NULL with `isNull`, are unaffected.
