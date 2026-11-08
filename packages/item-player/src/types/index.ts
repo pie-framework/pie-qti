@@ -103,6 +103,13 @@ export interface SerializedItemSessionVariable {
 	cardinality: VariableCardinality;
 	value: any;
 	defaultValue?: any;
+	/**
+	 * The response declaration's correct response for this session, including one
+	 * computed by a setCorrectResponse template rule (QTI ASI §10.3: templateRule
+	 * effects are fixed for the session). Present only on response variables whose
+	 * declaration has one; snapshots saved by older builds may omit it.
+	 */
+	correctResponse?: any;
 }
 
 export interface SerializedItemSessionState {

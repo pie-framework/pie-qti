@@ -87,7 +87,9 @@ describe('QTI item session lifecycle', () => {
 		expect(result.lifecycleStatus).toBe('suspended');
 		expect(result.numAttempts).toBe(0);
 		expect(result.sessionState.responseVariables.RESPONSE.value).toBe('choice_A');
-		expect('correctResponse' in result.sessionState.responseVariables.RESPONSE).toBe(false);
+		// QTI ASI §10.3: the correct response is session state (a setCorrectResponse
+		// template rule can compute it), so it travels with the snapshot.
+		expect(result.sessionState.responseVariables.RESPONSE.correctResponse).toBe('choice_A');
 		expect(result.sessionState.outcomeVariables.SCORE.value).toBe(0);
 		expect(result.sessionState.contextVariables.numAttempts.value).toBe(0);
 		expect(result.sessionState.contextVariables.duration.value).toBeGreaterThanOrEqual(0);

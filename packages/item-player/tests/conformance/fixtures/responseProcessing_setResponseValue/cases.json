@@ -1,11 +1,6 @@
 {
-  "id": "responseProcessing_setResponseValue_setDefaultValue",
+  "id": "responseProcessing_setResponseValue",
   "cases": [
-    {
-      "name": "missing response -> setDefaultValue -> A -> SCORE 1",
-      "responses": {},
-      "expect": { "outcomes": { "SCORE": 1 } }
-    },
     {
       "name": "A -> SCORE 1",
       "responses": { "R": "A" },
@@ -23,5 +18,3 @@
     }
   ]
 }
-
-

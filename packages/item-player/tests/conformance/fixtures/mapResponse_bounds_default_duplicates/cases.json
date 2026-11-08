@@ -17,9 +17,9 @@
       "expect": { "outcomes": { "SCORE": 15 } }
     },
     {
-      "name": "duplicate responses are counted (and then clamped)",
+      "name": "duplicate responses count once (QTI ASI 15.3: {A,A} maps 10, not 20)",
       "responses": { "R": ["A", "A"] },
-      "expect": { "outcomes": { "SCORE": 15 } }
+      "expect": { "outcomes": { "SCORE": 10 } }
     }
   ]
 }

@@ -83,7 +83,9 @@ describe('mapResponse', () => {
 		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 0));
 	});
 
-	it('sums mapped values across a multiple-cardinality response', () => {
+	it('sums mapped values across a multiple-cardinality response, counting repeated values once', () => {
+		// QTI ASI §15.3: "If a container contains multiple instances of the same
+		// value then that value is counted once only" — {A,B,A} maps 2+1, not 2+1+2.
 		const ctx = run(
 			{
 				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
@@ -91,18 +93,89 @@ describe('mapResponse', () => {
 			},
 			`<setOutcomeValue identifier="OUT"><mapResponse identifier="RESPONSE"/></setOutcomeValue>`,
 		);
-		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 5));
+		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 3));
+	});
+
+	it('counts {B,B,C} as 1.5, not 2.5 (spec example)', () => {
+		const ctx = run(
+			{
+				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
+				RESPONSE: responseDecl(
+					['B', 'B', 'C'],
+					{
+						defaultValue: 0,
+						entries: {
+							B: { mapKey: 'B', mappedValue: 1 },
+							C: { mapKey: 'C', mappedValue: 0.5 },
+						},
+					},
+					'identifier',
+					'multiple',
+				),
+			},
+			`<setOutcomeValue identifier="OUT"><mapResponse identifier="RESPONSE"/></setOutcomeValue>`,
+		);
+		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 1.5));
+	});
+
+	it('counts repeated directed pairs once, keeping direction significant', () => {
+		const PAIR_MAPPING = {
+			defaultValue: 0,
+			entries: {
+				'W1 G1': { mapKey: 'W1 G1', mappedValue: 1 },
+			},
+		};
+		const ctx = run(
+			{
+				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
+				RESPONSE: responseDecl(['W1 G1', 'W1 G1'], PAIR_MAPPING, 'directedPair', 'multiple'),
+			},
+			`<setOutcomeValue identifier="OUT"><mapResponse identifier="RESPONSE"/></setOutcomeValue>`,
+		);
+		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 1));
+	});
+
+	it('counts a pair and its reversed spelling as the same value', () => {
+		// pair cardinality is unordered, so 'G1 W1' and 'W1 G1' are the same pair;
+		// mapping entries are stored under the order-normalized key, as the player
+		// parses them.
+		const PAIR_MAPPING = {
+			defaultValue: 0,
+			entries: {
+				'G1 W1': { mapKey: 'G1 W1', mappedValue: 1 },
+			},
+		};
+		const ctx = run(
+			{
+				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
+				RESPONSE: responseDecl(['W1 G1', 'G1 W1'], PAIR_MAPPING, 'pair', 'multiple'),
+			},
+			`<setOutcomeValue identifier="OUT"><mapResponse identifier="RESPONSE"/></setOutcomeValue>`,
+		);
+		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 1));
+	});
+
+	it('counts duplicates once for ordered cardinality, keeping position duplicates in the container', () => {
+		const ctx = run(
+			{
+				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
+				RESPONSE: responseDecl(['A', 'A', 'B'], MAPPING, 'identifier', 'ordered'),
+			},
+			`<setOutcomeValue identifier="OUT"><mapResponse identifier="RESPONSE"/></setOutcomeValue>`,
+		);
+		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 3));
 	});
 
 	it('clamps the summed value to the declared upper bound', () => {
 		const ctx = run(
 			{
 				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
-				RESPONSE: responseDecl(['A', 'A', 'A'], { ...MAPPING, upperBound: 4 }, 'identifier', 'multiple'),
+				RESPONSE: responseDecl(['A', 'B', 'A', 'B'], { ...MAPPING, upperBound: 2.5 }, 'identifier', 'multiple'),
 			},
 			`<setOutcomeValue identifier="OUT"><mapResponse identifier="RESPONSE"/></setOutcomeValue>`,
 		);
-		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 4));
+		// {A,B} sums to 3 once duplicates are collapsed, then clamps to 2.5.
+		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 2.5));
 	});
 
 	it('keeps directed-pair direction significant, per the QTI base type', () => {
@@ -282,6 +355,31 @@ describe('mapOutcome', () => {
 			`<setOutcomeValue identifier="OUT"><mapOutcome identifier="FEEDBACK"/></setOutcomeValue>`,
 		);
 		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 0.5));
+	});
+
+	it('counts a repeated container value once', () => {
+		// QTI ASI §15.3: duplicate container values count once, the same rule
+		// mapResponse follows.
+		const ctx = run(
+			{
+				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
+				FEEDBACK: {
+					identifier: 'FEEDBACK',
+					baseType: 'identifier',
+					cardinality: 'multiple',
+					value: qtiValue('identifier', 'multiple', ['correct', 'correct', 'partial']),
+					mapping: {
+						defaultValue: 0,
+						entries: {
+							correct: { mapKey: 'correct', mappedValue: 1 },
+							partial: { mapKey: 'partial', mappedValue: 0.5 },
+						},
+					},
+				},
+			},
+			`<setOutcomeValue identifier="OUT"><mapOutcome identifier="FEEDBACK"/></setOutcomeValue>`,
+		);
+		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 1.5));
 	});
 });
 

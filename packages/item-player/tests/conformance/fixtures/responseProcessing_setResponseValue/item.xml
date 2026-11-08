@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
-  identifier="responseProcessing_setResponseValue_setDefaultValue"
-  title="setResponseValue + setDefaultValue"
+  identifier="responseProcessing_setResponseValue"
+  title="setResponseValue rewrites the response before scoring"
   adaptive="false"
   timeDependent="false">
 
@@ -23,16 +23,6 @@
   </itemBody>
 
   <responseProcessing>
-    <!-- If response is missing/null, reset it to the declared defaultValue ("A") -->
-    <responseCondition>
-      <responseIf>
-        <isNull>
-          <variable identifier="R"/>
-        </isNull>
-        <setDefaultValue identifier="R"/>
-      </responseIf>
-    </responseCondition>
-
     <!-- Normalize: if B is chosen, rewrite it to A -->
     <responseCondition>
       <responseIf>
@@ -65,5 +55,3 @@
     </responseCondition>
   </responseProcessing>
 </assessmentItem>
-
-

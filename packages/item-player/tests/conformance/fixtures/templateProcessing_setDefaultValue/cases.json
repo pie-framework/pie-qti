@@ -1,0 +1,22 @@
+{
+  "id": "templateProcessing_setDefaultValue",
+  "cases": [
+    {
+      "name": "no response instantiates the default set by the template rule",
+      "responses": {},
+      "expect": {
+        "score": 1,
+        "outcomes": { "SCORE": 1, "DEFAULT_SEEN": "C" },
+        "itemBodyContains": ["Key: C"]
+      }
+    },
+    {
+      "name": "candidate answer overrides the value but the template default stays fixed",
+      "responses": { "R": "A" },
+      "expect": {
+        "score": 0,
+        "outcomes": { "SCORE": 0, "DEFAULT_SEEN": "C" }
+      }
+    }
+  ]
+}

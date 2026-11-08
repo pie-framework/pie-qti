@@ -220,13 +220,17 @@ function buildStatements(
 				break;
 			}
 			case 'setdefaultvalue': {
-				// Commonly used in responseProcessing to reset a response to its declared <defaultValue>
+				// QTI ASI §10.3: setDefaultValue is a template rule — like setCorrectResponse,
+				// it carries expression [1] and only exists in templateProcessing.
+				if (mode !== 'template') break;
 				const identifier = getAttr(el, 'identifier');
-				if (!identifier) break;
+				const exprEl = firstChildElement(el);
+				if (!identifier || !exprEl) break;
 				out.push({
 					kind: 'stmt.setDefaultValue',
 					id: newAstId('stmt'),
 					identifier,
+					expr: buildExpression(exprEl, options),
 				});
 				break;
 			}

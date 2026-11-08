@@ -1,0 +1,13 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "setDefaultValue is a template rule (QTI ASI §10.3): it evaluates its expression, changes the variable's default value, and later resets use the new default (§5.1). responseProcessing observes the new default via the default expression.",
+  "covers": [
+    "default",
+    "expr.default",
+    "setDefaultValue",
+    "stmt.setDefaultValue",
+    "templateProcessing",
+    "templateProcessing.setDefaultValue"
+  ]
+}

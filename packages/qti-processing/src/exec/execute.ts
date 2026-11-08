@@ -101,7 +101,10 @@ export function execStatement(env: ExecEnv, s: StatementNode): void {
 			return;
 		}
 		case 'stmt.setDefaultValue': {
-			env.ctx.resetToDefault(s.identifier);
+			// QTI ASI §10.3: setDefaultValue carries an expression that CHANGES the
+			// variable's default value; later resets use the new default (§5.1).
+			const v = evalExpr(env, s.expr);
+			env.ctx.setDefaultValue(s.identifier, v);
 			return;
 		}
 		case 'stmt.templateConstraint': {

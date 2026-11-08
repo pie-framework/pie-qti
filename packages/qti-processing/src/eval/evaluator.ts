@@ -3,7 +3,7 @@ import type { ExpressionNode } from '../ast/types.js';
 import type { DeclarationContext } from '../runtime/context.js';
 import { normalizeResponse } from '../runtime/normalize.js';
 import { xsdPatternToRegExp } from '../runtime/xsd-pattern.js';
-import type { BaseType, Cardinality, LookupTableTable, Mapping, MappingEntry, QtiValue } from '../runtime/types.js';
+import type { BaseType, Cardinality, Declaration, LookupTableTable, Mapping, MappingEntry, QtiValue } from '../runtime/types.js';
 import {
 	coerceBaseValue,
 	durationSeconds,
@@ -98,6 +98,55 @@ function findMappingEntry(
 			? normalizeResponse(entry.mapKey, { language, ignoreCase: true }) === typedFolded
 			: normalizeResponse(entry.mapKey, { language }) === typed,
 	);
+}
+
+/**
+ * mapResponse/mapOutcome over a declared value (QTI ASI §15.3): "If a container
+ * contains multiple instances of the same value then that value is counted once
+ * only", so {B,B,C} maps to 1.5, not 2.5. Deduplication uses the same normalized
+ * key the mapping lookup uses — pair keys ignore member order, directedPair keys
+ * keep it.
+ */
+function mapMappedValue(
+	decl: Declaration,
+	mapping: Mapping,
+	current: QtiValue & { kind: 'value' },
+	language: string | undefined,
+): number {
+	const normalizeMappingKey = (k: string): string => {
+		const raw = String(k ?? '').trim();
+		if (decl.baseType === 'pair') {
+			const parts = raw.split(/\s+/).filter(Boolean);
+			if (parts.length === 2) return [...parts].sort().join(' ');
+			return raw;
+		}
+		if (decl.baseType === 'directedPair') {
+			const parts = raw.split(/\s+/).filter(Boolean);
+			if (parts.length >= 2) return `${parts[0]} ${parts[1]}`;
+			return raw;
+		}
+		return raw;
+	};
+
+	const mapOne = (key: string): number => {
+		const entry = findMappingEntry(mapping, normalizeMappingKey(key), decl.baseType, language);
+		return entry ? Number(entry.mappedValue) : Number(mapping.defaultValue ?? 0);
+	};
+
+	if (decl.cardinality !== 'multiple' && decl.cardinality !== 'ordered') {
+		return mapOne(String(current.value));
+	}
+
+	const arr = Array.isArray(current.value) ? current.value : [current.value];
+	const counted = new Set<string>();
+	let raw = 0;
+	for (const x of arr) {
+		const key = normalizeMappingKey(String(x));
+		if (counted.has(key)) continue;
+		counted.add(key);
+		raw += mapOne(key);
+	}
+	return raw;
 }
 
 /**
@@ -1115,33 +1164,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const current = decl.value;
 			if (current.kind !== 'value') return qtiValue('float', 'single', decl.mapping.defaultValue ?? 0);
 
-			const normalizeMappingKey = (k: string): string => {
-				const raw = String(k ?? '').trim();
-				if (decl.baseType === 'pair') {
-					const parts = raw.split(/\s+/).filter(Boolean);
-					if (parts.length === 2) return [...parts].sort().join(' ');
-					return raw;
-				}
-				if (decl.baseType === 'directedPair') {
-					const parts = raw.split(/\s+/).filter(Boolean);
-					if (parts.length >= 2) return `${parts[0]} ${parts[1]}`;
-					return raw;
-				}
-				return raw;
-			};
-
-			const mapOne = (key: string): number => {
-				const entry = findMappingEntry(decl.mapping!, normalizeMappingKey(key), decl.baseType, env.language);
-				return entry ? Number(entry.mappedValue) : Number(decl.mapping!.defaultValue ?? 0);
-			};
-
-			let raw = 0;
-			if (decl.cardinality === 'multiple' || decl.cardinality === 'ordered') {
-				const arr = Array.isArray(current.value) ? current.value : [current.value];
-				raw = arr.map((x) => mapOne(String(x))).reduce((a, b) => a + b, 0);
-			} else {
-				raw = mapOne(String(current.value));
-			}
+			let raw = mapMappedValue(decl, decl.mapping, current, env.language);
 
 			const lower = decl.mapping.lowerBound;
 			const upper = decl.mapping.upperBound;
@@ -1155,33 +1178,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const current = decl.value;
 			if (current.kind !== 'value') return qtiValue('float', 'single', decl.mapping.defaultValue ?? 0);
 
-			const normalizeMappingKey = (k: string): string => {
-				const raw = String(k ?? '').trim();
-				if (decl.baseType === 'pair') {
-					const parts = raw.split(/\s+/).filter(Boolean);
-					if (parts.length === 2) return [...parts].sort().join(' ');
-					return raw;
-				}
-				if (decl.baseType === 'directedPair') {
-					const parts = raw.split(/\s+/).filter(Boolean);
-					if (parts.length >= 2) return `${parts[0]} ${parts[1]}`;
-					return raw;
-				}
-				return raw;
-			};
-
-			const mapOne = (key: string): number => {
-				const entry = findMappingEntry(decl.mapping!, normalizeMappingKey(key), decl.baseType, env.language);
-				return entry ? Number(entry.mappedValue) : Number(decl.mapping!.defaultValue ?? 0);
-			};
-
-			let raw = 0;
-			if (decl.cardinality === 'multiple' || decl.cardinality === 'ordered') {
-				const arr = Array.isArray(current.value) ? current.value : [current.value];
-				raw = arr.map((x) => mapOne(String(x))).reduce((a, b) => a + b, 0);
-			} else {
-				raw = mapOne(String(current.value));
-			}
+			let raw = mapMappedValue(decl, decl.mapping, current, env.language);
 
 			const lower = decl.mapping.lowerBound;
 			const upper = decl.mapping.upperBound;

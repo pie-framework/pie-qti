@@ -55,7 +55,8 @@ export interface Declaration {
 	baseType?: BaseType;
 	cardinality: Cardinality;
 	/**
-	 * Parsed <defaultValue> from the declaration. Used by <setDefaultValue> to reset the variable.
+	 * The variable's default value: parsed from the declaration's <defaultValue>, and changed by
+	 * the <setDefaultValue> template rule (QTI ASI §10.3). Resets of the variable use it (§5.1).
 	 */
 	defaultValue: QtiValue;
 	value: QtiValue;

@@ -167,6 +167,8 @@ export type SetDefaultValueStmt = {
 	kind: 'stmt.setDefaultValue';
 	id: AstNodeId;
 	identifier: string;
+	/** QTI ASI §10.3: the new default value comes from this expression [1]. */
+	expr: ExpressionNode;
 };
 
 export type ExitResponseStmt = {
