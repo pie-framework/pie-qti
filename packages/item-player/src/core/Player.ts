@@ -1734,8 +1734,23 @@ export class Player {
 		for (const v of Object.values(vars)) {
 			const d = this.decls[v.identifier];
 			if (!d) continue;
+			// Restore the declaration's default value first: template processing is
+			// skipped on restore (QTI ASI §10.3 fixes its effects for the session), so
+			// a default changed by setDefaultValue must come from the snapshot. Later
+			// resets (attempt starts, newTemplate, outcome resets at response-processing
+			// start, templateConstraint restarts) then use the restored default. Absent
+			// (older-snapshot) fields keep the value freshly parsed from the item XML.
+			if (v.defaultValue != null) {
+				d.defaultValue = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.defaultValue, d.identifier);
+			}
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.value, d.identifier);
 			if ((d as any).__kind === 'response') {
+				// A correctResponse computed by setCorrectResponse is also a fixed
+				// template-rule effect; restoring it keeps a resumed session scoring
+				// identically to the session that was saved.
+				if (v.correctResponse != null) {
+					d.correctResponse = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.correctResponse, d.identifier);
+				}
 				this.restorePciResponse(d.identifier, this.qtiValueToPublic(d.value));
 			}
 		}
@@ -1779,7 +1794,7 @@ export class Player {
 	}
 
 	private serializeVariable(d: DeclarationMap[string]): SerializedItemSessionVariable {
-		return {
+		const variable: SerializedItemSessionVariable = {
 			identifier: d.identifier,
 			kind: ((d as any).__kind ?? (d.isTemplate ? 'template' : 'context')) as SerializedItemSessionVariable['kind'],
 			...(d.baseType ? { baseType: d.baseType } : {}),
@@ -1787,6 +1802,15 @@ export class Player {
 			value: this.qtiValueToSerializable(d.value),
 			defaultValue: this.qtiValueToSerializable(d.defaultValue),
 		};
+		// A correctResponse is part of the session state a template rule
+		// (setCorrectResponse, QTI ASI §10.3) can compute, so it must survive a
+		// snapshot for the restored session to score identically. Optional field:
+		// responses that declare no correct response serialize without it, and
+		// snapshots from older builds restore without it.
+		if ((d as any).__kind === 'response' && d.correctResponse) {
+			variable.correctResponse = this.qtiValueToSerializable(d.correctResponse);
+		}
+		return variable;
 	}
 
 	private qtiValueToSerializable(value: QtiValue | undefined): any {
