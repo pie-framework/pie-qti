@@ -1136,65 +1136,35 @@ The key advance over `customInteraction` is **portability**: a PCI carries its r
 
 ### Module Interface
 
-Every PCI module must implement the `IMSGLOBAL.PCI` interface:
+A PCI module registers itself with the page's `qtiCustomInteractionContext` as its code evaluates.
+The player instantiates it through the registered `getInstance` factory; state goes in at
+instantiation and comes out through `getResponse()` / `getState()`. There is no setter: to apply a
+different response, the player instantiates the module again with that response as its state.
 
 ```javascript
 // pci-modules/chem-editor/index.js
-export default {
-  /**
-   * Called once after the DOM scaffold is ready.
-   * @param {HTMLElement} dom - The element matching qti-interaction-markup
-   * @param {Object} config - Properties from qti-pci-properties
-   * @param {Object} boundTo - Map of response variable identifiers to initial values
-   */
-  initialize(dom, config, boundTo) {
-    // Set up the interaction UI
-    this._editor = new ChemEditor(dom, config);
-    if (boundTo.RESPONSE) {
-      this._editor.loadState(boundTo.RESPONSE);
-    }
-  },
+qtiCustomInteractionContext.register({
+  typeIdentifier: 'org.example.chem-editor',
 
   /**
-   * Called by the player when it needs the current response value.
-   * Must return a value compatible with the responseDeclaration baseType/cardinality.
-   * @returns {*} The current response
+   * @param {HTMLElement} dom - The element holding the qti-interaction-markup scaffold
+   * @param {Object} configuration - responseIdentifier, status ('interacting' | 'closed' |
+   *   'solution' | 'review'), properties (from qti-pci-properties), onready, ondone
+   * @param {*} state - A previous getState() snapshot, or the restored response as
+   *   QTI variable JSON; undefined on a fresh attempt
    */
-  getResponse() {
-    return this._editor.getState();
+  getInstance(dom, configuration, state) {
+    const editor = new ChemEditor(dom, configuration.properties, state);
+    const instance = {
+      // The current response as QTI variable JSON (see below); undefined when there is none.
+      getResponse: () => editor.response(),
+      // Optional: whatever the module needs to rebuild itself at the next getInstance.
+      getState: () => editor.snapshot(),
+    };
+    configuration.onready(instance);
+    return instance;
   },
-
-  /**
-   * Called by the player to restore a previously saved response.
-   * @param {*} response - Previously returned getResponse() value
-   */
-  setResponse(response) {
-    this._editor.loadState(response);
-  },
-
-  /**
-   * Called when the item enters a state where interaction is not allowed
-   * (e.g., after submission, review mode).
-   */
-  disable() {
-    this._editor.setReadOnly(true);
-  },
-
-  /**
-   * Called when the interaction should resume accepting input.
-   */
-  enable() {
-    this._editor.setReadOnly(false);
-  },
-
-  /**
-   * Optional. Called when the player destroys the item.
-   * Clean up event listeners, timers, etc.
-   */
-  destroy() {
-    this._editor.teardown();
-  }
-};
+});
 ```
 
 ### Response Declaration
@@ -1209,6 +1179,29 @@ The response variable for a PCI is declared like any other, with the baseType an
   </qti-correct-response>
 </qti-response-declaration>
 ```
+
+### Response Values at the PCI Boundary
+
+`getResponse()` answers, and `getInstance` state is seeded, in the QTI variable JSON binding of
+PCI v1.0 Appendix A, which QTI 3.0 adopts. The value must match the response declaration's base
+type and cardinality:
+
+| Cardinality | JSON | Example |
+|-------------|------|---------|
+| `single` | `{"base": {"<baseType>": value}}` | `{"base": {"identifier": "A"}}` |
+| NULL | `{"base": null}` | |
+| `multiple`, `ordered` | `{"list": {"<baseType>": [value, ...]}}` | `{"list": {"pair": [["A", "B"], ["C", "D"]]}}` |
+| `record` | `{"record": [{"name": "<field>", "base" or "list": ...}]}` | `{"record": [{"name": "x", "base": {"integer": 1}}]}` |
+
+Base-type values are JSON scalars, except that `pair` and `directedPair` are `["A", "B"]`,
+`point` is `[x, y]`, `duration` is an ISO 8601 duration such as `"PT1M30S"`, and `file` is
+`{"data": "<base64>", "mime": "text/plain", "name": "notes.txt"}`.
+
+The player converts by base type in both directions. Inside the player a pair or point is the
+string `"A B"`, a duration a number of seconds, a file a `QTIFileResponse`, and a record field
+keeps its base type (`{baseType, cardinality, value}`), because a record declaration types none of
+its fields. The earlier name-keyed record form (`{"record": {"x": {"base": ...}}}`) is still
+accepted from a module.
 
 ### Scoring PCI Responses
 
@@ -1252,7 +1245,7 @@ PCI modules are packaged within the standard QTI content package. All module fil
 | Module delivery | Platform-specific, external | Self-contained, in-package |
 | Interface contract | None (platform defines) | Standardized IMSGLOBAL.PCI interface |
 | Portability | None — platform coupling required | Full — runs in any conformant player |
-| State management | Platform-specific | Standardized getResponse/setResponse |
+| State management | Platform-specific | `getInstance` state in, `getResponse`/`getState` out (QTI variable JSON) |
 | Fallback support | None | `fallback-path` on module element |
 | Discovery | Out-of-band | `custom-interaction-type-identifier` |
 

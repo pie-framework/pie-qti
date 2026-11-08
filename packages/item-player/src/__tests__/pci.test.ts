@@ -642,8 +642,12 @@ describe('qtiVariableJson', () => {
 		expect(toQtiVariableJson(['A', 'B'], 'identifier', 'ordered')).toEqual({
 			list: { identifier: ['A', 'B'] },
 		});
+		// PCI v1.0 Appendix A: a record is an array of named members.
 		expect(toQtiVariableJson({ score: 1, text: 'why' }, undefined, 'record')).toEqual({
-			record: { score: { base: { integer: 1 } }, text: { base: { string: 'why' } } },
+			record: [
+				{ name: 'score', base: { integer: 1 } },
+				{ name: 'text', base: { string: 'why' } },
+			],
 		});
 		expect(toQtiVariableJson(null, 'string', 'single')).toBeNull();
 	});
@@ -652,8 +656,16 @@ describe('qtiVariableJson', () => {
 		expect(fromQtiVariableJson({ base: { identifier: 'A' } })).toBe('A');
 		expect(fromQtiVariableJson({ list: { identifier: ['A', 'B'] } })).toEqual(['A', 'B']);
 		expect(
-			fromQtiVariableJson({ record: { a: { base: { integer: 1 } }, b: { base: { string: 'x' } } } })
-		).toEqual({ a: 1, b: 'x' });
+			fromQtiVariableJson({
+				record: [
+					{ name: 'a', base: { integer: 1 } },
+					{ name: 'b', base: { string: 'x' } },
+				],
+			})
+		).toEqual({
+			a: { baseType: 'integer', cardinality: 'single', value: 1 },
+			b: { baseType: 'string', cardinality: 'single', value: 'x' },
+		});
 		expect(fromQtiVariableJson(null)).toBeNull();
 		expect(fromQtiVariableJson('plain')).toBe('plain');
 

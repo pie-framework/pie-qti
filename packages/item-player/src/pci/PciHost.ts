@@ -195,7 +195,7 @@ export class PciHost implements PciHostController {
 		if (this._restorePending) return this._response;
 		if (this.instance) {
 			try {
-				const value = fromQtiVariableJson(this.instance.getResponse());
+				const value = fromQtiVariableJson(this.instance.getResponse(), this.responseDeclaration);
 				if ((value === null || value === undefined) && this._hasResponse && !this._moduleOwnsResponse) {
 					// A freshly instantiated module that has reported nothing yet: the
 					// held value is what this instantiation was seeded with (the
@@ -345,7 +345,7 @@ export class PciHost implements PciHostController {
 	private captureInstanceResponse(): void {
 		if (!this.instance) return;
 		try {
-			const value = fromQtiVariableJson(this.instance.getResponse());
+			const value = fromQtiVariableJson(this.instance.getResponse(), this.responseDeclaration);
 			if (value === null && !this._hasResponse) return;
 			this._response = value;
 			this._hasResponse = true;

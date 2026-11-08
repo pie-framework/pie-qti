@@ -608,7 +608,7 @@ export class Player {
 			const d = this.decls[id];
 			if (!d) continue;
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
-			applyToPci(id, this.qtiValueToPublic(d.value));
+			applyToPci(id, this.qtiValueToPci(d.value));
 		}
 	}
 
@@ -862,7 +862,7 @@ export class Player {
 		for (const d of Object.values(this.decls)) {
 			if ((d as any).__kind !== 'response') continue;
 			this.ctx.resetToDefault(d.identifier);
-			this.restorePciResponse(d.identifier, d.value.kind === 'value' ? d.value.value : null);
+			this.restorePciResponse(d.identifier, this.qtiValueToPci(d.value));
 		}
 	}
 
@@ -1787,7 +1787,7 @@ export class Player {
 				if (v.correctResponse != null) {
 					d.correctResponse = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.correctResponse, d.identifier);
 				}
-				this.restorePciResponse(d.identifier, this.qtiValueToPublic(d.value));
+				this.restorePciResponse(d.identifier, this.qtiValueToPci(d.value));
 			}
 		}
 	}
@@ -1862,6 +1862,17 @@ export class Player {
 			};
 		}
 		return serialized;
+	}
+
+	/**
+	 * A value as a PCI host receives it: the public value, except that a record keeps each field's
+	 * base type and cardinality (its serialized form). A record declaration types none of its
+	 * fields, so the host could not write them into QTI variable JSON otherwise.
+	 */
+	private qtiValueToPci(value: QtiValue | undefined): unknown {
+		return value?.kind === 'value' && value.cardinality === 'record'
+			? this.qtiValueToSerializable(value)
+			: this.qtiValueToPublic(value);
 	}
 
 	private qtiValueToPublic(value: QtiValue | undefined): any {
@@ -2137,6 +2148,7 @@ export class Player {
 				fieldIdentifier as keyof typeof EXTENDED_TEXT_RECORD_FIELD_TYPES
 			] as BaseType | undefined;
 			let fieldValue = rawField;
+			let fieldCardinality: Cardinality = Array.isArray(rawField) ? 'multiple' : 'single';
 			if (rawField && typeof rawField === 'object' && !Array.isArray(rawField) && 'value' in rawField) {
 				const serializedField = rawField as {
 					baseType?: BaseType;
@@ -2145,17 +2157,37 @@ export class Player {
 				};
 				fieldBaseType = serializedField.baseType ?? fieldBaseType;
 				fieldValue = serializedField.value;
+				fieldCardinality =
+					serializedField.cardinality === 'multiple' || serializedField.cardinality === 'ordered'
+						? serializedField.cardinality
+						: Array.isArray(fieldValue) ? 'multiple' : 'single';
 			}
 
 			if (!fieldBaseType) {
-				fieldBaseType = typeof fieldValue === 'boolean'
+				const sample = Array.isArray(fieldValue)
+					? fieldValue.find((item) => item !== null && item !== undefined)
+					: fieldValue;
+				fieldBaseType = typeof sample === 'boolean'
 					? 'boolean'
-					: typeof fieldValue === 'number'
-						? (Number.isInteger(fieldValue) ? 'integer' : 'float')
+					: typeof sample === 'number'
+						? (Number.isInteger(sample) ? 'integer' : 'float')
 						: 'string';
 			}
 			if (fieldValue === null || fieldValue === undefined) {
-				fields[fieldIdentifier] = qtiNull(fieldBaseType, 'single');
+				fields[fieldIdentifier] = qtiNull(fieldBaseType, fieldCardinality);
+			} else if (fieldCardinality !== 'single') {
+				// A container field, such as a PCI record member written as `list`: each value
+				// is coerced, rather than the whole array as one string.
+				const containerBaseType = fieldBaseType;
+				const items = (Array.isArray(fieldValue) ? fieldValue : [fieldValue])
+					.filter((item) => item !== null && item !== undefined)
+					.map((item) => {
+						if (containerBaseType === 'file' && typeof item === 'object') return item;
+						const coerced = coerceBaseValue(containerBaseType, String(item), this.getContentLanguage());
+						return coerced.kind === 'value' ? coerced.value : null;
+					})
+					.filter((item) => item !== null);
+				fields[fieldIdentifier] = qtiValue(containerBaseType, fieldCardinality, items);
 			} else if (fieldBaseType === 'file' && typeof fieldValue === 'object') {
 				fields[fieldIdentifier] = qtiValue('file', 'single', fieldValue);
 			} else {
