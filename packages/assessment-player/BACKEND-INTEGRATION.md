@@ -182,6 +182,15 @@ return {
 `nextItemIdentifier` may also be `EXIT_SECTION`, `EXIT_TESTPART`, or `EXIT_TEST`. If `success` is
 false, include an `error` and omit `result`.
 
+The player follows `nextItemIdentifier` when the candidate moves on. The end of the test never
+navigates: a decision you return for the end's own collection is kept, not followed — the player
+finalizes where the candidate stands, so the final snapshot never records an unseen item as
+current or visited; if your finalize fails, the candidate's next `next()` from that item follows the
+decision. A decision that arrives after a scope expiry moved the candidate (the submission was in
+flight when the limit ran out) is not followed, and no decision re-enters a test part the candidate
+already left. `updatedState` carries your scores and attempt records but never moves the candidate:
+the player keeps its own `currentItemIdentifier` across it.
+
 **Outcome-processing failures.** When test-level outcome processing fails on your side, keep the
 submission accepted (`success: true`) and report the failure as `outcomeProcessingError`
 (`{ code, message }`) on the `SubmitResponsesResponse` — and on the `FinalizeAssessmentResponse` when
@@ -211,6 +220,9 @@ candidate action, `time-expired` for the response collection a hard time limit t
 `proctor` for the collection a proctor's forced end of the test runs (`submit({ force: true })`,
 see [Proctor controls](#proctor-controls)), and `unreachable` for a question the end of the test
 collects as it stands because the candidate can no longer reach it (see the skipping rule below).
+When more than one applies, time wins: an item an expired limit closed goes out as `time-expired`
+even inside a proctor's forced end (only the items no limit closed carry `proctor`), and a
+proctor's forced end marks nothing `unreachable` (`time-expired` > `proctor` > `unreachable`).
 After a whole-test expiry the player finalizes through the same path; a test-part, section or item
 limit without late submission collects the closed scope's previously answered items as
 `time-expired` submissions whose own scope has expired. Accept them: the delivery window closed
@@ -219,7 +231,9 @@ them as late loses candidate work. A `proctor` collection is an administrative e
 record it as such. A scope expiry looks across the whole reachable delivery: the candidate moves to
 the next open question of the part, else to an open question earlier in a nonlinear part, else to
 the next part — only when no open question remains anywhere is it the dead end that asks for the
-submission. A session restored after one of its limits ran out locks that scope from the restored
+submission. A scope that runs out while the end of the test is running closes at once (its items
+reach you as `time-expired`) and moves the candidate only if that end does not finalize. A session
+restored after one of its limits ran out locks that scope from the restored
 clocks before any item is entered and lands the same way, and a restored whole-test expiry
 finalizes as soon as delivery runs.
 
@@ -239,7 +253,10 @@ with such questions is refused the same way (`leavePartResponseRequired` /
 `leavePartResponseInvalid`; `getTestPartBlockers()` lists them) — on Next, on a direct jump into the
 next part, and on a branch decision (`EXIT_TESTPART`, `EXIT_SECTION`, a target in a later part,
 `EXIT_TEST`) that would leave the part: the candidate stays, and the next `next()` from that item
-follows the decision once the questions are answered. A question the candidate can no longer reach
+follows the decision once the questions are answered. Only questions the candidate can still reach
+hold the way out: one behind them in a linear part (a session restored from before this gate)
+could never be answered, so it does not block leaving and is collected at the end as described
+next. A question the candidate can no longer reach
 never holds the end of the test (a session restored from before this gate, a branch rule's own
 consequences): it is collected as it stands with `submissionReason: 'unreachable'` — record it as
 skipped or incomplete, never as a normal candidate submission. An administrative end — a time expiry
@@ -271,7 +288,9 @@ normal candidate submissions (`countAttempt: true`, no `submissionReason`) befor
 `finalizeAssessment()` — except a question the candidate can no longer reach whose skipping or
 validation control would refuse it, which arrives as it stands with `submissionReason:
 'unreachable'`. Responses you already accepted unchanged are never re-sent, so no attempt is spent
-twice.
+twice. The collection runs where the candidate stands and never moves them (see the
+`nextItemIdentifier` rule above): an item the candidate never saw is never entered, visited or
+collected by the end of the test.
 
 ## Server-side scoring
 
@@ -382,9 +401,10 @@ A proctor console drives the player through the core (`AssessmentPlayer`) or the
 A candidate's `submit()` is rejected while paused; `submit({ force: true })` is the administrative
 end of the test: it runs during a pause and behind the begin gate, ignores minimum times and the
 skipping/validation controls, and every collected submission carries
-`timing.submissionReason: 'proctor'`. It never fails for concurrency: while a candidate's navigation
-or submission is in flight it is queued behind that transition and lands once it settles (when the
-transition itself ended the test, it resolves with those results).
+`timing.submissionReason: 'proctor'` — except items an expired time limit closed, which keep
+`time-expired` (time wins; see [Item submission](#item-submission)). It never fails for concurrency:
+while a candidate's navigation or submission is in flight it is queued behind that transition and
+lands once it settles (when the transition itself ended the test, it resolves with those results).
 
 Events for the console: `onPauseChange` (`player-pause` / `player-resume`) — a session restored
 paused reports its pause once right after creation, so the console never misses it;
@@ -392,7 +412,10 @@ paused reports its pause once right after creation, so the console never misses 
 delivery moved to) for limits that ran out; `onFinalized` (`session-finalized`,
 `{ restored, results, endReason }`) once the session is terminal, including a session restored
 already finalized. `endReason` (also `results.endReason` and `getEndReason()`) says which path ended
-the test in this delivery: `candidate`, `expiry`, `proctor` or `branch`. Every ending — a proctor's
+the test in this delivery: `candidate`, `expiry`, `proctor` or `branch`. An ending that collects a
+delivery the time already closed — the whole test expired, or a scope expiry left nothing open — is
+`expiry` whoever triggers it: the automatic submission, the candidate's Submit after it failed, or a
+proctor's force-submit. Every ending — a proctor's
 force-submit and a QTI `EXIT_TEST` included — fires `onComplete` with the results and the shell's
 `onSubmit` (the element's `submit` event) once. While paused, the shell closes every dialog it
 contains and dispatches `pie-qti-close-transient-ui` (`{ reason: 'pause' }`) on `document` so

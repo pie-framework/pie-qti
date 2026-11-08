@@ -305,7 +305,7 @@
 	let feedbackEntries = $state<ItemFeedbackEntry[]>([]);
 	let feedbackDialogOpen = $state(false);
 	// Completion: the candidate-facing finished state replaces the dead last item.
-	/** The whole-test limit auto-submitted: the completion heading says so. */
+	/** A time expiry ended the test (`endReason` 'expiry'): the completion heading says so. */
 	let finishedByExpiry = $state(false);
 	/** Why the test ended in this delivery (the completion variant: a proctor's submit says so). */
 	let endReason = $state<AssessmentEndReason | null>(null);
@@ -1872,7 +1872,8 @@
 {:else if isComplete && player}
 	<!--
 		The candidate-facing completion state: "You have finished the test" (or the
-		time-expired variant when the whole-test limit auto-submitted; the proctor variant
+		time-expired variant when the time ended the test — the whole-test limit, or a scope
+		expiry that left nothing open; the proctor variant
 		when a proctor force-submitted; the already-submitted variant when a finalized
 		session was restored), the test's outcome-matched testFeedback, and — only when the
 		host opts in via `showResultsSummary` — a per-question results summary. Navigation

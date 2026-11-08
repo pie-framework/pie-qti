@@ -533,7 +533,8 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	 * individual parts still need an answer). `{ force: true }` is the proctor's
 	 * force-submit: it ends the test during a pause too and never fails for a transition
 	 * in flight — it is queued behind the candidate's action and lands
-	 * (`timing.submissionReason: 'proctor'`). Whichever path ends the test, the shell's
+	 * (`timing.submissionReason: 'proctor'`; questions an expired time limit closed keep
+	 * `time-expired`). Whichever path ends the test, the shell's
 	 * `onSubmit` (the `submit` event) hands the results over once, with
 	 * `results.endReason` on the finalized event and `session-finalized` detail.
 	 */

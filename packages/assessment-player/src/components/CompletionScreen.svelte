@@ -1,8 +1,9 @@
 <script lang="ts">
 	/**
 	 * The candidate-facing completion state the shell shows after finalization:
-	 * a localized "You have finished the test" (or its time-expired variant when the
-	 * whole-test limit auto-submitted, its proctor variant when a proctor force-submitted),
+	 * a localized "You have finished the test" (or its time-expired variant when the time
+	 * ended the test — the whole-test limit, or a scope expiry that left nothing open —
+	 * its proctor variant when a proctor force-submitted),
 	 * the test's own `testFeedback` (outcome-matched, already filtered by the core), and —
 	 * only when the host opts in through `showResultsSummary` — a per-question results
 	 * summary with the backend's scores.
@@ -20,11 +21,12 @@
 	interface Props {
 		/** Heading level of the completion title, matching the shell's outline. */
 		headingLevel: number;
-		/** True when a whole-test time expiry auto-submitted: the heading says so. */
+		/** True when a time expiry ended the test: the heading says so. */
 		finishedByTimeExpiry?: boolean;
 		/**
 		 * Why the test ended in this delivery. A proctor's force-submit (`proctor`) and a
-		 * whole-test expiry (`expiry`) have their own headings; the others read as finished.
+		 * time expiry (`expiry` — the whole test, or a scope expiry that left nothing open,
+		 * whoever submitted the collection) have their own headings; the others read as finished.
 		 */
 		endReason?: AssessmentEndReason | null;
 		/**

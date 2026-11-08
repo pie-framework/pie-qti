@@ -471,6 +471,11 @@ export class AssessmentPlayer {
 	/** Why the running (or finished) end of the test happens; the first caller decides. */
 	private endReason: AssessmentEndReason | null = null;
 	/**
+	 * Scopes that expired while an end of the test ran: they closed at once, but delivery
+	 * leaves them only if that end does not finalize (the end of the test never navigates).
+	 */
+	private readonly expiriesDuringEnd: Array<{ scope: 'testPart' | 'section' | 'item'; identifier: string }> = [];
+	/**
 	 * A branch rule (`EXIT_TESTPART`, `EXIT_SECTION` or a target outside the part) that would
 	 * have left a test part with questions still owing an answer: the candidate stayed, and
 	 * the next `next()` from the same item follows it once the questions are answered.
@@ -1327,13 +1332,16 @@ export class AssessmentPlayer {
 	 * parts cannot be re-entered, so leaving an individual part with them would strand them.
 	 * The shell's "Leave this part?" confirmation lists them (with jumps) and holds Continue;
 	 * `next()` / `navigateTo()` refuse to leave the part while any remains
-	 * (`leavePartResponseRequired` / `leavePartResponseInvalid`). Empty for a simultaneous
-	 * part (QTI: the controls do not apply), once finalized, and in a time-closed delivery.
+	 * (`leavePartResponseRequired` / `leavePartResponseInvalid`). Only questions the
+	 * candidate can still reach count — one behind them in a linear part (a session restored
+	 * from before this gate) could never be answered, so it cannot hold the way out; the end
+	 * of the test collects it as it stands (`unreachable`). Empty for a simultaneous part
+	 * (QTI: the controls do not apply), once finalized, and in a time-closed delivery.
 	 */
 	public getTestPartBlockers(): SubmissionBlocker[] {
 		const current = this.items[this.currentItemIndex];
 		if (!current || this.isTimeClosedDelivery()) return [];
-		return this.blockerCandidates((q) => q.testPart === current.testPart);
+		return this.blockerCandidates((q) => q.testPart === current.testPart).filter((blocker) => blocker.reachable);
 	}
 
 	/** Reject a candidate-initiated end of the test that would submit held-back items, naming them. */
@@ -1343,14 +1351,15 @@ export class AssessmentPlayer {
 
 	/**
 	 * Reject leaving the test part `from` belongs to while questions in it (or, for an
-	 * EXIT_SECTION, in the ended scope) still owe an answer. `exclude` is the item the move
-	 * itself submits (next() submits the current item before it moves).
+	 * EXIT_SECTION, in the ended scope) still owe an answer the candidate can still give.
+	 * `exclude` is the item the move itself submits (next() submits the current item before
+	 * it moves). An unreachable question never holds the way out (see `getTestPartBlockers`).
 	 */
 	private assertCanLeaveScope(from: FlatItem, options: { exclude?: FlatItem; scope?: (q: FlatItem) => boolean } = {}): void {
 		if (!this.isIndividual(from)) return;
 		const inScope = options.scope ?? ((q: FlatItem) => q.testPart === from.testPart);
 		this.throwForBlockers(
-			this.blockerCandidates((q) => q !== options.exclude && inScope(q)),
+			this.blockerCandidates((q) => q !== options.exclude && inScope(q)).filter((blocker) => blocker.reachable),
 			'leavePart',
 		);
 	}
@@ -2454,9 +2463,12 @@ export class AssessmentPlayer {
 				if (this.currentItemIndex !== before || this.finalized) return;
 			} else if (pendingExit) {
 				// The candidate answered what the part owed: the branch decision the backend
-				// made for this item's submission is followed now.
+				// made for this item's submission is followed now. A decision that can no
+				// longer be followed (it would re-enter a part already left) leaves the
+				// candidate's own forward step.
+				const before = this.currentItemIndex;
 				await this.followBranch(q, pendingExit.target);
-				return;
+				if (this.currentItemIndex !== before || this.finalized) return;
 			}
 			// The candidate may still return and re-attempt this item: reopen it writable
 			// while attempts remain (a no-op for closed single-attempt or writable items),
@@ -2607,6 +2619,9 @@ export class AssessmentPlayer {
 	 */
 	private reopenForRemainingAttempts(q: FlatItem): void {
 		if (isAdaptiveItemXml(q.item.itemXml)) return;
+		// Only the item delivery stands on (a scope expiry may have moved the candidate away
+		// while its submission was in flight): another item's live session is never replaced.
+		if (this.items[this.currentItemIndex] !== q) return;
 		const live = this.currentItemSession;
 		if (!live || isWritableItemLifecycle(live.state().lifecycleStatus)) return;
 		if (!this.sessionCoordinator.canSubmit(q.identifier)) return;
@@ -2840,7 +2855,9 @@ export class AssessmentPlayer {
 				// ignore
 			}
 			this.sessionCoordinator.markAnswered(q.identifier, responses);
-			this.navigationManager.markVisited(this.currentItemIndex);
+			// The submitted item, not wherever delivery stands now (a scope expiry may have
+			// moved the candidate while the submission was in flight).
+			this.navigationManager.markVisited(q.index);
 
 			// Apply the backend's branching decision, if any. QTI branchRule semantics:
 			// - EXIT_TEST terminates the test: remaining items are not presented and the test
@@ -2876,17 +2893,35 @@ export class AssessmentPlayer {
 	 * of the part still owe an answer is refused like a candidate's own step out of the
 	 * part: the candidate stays, the coded error names the questions, and the decision is
 	 * kept — the next `next()` from this item follows it once they are answered (a changed
-	 * response re-submits and replaces it). Inside an end of the test nothing is gated.
+	 * response re-submits and replaces it).
+	 *
+	 * The end of the test never navigates: a decision its own submission returns is kept
+	 * the same way and the collection runs where the candidate stands. A decision that
+	 * arrives after delivery moved on (a scope expiry closed the item while its submission
+	 * was in flight and moved the candidate) is not followed — it would undo that move —
+	 * and a test part delivery already left is never re-entered.
 	 */
 	private async followBranch(q: FlatItem, target: string): Promise<void> {
-		if (this.endReason === null) {
-			try {
-				if (target === 'EXIT_TEST') this.assertNoSubmissionBlockers();
-				else if (this.branchExitLeavesPart(q, target)) this.assertCanLeaveScope(q, { exclude: q });
-			} catch (error) {
-				this.pendingBranchExit = { itemIdentifier: q.identifier, target };
-				throw error;
-			}
+		const targetIndex = this.items.findIndex((item) => item.identifier === target);
+		const standing = this.items[this.currentItemIndex] ?? q;
+		// A test part delivery already left is never re-entered, whatever the decision says.
+		if (targetIndex >= 0 && this.partOrder(this.items[targetIndex]) < this.partOrder(standing)) {
+			this.pendingBranchExit = null;
+			return;
+		}
+		// An end of the test is running: it collects where the candidate stands.
+		if (this.endReason !== null) {
+			this.pendingBranchExit = { itemIdentifier: q.identifier, target };
+			return;
+		}
+		// Delivery moved on while the submission was in flight: the decision no longer applies.
+		if (standing !== q) return;
+		try {
+			if (target === 'EXIT_TEST') this.assertNoSubmissionBlockers();
+			else if (this.branchExitLeavesPart(q, target)) this.assertCanLeaveScope(q, { exclude: q });
+		} catch (error) {
+			this.pendingBranchExit = { itemIdentifier: q.identifier, target };
+			throw error;
 		}
 		this.pendingBranchExit = null;
 		if (target === 'EXIT_TEST') {
@@ -2897,18 +2932,17 @@ export class AssessmentPlayer {
 			await this.applyExitBoundary(target, q);
 			return;
 		}
-		const nextIdx = this.items.findIndex((x) => x.identifier === target);
-		if (nextIdx >= 0) {
+		if (targetIndex >= 0) {
 			// A target in the same part leaves this item revisitable: while attempts remain
 			// (QTI allowReview governs only after the last one) its handoff must be
 			// attemptable, exactly as on the candidate's own move — reopen it writable and
 			// hand it off before the hop (a branch hop does not save the outgoing session).
-			if (this.items[nextIdx]!.testPart === q.testPart && this.items[this.currentItemIndex] === q) {
+			if (this.items[targetIndex]!.testPart === q.testPart) {
 				this.reopenForRemainingAttempts(q);
 				const status = this.currentItemSession?.state().lifecycleStatus;
 				if (status !== undefined && isWritableItemLifecycle(status)) this.saveCurrentItemSession();
 			}
-			await this.performNavigateTo(nextIdx, { restoring: true });
+			await this.performNavigateTo(targetIndex, { restoring: true });
 		}
 	}
 
@@ -3196,7 +3230,9 @@ export class AssessmentPlayer {
 	 *
 	 * `{ force: true }` is the proctor's administrative end of the test: it runs during a
 	 * pause, and neither minimum times nor the skipping/validation gates hold it back; the
-	 * collected submissions carry `timing.submissionReason: 'proctor'`. It never fails for
+	 * collected submissions carry `timing.submissionReason: 'proctor'` — except items an
+	 * expired time limit closed, which go out as `time-expired` (time wins), and the end is
+	 * an `expiry` end when the time had already closed the delivery. It never fails for
 	 * concurrency: while a candidate's navigation or submission is in flight, it waits for
 	 * that transition to settle and then ends the test (when the transition itself ended
 	 * the test, it resolves with those results).
@@ -3291,21 +3327,34 @@ export class AssessmentPlayer {
 	 * it stands; an item a skipping control held back is then recorded as skipped.
 	 *
 	 * `reason` records why the test ends; the outermost caller decides (a candidate's
-	 * submit whose final submission branches to EXIT_TEST stays a candidate end).
+	 * submit whose final submission branches to EXIT_TEST stays a candidate end) — except
+	 * that an end collecting a delivery the time already closed (the whole test expired, or
+	 * an expiry dead end left nothing open) is an `expiry` end whoever triggers it: the
+	 * auto-finalize, the candidate's Submit after it failed, a proctor's force-submit.
+	 *
+	 * The end never navigates: it collects where the candidate stands. A branch decision
+	 * its own submission returns is kept on record (`followBranch`), and a scope expiry
+	 * while it runs only closes the scope — moving delivery off it waits for this end and
+	 * happens only if the end does not finalize.
 	 */
 	private async endTestInternal(
 		options: { administrative?: boolean; reason?: AssessmentEndReason } = {},
 	): Promise<AssessmentResults> {
 		if (this.finalized && this.finalResults) return this.finalResults;
 		const outermost = this.endReason === null;
-		if (outermost) this.endReason = options.reason ?? 'candidate';
+		if (outermost) this.endReason = this.isTimeClosedDelivery() ? 'expiry' : (options.reason ?? 'candidate');
 		try {
 			return await this.collectAndFinalize(options.administrative === true);
 		} finally {
 			if (outermost) {
 				this.unreachableCollection = new Set();
-				// A refused or failed end leaves the test running: no reason is pending.
-				if (!this.finalized) this.endReason = null;
+				const heldExpiries = this.expiriesDuringEnd.splice(0);
+				if (!this.finalized) {
+					// A refused or failed end leaves the test running: no reason is pending,
+					// and delivery now leaves the scopes that expired while it ran.
+					this.endReason = null;
+					for (const expiry of heldExpiries) this.leaveExpiredScope(expiry.scope, expiry.identifier);
+				}
 			}
 		}
 	}
@@ -3368,8 +3417,9 @@ export class AssessmentPlayer {
 						!this.responsesUnchangedSinceSubmission(q.identifier)
 					: false;
 			if (needsSubmission) {
+				// Collected where the candidate stands: a branch decision this submission
+				// returns is kept on record, never followed (`followBranch`).
 				await this.submitCurrentItemInternal();
-				// That submission may itself have branched to EXIT_TEST and finalized the test.
 				if (this.finalized && this.finalResults) return this.finalResults;
 			}
 		}
@@ -3973,9 +4023,22 @@ export class AssessmentPlayer {
 	 * candidate, and delivery moves to the next open item — forward in the part, else an open
 	 * question earlier in a nonlinear part, else the next part. Only when nothing open
 	 * remains anywhere reachable is it the expiry dead end.
+	 *
+	 * The end of the test never navigates: while one runs, the expiry only closes the scope
+	 * (the collection takes its items as they stand, `time-expired`). Leaving it — the move
+	 * and its report — waits for that end, and is moot once the end finalized.
 	 */
 	private handleScopeExpired(scope: 'testPart' | 'section' | 'item', identifier: string): void {
 		this.lockedScopes.add(`${scope}:${identifier}`);
+		if (this.endReason !== null) {
+			this.expiriesDuringEnd.push({ scope, identifier });
+			return;
+		}
+		this.leaveExpiredScope(scope, identifier);
+	}
+
+	/** Close an expired scope for the candidate: move delivery off it, or report the dead end. */
+	private leaveExpiredScope(scope: 'testPart' | 'section' | 'item', identifier: string): void {
 		const current = this.items[this.currentItemIndex];
 		if (!current || !this.isItemLocked(current)) {
 			// Delivery is already outside the expired scope; the shell still learns it closed.

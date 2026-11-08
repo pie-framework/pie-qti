@@ -67,9 +67,19 @@ snapshot, so the built-in durations are current), results are produced, `complet
 (`canNext`/`canPrevious` become false; further navigation rejects with a typed `testFinalized`
 error). The results, the finalized event and `getEndReason()` record why the test ended:
 `candidate`, `expiry`, `proctor` or `branch` (the outermost caller decides — a candidate's submit
-whose last submission branches to `EXIT_TEST` stays a candidate end). `EXIT_TESTPART`/`EXIT_SECTION` first continue with the
+whose last submission branches to `EXIT_TEST` stays a candidate end — except that an end collecting
+a delivery the time already closed, the whole test expired or a scope expiry left nothing open, is
+an `expiry` end whoever triggers it: the automatic submission, the candidate's Submit after it
+failed, a proctor's force-submit). `EXIT_TESTPART`/`EXIT_SECTION` first continue with the
 next delivered item outside the ended scope, finalizing the ended test part when delivery leaves it
 or nothing follows.
+
+The end of the test never navigates: it collects where the candidate stands. A branch decision the
+backend returns for the end's own collection is kept on record, not followed — if the end does not
+complete (a failed finalize), the next `next()` from that item follows it — so the final snapshot
+never records an unseen item as current or visited, and a retry is never held by a question the
+candidate was moved onto. A scope that expires while the end runs closes at once (its items go out
+as they stand, `time-expired`); delivery moves off it only if that end does not finalize.
 
 ### Why navigation transitions are serialized
 
@@ -129,7 +139,7 @@ snapshot's `timing.savedAt` dates the resume prompt.
 
 The client does apply `allowSkipping` and `validateResponses` to its own submissions, as one rule: both are QTI controls of items in `individual` submission parts ("only applicable when the item is in a testPart with individual submission mode"), and both gate *submission*, not navigation — moving away from an item in a nonlinear part is not a submission. A skipped item is one whose every response is NULL, empty or still equal to its declared default (the `numberResponded` test). A candidate-initiated submission (`next()`, `submitCurrentItem()`, `checkCurrentItem()`, and the end of the test) never sends a skipped item while `allowSkipping=false`, nor an answered item whose responses do not satisfy its interactions while `validateResponses=true`; the end of the test rejects naming the items rather than force-submitting them or failing generically.
 
-A test part cannot be re-entered, so a question left owing an answer in a part the candidate leaves could never be fixed. Leaving an individual part is therefore gated on that part's questions (`getTestPartBlockers()`): Next out of the part, a direct jump into the next part and a branch decision leaving it (`EXIT_TESTPART`, `EXIT_SECTION` with nothing after it in the part, a later-part target, `EXIT_TEST`) reject with `leavePartResponseRequired` / `leavePartResponseInvalid` naming them; a refused branch decision is kept and followed by the next `next()` from that item. As a safety net, a question the candidate can no longer reach never holds the end of the test: `getSubmissionBlockers()` reports only reachable questions, and the unreachable ones (`getUnreachableSubmissionBlockers()` — a session restored from before the gate) are collected as they stand with `submissionReason: 'unreachable'`, never as a normal candidate submission. An administrative end — a time expiry, a proctor's forced submit — collects everything as it stands (the QTI end-of-scope rule), recording an unanswered required item as skipped by the expiry.
+A test part cannot be re-entered, so a question left owing an answer in a part the candidate leaves could never be fixed. Leaving an individual part is therefore gated on that part's questions the candidate can still reach (`getTestPartBlockers()`): Next out of the part, a direct jump into the next part and a branch decision leaving it (`EXIT_TESTPART`, `EXIT_SECTION` with nothing after it in the part, a later-part target, `EXIT_TEST`) reject with `leavePartResponseRequired` / `leavePartResponseInvalid` naming them; a refused branch decision is kept and followed by the next `next()` from that item. A question the candidate can no longer reach (behind them in a linear part, from a session restored from before the gate) never holds the way out — nothing could answer it. As a safety net, a question the candidate can no longer reach never holds the end of the test either: `getSubmissionBlockers()` reports only reachable questions, and the unreachable ones (`getUnreachableSubmissionBlockers()` — a session restored from before the gate) are collected as they stand with `submissionReason: 'unreachable'`, never as a normal candidate submission. An administrative end — a time expiry, a proctor's forced submit — collects everything as it stands (the QTI end-of-scope rule), recording an unanswered required item as skipped by the expiry.
 
 ---
 
@@ -189,7 +199,7 @@ A test part cannot be re-entered, so a question left owing an answer in a part t
 - **FR-5:** In `simultaneous` submission mode, `submit()` must send all unsubmitted items to the backend before calling `finalizeAssessment()`. Client-collected responses must survive across backend state-update responses during the submission loop.
 - **FR-6:** `getNavigationState()` must return `canPrevious: false` throughout a linear testPart and
   when review policy forbids the previous item in nonlinear delivery.
-- **FR-7:** QTI `allowSkipping=false` (individual parts only) gates every candidate-initiated submission of a skipped item (every response NULL, empty or equal to its declared default): `next()` throws before submitting, `submitCurrentItem()`/`checkCurrentItem()` reject, and the end of the test rejects with the coded `finalizeResponseRequired` naming the reachable items (`getSubmissionBlockers()`) instead of submitting NULL responses. Leaving an individual test part with such a question rejects with `leavePartResponseRequired` before anything is submitted (`getTestPartBlockers()`), on Next, a direct jump and a branch decision alike. Navigation within a part (nonlinear jump, previous) is not submission and stays allowed; a simultaneous part is never gated; a question no longer reachable never holds the end of the test and is collected as it stands (`submissionReason: 'unreachable'`); a time expiry or a proctor's forced submit collects the item as skipped.
+- **FR-7:** QTI `allowSkipping=false` (individual parts only) gates every candidate-initiated submission of a skipped item (every response NULL, empty or equal to its declared default): `next()` throws before submitting, `submitCurrentItem()`/`checkCurrentItem()` reject, and the end of the test rejects with the coded `finalizeResponseRequired` naming the reachable items (`getSubmissionBlockers()`) instead of submitting NULL responses. Leaving an individual test part with such a question rejects with `leavePartResponseRequired` before anything is submitted (`getTestPartBlockers()`), on Next, a direct jump and a branch decision alike — counting only questions the candidate can still reach (one behind them in a linear part cannot hold the way out). Navigation within a part (nonlinear jump, previous) is not submission and stays allowed; a simultaneous part is never gated; a question no longer reachable never holds the end of the test and is collected as it stands (`submissionReason: 'unreachable'`); a time expiry or a proctor's forced submit collects the item as skipped.
 - **FR-8:** `getCurrentSharedRubricBlocks()` must return cloned test-part and section rubric blocks for
   the active item in that order. The compatibility `getCurrentRubricBlocks()` method retains its
   section-first/fallback behavior. Direct `assessmentItem` rubrics must remain on
@@ -283,8 +293,11 @@ A test part cannot be re-entered, so a question left owing an answer in a part t
   naming the items. A skipped (empty) item is the `allowSkipping` rule's domain, not validation's.
 - **FR-28:** `submit({ force: true })` is the proctor's administrative end of the test: it runs
   during a pause and behind the begin gate, ignores minimum times and the skipping/validation
-  controls, collects every response as it stands under `timing.submissionReason: 'proctor'`, and
-  ends the test (`endReason: 'proctor'`). It never rejects as busy: a force-submit requested while a
+  controls, collects every response as it stands under `timing.submissionReason: 'proctor'` —
+  except items an expired time limit closed, which go out as `time-expired` (time wins over
+  `proctor`) — and ends the test (`endReason: 'proctor'`; `expiry` when the time had already
+  closed the delivery: the whole test expired, or a scope expiry left nothing open). It never
+  rejects as busy: a force-submit requested while a
   candidate transition is in flight is queued behind it and lands when it settles. A candidate's
   `submit()` stays blocked while paused. The shell surfaces a refused candidate end of the test as a
   warning naming the questions, never as a retryable failure.
@@ -405,7 +418,10 @@ nothing depends on host CSS frameworks.
   it — Continue or Escape — moves focus to that question and announces its position like a
   navigation (`onScopeTimeExpired` event: `deliveryContinues`, `nextIndex`). An expiry also closes
   a submit confirmation or leave-part warning that was open (its blockers and jumps no longer
-  hold). Expiries are not part of a snapshot: a restored session recomputes them from its clocks
+  hold). The move is never undone: a branch decision returned by a submission that was in flight
+  when the expiry moved delivery is not followed, and no branch decision re-enters a test part
+  already left. A scope that expires while the end of the test runs closes at once (its items go
+  out as they stand); delivery moves off it only if that end does not finalize. Expiries are not part of a snapshot: a restored session recomputes them from its clocks
   before entering any item, so a scope that ran out while the candidate was away is locked at once
   (never editable until the next tick) and delivery lands on an open question the same way — or,
   with none, shows the closed item read-only and reports the dead end below.
@@ -414,7 +430,8 @@ nothing depends on host CSS frameworks.
   expiry dialog with a Submit action (dismissed with Escape, focus moves to the navigation bar's
   Submit), and the navigation bar offers Submit in place of Next wherever the candidate is — as it
   does whenever no forward step remains (an earlier question still open after the later ones
-  closed). Ending the test then is the mandated collection: the
+  closed). Ending the test then is the mandated collection — an `expiry` ending, with the
+  time-expired completion heading: the
   frozen responses go out as `timing.submissionReason: 'time-expired'` (the reference
   backend accepts them; production backends remain authoritative), and minimum times and
   response validation cannot hold a closed delivery open.
@@ -424,7 +441,8 @@ nothing depends on host CSS frameworks.
   outcomes/testFeedback), bypassing minimum-time checks and the skipping/validation controls
   (an unanswered required item is recorded as skipped by the expiry); a failure keeps the
   session open with every item closed, surfaces through `onError`, and the expiry dialog
-  offers Submit. The host hears `onTimeExpired({ autoFinalized: true })` and the element's
+  offers Submit — still an `expiry` ending (the time-expired completion heading), as is a
+  proctor's force-submit at that point. The host hears `onTimeExpired({ autoFinalized: true })` and the element's
   `time-expired` event. A session restored after its whole-test limit ran out finalizes the
   same way as soon as delivery runs. `allowLateSubmission` keeps the test open past the limit
   instead.
@@ -595,8 +613,9 @@ callbacks with a `bind:open` state.
 ### Completion screen and results summary
 
 Finalization replaces the dead last item with a candidate-facing completion screen:
-"You have finished the test" (its time-expired variant when a whole-test limit
-auto-submitted; its proctor variant — "Your test was submitted by your proctor.", announced
+"You have finished the test" (its time-expired variant whenever the time ended the test — a
+whole-test limit, or a scope expiry that left nothing open, whether the automatic submission, the
+candidate's Submit after it failed, or a proctor's force-submit collected it; its proctor variant — "Your test was submitted by your proctor.", announced
 assertively — after a force-submit, which also replaces a start screen it ended behind; its
 already-submitted variant when a finalized session was restored), the
 test's outcome-matched `testFeedback`, and — only when the host opts
@@ -737,7 +756,8 @@ Key types are in `packages/assessment-player/src/integration/api-contract.ts`. I
 - **`SecureItemRef.itemXml`** must be pre-filtered by the server. For `candidate` role, `<correctResponse>` and `<responseProcessing>` must be absent. The client does not validate this; it trusts the server.
 - **`AssessmentSessionState.itemResponses`** is keyed by item identifier, then by response variable identifier. The inner value type is `Record<string, ResponseValue>`. A missing outer key means the item has never been visited; an empty inner object means the item was visited but no response was entered.
 - **`AssessmentSessionState.itemSessions`** contains serialized handoff values for inactive/restorable items. It never contains or represents a second live session. `getCurrentItemSession()` is the sole live reference and is not persistence data.
-- **`SubmitResponsesResponse.nextItemIdentifier`** is the server's branching decision. When present, the client must navigate to that item. When absent, the client falls back to `currentIndex + 1` (individual mode) or stays in place (simultaneous mode). Servers that do not implement branching should omit this field entirely.
+- **`SubmitResponsesResponse.nextItemIdentifier`** is the server's branching decision. When present, the client must navigate to that item — on a candidate's move. The end of the test never navigates (a decision returned for its own collection is kept on record and followed by the next `next()` only if the end does not complete), a decision that arrives after a scope expiry moved delivery is not followed, and no decision re-enters a test part already left. When absent, the client falls back to `currentIndex + 1` (individual mode) or stays in place (simultaneous mode). Servers that do not implement branching should omit this field entirely.
+- **`SubmitResponsesResponse.updatedState`** carries the backend's scores and attempt records; it never moves the candidate. The client keeps its own `currentItemIdentifier` across the replacement (delivery moves through `nextItemIdentifier` only), so a stale backend position cannot redirect responses or the next snapshot.
 - **`BackendAdapter.canSaveState`** (default `true`) is the autosave capability flag: the core debounces drafts through `saveState` unless the adapter reports `false` or the config disables autosave. Adapters that cannot store drafts must say so rather than silently accepting saves.
 - **`BackendAdapter.requiresItemSession`** (default unset) declares a backend that scores from `SubmitResponsesRequest.itemSession`; the core then sends it on every submission whatever `sendItemSessionToBackend` says. The reference adapter declares it.
 - **`SubmitTimingEvidence.submissionReason`** is `candidate` (default), `time-expired`, `proctor`, or `unreachable` — a question the end of the test collects as it stands because the candidate can no longer reach it although its skipping/validation control would refuse it.
@@ -887,6 +907,29 @@ AC-20: The completion screen reports the end and (opt-in) the results
         variant after an auto-finalized expiry), renders the test's outcome-matched
         testFeedback, and — only with showResultsSummary — lists every delivered item's
         status and the backend's per-item score under the finalized total
+
+AC-21: The end of the test never navigates
+  Given: An individual part q1..q3 whose backend returns nextItemIdentifier 'q2' for q1
+  When: submit() — or a whole-test expiry's auto-finalize, or submit({ force: true }) — runs from q1
+  Then: No item change fires; the final snapshot records q1 as current and q2 as not visited
+  When: finalizeAssessment fails
+  Then: The candidate is still on q1, a retry finalizes, and a next() follows the kept decision
+
+AC-22: A scope expiry's move is not undone by an in-flight submission
+  Given: A section limit that expires while next() submits q1, moving delivery into the next part
+  When: The submission then returns nextItemIdentifier 'q2' (in the part delivery left)
+  Then: Delivery stays where the expiry moved it, and getState() records that item as current
+
+AC-23: Only reachable questions hold the way out of a part
+  Given: A restored session on q2 of a linear part with q1 behind it unanswered (allowSkipping=false)
+  When: The candidate answers q2 and calls next()
+  Then: getTestPartBlockers() is empty, delivery enters the next part, and the end of the test
+        collects q1 with submissionReason 'unreachable'
+
+AC-24: An ending the time forced is an expiry ending
+  Given: A whole-test expiry whose automatic finalize failed, or a scope expiry that left nothing open
+  When: The candidate (or a proctor) submits
+  Then: endReason is 'expiry' and the completion screen shows its time-expired variant
 ```
 
 ```

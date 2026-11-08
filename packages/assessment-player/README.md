@@ -171,7 +171,9 @@ XML, own authoritative scoring state, and validate every client submission. See
   If validation or the backend request fails, the player restores the pre-submit item-session
   snapshot so the candidate can retry.
 - In `individual` mode, `next()` submits the current item before navigating and honors the backend's
-  `nextItemIdentifier` branch decision.
+  `nextItemIdentifier` branch decision. The end of the test never navigates: `submit()` (and a
+  time expiry's or a proctor's end) collects where the candidate stands and keeps a branch decision
+  its own submission returns on record instead of following it.
 - In `simultaneous` mode, `submit()` sends every unsubmitted item before finalization while preserving
   responses and serialized item sessions across backend state replacements.
 - `submit()` finishes by calling `finalizeAssessment()` and returns `AssessmentResults`.
