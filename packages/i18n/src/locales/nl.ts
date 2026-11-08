@@ -613,6 +613,8 @@ export default {
 			flaggedLine: '{count} vragen gemarkeerd voor revisie',
 			unansweredHeading: '{count} vragen niet beantwoord',
 			unansweredHeadingOne: '1 vraag niet beantwoord',
+			needsAnswerHeading: '{count} vragen hebben een antwoord nodig voordat je kunt inleveren',
+			needsAnswerHeadingOne: '1 vraag heeft een antwoord nodig voordat je kunt inleveren',
 			allAnswered: 'Je hebt alle vragen beantwoord.',
 			confirm: 'Toets inleveren',
 			cancel: 'Verder werken',
@@ -652,6 +654,7 @@ export default {
 			timeMinutes: 'Je hebt {count} minuten.',
 			timeExact: 'Je hebt {time}.',
 			scopedTimeLimits: 'Sommige onderdelen van deze toets hebben een eigen tijdslimiet.',
+			paused: 'Deze toets is gepauzeerd. Wacht tot hij wordt hervat.',
 		},
 
 		timeExpiry: {
@@ -752,6 +755,8 @@ export default {
 				reviewNotAllowed: 'Je kunt niet terug naar deze vraag.',
 				responseRequired: 'Je moet deze vraag beantwoorden voordat je verdergaat.',
 				responseInvalid: 'Geef een geldig antwoord voordat je verdergaat.',
+				finalizeResponseRequired: 'Sommige vragen hebben nog een antwoord nodig voordat je kunt inleveren: {items}.',
+				finalizeResponseInvalid: 'Sommige antwoorden zijn nog niet compleet. Controleer deze vragen voordat je inlevert: {items}.',
 				attemptValidationFailed: 'Controleer je antwoord. Een geldige reactie is vereist.',
 				maxAttemptsReached: 'Je hebt al je pogingen voor deze vraag gebruikt.',
 				itemSessionLocked: 'Deze vraag is gesloten en kan niet meer worden gewijzigd.',

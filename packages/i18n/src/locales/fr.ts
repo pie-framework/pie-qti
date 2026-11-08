@@ -619,6 +619,8 @@ export default {
 			flaggedLine: '{count} questions marquées pour révision',
 			unansweredHeading: '{count} questions sans réponse',
 			unansweredHeadingOne: '1 question sans réponse',
+			needsAnswerHeading: '{count} questions doivent recevoir une réponse avant la soumission',
+			needsAnswerHeadingOne: '1 question doit recevoir une réponse avant la soumission',
 			allAnswered: 'Vous avez répondu à toutes les questions.',
 			confirm: 'Soumettre le test',
 			cancel: 'Continuer à travailler',
@@ -658,6 +660,7 @@ export default {
 			timeMinutes: 'Vous disposez de {count} minutes.',
 			timeExact: 'Vous disposez de {time}.',
 			scopedTimeLimits: 'Certaines parties de ce test ont leur propre limite de temps.',
+			paused: 'Ce test est en pause. Veuillez patienter jusqu\'à sa reprise.',
 		},
 
 		timeExpiry: {
@@ -758,6 +761,8 @@ export default {
 				reviewNotAllowed: 'Vous ne pouvez pas revenir à cette question.',
 				responseRequired: 'Vous devez répondre à cette question avant de continuer.',
 				responseInvalid: 'Veuillez fournir une réponse valide avant de continuer.',
+				finalizeResponseRequired: 'Certaines questions doivent encore recevoir une réponse avant la soumission : {items}.',
+				finalizeResponseInvalid: 'Certaines réponses ne sont pas encore complètes. Vérifiez ces questions avant la soumission : {items}.',
 				attemptValidationFailed: 'Veuillez vérifier votre réponse. Une réponse valide est requise.',
 				maxAttemptsReached: 'Vous avez utilisé toutes vos tentatives pour cette question.',
 				itemSessionLocked: 'Cette question est close et ne peut plus être modifiée.',

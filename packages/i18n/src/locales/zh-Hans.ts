@@ -626,6 +626,8 @@ export default {
 			flaggedLine: '{count} 题已标记待复查',
 			unansweredHeading: '{count} 题未回答',
 			unansweredHeadingOne: '1 题未回答',
+			needsAnswerHeading: '提交前有 {count} 题需要作答',
+			needsAnswerHeadingOne: '提交前有 1 题需要作答',
 			allAnswered: '你已回答所有题目。',
 			confirm: '提交试卷',
 			cancel: '继续作答',
@@ -665,6 +667,7 @@ export default {
 			timeMinutes: '你有 {count} 分钟的时间。',
 			timeExact: '你有 {time} 的时间。',
 			scopedTimeLimits: '本测试的部分内容有各自的时间限制。',
+			paused: '本测试已暂停。请等待恢复。',
 		},
 
 		timeExpiry: {
@@ -765,6 +768,8 @@ export default {
 				reviewNotAllowed: '无法返回本题。',
 				responseRequired: '继续之前必须回答本题。',
 				responseInvalid: '继续之前请提供有效的答案。',
+				finalizeResponseRequired: '提交前仍有题目需要作答：{items}。',
+				finalizeResponseInvalid: '部分答案尚未完成。提交前请检查这些题目：{items}。',
 				attemptValidationFailed: '请检查你的答案。必须提供有效作答。',
 				maxAttemptsReached: '你已用完本题的所有尝试次数。',
 				itemSessionLocked: '本题已关闭，无法再修改。',

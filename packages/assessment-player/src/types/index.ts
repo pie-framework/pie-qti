@@ -106,15 +106,16 @@ export interface VisibleTestFeedback {
  * Whether the shell should render an item-level "Check answer" control for the
  * active item, and the attempt facts it displays (`AssessmentPlayer.getCheckAnswerState()`).
  *
- * The control exists only in `individual` submission-mode parts whose resolved
- * `itemSessionControl.showFeedback` allows item feedback (adaptive items always do).
- * QTI gives simultaneous parts no per-item submission, and `showFeedback=false`
- * (with maxAttempts 1) keeps today's submit-on-move delivery.
+ * The control exists only in `individual` submission-mode parts that allow more than
+ * one attempt (or deliver an adaptive item): QTI shows feedback for every non-final
+ * attempt there, whatever `showFeedback` says. QTI gives simultaneous parts no per-item
+ * submission, and a single attempt keeps the submit-on-move delivery (`reason`
+ * `feedbackOff`: nothing to check in place).
  */
 export interface CheckAnswerState {
 	/** True when the control renders. */
 	available: boolean;
-	/** Why the control does not render; null when it does. */
+	/** Why the control does not render (`feedbackOff`: a single attempt); null when it does. */
 	reason: 'simultaneous' | 'feedbackOff' | null;
 	/** Whether the active item is adaptive (its attempt loop stays open until completed). */
 	adaptive: boolean;

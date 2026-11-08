@@ -629,6 +629,8 @@ export default {
 			flaggedLine: '{count} questions are flagged for review',
 			unansweredHeading: '{count} questions are not answered',
 			unansweredHeadingOne: '1 question is not answered',
+			needsAnswerHeading: '{count} questions need an answer before you can submit',
+			needsAnswerHeadingOne: '1 question needs an answer before you can submit',
 			allAnswered: 'You have answered all the questions.',
 			confirm: 'Submit test',
 			cancel: 'Keep working',
@@ -668,6 +670,7 @@ export default {
 			timeMinutes: 'You have {count} minutes.',
 			timeExact: 'You have {time}.',
 			scopedTimeLimits: 'Some parts of this test have their own time limits.',
+			paused: 'This test is paused. Please wait until it resumes.',
 		},
 
 		timeExpiry: {
@@ -768,6 +771,8 @@ export default {
 				reviewNotAllowed: 'You cannot return to this question.',
 				responseRequired: 'You must answer this question before continuing.',
 				responseInvalid: 'Please provide a valid answer before continuing.',
+				finalizeResponseRequired: 'Some questions still need an answer before you can submit: {items}.',
+				finalizeResponseInvalid: 'Some answers are not complete yet. Check these questions before you submit: {items}.',
 				attemptValidationFailed: 'Please check your answer. A valid response is required.',
 				maxAttemptsReached: 'You have used all your attempts for this question.',
 				itemSessionLocked: 'This question is closed and can no longer be changed.',

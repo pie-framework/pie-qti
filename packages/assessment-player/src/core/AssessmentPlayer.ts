@@ -22,6 +22,7 @@ import {
 } from '@pie-qti/item-player';
 import { DefaultI18nProvider, type I18nProvider } from '@pie-qti/i18n';
 import { isShownByIdentifier } from '@pie-qti/qti-common';
+import type { DeclarationMap, QtiValue } from '@pie-qti/qti-processing';
 import type { QtiSectionRuntimeHostContract, QtiSectionToolConfig } from '@pie-qti/section-player';
 import type {
 	AssessmentRubricBlock,
@@ -53,15 +54,18 @@ import type {
 	TimeLimits,
 	VisibleTestFeedback,
 } from '../types/index.js';
-import { AssessmentSessionCoordinator } from './AssessmentSessionCoordinator.js';
+import { AssessmentSessionCoordinator, hasAnyResponse } from './AssessmentSessionCoordinator.js';
 import { AutosaveManager, type AutosaveState } from './AutosaveManager.js';
 import { AssessmentPlayerError, type AssessmentPlayerErrorCode } from './errors.js';
 import { NavigationManager } from './NavigationManager.js';
 import {
+	addItemVariableDeclarations,
+	applyVariableMappings,
 	deliveredItems,
 	endAttemptInteractionInfo,
 	evaluateTestExpression,
 	isAdaptiveItemXml,
+	itemSessionVariableValues,
 	plainQtiValue,
 	resolveItemSessionControl,
 	sectionComponents,
@@ -184,8 +188,16 @@ export interface BackendAssessmentPlayerConfig {
 	onTimeExpired?: (event: AssessmentTimeExpiryEvent) => void;
 	/** A test part, section or item limit expired; its items are now closed. */
 	onScopeTimeExpired?: (event: ScopeTimeExpiryEvent) => void;
-	/** A proctor pause started (`paused` true, with its reason) or ended. */
+	/**
+	 * A proctor pause started (`paused` true, with its reason) or ended. A session
+	 * restored paused reports its pause here once, right after creation.
+	 */
 	onPauseChange?: (paused: boolean, reason?: string) => void;
+	/**
+	 * The session reached its terminal state: finalized in this delivery
+	 * (`restored: false`) or restored already finalized (`restored: true`).
+	 */
+	onFinalized?: (event: AssessmentFinalizedEvent) => void;
 	/**
 	 * Host hook for core and backend failures. Errors are `AssessmentPlayerError`
 	 * instances carrying a stable `code` for localization; `message` keeps the raw
@@ -283,6 +295,33 @@ export interface ScopeTimeExpiryEvent {
 	deliveryContinues: boolean;
 }
 
+/** Fired through `onFinalized` once the session is terminal. */
+export interface AssessmentFinalizedEvent {
+	/** True for a session the backend restored already finalized; false for a finalization in this delivery. */
+	restored: boolean;
+	results: AssessmentResults;
+}
+
+/**
+ * An item a candidate-initiated end of the test would refuse to submit
+ * (`getSubmissionBlockers()`): QTI `allowSkipping=false` with no response (`required`),
+ * or `validateResponses=true` with responses that do not satisfy the interactions
+ * (`invalid`). Both apply only to items in individual submission parts.
+ */
+export interface SubmissionBlocker {
+	identifier: string;
+	/** Flat delivery index (for `navigateTo`). */
+	index: number;
+	/** 1-based position shown to the candidate. */
+	number: number;
+	reason: 'required' | 'invalid';
+	/** Whether the navigation rules let the candidate jump to it now. */
+	jumpAllowed: boolean;
+}
+
+/** What the presentation of an item session shows: QTI showFeedback / showSolution, resolved. */
+type PresentationPolicy = { showFeedback: boolean; showSolution: boolean };
+
 /** What a shell's countdown shows for the active scope right now. */
 export interface AssessmentTimeState {
 	/** Whether any active scope carries a hard maximum (false: nothing to count down). */
@@ -305,7 +344,16 @@ export interface AssessmentTimeState {
 export class AssessmentPlayer {
 	public static async create(config: BackendAssessmentPlayerConfig): Promise<AssessmentPlayer> {
 		const init = await config.backend.initSession(config.initSession);
-		return new AssessmentPlayer(config, init);
+		const player = new AssessmentPlayer(config, init);
+		// Restored terminal and paused states set no listener off during construction:
+		// the host hooks hear them once here, so an embedding (the element's
+		// `session-finalized` / `player-pause` events) never misses them.
+		if (player.finalized && player.finalResults) {
+			config.onFinalized?.({ restored: true, results: player.finalResults });
+		} else if (player.paused) {
+			config.onPauseChange?.(true, player.pauseReason);
+		}
+		return player;
 	}
 
 	private backend: BackendAdapter;
@@ -375,6 +423,17 @@ export class AssessmentPlayer {
 	 * candidate changed something: an unchanged response does not spend another attempt.
 	 */
 	private readonly lastSubmittedResponses = new Map<string, Record<string, unknown>>();
+	/**
+	 * Template defaults of nonlinear test parts, evaluated once at part entry for every
+	 * item ref (QTI): test part identifier → item identifier → defaults.
+	 */
+	private readonly templateDefaultsByPart = new Map<string, Map<string, Record<string, unknown> | undefined>>();
+	/** The presentation policy the live session was opened with (null: the item-player default). */
+	private liveSessionPresentation: PresentationPolicy | null = null;
+	/** Set during a proctor force-submit: submissions carry `submissionReason: 'proctor'`. */
+	private administrativeReason: 'proctor' | null = null;
+	/** A restored whole-test expiry's automatic finalize is scheduled (or ran). */
+	private restoredExpiryFinalizeScheduled = false;
 
 	// Event listeners
 	private itemChangeListeners = new Set<(index: number, total: number) => void>();
@@ -413,6 +472,9 @@ export class AssessmentPlayer {
 		this.items = this.flattenItems(this.assessment);
 
 		this.navigationManager = new NavigationManager();
+		// Visited marks ride the snapshot: a resumed session keeps them, not only a
+		// host-driven restoreState().
+		this.navigationManager.restoreState(this.visitedIndexes(initialState.visitedItems));
 
 		// Item session control is a UI hint; backend remains authoritative.
 		this.sessionCoordinator = new AssessmentSessionCoordinator({
@@ -440,6 +502,9 @@ export class AssessmentPlayer {
 		this.seedSubmittedResponses(initialState);
 		if (init.restoredState?.timing) {
 			this.restoreTimeTracking(init.restoredState.timing);
+			// Expiries are not in the snapshot: every scope whose restored clock already ran
+			// out locks now, before any item is entered, so none reopens editable.
+			this.lockExpiredScopesFromClocks(init.restoredState.timing);
 		}
 		// A session saved during a proctor pause reopens paused, its clocks frozen.
 		this.paused = init.restoredState?.timing?.isPaused === true;
@@ -468,6 +533,7 @@ export class AssessmentPlayer {
 			return;
 		}
 		this.enterInitialItem();
+		this.finalizeRestoredExpiryWhenRunning();
 	}
 
 	/**
@@ -475,20 +541,100 @@ export class AssessmentPlayer {
 	 * restoring navigation has no await before the session is attached, so the live
 	 * session exists when this returns. A failure is recorded (not swallowed): the shell
 	 * shows its typed failure screen with Retry instead of an eternal loading state.
+	 * An item an expired limit closed is never entered editable: delivery lands on the
+	 * next open item, like the live expiry's hop, or — with none left — shows the closed
+	 * item read-only and asks for the submission (reported once listeners can hear it).
 	 */
 	private enterInitialItem(): void {
 		const startId = this.state.currentItemIdentifier;
 		const idx = startId ? this.items.findIndex((q) => q.identifier === startId) : -1;
-		const target = idx >= 0 ? idx : this.items.length > 0 ? 0 : -1;
-		if (target < 0) return;
+		const requested = idx >= 0 ? idx : this.items.length > 0 ? 0 : -1;
+		if (requested < 0) return;
+		const { index: target, deadEnd } = this.restoringEntryTarget(requested);
 		this.pendingEntryIndex = target;
 		this.performNavigateTo(target, { restoring: true })
 			.then(() => {
 				if (this.pendingEntryIndex === target) this.pendingEntryIndex = null;
+				// The shell attaches its listeners right after creation; report the dead end
+				// on the next task so it is heard.
+				if (deadEnd) setTimeout(() => this.notifyExpiryDeadEnd(), 0);
 			})
 			.catch((error) => {
 				this.recordEntryFailure(error);
 			});
+	}
+
+	/**
+	 * Where a restoring entry lands: the requested item when it is open; else the next
+	 * open item after it — the hop the live expiry would have made; else (nothing open
+	 * follows) the requested item itself, shown read-only, as an expiry dead end.
+	 */
+	private restoringEntryTarget(index: number): { index: number; deadEnd: boolean } {
+		const q = this.items[index];
+		if (!q || !this.isItemLocked(q)) return { index, deadEnd: false };
+		const next = this.nextUnlockedIndex(index);
+		return next >= 0 ? { index: next, deadEnd: false } : { index, deadEnd: true };
+	}
+
+	/** Flat indexes of the snapshot's visited item identifiers. */
+	private visitedIndexes(identifiers: readonly string[] | undefined): number[] {
+		return (identifiers ?? [])
+			.map((id) => this.items.findIndex((q) => q.identifier === id))
+			.filter((index) => index >= 0);
+	}
+
+	/**
+	 * Lock every scope whose restored clock already ran past its hard maximum (no late
+	 * submission): its live expiry never fired in this runtime, so without this its items
+	 * would reopen editable until the next tick. A whole-test limit that ran out marks the
+	 * test expired. The live timer is told, so it does not fire these expiries again.
+	 */
+	private lockExpiredScopesFromClocks(timing: AssessmentSessionState['timing'] | undefined): void {
+		if (!timing) return;
+		const extended = this.config.pnp?.content?.extendedTime;
+		const ranOut = (limits: TimeLimits | undefined, elapsedMs: number | undefined): boolean => {
+			if (limits?.maxTime === undefined || limits.allowLateSubmission === true) return false;
+			const maxSeconds = extendTimeLimit(limits.maxTime, extended);
+			return maxSeconds !== undefined && (Number(elapsedMs) || 0) >= maxSeconds * 1000;
+		};
+		const expired: string[] = [];
+		const lock = (key: string): void => {
+			if (this.lockedScopes.has(key)) return;
+			this.lockedScopes.add(key);
+			expired.push(key);
+		};
+		for (const q of this.items) {
+			if (ranOut(q.testPart.timeLimits, timing.testPartTimes?.[q.testPart.identifier])) {
+				lock(`testPart:${q.testPart.identifier}`);
+			}
+			for (const section of q.sections) {
+				if (ranOut(section.timeLimits, timing.sectionTimes?.[section.identifier])) lock(`section:${section.identifier}`);
+			}
+			if (ranOut(q.item.timeLimits, timing.itemTimes?.[q.identifier])) lock(`item:${q.identifier}`);
+		}
+		if (ranOut(this.assessment.timeLimits, timing.totalTime)) {
+			this.assessmentExpired = true;
+			expired.push('assessment');
+		}
+		this.timeManager?.markExpired(expired);
+	}
+
+	/**
+	 * A whole-test limit that ran out while the session was away finalizes like a live
+	 * expiry — once delivery runs (not behind a begin gate, not during a pause), and on
+	 * the next task so the shell's listeners hear it.
+	 */
+	private finalizeRestoredExpiryWhenRunning(): void {
+		if (!this.assessmentExpired || this.restoredExpiryFinalizeScheduled) return;
+		if (this.finalized || this.destroyed || !this.started || this.paused) return;
+		this.restoredExpiryFinalizeScheduled = true;
+		setTimeout(() => {
+			if (this.finalized || this.destroyed || !this.started || this.paused) {
+				this.restoredExpiryFinalizeScheduled = false;
+				return;
+			}
+			this.autoFinalizeForTimeExpiry(0);
+		}, 0);
 	}
 
 	/** The item entry a failed hop will retry: the initial item, or an expiry hop target. */
@@ -682,11 +828,16 @@ export class AssessmentPlayer {
 	}
 
 	/**
-	 * Discard the candidate's draft and restart delivery at the first item: responses,
-	 * flags, visited state, the timer preference and the clocks reset to a fresh
-	 * session, and the blank draft is persisted immediately when autosave is on.
-	 * Already-submitted items stay submitted (the backend remains authoritative for
-	 * accepted results). Rejects while paused, behind a begin gate, once finalized,
+	 * Discard the candidate's draft and restart delivery. Start over clears what the
+	 * candidate authored and the backend has not accepted — responses, flags, comments,
+	 * visited state, the timer preference and unrecorded check state — and persists the
+	 * blank draft at once. It keeps the time accounting: every clock, each expired scope
+	 * and a whole-test expiry persist, so restarting never grants a fresh time allowance
+	 * after the questions were seen. Items the backend already accepted keep their
+	 * recorded results (the backend stays authoritative for them). Delivery repositions
+	 * to the first item that is still open; when none is, the closed item is shown
+	 * read-only and the expiry's submit path is requested again (`onTimeExpired` with
+	 * `submissionRequired`). Rejects while paused, behind a begin gate, once finalized,
 	 * and while another transition runs.
 	 */
 	public async startOver(): Promise<void> {
@@ -694,40 +845,54 @@ export class AssessmentPlayer {
 			if (this.finalized) {
 				throw new AssessmentPlayerError('testFinalized', 'Cannot start over: the assessment has ended.');
 			}
-			const now = this.config.now?.() ?? Date.now();
+			const snapshot = this.getState({ includeItemSessions: true });
+			// Accepted items keep their recorded state; everything else is the draft.
+			const accepted = new Set(
+				this.items.filter((q) => this.sessionCoordinator.hasItemResult(q.identifier)).map((q) => q.identifier),
+			);
+			const keepAccepted = <T>(record: Record<string, T> | undefined): Record<string, T> =>
+				Object.fromEntries(Object.entries(record ?? {}).filter(([identifier]) => accepted.has(identifier)));
 			const fresh: AssessmentSessionState = {
 				currentItemIdentifier: this.items[0]?.identifier ?? '',
 				visitedItems: [],
-				itemResponses: {},
-				itemScores: {},
-				itemSessions: {},
+				itemResponses: keepAccepted(snapshot.itemResponses),
+				itemScores: keepAccepted(snapshot.itemScores),
+				itemSessions: keepAccepted(snapshot.itemSessions),
+				itemSessionStates: keepAccepted(snapshot.itemSessionStates),
 				itemFlags: {},
 				itemComments: {},
-				itemSessionStates: {},
-				timing: {
-					startedAt: now,
-					itemTimes: {},
-					totalTime: 0,
-				},
+				// The clocks continue: the live TimeManager is not reset, and the draft's
+				// timing reflects it.
+				timing: snapshot.timing,
 			};
-			// Replaces coordinator state (responses, sessions, results, flags), resets the
-			// clocks and clears visited/navigation state.
+			// Replaces coordinator state (responses, sessions, results, flags) and clears
+			// visited/navigation state. Locked scopes, the whole-test expiry and the timer's
+			// fired-limit record stay as they are.
 			this.state = fresh;
-			this.restoreTimeTracking(fresh.timing);
 			this.navigationManager.restoreState([]);
-			const wasPaused = this.paused;
-			this.paused = false;
-			this.pauseReason = undefined;
-			if (wasPaused !== this.paused) this.notifyPauseChange();
+			// (A pause cannot be in force here: startOver is a candidate transition, and a
+			// pause requested while it runs applies once it settles.)
 			// The resumable draft is gone; the shell's resume prompt must not reappear.
 			this.restoredFromSnapshot = false;
 			this.restoredSavedAt = undefined;
-			// The fresh draft has no submissions of its own: every item submits on its move.
-			this.lastSubmittedResponses.clear();
-			await this.performNavigateTo(0, { restoring: true });
-			// Persist the blank draft so a refresh cannot resurrect the discarded answers.
-			this.autosave?.notify();
-			void this.autosave?.flush();
+			// Unrecorded check state goes with the draft; the memory of accepted responses stays.
+			for (const identifier of [...this.lastSubmittedResponses.keys()]) {
+				if (!accepted.has(identifier)) this.lastSubmittedResponses.delete(identifier);
+			}
+			this.lastItemFeedback = null;
+			this.lastPreSubmitSession = null;
+			this.templateDefaultsByPart.clear();
+			// Delivery repositions to the first item still open; with none left, the
+			// expiry dead end: the candidate's way out is the submission.
+			const firstOpen = this.items.findIndex((q) => !this.isItemLocked(q));
+			const target = firstOpen >= 0 ? firstOpen : Math.max(0, this.currentItemIndex);
+			if (this.items[target]) {
+				this.state.currentItemIdentifier = this.items[target]!.identifier;
+				await this.performNavigateTo(target, { restoring: true });
+				if (firstOpen < 0) this.notifyExpiryDeadEnd();
+			}
+			// Persist the blank draft now so a refresh cannot resurrect the discarded answers.
+			await this.autosave?.flushImmediate();
 		});
 	}
 
@@ -790,7 +955,17 @@ export class AssessmentPlayer {
 	): SubmitTimingEvidence | undefined {
 		const effective = this.getEffectiveItemTimeLimits(q);
 		const limitSeconds = effective.timeLimits?.maxTime;
-		if (!effective.source || limitSeconds === undefined) return undefined;
+		if (!effective.source || limitSeconds === undefined) {
+			// An administrative collection (a proctor's forced end) reports its reason even
+			// when nothing is timed.
+			return submissionReason
+				? {
+					scope: 'assessment',
+					elapsedMs: this.timeManager?.getScopeElapsedMs('assessment') ?? elapsedMs,
+					submissionReason,
+				}
+				: undefined;
+		}
 		const scopeIdentifier = effective.source === 'assessment'
 			? undefined
 			: (effective.scopeIdentifier ??
@@ -882,6 +1057,163 @@ export class AssessmentPlayer {
 	private itemNeedsSubmission(q: FlatItem): boolean {
 		if (!this.sessionCoordinator.hasItemResult(q.identifier)) return true;
 		return !this.responsesUnchangedSinceSubmission(q.identifier, this.sessionCoordinator.getResponses(q.identifier));
+	}
+
+	private isIndividual(q: FlatItem): boolean {
+		return (q.testPart.submissionMode ?? this.assessment.submissionMode) === 'individual';
+	}
+
+	/** The item's current responses: the live session's for the active item, else the stored ones. */
+	private currentResponsesFor(q: FlatItem): Record<string, unknown> {
+		if (this.items[this.currentItemIndex] === q && this.currentItemSession) {
+			return cloneResponseRecord(this.currentItemSession.state().responses);
+		}
+		return this.sessionCoordinator.getResponses(q.identifier);
+	}
+
+	/**
+	 * QTI itemSessionControl `allowSkipping` / `validateResponses` for one item's
+	 * responses. Both are "only applicable when the item is in a testPart with individual
+	 * submission mode", so a simultaneous part is never gated. A skipped item (no
+	 * response at all: every response NULL or empty) may be submitted only when skipping
+	 * is allowed, and is then not validated; an answered item validates when the item
+	 * asks for it.
+	 */
+	private submissionGate(q: FlatItem, responses: Record<string, unknown>): { mustAnswer: boolean; validate: boolean } {
+		if (!this.isIndividual(q)) return { mustAnswer: false, validate: false };
+		const settings = this.sessionCoordinator.getItemSettings(q.identifier);
+		const skipped = !hasAnyResponse(responses);
+		return {
+			mustAnswer: skipped && settings.allowSkipping === false,
+			validate: !skipped && settings.validateResponses === true,
+		};
+	}
+
+	/**
+	 * Whether the item's responses satisfy their interactions' constraints (a QTI valid
+	 * response): every value well-formed and, where an interaction requires input
+	 * (minChoices, minStrings, matchMin…), complete. Checked on a detached session so the
+	 * live attempt is untouched; an item whose attempt already closed was accepted as it is.
+	 */
+	private responsesSatisfyConstraints(q: FlatItem): boolean {
+		const live = this.items[this.currentItemIndex] === q ? this.currentItemSession : null;
+		const restore = live ? live.serialize() : this.state.itemSessions?.[q.identifier];
+		let session: ItemSession | null = null;
+		try {
+			session = this.getItemDefinition(q).openSession({
+				restore,
+				responses: live ? undefined : this.sessionCoordinator.getResponses(q.identifier),
+				activate: true,
+			});
+			if (!isWritableItemLifecycle(session.state().lifecycleStatus)) return true;
+			const validation = session.dispatch({ action: 'suspendAttempt' }).result?.validation;
+			if (!validation) return true;
+			return (
+				validation.valid &&
+				Object.values(validation.entries).every((entry) => entry.valid && (!entry.required || entry.complete))
+			);
+		} catch {
+			// A session that cannot even be opened for the check is the submission's problem
+			// to report; the gate does not invent a validation failure.
+			return true;
+		} finally {
+			session?.dispose();
+		}
+	}
+
+	/**
+	 * Whether the end of the test would submit this item: mirrors `endTestInternal`'s
+	 * collection — the open current item without an accepted (unchanged) result, and every
+	 * visited individual-mode item whose responses the backend has not accepted yet.
+	 */
+	private wouldCollectAtFinalize(q: FlatItem): boolean {
+		if (!this.isIndividual(q) || this.isItemLocked(q)) return false;
+		if (q.index === this.currentItemIndex) {
+			if (!this.sessionCoordinator.hasItemResult(q.identifier)) return true;
+			const status = this.currentItemSession?.state().lifecycleStatus;
+			return (
+				status !== undefined &&
+				isWritableItemLifecycle(status) &&
+				this.sessionCoordinator.canSubmit(q.identifier) &&
+				!this.responsesUnchangedSinceSubmission(q.identifier)
+			);
+		}
+		return this.navigationManager.isVisited(q.index) && this.itemNeedsSubmission(q);
+	}
+
+	/**
+	 * Items a candidate-initiated end of the test would refuse to submit: in individual
+	 * parts, an item without any response while `allowSkipping=false` (`required`), or an
+	 * answered item whose responses fail validation while `validateResponses=true`
+	 * (`invalid`). Only items the end of the test would actually submit are considered
+	 * (presented ones the backend has not accepted); an item an expired limit closed is
+	 * collected as it stands. Empty once the delivery is closed by time or finalized.
+	 * Shells list these in the submit confirmation; `submit()` rejects naming them.
+	 */
+	public getSubmissionBlockers(): SubmissionBlocker[] {
+		if (this.finalized || this.isTimeClosedDelivery()) return [];
+		const blockers: SubmissionBlocker[] = [];
+		for (const q of this.items) {
+			if (!this.wouldCollectAtFinalize(q)) continue;
+			const gate = this.submissionGate(q, this.currentResponsesFor(q));
+			const reason = gate.mustAnswer
+				? 'required'
+				: gate.validate && !this.responsesSatisfyConstraints(q)
+					? 'invalid'
+					: null;
+			if (!reason) continue;
+			blockers.push({
+				identifier: q.identifier,
+				index: q.index,
+				number: q.index + 1,
+				reason,
+				jumpAllowed: this.isNavigationTargetLegal(q.index),
+			});
+		}
+		return blockers;
+	}
+
+	/** Reject a candidate-initiated end of the test that would submit held-back items, naming them. */
+	private assertNoSubmissionBlockers(): void {
+		const blockers = this.getSubmissionBlockers();
+		const required = blockers.filter((blocker) => blocker.reason === 'required');
+		const named = required.length > 0 ? required : blockers;
+		if (named.length === 0) return;
+		const code: AssessmentPlayerErrorCode =
+			required.length > 0 ? 'finalizeResponseRequired' : 'finalizeResponseInvalid';
+		const identifiers = named.map((blocker) => blocker.identifier);
+		throw new AssessmentPlayerError(
+			code,
+			required.length > 0
+				? `These items need a response before the test can end: ${identifiers.join(', ')}`
+				: `These items have responses that do not satisfy their interactions: ${identifiers.join(', ')}`,
+			{
+				items: named.map((blocker) => blocker.number).join(', '),
+				itemIdentifiers: identifiers.join(','),
+				count: named.length,
+			},
+		);
+	}
+
+	/** The item's maximum attempts; null when unlimited (adaptive items, maxAttempts 0). */
+	private resolvedMaxAttempts(q: FlatItem): number | null {
+		if (isAdaptiveItemXml(q.item.itemXml)) return null;
+		const maxAttempts = this.sessionCoordinator.getItemSettings(q.identifier).maxAttempts ?? 1;
+		return maxAttempts === 0 ? null : Math.max(1, maxAttempts);
+	}
+
+	/**
+	 * QTI feedback visibility is attempt-relative: with more than one attempt allowed,
+	 * feedback for every non-final attempt must be shown; once the last attempt has
+	 * ended, `showFeedback` governs. Adaptive items always show their feedback.
+	 * `attemptsAfter` counts the attempts once the attempt being judged has ended.
+	 */
+	private feedbackVisible(q: FlatItem, attemptsAfter: number): boolean {
+		const control = this.sessionCoordinator.getItemSettings(q.identifier);
+		if (control.showFeedback === true || isAdaptiveItemXml(q.item.itemXml)) return true;
+		if (attemptsAfter < 1) return false;
+		const maxAttempts = this.resolvedMaxAttempts(q);
+		return maxAttempts === null || (maxAttempts > 1 && attemptsAfter < maxAttempts);
 	}
 
 	private flattenItems(assessment: SecureAssessment): FlatItem[] {
@@ -1402,7 +1734,13 @@ export class AssessmentPlayer {
 			}
 			const result = session.dispatch({ action: 'endAttempt', validateResponses }).result;
 			if (result?.validation && !result.validation.valid) {
-				throw new Error(result.validation.issues[0]?.message || `Submit failed: invalid response for item ${q.identifier}`);
+				// Coded, naming the item, so a shell shows which question to fix instead of a
+				// generic failure that no retry can clear.
+				throw new AssessmentPlayerError(
+					'finalizeResponseInvalid',
+					result.validation.issues[0]?.message || `Submit failed: invalid response for item ${q.identifier}`,
+					{ items: String(q.index + 1), itemIdentifiers: q.identifier, count: 1 },
+				);
 			}
 			return result?.sessionState ?? session.serialize();
 		};
@@ -1427,14 +1765,39 @@ export class AssessmentPlayer {
 		}
 	}
 
-	/** How an item presents feedback and solutions under its resolved item session control. */
-	private presentationFor(q: FlatItem): { showFeedback: boolean; showSolution: boolean } {
+	/**
+	 * How an item presents feedback and solutions under its resolved item session
+	 * control, for its current attempt count (feedback visibility is attempt-relative,
+	 * see `feedbackVisible`).
+	 */
+	private presentationFor(
+		q: FlatItem,
+		attemptsAfter = this.sessionCoordinator.getItemSessionInfo(q.identifier).attemptCount,
+	): PresentationPolicy {
 		const control = this.sessionCoordinator.getItemSettings(q.identifier);
 		return {
-			// Feedback during an adaptive item's attempts is part of the item, whatever showFeedback says.
-			showFeedback: control.showFeedback === true || isAdaptiveItemXml(q.item.itemXml),
+			showFeedback: this.feedbackVisible(q, attemptsAfter),
 			showSolution: control.showSolution === true,
 		};
+	}
+
+	/**
+	 * A counted submission can change what the item shows: feedback a non-final attempt
+	 * revealed hides once the last attempt ended (unless showFeedback is on), and the
+	 * first non-final attempt reveals it. Reopen the live session under the new policy
+	 * when it differs; the item stays where it is.
+	 */
+	private refreshLivePresentation(q: FlatItem, itemSession: SerializedItemSessionState | undefined): void {
+		const live = this.currentItemSession;
+		if (!live || this.items[this.currentItemIndex] !== q) return;
+		const next = this.presentationFor(q);
+		const current = this.liveSessionPresentation ?? { showFeedback: true, showSolution: false };
+		if (current.showFeedback === next.showFeedback && current.showSolution === next.showSolution) return;
+		const restore = isWritableItemLifecycle(live.state().lifecycleStatus) ? live.serialize() : (itemSession ?? live.serialize());
+		const session = this.getItemDefinition(q).openSession({ restore, presentation: next });
+		this.releaseCurrentItemSession();
+		this.attachCurrentItemSession(q, session, next);
+		this.notifyItemChange();
 	}
 
 	private getItemDefinition(q: FlatItem): AssessmentItemDefinition {
@@ -1470,8 +1833,9 @@ export class AssessmentPlayer {
 		return true;
 	}
 
-	private attachCurrentItemSession(q: FlatItem, session: ItemSession): void {
+	private attachCurrentItemSession(q: FlatItem, session: ItemSession, presentation?: PresentationPolicy): void {
 		this.currentItemSession = session;
+		this.liveSessionPresentation = presentation ?? null;
 		this.currentItemSessionUnsubscribe = session.subscribe((transition) => {
 			if (this.currentItemSession !== session) return;
 			if (this.mirrorSessionResponses(q.identifier, transition.current.responses)) {
@@ -1565,13 +1929,15 @@ export class AssessmentPlayer {
 		const snapshot = q ? this.state.itemSessions?.[q.identifier] : undefined;
 		if (!q || !snapshot) return;
 		this.releaseCurrentItemSession();
+		const presentation = this.presentationFor(q);
 		this.attachCurrentItemSession(
 			q,
 			this.getItemDefinition(q).openSession({
 				restore: snapshot,
 				activate: true,
-				presentation: this.presentationFor(q),
+				presentation,
 			}),
+			presentation,
 		);
 	}
 
@@ -1581,6 +1947,14 @@ export class AssessmentPlayer {
 	 */
 	public getState(options: { includeItemSessions?: boolean } = {}): AssessmentSessionState {
 		const snapshot = this.sessionCoordinator.snapshot(options);
+		// Every item the candidate has been presented is visited (not only submitted ones),
+		// so the review screen's "not yet visited" marks survive a reload.
+		const visited = new Set(snapshot.visitedItems);
+		for (const index of this.navigationManager.getVisited()) {
+			const identifier = this.items[index]?.identifier;
+			if (identifier) visited.add(identifier);
+		}
+		snapshot.visitedItems = this.items.map((q) => q.identifier).filter((identifier) => visited.has(identifier));
 		const current = this.items[this.currentItemIndex];
 		if (options.includeItemSessions && current && this.currentItemSession && !this.paused) {
 			// Navigation snapshots may predate edits made after revisiting this item.
@@ -1620,6 +1994,15 @@ export class AssessmentPlayer {
 			this.state = state;
 			this.seedSubmittedResponses(state);
 			this.restoreTimeTracking(state.timing);
+			// The snapshot's clocks are the time accounting from here on: expiries are
+			// recomputed from them before any item is entered, so a scope that already ran
+			// out never reopens editable (and one that has not is not held locked).
+			this.lockedScopes.clear();
+			this.assessmentExpired = false;
+			this.restoredExpiryFinalizeScheduled = false;
+			this.timeManager?.resetExpiryRecord();
+			this.lockExpiredScopesFromClocks(state.timing);
+			this.templateDefaultsByPart.clear();
 			// The snapshot carries the proctor pause; the begin gate keeps holding the clocks.
 			const wasPaused = this.paused;
 			this.paused = state.timing?.isPaused === true;
@@ -1627,25 +2010,26 @@ export class AssessmentPlayer {
 			if (!this.started) this.timeManager?.pause();
 
 			// Restore visited state for UI navigation hints.
-			const visitedIdx = (state.visitedItems || [])
-				.map((id) => this.items.findIndex((q) => q.identifier === id))
-				.filter((i) => i >= 0);
-			this.navigationManager.restoreState(visitedIdx);
+			this.navigationManager.restoreState(this.visitedIndexes(state.visitedItems));
 
 			// Behind a begin gate no item is entered yet: start() enters the restored one.
+			let deadEnd = false;
 			if (this.started) {
 				const currentId = state.currentItemIdentifier;
 				const idx = currentId ? this.items.findIndex((q) => q.identifier === currentId) : -1;
-				if (idx >= 0) {
-					await this.performNavigateTo(idx, { restoring: true });
-				} else if (this.items.length > 0) {
-					await this.performNavigateTo(0, { restoring: true });
+				const requested = idx >= 0 ? idx : this.items.length > 0 ? 0 : -1;
+				if (requested >= 0) {
+					const entry = this.restoringEntryTarget(requested);
+					deadEnd = entry.deadEnd;
+					await this.performNavigateTo(entry.index, { restoring: true });
 				}
 				// The (re-)entry succeeded: a previous entry failure is repaired.
 				this.entryError = null;
 				this.pendingEntryIndex = null;
 			}
 			if (wasPaused !== this.paused) this.notifyPauseChange();
+			if (deadEnd) this.notifyExpiryDeadEnd();
+			this.finalizeRestoredExpiryWhenRunning();
 			// A host-restored snapshot is the new draft; the save runs once this settles.
 			this.notifyAutosaveActivity();
 		});
@@ -1756,15 +2140,19 @@ export class AssessmentPlayer {
 		const responses = this.sessionCoordinator.activateItem(q.identifier);
 		const restoredItemSession = this.state.itemSessions?.[q.identifier];
 		this.releaseCurrentItemSession();
+		const presentation = this.presentationFor(q);
 		const session = this.getItemDefinition(q).openSession({
 			restore: restoredItemSession,
 			responses: restoredItemSession ? undefined : responses,
 			activate: true,
-			templateDefaults: restoredItemSession ? undefined : this.evaluateTemplateDefaults(q),
-			presentation: this.presentationFor(q),
+			templateDefaults: restoredItemSession ? undefined : this.templateDefaultsFor(q),
+			presentation,
 		});
-		this.attachCurrentItemSession(q, session);
+		this.attachCurrentItemSession(q, session, presentation);
 		this.suspendedForPause = false;
+		// An expired limit closed this item (a restoring entry at an expiry dead end, or a
+		// branch into a closed scope): it shows read-only, never editable.
+		if (this.isItemLocked(q)) this.saveCurrentItemSession();
 		// Entered during a proctor pause (a restore, or a held start): the attempt stays frozen.
 		if (this.paused) this.suspendLiveSessionForPause();
 
@@ -1822,27 +2210,23 @@ export class AssessmentPlayer {
 			const responses = this.sessionCoordinator.getActiveResponses();
 			this.sessionCoordinator.markAnswered(q.identifier, responses);
 
-			const navAway = this.sessionCoordinator.canNavigateAway(q.identifier, responses);
-			if (!navAway.allowed) {
-				const reason: AssessmentPlayerErrorCode = navAway.reason ?? 'responseRequired';
-				throw new AssessmentPlayerError(
-					reason,
-					reason === 'responseInvalid'
-						? 'Please provide valid responses before continuing.'
-						: 'You must answer this question before continuing.',
-				);
-			}
-
 			// In individual submission mode, submit the current item before moving forward
 			// unless its attempts are used up, it is already closed, or its recorded result
 			// already carries these exact responses (a practice item moved on unchanged).
 			const lifecycle = this.currentItemSession?.state().lifecycleStatus;
-			if (
-				(q.testPart.submissionMode ?? this.assessment.submissionMode) === 'individual' &&
+			const submits =
+				this.isIndividual(q) &&
 				this.sessionCoordinator.canSubmit(q.identifier) &&
 				lifecycle !== 'closed' &&
-				!this.responsesUnchangedSinceSubmission(q.identifier, responses)
-			) {
+				!this.responsesUnchangedSinceSubmission(q.identifier, responses);
+			// QTI allowSkipping (individual parts only): an item that is about to be
+			// submitted without any response may only be skipped when skipping is allowed.
+			// A simultaneous part, an item already closed, or one an expired limit closed
+			// (collected as it stands) is never held here.
+			if (submits && !this.isItemLocked(q) && this.submissionGate(q, responses).mustAnswer) {
+				throw new AssessmentPlayerError('responseRequired', 'You must answer this question before continuing.');
+			}
+			if (submits) {
 				const before = this.currentItemIndex;
 				await this.submitCurrentItemInternal();
 				// The submission may branch, navigate, or finalize the test (EXIT_TEST);
@@ -1911,16 +2295,17 @@ export class AssessmentPlayer {
 	/**
 	 * Whether the shell should offer the item-level "Check answer" control on the active
 	 * item, with the attempt facts it displays. The control exists only in `individual`
-	 * submission-mode parts whose resolved `showFeedback` allows item feedback (adaptive
-	 * items always qualify); QTI simultaneous parts have no per-item submission, and
-	 * `showFeedback=false` with a single attempt keeps the submit-on-move delivery.
+	 * submission-mode parts where more than one attempt is allowed (or the item is
+	 * adaptive): QTI shows feedback for every non-final attempt then, whatever
+	 * `showFeedback` says, so checking in place always reveals something. A single
+	 * attempt keeps the submit-on-move delivery (its feedback, under `showFeedback`, rides
+	 * the transition); QTI simultaneous parts have no per-item submission.
 	 */
 	public getCheckAnswerState(): CheckAnswerState | null {
 		const q = this.items[this.currentItemIndex];
 		if (!q) return null;
 		const id = q.identifier;
 		const mode = q.testPart.submissionMode ?? this.assessment.submissionMode;
-		const settings = this.sessionCoordinator.getItemSettings(id);
 		const adaptive = isAdaptiveItemXml(q.item.itemXml);
 		if (mode !== 'individual') {
 			return {
@@ -1933,19 +2318,8 @@ export class AssessmentPlayer {
 				attemptsExhausted: false,
 			};
 		}
-		if (settings.showFeedback !== true && !adaptive) {
-			return {
-				available: false,
-				reason: 'feedbackOff',
-				adaptive,
-				attemptsUsed: 0,
-				maxAttempts: null,
-				remainingAttempts: null,
-				attemptsExhausted: false,
-			};
-		}
 		const info = this.sessionCoordinator.getItemSessionInfo(id);
-		const maxAttempts = adaptive || (settings.maxAttempts ?? 1) === 0 ? null : Math.max(1, settings.maxAttempts ?? 1);
+		const maxAttempts = this.resolvedMaxAttempts(q);
 		const remainingAttempts = maxAttempts === null ? null : Math.max(0, maxAttempts - info.attemptCount);
 		const attemptsExhausted = maxAttempts !== null && info.attemptCount >= maxAttempts;
 		// maxAttempts 1 delivers feedback on the move (submit-on-move): no check control.
@@ -2013,9 +2387,10 @@ export class AssessmentPlayer {
 		if (!this.sessionCoordinator.canSubmit(q.identifier)) return;
 		const pre = this.lastPreSubmitSession;
 		if (!pre || pre.itemIdentifier !== q.identifier) return;
+		const presentation = this.presentationFor(q);
 		const session = this.getItemDefinition(q).openSession({
 			restore: pre.state,
-			presentation: this.presentationFor(q),
+			presentation,
 		});
 		try {
 			// Recompute outcomes from the submitted responses: integrated feedback
@@ -2026,7 +2401,7 @@ export class AssessmentPlayer {
 		}
 		this.lastPreSubmitSession = null;
 		this.releaseCurrentItemSession();
-		this.attachCurrentItemSession(q, session);
+		this.attachCurrentItemSession(q, session, presentation);
 		this.notifyItemChange();
 	}
 
@@ -2049,15 +2424,17 @@ export class AssessmentPlayer {
 	}
 
 	/**
-	 * Capture an item-level submission's feedback for the shell, gated by the item's
-	 * resolved `showFeedback` (adaptive items always show feedback). A submission that
-	 * produces none clears a stale capture for the flow that follows it.
+	 * Capture an item-level submission's feedback for the shell, under the item's
+	 * attempt-relative feedback visibility (`attemptsAfter`: the counted attempts once this
+	 * submission is recorded). A submission that produces none clears a stale capture for
+	 * the flow that follows it.
 	 */
 	private captureItemFeedback(
 		q: FlatItem,
 		feedback: ReadonlyArray<{ identifier: string; content: string; title?: string }> | undefined,
+		attemptsAfter: number,
 	): void {
-		if (!this.presentationFor(q).showFeedback || !feedback || feedback.length === 0) {
+		if (!this.feedbackVisible(q, attemptsAfter) || !feedback || feedback.length === 0) {
 			this.lastItemFeedback = null;
 			return;
 		}
@@ -2073,11 +2450,31 @@ export class AssessmentPlayer {
 		const countAttempt = options.countAttempt ?? true;
 		const q = this.items[this.currentItemIndex];
 		if (!q) throw new AssessmentPlayerError('invalidNavigationTarget', 'No current item');
-		// An expired limit closed this attempt: neither its minimum time nor validation can
-		// hold it open, and the backend receives it as the collection of frozen responses.
+		// An expired limit closed this attempt (or a proctor ends the test): neither its
+		// minimum time nor the skipping/validation gates can hold it open, and the backend
+		// receives it as the collection of the responses as they stand.
 		const submissionReason = this.submissionReasonFor(q);
-		const timeExpired = submissionReason === 'time-expired';
-		if (!timeExpired) this.assertMinimumTime('item', q);
+		const administrative = submissionReason !== undefined;
+		if (!administrative) this.assertMinimumTime('item', q);
+		const responses = this.currentItemSession
+			? cloneResponseRecord(this.currentItemSession.state().responses)
+			: this.sessionCoordinator.getActiveResponses();
+		// QTI allowSkipping / validateResponses on the per-item path (individual parts only).
+		// A hint (countAttempt=false) is not an attempt and is not held back.
+		const gate = administrative || !countAttempt ? { mustAnswer: false, validate: false } : this.submissionGate(q, responses);
+		if (gate.mustAnswer) {
+			throw new AssessmentPlayerError('responseRequired', 'You must answer this question before continuing.');
+		}
+		if (gate.validate && !this.responsesSatisfyConstraints(q)) {
+			throw new AssessmentPlayerError(
+				'attemptValidationFailed',
+				`Submit failed: the responses for item ${q.identifier} do not satisfy its interactions`,
+			);
+		}
+		// The counted attempts once this submission is recorded: feedback visibility is
+		// attempt-relative (a non-final attempt shows feedback whatever showFeedback says).
+		const attemptsAfter =
+			this.sessionCoordinator.getItemSessionInfo(q.identifier).attemptCount + (countAttempt ? 1 : 0);
 
 		const submittedAt = Date.now();
 		let itemSession: SerializedItemSessionState | undefined;
@@ -2085,9 +2482,6 @@ export class AssessmentPlayer {
 		const preSubmitSession = submittedSession?.serialize();
 		// The writable snapshot the check-answer flow reopens from while attempts remain.
 		this.lastPreSubmitSession = preSubmitSession ? { itemIdentifier: q.identifier, state: preSubmitSession } : null;
-		const responses = this.currentItemSession
-			? cloneResponseRecord(this.currentItemSession.state().responses)
-			: this.sessionCoordinator.getActiveResponses();
 		let res: Awaited<ReturnType<BackendAdapter['submitResponses']>>;
 		try {
 			if (submittedSession) {
@@ -2097,7 +2491,7 @@ export class AssessmentPlayer {
 					? submittedSession.dispatch({
 							action: 'endAttempt',
 							countAttempt,
-							validateResponses: !timeExpired && this.sessionCoordinator.mustValidateResponses(q.identifier),
+							validateResponses: gate.validate,
 						})
 					: undefined;
 				const attempt = transition?.result;
@@ -2109,7 +2503,7 @@ export class AssessmentPlayer {
 					);
 				}
 				itemSession = attempt?.sessionState ?? submittedSession.serialize();
-				this.captureItemFeedback(q, attempt?.scoring?.modalFeedback);
+				this.captureItemFeedback(q, attempt?.scoring?.modalFeedback, attemptsAfter);
 			}
 			res = await this.backend.submitResponses({
 				sessionId: this.sessionId,
@@ -2138,6 +2532,7 @@ export class AssessmentPlayer {
 						identifier: item.type,
 						content: item.content,
 					})),
+					attemptsAfter,
 				);
 			}
 		} catch (error) {
@@ -2151,9 +2546,11 @@ export class AssessmentPlayer {
 				this.items[this.currentItemIndex] === q
 			) {
 				this.releaseCurrentItemSession();
+				const presentation = this.presentationFor(q);
 				this.attachCurrentItemSession(
 					q,
-					this.getItemDefinition(q).openSession({ restore: preSubmitSession }),
+					this.getItemDefinition(q).openSession({ restore: preSubmitSession, presentation }),
+					presentation,
 				);
 				this.notifyItemChange();
 			}
@@ -2238,6 +2635,11 @@ export class AssessmentPlayer {
 						await this.performNavigateTo(nextIdx, { restoring: true });
 					}
 				}
+			}
+			// Still on the item (a check, a hint, the last item): what it shows follows the
+			// attempt count — a final attempt hides feedback a non-final one revealed.
+			if (!this.finalized && this.items[this.currentItemIndex] === q) {
+				this.refreshLivePresentation(q, itemSession);
 			}
 
 			return itemResult;
@@ -2374,13 +2776,15 @@ export class AssessmentPlayer {
 				if (!this.itemNeedsSubmission(q)) continue;
 				const submittedAt = Date.now();
 				const responsesForItem = (allItemResponses?.[q.identifier] || {}) as any;
-				// An item an expired limit closed submits its frozen responses as they are.
+				// An item an expired limit closed (or a proctor's end of the test) submits its
+				// responses as they stand. Response validation is an individual-part control
+				// (QTI), and a candidate's end of the test checked those items already.
 				const submissionReason = this.submissionReasonFor(q);
 				const itemSession = this.endItemSessionForSubmit(
 					q,
 					responsesForItem,
 					allItemSessions[q.identifier],
-					{ validate: submissionReason !== 'time-expired' },
+					{ validate: submissionReason === undefined && this.isIndividual(q) },
 				);
 				allItemSessions[q.identifier] = itemSession;
 				const res = await this.backend.submitResponses({
@@ -2434,9 +2838,11 @@ export class AssessmentPlayer {
 				const accepted = allItemSessions[submittedItem.identifier];
 				if (accepted) {
 					this.releaseCurrentItemSession();
+					const presentation = this.presentationFor(submittedItem);
 					this.attachCurrentItemSession(
 						submittedItem,
-						this.getItemDefinition(submittedItem).openSession({ restore: accepted }),
+						this.getItemDefinition(submittedItem).openSession({ restore: accepted, presentation }),
+						presentation,
 					);
 					this.notifyItemChange();
 				}
@@ -2460,9 +2866,11 @@ export class AssessmentPlayer {
 				}
 				this.releaseCurrentItemSession();
 				if (restored) {
+					const presentation = this.presentationFor(submittedItem);
 					this.attachCurrentItemSession(
 						submittedItem,
-						this.getItemDefinition(submittedItem).openSession({ restore: restored }),
+						this.getItemDefinition(submittedItem).openSession({ restore: restored, presentation }),
+						presentation,
 					);
 					this.notifyItemChange();
 					this.notifyResponseChange();
@@ -2477,8 +2885,27 @@ export class AssessmentPlayer {
 	 * transition, also used for QTI `EXIT_TEST` (and for EXIT_TESTPART / EXIT_SECTION when
 	 * nothing follows the ended scope). Serialized with all other navigation and submission
 	 * transitions. Calling it again after the test has ended returns the same results.
+	 *
+	 * A candidate's submit is rejected while paused, and — with a coded
+	 * `finalizeResponseRequired` / `finalizeResponseInvalid` naming the items
+	 * (`getSubmissionBlockers()`) — while items in individual parts would be submitted
+	 * against their `allowSkipping=false` / `validateResponses=true` controls.
+	 *
+	 * `{ force: true }` is the proctor's administrative end of the test: it runs during a
+	 * pause, and neither minimum times nor the skipping/validation gates hold it back; the
+	 * collected submissions carry `timing.submissionReason: 'proctor'`.
 	 */
-	public submit(): Promise<AssessmentResults> {
+	public submit(options: { force?: boolean } = {}): Promise<AssessmentResults> {
+		if (options.force === true) {
+			return this.runExclusive(async () => {
+				this.administrativeReason = 'proctor';
+				try {
+					return await this.endTestInternal({ administrative: true });
+				} finally {
+					this.administrativeReason = null;
+				}
+			});
+		}
 		return this.runCandidateTransition(() => this.endTestInternal());
 	}
 
@@ -2496,10 +2923,12 @@ export class AssessmentPlayer {
 	/**
 	 * Why an item's submission runs: an item an expired hard limit closed submits the
 	 * responses frozen at the expiry (`time-expired`) — its own scope expired, or the
-	 * whole test did; everything else is a normal candidate submission.
+	 * whole test did; a proctor's forced end of the test collects as `proctor`;
+	 * everything else is a normal candidate submission.
 	 */
 	private submissionReasonFor(q: FlatItem): SubmitTimingEvidence['submissionReason'] {
-		return this.assessmentExpired || this.isItemLocked(q) ? 'time-expired' : undefined;
+		if (this.assessmentExpired || this.isItemLocked(q)) return 'time-expired';
+		return this.administrativeReason ?? undefined;
 	}
 
 	/**
@@ -2512,19 +2941,27 @@ export class AssessmentPlayer {
 	 * a forward submission (nonlinear `navigateTo`/`previous` submit nothing): it is
 	 * collected through the same detached end-attempt loop instead of being finalized
 	 * from NULL.
+	 *
+	 * A candidate-initiated end of the test first checks the QTI submission controls of
+	 * individual parts: it never submits an item without a response while
+	 * `allowSkipping=false`, nor an answered item whose responses fail validation while
+	 * `validateResponses=true` — it rejects naming them instead. An administrative end
+	 * (a time expiry, a proctor's forced submit) collects everything as it stands; an
+	 * item a skipping control held back is then recorded as skipped.
 	 */
-	private async endTestInternal(): Promise<AssessmentResults> {
+	private async endTestInternal(options: { administrative?: boolean } = {}): Promise<AssessmentResults> {
 		if (this.finalized && this.finalResults) return this.finalResults;
 
+		const closed = options.administrative === true || this.isTimeClosedDelivery();
 		const current = this.items[this.currentItemIndex];
-		if (current && !this.isTimeClosedDelivery()) {
+		if (current && !closed) {
 			this.assertMinimumTime('item', current);
 			this.assertEnclosingSectionMinimumTime(current);
 			this.assertMinimumTime('testPart', current);
 			this.assertMinimumTime('assessment', current);
 		}
-		const isIndividual = (q: FlatItem) =>
-			(q.testPart.submissionMode ?? this.assessment.submissionMode) === 'individual';
+		if (!closed) this.assertNoSubmissionBlockers();
+		const isIndividual = (q: FlatItem) => this.isIndividual(q);
 		// Submission modes belong to test parts. The assessment-level field is only
 		// a fallback for older hosts that do not supply a mode on each part.
 		await this.submitSimultaneousItems(
@@ -2539,9 +2976,10 @@ export class AssessmentPlayer {
 					q !== current &&
 					isIndividual(q) &&
 					this.navigationManager.isVisited(q.index) &&
-					// An expired limit froze the item's responses: always collected. Otherwise
-					// only what the backend has not accepted yet (see below).
-					(this.isItemLocked(q) || this.itemNeedsSubmission(q)),
+					// Only what the backend has not accepted yet: an expired limit froze the
+					// item's responses, but responses it already accepted are never re-sent
+					// (that would spend another attempt and fail the end of the test).
+					this.itemNeedsSubmission(q),
 			),
 		);
 		const q = this.items[this.currentItemIndex];
@@ -2594,6 +3032,11 @@ export class AssessmentPlayer {
 		// Outcome processing has run by the end of the test, so a backend returning no outcomes
 		// leaves them all NULL.
 		this.finalized = true;
+		// A proctor's forced end of the test may land during a pause: the session is over,
+		// so the pause no longer holds anything (no pause event — the end of the test is it).
+		this.paused = false;
+		this.pauseReason = undefined;
+		this.suspendedForPause = false;
 		// The test ended through its real submission: draft autosave has nothing left to do.
 		this.autosave?.stop();
 		// Delivery is over: no clock keeps running, and no later expiry can fire.
@@ -2619,6 +3062,7 @@ export class AssessmentPlayer {
 		// shell's completion screen) and `submit()` already report them.
 		this.notifyComplete();
 		if (this.config.onComplete) this.config.onComplete();
+		this.config.onFinalized?.({ restored: false, results });
 		return results;
 	}
 
@@ -2712,6 +3156,7 @@ export class AssessmentPlayer {
 		this.started = true;
 		if (!this.paused) this.timeManager?.resume();
 		this.enterInitialItem();
+		this.finalizeRestoredExpiryWhenRunning();
 	}
 
 	/**
@@ -2757,6 +3202,7 @@ export class AssessmentPlayer {
 			this.reopenLiveSessionAfterPause();
 		}
 		this.notifyPauseChange();
+		this.finalizeRestoredExpiryWhenRunning();
 	}
 
 	public isPaused(): boolean {
@@ -2993,10 +3439,50 @@ export class AssessmentPlayer {
 		this.notifyAutosaveActivity();
 	}
 
-	private evaluateTemplateDefaults(q: FlatItem): Record<string, unknown> | undefined {
+	/**
+	 * The template defaults an item's new session starts from (QTI `templateDefault`).
+	 * In a nonlinear test part they are evaluated once, at the start of the part, for
+	 * every item ref in it — with the test outcomes and the other items' variables
+	 * (`ITEM.VARIABLE`, as persisted so far; NULL for an item not instantiated yet) in
+	 * scope — and cached for the part. Linear parts evaluate each item's defaults on
+	 * entering it, against the test outcomes.
+	 */
+	private templateDefaultsFor(q: FlatItem): Record<string, unknown> | undefined {
+		const mode = q.testPart.navigationMode ?? this.assessment.navigationMode ?? 'nonlinear';
+		if (mode !== 'nonlinear') {
+			if (!q.item.templateDefaults?.length) return undefined;
+			return this.evaluateTemplateDefaults(q, testOutcomeDeclarations(this.assessment, this.testOutcomes ?? undefined));
+		}
+		let defaults = this.templateDefaultsByPart.get(q.testPart.identifier);
+		if (!defaults) {
+			const declarations = addItemVariableDeclarations(
+				testOutcomeDeclarations(this.assessment, this.testOutcomes ?? undefined),
+				this.persistedItemVariables(),
+			);
+			defaults = new Map(
+				this.items
+					.filter((item) => item.testPart === q.testPart)
+					.map((item) => [item.identifier, this.evaluateTemplateDefaults(item, declarations)]),
+			);
+			this.templateDefaultsByPart.set(q.testPart.identifier, defaults);
+		}
+		return defaults.get(q.identifier);
+	}
+
+	/** Every item's variables from its persisted session, as test-scope expressions read them. */
+	private persistedItemVariables(): Record<string, Record<string, QtiValue>> {
+		const out: Record<string, Record<string, QtiValue>> = {};
+		for (const item of this.items) {
+			const serialized = this.state.itemSessions?.[item.identifier];
+			if (!serialized) continue;
+			out[item.identifier] = applyVariableMappings(itemSessionVariableValues(serialized), item.item.variableMappings);
+		}
+		return out;
+	}
+
+	private evaluateTemplateDefaults(q: FlatItem, declarations: DeclarationMap): Record<string, unknown> | undefined {
 		const defaults = q.item.templateDefaults;
 		if (!defaults?.length) return undefined;
-		const declarations = testOutcomeDeclarations(this.assessment, this.testOutcomes ?? undefined);
 		const out: Record<string, unknown> = {};
 		for (const { templateIdentifier, expressionXml } of defaults) {
 			out[templateIdentifier] = plainQtiValue(evaluateTestExpression(expressionXml, declarations, Math.random));
@@ -3005,11 +3491,38 @@ export class AssessmentPlayer {
 	}
 
 	private isItemLocked(q: FlatItem): boolean {
+		// A whole-test expiry closes every item: the collection of the test is all that remains.
+		if (this.assessmentExpired) return true;
 		return (
 			this.lockedScopes.has(`item:${q.identifier}`) ||
 			this.lockedScopes.has(`testPart:${q.testPart.identifier}`) ||
 			q.sections.some((section) => this.lockedScopes.has(`section:${section.identifier}`))
 		);
+	}
+
+	/** The expired scope that closes an item (outermost first); the assessment for a whole-test expiry. */
+	private lockingScopeOf(q: FlatItem | undefined): Pick<AssessmentTimeExpiryEvent, 'scope' | 'identifier'> {
+		if (this.assessmentExpired || !q) return { scope: 'assessment' };
+		if (this.lockedScopes.has(`testPart:${q.testPart.identifier}`)) {
+			return { scope: 'testPart', identifier: q.testPart.identifier };
+		}
+		for (const section of q.sections) {
+			if (this.lockedScopes.has(`section:${section.identifier}`)) {
+				return { scope: 'section', identifier: section.identifier };
+			}
+		}
+		return { scope: 'item', identifier: q.identifier };
+	}
+
+	/**
+	 * Nothing open remains (a restore, or a start over, landed on an expired scope with
+	 * no open item after it): the candidate must submit now — the same report the live
+	 * expiry dead end makes, so the shell offers Submit wherever the candidate is.
+	 */
+	private notifyExpiryDeadEnd(): void {
+		if (this.finalized || this.destroyed) return;
+		const scope = this.lockingScopeOf(this.items[this.currentItemIndex]);
+		this.notifyTimeExpired({ ...scope, autoFinalized: false, submissionRequired: true });
 	}
 
 	private nextUnlockedIndex(fromIndex: number): number {

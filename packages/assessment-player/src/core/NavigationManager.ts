@@ -27,6 +27,11 @@ export class NavigationManager {
 		return this.visitedItems.has(index);
 	}
 
+	/** The visited flat indexes, ascending (for snapshots). */
+	getVisited(): number[] {
+		return [...this.visitedItems].sort((a, b) => a - b);
+	}
+
 	/** Restore visited state (for save/resume). */
 	restoreState(visitedItems: number[]): void {
 		this.visitedItems = new Set(visitedItems);

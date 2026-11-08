@@ -362,12 +362,15 @@ export interface SubmitTimingEvidence {
 	/**
 	 * Why this submission runs: `candidate` (default) for a normal candidate action,
 	 * `time-expired` for the terminal response collection a hard time limit triggers
-	 * (the whole-test auto-submit, and the submit from an expiry dead end). Backends
-	 * must accept a `time-expired` submission whose scope expired: the delivery window
-	 * closed with the expiry, and collecting the pending responses is the mandated
-	 * terminal step.
+	 * (the whole-test auto-submit, and the submit from an expiry dead end), `proctor` for
+	 * the collection a proctor's forced end of the test (`submit({ force: true })`) runs.
+	 * Backends must accept a `time-expired` submission whose scope expired: the delivery
+	 * window closed with the expiry, and collecting the pending responses is the mandated
+	 * terminal step. A `proctor` collection is an administrative end of the test, made
+	 * during a pause or ahead of the candidate's own submit; record it as such (it
+	 * bypasses the candidate-side skipping and validation controls).
 	 */
-	submissionReason?: 'candidate' | 'time-expired';
+	submissionReason?: 'candidate' | 'time-expired' | 'proctor';
 }
 
 /**

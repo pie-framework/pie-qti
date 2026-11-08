@@ -153,7 +153,9 @@ export class ItemSessionController {
 	}
 
 	/**
-	 * Check if feedback should be shown for an item
+	 * Check if feedback should be shown for an item. QTI is attempt-relative here: with
+	 * more than one attempt allowed (or unlimited attempts), feedback for every non-final
+	 * attempt must be shown; once the last attempt has been used, `showFeedback` governs.
 	 */
 	shouldShowFeedback(itemIdentifier: string): boolean {
 		const state = this.sessionStates.get(itemIdentifier);
@@ -161,7 +163,10 @@ export class ItemSessionController {
 			return false;
 		}
 
-		return this.settingsFor(itemIdentifier).showFeedback ?? false;
+		const settings = this.settingsFor(itemIdentifier);
+		if (settings.showFeedback === true) return true;
+		const maxAttempts = settings.maxAttempts ?? 1;
+		return maxAttempts === 0 || (maxAttempts > 1 && state.attemptCount < maxAttempts);
 	}
 
 	/**
