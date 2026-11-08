@@ -4,13 +4,13 @@
   Status: current
   Type: system
   Packages: @pie-qti/assessment-player
-  Last reviewed: 2026-07-13
+  Last reviewed: 2026-11-08
 -->
 
 **Status:** current
 **Type:** system
 **Packages:** `@pie-qti/assessment-player`
-**Last reviewed:** 2026-07-13
+**Last reviewed:** 2026-11-08
 
 ---
 
@@ -109,7 +109,8 @@ rejecting hard-limit submissions from assessment elapsed time or submitted timin
 | `timeLimits.allowLateSubmission` | Partial | Used for expiry callbacks/evidence; the default shell does not itself block or auto-submit |
 | Save/resume of timing | Implemented | Total, item, section, and test-part elapsed milliseconds plus active identifiers and pause state are persisted |
 | PNP extended time | Implemented for `maxTime` | Finite multipliers apply to every active max-time scope; `Infinity` removes those client limits |
-| `itemSessionControl.allowSkipping` | Partial | `next()` blocks an unanswered item when false; direct nonlinear navigation can bypass that path |
+| `itemSessionControl.allowSkipping` | Implemented (individual parts) | Gates submission, not navigation: `next()`, `submitCurrentItem()`, `checkCurrentItem()` and the end of the test never submit an item with no response while false; the end of the test rejects naming the items. A nonlinear jump away is navigation and stays allowed; time expiry and a proctor's forced submit collect the item as skipped. Not applicable to simultaneous parts (QTI) |
+| `itemSessionControl.validateResponses` | Implemented (individual parts) | An answered item whose responses do not satisfy its interactions is not submitted by `next()`, `submitCurrentItem()`, `checkCurrentItem()` or the end of the test (rejected naming the items); not applicable to simultaneous parts (QTI) |
 | `itemSessionControl.allowReview` | Partial | Consulted for nonlinear review through `AssessmentPlayer`; the standalone `NavigationManager` has no session-control policy |
 
 ### Compatibility fields
@@ -136,8 +137,12 @@ first test part. New code must treat `SecureTestPart.navigationMode` and
   the index. A backend `nextItemIdentifier` decision takes precedence over the adjacent item.
 - **FR-6:** In a simultaneous-submission part, normal navigation must retain responses without
   calling `submitResponses()` for each move.
-- **FR-7:** `next()` must prevent leaving an unanswered item when the effective
-  `itemSessionControl.allowSkipping` is false.
+- **FR-7:** In an individual-submission part, no candidate-initiated submission may send an
+  unanswered item when the effective `itemSessionControl.allowSkipping` is false: `next()` is
+  rejected before it submits, and the end of the test is rejected naming the items. Navigation
+  itself is not submission: in a nonlinear part the candidate may jump away from an unanswered
+  item, and the gate applies when the item would be submitted. Simultaneous parts are not gated
+  (QTI scopes `allowSkipping` and `validateResponses` to individual submission).
 - **FR-8:** Effective item-session controls must use section values over test-part values when both
   are declared.
 - **FR-9:** `TimeManager` must accumulate assessment, test-part, section, and item elapsed time
@@ -413,17 +418,24 @@ And: No warning or expiry callback is emitted
   the shortest active limiting scope, not all active scope clocks and limits. A production backend
   must use server-owned assessment structure and timestamps to validate every parent deadline.
 
-- [ ] **Direct navigation bypasses the `allowSkipping` guard.** `next()` calls
-  `canNavigateAway()`, but an imperative `navigateTo()` or section-menu jump in nonlinear mode does
-  not check whether the current item may be skipped.
+- [x] **Direct navigation and `allowSkipping` (resolved 2026-11-08).** The rule is precise now:
+  `allowSkipping` (and `validateResponses`) gate *submission* in individual parts, never
+  navigation. A nonlinear `navigateTo()` or section-menu jump away from an unanswered item is
+  allowed because it submits nothing; the item cannot be submitted unanswered later either — the
+  end of the test refuses (`finalizeResponseRequired` / `finalizeResponseInvalid`, naming the
+  items) instead of force-submitting it from NULL, and the shell's submit confirmation lists those
+  items with jumps. Only an administrative end (time expiry, a proctor's forced submit) collects
+  them as skipped.
 
 - [ ] **Parent minimums are not checked by `submitCurrentItem()`.** That method checks item
   `minTime`; section, test-part, and assessment minimums are checked on scope exit or final
   `submit()`. Hosts that expose direct item submission must not treat it as part completion.
 
-- [ ] **Timer event history is not persisted.** Elapsed clocks and active identifiers survive
-  restore, but per-scope warning/expiration-emitted sets do not. A restored session can therefore
-  announce a threshold again.
+- [ ] **Warning history is not persisted.** Elapsed clocks and active identifiers survive restore,
+  and expiries are recomputed from the restored clocks (since 2026-11-08: every scope whose clock
+  already ran past its hard maximum locks before any item is entered, and the live timer does not
+  fire it again). The per-scope warning-emitted set is not persisted, so a restored session can
+  announce a warning threshold again.
 
 - [ ] **Top-level mode fields remain redundant.** They are needed for compatibility today, but they
   make it possible for hand-built `SecureAssessment` values to disagree with their test parts. The

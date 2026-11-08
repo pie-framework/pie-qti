@@ -179,6 +179,46 @@ const state = assessment.getState();
 await assessment.restoreState(state);
 ```
 
+### Proctor console
+
+A proctor console (or any host supervising delivery) reads and drives the session through the
+element:
+
+```js
+assessment.pause('Please wait for your proctor.'); // candidate-facing reason
+assessment.resume();
+assessment.isPaused();          // true while a pause holds (also right after a paused session restores)
+assessment.getPauseReason();    // the reason shown, if any
+assessment.getTimeState();      // { limited, remainingSeconds, elapsedSeconds, expired, scope, paused, started, ... }
+assessment.isFinalized();       // true once the session is terminal
+await assessment.flushAutosave(); // save the draft now
+await assessment.submit({ force: true }); // proctor force-submit, works during a pause
+
+assessment.addEventListener('player-pause', (event) => console.log(event.detail.reason));
+assessment.addEventListener('player-resume', () => {});
+assessment.addEventListener('time-expired', (event) => {}); // whole test, or nothing left open
+assessment.addEventListener('scope-time-expired', (event) => {}); // { scope, identifier, deliveryContinues }
+assessment.addEventListener('session-finalized', (event) => {}); // { restored, results }
+```
+
+- A candidate's `submit()` is refused while paused; `submit({ force: true })` is the administrative
+  end of the test: it ignores minimum times and the QTI `allowSkipping` / `validateResponses`
+  controls, and each collected submission carries `timing.submissionReason: 'proctor'`.
+- A session restored paused fires `player-pause` once at mount; a session restored already
+  finalized fires `session-finalized` with `restored: true` (a finalization during delivery
+  fires it with `restored: false`, alongside `complete` and `submit`).
+- While paused, the player closes every dialog it contains and dispatches
+  `pie-qti-close-transient-ui` (`detail: { reason: 'pause' }`) on `document` for editors and popups
+  outside dialogs. Focus containment covers only the player: the host page stays operable.
+
+### Resume and Start over
+
+When the backend restores a draft, the shell offers "Resume where you left off" or "Start over".
+Start over clears the candidate's answers, flags and comments but keeps the time accounting:
+clocks, expired limits and a whole-test expiry persist, so restarting never grants new time.
+Set `allow-start-over="false"` (`allowStartOver = false`) to remove the Start over path; a restored
+draft then simply continues.
+
 ### Layout and styling
 
 The shell needs no host stylesheet (no Tailwind or DaisyUI): it styles itself on the

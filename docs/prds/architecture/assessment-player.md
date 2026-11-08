@@ -4,13 +4,13 @@
   Status: current
   Type: architecture
   Packages: @pie-qti/assessment-player
-  Last reviewed: 2026-11-07
+  Last reviewed: 2026-11-08
 -->
 
 **Status:** current
 **Type:** architecture
 **Packages:** `@pie-qti/assessment-player`
-**Last reviewed:** 2026-11-07
+**Last reviewed:** 2026-11-08
 
 ---
 
@@ -106,10 +106,14 @@ hides the save indicator.
 ### Why persistence stays host-shaped
 
 `AssessmentPlayer` exposes `getState()`/`restoreState()` for hosts that want full control of
-cadence and storage, and `startOver()` for the candidate-facing restart: it resets responses,
-flags, visited state, the timer preference and the clocks to a fresh session and persists the
-blank draft, so a refresh cannot resurrect discarded answers. Already-submitted items stay
-submitted — the backend remains authoritative for accepted results. A session created from a
+cadence and storage, and `startOver()` for the candidate-facing restart: it clears what the
+candidate authored and the backend has not accepted — responses, flags, comments, visited state,
+the timer preference and unrecorded check state — and persists the blank draft at once, so a
+refresh cannot resurrect discarded answers. It keeps the time accounting: the clocks, every expired
+scope and a whole-test expiry persist, because a restart must never grant a fresh time allowance
+after the candidate has seen the questions. Items the backend accepted keep their recorded results
+(the backend remains authoritative for them). Hosts that never let a candidate discard saved work
+turn Start over off (`allowStartOver` / `allow-start-over="false"`). A session created from a
 backend-restored snapshot (`initSession.resumeSessionId`) reopens at the saved item with its
 answers; `hasRestoredProgress()` tells shells whether there is work worth resuming, and the
 snapshot's `timing.savedAt` dates the resume prompt.
@@ -119,6 +123,8 @@ snapshot's `timing.savedAt` dates the resume prompt.
 ### Why itemSessionControl is a UI hint, not an enforcement boundary
 
 `itemSessionControl` settings (maxAttempts, allowReview, allowSkipping) are exposed by the server via `SecureTestPart.itemSessionControl` and echoed to the client. The client uses `ItemSessionController` to provide UI hints — disabling the Previous button, hiding Submit after max attempts, etc. The server remains authoritative for actual enforcement; a malicious client that bypasses these UI gates will still be rejected at the submission endpoint. This is called out explicitly in the code comments to avoid the temptation of treating client-side enforcement as a security boundary.
+
+The client does apply `allowSkipping` and `validateResponses` to its own submissions, as one rule: both are QTI controls of items in `individual` submission parts ("only applicable when the item is in a testPart with individual submission mode"), and both gate *submission*, not navigation — moving away from an item in a nonlinear part is not a submission. A candidate-initiated submission (`next()`, `submitCurrentItem()`, `checkCurrentItem()`, and the end of the test) never sends a skipped item (every response NULL or empty) while `allowSkipping=false`, nor an answered item whose responses do not satisfy its interactions while `validateResponses=true`; the end of the test rejects naming the items rather than force-submitting them or failing generically. An administrative end — a time expiry, a proctor's forced submit — collects everything as it stands (the QTI end-of-scope rule), recording an unanswered required item as skipped by the expiry.
 
 ---
 
@@ -138,14 +144,15 @@ snapshot's `timing.savedAt` dates the resume prompt.
 | `timeLimits.minTime` / `maxTime` (assessment, testPart, section — every enclosing section, not only the innermost — item) | Runtime enforcement with independent persisted clocks (nested sections each run their own clock, expire, gate `minTime` transitions and accumulate `SECTION_ID.duration`); edge/browser coverage remains |
 | `timeLimits.allowLateSubmission` | Full |
 | `itemSessionControl` cascade (testPart → sections → item ref) | Full, over the QTI defaults |
-| `itemSessionControl.maxAttempts` | Backend-enforced; UI hint (adaptive items unlimited). With `showFeedback`, more than one attempt delivers the item-level check-answer control ("Attempt N of M"; the control disables with a localized explanation once the attempts are used up) |
+| `itemSessionControl.maxAttempts` | Backend-enforced; UI hint (adaptive items unlimited). More than one attempt delivers the item-level check-answer control ("Attempt N of M"; the control disables with a localized explanation once the attempts are used up) and shows feedback for every non-final attempt |
 | `itemSessionControl.allowComment` | Backend-enforced; a per-item "Comments for the test team" disclosure sends the comment with the item's next submission |
-| `itemSessionControl.allowReview` / `allowSkipping` | UI hint |
-| `itemSessionControl.showFeedback` / `showSolution` | Applied to the item presentation; `showFeedback` in an individual part also gates the check-answer control and the item feedback the shell surfaces |
-| `itemSessionControl.validateResponses` | Applied when the attempt ends |
+| `itemSessionControl.allowReview` | UI hint |
+| `itemSessionControl.allowSkipping` | Individual parts only (QTI): a candidate submission — `next()`, check, `submitCurrentItem()`, the end of the test — never sends an item without a response while false; the end of the test rejects naming the items (`finalizeResponseRequired`). Navigation is not submission. Time expiry and proctor force-submit collect regardless |
+| `itemSessionControl.showFeedback` / `showSolution` | Applied to the item presentation. Feedback visibility is attempt-relative: with more than one attempt, feedback shows for every non-final attempt; after the last attempt `showFeedback` governs (presentation, captured item feedback, and the check-answer control alike) |
+| `itemSessionControl.validateResponses` | Individual parts only (QTI): an answered item whose responses do not satisfy its interactions (minChoices, minStrings, matchMin…) is not submitted; the end of the test rejects naming the items (`finalizeResponseInvalid`). A skipped item is the `allowSkipping` rule's domain |
 | `preCondition` (testPart, section, item ref) | Evaluated by the backend on entering each |
 | `branchRule` (item ref, section, testPart) | Evaluated by the backend; returned as `nextItemIdentifier`. `EXIT_TEST`/`EXIT_TESTPART`/`EXIT_SECTION` terminate the ended scope through the same finalization path as `submit()` |
-| `variableMapping` / `templateDefault` | Full |
+| `variableMapping` / `templateDefault` | Full. In a nonlinear test part every item ref's `templateDefault` is evaluated once at part entry (cached per part) with the test outcomes and the other items' persisted variables (`ITEM.VARIABLE`) in scope; linear parts evaluate on entering each item |
 | `testFeedback` (outcome-based) | Full for preserved structured feedback and finalized backend feedback |
 | `assessmentSection.selection` (direct children, with replacement) | Drawn by the backend at session start |
 | `assessmentSection.ordering` (shuffle, fixed, keepTogether) | Drawn by the backend at session start |
@@ -177,7 +184,7 @@ snapshot's `timing.savedAt` dates the resume prompt.
 - **FR-5:** In `simultaneous` submission mode, `submit()` must send all unsubmitted items to the backend before calling `finalizeAssessment()`. Client-collected responses must survive across backend state-update responses during the submission loop.
 - **FR-6:** `getNavigationState()` must return `canPrevious: false` throughout a linear testPart and
   when review policy forbids the previous item in nonlinear delivery.
-- **FR-7:** When `itemSessionControl.allowSkipping` is false and the current item has no response, `next()` must throw before calling `submitCurrentItem()`.
+- **FR-7:** QTI `allowSkipping=false` (individual parts only) gates every candidate-initiated submission of an item with no response: `next()` throws before submitting, `submitCurrentItem()`/`checkCurrentItem()` reject, and the end of the test rejects with the coded `finalizeResponseRequired` naming the items (`getSubmissionBlockers()`) instead of submitting NULL responses. Navigation away (nonlinear jump, previous) is not submission and stays allowed; a simultaneous part is never gated; a time expiry or a proctor's forced submit collects the item as skipped.
 - **FR-8:** `getCurrentSharedRubricBlocks()` must return cloned test-part and section rubric blocks for
   the active item in that order. The compatibility `getCurrentRubricBlocks()` method retains its
   section-first/fallback behavior. Direct `assessmentItem` rubrics must remain on
@@ -223,16 +230,20 @@ snapshot's `timing.savedAt` dates the resume prompt.
   (`failed`), `onAutosaveFailed` and a console log, then retried on the next change. Hosts get
   `flushAutosave()` for page-lifecycle moments.
 - **FR-21:** `startOver()` (candidate transition, rejected while paused/behind the begin gate/
-  finalized/while busy) resets the draft — responses, sessions, results, flags, comments,
-  visited state, timer preference and clocks — re-enters the first item and persists the blank
-  draft. Already-submitted items keep their accepted results.
+  finalized/while busy) clears the draft — responses, sessions, results, flags, comments, visited
+  state, the timer preference and unrecorded check state — repositions delivery to the first open
+  item (or reports the expiry dead end) and persists the blank draft at once. It keeps the time
+  accounting: clocks, expired scopes and a whole-test expiry persist (no fresh time allowance);
+  items the backend accepted keep their recorded results.
 - **FR-22:** A session created from a backend-restored snapshot reports `hasRestoredProgress()`
   (saved answers present), `getRestoredSavedAt()` (the snapshot's `timing.savedAt`) and carries
   `savedAt` on `getStartInfo()`. Restored responses, flags, timer preference and the current
   item are restored by the snapshot, and a restored-paused session reopens paused: the shell
   shows the pause overlay without waiting for an `onPauseChange` (it syncs from
   `isPaused()`/`getPauseReason()` at creation), announces assertively and holds focus on the
-  overlay until the host resumes it.
+  overlay until the host resumes it; the core reports the restored pause and a restored terminal
+  session once at creation (`onPauseChange`, `onFinalized`), so an embedding's events (the
+  element's `player-pause`, `session-finalized`) never miss them.
 - **FR-23:** `checkCurrentItem()` submits the active item through the normal per-item path
   (`countAttempt: true`, branching not followed) and stays on it. It is a coded
   `maxAttemptsReached` rejection once the resolved attempts are used up and a coded
@@ -259,6 +270,19 @@ snapshot's `timing.savedAt` dates the resume prompt.
 - **FR-26:** `getResultsSummary()` returns null before finalization and, after it, the delivered
   items with their answered status and the backend's per-item score (when returned), plus the
   finalized totals. The shell renders it only under the opt-in `showResultsSummary` prop.
+- **FR-27:** QTI `validateResponses=true` (individual parts only) keeps an answered item whose
+  responses do not satisfy its interactions from being submitted: the per-item paths reject with
+  `attemptValidationFailed`, and the end of the test rejects with the coded `finalizeResponseInvalid`
+  naming the items. A skipped (empty) item is the `allowSkipping` rule's domain, not validation's.
+- **FR-28:** `submit({ force: true })` is the proctor's administrative end of the test: it runs
+  during a pause, ignores minimum times and the skipping/validation controls, collects every
+  response as it stands under `timing.submissionReason: 'proctor'`, and ends the test. A
+  candidate's `submit()` stays blocked while paused. The shell surfaces a refused candidate end of
+  the test as a warning naming the questions, never as a retryable failure.
+- **FR-29:** Template defaults (QTI `templateDefault`) in a nonlinear test part are evaluated once,
+  at part entry, for every item ref in the part, with the test outcomes and the other items'
+  persisted variables (`ITEM.VARIABLE`) in scope, and cached for the part; linear parts evaluate
+  each item's defaults on entering it, against the test outcomes.
 
 ---
 
@@ -362,7 +386,11 @@ nothing depends on host CSS frameworks.
   delivery moves to the next unlocked item and the shell shows an AssessmentDialog
   notice ("The time for this section is over — you are moving on"), announces the new
   question position, and moves focus like a navigation (`onScopeTimeExpired` event,
-  `deliveryContinues` says whether delivery could move).
+  `deliveryContinues` says whether delivery could move). Expiries are not part of a snapshot:
+  a restored session recomputes them from its clocks before entering any item, so a scope that
+  ran out while the candidate was away is locked at once (never editable until the next tick)
+  and delivery lands on the next open item — or, with none, shows the closed item read-only and
+  reports the dead end below.
 - **An expiry dead end can never strand the candidate.** When nothing unlocked remains,
   the core reports `onTimeExpired({ submissionRequired: true })`, the shell shows the
   expiry dialog with a Submit action, and the navigation bar offers Submit in place of
@@ -373,10 +401,13 @@ nothing depends on host CSS frameworks.
 - **Whole-test expiry auto-finalizes.** When the assessment limit expires without late
   submission, the core runs the same finalization as `submit()` (pending simultaneous
   responses, the open individual-mode item, `finalizeAssessment`, `onComplete`,
-  outcomes/testFeedback), bypassing minimum-time checks; a failure keeps the session
-  open, surfaces through `onError`, and the expiry dialog offers Submit. The host hears
-  `onTimeExpired({ autoFinalized: true })` and the element's `time-expired` event.
-  `allowLateSubmission` keeps the test open past the limit instead.
+  outcomes/testFeedback), bypassing minimum-time checks and the skipping/validation controls
+  (an unanswered required item is recorded as skipped by the expiry); a failure keeps the
+  session open with every item closed, surfaces through `onError`, and the expiry dialog
+  offers Submit. The host hears `onTimeExpired({ autoFinalized: true })` and the element's
+  `time-expired` event. A session restored after its whole-test limit ran out finalizes the
+  same way as soon as delivery runs. `allowLateSubmission` keeps the test open past the limit
+  instead.
 - **Begin gate (opt-in).** With `beginGate` (shell prop / `begin-gate` attribute), the
   core is created without entering an item and `TimeManager` holds: the shell shows an
   accessible start screen — assessmentTest title, "You have N minutes" (PNP applied,
@@ -384,8 +415,10 @@ nothing depends on host CSS frameworks.
   control with focus on the heading. `start()` (Begin, or the imperative API) enters the
   first (or restored) item and starts every clock. Without the gate, delivery and the
   clocks start at session creation, exactly as before; a resumed session's start screen
-  shows the time that remains. Begin-gate time never counts: submissions carry the
-  candidate's test clock (`timing.assessmentElapsedMs`/`assessmentLimitSeconds`).
+  shows the time that remains. A pause in force when the gate holds (a session restored paused,
+  or a pause before Begin) shows on the start screen and holds Begin until the proctor resumes.
+  Begin-gate time never counts: submissions carry the candidate's test clock
+  (`timing.assessmentElapsedMs`/`assessmentLimitSeconds`).
 - **Proctor pause/resume.** `pause(reason?)` freezes every clock (assessment, part,
   section, item, and the live attempt's QTI `duration` via a suspend + snapshot),
   rejects candidate actions with a coded `assessmentPaused` error, and asks the shell
@@ -400,9 +433,13 @@ nothing depends on host CSS frameworks.
   state — the shell announces the pause assertively, lands focus on the overlay, suppresses the
   resume prompt while the pause holds and returns it when the pause lifts). Opening the pause
   closes every shell dialog (submit confirmation, expiry notice, feedback, resume prompt — a
-  candidate must never answer or submit underneath a pause), makes the whole chrome inert through
-  one wrapper while the overlay stays operable outside it, and contains focus: Tab and any focus
-  that falls on covered content return to the overlay heading.
+  candidate must never answer or submit underneath a pause), closes every dialog inside the shell —
+  the section display settings dialog included, which would otherwise stay in the top layer above
+  the pause card — dispatches `pie-qti-close-transient-ui` (`{ reason: 'pause' }`) on `document` for
+  the transient UI outside dialogs (the math editor, glossary popups), makes the whole chrome inert
+  through one wrapper while the overlay stays operable outside it, and contains focus within the
+  shell: focus that falls on covered content returns to the overlay heading, while the host page
+  around an embedded player stays operable (its help, a proctor chat).
   PNP extended time stays consistent (it scales the limits the frozen clocks measure).
 
 ### Shared dialog
@@ -438,7 +475,8 @@ callbacks with a `bind:open` state.
 ### Autosave indicator, resume prompt and start over
 
 - **The save indicator rides the real save state.** When autosave is enabled, the navigation
-  bar shows a polite `role="status"` line next to the answered count: "Saving…" while a save
+  bar shows a polite `role="status"` region that exists from the start (empty while idle, so a
+  screen reader catches the first message) next to the answered count: "Saving…" while a save
   is pending or in flight, "Saved · 12:04" (locale-formatted) after one lands, "Not saved"
   after a failure — announced politely so a "Not saved" turn is heard. Hidden entirely when
   the host disables autosave. The element reports the same states through `autosave-change`
@@ -451,8 +489,10 @@ callbacks with a `bind:open` state.
   resume — it is never one step away from deletion.
 - **Start over deletes with confirmation.** The prompt's other action asks a second,
   destructive-toned confirmation ("Your saved answers will be deleted … This cannot be
-  undone"), then `startOver()` clears the draft, persists the blank state and restarts at the
-  first item with focus and announcement handled like a navigation.
+  undone"), then `startOver()` clears the draft, persists the blank state and repositions to the
+  first open item with focus and announcement handled like a navigation — clocks and expired
+  limits persist, so a restart never grants new time. The `allowStartOver` prop
+  (`allow-start-over="false"`) removes the action: a restored draft then simply continues.
 - **A finalized session restores terminal.** When the backend reports the stored session as
   finalized (`InitSessionResponse.finalized`), the shell renders the already-submitted
   completion view instead of delivery whose every action would reject: no navigation, no resume
@@ -463,7 +503,11 @@ callbacks with a `bind:open` state.
 - **Submit is confirmed, never accidental.** The final-submission control sits in the
   navigation bar styled apart from the primary Next (outlined, error-toned, with a distinct
   icon). Activating it opens the `AssessmentDialog` confirmation, which states how many
-  questions are answered ("8 of 12 answered") and flagged, names every unanswered question,
+  questions are answered ("8 of 12 answered") and flagged, names every question that still needs
+  an answer before the test can end (QTI `allowSkipping=false` without one,
+  `validateResponses=true` incomplete) with jumps where navigation allows, and holds Submit
+  until they are answered; a refused end of the test returns as a warning naming the questions,
+  not a "Try again" failure. It also names every unanswered question,
   and links back to each one the navigation rules can still reach (linear parts render
   status only). Cancel (or Escape) closes it and returns focus to the Submit control; the
   submission itself runs only on the explicit confirm. A failed submission closes the dialog
@@ -493,9 +537,9 @@ callbacks with a `bind:open` state.
 
 ### Practice delivery: check answer, attempts and comments
 
-- **A practice item offers "Check answer" in the navigation bar.** When the active item's
-  resolved `itemSessionControl@showFeedback` is on in an `individual` submission-mode part
-  and more than one attempt is allowed (or the item is adaptive), the bar shows an
+- **A practice item offers "Check answer" in the navigation bar.** When the active item is in
+  an `individual` submission-mode part and more than one attempt is allowed (or the item is
+  adaptive), the bar shows an
   item-level check control — distinct from the section's Next and the test's outlined
   Submit — with a polite "Attempt N of M" counter beside it. Activating it submits the
   item through the normal per-item path (`AssessmentPlayer.checkCurrentItem()`, attempt
@@ -514,7 +558,9 @@ callbacks with a `bind:open` state.
   is seen in a linear part, and the moment it is seen in a nonlinear one (returning to a
   submitted item re-renders its integrated feedback from the restored outcomes).
 - **Simultaneous parts never offer the control.** QTI gives them no per-item submission;
-  `getCheckAnswerState()` reports them as unavailable and the bar renders without it.
+  `getCheckAnswerState()` reports them as unavailable and the bar renders without it. A single
+  attempt (whatever `showFeedback` says) keeps the submit-on-move delivery: showing feedback for
+  a would-be non-final attempt needs an attempt left to spend.
 - **`allowComment` shows a per-item comment disclosure.** A native `<details>` region
   ("Comments for the test team") with a labelled textarea sits above the navigation bar;
   the text lives in the session state (`itemComments`), so it autosaves, rides snapshots,
@@ -649,7 +695,8 @@ to score them.
 | Time events | `onTimeWarning()`, `onTimeExpired(event)`, `onScopeTimeExpired(event)`, `onTimeTick()`, `getTimeState()`, `getStartInfo()` | Subscribe after construction and retain the returned unsubscribe function. `onTimeExpired` reports `autoFinalized` (whole-test expiry submitted) or `submissionRequired` (nothing unlocked remains). | Display a countdown banner (`getTimeState()`), react to expiry, host-owned submission |
 | Practice delivery | `getCheckAnswerState()`, `checkCurrentItem()`, `getLastItemFeedback()` / `clearLastItemFeedback()`, `setItemComment()` / `getItemComment()` | Build a check-answer control from the state (attempts, exhaustion), call `checkCurrentItem()` on activation and render `getLastItemFeedback()` in a modal; drive the comment disclosure from `getItemSessionInfo().canComment`. The built-in shell does all of this. | A custom candidate shell around the headless core |
 | Completion / results | `getResultsSummary()`, the shell's `showResultsSummary` prop (`show-results-summary` attribute), `onComplete` / `submit` | Show the built-in completion screen (default) or your own; opt into the per-question summary only for deliveries where candidates may see scores. | High-stakes host keeps the summary off and renders results in its own UI |
-| Begin gate / pause | `beginGate` config, `start()` / `hasStarted()`, `pause(reason?)` / `resume()` / `isPaused()` / `getPauseReason()`, `onPauseChange()` | Set `beginGate: true` (or the `begin-gate` attribute) to hold delivery behind the shell's start screen; call `pause(reason)` for proctor pauses. | Gate delivery until the candidate begins; proctor controls |
+| Begin gate / pause | `beginGate` config, `start()` / `hasStarted()`, `pause(reason?)` / `resume()` / `isPaused()` / `getPauseReason()`, `onPauseChange()` | Set `beginGate: true` (or the `begin-gate` attribute) to hold delivery behind the shell's start screen; call `pause(reason)` for proctor pauses. A restored pause is reported once at creation. | Gate delivery until the candidate begins; proctor controls |
+| Proctor console | `submit({ force })`, `isFinalized()`, `getTimeState()`, `flushAutosave()`, `onFinalized()` (element: `submit({ force: true })`, `isPaused()`, `getPauseReason()`, `isFinalized()`, `getTimeState()`, `flushAutosave()`, `scope-time-expired`, `session-finalized`) | Read the clocks and the pause/terminal state, save the draft on demand, and force-submit a running test (`timing.submissionReason: 'proctor'`). | A proctor console supervising delivery |
 | Persistence | `getState()` / `restoreState()` and `BackendAdapter.saveState()` | Autosave runs by default (see "Why the shell autosaves drafts"); set `autosave: false` (config/`autosave` attribute) or `canSaveState: false` on the adapter to persist yourself, then call `saveState`/`restoreState` on your own cadence; `flushAutosave()` covers page-hide when you keep it on. | Persist to a session table with an optional host storage fallback |
 
 ---
@@ -714,10 +761,12 @@ AC-7: canPrevious is false when allowReview is false for previous item
   When: getNavigationState() is called from item 2
   Then: canPrevious is false
 
-AC-8: canSkip false blocks navigation away from unanswered item
+AC-8: canSkip false blocks submitting an unanswered item
   Given: itemSessionControl.allowSkipping is false, current item has no response
   When: next() is called
   Then: An error is thrown before submitCurrentItem is called
+  When: submit() is called with another individual item left without a response
+  Then: The call rejects with finalizeResponseRequired naming that item, and nothing is submitted
 
 AC-9: State restoration navigates to saved item
   Given: A persisted state with currentItemIdentifier 'q5' and visitedItems ['q1','q2','q3','q4','q5']
@@ -785,12 +834,15 @@ AC-17: A practice item checks in place and counts attempts
   Then: The second check records attempt 2; the third rejects with maxAttemptsReached;
         next() moves on with no further submission and the check control renders disabled
 
-AC-18: Simultaneous parts and showFeedback=false keep submit-on-move
+AC-18: Simultaneous parts and single-attempt items keep submit-on-move
   Given: A simultaneous testPart with showFeedback=true, and an individual part with
-         showFeedback=false
+         showFeedback=false and a single attempt
   When: getCheckAnswerState() is read on their items
   Then: available is false with reason 'simultaneous' / 'feedbackOff'; no check control
         renders; next() still submits per-item in the individual part
+  When: An individual part allows two attempts with showFeedback=false
+  Then: The control is offered, and checking shows the item's feedback (QTI: feedback for
+        every non-final attempt); after the last attempt showFeedback=false hides it again
 
 AC-19: Submit-on-move feedback is visible on the transition
   Given: An individual part with showFeedback=true and maxAttempts=1 (or unset) over two items
@@ -892,6 +944,13 @@ AC-A9: The countdown never chatters and warns through its own region
         ("Time remaining: 12:34"); each threshold announces once through a separate
         polite status region; expiry announces assertively; the candidate's hide/show
         toggle persists across navigation
+
+AC-A10b: A pause closes covered dialogs and the host page stays operable
+  Given: The section display settings dialog (or any dialog inside the content) is open
+  When: The proctor pauses
+  Then: Every dialog in the shell closes, `pie-qti-close-transient-ui` fires on document,
+        the pause heading takes focus, the pause is announced assertively, and a Tab press
+        reaches the host page's own controls outside the shell
 
 AC-A10: Scope expiry is announced and focus follows delivery
   Given: A section limit expired while items remain outside it

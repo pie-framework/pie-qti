@@ -174,6 +174,14 @@ return {
 `nextItemIdentifier` may also be `EXIT_SECTION`, `EXIT_TESTPART`, or `EXIT_TEST`. If `success` is
 false, include an `error` and omit `result`.
 
+**Outcome-processing failures.** When test-level outcome processing fails on your side, keep the
+submission accepted (`success: true`) and report the failure as `outcomeProcessingError`
+(`{ code, message }`) on the `SubmitResponsesResponse` — and on the `FinalizeAssessmentResponse` when
+it happens at the end. The player surfaces it to the host once per distinct failure (`onError`
+with the coded `outcomeProcessingFailed`, the element's `player-error` event) and attaches it to
+the final `AssessmentResults.outcomeProcessingError`; the raw message never reaches candidates.
+Responses stay persisted: only SCORE and `testFeedback` computation failed.
+
 **Attempts.** `countAttempt` defaults to `true`: the submission consumes an attempt, and its
 result is the item's recorded result. Hint and "show me" controls (QTI `endAttemptInteraction`
 with `countAttempt="false"`) submit with `countAttempt: false` instead. These submissions run
@@ -191,12 +199,30 @@ comment survives autosave and resume.
 
 **Timing and expiry.** `timing` is client evidence and production backends stay authoritative,
 but `timing.submissionReason` is part of the flow contract: `candidate` (default) for a normal
-candidate action, `time-expired` for the response collection a hard time limit triggers. After a
-whole-test expiry the player finalizes through the same path; a test-part, section or item limit
-without late submission collects the closed scope's previously answered items as `time-expired`
-submissions whose own scope has expired. Accept them: the delivery window closed with the expiry,
-and collecting the pending responses is the mandated terminal step — rejecting them as late loses
-candidate work.
+candidate action, `time-expired` for the response collection a hard time limit triggers, and
+`proctor` for the collection a proctor's forced end of the test runs (`submit({ force: true })`,
+see [Proctor controls](#proctor-controls)). After a whole-test expiry the player finalizes
+through the same path; a test-part, section or item limit without late submission collects the
+closed scope's previously answered items as `time-expired` submissions whose own scope has
+expired. Accept them: the delivery window closed with the expiry, and collecting the pending
+responses is the mandated terminal step — rejecting them as late loses candidate work. A
+`proctor` collection is an administrative end of the test; record it as such. A session restored
+after one of its limits ran out locks that scope from the restored clocks before any item is
+entered, and a restored whole-test expiry finalizes as soon as delivery runs.
+
+**Skipping and validation (QTI `allowSkipping` / `validateResponses`).** Both controls apply only
+to items in `individual` submission-mode parts, and they gate *submission*, not navigation: in a
+nonlinear part the candidate may move away from an unanswered item (navigation is not
+submission). A candidate-initiated submission never sends an item without any response (every
+response NULL or empty) while `allowSkipping=false`, nor an answered item whose responses do not
+satisfy its interactions (minChoices, minStrings, matchMin…) while `validateResponses=true`:
+`next()`, `submitCurrentItem()` and `checkCurrentItem()` reject with the coded `responseRequired` /
+`attemptValidationFailed`, and the end of the test rejects with `finalizeResponseRequired` /
+`finalizeResponseInvalid`, naming the items (`params.items`, `params.itemIdentifiers`;
+`getSubmissionBlockers()` lists them for a confirmation UI). An administrative end — a time expiry
+or a proctor's forced submit — collects every item as it stands, so an unanswered required item
+reaches you as an empty, `time-expired` (or `proctor`) submission: record it as skipped by the
+expiry. Simultaneous parts are never gated (QTI: the controls are not applicable there).
 
 **Feedback.** Production builds strip `<responseProcessing>` from candidate item XML, so the
 candidate's own session cannot compute modal or integrated feedback. When your delivered item XML
@@ -214,6 +240,13 @@ make network retries safe.
 Simultaneous assessment submission calls `submitResponses()` sequentially for every unsubmitted item
 and only then calls `finalizeAssessment()`. It is not one transport-level transaction: the backend
 must tolerate a retry after some item requests have already succeeded.
+
+The end of the test also collects **individual-mode items** the backend has not accepted yet: the
+open current item, and every item the candidate visited and answered but left through a nonlinear
+jump (navigation submits nothing) or whose answer changed after a practice check. They arrive as
+normal candidate submissions (`countAttempt: true`, no `submissionReason`) before
+`finalizeAssessment()`; responses you already accepted unchanged are never re-sent, so no attempt is
+spent twice.
 
 ## Server-side scoring
 
@@ -273,20 +306,59 @@ save indicator hides with it. The debounce window is tunable through `autosaveIn
 
 Each payload is a full session snapshot (`SaveAssessmentStateRequest.state`) stamped with
 `timing.savedAt`. A save due while a navigation or submission transition is in flight defers
-until the transition settles, and nothing saves after finalization. A failed save is a
-non-fatal event, never a delivery failure: the shell logs it, reports it through
-`onAutosaveChange` (`failed`), `onAutosaveFailed` and the element's `autosave-failed` event
-("Not saved" on the indicator), and retries on the next change. The backend is the store —
-there is no offline queue — so treat each save as an idempotent replace of the session's draft
-keyed by `sessionId`.
+until the transition settles, and nothing saves after finalization. A failed save (a rejected
+promise or `success: false`) is a non-fatal event, never a delivery failure: the shell logs it,
+reports it through `onAutosaveChange` (`failed`), `onAutosaveFailed` and the element's
+`autosave-failed` event ("Not saved" on the indicator), and retries the draft automatically after
+2 s, 8 s and 30 s; after the third retry it waits for the next change or flush. A successful save
+or new candidate activity starts the backoff over. The backend is the store — there is no
+offline queue — so treat each save as an idempotent replace of the session's draft keyed by
+`sessionId`. The end of the test always persists the final snapshot (after any save still in
+flight) before it calls `finalizeAssessment()`, so outcome processing reads the end-of-test clocks.
 
 ### Start over
 
-`startOver()` is the candidate-facing restart behind the resume prompt's destructive action: the
-shell resets the draft — responses, sessions, results, flags, comments, visited state, the timer
-preference and the clocks — and immediately persists the blank state, so a refresh cannot
-resurrect discarded answers. Already-submitted items keep their accepted results: the backend
-remains authoritative for everything it has accepted.
+`startOver()` is the candidate-facing restart behind the resume prompt's destructive action. It
+clears what the candidate authored and you have not accepted — responses, flags, comments, the
+visited marks, the timer preference and any unrecorded check state — and persists the blank draft
+immediately, so a refresh cannot resurrect discarded answers. It **keeps the time accounting**:
+every clock, each expired scope and a whole-test expiry persist, so restarting never grants a fresh
+time allowance after the questions were seen. Items you already accepted keep their recorded
+results (and responses): the backend stays authoritative for them, and the end of the test does not
+re-send them. Delivery repositions to the first question that is still open; when nothing is open
+(the expired scopes cover every remaining question, or the whole test expired), the player reports
+the expiry dead end again (`onTimeExpired` with `submissionRequired`) and the candidate's way out is
+Submit. Hosts that never let a candidate discard saved work turn the action off with the shell prop
+`allowStartOver={false}` (element attribute `allow-start-over="false"`): a restored draft then
+simply continues.
+
+### Proctor controls
+
+A proctor console drives the player through the core (`AssessmentPlayer`) or the element
+(`<pie-qti-assessment-player>`):
+
+| Control | Core | Element |
+| --- | --- | --- |
+| Pause with a candidate-facing reason | `pause(reason?)` | `pause(reason?)` |
+| Resume | `resume()` | `resume()` |
+| Read the pause | `isPaused()`, `getPauseReason()` | `isPaused()`, `getPauseReason()` |
+| Read the clocks | `getTimeState()` | `getTimeState()` |
+| Read the terminal state | `isFinalized()` | `isFinalized()` |
+| Save the draft now | `flushAutosave()` | `flushAutosave()` |
+| Force-submit | `submit({ force: true })` | `submit({ force: true })` |
+
+A candidate's `submit()` is rejected while paused; `submit({ force: true })` is the administrative
+end of the test: it runs during a pause, ignores minimum times and the skipping/validation
+controls, and every collected submission carries `timing.submissionReason: 'proctor'`.
+
+Events for the console: `onPauseChange` (`player-pause` / `player-resume`) — a session restored
+paused reports its pause once right after creation, so the console never misses it;
+`onTimeExpired` (`time-expired`) and `onScopeTimeExpired` (`scope-time-expired`) for limits that
+ran out; `onFinalized` (`session-finalized`, `{ restored, results }`) once the session is terminal,
+including a session restored already finalized. While paused, the shell closes every dialog it
+contains and dispatches `pie-qti-close-transient-ui` (`{ reason: 'pause' }`) on `document` so
+editors and popups outside dialogs close too; the host page around an embedded player stays
+operable.
 
 ## Finalization
 
@@ -308,7 +380,8 @@ The optional `outcomes` map holds the test-level outcome values after outcome pr
 drives QTI `testFeedback` visibility. Return it from `submitResponses()` and from a resumed
 `initSession()` as well, so `access="during"` feedback follows each submission. The older single
 `feedback` string is retained for compatibility; structured assessment feedback plus outcome values
-is preferred.
+is preferred. Report an outcome-processing failure as `outcomeProcessingError` here too (see
+[Item submission](#item-submission)); the finalization still succeeds.
 
 ## Reference adapter
 
