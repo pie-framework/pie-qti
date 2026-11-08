@@ -88,6 +88,19 @@ export interface PciSandboxInitPayload {
 	baseUrl: string;
 	/** The interaction markup, already sanitized by the host. */
 	markup: string;
+	/**
+	 * The language tag the runner frame's document is written in (the item's content
+	 * language), so the frame states its language instead of assuming one (WCAG 3.1.1).
+	 * Optional for protocol compatibility: absent leaves the runner's static language.
+	 */
+	language?: string;
+	/** The directionality of the frame's content, set on the frame document with `language`. */
+	direction?: 'ltr' | 'rtl';
+	/**
+	 * The frame document's accessible name, localized by the host (the runner cannot
+	 * reach i18n catalogs). Optional: absent leaves the runner's static title.
+	 */
+	frameTitle?: string;
 	/** Milliseconds the runner waits for the module to register. */
 	registrationTimeoutMs: number;
 	/** How often the runner pushes response/state reads. */

@@ -272,4 +272,33 @@ describe('GraphicGapMatchInteraction (pie-qti-graphic-gap-match)', () => {
 			expect(mounted.instance.response).toEqual(['RAIN LAKE', 'SUN SKY']);
 		});
 	});
+
+	test('removing a label announces it and keeps focus on its label (round 6)', async () => {
+		const mounted = mountInteraction(GraphicGapMatchInteraction, { interaction: ggmData() });
+		await settle();
+
+		// Place Rain on the first hotspot via the keyboard flow.
+		const rain = qa<HTMLButtonElement>(mounted, '[part="labels"] button').find(
+			(button) => button.textContent?.trim() === 'Rain',
+		)!;
+		rain.click();
+		await settle();
+		hotspotTargets(mounted)[0]?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		expect(mounted.instance.response).toEqual(['RAIN TOP_RIGHT_ANSWER']);
+
+		const remove = q<HTMLButtonElement>(mounted, '[part="label-remove"]');
+		expect(remove).not.toBeNull();
+		remove.focus();
+		remove.click();
+		await settle();
+
+		// The removal is announced; the remove button is gone; focus returned to the
+		// now-enabled label button instead of the document body.
+		const live = Array.from(mounted.host.querySelectorAll('[aria-live="polite"]')).at(0);
+		expect(live?.textContent).toContain('Rain removed from hotspot.');
+		expect(q(mounted, '[part="label-remove"]')).toBeNull();
+		expect(document.activeElement).toBe(rain);
+		expect(rain.disabled).toBe(false);
+	});
 });

@@ -8,15 +8,18 @@
  */
 
 import type { GraphicGapMatchInteractionData } from '@pie-qti/item-player';
+	import { tick } from 'svelte';
 	import { touchDrag } from '@pie-qti/qti-common';
 import HotspotShape from '../../shared/components/HotspotShape.svelte';
 import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
-import { normalizeCssPixelLength, normalizePixelDimension } from '@pie-qti/item-player/security';
-import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
-import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
-import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
-import { interactionAria } from '../../shared/utils/interactionAria';
-import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import { normalizeCssPixelLength, normalizePixelDimension } from '@pie-qti/item-player/security';
+	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
+	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
+	import { interactionAria } from '../../shared/utils/interactionAria';
+	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
+	import { choicesShortOfMatchMin } from '../../shared/utils/minimumRequirement';
 import { hitStrokeWidth, imageAltText, observeWidth, shapeCenter } from '../hotspot/graphicRegions';
 
 import '../../shared/styles/shared.css';
@@ -161,6 +164,27 @@ function getMatchedHotspot(gapTextId: string): string | null {
 	return pair ? pair.split(' ')[1] : null;
 }
 
+/**
+ * Minimum requirement (each label's matchMin): the labels the response does not place
+ * often enough yet — the same minimum response validation enforces — are named on the
+ * question; the author's `data-min-selections-message` wins.
+ */
+const minHintId = `${uid}-min-hint`;
+const shortLabels = $derived(
+	parsedInteraction
+		? choicesShortOfMatchMin([...parsedInteraction.gapTexts, ...(parsedInteraction.gapImages ?? [])], pairs)
+		: [],
+);
+const minHint = $derived.by(() => {
+	if (disabled || role !== 'candidate' || shortLabels.length === 0) return '';
+	return (
+		parsedInteraction?.minSelectionsMessage?.trim() ||
+		translate(i18n, 'interactions.graphicGapMatch.minPlacementsHint', 'Still to place on the hotspots: {labels}.', {
+			labels: formatList(i18n, shortLabels.map((label) => getLabelName(label.identifier))),
+		})
+	);
+});
+
 // Get the gap text matched to a hotspot
 function getMatchedGapText(hotspotId: string): string | null {
 	const pair = pairs.find((p) => p.endsWith(` ${hotspotId}`));
@@ -230,19 +254,27 @@ function handleHotspotDrop(event: DragEvent, hotspotId: string) {
 	hoveredHotspotId = null;
 }
 
-function clearMatch(labelId: string) {
-	if (disabled || !parsedInteraction) return;
-	const labelName = getLabelName(labelId);
+	async function clearMatch(labelId: string, event?: MouseEvent) {
+		if (disabled || !parsedInteraction) return;
+		const labelName = getLabelName(labelId);
+		// The remove button shares its wrapper with the label button it clears; the
+		// wrapper (and that label button) survive the removal.
+		const wrapper = (event?.currentTarget as HTMLElement | null)?.parentElement ?? null;
 
-	const newPairs = pairs.filter((p) => !p.startsWith(`${labelId} `));
-	isInternalUpdate = true; // Mark as internal update
-	pairs = newPairs;
-	response = pairs;
-	// Call onChange callback if provided (for Svelte component usage)
-	emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: pairs, onChange });
+		const newPairs = pairs.filter((p) => !p.startsWith(`${labelId} `));
+		isInternalUpdate = true; // Mark as internal update
+		pairs = newPairs;
+		response = pairs;
+		// Call onChange callback if provided (for Svelte component usage)
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: pairs, onChange });
 
-	liveMessage = translate(i18n, 'interactions.graphicGapMatch.labelRemoved', '{label} removed from hotspot.', { label: labelName });
-}
+		liveMessage = translate(i18n, 'interactions.graphicGapMatch.labelRemoved', '{label} removed from hotspot.', { label: labelName });
+
+		// The remove button is gone, which would drop keyboard focus to the document.
+		// Focus returns to the now-enabled label button beside it.
+		await tick();
+		wrapper?.querySelector<HTMLButtonElement>('button')?.focus();
+	}
 
 /**
  * Resolve a human-readable name for a label by identifier: a gap text's text,
@@ -433,6 +465,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 					style={choicesContainerWidth ? `width: ${choicesContainerWidth}` : undefined}
 					role="group"
 					aria-label={i18n?.t('interactions.graphicGapMatch.availableLabel') ?? 'Available labels to place'}
+					aria-describedby={minHint ? minHintId : undefined}
 				>
 					<div class="qti-ggm-labels-title w-full text-sm text-base-content/70 font-semibold mb-2">
 						{i18n?.t('interactions.graphicGapMatch.availableHeading') ?? 'Available Labels:'}
@@ -471,7 +504,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 									type="button"
 									part="label-remove"
 									class="btn btn-sm btn-circle btn-error"
-									onclick={() => clearMatch(gapText.identifier)}
+									onclick={(e) => clearMatch(gapText.identifier, e)}
 									aria-label={translate(i18n, 'interactions.graphicGapMatch.removeFromHotspot', 'Remove {label} from hotspot', { label: gapText.text })}
 									title={i18n?.t('interactions.graphicGapMatch.removeLabel') ?? 'Remove label'}
 								>
@@ -518,7 +551,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 									type="button"
 									part="label-remove"
 									class="btn btn-sm btn-circle btn-error"
-									onclick={() => clearMatch(gapImage.identifier)}
+									onclick={(e) => clearMatch(gapImage.identifier, e)}
 									aria-label={translate(i18n, 'interactions.graphicGapMatch.removeFromHotspot', 'Remove {label} from hotspot', {
 										label: gapImageName,
 									})}
@@ -648,6 +681,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 				<p id={imageDescriptionId} class="sr-only">{imageDescription}</p>
 			{/if}
 		</div>
+		<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(pairs)} />
 	{/if}
 </div>
 

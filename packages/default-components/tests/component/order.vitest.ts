@@ -128,4 +128,29 @@ describe('OrderInteraction (pie-qti-order)', () => {
 		expect(stateText).toContain('Position 1 of 2');
 		cleanupInteraction(mounted);
 	});
+
+	test('confirm keeps its control mounted, focused, and announced (round 6)', async () => {
+		const mounted = mountInteraction(OrderInteraction, { interaction: orderData() });
+		await settle();
+
+		const confirm = q<HTMLButtonElement>(mounted, 'button[part="confirm"]')!;
+		expect(confirm).not.toBeNull();
+		confirm.focus();
+		confirm.click();
+		await settle();
+
+		// The control is not removed: it flips to a disabled "Order confirmed" state and
+		// keyboard focus stays on it instead of falling to the document body.
+		const confirmed = q<HTMLButtonElement>(mounted, 'button[part="confirmed"]');
+		expect(confirmed).not.toBeNull();
+		expect(confirmed?.getAttribute('aria-disabled')).toBe('true');
+		expect(confirmed?.getAttribute('tabindex')).toBe('-1');
+		expect(confirmed?.textContent).toContain('Order confirmed');
+		expect(document.activeElement).toBe(confirmed);
+
+		// The always-present polite region announces the confirmation.
+		const live = mounted.host.querySelector('.qti-order-confirmation-live');
+		expect(live?.textContent).toContain('Order confirmed');
+		cleanupInteraction(mounted);
+	});
 });

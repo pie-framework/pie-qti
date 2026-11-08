@@ -168,10 +168,16 @@ describe('MatchInteraction (pie-qti-match)', () => {
 		// it targetable. Assert the class that carries the size is present.
 		expect(clear?.classList.contains('qti-match-clear')).toBe(true);
 
+		clear?.focus();
 		clear?.click();
 		await settle();
 		expect(mounted.instance.response).toEqual([]);
 		expect(liveRegion(mounted)).toBe('Match cleared for Paris');
+		// The clear button removed itself with the match: focus lands on the
+		// now-enabled source button, not on the document body (round 6).
+		const source = q<HTMLButtonElement>(mounted, '[data-source-id="paris"]');
+		expect(document.activeElement).toBe(source);
+		expect(source?.disabled).toBe(false);
 		cleanupInteraction(mounted);
 	});
 

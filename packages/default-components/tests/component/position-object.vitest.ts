@@ -250,10 +250,14 @@ describe('PositionObjectInteraction (pie-qti-position-object)', () => {
 		const remove = placed.querySelector<HTMLButtonElement>('[part="remove"]')!;
 		expect(remove.getAttribute('aria-label')).toBe('Remove Object 1');
 
+		remove.focus();
 		remove.click();
 		await settle();
 		expect(mounted.instance.response).toEqual([]);
 		expect(qa(mounted, '[part="placed"]')).toHaveLength(0);
+		// The remove button is gone with the object: focus lands on the canvas, not
+		// the document body (round 6).
+		expect(document.activeElement).toBe(canvas(mounted));
 	});
 
 	test('a failed stage image shows a localized message', async () => {

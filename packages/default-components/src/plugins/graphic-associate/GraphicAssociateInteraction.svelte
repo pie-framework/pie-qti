@@ -2,15 +2,18 @@
 
 <script lang="ts">
 	import type { GraphicAssociateHotspot, GraphicAssociateInteractionData } from '@pie-qti/item-player';
+	import { tick } from 'svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
-	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
+	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
 	import { countPairsWithId, pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
+	import { choicesShortOfMatchMin, minimumHint } from '../../shared/utils/minimumRequirement';
 	import { imageAltText, shapeBounds, shapeCenter } from '../hotspot/graphicRegions';
 
 	interface Props {
@@ -65,6 +68,14 @@
 	let pairs = $state<string[]>([]);
 	let selectedHotspot: string | null = $state(null);
 
+	// Polite announcements of associations made, removed, and refused, for the
+	// always-rendered live region below the description.
+	let statusAnnouncement = $state('');
+
+	function announce(message: string) {
+		statusAnnouncement = statusAnnouncement === message ? `${message}\u200b` : message;
+	}
+
 	const canInteract = $derived(!disabled);
 	const canAddMore = $derived(!parsedInteraction || pairs.length < parsedInteraction.maxAssociations);
 
@@ -94,7 +105,12 @@
 		// Count how many times this hotspot is already used
 		const usageCount = countPairsWithId(pairs, hotspotId);
 		if (usageCount >= hotspot.matchMax) {
-			// This hotspot is at its maximum connections
+			// This hotspot is at its maximum connections: refuse, announced.
+			announce(
+				translate(i18n, 'interactions.graphicAssociate.hotspotLimitReached', 'Not possible: {label} cannot be in more associations.', {
+					label: hotspotName(hotspot),
+				}),
+			);
 			return;
 		}
 
@@ -106,14 +122,25 @@
 			selectedHotspot = null;
 		} else {
 			// Second selection - create a pair
-			if (!canAddMore) return;
-			if (blockedHotspots.has(hotspotId)) return;
+			if (!canAddMore) {
+				announce(
+					translate(i18n, 'interactions.graphicAssociate.associationLimitReached', 'Association not possible: the limit of {max} is reached.', {
+						max: parsedInteraction.maxAssociations,
+					}),
+				);
+				return;
+			}
+			if (blockedHotspots.has(hotspotId)) {
+				announce(translate(i18n, 'interactions.graphicAssociate.notAvailableSentence', 'Not available due to a match group restriction.'));
+				return;
+			}
 
 			const newPair = `${selectedHotspot} ${hotspotId}`;
 			pairs = [...pairs, newPair];
 			response = pairs;
 			// Call onChange callback if provided (for Svelte component usage)
 			emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: pairs, onChange });
+			announce(translate(i18n, 'interactions.graphicAssociate.associationMade', 'Association made.'));
 			selectedHotspot = null;
 		}
 	}
@@ -124,6 +151,23 @@
 		response = pairs;
 		// Call onChange callback if provided (for Svelte component usage)
 		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: pairs, onChange });
+		// Announce the removal politely: the focused remove button vanishes with the pair,
+		// so the live region is what tells assistive technology what just happened.
+		announce(translate(i18n, 'interactions.graphicAssociate.associationRemoved', 'Association removed.'));
+		void moveFocusAfterRemoval(index);
+	}
+
+	/**
+	 * The activated remove button is gone, which would drop keyboard focus to the
+	 * document. Focus stays on the pair list (the pair now in that row, else the
+	 * new last one), or returns to the hotspots when no pair is left to remove —
+	 * the same pattern AssociateInteraction uses.
+	 */
+	async function moveFocusAfterRemoval(removedIndex: number) {
+		await tick();
+		const buttons = rootElement?.querySelectorAll<HTMLButtonElement>('[part="association-remove"]');
+		const next = buttons?.[Math.min(removedIndex, buttons.length - 1)];
+		(next ?? rootElement?.querySelector<HTMLButtonElement>('[part="hotspot"]'))?.focus();
 	}
 
 	function getHotspotById(id: string) {
@@ -184,6 +228,32 @@
 	}
 
 	/**
+	 * Minimum requirement (minAssociations, and each hotspot's matchMin): stated while the
+	 * response falls short of either, the same minimums response validation enforces; the
+	 * author's message wins. Only while the candidate can still answer.
+	 */
+	const minHintId = `${uid}-min-hint`;
+	const minHint = $derived.by(() => {
+		if (disabled || role !== 'candidate' || !parsedInteraction) return '';
+		const fewerAssociations = minimumHint({
+			i18n,
+			minimum: parsedInteraction.minAssociations,
+			count: pairs.length,
+			key: 'interactions.graphicAssociate.minAssociationsHint',
+			fallback: { one: 'Make at least {count} association.', other: 'Make at least {count} associations.' },
+		});
+		const shortHotspots = choicesShortOfMatchMin(parsedInteraction.associableHotspots, pairs);
+		if (!fewerAssociations && shortHotspots.length === 0) return '';
+		return joinSentences(
+			fewerAssociations,
+			shortHotspots.length > 0 &&
+				translate(i18n, 'interactions.graphicAssociate.minHotspotUsesHint', 'Needs more associations: {items}.', {
+					items: formatList(i18n, shortHotspots.map(hotspotName)),
+				}),
+		);
+	});
+
+	/**
 	 * Hotspot button box in percentages of the natural image, centred on the
 	 * region so the 24×24 CSS px minimum target (WCAG 2.5.8) grows symmetrically.
 	 */
@@ -203,6 +273,9 @@
 
 <div bind:this={rootElement} {...interactionAria(parsedInteraction)} part="root" class="qti-graphic-associate-interaction">
 	<InteractionDescription interaction={parsedInteraction} />
+	<!-- Polite announcements (association made, removed, refused) that survive the changed
+	     or focused controls themselves. Always rendered, before any conditional content. -->
+	<div aria-live="polite" aria-atomic="true" class="qti-ga-live-region">{statusAnnouncement}</div>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -306,6 +379,9 @@
 						{@const isBlocked = blockedHotspots.has(hotspot.identifier)}
 						{@const usageCount = getHotspotUsageCount(hotspot.identifier)}
 						{@const isCorrect = isHotspotInCorrectPair(hotspot.identifier)}
+						<!-- A maxed hotspot stays focusable: the disabled property would remove the
+						     very control the candidate just activated from under their focus;
+						     aria-disabled plus the handler's refusal guard instead. -->
 						<button
 							type="button"
 							part="hotspot"
@@ -316,8 +392,8 @@
 							class:qti-ga-hotspot-unavailable={isMaxed || isBlocked}
 							style={hotspotBoxStyle(hotspot)}
 							onclick={() => handleHotspotClick(hotspot.identifier)}
-							disabled={!canInteract || isMaxed}
-							aria-disabled={isBlocked ? 'true' : undefined}
+							disabled={!canInteract}
+							aria-disabled={!canInteract || isMaxed || isBlocked ? 'true' : undefined}
 							aria-pressed={isSelected}
 							aria-label={hotspotAriaLabel(hotspot, usageCount, isCorrect, isBlocked)}
 						>
@@ -403,6 +479,7 @@
 										{#if canInteract}
 											<button
 												type="button"
+												part="association-remove"
 												class="qti-ga-remove btn btn-xs btn-ghost btn-circle"
 												onclick={() => removePair(index)}
 												aria-label={translate(i18n, 'interactions.graphicAssociate.removeAssociation', 'Remove association between {first} and {second}', { first, second })}
@@ -441,6 +518,7 @@
 				</div>
 			</div>
 		</div>
+		<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(pairs)} />
 	{/if}
 </div>
 
@@ -584,9 +662,23 @@
 		border-color: var(--pie-qti-success-text, #15803d);
 	}
 	.qti-ga-hotspot-unavailable,
-	.qti-ga-hotspot:disabled {
+	.qti-ga-hotspot:disabled,
+	.qti-ga-hotspot[aria-disabled='true'] {
 		cursor: not-allowed;
 		opacity: 0.6;
+	}
+
+	/* Visually hidden live region, self-contained so it hides without Tailwind. */
+	.qti-ga-live-region {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
 	}
 	.qti-ga-hotspot-label {
 		font-size: 0.75rem;

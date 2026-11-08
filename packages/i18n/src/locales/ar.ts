@@ -178,6 +178,8 @@ export default {
 			// {max} will be replaced with maximum size in MB
 			errorTooLarge: 'حجم الملف كبير جدًا (الحد الأقصى {max} ميجابايت)',
 			unknownType: 'نوع ملف غير معروف',
+			fileRemoved: 'تمت إزالة الملف.',
+			errorFileTooLarge: 'الملف {filename} كبير جدًا. الحجم الأقصى هو {maxBytes} بايت.',
 		},
 
 		drawing: {
@@ -230,6 +232,16 @@ export default {
 				other: 'تم بلوغ الطول المتوقع وهو {count} حرفًا.',
 			},
 			correctAnswerHeading: 'الإجابة الصحيحة:',
+			editMath: 'تحرير المعادلات الرياضية',
+			minStringsHint: {
+				zero: 'اكتب {count} إجابات على الأقل.',
+				one: 'اكتب إجابة واحدة على الأقل.',
+				two: 'اكتب إجابتين على الأقل.',
+				few: 'اكتب {count} إجابات على الأقل.',
+				many: 'اكتب {count} إجابة على الأقل.',
+				other: 'اكتب {count} إجابة على الأقل.',
+			},
+			minStringsRemoveRefused: 'لم تُحذف الإجابة: مطلوب {count} إجابات على الأقل.',
 		},
 
 		mathInput: {
@@ -377,6 +389,7 @@ export default {
 			pickUpCancelled: 'تم إلغاء التقاط {word}.',
 			minPlacementsHint: 'ما زال عليك وضعها في الفراغات: {words}.',
 			notCompatibleSentence: 'غير متوافق مع الكلمة المحددة.',
+			wordRemovedFromBlanks: 'تمت إزالة {word} من الفراغات.',
 		},
 
 		graphicGapMatch: {
@@ -414,6 +427,7 @@ export default {
 			imageFallback: 'صورة هذا السؤال',
 			imageLoadError: 'تعذّر تحميل الصورة.',
 			unknownImageDimensions: 'لا يمكن عرض النقاط الساخنة: أبعاد الصورة غير معروفة. أضف العرض والارتفاع إلى الصورة.',
+			minPlacementsHint: 'لا يزال يتعين وضعها على المناطق: {labels}.',
 		},
 
 		order: {
@@ -606,6 +620,19 @@ export default {
 			pairDescription: '{first} مرتبط بـ {second}',
 			removeAssociation: 'إزالة الارتباط بين {first} و{second}',
 			minimumRequired: 'الحد الأدنى المطلوب: {minAssociations}',
+			associationMade: 'تم إنشاء الارتباط.',
+			associationRemoved: 'تمت إزالة الارتباط.',
+			associationLimitReached: 'لا يمكن إنشاء الارتباط: تم الوصول إلى الحد {max}.',
+			hotspotLimitReached: 'غير ممكن: لا يمكن أن يكون {label} في مزيد من الارتباطات.',
+			minAssociationsHint: {
+				zero: 'أنشئ {count} ارتباطات على الأقل.',
+				one: 'أنشئ ارتباطًا واحدًا على الأقل.',
+				two: 'أنشئ ارتباطين على الأقل.',
+				few: 'أنشئ {count} ارتباطات على الأقل.',
+				many: 'أنشئ {count} ارتباطًا على الأقل.',
+				other: 'أنشئ {count} ارتباط على الأقل.',
+			},
+			minHotspotUsesHint: 'يحتاج إلى مزيد من الارتباطات: {items}.',
 		},
 
 		custom: {

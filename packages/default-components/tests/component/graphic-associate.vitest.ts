@@ -211,4 +211,96 @@ describe('GraphicAssociateInteraction (pie-qti-graphic-associate)', () => {
 		await settle();
 		expect(mounted.instance.response).toEqual(['H1 H2']);
 	});
+	test('making a pair announces it and never disables the focused hotspot (round 6)', async () => {
+		const mounted = mountInteraction(GraphicAssociateInteraction, {
+			interaction: associateData({ maxAssociations: 5 }),
+		});
+		await settle();
+
+		const hotspots = qa<HTMLButtonElement>(mounted, 'button[part="hotspot"]');
+		hotspots[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		// A pointer click focuses the activated hotspot; mirror that, since the paired
+		// hotspot is what the candidate is on when it maxes out.
+		hotspots[1].focus();
+		hotspots[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+
+		expect(mounted.instance.response).toEqual(['H1 H2']);
+		// The pairing is announced from the always-rendered polite region.
+		expect(q(mounted, '.qti-ga-live-region')?.textContent).toContain('Association made.');
+		// The just-used hotspot (matchMax 1, now maxed) is stated unavailable with
+		// aria-disabled; the disabled property is never set, so focus keeps its control.
+		const hotspotsAfter = qa<HTMLButtonElement>(mounted, 'button[part="hotspot"]');
+		expect(hotspotsAfter[0].disabled).toBe(false);
+		expect(hotspotsAfter[0].getAttribute('aria-disabled')).toBe('true');
+		expect(hotspotsAfter[1].disabled).toBe(false);
+		expect(document.activeElement).toBe(hotspotsAfter[1]);
+		cleanupInteraction(mounted);
+	});
+
+	test('removing a pair announces it and keeps focus on a control (round 6)', async () => {
+		const mounted = mountInteraction(GraphicAssociateInteraction, {
+			interaction: associateData({ maxAssociations: 5, minAssociations: 0 }),
+			response: ['H1 H2', 'H2 H10'],
+		});
+		await settle();
+
+		// Removing the first pair: focus moves to the remove button now in that row.
+		const removes = qa<HTMLButtonElement>(mounted, 'button[part="association-remove"]');
+		expect(removes).toHaveLength(2);
+		removes[0].focus();
+		removes[0].click();
+		await settle();
+
+		expect(q(mounted, '.qti-ga-live-region')?.textContent).toContain('Association removed.');
+		const remaining = qa<HTMLButtonElement>(mounted, 'button[part="association-remove"]');
+		expect(remaining).toHaveLength(1);
+		expect(document.activeElement).toBe(remaining[0]);
+
+		// Removing the last pair: focus returns to the hotspots, not the document body.
+		remaining[0].focus();
+		remaining[0].click();
+		await settle();
+		expect(document.activeElement?.getAttribute('part')).toBe('hotspot');
+		cleanupInteraction(mounted);
+	});
+
+	test('refusals are announced: per-hotspot limit and interaction limit (round 6)', async () => {
+		// Per-hotspot matchMax refusal: H1 is already paired, activating it again refuses.
+		const maxed = mountInteraction(GraphicAssociateInteraction, {
+			interaction: associateData({ maxAssociations: 5 }),
+			response: ['H1 H2'],
+		});
+		await settle();
+		const hotspots = qa<HTMLButtonElement>(maxed, 'button[part="hotspot"]');
+		hotspots[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		expect(q(maxed, '.qti-ga-live-region')?.textContent).toContain('cannot be in more associations');
+		expect(maxed.instance.response).toEqual(['H1 H2']);
+		cleanupInteraction(maxed);
+
+		// Interaction maxAssociations refusal: the hotspots can take more (matchMax 2),
+		// so reaching the cap is what refuses the third pairing.
+		const capped = mountInteraction(GraphicAssociateInteraction, {
+			interaction: associateData({
+				maxAssociations: 1,
+				associableHotspots: [
+					{ identifier: 'H1', shape: 'rect', coords: '0,0,40,20', matchMax: 2, label: 'Hotspot 1' },
+					{ identifier: 'H2', shape: 'rect', coords: '50,0,90,20', matchMax: 2, label: 'Hotspot 2' },
+					{ identifier: 'H10', shape: 'rect', coords: '0,25,40,45', matchMax: 2, label: 'Hotspot 10' },
+				],
+			}),
+			response: ['H1 H2'],
+		});
+		await settle();
+		const cappedHotspots = qa<HTMLButtonElement>(capped, 'button[part="hotspot"]');
+		cappedHotspots[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		cappedHotspots[2].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		expect(q(capped, '.qti-ga-live-region')?.textContent).toContain('limit of 1 is reached');
+		expect(capped.instance.response).toEqual(['H1 H2']);
+		cleanupInteraction(capped);
+	});
 });

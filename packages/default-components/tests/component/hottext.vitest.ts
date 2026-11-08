@@ -335,3 +335,30 @@ describe('HottextInteraction style contracts', () => {
 		expect(source).toContain('color: var(--pie-qti-warning-text, #92400e)');
 	});
 });
+
+describe('HottextInteraction selection clearing (round 6)', () => {
+	test('clearing the selection keeps focus on the first hottext', async () => {
+		const mounted = mountInteraction(HottextInteraction, {
+			interaction: hottextData({ maxChoices: 2 }),
+		});
+		await settle();
+
+		const hottexts = qa(mounted, '[role="button"]');
+		hottexts[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		expect(mounted.instance.response).toEqual(['H1']);
+
+		const clear = qa<HTMLButtonElement>(mounted, '[part="footer"] button').find(
+			(button) => button.textContent?.trim() === 'Clear Selection',
+		);
+		expect(clear).not.toBeNull();
+		clear!.focus();
+		clear!.click();
+		await settle();
+
+		// The clear button removed itself with the selection: focus lands on the first
+		// hottext element, the interaction's surviving control.
+		expect(mounted.instance.response).toEqual([]);
+		expect(document.activeElement).toBe(qa(mounted, '[role="button"]')[0]);
+	});
+});

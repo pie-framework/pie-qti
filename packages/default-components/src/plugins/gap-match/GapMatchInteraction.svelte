@@ -379,11 +379,22 @@
 		}
 	}
 
-	function clearWord(wordId: string) {
+	async function clearWord(wordId: string) {
 		if (disabled) return;
+		const wordName = getWordText(wordId);
 		const newPairs = pairs.filter((p: string) => !p.startsWith(`${wordId} `));
 		response = newPairs;
 		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: newPairs, onChange });
+		// The removal is announced: the focused remove button vanishes with the placements,
+		// so the live region is what tells assistive technology what just happened.
+		liveMessage = translate(i18n, 'interactions.gapMatch.wordRemovedFromBlanks', '{word} removed from the blanks.', { word: wordName });
+		// The remove button is gone, which would drop keyboard focus to the document.
+		// Focus returns to the now-enabled word button instead.
+		await tick();
+		const wordButton = Array.from(rootElement?.querySelectorAll<HTMLButtonElement>('[data-word-id]') ?? []).find(
+			(button) => button.dataset.wordId === wordId,
+		);
+		wordButton?.focus();
 	}
 
 </script>

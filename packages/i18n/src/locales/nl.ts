@@ -131,6 +131,8 @@ export default {
 			errorReadFailed: 'Kan bestand niet lezen',
 			errorTooLarge: 'Bestand is te groot (maximaal {max} MB)',
 			unknownType: 'Onbekend bestandstype',
+			fileRemoved: 'Bestand verwijderd.',
+			errorFileTooLarge: 'Bestand {filename} is te groot. De maximale grootte is {maxBytes} bytes.',
 		},
 
 		drawing: {
@@ -175,6 +177,12 @@ export default {
 				other: 'Verwachte lengte van {count} tekens bereikt.',
 			},
 			correctAnswerHeading: 'Juist antwoord:',
+			editMath: 'Wiskunde bewerken',
+			minStringsHint: {
+				one: 'Schrijf ten minste {count} antwoord.',
+				other: 'Schrijf ten minste {count} antwoorden.',
+			},
+			minStringsRemoveRefused: 'Antwoord niet verwijderd: er zijn ten minste {count} antwoorden nodig.',
 		},
 
 		mathInput: {
@@ -312,6 +320,7 @@ export default {
 			pickUpCancelled: 'Het oppakken van {word} is geannuleerd.',
 			minPlacementsHint: 'Nog te plaatsen in de lege plekken: {words}.',
 			notCompatibleSentence: 'Niet compatibel met het geselecteerde woord.',
+			wordRemovedFromBlanks: '{word} verwijderd uit de gaten.',
 		},
 
 		graphicGapMatch: {
@@ -349,6 +358,7 @@ export default {
 			imageFallback: 'Afbeelding bij deze vraag',
 			imageLoadError: 'De afbeelding kon niet worden geladen.',
 			unknownImageDimensions: 'De hotspots kunnen niet worden weergegeven: de afmetingen van de afbeelding zijn onbekend. Voeg breedte en hoogte toe aan de afbeelding.',
+			minPlacementsHint: 'Nog te plaatsen op de gebieden: {labels}.',
 		},
 
 		order: {
@@ -517,6 +527,15 @@ export default {
 			pairDescription: '{first} geassocieerd met {second}',
 			removeAssociation: 'Associatie tussen {first} en {second} verwijderen',
 			minimumRequired: 'Minimaal vereist: {minAssociations}',
+			associationMade: 'Koppeling gemaakt.',
+			associationRemoved: 'Koppeling verwijderd.',
+			associationLimitReached: 'Koppeling niet mogelijk: de limiet van {max} is bereikt.',
+			hotspotLimitReached: 'Niet mogelijk: {label} kan niet in meer koppelingen zitten.',
+			minAssociationsHint: {
+				one: 'Maak minimaal {count} associatie.',
+				other: 'Maak minimaal {count} associaties.',
+			},
+			minHotspotUsesHint: 'Heeft meer associaties nodig: {items}.',
 		},
 
 		custom: {

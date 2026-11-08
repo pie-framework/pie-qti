@@ -384,3 +384,34 @@ describe('GapMatchInteraction (pie-qti-gap-match)', () => {
 		});
 	});
 });
+
+describe('word removal (round 6)', () => {
+	function clickWordAndGap(mounted: { host: HTMLElement }, wordId: string, gapId: string) {
+		q(mounted, `button[data-word-id="${wordId}"]`)?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		q(mounted, `button[data-gap-id="${gapId}"]`)?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+	}
+
+	test('removing a word from the blanks announces it and keeps focus on the word', async () => {
+		const mounted = mountInteraction(GapMatchInteraction, { interaction: gapData() });
+		await settle();
+
+		// Place W1 into the gap, which shows its remove button.
+		clickWordAndGap(mounted, 'W1', 'G1');
+		await settle();
+		const remove = q<HTMLButtonElement>(mounted, '[part="word-remove"]');
+		expect(remove).not.toBeNull();
+
+		remove.focus();
+		remove.click();
+		await settle();
+
+		// The removal is announced; the remove button is gone; focus moved back to the
+		// now-enabled word button instead of the document body.
+		expect(liveRegion(mounted)).toBe('blue removed from the blanks.');
+		expect(q(mounted, '[part="word-remove"]')).toBeNull();
+		const word = q<HTMLButtonElement>(mounted, '[data-word-id="W1"]');
+		expect(document.activeElement).toBe(word);
+		expect(word?.disabled).toBe(false);
+		cleanupInteraction(mounted);
+	});
+});

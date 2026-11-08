@@ -53,6 +53,18 @@ export interface PciRunnerEnvironment {
 	evaluateScript(url: string): Promise<void>;
 	/** Where the registry global is installed; defaults to `globalThis`. */
 	registryTarget?: object;
+	/**
+	 * The frame document whose language, direction and title follow the init payload
+	 * (WCAG 3.1.1/2.4.2). Defaults to the realm's `document`; injectable so tests can
+	 * observe it without a DOM.
+	 */
+	frameDocument?: PciRunnerFrameDocument;
+}
+
+/** The slice of the frame document the runner states its language and name on. */
+export interface PciRunnerFrameDocument {
+	documentElement: { lang?: string; dir?: string };
+	title: string;
 }
 
 type Snapshot = { response: unknown; state: unknown };
@@ -133,8 +145,33 @@ export function createPciRunnerController(environment: PciRunnerEnvironment) {
 		}
 	}
 
+	/**
+	 * State the frame document's language, directionality and accessible name from the
+	 * init payload before the interaction instantiates (WCAG 3.1.1, 2.4.2): the frame
+	 * is the candidate's document, and it must not assume English just because the
+	 * static runner page does. Absent fields leave the static defaults untouched.
+	 */
+	function applyFrameLanguage(payload: PciSandboxInitPayload): void {
+		const frameDocument =
+			environment.frameDocument ??
+			((globalThis as { document?: PciRunnerFrameDocument }).document ?? null);
+		if (!frameDocument) return;
+		if (typeof payload.language === 'string' && payload.language.length > 0) {
+			frameDocument.documentElement.lang = payload.language;
+		}
+		if (payload.direction === 'ltr' || payload.direction === 'rtl') {
+			frameDocument.documentElement.dir = payload.direction;
+		}
+		if (typeof payload.frameTitle === 'string' && payload.frameTitle.length > 0) {
+			frameDocument.title = payload.frameTitle;
+		}
+	}
+
 	async function handleInit(payload: PciSandboxInitPayload): Promise<void> {
 		init = payload;
+		// Before the module loads, let alone instantiates: the document reads correctly
+		// from the first painted moment of the interaction.
+		applyFrameLanguage(payload);
 		try {
 			registration = await loadModule(payload);
 			send('module-loaded', { typeIdentifier: payload.typeIdentifier });

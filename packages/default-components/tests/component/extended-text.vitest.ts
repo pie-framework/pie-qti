@@ -394,6 +394,7 @@ describe('ExtendedTextInteraction rich text (format="xhtml")', () => {
 			'Italic',
 			'Insert inline math',
 			'Insert block math',
+			'Edit math',
 		]);
 		expect(buttons[0]!.getAttribute('aria-pressed')).toBe('false');
 		expect(buttons.every((button) => button.disabled)).toBe(true);

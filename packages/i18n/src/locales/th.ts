@@ -132,6 +132,8 @@ export default {
 			errorReadFailed: 'อ่านไฟล์ไม่สำเร็จ',
 			errorTooLarge: 'ไฟล์ใหญ่เกินไป (สูงสุด {max} MB)',
 			unknownType: 'ประเภทไฟล์ไม่รู้จัก',
+			fileRemoved: 'ลบไฟล์แล้ว',
+			errorFileTooLarge: 'ไฟล์ {filename} ใหญ่เกินไป ขนาดสูงสุดคือ {maxBytes} ไบต์',
 		},
 
 		drawing: {
@@ -176,6 +178,12 @@ export default {
 				other: 'ครบความยาวที่กำหนด {count} ตัวอักษรแล้ว',
 			},
 			correctAnswerHeading: 'คำตอบที่ถูกต้อง:',
+			editMath: 'แก้ไขสูตรคณิตศาสตร์',
+			minStringsHint: {
+				one: 'เขียนอย่างน้อย {count} คำตอบ',
+				other: 'เขียนอย่างน้อย {count} คำตอบ',
+			},
+			minStringsRemoveRefused: 'ไม่ได้ลบคำตอบ: ต้องมีอย่างน้อย {count} คำตอบ',
 		},
 
 		mathInput: {
@@ -313,6 +321,7 @@ export default {
 			pickUpCancelled: 'ยกเลิกการหยิบ {word} แล้ว',
 			minPlacementsHint: 'ยังต้องวางในช่องว่าง: {words}',
 			notCompatibleSentence: 'ไม่เข้ากันกับคำที่เลือก',
+			wordRemovedFromBlanks: 'ลบ {word} ออกจากช่องว่างแล้ว',
 		},
 
 		graphicGapMatch: {
@@ -350,6 +359,7 @@ export default {
 			imageFallback: 'รูปภาพสำหรับคำถามนี้',
 			imageLoadError: 'ไม่สามารถโหลดรูปภาพได้',
 			unknownImageDimensions: 'ไม่สามารถแสดงฮอตสปอตได้: ไม่ทราบขนาดของรูปภาพ โปรดเพิ่มความกว้างและความสูงให้กับรูปภาพ',
+			minPlacementsHint: 'ยังต้องวางบนพื้นที่: {labels}',
 		},
 
 		order: {
@@ -518,6 +528,15 @@ export default {
 			pairDescription: '{first} สัมพันธ์กับ {second}',
 			removeAssociation: 'ลบความสัมพันธ์ระหว่าง {first} และ {second}',
 			minimumRequired: 'จำเป็นขั้นต่ำ: {minAssociations}',
+			associationMade: 'สร้างความเชื่อมโยงแล้ว',
+			associationRemoved: 'ลบความเชื่อมโยงแล้ว',
+			associationLimitReached: 'สร้างความเชื่อมโยงไม่ได้: ถึงขีดจำกัด {max} แล้ว',
+			hotspotLimitReached: 'ไม่สามารถทำได้: {label} ไม่สามารถอยู่ในความเชื่อมโยงเพิ่มเติมได้',
+			minAssociationsHint: {
+				one: 'สร้างอย่างน้อย {count} ความเชื่อมโยง',
+				other: 'สร้างอย่างน้อย {count} ความเชื่อมโยง',
+			},
+			minHotspotUsesHint: 'ต้องการความเชื่อมโยงเพิ่มเติม: {items}',
 		},
 
 		custom: {

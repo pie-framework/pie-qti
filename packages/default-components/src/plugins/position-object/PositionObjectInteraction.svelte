@@ -337,7 +337,7 @@
 		draggedPositionIndex = null;
 	}
 
-	function removePosition(index: number) {
+	async function removePosition(index: number) {
 		if (!canInteract) return;
 		const removed = positions[index];
 		positions = positions.filter((_, i) => i !== index);
@@ -347,6 +347,11 @@
 				object: stageName(getStageById(removed.stageId)),
 			});
 		}
+		// The removed object's button is gone, which would drop keyboard focus to the
+		// document. The canvas is the interaction's persistent surface (tabindex="-1"),
+		// so focus lands there instead.
+		await tick();
+		imageContainer?.focus();
 	}
 
 	const correctPositions = $derived(isShowingCorrect ? parsePositions(parsedCorrectResponse) : []);
