@@ -239,6 +239,12 @@ export interface PciHostOptions {
 	frameConnector?: PciFrameConnector;
 	/** The page origin the runner locks to; defaults to `location.origin`. Tests inject one. */
 	parentOrigin?: () => string;
+	/**
+	 * The item's content language, handed to a sandbox runner frame so its document
+	 * states the language and direction instead of assuming English/LTR (WCAG 3.1.1,
+	 * 3.1.2). The page realm needs no threading: content inherits the item's `lang`.
+	 */
+	contentLanguage?: string;
 }
 
 /**

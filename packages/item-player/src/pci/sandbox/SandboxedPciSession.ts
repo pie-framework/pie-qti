@@ -10,6 +10,7 @@ import type {
 import { PciLoadError } from '../types.js';
 import { htmlToString, sanitizeSharedHtml } from '../../security/index.js';
 import { createIframeFrameConnector } from './iframeConnector.js';
+import { languageDirection } from '@pie-qti/i18n';
 import {
 	createSandboxEnvelope,
 	isPciSandboxEnvelope,
@@ -32,6 +33,8 @@ export interface SandboxedSessionOptions {
 	parentOrigin?: () => string;
 	/** Frame connection factory; defaults to a real sandboxed iframe. */
 	frameConnector?: PciFrameConnector;
+	/** The item's content language; the frame document states it instead of assuming English. */
+	contentLanguage?: string;
 }
 
 type RemoteReportHandler = (report: { state?: unknown }) => void;
@@ -58,6 +61,7 @@ export class SandboxedPciSession implements PciModuleSession {
 	private readonly modulePolicy: PciModulePolicy | undefined;
 	private readonly parentOrigin: () => string;
 	private readonly connector: PciFrameConnector;
+	private readonly contentLanguage: string | undefined;
 
 	private connection: ReturnType<PciFrameConnector> | null = null;
 	private pendingInit: PciSandboxInitPayload | null = null;
@@ -85,6 +89,7 @@ export class SandboxedPciSession implements PciModuleSession {
 		this.modulePolicy = options.modulePolicy;
 		this.parentOrigin = options.parentOrigin ?? defaultParentOrigin;
 		this.connector = options.frameConnector ?? createIframeFrameConnector();
+		this.contentLanguage = options.contentLanguage;
 
 		// Config errors surface at construction, before any frame exists.
 		let runnerOrigin: URL;
@@ -223,6 +228,16 @@ export class SandboxedPciSession implements PciModuleSession {
 				? { resolutionConfigUrl: this.resolveUrl(this.data.resolutionConfigPath) }
 				: {}),
 			baseUrl: this.baseUrl,
+			// The frame states the item's content language and direction instead of
+			// assuming English/LTR (WCAG 3.1.1, 3.1.2), and carries the same title the
+			// page-realm scaffold gives the frame element.
+			...(this.contentLanguage
+				? {
+						language: this.contentLanguage,
+						direction: languageDirection(this.contentLanguage),
+						frameTitle: frameTitle(this.data),
+					}
+				: {}),
 			// The frame renders this as its interaction markup; the same sanitizer
 			// the page-realm scaffold uses runs before it crosses the bridge.
 			markup: htmlToString(sanitizeSharedHtml(htmlToString(markup))),

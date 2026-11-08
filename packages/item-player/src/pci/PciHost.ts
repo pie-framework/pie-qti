@@ -92,6 +92,7 @@ export class PciHost implements PciHostController {
 				modulePolicy: typeof options === 'string' ? undefined : options.modulePolicy,
 				frameConnector: typeof options === 'string' ? undefined : options.frameConnector,
 				parentOrigin: typeof options === 'string' ? undefined : options.parentOrigin,
+				contentLanguage: typeof options === 'string' ? undefined : options.contentLanguage,
 			});
 		} else {
 			this.session = new PageRealmPciSession({
