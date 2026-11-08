@@ -104,13 +104,16 @@ function classExcludesMinus(pattern: string, open: number): number | undefined {
  * The `inputmode` for a text entry bound to a response: a numeric keyboard only
  * for an integer or float response whose authored patternMask proves the answer
  * cannot be negative, since phone number pads offer no minus key (nor an
- * exponent). Every other response keeps the default text keyboard, which can
- * enter anything the item accepts.
+ * exponent). A declared non-decimal `base` (e.g. 16 or 2) also keeps the text
+ * keyboard: number pads cannot type its digits (hex `A`–`F`). Every other
+ * response keeps the default text keyboard, which can enter anything the item
+ * accepts.
  */
 export function textEntryInputMode(
-	interaction: Pick<TextEntryInteractionData, 'baseType' | 'patternMask'>,
+	interaction: Pick<TextEntryInteractionData, 'baseType' | 'patternMask' | 'base'>,
 ): 'numeric' | 'decimal' | undefined {
 	if (interaction.baseType !== 'integer' && interaction.baseType !== 'float') return undefined;
+	if (interaction.base !== undefined && interaction.base !== 10) return undefined;
 	if (!interaction.patternMask || !patternExcludesMinus(interaction.patternMask)) return undefined;
 	return interaction.baseType === 'integer' ? 'numeric' : 'decimal';
 }

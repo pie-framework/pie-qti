@@ -70,6 +70,8 @@ export interface TextEntryInteractionData extends BaseInteractionData<'textEntry
 	format?: string;
 	/** The bound response declaration's baseType, e.g. `integer` or `float` for a numeric keyboard */
 	baseType?: string;
+	/** QTI stringInteraction `base`: the number base a numeric response is entered in, when not 10 */
+	base?: number;
 	/** The authored `title`, an accessible name when no aria label is authored */
 	title?: string;
 	/** CSS classes from the textEntryInteraction element (e.g. qti-input-width-N) */

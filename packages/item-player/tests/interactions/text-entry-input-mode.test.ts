@@ -23,6 +23,17 @@ describe('textEntryInputMode', () => {
 		expect(textEntryInputMode({ baseType: 'float', patternMask: '[0-9]+([.][0-9]+)?' })).toBe('decimal');
 	});
 
+	// A declared non-decimal base needs letters (hex `A`–`F`) or leading zeros (binary),
+	// which number pads cannot type: keep the text keyboard.
+	test('a declared non-decimal base keeps the text keyboard', () => {
+		expect(
+			textEntryInputMode({ baseType: 'integer', patternMask: '^[0-9a-fA-F]+', base: 16 }),
+		).toBeUndefined();
+		expect(textEntryInputMode({ baseType: 'integer', patternMask: '^[01]+', base: 2 })).toBeUndefined();
+		expect(textEntryInputMode({ baseType: 'integer', patternMask: '^[0-9]+', base: 10 })).toBe('numeric');
+		expect(textEntryInputMode({ baseType: 'float', patternMask: '[0-9]+', base: 8 })).toBeUndefined();
+	});
+
 	test('a patternMask that can match minus keeps the text keyboard, for every baseType', () => {
 		const possiblyNegative = ['-?[0-9]+', '[0-9]-[0-9]', '.*', '[^a]', '\\D+', '(-)', '0.+', '[0-9]\\-[0-9]'];
 		for (const patternMask of possiblyNegative) {
