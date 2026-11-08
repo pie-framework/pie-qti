@@ -601,7 +601,10 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		}
 		case 'variable': {
 			const identifier = getAttr(el, 'identifier') || '';
-			return { kind: 'expr.variable', id, identifier };
+			const weightIdentifier = (getAttr(el, 'weightIdentifier') || '').trim();
+			return weightIdentifier
+				? { kind: 'expr.variable', id, identifier, weightIdentifier }
+				: { kind: 'expr.variable', id, identifier };
 		}
 		case 'correct': {
 			const identifier = getAttr(el, 'identifier') || '';

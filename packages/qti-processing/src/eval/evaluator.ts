@@ -15,7 +15,7 @@ import {
 	toNumber,
 	toStringValue,
 } from '../runtime/value.js';
-import type { TestEvalContext } from '../test/types.js';
+import type { TestEvalContext, TestItemState } from '../test/types.js';
 import type { OperatorRegistry } from './operators.js';
 
 export interface EvalEnv {
@@ -317,13 +317,49 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 		return typeof n === 'number' && Number.isFinite(n) ? n : 1;
 	};
 
+	/**
+	 * A test-scope variable's weight (QTI ASI §15.1): weights exist "only when the item identifier
+	 * prefixing technique is being used", so the item is the assessmentItemRef whose identifier
+	 * prefixes the variable as ITEMREF.VARIABLE — the longest such identifier, since identifiers
+	 * may themselves contain a period. Its weight resolves as testVariables resolves one, 1.0 when
+	 * the itemRef defines none. Undefined when the variable is not an item variable.
+	 */
+	const itemRefWeight = (identifier: string, weightIdentifier: string): number | undefined => {
+		let itemRef: TestItemState | undefined;
+		for (const it of env.test?.items ?? []) {
+			if (!identifier.startsWith(`${it.identifier}.`)) continue;
+			if (!itemRef || it.identifier.length > itemRef.identifier.length) itemRef = it;
+		}
+		return itemRef ? resolveWeight(itemRef, weightIdentifier) : undefined;
+	};
+
+	/**
+	 * Weights apply only to integer and float values and are treated as float, so a weighted value
+	 * is float; a multiple/ordered value has the weight applied to each contained value. Any other
+	 * base type ignores the weight.
+	 */
+	const applyWeight = (value: QtiValue, weight: number): QtiValue => {
+		if (value.kind === 'invalid') return value;
+		if (value.baseType !== 'integer' && value.baseType !== 'float') return value;
+		const cardinality = value.cardinality ?? 'single';
+		if (cardinality === 'record') return value;
+		if (value.kind === 'null') return qtiNull('float', cardinality);
+		if (cardinality === 'single') return qtiValue('float', 'single', toNumber(value) * weight);
+		const values = Array.isArray(value.value) ? value.value : [value.value];
+		return qtiValue('float', cardinality, values.map((n) => Number(n) * weight));
+	};
+
 	switch (expr.kind) {
 		case 'expr.baseValue':
 			return coerceBaseValue(expr.baseType as any, expr.text, env.language);
 		case 'expr.null':
 			return qtiNull();
-		case 'expr.variable':
-			return env.ctx.getValue(expr.identifier);
+		case 'expr.variable': {
+			const value = env.ctx.getValue(expr.identifier);
+			if (!expr.weightIdentifier) return value;
+			const weight = itemRefWeight(expr.identifier, expr.weightIdentifier);
+			return weight === undefined ? value : applyWeight(value, weight);
+		}
 		case 'expr.correct':
 			return env.ctx.getCorrectResponse(expr.identifier);
 		case 'expr.default':

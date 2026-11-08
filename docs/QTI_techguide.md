@@ -1050,6 +1050,28 @@ For custom scoring logic, use `responseCondition` with expressions:
 </assessmentTest>
 ```
 
+#### Item variables and weights in test outcome processing
+
+Test-level `outcomeProcessing` reads one item's variable as `ITEMREF.VARIABLE`, the
+`assessmentItemRef` identifier and the variable identifier joined by a period:
+`<variable identifier="item1.SCORE"/>`. An `assessmentItemRef` may bind named weights
+(`<weight identifier="W" value="2"/>`), and a `variable` or `testVariables` expression selects one
+with `weightIdentifier`:
+
+```xml
+<setOutcomeValue identifier="SCORE">
+  <sum>
+    <variable identifier="item1.SCORE" weightIdentifier="W"/>
+    <variable identifier="item2.SCORE" weightIdentifier="W"/>
+  </sum>
+</setOutcomeValue>
+```
+
+Weights apply only to integer and float values. They are treated as float, so a weighted value is
+float, and a multiple or ordered value is weighted element by element. An itemRef that defines no
+weight with that identifier weighs 1.0. A variable of any other type, or one that is not read
+through an itemRef prefix, ignores the weight.
+
 ### Content Package Manifest
 
 ```xml
