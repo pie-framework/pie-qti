@@ -200,6 +200,23 @@ The **assessmentItem** represents a single question and contains the complete de
 - **individual:** Submits each item immediately upon completion
 - **simultaneous:** Batches all responses until the test part concludes
 
+**Item session controls** (`itemSessionControl`) that gate a submission apply only in individual
+submission mode:
+
+- **allowSkipping:** when `false`, an item with no response at all (every response NULL or at its
+  default) cannot be submitted.
+- **validateResponses:** when `true`, a response that "does not satisfy the constraints imposed by
+  the interaction" cannot be submitted: a malformed value, a pairing a `matchGroup` forbids, or
+  fewer selections, associations, strings or plays than `minChoices`, `minAssociations`,
+  `matchMin`, `minStrings` or `minPlays` require.
+
+In the item player, `endAttempt({ validateResponses: true })` rejects such a response. The result's
+`validation.valid` is `false`, with one issue per offending response (`incomplete`,
+`invalid_shape` or `match_group`). The attempt is not counted, no response processing runs, and the
+session stays writable for the candidate to correct it. An item with no response at all is a skip,
+which `allowSkipping` governs; the item cannot see that control, so it leaves a skip to the caller
+instead of rejecting it.
+
 ---
 
 # Part III: Interaction Types Reference

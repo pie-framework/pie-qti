@@ -692,7 +692,7 @@ export class Player {
 
 	private runEndAttemptAction(options: { countAttempt?: boolean; validateResponses?: boolean }): ItemSessionActionResult {
 		const validate = options.validateResponses ?? false;
-		const validation = validate ? this.validateResponses(this.getResponses()) : undefined;
+		const validation = validate ? this.validateAttemptResponses(this.getResponses()) : undefined;
 		if (validation && !validation.valid) {
 			return this.createItemSessionActionResult('endAttempt', this.saveItemSession(), { validation });
 		}
@@ -1317,6 +1317,37 @@ export class Player {
 
 		const allValid = Object.values(entries).every((e) => e.valid);
 		return { valid: allValid, entries, issues };
+	}
+
+	/**
+	 * The validation `endAttempt({ validateResponses: true })` gates on (QTI ASI §4
+	 * itemSessionControl validateResponses). An invalid response "does not satisfy the
+	 * constraints imposed by the interaction": beyond a malformed value or a matchGroup
+	 * pairing (`validateResponses`), an interaction that requires input — minChoices,
+	 * minAssociations, minStrings, minPlays, matchMin — rejects an incomplete one. Those
+	 * entries turn invalid with an `incomplete` issue, so the result reads invalid through
+	 * the same channel as every other rejection.
+	 *
+	 * An item with no response at all is a skip, which allowSkipping governs ("delivery
+	 * engines must ensure that the candidate can choose to submit no response" when it is
+	 * true). The item cannot see allowSkipping, so completeness applies only once the
+	 * candidate has responded and a skip is the caller's decision.
+	 */
+	private validateAttemptResponses(responses: Record<string, any>): ResponseValidationResult {
+		const validation = this.validateResponses(responses);
+		if (!this.isAttempted(responses)) return validation;
+		const entries: ResponseValidationResult['entries'] = {};
+		const issues = [...validation.issues];
+		for (const entry of Object.values(validation.entries)) {
+			if (entry.complete) {
+				entries[entry.responseId] = entry;
+				continue;
+			}
+			const message = `Response '${entry.responseId}' does not satisfy the constraints of its ${entry.interactionType}`;
+			entries[entry.responseId] = { ...entry, valid: false, errors: [...entry.errors, message] };
+			issues.push({ responseId: entry.responseId, code: 'incomplete', message, severity: 'error' });
+		}
+		return { valid: Object.values(entries).every((e) => e.valid), entries, issues };
 	}
 
 	public getProgress(responses: Record<string, any>): { total: number; answered: number; unanswered: number } {
