@@ -165,6 +165,24 @@ describe('ChoiceInteraction minimum (minChoices)', () => {
 		cleanupInteraction(plain, authored);
 	});
 
+	// The delivered path assigns interaction props after the custom element is created, so an
+	// authored message read outside a reactive context would be captured as undefined forever
+	// and the minChoices=1 authored hint would never render. This regression mounts without
+	// the interaction and assigns it afterwards — the production order.
+	test('an authored message assigned after mount still shows (late-props delivery path)', async () => {
+		const mounted = mountInteraction(ChoiceInteraction, {});
+		await settle();
+		expect(hint(mounted)).toBeNull();
+
+		mounted.instance.interaction = choiceData({
+			minChoices: 1,
+			minSelectionsMessage: 'Choose exactly one answer.',
+		});
+		await settle();
+		expect(hint(mounted)?.textContent).toBe('Choose exactly one answer.');
+		cleanupInteraction(mounted);
+	});
+
 	test('is announced once when a change leaves the minimum unmet, not on every change or on load', async () => {
 		const mounted = mountInteraction(ChoiceInteraction, { interaction: choiceData() });
 		await settle();
