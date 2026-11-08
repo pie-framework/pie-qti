@@ -44,8 +44,12 @@ import type {
 import type {
 	AssessmentResults,
 	CandidateSectionView,
+	CheckAnswerState,
+	ItemFeedbackEntry,
+	ItemFeedbackView,
 	ItemResult,
 	NavigationState,
+	ResultsSummary,
 	TimeLimits,
 	VisibleTestFeedback,
 } from '../types/index.js';
@@ -347,6 +351,25 @@ export class AssessmentPlayer {
 	private restoredFromSnapshot = false;
 	/** `timing.savedAt` of the restored snapshot, shown on the resume prompt. */
 	private restoredSavedAt: number | undefined;
+	/**
+	 * Item feedback the most recent item-level submission produced (item modal feedback
+	 * from the session's response processing, else the backend's `result.feedback`).
+	 * Shells show it after a check-answer or a submit-on-move; it clears on the next
+	 * submission or when the shell dismisses it.
+	 */
+	private lastItemFeedback: ItemFeedbackView | null = null;
+	/**
+	 * The writable session snapshot taken immediately before the last item-level
+	 * submission ended its attempt; the check-answer flow reopens the item from it while
+	 * attempts remain, so the candidate can revise and check again.
+	 */
+	private lastPreSubmitSession: { itemIdentifier: string; state: SerializedItemSessionState } | null = null;
+	/**
+	 * The responses each item's last counted submission carried. Moving on from an item
+	 * that already has a recorded result (a practice check) re-submits only when the
+	 * candidate changed something: an unchanged response does not spend another attempt.
+	 */
+	private readonly lastSubmittedResponses = new Map<string, Record<string, unknown>>();
 
 	// Event listeners
 	private itemChangeListeners = new Set<(index: number, total: number) => void>();
@@ -627,6 +650,8 @@ export class AssessmentPlayer {
 			// The resumable draft is gone; the shell's resume prompt must not reappear.
 			this.restoredFromSnapshot = false;
 			this.restoredSavedAt = undefined;
+			// The fresh draft has no submissions of its own: every item submits on its move.
+			this.lastSubmittedResponses.clear();
 			await this.performNavigateTo(0, { restoring: true });
 			// Persist the blank draft so a refresh cannot resurrect the discarded answers.
 			this.autosave?.notify();
@@ -919,6 +944,31 @@ export class AssessmentPlayer {
 			jumpAllowed: this.isNavigationTargetLegal(item.index),
 			isCurrent: item.index === this.currentItemIndex,
 		}));
+	}
+
+	/**
+	 * Candidate-facing results for a shell's opt-in completion summary: per delivered
+	 * item the answered status and — when the backend returned one — its score, plus the
+	 * finalized totals. Null until the assessment has been finalized; high-stakes hosts
+	 * simply never render it (the shell's `showResultsSummary` stays off by default).
+	 */
+	public getResultsSummary(): ResultsSummary | null {
+		if (!this.finalized || !this.finalResults) return null;
+		const scoreByItem = new Map(this.finalResults.itemResults.map((result) => [result.itemIdentifier, result]));
+		return {
+			totalScore: this.finalResults.totalScore,
+			maxScore: this.finalResults.maxScore,
+			items: this.items.map((item) => {
+				const result = scoreByItem.get(item.identifier);
+				return {
+					identifier: item.identifier,
+					number: item.index + 1,
+					title: this.reviewInfoFor(item.identifier).title,
+					status: this.getItemAnswerStatus(item.identifier),
+					...(result ? { score: result.score, maxScore: result.maxScore } : {}),
+				};
+			}),
+		};
 	}
 
 	/**
@@ -1662,12 +1712,14 @@ export class AssessmentPlayer {
 			}
 
 			// In individual submission mode, submit the current item before moving forward
-			// unless its attempts are used up or it is already closed.
+			// unless its attempts are used up, it is already closed, or its recorded result
+			// already carries these exact responses (a practice item moved on unchanged).
 			const lifecycle = this.currentItemSession?.state().lifecycleStatus;
 			if (
 				(q.testPart.submissionMode ?? this.assessment.submissionMode) === 'individual' &&
 				this.sessionCoordinator.canSubmit(q.identifier) &&
-				lifecycle !== 'closed'
+				lifecycle !== 'closed' &&
+				!this.responsesUnchangedSinceSubmission(q.identifier, responses)
 			) {
 				const before = this.currentItemIndex;
 				await this.submitCurrentItemInternal();
@@ -1675,11 +1727,29 @@ export class AssessmentPlayer {
 				// in those cases navigation stops here.
 				if (this.currentItemIndex !== before || this.finalized) return;
 			}
+			// The candidate may still return and re-attempt this item: reopen it writable
+			// while attempts remain (a no-op for closed single-attempt or writable items),
+			// so the revisit restores an attemptable state instead of the closed one.
+			this.reopenForRemainingAttempts(q);
 		}
 
 		const nextIndex = this.nextUnlockedIndex(this.currentItemIndex);
 		if (nextIndex < 0) return;
 		await this.performNavigateTo(nextIndex);
+	}
+
+	/**
+	 * Whether the item's last counted submission already carried these responses.
+	 * False when nothing was recorded: the caller then submits as usual.
+	 */
+	private responsesUnchangedSinceSubmission(
+		itemIdentifier: string,
+		responses?: Record<string, unknown>,
+	): boolean {
+		const submitted = this.lastSubmittedResponses.get(itemIdentifier);
+		if (!submitted) return false;
+		const current = responses ?? this.sessionCoordinator.getActiveResponses();
+		return responseValuesEqual(submitted, current);
 	}
 
 	/** Move back. Serialized with all other transitions; rejects as busy while one is in flight. */
@@ -1699,6 +1769,165 @@ export class AssessmentPlayer {
 		return this.runCandidateTransition(() => this.submitCurrentItemInternal());
 	}
 
+	/**
+	 * Whether the shell should offer the item-level "Check answer" control on the active
+	 * item, with the attempt facts it displays. The control exists only in `individual`
+	 * submission-mode parts whose resolved `showFeedback` allows item feedback (adaptive
+	 * items always qualify); QTI simultaneous parts have no per-item submission, and
+	 * `showFeedback=false` with a single attempt keeps the submit-on-move delivery.
+	 */
+	public getCheckAnswerState(): CheckAnswerState | null {
+		const q = this.items[this.currentItemIndex];
+		if (!q) return null;
+		const id = q.identifier;
+		const mode = q.testPart.submissionMode ?? this.assessment.submissionMode;
+		const settings = this.sessionCoordinator.getItemSettings(id);
+		const adaptive = isAdaptiveItemXml(q.item.itemXml);
+		if (mode !== 'individual') {
+			return {
+				available: false,
+				reason: 'simultaneous',
+				adaptive,
+				attemptsUsed: 0,
+				maxAttempts: null,
+				remainingAttempts: null,
+				attemptsExhausted: false,
+			};
+		}
+		if (settings.showFeedback !== true && !adaptive) {
+			return {
+				available: false,
+				reason: 'feedbackOff',
+				adaptive,
+				attemptsUsed: 0,
+				maxAttempts: null,
+				remainingAttempts: null,
+				attemptsExhausted: false,
+			};
+		}
+		const info = this.sessionCoordinator.getItemSessionInfo(id);
+		const maxAttempts = adaptive || (settings.maxAttempts ?? 1) === 0 ? null : Math.max(1, settings.maxAttempts ?? 1);
+		const remainingAttempts = maxAttempts === null ? null : Math.max(0, maxAttempts - info.attemptCount);
+		const attemptsExhausted = maxAttempts !== null && info.attemptCount >= maxAttempts;
+		// maxAttempts 1 delivers feedback on the move (submit-on-move): no check control.
+		const available = maxAttempts === null || maxAttempts > 1;
+		return {
+			available,
+			reason: available ? null : 'feedbackOff',
+			adaptive,
+			attemptsUsed: info.attemptCount,
+			maxAttempts,
+			remainingAttempts,
+			attemptsExhausted,
+		};
+	}
+
+	/**
+	 * Practice flow: submit the active item through the normal per-item path and STAY on
+	 * it, so its feedback becomes visible (the shell shows `getLastItemFeedback()`).
+	 * The submission counts toward `maxAttempts`; while attempts remain the item reopens
+	 * writable afterwards (non-adaptive items reopen from the pre-submit state with the
+	 * computed outcomes restored), so the candidate can revise and check again. Adaptive
+	 * items keep their engine-driven attempt loop. Once the attempts are used up this
+	 * rejects with a coded `maxAttemptsReached`; moving on with `next()` then needs no
+	 * further submission. Serialized with all other transitions.
+	 */
+	public checkCurrentItem(): Promise<ItemResult | null> {
+		return this.runCandidateTransition(async () => {
+			const q = this.items[this.currentItemIndex];
+			if (!q) return null;
+			const state = this.getCheckAnswerState();
+			if (!state?.available) {
+				throw new AssessmentPlayerError(
+					'navigationNotAllowed',
+					'Checking answers is not available for this item.',
+				);
+			}
+			if (state.attemptsExhausted || !this.sessionCoordinator.canSubmit(q.identifier)) {
+				throw new AssessmentPlayerError(
+					'maxAttemptsReached',
+					`No attempts remain for item "${q.identifier}".`,
+				);
+			}
+			const live = this.currentItemSession;
+			if (live && !isWritableItemLifecycle(live.state().lifecycleStatus)) {
+				// The attempt already ended (and attempts remain only for adaptive items the
+				// engine kept open); nothing to check until delivery reopens the item.
+				return null;
+			}
+			const result = await this.submitCurrentItemInternal({ countAttempt: true, followBranching: false });
+			this.reopenForRemainingAttempts(q);
+			return result;
+		});
+	}
+
+	/**
+	 * While counted attempts remain on a non-adaptive item whose check-answer submission
+	 * just ended its live attempt, reopen a writable session from the pre-submit state
+	 * and re-run response processing (`scoreAttempt`) so the computed outcomes — and with
+	 * them the item's integrated feedback — render while the candidate revises.
+	 */
+	private reopenForRemainingAttempts(q: FlatItem): void {
+		if (isAdaptiveItemXml(q.item.itemXml)) return;
+		const live = this.currentItemSession;
+		if (!live || isWritableItemLifecycle(live.state().lifecycleStatus)) return;
+		if (!this.sessionCoordinator.canSubmit(q.identifier)) return;
+		const pre = this.lastPreSubmitSession;
+		if (!pre || pre.itemIdentifier !== q.identifier) return;
+		const session = this.getItemDefinition(q).openSession({
+			restore: pre.state,
+			presentation: this.presentationFor(q),
+		});
+		try {
+			// Recompute outcomes from the submitted responses: integrated feedback
+			// (feedbackInline / feedbackBlock) renders from the session's outcome values.
+			session.dispatch({ action: 'scoreAttempt' });
+		} catch {
+			// The writable pre-submit state stays usable even if the scoring pass fails.
+		}
+		this.lastPreSubmitSession = null;
+		this.releaseCurrentItemSession();
+		this.attachCurrentItemSession(q, session);
+		this.notifyItemChange();
+	}
+
+	/**
+	 * The item feedback the most recent item-level submission produced (item modal
+	 * feedback from response processing, or the backend's `result.feedback`), or null.
+	 * Shells show it after `checkCurrentItem()` and after a submit-on-move `next()`.
+	 */
+	public getLastItemFeedback(): ItemFeedbackView | null {
+		return this.lastItemFeedback ? { ...this.lastItemFeedback, feedback: [...this.lastItemFeedback.feedback] } : null;
+	}
+
+	/** Discard the captured item feedback once the shell has shown it. */
+	public clearLastItemFeedback(): void {
+		this.lastItemFeedback = null;
+	}
+
+	private getLastItemFeedbackFor(itemIdentifier: string): ItemFeedbackView | null {
+		return this.lastItemFeedback?.itemIdentifier === itemIdentifier ? this.lastItemFeedback : null;
+	}
+
+	/**
+	 * Capture an item-level submission's feedback for the shell, gated by the item's
+	 * resolved `showFeedback` (adaptive items always show feedback). A submission that
+	 * produces none clears a stale capture for the flow that follows it.
+	 */
+	private captureItemFeedback(
+		q: FlatItem,
+		feedback: ReadonlyArray<{ identifier: string; content: string; title?: string }> | undefined,
+	): void {
+		if (!this.presentationFor(q).showFeedback || !feedback || feedback.length === 0) {
+			this.lastItemFeedback = null;
+			return;
+		}
+		this.lastItemFeedback = {
+			itemIdentifier: q.identifier,
+			feedback: cloneData([...feedback]) as ItemFeedbackEntry[],
+		};
+	}
+
 	private async submitCurrentItemInternal(
 		options: { countAttempt?: boolean; followBranching?: boolean } = {},
 	): Promise<ItemResult> {
@@ -1715,6 +1944,8 @@ export class AssessmentPlayer {
 		let itemSession: SerializedItemSessionState | undefined;
 		const submittedSession = this.currentItemSession;
 		const preSubmitSession = submittedSession?.serialize();
+		// The writable snapshot the check-answer flow reopens from while attempts remain.
+		this.lastPreSubmitSession = preSubmitSession ? { itemIdentifier: q.identifier, state: preSubmitSession } : null;
 		const responses = this.currentItemSession
 			? cloneResponseRecord(this.currentItemSession.state().responses)
 			: this.sessionCoordinator.getActiveResponses();
@@ -1739,6 +1970,7 @@ export class AssessmentPlayer {
 					);
 				}
 				itemSession = attempt?.sessionState ?? submittedSession.serialize();
+				this.captureItemFeedback(q, attempt?.scoring?.modalFeedback);
 			}
 			res = await this.backend.submitResponses({
 				sessionId: this.sessionId,
@@ -1757,6 +1989,18 @@ export class AssessmentPlayer {
 				// see the localized `assessment.errors.codes.submitFailed` message instead.
 				throw new AssessmentPlayerError('submitFailed', res.error || 'Submit failed');
 			}
+			// A backend that produced no session-side modal feedback (production item XML
+			// is delivered without responseProcessing) may still return feedback entries
+			// from its own scoring: the same capture, backend-authored.
+			if (res.result.feedback?.length && !this.getLastItemFeedbackFor(q.identifier)) {
+				this.captureItemFeedback(
+					q,
+					res.result.feedback.map((item) => ({
+						identifier: item.type,
+						content: item.content,
+					})),
+				);
+			}
 		} catch (error) {
 			// Ending an attempt is a local provisional commit until the backend accepts
 			// it. Restore the exact pre-submit lifecycle so a transient failure can be
@@ -1774,6 +2018,9 @@ export class AssessmentPlayer {
 				);
 				this.notifyItemChange();
 			}
+			// Nothing committed: no feedback and no reopen snapshot belong to this attempt.
+			this.lastItemFeedback = null;
+			this.lastPreSubmitSession = null;
 			throw error;
 		}
 
@@ -1788,6 +2035,9 @@ export class AssessmentPlayer {
 		// response and session but records no result and consumes no attempt: the candidate stays
 		// on the item and a later submission carries the final response.
 		if (countAttempt) {
+			// The attempt count before this submission: a backend `updatedState` carries its own
+			// authoritative count (`itemSessionStates`), which must not be counted twice.
+			const attemptsBefore = this.sessionCoordinator.getItemSessionInfo(q.identifier).attemptCount;
 			if (res.updatedState) {
 				const localResponses = cloneData(this.state.itemResponses || {})!;
 				localResponses[q.identifier] = cloneResponseRecord(responses) as any;
@@ -1814,10 +2064,17 @@ export class AssessmentPlayer {
 				responses: { ...responses },
 			};
 			this.sessionCoordinator.setItemResult(itemResult);
+			// The counted submission's response set: a later move-time or end-of-test
+			// submission of the same responses is skipped (no wasted attempt).
+			this.lastSubmittedResponses.set(q.identifier, cloneResponseRecord(responses));
 
 			// Track item session rules (review/attempts) and visited items for navigation hints.
+			// The backend already counted this attempt when its `updatedState` restored a
+			// higher count; only a backend without state updates records locally.
 			try {
-				this.sessionCoordinator.recordAttempt(q.identifier);
+				if (this.sessionCoordinator.getItemSessionInfo(q.identifier).attemptCount <= attemptsBefore) {
+					this.sessionCoordinator.recordAttempt(q.identifier);
+				}
 			} catch {
 				// ignore
 			}
@@ -2114,10 +2371,25 @@ export class AssessmentPlayer {
 			),
 		);
 		const q = this.items[this.currentItemIndex];
-		if (q && isIndividual(q) && !this.sessionCoordinator.hasItemResult(q.identifier)) {
-			await this.submitCurrentItemInternal();
-			// That submission may itself have branched to EXIT_TEST and finalized the test.
-			if (this.finalized && this.finalResults) return this.finalResults;
+		if (q && isIndividual(q)) {
+			const liveStatus = this.currentItemSession?.state().lifecycleStatus;
+			const liveWritable = liveStatus !== undefined && isWritableItemLifecycle(liveStatus);
+			const hasResult = this.sessionCoordinator.hasItemResult(q.identifier);
+			// An item without a recorded result is collected as it stands (an expired limit
+			// closed it, or the candidate is leaving it open). An item with a recorded
+			// result — a practice check — re-submits only when the live attempt is still
+			// open, attempts remain, and the candidate changed their response.
+			const needsSubmission = !hasResult
+				? true
+				: liveWritable
+					? this.sessionCoordinator.canSubmit(q.identifier) &&
+						!this.responsesUnchangedSinceSubmission(q.identifier)
+					: false;
+			if (needsSubmission) {
+				await this.submitCurrentItemInternal();
+				// That submission may itself have branched to EXIT_TEST and finalized the test.
+				if (this.finalized && this.finalResults) return this.finalResults;
+			}
 		}
 
 		return this.finalizeInternal();
@@ -2153,9 +2425,6 @@ export class AssessmentPlayer {
 		this.notifyTestFeedbackChange();
 		this.reportOutcomeProcessingError(finalized.outcomeProcessingError);
 
-		this.notifyComplete();
-		if (this.config.onComplete) this.config.onComplete();
-
 		const results: AssessmentResults = {
 			totalScore: finalized.totalScore,
 			maxScore: finalized.maxScore,
@@ -2166,6 +2435,11 @@ export class AssessmentPlayer {
 			results.outcomeProcessingError = this.reportedOutcomeProcessingError;
 		}
 		this.finalResults = results;
+
+		// Completion listeners run once the results exist, so `getResultsSummary()` (the
+		// shell's completion screen) and `submit()` already report them.
+		this.notifyComplete();
+		if (this.config.onComplete) this.config.onComplete();
 		return results;
 	}
 
@@ -2217,6 +2491,8 @@ export class AssessmentPlayer {
 		const id = itemIdentifier ?? this.items[this.currentItemIndex]?.identifier;
 		if (!id) throw new Error('No current item');
 		this.sessionCoordinator.setItemComment(id, comment);
+		// Comments ride the persisted snapshot (`itemComments`), so autosave runs too.
+		this.notifyAutosaveActivity();
 	}
 
 	public getItemComment(itemIdentifier?: string): string | undefined {
@@ -2441,6 +2717,8 @@ export class AssessmentPlayer {
 		this.autosave?.stop();
 		this.timeManager?.destroy();
 		this.releaseCurrentItemSession();
+		this.lastItemFeedback = null;
+		this.lastPreSubmitSession = null;
 		this.itemDefinitions.clear();
 		this.itemChangeListeners.clear();
 		this.sectionChangeListeners.clear();

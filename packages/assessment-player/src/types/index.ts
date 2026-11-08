@@ -101,3 +101,62 @@ export interface VisibleTestFeedback {
 	/** Set for feedback authored on a test part. */
 	testPartIdentifier?: string;
 }
+
+/**
+ * Whether the shell should render an item-level "Check answer" control for the
+ * active item, and the attempt facts it displays (`AssessmentPlayer.getCheckAnswerState()`).
+ *
+ * The control exists only in `individual` submission-mode parts whose resolved
+ * `itemSessionControl.showFeedback` allows item feedback (adaptive items always do).
+ * QTI gives simultaneous parts no per-item submission, and `showFeedback=false`
+ * (with maxAttempts 1) keeps today's submit-on-move delivery.
+ */
+export interface CheckAnswerState {
+	/** True when the control renders. */
+	available: boolean;
+	/** Why the control does not render; null when it does. */
+	reason: 'simultaneous' | 'feedbackOff' | null;
+	/** Whether the active item is adaptive (its attempt loop stays open until completed). */
+	adaptive: boolean;
+	/** Counted attempts already submitted for the item. */
+	attemptsUsed: number;
+	/** The resolved maxAttempts; null when attempts are unlimited (adaptive or maxAttempts 0). */
+	maxAttempts: number | null;
+	/** Counted attempts left; null when unlimited. */
+	remainingAttempts: number | null;
+	/** True once every allowed attempt has been consumed: the control renders disabled. */
+	attemptsExhausted: boolean;
+}
+
+/** One item feedback block captured from an item-level submission. */
+export interface ItemFeedbackEntry {
+	identifier: string;
+	content: string;
+	/** Authored title, when the feedback block declares one. */
+	title?: string;
+}
+
+/** The item feedback a submission produced (`AssessmentPlayer.getLastItemFeedback()`). */
+export interface ItemFeedbackView {
+	itemIdentifier: string;
+	feedback: ItemFeedbackEntry[];
+}
+
+/**
+ * Candidate-facing results for the shell's opt-in completion summary
+ * (`AssessmentPlayer.getResultsSummary()`); null before finalization.
+ */
+export interface ResultsSummary {
+	totalScore: number;
+	maxScore: number;
+	items: Array<{
+		identifier: string;
+		/** 1-based position in the delivered order. */
+		number: number;
+		title?: string;
+		status: import('../core/reviewState.js').ItemAnswerStatus;
+		/** The backend's normalized score for the item, when it returned one. */
+		score?: number;
+		maxScore?: number;
+	}>;
+}

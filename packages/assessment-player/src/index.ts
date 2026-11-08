@@ -32,9 +32,13 @@ export * from './reporting/index.js';
 export type {
 	AssessmentResults,
 	CandidateSectionView,
+	CheckAnswerState,
+	ItemFeedbackEntry,
+	ItemFeedbackView,
 	ItemRef,
 	ItemResult,
 	NavigationState,
 	QTIRole,
+	ResultsSummary,
 	VisibleTestFeedback,
 } from './types/index.js';
