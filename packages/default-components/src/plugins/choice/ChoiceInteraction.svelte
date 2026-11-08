@@ -12,6 +12,8 @@
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
+	import { describedByIds, minimumHint } from '../../shared/utils/minimumRequirement';
 
 	interface Props {
 		interaction?: ChoiceInteractionData | string;
@@ -193,6 +195,31 @@
 		maxChoices > 0 && selectionCount >= maxChoices && (!!parsedInteraction?.maxSelectionsMessage || maxChoices > 1)
 	);
 
+	// Minimum requirement (minChoices): stated on the question while the response is short of it,
+	// the same minimum response validation enforces; the author's message wins. Only while the
+	// candidate can still answer. minChoices=1 (the single-choice default reading) is exempt from
+	// the default hint — a radio group's affordance already says "pick one" — but an authored
+	// message still shows.
+	const minHintId = `${uid}-min-hint`;
+	const authoredMessage = parsedInteraction?.minSelectionsMessage;
+	const minHint = $derived(
+		minimumHint({
+			i18n,
+			minimum:
+				!disabled && role === 'candidate' && ((parsedInteraction?.minChoices ?? 0) > 1 || authoredMessage)
+					? parsedInteraction?.minChoices
+					: 0,
+			count: selectionCount,
+			authored: authoredMessage,
+			key: 'interactions.choice.minChoicesHint',
+			fallback: { one: 'Select at least {count} answer.', other: 'Select at least {count} answers.' },
+		})
+	);
+	// The answer group's description: the authored one, then the hint while it shows.
+	const groupDescribedBy = $derived(
+		describedByIds(interactionAria(parsedInteraction)['aria-describedby'], minHint && minHintId)
+	);
+
 	// Clear answer (single choice): a visible way to retract the selection, not just re-selecting.
 	const canClearAnswer = $derived(
 		parsedInteraction?.maxChoices === 1 && typeof parsedResponse === 'string' && parsedResponse.length > 0 && !disabled
@@ -225,7 +252,7 @@
 {/snippet}
 
 <div class="qti-choice-shell">
-	<div bind:this={rootElement} {...interactionAria(parsedInteraction)} {...groupAria} part="root" class={['qti-choice-interaction space-y-2', eliminationTool ? 'qti-has-elimination' : '', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} use:typesetAction={{ typeset }}>
+	<div bind:this={rootElement} {...interactionAria(parsedInteraction)} {...groupAria} aria-describedby={groupDescribedBy} part="root" class={['qti-choice-interaction space-y-2', eliminationTool ? 'qti-has-elimination' : '', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')} use:typesetAction={{ typeset }}>
 		<InteractionDescription interaction={parsedInteraction} />
 		{#if parsedInteraction?.prompt}
 			<div id={promptId} part="prompt" class="qti-choice-prompt qti-rich-content font-semibold">{@html parsedInteraction.prompt}</div>
@@ -344,6 +371,7 @@
 				{t('interactions.choice.clearAnswer', 'Clear answer')}
 			</button>
 		{/if}
+		<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(parsedResponse ?? null)} />
 		{#if showMaxMessage}
 			<p class="qti-selection-message qti-max-selection-message" role="alert">{maxMessage}</p>
 		{/if}

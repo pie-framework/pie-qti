@@ -25,10 +25,12 @@ interface Props {
 	i18n?: I18nProvider;
 	/** PNP structured labels: name each column by its visible heading instead of a hidden label (G-13). */
 	structuredLabels?: boolean;
+	/** Id(s) of more descriptions for the matching region, such as the unmet-minimum hint. */
+	describedBy?: string;
 	onPairsChange: (newPairs: string[]) => void;
 }
 
-const { sourceSet, targetSet, pairs, maxAssociations = 0, correctPairs = [], disabled = false, i18n, structuredLabels = false, onPairsChange }: Props = $props();
+const { sourceSet, targetSet, pairs, maxAssociations = 0, correctPairs = [], disabled = false, i18n, structuredLabels = false, describedBy, onPairsChange }: Props = $props();
 
 // Targets incompatible with the active source due to matchGroup constraints
 const blockedTargetIds = $derived.by(() => {
@@ -178,7 +180,7 @@ function clearMatch(sourceId: string) {
 	class="qti-match-grid grid grid-cols-2 gap-6"
 	part="grid"
 	role="region"
-	aria-describedby={instructionsId}
+	aria-describedby={describedBy ? `${instructionsId} ${describedBy}` : instructionsId}
 >
 	<!-- Source Set (Left Column) -->
 	<div

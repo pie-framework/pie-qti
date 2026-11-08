@@ -1,7 +1,7 @@
 /**
  * Shared section content reads in the language it is written in (WCAG 3.1.2): test feedback,
  * passages and instructions render their block `language` as `lang` and `dir`, apart from the
- * interface language around them, and a passage's nested `xml:lang` becomes HTML `lang`.
+ * interface language around them, and a nested `xml:lang` inside any of them becomes HTML `lang`.
  */
 
 import { afterEach, describe, expect, test } from 'vitest';
@@ -59,6 +59,42 @@ describe('TestFeedback content language', () => {
 		const m = await render(TestFeedback, { feedback: [block('bad', 'test-feedback', '<p>Text</p>', 'French')] });
 		expect(m.host.querySelector('.test-feedback-content')?.hasAttribute('lang')).toBe(false);
 	});
+
+	test('a language change inside a feedback block renders as HTML lang (WCAG 3.1.2)', async () => {
+		const m = await render(TestFeedback, {
+			feedback: [
+				block(
+					'en',
+					'test-feedback',
+					'<p>Well done. <span xml:lang="fr">Très bien !</span></p><p xml:lang="ar">أحسنت</p>',
+					'en',
+				),
+			],
+		});
+
+		const content = m.host.querySelector<HTMLElement>('.test-feedback-content')!;
+		const french = content.querySelector<HTMLElement>('span')!;
+		expect(french.textContent).toBe('Très bien !');
+		expect(french.getAttribute('lang')).toBe('fr');
+		// Same direction as the English block: no dir is added.
+		expect(french.hasAttribute('dir')).toBe(false);
+		const arabic = content.querySelector<HTMLElement>('p:last-child')!;
+		expect([arabic.getAttribute('lang'), arabic.getAttribute('dir')]).toEqual(['ar', 'rtl']);
+	});
+
+	test('a host-supplied html feedback block renders as given', async () => {
+		const m = await render(TestFeedback, {
+			feedback: [
+				{
+					...block('host', 'test-feedback', '<p>ignored</p>', 'en'),
+					html: '<p>Host <span lang="fr">texte</span></p>',
+				},
+			],
+		});
+		const content = m.host.querySelector<HTMLElement>('.test-feedback-content')!;
+		expect(content.textContent).toBe('Host texte');
+		expect(content.querySelector('span')?.getAttribute('lang')).toBe('fr');
+	});
 });
 
 describe('RubricDisplay content language', () => {
@@ -95,5 +131,29 @@ describe('RubricDisplay content language', () => {
 		const nested = m.host.querySelector<HTMLElement>('.passage-content span')!;
 		expect(nested.getAttribute('lang')).toBe('en');
 		expect(nested.getAttribute('dir')).toBe('ltr');
+	});
+
+	test('a language change inside instructions and rubrics renders as HTML lang (WCAG 3.1.2)', async () => {
+		const m = await render(RubricDisplay, {
+			rubricBlocks: [
+				block('directions-en', 'instructions', '<p>Read the text. <span xml:lang="fr">Lisez le texte.</span></p>', 'en'),
+				block('rubric-en', 'rubric', '<p>Score it.</p><p xml:lang="fr">Une phrase en français.</p>', 'en'),
+				block('directions-ar', 'instructions', '<p>اقرأ <span xml:lang="en">the text</span></p>', 'ar'),
+			],
+		});
+
+		const [englishInstructions, arabicInstructions] = Array.from(
+			m.host.querySelectorAll<HTMLElement>('.instructions-content'),
+		);
+		const french = englishInstructions!.querySelector<HTMLElement>('span')!;
+		expect([french.textContent, french.getAttribute('lang')]).toEqual(['Lisez le texte.', 'fr']);
+		expect(french.hasAttribute('dir')).toBe(false);
+
+		const rubricFrench = m.host.querySelector<HTMLElement>('.rubric-block p:last-child')!;
+		expect([rubricFrench.textContent, rubricFrench.getAttribute('lang')]).toEqual(['Une phrase en français.', 'fr']);
+
+		// A nested language whose direction differs from the block's also states its dir.
+		const english = arabicInstructions!.querySelector<HTMLElement>('span')!;
+		expect([english.getAttribute('lang'), english.getAttribute('dir')]).toEqual(['en', 'ltr']);
 	});
 });

@@ -117,6 +117,8 @@ describe('MathLive editor dialog', () => {
 
 		expect(escapeKey.defaultPrevented).toBe(true);
 		expect(onCancel).toHaveBeenCalledTimes(1);
+		// The candidate's own cancel: not an interruption.
+		expect(onCancel).toHaveBeenCalledWith({ interrupted: false, latex: 'x^2' });
 		expect(onConfirm).not.toHaveBeenCalled();
 		expect(document.querySelector('[role="dialog"]')).toBeNull();
 		expect(document.activeElement).toBe(opener);
@@ -249,6 +251,8 @@ describe('MathLive editor dialog', () => {
 
 		expect(document.querySelector('[role="dialog"]')).toBeNull();
 		expect(onCancel).toHaveBeenCalledTimes(1);
+		// Reported as an interruption, with what was typed, so the opener can offer it again.
+		expect(onCancel).toHaveBeenCalledWith({ interrupted: true, latex: 'x^2' });
 		expect(onConfirm).not.toHaveBeenCalled();
 		expect(document.activeElement).toBe(opener);
 		expect(document.body.style.overflow).toBe('auto');
@@ -281,12 +285,14 @@ describe('MathLive editor dialog', () => {
 	test('a transient-UI close while MathLive loads cancels before the dialog opens', async () => {
 		const opener = trigger();
 		const onCancel = vi.fn();
-		const pending = openMathLiveEditor({ onConfirm: vi.fn(), onCancel });
+		const pending = openMathLiveEditor({ onConfirm: vi.fn(), onCancel, initialLatex: 'y', mode: 'insert' });
 
 		closeTransientUi();
 		const close = await pending;
 
 		expect(onCancel).toHaveBeenCalledTimes(1);
+		// Nothing was typed yet: the initial value is what the opener keeps.
+		expect(onCancel).toHaveBeenCalledWith({ interrupted: true, latex: 'y' });
 		expect(document.querySelector('[role="dialog"]')).toBeNull();
 		expect(document.activeElement).toBe(opener);
 		expect(document.body.style.overflow).toBe('');
@@ -387,5 +393,85 @@ describe('Rich text editor math insertion', () => {
 		expect(document.querySelector('[role="dialog"]')).toBeNull();
 		expect(document.activeElement).toBe(insertInline);
 		expect(q(m, '[contenteditable]')).not.toBeNull();
+	});
+
+	/** The toolbar button that opens the inline insert dialog. */
+	function insertInlineButton(m: MountedInteraction): HTMLButtonElement {
+		return Array.from(m.host.querySelectorAll<HTMLButtonElement>('button[part="toolbar-button"]')).find(
+			(button) => button.textContent?.trim() === 'Insert inline math',
+		)!;
+	}
+
+	/** Open the insert dialog from the toolbar and return its math field. */
+	async function openInsertDialog(button: HTMLButtonElement): Promise<FakeMathfield> {
+		button.focus();
+		button.click();
+		await waitFor(() => document.querySelector('[role="dialog"] math-field') !== null);
+		return document.querySelector('[role="dialog"] math-field') as unknown as FakeMathfield;
+	}
+
+	function typeLatex(field: FakeMathfield, latex: string) {
+		field.value = latex;
+		field.dispatchEvent(new Event('input'));
+	}
+
+	test('a proctor pause keeps the typed expression: reopening the insert dialog offers it again', async () => {
+		const m = mountInteraction(ExtendedTextInteraction, { interaction: data });
+		mounted.push(m);
+		await settle();
+		const insertInline = insertInlineButton(m);
+
+		const field = await openInsertDialog(insertInline);
+		expect(field.value).toBe('\\frac{a}{b}');
+		typeLatex(field, '\\sqrt{2}');
+		closeTransientUi();
+		await settle();
+		expect(document.querySelector('[role="dialog"]')).toBeNull();
+
+		// After the pause: the field, and its LaTeX source preview, hold what was typed.
+		const reopened = await openInsertDialog(insertInline);
+		expect(reopened.value).toBe('\\sqrt{2}');
+		expect(document.querySelector('[role="dialog"] code')?.textContent).toBe('\\sqrt{2}');
+
+		// A second pause keeps it again, including edits made since.
+		typeLatex(reopened, '\\sqrt{3}');
+		closeTransientUi();
+		await settle();
+		expect((await openInsertDialog(insertInline)).value).toBe('\\sqrt{3}');
+	});
+
+	test("the candidate's own cancel discards a kept expression", async () => {
+		const m = mountInteraction(ExtendedTextInteraction, { interaction: data });
+		mounted.push(m);
+		await settle();
+		const insertInline = insertInlineButton(m);
+
+		typeLatex(await openInsertDialog(insertInline), 'x^2');
+		closeTransientUi();
+		await settle();
+
+		const restored = await openInsertDialog(insertInline);
+		expect(restored.value).toBe('x^2');
+		press(restored, 'Escape');
+		await settle();
+
+		expect((await openInsertDialog(insertInline)).value).toBe('\\frac{a}{b}');
+	});
+
+	test('a kept expression belongs to its own response field', async () => {
+		const first = mountInteraction(ExtendedTextInteraction, { interaction: data });
+		const second = mountInteraction(ExtendedTextInteraction, { interaction: { ...data, responseId: 'RESPONSE_2' } });
+		mounted.push(first, second);
+		await settle();
+
+		typeLatex(await openInsertDialog(insertInlineButton(first)), 'a^2+b^2');
+		closeTransientUi();
+		await settle();
+
+		const other = await openInsertDialog(insertInlineButton(second));
+		expect(other.value).toBe('\\frac{a}{b}');
+		press(other, 'Escape');
+		await settle();
+		expect((await openInsertDialog(insertInlineButton(first))).value).toBe('a^2+b^2');
 	});
 });

@@ -4,7 +4,7 @@
 	import type { AssociateInteractionData, HtmlContent } from '@pie-qti/item-player';
 	import { tick } from 'svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
-	import { translate, type I18nProvider } from '@pie-qti/i18n';
+	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { accessibleTextFromHtml } from '../../shared/utils/accessibleText.js';
@@ -12,6 +12,8 @@
 	import { pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
+	import { describedByIds, choicesShortOfMatchMin, minimumHint } from '../../shared/utils/minimumRequirement';
 
 	interface Props {
 		interaction?: AssociateInteractionData | string;
@@ -76,6 +78,34 @@
 	// in one document, including two renderings of the same item.
 	const uid = $props.id();
 	const helperId = `${uid}-helper`;
+
+	// Minimum requirement (minAssociations, and each choice's matchMin): stated while the response
+	// falls short of either, the same minimums response validation enforces; the author's message
+	// wins. The choices have no group of their own, so each choice is described by it, as by the
+	// helper. Only while the candidate can still answer.
+	const minHintId = `${uid}-min-hint`;
+	const minHint = $derived.by(() => {
+		if (disabled || role !== 'candidate' || !parsedInteraction) return '';
+		const fewerAssociations = minimumHint({
+			i18n,
+			minimum: parsedInteraction.minAssociations,
+			count: pairs.length,
+			key: 'interactions.associate.minAssociationsHint',
+			fallback: { one: 'Make at least {count} association.', other: 'Make at least {count} associations.' },
+		});
+		const shortChoices = choicesShortOfMatchMin(parsedInteraction.choices, pairs);
+		if (!fewerAssociations && shortChoices.length === 0) return '';
+		return (
+			parsedInteraction.minSelectionsMessage?.trim() ||
+			joinSentences(
+				fewerAssociations,
+				shortChoices.length > 0 &&
+					translate(i18n, 'interactions.associate.minChoiceUsesHint', 'Needs more associations: {items}.', {
+						items: formatList(i18n, shortChoices.map(getChoiceLabel)),
+					}),
+			)
+		);
+	});
 
 	function emitChange(newPairs: string[]) {
 		response = newPairs;
@@ -222,7 +252,7 @@
 				class:cursor-not-allowed={isBlocked}
 				type="button"
 				aria-labelledby={choiceTextId}
-				aria-describedby={isShowingCorrect ? choiceStateId : `${helperId} ${choiceStateId}`}
+				aria-describedby={describedByIds(!isShowingCorrect && helperId, choiceStateId, minHint && minHintId)}
 				aria-pressed={isSelected}
 				aria-disabled={isBlocked ? 'true' : undefined}
 				onclick={() => handleChoiceClick(choice.identifier)}
@@ -243,6 +273,7 @@
 			</button>
 		{/each}
 	</div>
+	<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(pairs)} />
 
 	<!-- Display correct associations when in scorer mode -->
 	{#if isShowingCorrect && correctPairs.length > 0}

@@ -66,6 +66,19 @@
 	);
 	const visibleInstructions = $derived(visibleRubricBlocks.filter((block) => block.kind === 'instructions'));
 	const visibleRubrics = $derived(visibleRubricBlocks.filter((block) => block.kind !== 'instructions'));
+	// Instructions and rubrics take the passages' preparation too, so a nested `xml:lang` reads
+	// in its own language (HTML ignores `xml:lang`). They have no tool bar to dock spoken
+	// catalogs on, so only the markup is kept; a host-supplied `html` renders as given.
+	const readableRubricHtml = $derived(
+		new Map(
+			visibleRubricBlocks.map((block) => [
+				block.identifier,
+				block.html === undefined && block.rawHtml
+					? prepareReadableBlock(block.rawHtml, block.language).html
+					: block.rawHtml,
+			]),
+		),
+	);
 	const headingTag = $derived(`h${Math.min(6, Math.max(1, Math.round(headingLevel)))}`);
 
 	$effect(() => {
@@ -206,7 +219,7 @@
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
 						</svg>
 						<SanitizedHtml
-							rawHtml={instruction.rawHtml}
+							rawHtml={readableRubricHtml.get(instruction.identifier) ?? instruction.rawHtml}
 							html={instruction.html}
 							{security}
 							{host}
@@ -224,7 +237,7 @@
 			<section class="rubric-section" aria-label={i18n?.t('assessment.rubrics') ?? 'Rubrics'}>
 				{#each visibleRubrics as rubric (rubric.identifier)}
 					<SanitizedHtml
-						rawHtml={rubric.rawHtml}
+						rawHtml={readableRubricHtml.get(rubric.identifier) ?? rubric.rawHtml}
 						html={rubric.html}
 						{security}
 						{host}

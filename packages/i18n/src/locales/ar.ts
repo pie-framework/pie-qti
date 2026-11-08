@@ -139,6 +139,14 @@ export default {
 			groupLabel: 'خيارات الإجابة',
 			maxChoicesReached: 'يمكنك اختيار {max} خيارات كحد أقصى. ألغِ اختيار أحد الخيارات لاختيار آخر.',
 			clearAnswer: 'مسح الإجابة',
+			minChoicesHint: {
+				zero: 'اختر {count} إجابة على الأقل.',
+				one: 'اختر إجابة واحدة على الأقل.',
+				two: 'اختر إجابتين على الأقل.',
+				few: 'اختر {count} إجابات على الأقل.',
+				many: 'اختر {count} إجابة على الأقل.',
+				other: 'اختر {count} إجابة على الأقل.',
+			},
 			eliminateChoice: 'استبعاد',
 			restoreChoice: 'استعادة',
 		},
@@ -271,6 +279,14 @@ export default {
 			imageLoadError: 'تعذّر تحميل الصورة.',
 			regionOfTotal: 'المنطقة {index} من {total}',
 			selectedRegion: 'المحدد: {region}',
+			minChoicesHint: {
+				zero: 'اختر {count} منطقة على الأقل.',
+				one: 'اختر منطقة واحدة على الأقل.',
+				two: 'اختر منطقتين على الأقل.',
+				few: 'اختر {count} مناطق على الأقل.',
+				many: 'اختر {count} منطقة على الأقل.',
+				other: 'اختر {count} منطقة على الأقل.',
+			},
 		},
 
 		selectPoint: {
@@ -325,6 +341,15 @@ export default {
 			matchCleared: 'تم مسح المطابقة لـ {item}',
 			maxReached: 'تم الوصول إلى الحد الأقصى للارتباطات. أزل زوجًا لإضافة زوج جديد.',
 			pairCreated: 'تمت مطابقة {source} مع {target}.',
+			minAssociationsHint: {
+				zero: 'أنشئ {count} مطابقة على الأقل.',
+				one: 'أنشئ مطابقة واحدة على الأقل.',
+				two: 'أنشئ مطابقتين على الأقل.',
+				few: 'أنشئ {count} مطابقات على الأقل.',
+				many: 'أنشئ {count} مطابقة على الأقل.',
+				other: 'أنشئ {count} مطابقة على الأقل.',
+			},
+			minChoiceUsesHint: 'يحتاج إلى مزيد من المطابقات: {items}.',
 			matchedWithSentence: 'مطابق مع {targets}.',
 			selectedForMatchingSentence: 'محدد للمطابقة.',
 			availableForMatchingSentence: 'متاح للمطابقة.',
@@ -350,6 +375,7 @@ export default {
 			filledGapAriaLabel: 'الفراغ {position} من {total}، تم ملؤه بـ {word}. اختر للمسح.',
 			wordSelected: 'تم التقاط {word}. اختر فراغًا لوضعه، أو اضغط على Escape للإلغاء.',
 			pickUpCancelled: 'تم إلغاء التقاط {word}.',
+			minPlacementsHint: 'ما زال عليك وضعها في الفراغات: {words}.',
 			notCompatibleSentence: 'غير متوافق مع الكلمة المحددة.',
 		},
 
@@ -411,6 +437,14 @@ export default {
 			selectionCancelled: 'تم إلغاء تحديد {item}',
 			itemFallback: 'عنصر',
 			orderConfirmed: 'تم تأكيد الترتيب',
+			minChoicesHint: {
+				zero: 'رتّب {count} عنصر على الأقل.',
+				one: 'رتّب عنصرًا واحدًا على الأقل.',
+				two: 'رتّب عنصرين على الأقل.',
+				few: 'رتّب {count} عناصر على الأقل.',
+				many: 'رتّب {count} عنصرًا على الأقل.',
+				other: 'رتّب {count} عنصر على الأقل.',
+			},
 		},
 
 		associate: {
@@ -435,6 +469,15 @@ export default {
 			removeAssociationBetween: 'إزالة الارتباط بين {first} و{second}',
 			inPairSentence: 'ضمن ارتباط قائم.',
 			removedAssociationBetween: 'تمت إزالة الارتباط بين {first} و{second}.',
+			minAssociationsHint: {
+				zero: 'أنشئ {count} ارتباط على الأقل.',
+				one: 'أنشئ ارتباطًا واحدًا على الأقل.',
+				two: 'أنشئ ارتباطين على الأقل.',
+				few: 'أنشئ {count} ارتباطات على الأقل.',
+				many: 'أنشئ {count} ارتباطًا على الأقل.',
+				other: 'أنشئ {count} ارتباط على الأقل.',
+			},
+			minChoiceUsesHint: 'يحتاج إلى مزيد من الارتباطات: {items}.',
 		},
 
 		positionObject: {
@@ -541,6 +584,14 @@ export default {
 			imageFallback: 'صورة هذا السؤال',
 			imageLoadError: 'تعذّر تحميل الصورة.',
 			unlabeledItem: 'العنصر {index}',
+			minChoicesHint: {
+				zero: 'رتّب {count} عنصر على الأقل.',
+				one: 'رتّب عنصرًا واحدًا على الأقل.',
+				two: 'رتّب عنصرين على الأقل.',
+				few: 'رتّب {count} عناصر على الأقل.',
+				many: 'رتّب {count} عنصرًا على الأقل.',
+				other: 'رتّب {count} عنصر على الأقل.',
+			},
 		},
 
 		graphicAssociate: {

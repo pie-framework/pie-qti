@@ -38,11 +38,23 @@ export interface MathLiveEditorI18n {
 	t: (key: string, fallback?: string, values?: Record<string, unknown>) => string | undefined;
 }
 
+/** How a dialog closed without its math being confirmed. */
+export interface MathLiveEditorCancelDetails {
+	/**
+	 * True when a host closed the dialog (`pie-qti-close-transient-ui`, a proctor pause), not
+	 * the candidate: the opener may keep `latex` and offer it again when the candidate reopens
+	 * the dialog, so the pause does not cost them what they typed.
+	 */
+	interrupted: boolean;
+	/** The LaTeX in the field when the dialog closed (the initial value if it never opened). */
+	latex: string;
+}
+
 export interface MathLiveEditorOptions {
 	/** Called when user confirms the LaTeX input */
 	onConfirm: (latex: string) => void;
-	/** Called when user cancels */
-	onCancel: () => void;
+	/** Called when the dialog closes without confirming: the candidate cancelled, or a host closed it. */
+	onCancel: (details: MathLiveEditorCancelDetails) => void;
 	/** Initial LaTeX value */
 	initialLatex?: string;
 	/** Whether this is inline or block math */
@@ -194,7 +206,8 @@ function sharedVirtualKeyboard(): VirtualKeyboardHandle | undefined {
 /**
  * Hosts dispatch this on `document` when transient UI must close: the assessment shell does on
  * a proctor pause (`detail.reason: 'pause'`), so no dialog stays open, or traps focus, under the
- * pause overlay. The dialog closes through its cancel path, as if the candidate pressed Cancel.
+ * pause overlay. The dialog closes through its cancel path, reporting the interruption and the
+ * LaTeX typed so far (`MathLiveEditorCancelDetails`), so the opener can offer it again.
  */
 const CLOSE_TRANSIENT_UI_EVENT = 'pie-qti-close-transient-ui';
 
@@ -222,7 +235,7 @@ export async function openMathLiveEditor(options: MathLiveEditorOptions): Promis
 		document.removeEventListener(CLOSE_TRANSIENT_UI_EVENT, cancelWhileLoading);
 	}
 	if (closedWhileLoading) {
-		onCancel();
+		onCancel({ interrupted: true, latex: initialLatex });
 		return () => {};
 	}
 
@@ -448,19 +461,20 @@ export async function openMathLiveEditor(options: MathLiveEditorOptions): Promis
 		modal.release();
 	}
 
-	function close(confirmed: boolean) {
+	function close(confirmed: boolean, interrupted = false) {
 		if (closed) return;
 		const latex = mathfield.value;
 		teardown();
 		if (confirmed) onConfirm(latex);
-		else onCancel();
+		else onCancel({ interrupted, latex });
 	}
 
 	const handleCancel = () => close(false);
 	const handleConfirm = () => close(true);
 	// A host closing transient UI (a proctor pause) cancels: the focus trap is released and
-	// focus returns to the opener, so the host's own overlay can take it.
-	const handleCloseTransientUi = () => close(false);
+	// focus returns to the opener, so the host's own overlay can take it. The typed LaTeX goes
+	// to the opener as an interrupted cancel, so it can be offered again after the pause.
+	const handleCloseTransientUi = () => close(false, true);
 
 	const handleOverlayClick = (e: MouseEvent) => {
 		// Only a click on the backdrop itself closes; never one on the dialog or the

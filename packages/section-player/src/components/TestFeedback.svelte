@@ -2,6 +2,7 @@
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import type { PlayerSecurityConfig } from '@pie-qti/item-player';
 	import type { QtiSectionRole, QtiSectionRuntimeHostContract, QtiSharedHtmlBlock } from '../contracts/index.js';
+	import { prepareReadableBlock } from '../tts/spoken-catalogs.js';
 	import { isQtiViewVisibleForRole } from '../visibility/role-view.js';
 	import SanitizedHtml from './SanitizedHtml.svelte';
 
@@ -16,6 +17,19 @@
 
 	const { feedback = [], role = 'candidate', i18n, security, host, typeset }: Props = $props();
 	const visibleFeedback = $derived(feedback.filter((item) => isQtiViewVisibleForRole(item.view, role)));
+	// The passages' preparation restates a nested `xml:lang` as `lang` (and `dir` where the
+	// direction changes), so a language change inside the feedback reads in its own language;
+	// HTML ignores `xml:lang`. A host-supplied `html` renders as given.
+	const readableFeedback = $derived(
+		new Map(
+			visibleFeedback.map((item) => [
+				item.identifier,
+				item.html === undefined && item.rawHtml
+					? prepareReadableBlock(item.rawHtml, item.language).html
+					: item.rawHtml,
+			]),
+		),
+	);
 </script>
 
 {#if visibleFeedback.length > 0}
@@ -23,7 +37,7 @@
 		{#each visibleFeedback as item (item.identifier)}
 			<!-- The section's name is interface text; each block reads in its content language. -->
 			<SanitizedHtml
-				rawHtml={item.rawHtml}
+				rawHtml={readableFeedback.get(item.identifier) ?? item.rawHtml}
 				html={item.html}
 				{security}
 				{host}

@@ -120,6 +120,8 @@ export interface OrderInteractionData extends BaseInteractionData<'orderInteract
 	orientation?: string;
 	/** CSS classes from the orderInteraction element (orientation and `qti-labels-*`) */
 	interactionClasses?: string[];
+	/** Message shown while the response orders fewer than minChoices (data-min-selections-message) */
+	minSelectionsMessage?: string | null;
 }
 
 export interface AssociableChoice {
@@ -160,12 +162,22 @@ export interface AssociateInteractionData extends BaseInteractionData<'associate
 	minAssociations?: number;
 	prompt: HtmlContent | null;
 	choices: AssociableChoice[];
+	/** Message shown while the response has fewer than minAssociations (data-min-selections-message) */
+	minSelectionsMessage?: string | null;
 }
 
 export interface GapMatchInteractionData extends BaseInteractionData<'gapMatchInteraction'> {
 	shuffle: boolean;
 	prompt: HtmlContent | null;
-	gapTexts: Array<{ identifier: string; text: string; matchMax: number; matchGroup?: string[]; inputWidth?: number }>;
+	gapTexts: Array<{
+		identifier: string;
+		text: string;
+		matchMax: number;
+		/** Minimum number of gaps this choice must fill (QTI matchMin); absent means 0. */
+		matchMin?: number;
+		matchGroup?: string[];
+		inputWidth?: number;
+	}>;
 	/**
 	 * Image choices from gapImg (QTI 2.x) / qti-gap-img (QTI 3.0); optional so
 	 * hand-built text-only data stays valid. `src` passes the resource-URL policy
@@ -176,6 +188,8 @@ export interface GapMatchInteractionData extends BaseInteractionData<'gapMatchIn
 		src: string;
 		alt: string;
 		matchMax: number;
+		/** Minimum number of gaps this choice must fill (QTI matchMin); absent means 0. */
+		matchMin?: number;
 		matchGroup?: string[];
 		width?: number;
 		height?: number;
@@ -385,6 +399,10 @@ export interface GraphicOrderInteractionData extends BaseInteractionData<'graphi
 	prompt: HtmlContent | null;
 	imageData: ImageData | null;
 	hotspotChoices: GraphicOrderChoice[];
+	/** Minimum number of hotspots the response must order (QTI minChoices); absent means 0. */
+	minChoices?: number;
+	/** Message shown while the response orders fewer than minChoices (data-min-selections-message) */
+	minSelectionsMessage?: string | null;
 }
 
 export interface GraphicAssociateHotspot {

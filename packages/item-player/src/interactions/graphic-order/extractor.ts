@@ -44,6 +44,10 @@ export interface GraphicOrderData {
 		classes?: string[];
 	}>;
 	prompt: string | null;
+	/** Minimum number of hotspots the response must order (QTI minChoices); omitted when 0. */
+	minChoices?: number;
+	/** Message shown while the response orders fewer than minChoices (data-min-selections-message) */
+	minSelectionsMessage?: string;
 }
 
 /**
@@ -143,10 +147,15 @@ export const standardGraphicOrderExtractor: ElementExtractor<GraphicOrderData> =
 		const promptElements = utils.getChildrenByTag(element, 'prompt');
 		const prompt = promptElements.length > 0 ? utils.getHtmlContent(promptElements[0]) : null;
 
+		const minChoices = utils.getNumberAttribute(element, 'minChoices', 0);
+		const minSelectionsMessage = utils.getAttribute(element, 'data-min-selections-message', '') || null;
+
 		return {
 			imageData,
 			hotspotChoices,
 			prompt,
+			...(minChoices > 0 ? { minChoices } : {}),
+			...(minSelectionsMessage ? { minSelectionsMessage } : {}),
 		};
 	},
 

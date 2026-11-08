@@ -17,6 +17,8 @@ export interface OrderData {
 	maxChoices: number;
 	orientation?: string;
 	prompt: string | null;
+	/** Message shown while the response orders fewer than minChoices (data-min-selections-message) */
+	minSelectionsMessage?: string;
 }
 
 /**
@@ -62,6 +64,7 @@ export const standardOrderExtractor: ElementExtractor<OrderData> = {
 		const minChoices = utils.getNumberAttribute(element, 'minChoices', 0);
 		const maxChoices = utils.getNumberAttribute(element, 'maxChoices', 0);
 		const interactionClasses = utils.getClasses(element);
+		const minSelectionsMessage = utils.getAttribute(element, 'data-min-selections-message', '') || null;
 
 		return {
 			choices: maybeShuffle(choices, shuffle, context.shuffleRng),
@@ -71,6 +74,7 @@ export const standardOrderExtractor: ElementExtractor<OrderData> = {
 			maxChoices,
 			prompt,
 			...(interactionClasses.length > 0 ? { interactionClasses } : {}),
+			...(minSelectionsMessage ? { minSelectionsMessage } : {}),
 		};
 	},
 

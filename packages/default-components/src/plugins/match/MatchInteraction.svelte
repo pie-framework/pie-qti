@@ -3,13 +3,16 @@
 <script lang="ts">
 	import type { MatchInteractionData } from '@pie-qti/item-player';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import MatchDragDrop from '../../shared/components/MatchDragDrop.svelte';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
+	import { accessibleTextFromHtml } from '../../shared/utils/accessibleText.js';
+	import { choicesShortOfMatchMin, minimumHint } from '../../shared/utils/minimumRequirement';
 
 	interface Props {
 		interaction?: MatchInteractionData | string;
@@ -52,6 +55,40 @@
 	// Convert response to pairs array, or empty array
 	const pairs = $derived(parsedResponse && Array.isArray(parsedResponse) ? parsedResponse : []);
 
+	// Minimum requirement (minAssociations, and each choice's matchMin): stated while the response
+	// falls short of either, the same minimums response validation enforces; the author's message
+	// wins. It describes the matching region. Only while the candidate can still answer.
+	const minHintId = `${uid}-min-hint`;
+	const minHint = $derived.by(() => {
+		if (disabled || role !== 'candidate' || !parsedInteraction) return '';
+		const fewerMatches = minimumHint({
+			i18n,
+			minimum: parsedInteraction.minAssociations,
+			count: pairs.length,
+			key: 'interactions.match.minAssociationsHint',
+			fallback: { one: 'Make at least {count} match.', other: 'Make at least {count} matches.' },
+		});
+		const shortChoices = choicesShortOfMatchMin(
+			[...parsedInteraction.sourceSet, ...parsedInteraction.targetSet],
+			pairs,
+		);
+		if (!fewerMatches && shortChoices.length === 0) return '';
+		return (
+			parsedInteraction.minSelectionsMessage?.trim() ||
+			joinSentences(
+				fewerMatches,
+				shortChoices.length > 0 &&
+					translate(i18n, 'interactions.match.minChoiceUsesHint', 'Needs more matches: {items}.', {
+						// Readable names (image alt, MathML alttext); the identifier only for content-less choices.
+						items: formatList(
+							i18n,
+							shortChoices.map((choice) => accessibleTextFromHtml(choice.text) || choice.identifier),
+						),
+					}),
+			)
+		);
+	});
+
 	function handlePairsChange(newPairs: string[]) {
 		response = newPairs;
 		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: newPairs, onChange });
@@ -80,8 +117,10 @@
 			{disabled}
 			{i18n}
 			structuredLabels={structuredLabelSupport}
+			describedBy={minHint ? minHintId : undefined}
 			onPairsChange={handlePairsChange}
 		/>
+		<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(pairs)} />
 		{#if parsedInteraction.maxSelectionsMessage && pairs.length >= parsedInteraction.maxAssociations && parsedInteraction.maxAssociations > 0}
 			<p class="qti-selection-message" role="alert">{parsedInteraction.maxSelectionsMessage}</p>
 		{/if}
