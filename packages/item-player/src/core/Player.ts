@@ -608,7 +608,7 @@ export class Player {
 			const d = this.decls[id];
 			if (!d) continue;
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
-			applyToPci(id, this.qtiValueToPublic(d.value));
+			applyToPci(id, this.qtiValueToPci(d.value));
 		}
 	}
 
@@ -692,7 +692,7 @@ export class Player {
 
 	private runEndAttemptAction(options: { countAttempt?: boolean; validateResponses?: boolean }): ItemSessionActionResult {
 		const validate = options.validateResponses ?? false;
-		const validation = validate ? this.validateResponses(this.getResponses()) : undefined;
+		const validation = validate ? this.validateAttemptResponses(this.getResponses()) : undefined;
 		if (validation && !validation.valid) {
 			return this.createItemSessionActionResult('endAttempt', this.saveItemSession(), { validation });
 		}
@@ -862,7 +862,7 @@ export class Player {
 		for (const d of Object.values(this.decls)) {
 			if ((d as any).__kind !== 'response') continue;
 			this.ctx.resetToDefault(d.identifier);
-			this.restorePciResponse(d.identifier, d.value.kind === 'value' ? d.value.value : null);
+			this.restorePciResponse(d.identifier, this.qtiValueToPci(d.value));
 		}
 	}
 
@@ -896,9 +896,14 @@ export class Player {
 		countAttempt?: boolean;
 	}): ScoringResult {
 		this.updateDuration();
-		// Spec-aligned behavior: each processing run starts from outcome defaults.
-		// This prevents stale outcomes when response/outcome processing doesn't set every variable.
-		this.resetOutcomesToDefault();
+		// QTI ASI §5.2: for a non-adaptive item, outcome variables are reset to their defaults
+		// before each invocation of response processing. An adaptive item's outcomes "retain the
+		// values that were assigned to them during the previous invocation" (§5.2, §8), so they
+		// carry across attempts — and across a save/restore, which restores them as saved. They
+		// start from their defaults only at session start and on newTemplate.
+		if (!this.isAdaptive()) {
+			this.resetOutcomesToDefault();
+		}
 
 		// Execute response processing if present
 		if (this.responseProcessing.present) {
@@ -1312,6 +1317,37 @@ export class Player {
 
 		const allValid = Object.values(entries).every((e) => e.valid);
 		return { valid: allValid, entries, issues };
+	}
+
+	/**
+	 * The validation `endAttempt({ validateResponses: true })` gates on (QTI ASI §4
+	 * itemSessionControl validateResponses). An invalid response "does not satisfy the
+	 * constraints imposed by the interaction": beyond a malformed value or a matchGroup
+	 * pairing (`validateResponses`), an interaction that requires input — minChoices,
+	 * minAssociations, minStrings, minPlays, matchMin — rejects an incomplete one. Those
+	 * entries turn invalid with an `incomplete` issue, so the result reads invalid through
+	 * the same channel as every other rejection.
+	 *
+	 * An item with no response at all is a skip, which allowSkipping governs ("delivery
+	 * engines must ensure that the candidate can choose to submit no response" when it is
+	 * true). The item cannot see allowSkipping, so completeness applies only once the
+	 * candidate has responded and a skip is the caller's decision.
+	 */
+	private validateAttemptResponses(responses: Record<string, any>): ResponseValidationResult {
+		const validation = this.validateResponses(responses);
+		if (!this.isAttempted(responses)) return validation;
+		const entries: ResponseValidationResult['entries'] = {};
+		const issues = [...validation.issues];
+		for (const entry of Object.values(validation.entries)) {
+			if (entry.complete) {
+				entries[entry.responseId] = entry;
+				continue;
+			}
+			const message = `Response '${entry.responseId}' does not satisfy the constraints of its ${entry.interactionType}`;
+			entries[entry.responseId] = { ...entry, valid: false, errors: [...entry.errors, message] };
+			issues.push({ responseId: entry.responseId, code: 'incomplete', message, severity: 'error' });
+		}
+		return { valid: Object.values(entries).every((e) => e.valid), entries, issues };
 	}
 
 	public getProgress(responses: Record<string, any>): { total: number; answered: number; unanswered: number } {
@@ -1751,7 +1787,7 @@ export class Player {
 				if (v.correctResponse != null) {
 					d.correctResponse = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.correctResponse, d.identifier);
 				}
-				this.restorePciResponse(d.identifier, this.qtiValueToPublic(d.value));
+				this.restorePciResponse(d.identifier, this.qtiValueToPci(d.value));
 			}
 		}
 	}
@@ -1826,6 +1862,17 @@ export class Player {
 			};
 		}
 		return serialized;
+	}
+
+	/**
+	 * A value as a PCI host receives it: the public value, except that a record keeps each field's
+	 * base type and cardinality (its serialized form). A record declaration types none of its
+	 * fields, so the host could not write them into QTI variable JSON otherwise.
+	 */
+	private qtiValueToPci(value: QtiValue | undefined): unknown {
+		return value?.kind === 'value' && value.cardinality === 'record'
+			? this.qtiValueToSerializable(value)
+			: this.qtiValueToPublic(value);
 	}
 
 	private qtiValueToPublic(value: QtiValue | undefined): any {
@@ -2101,6 +2148,7 @@ export class Player {
 				fieldIdentifier as keyof typeof EXTENDED_TEXT_RECORD_FIELD_TYPES
 			] as BaseType | undefined;
 			let fieldValue = rawField;
+			let fieldCardinality: Cardinality = Array.isArray(rawField) ? 'multiple' : 'single';
 			if (rawField && typeof rawField === 'object' && !Array.isArray(rawField) && 'value' in rawField) {
 				const serializedField = rawField as {
 					baseType?: BaseType;
@@ -2109,17 +2157,37 @@ export class Player {
 				};
 				fieldBaseType = serializedField.baseType ?? fieldBaseType;
 				fieldValue = serializedField.value;
+				fieldCardinality =
+					serializedField.cardinality === 'multiple' || serializedField.cardinality === 'ordered'
+						? serializedField.cardinality
+						: Array.isArray(fieldValue) ? 'multiple' : 'single';
 			}
 
 			if (!fieldBaseType) {
-				fieldBaseType = typeof fieldValue === 'boolean'
+				const sample = Array.isArray(fieldValue)
+					? fieldValue.find((item) => item !== null && item !== undefined)
+					: fieldValue;
+				fieldBaseType = typeof sample === 'boolean'
 					? 'boolean'
-					: typeof fieldValue === 'number'
-						? (Number.isInteger(fieldValue) ? 'integer' : 'float')
+					: typeof sample === 'number'
+						? (Number.isInteger(sample) ? 'integer' : 'float')
 						: 'string';
 			}
 			if (fieldValue === null || fieldValue === undefined) {
-				fields[fieldIdentifier] = qtiNull(fieldBaseType, 'single');
+				fields[fieldIdentifier] = qtiNull(fieldBaseType, fieldCardinality);
+			} else if (fieldCardinality !== 'single') {
+				// A container field, such as a PCI record member written as `list`: each value
+				// is coerced, rather than the whole array as one string.
+				const containerBaseType = fieldBaseType;
+				const items = (Array.isArray(fieldValue) ? fieldValue : [fieldValue])
+					.filter((item) => item !== null && item !== undefined)
+					.map((item) => {
+						if (containerBaseType === 'file' && typeof item === 'object') return item;
+						const coerced = coerceBaseValue(containerBaseType, String(item), this.getContentLanguage());
+						return coerced.kind === 'value' ? coerced.value : null;
+					})
+					.filter((item) => item !== null);
+				fields[fieldIdentifier] = qtiValue(containerBaseType, fieldCardinality, items);
 			} else if (fieldBaseType === 'file' && typeof fieldValue === 'object') {
 				fields[fieldIdentifier] = qtiValue('file', 'single', fieldValue);
 			} else {

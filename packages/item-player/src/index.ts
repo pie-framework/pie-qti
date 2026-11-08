@@ -141,6 +141,7 @@ export {
 } from './pci/resolutionConfig.js';
 export type { PciResolutionConfig, PciResolutionShim } from './pci/resolutionConfig.js';
 export { toQtiVariableJson, fromQtiVariableJson } from './pci/qtiVariableJson.js';
+export type { QtiRecordField, QtiVariableJsonDeclaration } from './pci/qtiVariableJson.js';
 
 // Re-export QTI heuristics from @pie-qti/ims-cp-core for convenience
 // (heuristics are now in the shared ingestion layer)

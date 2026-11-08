@@ -711,6 +711,17 @@ responses cross the boundary as QTI variable JSON (`base`/`list`/`record`), and 
 re-instantiates the module. A PCI authored against the specification runs; one authored against
 the retired `PciModule` does not, and never ran anywhere else.
 
+The variable JSON follows the PCI v1.0 Appendix A binding that QTI 3.0 adopts, converted by base
+type and cardinality in both directions (`qtiVariableJson.ts`, corrected 2026-11-08): pair,
+directedPair and point values are two-element arrays, a duration is an ISO 8601 string, a file is
+`{data, mime, name}`, and a record is an array of `{name, base | list}` members. A record reaches
+the player in its typed form (each field `{baseType, cardinality, value}`), since a record
+declaration types none of its fields. Before that correction the binding was only right for
+scalar base types: a conformant PCI's pair response `{"base":{"pair":["A","B"]}}` was stored as
+`"A,B"` and scored 0, a spec-shaped record came back keyed by array index, and seeded state carried
+pairs as `"A B"`, records as name-keyed objects and durations as numbers. The earlier name-keyed
+record form is still accepted on input.
+
 Action
 Phases 1–3 are done in-repo. Phase 1: the registry global, `getInstance`, `onready`/`ondone`, QTI
 variable JSON, `getState()` restore, and the derived interaction status. Phase 2: the AMD loader
@@ -736,8 +747,9 @@ Test signal
 - `player.setResponses({ RESPONSE: value })` offers the value to the module and is
   declined once the module owns its response; `player.restoreResponses()` re-instantiates
   the module with the override as its `getInstance` state.
-- Responses cross the host boundary as QTI variable JSON; the player's runtime values
-  stay plain inside.
+- Responses cross the host boundary as QTI variable JSON in the PCI v1.0 Appendix A binding
+  (`src/__tests__/qtiVariableJson.test.ts` covers every base type and cardinality in both
+  directions); the player's runtime values stay plain inside.
 - `disable()` is called when the player switches to a non-candidate role, for modules
   that expose it; conformant modules read their fixed `configuration.status`.
 - `destroy()` is called when the player is torn down.

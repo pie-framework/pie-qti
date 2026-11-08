@@ -49,7 +49,8 @@ export class DeclarationContext {
 	 * default value to the evaluated expression, and the variable's current value
 	 * becomes the new default (§5.1: variables are instantiated from their
 	 * defaults). Later resets — attempt starts, outcome resets at the start of
-	 * response processing, templateConstraint restarts — then use the new default.
+	 * response processing — then use the new default. A templateConstraint
+	 * restart discards the change with the rest of the rejected pass.
 	 */
 	setDefaultValue(id: string, value: QtiValue): void {
 		const d = this.decls[id];

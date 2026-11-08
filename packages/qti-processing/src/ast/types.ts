@@ -208,6 +208,11 @@ export type VariableExpr = {
 	kind: 'expr.variable';
 	id: AstNodeId;
 	identifier: string;
+	/**
+	 * Test scope only (QTI ASI §15.1): a weight of the assessmentItemRef whose identifier
+	 * prefixes `identifier` (ITEMREF.VARIABLE), applied to integer and float item variables.
+	 */
+	weightIdentifier?: string;
 };
 
 export type CorrectExpr = {

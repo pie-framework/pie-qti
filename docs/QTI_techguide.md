@@ -200,6 +200,23 @@ The **assessmentItem** represents a single question and contains the complete de
 - **individual:** Submits each item immediately upon completion
 - **simultaneous:** Batches all responses until the test part concludes
 
+**Item session controls** (`itemSessionControl`) that gate a submission apply only in individual
+submission mode:
+
+- **allowSkipping:** when `false`, an item with no response at all (every response NULL or at its
+  default) cannot be submitted.
+- **validateResponses:** when `true`, a response that "does not satisfy the constraints imposed by
+  the interaction" cannot be submitted: a malformed value, a pairing a `matchGroup` forbids, or
+  fewer selections, associations, strings or plays than `minChoices`, `minAssociations`,
+  `matchMin`, `minStrings` or `minPlays` require.
+
+In the item player, `endAttempt({ validateResponses: true })` rejects such a response. The result's
+`validation.valid` is `false`, with one issue per offending response (`incomplete`,
+`invalid_shape` or `match_group`). The attempt is not counted, no response processing runs, and the
+session stays writable for the candidate to correct it. An item with no response at all is a skip,
+which `allowSkipping` governs; the item cannot see that control, so it leaves a skip to the caller
+instead of rejecting it.
+
 ---
 
 # Part III: Interaction Types Reference
@@ -827,6 +844,29 @@ At test level, `duration` is the time spent on the whole test, and `PART.duratio
 the time spent in a test part or section, also in seconds. Both QTI versions report all of them in
 Results Reporting as `responseVariable` elements.
 
+### Outcome Values Between Response-Processing Runs
+
+Before each invocation of response processing, a non-adaptive item's outcome variables are reset
+to their defaults. An adaptive item's outcomes "retain the values that were assigned to them during
+the previous invocation" (QTI ASI §5.2), so its rules can build on earlier attempts, for example a
+try counter that gates partial credit:
+
+```xml
+<setOutcomeValue identifier="TRIES">
+  <sum>
+    <variable identifier="TRIES"/>
+    <baseValue baseType="integer">1</baseValue>
+  </sum>
+</setOutcomeValue>
+```
+
+In the item player, an adaptive item's outcomes start from their defaults at session start and on
+`newTemplate`. A saved item session carries them, and a restored one continues from them. Every
+response-processing run of an adaptive item builds on the current values, `scoreAttempt` included,
+so rescoring a restored adaptive session applies its rules again; report such a session's score
+from its restored outcome values. The built-in `numAttempts`, `completionStatus` and `duration` are
+maintained by the player and are never reset by response processing.
+
 ## 4.2 Standard Response Processing Templates
 
 QTI provides three standard templates that cover most scoring needs while maximizing interoperability:
@@ -1033,6 +1073,28 @@ For custom scoring logic, use `responseCondition` with expressions:
 </assessmentTest>
 ```
 
+#### Item variables and weights in test outcome processing
+
+Test-level `outcomeProcessing` reads one item's variable as `ITEMREF.VARIABLE`, the
+`assessmentItemRef` identifier and the variable identifier joined by a period:
+`<variable identifier="item1.SCORE"/>`. An `assessmentItemRef` may bind named weights
+(`<weight identifier="W" value="2"/>`), and a `variable` or `testVariables` expression selects one
+with `weightIdentifier`:
+
+```xml
+<setOutcomeValue identifier="SCORE">
+  <sum>
+    <variable identifier="item1.SCORE" weightIdentifier="W"/>
+    <variable identifier="item2.SCORE" weightIdentifier="W"/>
+  </sum>
+</setOutcomeValue>
+```
+
+Weights apply only to integer and float values. They are treated as float, so a weighted value is
+float, and a multiple or ordered value is weighted element by element. An itemRef that defines no
+weight with that identifier weighs 1.0. A variable of any other type, or one that is not read
+through an itemRef prefix, ignores the weight.
+
 ### Content Package Manifest
 
 ```xml
@@ -1097,65 +1159,35 @@ The key advance over `customInteraction` is **portability**: a PCI carries its r
 
 ### Module Interface
 
-Every PCI module must implement the `IMSGLOBAL.PCI` interface:
+A PCI module registers itself with the page's `qtiCustomInteractionContext` as its code evaluates.
+The player instantiates it through the registered `getInstance` factory; state goes in at
+instantiation and comes out through `getResponse()` / `getState()`. There is no setter: to apply a
+different response, the player instantiates the module again with that response as its state.
 
 ```javascript
 // pci-modules/chem-editor/index.js
-export default {
-  /**
-   * Called once after the DOM scaffold is ready.
-   * @param {HTMLElement} dom - The element matching qti-interaction-markup
-   * @param {Object} config - Properties from qti-pci-properties
-   * @param {Object} boundTo - Map of response variable identifiers to initial values
-   */
-  initialize(dom, config, boundTo) {
-    // Set up the interaction UI
-    this._editor = new ChemEditor(dom, config);
-    if (boundTo.RESPONSE) {
-      this._editor.loadState(boundTo.RESPONSE);
-    }
-  },
+qtiCustomInteractionContext.register({
+  typeIdentifier: 'org.example.chem-editor',
 
   /**
-   * Called by the player when it needs the current response value.
-   * Must return a value compatible with the responseDeclaration baseType/cardinality.
-   * @returns {*} The current response
+   * @param {HTMLElement} dom - The element holding the qti-interaction-markup scaffold
+   * @param {Object} configuration - responseIdentifier, status ('interacting' | 'closed' |
+   *   'solution' | 'review'), properties (from qti-pci-properties), onready, ondone
+   * @param {*} state - A previous getState() snapshot, or the restored response as
+   *   QTI variable JSON; undefined on a fresh attempt
    */
-  getResponse() {
-    return this._editor.getState();
+  getInstance(dom, configuration, state) {
+    const editor = new ChemEditor(dom, configuration.properties, state);
+    const instance = {
+      // The current response as QTI variable JSON (see below); undefined when there is none.
+      getResponse: () => editor.response(),
+      // Optional: whatever the module needs to rebuild itself at the next getInstance.
+      getState: () => editor.snapshot(),
+    };
+    configuration.onready(instance);
+    return instance;
   },
-
-  /**
-   * Called by the player to restore a previously saved response.
-   * @param {*} response - Previously returned getResponse() value
-   */
-  setResponse(response) {
-    this._editor.loadState(response);
-  },
-
-  /**
-   * Called when the item enters a state where interaction is not allowed
-   * (e.g., after submission, review mode).
-   */
-  disable() {
-    this._editor.setReadOnly(true);
-  },
-
-  /**
-   * Called when the interaction should resume accepting input.
-   */
-  enable() {
-    this._editor.setReadOnly(false);
-  },
-
-  /**
-   * Optional. Called when the player destroys the item.
-   * Clean up event listeners, timers, etc.
-   */
-  destroy() {
-    this._editor.teardown();
-  }
-};
+});
 ```
 
 ### Response Declaration
@@ -1170,6 +1202,29 @@ The response variable for a PCI is declared like any other, with the baseType an
   </qti-correct-response>
 </qti-response-declaration>
 ```
+
+### Response Values at the PCI Boundary
+
+`getResponse()` answers, and `getInstance` state is seeded, in the QTI variable JSON binding of
+PCI v1.0 Appendix A, which QTI 3.0 adopts. The value must match the response declaration's base
+type and cardinality:
+
+| Cardinality | JSON | Example |
+|-------------|------|---------|
+| `single` | `{"base": {"<baseType>": value}}` | `{"base": {"identifier": "A"}}` |
+| NULL | `{"base": null}` | |
+| `multiple`, `ordered` | `{"list": {"<baseType>": [value, ...]}}` | `{"list": {"pair": [["A", "B"], ["C", "D"]]}}` |
+| `record` | `{"record": [{"name": "<field>", "base" or "list": ...}]}` | `{"record": [{"name": "x", "base": {"integer": 1}}]}` |
+
+Base-type values are JSON scalars, except that `pair` and `directedPair` are `["A", "B"]`,
+`point` is `[x, y]`, `duration` is an ISO 8601 duration such as `"PT1M30S"`, and `file` is
+`{"data": "<base64>", "mime": "text/plain", "name": "notes.txt"}`.
+
+The player converts by base type in both directions. Inside the player a pair or point is the
+string `"A B"`, a duration a number of seconds, a file a `QTIFileResponse`, and a record field
+keeps its base type (`{baseType, cardinality, value}`), because a record declaration types none of
+its fields. The earlier name-keyed record form (`{"record": {"x": {"base": ...}}}`) is still
+accepted from a module.
 
 ### Scoring PCI Responses
 
@@ -1213,7 +1268,7 @@ PCI modules are packaged within the standard QTI content package. All module fil
 | Module delivery | Platform-specific, external | Self-contained, in-package |
 | Interface contract | None (platform defines) | Standardized IMSGLOBAL.PCI interface |
 | Portability | None — platform coupling required | Full — runs in any conformant player |
-| State management | Platform-specific | Standardized getResponse/setResponse |
+| State management | Platform-specific | `getInstance` state in, `getResponse`/`getState` out (QTI variable JSON) |
 | Fallback support | None | `fallback-path` on module element |
 | Discovery | Out-of-band | `custom-interaction-type-identifier` |
 
