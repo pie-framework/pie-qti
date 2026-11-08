@@ -896,9 +896,14 @@ export class Player {
 		countAttempt?: boolean;
 	}): ScoringResult {
 		this.updateDuration();
-		// Spec-aligned behavior: each processing run starts from outcome defaults.
-		// This prevents stale outcomes when response/outcome processing doesn't set every variable.
-		this.resetOutcomesToDefault();
+		// QTI ASI §5.2: for a non-adaptive item, outcome variables are reset to their defaults
+		// before each invocation of response processing. An adaptive item's outcomes "retain the
+		// values that were assigned to them during the previous invocation" (§5.2, §8), so they
+		// carry across attempts — and across a save/restore, which restores them as saved. They
+		// start from their defaults only at session start and on newTemplate.
+		if (!this.isAdaptive()) {
+			this.resetOutcomesToDefault();
+		}
 
 		// Execute response processing if present
 		if (this.responseProcessing.present) {
