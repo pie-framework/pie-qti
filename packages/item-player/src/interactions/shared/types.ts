@@ -403,6 +403,8 @@ export interface GraphicOrderInteractionData extends BaseInteractionData<'graphi
 	hotspotChoices: GraphicOrderChoice[];
 	/** Minimum number of hotspots the response must order (QTI minChoices); absent means 0. */
 	minChoices?: number;
+	/** Maximum number of hotspots the response may order (QTI maxChoices); absent means 0, no limit. */
+	maxChoices?: number;
 	/** Message shown while the response orders fewer than minChoices (data-min-selections-message) */
 	minSelectionsMessage?: string | null;
 }

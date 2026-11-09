@@ -183,6 +183,39 @@ describe('standardGraphicOrderExtractor', () => {
 		expect(result.prompt).toBeNull();
 	});
 
+	test('reads maxChoices alongside minChoices, which request ordering a subset', () => {
+		const xml = `
+			<graphicOrderInteraction responseIdentifier="RESPONSE" minChoices="1" maxChoices="2">
+				<object data="test.png" type="image/png"/>
+				<hotspotChoice identifier="A" shape="circle" coords="10,10,5" hotspotLabel="Harbour"/>
+				<hotspotChoice identifier="B" shape="circle" coords="30,10,5" hotspotLabel="Station"/>
+				<hotspotChoice identifier="C" shape="circle" coords="50,10,5" hotspotLabel="Museum"/>
+			</graphicOrderInteraction>
+		`;
+
+		const element = parseQTI(xml);
+		const result = standardGraphicOrderExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+		expect(result.minChoices).toBe(1);
+		expect(result.maxChoices).toBe(2);
+	});
+
+	test('omits maxChoices when unspecified or 0, as it does minChoices', () => {
+		const xml = `
+			<graphicOrderInteraction responseIdentifier="RESPONSE" maxChoices="0">
+				<object data="test.png" type="image/png"/>
+				<hotspotChoice identifier="A" shape="circle" coords="10,10,5"/>
+				<hotspotChoice identifier="B" shape="circle" coords="30,10,5"/>
+			</graphicOrderInteraction>
+		`;
+
+		const element = parseQTI(xml);
+		const result = standardGraphicOrderExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+		expect(result).not.toHaveProperty('minChoices');
+		expect(result).not.toHaveProperty('maxChoices');
+	});
+
 	describe('canHandle predicate', () => {
 		test('handles graphicOrderInteraction element', () => {
 			const xml = `

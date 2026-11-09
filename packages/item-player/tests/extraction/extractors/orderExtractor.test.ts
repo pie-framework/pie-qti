@@ -106,6 +106,37 @@ describe('standardOrderExtractor', () => {
 		expect(result.choices[9].identifier).toBe('ITEM_10');
 	});
 
+	test('reads minChoices and maxChoices, which request ordering a subset', () => {
+		const xml = `
+			<orderInteraction responseIdentifier="RESPONSE" minChoices="2" maxChoices="2">
+				<simpleChoice identifier="A">Apples</simpleChoice>
+				<simpleChoice identifier="B">Bananas</simpleChoice>
+				<simpleChoice identifier="C">Cherries</simpleChoice>
+				<simpleChoice identifier="D">Dates</simpleChoice>
+				<simpleChoice identifier="E">Elderberries</simpleChoice>
+			</orderInteraction>
+		`;
+		const element = parseQTI(xml);
+		const result = standardOrderExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+		expect(result.minChoices).toBe(2);
+		expect(result.maxChoices).toBe(2);
+	});
+
+	test('unspecified minChoices and maxChoices read as 0 (order every choice)', () => {
+		const xml = `
+			<orderInteraction responseIdentifier="RESPONSE">
+				<simpleChoice identifier="A">A</simpleChoice>
+				<simpleChoice identifier="B">B</simpleChoice>
+			</orderInteraction>
+		`;
+		const element = parseQTI(xml);
+		const result = standardOrderExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+		expect(result.minChoices).toBe(0);
+		expect(result.maxChoices).toBe(0);
+	});
+
 	describe('canHandle predicate', () => {
 		test('handles orderInteraction element', () => {
 			const xml = `
