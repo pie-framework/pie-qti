@@ -3,6 +3,7 @@
 	import type { PciConfiguration, PlayerSecurityConfig, PnpProfile } from '@pie-qti/item-player';
 	import { assignProps } from '@pie-qti/qti-common';
 	import type { QtiSectionFrameworkError, QtiSectionItemRef, QtiSectionRole, QtiSectionToolConfig } from '../contracts/index.js';
+	import { interfaceText } from '../i18n/interface-text.js';
 	import { extractItemSpeech } from '../tts/spoken-catalogs.js';
 	import type { QtiDisplaySettingsControls } from '../tools/display-settings.js';
 	import QtiToolButtonBar from './QtiToolButtonBar.svelte';
@@ -56,7 +57,7 @@
 	/** The item player failed to load; the detail goes to `onFrameworkError`, never to the candidate. */
 	let loadFailed = $state(false);
 	let itemScopeElement = $state<HTMLElement | null>(null);
-	const itemTitle = $derived(itemRef.title?.trim() || (i18n?.t('sectionPlayer.question', 'Question') ?? 'Question'));
+	const itemTitle = $derived(itemRef.title?.trim() || interfaceText(i18n, 'sectionPlayer.question', 'Question'));
 	const headerTools = $derived(tools ?? itemRef.tools);
 	const hasHeaderTools = $derived((headerTools?.length ?? 0) > 0);
 	const showHeader = $derived(Boolean(itemRef.title?.trim()) || hasHeaderTools || displaySettingsControls !== null);
@@ -128,12 +129,12 @@
 		<svg class="item-alert-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
 		</svg>
-		<span>{i18n?.t('item.loadingError') ?? 'Failed to load item'}</span>
+		<span>{interfaceText(i18n, 'item.loadingError', 'Failed to load item')}</span>
 	</div>
 {:else if !playerLoaded}
 	<div class="item-loading" role="status">
 		<span class="item-spinner" aria-hidden="true"></span>
-		<span>{i18n?.t('item.loading', 'Loading item...')}</span>
+		<span>{interfaceText(i18n, 'item.loading', 'Loading item...')}</span>
 	</div>
 {:else}
 	<article

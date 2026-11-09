@@ -36,5 +36,10 @@ test.describe('section toolkit locale', () => {
 		await expect(toolkit).toHaveAttribute('lang', 'nl-NL');
 		await expect(toolkit).toHaveAttribute('dir', 'ltr');
 		await expect(page.locator('pie-item-toolbar').getByRole('button', { name: 'Voorlezen starten' }).first()).toBeVisible();
+		// The section's own labels never leak a raw i18n key: the host provider here
+		// answers a lookup it has no default for with the key itself, and the passage
+		// toggle composes its name from heading plus verb, which once read
+		// "Passage — assessment.collapsePassage".
+		await expect(page.getByRole('button', { name: /^Passage — (Collapse|Expand) passage$/ }).first()).toBeVisible();
 	});
 });

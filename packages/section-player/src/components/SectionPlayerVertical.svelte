@@ -2,6 +2,7 @@
 	import { interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
 	import type { PciConfiguration, PlayerSecurityConfig, PnpProfile } from '@pie-qti/item-player';
 	import { untrack } from 'svelte';
+	import { interfaceText } from '../i18n/interface-text.js';
 	import { pnpSurface } from '../pnp/section-surface.js';
 	import type { QtiCandidateDisplaySettings } from '../tools/display-settings.js';
 	import type {
@@ -165,7 +166,7 @@
 		tabindex="-1"
 		bind:this={itemPaneElement}
 		role="region"
-		aria-label={i18n?.t('sectionPlayer.question', 'Question') ?? 'Question'}
+		aria-label={interfaceText(i18n, 'sectionPlayer.question', 'Question')}
 	>
 		<RubricDisplay
 			rubricBlocks={composition.sharedContext.rubricBlocks}

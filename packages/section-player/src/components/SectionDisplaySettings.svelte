@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import { tick, untrack } from 'svelte';
+	import { interfaceText } from '../i18n/interface-text.js';
 	import {
 		type QtiCandidateDisplaySettings,
 		DEFAULT_DISPLAY_SETTINGS,
@@ -57,12 +58,13 @@
 	/** close() calls we issued ourselves; their `close` events must not be mistaken for cancels. */
 	let expectedCloses = 0;
 
-	const title = $derived(i18n?.t('sectionPlayer.displaySettings.title', 'Display settings') ?? 'Display settings');
+	const title = $derived(interfaceText(i18n, 'sectionPlayer.displaySettings.title', 'Display settings'));
 	const description = $derived(
-		i18n?.t(
+		interfaceText(
+			i18n,
 			'sectionPlayer.displaySettings.description',
 			'Changes apply right away and stay on for this session.',
-		) ?? 'Changes apply right away and stay on for this session.',
+		),
 	);
 
 	/** The focused element, looking through open shadow roots so focus returns to the real trigger. */
@@ -213,7 +215,7 @@
 	<p id={descriptionId} class="display-settings-description">{description}</p>
 
 	<fieldset class="display-settings-group">
-		<legend>{i18n?.t('sectionPlayer.displaySettings.textSize', 'Text size') ?? 'Text size'}</legend>
+		<legend>{interfaceText(i18n, 'sectionPlayer.displaySettings.textSize', 'Text size')}</legend>
 		{#each textSizeOptions as option (option.value)}
 			<label class="display-settings-option">
 				<input
@@ -223,7 +225,7 @@
 					checked={(settings.textSize ?? 0) === option.value}
 					onchange={() => apply({ textSize: option.value })}
 				/>
-				<span>{i18n?.t(option.labelKey, option.fallback) ?? option.fallback}</span>
+				<span>{interfaceText(i18n, option.labelKey, option.fallback)}</span>
 			</label>
 		{/each}
 	</fieldset>
@@ -235,7 +237,7 @@
 			checked={settings.highContrast === true}
 			onchange={(event) => apply({ highContrast: (event.currentTarget as HTMLInputElement).checked })}
 		/>
-		<span>{i18n?.t('sectionPlayer.displaySettings.highContrast', 'Higher-contrast text') ?? 'Higher-contrast text'}</span>
+		<span>{interfaceText(i18n, 'sectionPlayer.displaySettings.highContrast', 'Higher-contrast text')}</span>
 	</label>
 
 	<label class="display-settings-option">
@@ -245,12 +247,12 @@
 			checked={settings.textSpacing === true}
 			onchange={(event) => apply({ textSpacing: (event.currentTarget as HTMLInputElement).checked })}
 		/>
-		<span>{i18n?.t('sectionPlayer.displaySettings.textSpacing', 'Extra text spacing') ?? 'Extra text spacing'}</span>
+		<span>{interfaceText(i18n, 'sectionPlayer.displaySettings.textSpacing', 'Extra text spacing')}</span>
 	</label>
 
 	<div class="display-settings-actions">
 		<button type="button" class="display-settings-close" data-testid="section-display-settings-close" onclick={close}>
-			{i18n?.t('common.close', 'Close') ?? 'Close'}
+			{interfaceText(i18n, 'common.close', 'Close')}
 		</button>
 	</div>
 </dialog>
