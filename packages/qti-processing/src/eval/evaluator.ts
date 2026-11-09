@@ -870,8 +870,10 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 		case 'expr.durationLT':
 		case 'expr.durationGTE': {
 			// QTI 2.2/3.0: both operands are single durations, in seconds; NULL operands give NULL.
-			// Both go through the runtime's duration reading, so `PT2S` and `2` compare as one value,
-			// and a malformed duration is invalid rather than a NaN comparison that reads as false.
+			// Both go through the runtime's duration reading — item XML coerces duration literals to
+			// seconds numbers, and a runtime value still holding a literal (a restored session, say)
+			// reads through the same parser — and a malformed duration is invalid rather than a NaN
+			// comparison that reads as false.
 			const name = expr.kind === 'expr.durationLT' ? 'durationLT' : 'durationGTE';
 			const a = evalExpr(env, expr.a);
 			const b = evalExpr(env, expr.b);

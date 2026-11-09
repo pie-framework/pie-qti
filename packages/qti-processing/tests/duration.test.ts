@@ -10,6 +10,7 @@ import {
 	durationSeconds,
 	durationSecondsFromMilliseconds,
 	parseDurationSeconds,
+	parseXmlDurationSeconds,
 	qtiNull,
 	qtiValue,
 	toNumber,
@@ -18,7 +19,9 @@ import { parseXml } from '../src/xml/parse.js';
 
 /**
  * QTI 2.2 and 3.0 define `duration` as "a single float that records time in seconds" (xsd:double),
- * and the built-in `duration` response variable as the accumulated time in seconds.
+ * and the built-in `duration` response variable as the accumulated time in seconds. Item XML
+ * therefore admits only the double lexical form; ISO 8601 literals are the PCI v1.0 Appendix A
+ * variable-JSON encoding, read only at that boundary.
  */
 
 function evaluate(xml: string, decls: DeclarationMap = {}): QtiValue {
@@ -36,28 +39,36 @@ function durationDeclaration(identifier: string, seconds: number | null): Declar
 
 describe('duration lexical forms', () => {
 	it('reads the xsd:double lexical form as seconds', () => {
+		expect(parseXmlDurationSeconds('30')).toBe(30);
+		expect(parseXmlDurationSeconds(' 2.5 ')).toBe(2.5);
+		expect(parseXmlDurationSeconds('.5')).toBe(0.5);
+		expect(parseXmlDurationSeconds('1e2')).toBe(100);
 		expect(parseDurationSeconds('30')).toBe(30);
 		expect(parseDurationSeconds(' 2.5 ')).toBe(2.5);
-		expect(parseDurationSeconds('.5')).toBe(0.5);
-		expect(parseDurationSeconds('1e2')).toBe(100);
 	});
 
-	it('accepts ISO 8601 durations as seconds', () => {
+	it('reads ISO 8601 durations at the PCI boundary, but not in item XML', () => {
+		// PCI v1.0 Appendix A encodes variable-JSON durations in ISO 8601; item XML binds duration
+		// to xsd:double, so the XML lexical path rejects the same literals.
 		expect(parseDurationSeconds('PT30S')).toBe(30);
 		expect(parseDurationSeconds('PT1M30.5S')).toBe(90.5);
 		expect(parseDurationSeconds('PT1H')).toBe(3600);
 		expect(parseDurationSeconds('P1DT1S')).toBe(86_401);
+		for (const text of ['PT30S', 'PT1M30.5S', 'PT1H', 'P1DT1S']) {
+			expect(parseXmlDurationSeconds(text)).toBeNull();
+		}
 	});
 
 	it('rejects malformed durations', () => {
 		for (const text of ['', 'abc', 'P', 'PT', 'P1DT', 'INF', 'NaN', '30s', 'PT-5S']) {
 			expect(parseDurationSeconds(text)).toBeNull();
+			expect(parseXmlDurationSeconds(text)).toBeNull();
 		}
 	});
 
-	it('coerces a duration baseValue to seconds, and an unreadable one to invalid', () => {
+	it('coerces a duration baseValue from seconds only, and an unreadable one to invalid', () => {
 		expect(coerceBaseValue('duration', '10')).toEqual(qtiValue('duration', 'single', 10));
-		expect(coerceBaseValue('duration', 'PT10S')).toEqual(qtiValue('duration', 'single', 10));
+		expect(coerceBaseValue('duration', 'PT10S').kind).toBe('invalid');
 		expect(coerceBaseValue('duration', 'ten').kind).toBe('invalid');
 	});
 
@@ -91,17 +102,16 @@ describe('durationLT and durationGTE', () => {
 		).toEqual(qtiValue('boolean', 'single', false));
 	});
 
-	it('normalizes both operands, so ISO 8601 and seconds compare as one scale', () => {
+	it('reads item XML operands as seconds, and an ISO 8601 literal is invalid there', () => {
 		expect(
-			evaluate(
-				'<durationLT><baseValue baseType="duration">PT1M</baseValue><baseValue baseType="duration">61</baseValue></durationLT>',
-			),
+			evaluate('<durationLT><baseValue baseType="duration">60.5</baseValue><baseValue baseType="duration">61</baseValue></durationLT>'),
 		).toEqual(qtiValue('boolean', 'single', true));
 		expect(
-			evaluate(
-				'<durationGTE><baseValue baseType="duration">60</baseValue><baseValue baseType="duration">PT1M</baseValue></durationGTE>',
-			),
+			evaluate('<durationGTE><baseValue baseType="duration">60</baseValue><baseValue baseType="duration">60.0</baseValue></durationGTE>'),
 		).toEqual(qtiValue('boolean', 'single', true));
+		expect(
+			evaluate('<durationLT><baseValue baseType="duration">PT1M</baseValue><baseValue baseType="duration">61</baseValue></durationLT>').kind,
+		).toBe('invalid');
 	});
 
 	it('normalizes a variable holding a duration literal', () => {
@@ -151,16 +161,19 @@ describe('durationLT and durationGTE', () => {
 });
 
 describe('match and equal on durations', () => {
-	it('compare durations by their seconds, however they are written', () => {
+	it('compare durations by their seconds, and reject ISO 8601 XML literals', () => {
 		expect(
-			evaluate('<match><baseValue baseType="duration">PT1H</baseValue><baseValue baseType="duration">3600</baseValue></match>'),
+			evaluate('<match><baseValue baseType="duration">3600</baseValue><baseValue baseType="duration">3600.0</baseValue></match>'),
 		).toEqual(qtiValue('boolean', 'single', true));
 		expect(
-			evaluate('<equal><baseValue baseType="duration">90.0</baseValue><baseValue baseType="duration">PT1M30S</baseValue></equal>'),
+			evaluate('<equal><baseValue baseType="duration">90.0</baseValue><baseValue baseType="duration">90</baseValue></equal>'),
 		).toEqual(qtiValue('boolean', 'single', true));
 		expect(
-			evaluate('<match><baseValue baseType="duration">PT1H</baseValue><baseValue baseType="duration">3599</baseValue></match>'),
+			evaluate('<match><baseValue baseType="duration">3600</baseValue><baseValue baseType="duration">3599</baseValue></match>'),
 		).toEqual(qtiValue('boolean', 'single', false));
+		expect(
+			evaluate('<match><baseValue baseType="duration">PT1H</baseValue><baseValue baseType="duration">3600</baseValue></match>').kind,
+		).toBe('invalid');
 	});
 });
 
