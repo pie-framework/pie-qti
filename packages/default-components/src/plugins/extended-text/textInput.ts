@@ -1,4 +1,5 @@
 import type { ExtendedTextInteractionData } from '@pie-qti/item-player';
+import { translate, type I18nProvider } from '@pie-qti/i18n';
 
 /**
  * Text-field helpers for the extended text interaction: writing assistance,
@@ -164,4 +165,19 @@ export function characterCount(value: string, format: string): number {
 /** Whether an edit took the count from below `expectedLength` to at or above it. */
 export function reachedExpectedLength(before: number, after: number, expectedLength: number): boolean {
 	return expectedLength > 0 && before < expectedLength && after >= expectedLength;
+}
+
+/**
+ * The message for a response that does not match the interaction's pattern mask: the author's
+ * own message when there is one, else a localized sentence. The mask itself is an XSD regular
+ * expression, which no candidate can be expected to read, so it is never shown.
+ */
+export function patternMaskMessage(
+	i18n: I18nProvider | undefined,
+	interaction: Pick<ExtendedTextInteractionData, 'patternMaskMessage'>,
+): string {
+	return (
+		interaction.patternMaskMessage?.trim() ||
+		translate(i18n, 'interactions.extendedText.patternMismatch', 'This answer is not in the expected format.')
+	);
 }

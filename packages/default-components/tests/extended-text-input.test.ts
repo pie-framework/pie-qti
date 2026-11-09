@@ -3,6 +3,7 @@ import {
 	characterCount,
 	isSpellcheckAllowed,
 	patternExcludesMinus,
+	patternMaskMessage,
 	reachedExpectedLength,
 	responseInputMode,
 	writingAssistance,
@@ -80,5 +81,23 @@ describe('extended text input helpers', () => {
 		expect(reachedExpectedLength(5, 6, 5)).toBe(false);
 		expect(reachedExpectedLength(6, 4, 5)).toBe(false);
 		expect(reachedExpectedLength(0, 3, 0)).toBe(false);
+	});
+
+	test('the pattern mask message is the author’s, else a localized sentence, never the mask', () => {
+		const i18n = {
+			getLocale: () => 'nl',
+			setLocale: () => {},
+			t: (key: string, fallback?: unknown) =>
+				key === 'interactions.extendedText.patternMismatch'
+					? 'Dit antwoord heeft niet de verwachte notatie.'
+					: typeof fallback === 'string'
+						? fallback
+						: key,
+		};
+		expect(patternMaskMessage(i18n, { patternMaskMessage: ' Use digits only. ' })).toBe('Use digits only.');
+		// A blank authored message is no message.
+		expect(patternMaskMessage(i18n, { patternMaskMessage: '   ' })).toBe('Dit antwoord heeft niet de verwachte notatie.');
+		expect(patternMaskMessage(i18n, {})).toBe('Dit antwoord heeft niet de verwachte notatie.');
+		expect(patternMaskMessage(undefined, { patternMaskMessage: null })).toBe('This answer is not in the expected format.');
 	});
 });

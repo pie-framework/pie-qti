@@ -186,6 +186,7 @@ export default {
 				other: 'Écrivez au moins {count} réponses.',
 			},
 			minStringsRemoveRefused: 'Réponse non supprimée : au moins {count} réponses sont requises.',
+			patternMismatch: 'Cette réponse n\'est pas au format attendu.',
 		},
 
 		mathInput: {
@@ -325,6 +326,7 @@ export default {
 			minPlacementsHint: 'Reste à placer dans les blancs : {words}.',
 			notCompatibleSentence: 'Incompatible avec le mot sélectionné.',
 			wordRemovedFromBlanks: '{word} a été retiré des cases.',
+			requiredBlanksLegend: 'Les blancs marqués d\'un * sont requis.',
 		},
 
 		graphicGapMatch: {

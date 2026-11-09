@@ -7,7 +7,7 @@
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import { clientToImagePoint, imageAltText } from '../hotspot/graphicRegions';
@@ -31,13 +31,15 @@
 
 	const uid = $props.id();
 
-	// Parse props that may be JSON strings (web component usage)
-	const parsedInteraction = $derived(parseJsonProp<SelectPointInteractionData>(interaction));
-	const parsedResponse = $derived(parseJsonProp<any>(response));
-	const parsedCorrectResponse = $derived(parseJsonProp<any>(correctResponse));
-	const isShowingCorrect = $derived(
-		role === 'scorer' && parsedCorrectResponse !== null && parsedCorrectResponse !== undefined
+	// Parse props that may be JSON strings (web component usage). Correct-answer mode is the
+	// scorer's view of an item that has a correct response (the shared shell's rule).
+	const shell = $derived(
+		createInteractionShell<SelectPointInteractionData, any, any>({ interaction, response, correctResponse, role }),
 	);
+	const parsedInteraction = $derived(shell.interaction);
+	const parsedResponse = $derived(shell.response);
+	const parsedCorrectResponse = $derived(shell.correctResponse);
+	const isShowingCorrect = $derived(shell.isShowingCorrect);
 	// Responses are always in the image's natural pixel space, whatever its rendered size.
 	const imageWidth = $derived(
 		Number(normalizePixelDimension(parsedInteraction?.imageData?.width, '500') ?? '500'),

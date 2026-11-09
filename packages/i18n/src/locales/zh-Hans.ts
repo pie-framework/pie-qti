@@ -193,6 +193,7 @@ export default {
 				other: '请至少填写 {count} 个回答。',
 			},
 			minStringsRemoveRefused: '回答未移除：至少需要 {count} 个回答。',
+			patternMismatch: '此答案不符合预期格式。',
 		},
 
 		mathInput: {
@@ -332,6 +333,7 @@ export default {
 			minPlacementsHint: '还需放入空白处：{words}。',
 			notCompatibleSentence: '与所选词语不兼容。',
 			wordRemovedFromBlanks: '已将 {word} 从空格中移除。',
+			requiredBlanksLegend: '标有 * 的空白处为必填。',
 		},
 
 		graphicGapMatch: {
