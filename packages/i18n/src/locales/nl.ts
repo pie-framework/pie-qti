@@ -922,6 +922,7 @@ export default {
 		answerRecorded: 'Antwoord opgeslagen',
 		resizer: 'Grootte van tekst- en vraagpanelen aanpassen',
 		sentence: '{text}.',
+		choiceFallback: 'Keuze {index}',
 		correctAnswer: 'Juist antwoord.',
 		correctAnswerIs: 'Juist antwoord: {answer}.',
 		correctPosition: 'Juiste positie.',

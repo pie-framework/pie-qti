@@ -940,6 +940,7 @@ export default {
 		answerRecorded: 'Answer recorded',
 		resizer: 'Resize passage and question panels',
 		sentence: '{text}.',
+		choiceFallback: 'Choice {index}',
 		correctAnswer: 'Correct answer.',
 		correctAnswerIs: 'Correct answer: {answer}.',
 		correctPosition: 'Correct position.',

@@ -10,6 +10,7 @@ import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qt
 import { touchDrag } from '@pie-qti/qti-common';
 import { tick } from 'svelte';
 import { accessibleTextFromHtml } from '../utils/accessibleText.js';
+import { choiceAccessibleName } from '../utils/choiceName.js';
 import { createOrUpdatePair, getSourceForTarget, getTargetsForSource, removePairBySource } from '../utils/pairHelpers.js';
 import { isCompatibleMatchGroup } from '../utils/matchGroupUtils.js';
 import DragHandle from './DragHandle.svelte';
@@ -55,11 +56,30 @@ const instructionsId = `${uid}-match-instructions`;
 const sourceHeadingId = `${uid}-source-heading`;
 const targetHeadingId = `${uid}-target-heading`;
 
-function choiceLabel(choice: AssociableChoice | null | undefined, fallback = 'Item'): string {
-	if (!choice) return fallback;
-	// Image alt and MathML alttext participate, unlike raw textContent. The
-	// fallback applies only when the choice genuinely has no readable content.
-	return accessibleTextFromHtml(choice.text) || fallback;
+// 1-based position of each choice in its column as presented to the candidate (after
+// shuffle): the localized-ordinal name of a choice whose content carries no text.
+const choicePositions = $derived.by(() => {
+	const positions = new Map<object, number>();
+	sourceSet.forEach((choice, index) => positions.set(choice, index + 1));
+	targetSet.forEach((choice, index) => positions.set(choice, index + 1));
+	return positions;
+});
+
+/** Whether the choice's content carries readable text (text, image alt, MathML alttext). */
+function hasAuthoredLabel(choice: AssociableChoice | null | undefined): boolean {
+	return !!choice && accessibleTextFromHtml(choice.text) !== '';
+}
+
+function choiceLabel(choice: AssociableChoice | null | undefined): string {
+	if (!choice) return '';
+	// The authored label (image alt, MathML alttext participate); a content-less
+	// choice is named by a localized ordinal of its presented position — never the
+	// identifier, which is meaningless and potentially answer-leaking to candidates.
+	return choiceAccessibleName({
+		i18n,
+		label: accessibleTextFromHtml(choice.text),
+		position: choicePositions.get(choice) ?? 0,
+	});
 }
 
 // Mouse drag handlers
@@ -222,6 +242,7 @@ async function clearMatch(sourceId: string) {
 		</h3>
 		{#each sourceSet as source (source.identifier)}
 			{@const sourceLabel = choiceLabel(source)}
+			{@const sourceHasLabel = hasAuthoredLabel(source)}
 			{@const matchedTargets = getTargetsForSource(pairs, source.identifier)}
 			{@const targetItems = matchedTargets.map((tid) => targetSet.find((t) => t.identifier === tid)).filter(Boolean)}
 			{@const isSelected = selectedSourceId === source.identifier}
@@ -232,6 +253,8 @@ async function clearMatch(sourceId: string) {
 			{@const sourceStateId = `${uid}-source-${source.identifier}-state`}
 
 			<div class="qti-match-source-wrapper relative">
+				<!-- A source with no readable content (an image without alt) is named by its
+				     ordinal, never left nameless. -->
 				<button
 					type="button"
 					draggable={!disabled && canDragMore}
@@ -241,7 +264,8 @@ async function clearMatch(sourceId: string) {
 					onclick={() => selectSource(source.identifier)}
 					onkeydown={cancelSelection}
 					disabled={disabled}
-					aria-labelledby={sourceTextId}
+					aria-labelledby={sourceHasLabel ? sourceTextId : undefined}
+					aria-label={sourceHasLabel ? undefined : sourceLabel}
 					aria-describedby={sourceStateId}
 					aria-pressed={isSelected}
 					data-matched={matchedTargets.length > 0}
@@ -269,11 +293,11 @@ async function clearMatch(sourceId: string) {
 							<!-- The name source: image alt and MathML participate in name computation here. -->
 							<div id={sourceTextId} class="qti-match-source-title qti-rich-inline-content font-medium">{@html source.text}</div>
 							{#if targetItems.length > 0}
-								<div aria-hidden="true" data-text="→ {targetItems.map((target) => choiceLabel(target, 'Target')).join(', ')}" class="qti-match-source-sub text-sm mt-1"></div>
+								<div aria-hidden="true" data-text="→ {targetItems.map((target) => choiceLabel(target)).join(', ')}" class="qti-match-source-sub text-sm mt-1"></div>
 							{:else if isCorrect && correctTargets.length > 0}
 								{@const correctTargetItems = correctTargets.map((tid) => targetSet.find((t) => t.identifier === tid)).filter(Boolean)}
 								{#if correctTargetItems.length > 0}
-									<div aria-hidden="true" data-text="→ {correctTargetItems.map((target) => choiceLabel(target, 'Target')).join(', ')}" class="qti-match-source-sub text-sm mt-1"></div>
+									<div aria-hidden="true" data-text="→ {correctTargetItems.map((target) => choiceLabel(target)).join(', ')}" class="qti-match-source-sub text-sm mt-1"></div>
 								{/if}
 							{/if}
 							{#if isCorrect && matchedTargets.length === 0}
@@ -289,7 +313,7 @@ async function clearMatch(sourceId: string) {
 					{joinSentences(
 						targetItems.length > 0 &&
 							translate(i18n, 'interactions.match.matchedWithSentence', 'Matched with {targets}.', {
-								targets: formatList(i18n, targetItems.map((target) => choiceLabel(target, 'Target'))),
+								targets: formatList(i18n, targetItems.map((target) => choiceLabel(target))),
 							}),
 						isSelected && translate(i18n, 'interactions.match.selectedForMatchingSentence', 'Selected for matching.'),
 						isCorrect && translate(i18n, 'accessibility.correctAnswer', 'Correct answer.'),
@@ -322,7 +346,7 @@ async function clearMatch(sourceId: string) {
 			{i18n?.t('interactions.match.targetItemsLabel') ?? 'Target items for matching'}
 		</h3>
 		{#each targetSet as target (target.identifier)}
-			{@const targetLabel = choiceLabel(target, 'Target')}
+			{@const targetHasLabel = hasAuthoredLabel(target)}
 			{@const matchedSource = getSourceForTarget(pairs, target.identifier)}
 			{@const sourceItem = matchedSource ? sourceSet.find((s) => s.identifier === matchedSource) : null}
 			{@const isHighlight = (draggedSourceId && !matchedSource) || (selectedSourceId && !matchedSource)}
@@ -332,6 +356,8 @@ async function clearMatch(sourceId: string) {
 			{@const targetTextId = `${uid}-target-${target.identifier}-text`}
 			{@const targetStateId = `${uid}-target-${target.identifier}-state`}
 
+			<!-- A target with no readable content (an image without alt) is named by its
+			     ordinal, never left nameless. -->
 			<button
 				type="button"
 				ondragover={handleDragOver}
@@ -340,7 +366,8 @@ async function clearMatch(sourceId: string) {
 				onkeydown={cancelSelection}
 				disabled={disabled || (!selectedSourceId && !draggedSourceId)}
 				aria-disabled={isBlocked ? 'true' : undefined}
-				aria-labelledby={targetTextId}
+				aria-labelledby={targetHasLabel ? targetTextId : undefined}
+				aria-label={targetHasLabel ? undefined : choiceLabel(target)}
 				aria-describedby={targetStateId}
 				data-matched={!!matchedSource}
 				data-highlight={isHighlight}

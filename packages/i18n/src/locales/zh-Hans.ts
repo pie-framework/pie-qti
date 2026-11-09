@@ -935,6 +935,7 @@ export default {
 		answerRecorded: '答案已记录',
 		resizer: '调整文章和问题面板大小',
 		sentence: '{text}。',
+		choiceFallback: '选项 {index}',
 		correctAnswer: '正确答案。',
 		correctAnswerIs: '正确答案：{answer}。',
 		correctPosition: '位置正确。',
