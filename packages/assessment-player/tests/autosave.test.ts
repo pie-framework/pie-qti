@@ -139,7 +139,7 @@ describe('autosave basics', () => {
 		const backend = new ReferenceBackendAdapter();
 		backend.registerAssessment(parsed.identifier, parsed);
 		const saves: SaveAssessmentStateRequest[] = [];
-		let gate: (() => void) | null = null;
+		let gate = null as (() => void) | null;
 		const referenceSubmit = backend.submitResponses.bind(backend);
 		const referenceSave = backend.saveState.bind(backend);
 		backend.submitResponses = async (request) => {
@@ -322,7 +322,11 @@ describe('resume', () => {
 		// A fresh player over the same backend resumes the stored draft.
 		const resumed = await AssessmentPlayer.create({
 			backend,
-			initSession: { assessmentId: parsed.identifier, candidateId: 'candidate', resumeSessionId: sessionId },
+			initSession: {
+				assessmentId: parsed.identifier,
+				candidateId: 'candidate',
+				resumeSessionId: sessionId ?? undefined,
+			},
 		});
 		players.push(resumed);
 		await until(() => resumed.getNavigationState().currentIndex >= 0);
