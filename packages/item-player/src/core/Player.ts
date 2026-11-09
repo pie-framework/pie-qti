@@ -20,6 +20,8 @@ import {
 	isNullValue,
 	localName,
 	OperatorRegistry,
+	parseInterpolationTableDeclaration,
+	parseMatchTableDeclaration,
 	parseXml,
 	type ProcessingProgram,
 	type QtiValue,
@@ -1756,9 +1758,9 @@ export class Player {
 				const matchTableEl = findFirstDescendant(el, this.mapper.toNative('matchtable'));
 				const interpolationTableEl = findFirstDescendant(el, this.mapper.toNative('interpolationtable'));
 				if (matchTableEl) {
-					decls[identifier].lookupTable = this.parseMatchTable(matchTableEl);
+					decls[identifier].lookupTable = parseMatchTableDeclaration(matchTableEl, this.mapper);
 				} else if (interpolationTableEl) {
-					decls[identifier].lookupTable = this.parseInterpolationTable(interpolationTableEl);
+					decls[identifier].lookupTable = parseInterpolationTableDeclaration(interpolationTableEl, this.mapper);
 				}
 			}
 
@@ -1799,31 +1801,6 @@ export class Player {
 			d.defaultValue = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
 			d.value = d.defaultValue;
 		}
-	}
-
-	private parseMatchTable(el: Element) {
-		return {
-			kind: 'table.matchTable' as const,
-			defaultValue: (getAttr(el, 'defaultValue') || '').trim() || undefined,
-			entries: findDescendants(el, this.mapper.toNative('matchtableentry')).map((e) => ({
-				sourceValue: (getAttr(e, 'sourceValue') || '').trim(),
-				targetValue: (getAttr(e, 'targetValue') || '').trim(),
-			})),
-		};
-	}
-
-	private parseInterpolationTable(el: Element) {
-		return {
-			kind: 'table.interpolationTable' as const,
-			defaultValue: (getAttr(el, 'defaultValue') || '').trim() || undefined,
-			entries: findDescendants(el, this.mapper.toNative('interpolationtableentry'))
-				.map((e) => ({
-					sourceValue: Number((getAttr(e, 'sourceValue') || '').trim() || Number.NaN),
-					targetValue: (getAttr(e, 'targetValue') || '').trim(),
-					includeBoundary: (getAttr(e, 'includeBoundary') || '').trim() !== 'false',
-				}))
-				.filter((e) => Number.isFinite(e.sourceValue)),
-		};
 	}
 
 	private ensureBuiltinDeclarations(decls: DeclarationMap): void {
