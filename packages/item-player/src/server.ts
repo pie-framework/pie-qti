@@ -11,6 +11,7 @@ import {
 import type {
 	ItemSession as InternalItemSession,
 	ItemSessionCommand as InternalItemSessionCommand,
+	ItemSessionView as InternalItemSessionView,
 } from './core/ItemSession.js';
 import type {
 	ItemSessionActionResult as InternalItemSessionActionResult,
@@ -255,10 +256,17 @@ class ServerItemSessionAdapter implements ServerItemSession {
 	}
 }
 
-// Keep the internal result relation checked without exporting DOM-bearing engine types.
-type _ServerResultCompatibility = InternalItemSessionActionResult extends ServerItemSessionActionResult
-	? true
-	: never;
-type _ServerStateCompatibility = InternalSerializedItemSessionState extends ServerSerializedItemSessionState
-	? true
-	: never;
+// The Server* types mirror the engine's own so this entry exports no DOM-bearing engine type.
+// Each mirror below must stay assignable in the direction the adapter's casts rely on: engine
+// output to its Server mirror, Server input to the engine's. When the two drift apart, the
+// constraint fails the type check. The ambient declaration emits no code and no declaration.
+// Not listed, because the mirror deliberately differs in the cast direction: the transition (the
+// engine's command union also carries the browser-only `updatePnp`), and the definition config
+// and open options (their mirrors widen `baseType`/`cardinality` to `string`).
+type MirrorHolds<Relation extends true> = Relation;
+declare const serverMirrorsEngine: {
+	result: MirrorHolds<InternalItemSessionActionResult extends ServerItemSessionActionResult ? true : false>;
+	state: MirrorHolds<InternalSerializedItemSessionState extends ServerSerializedItemSessionState ? true : false>;
+	view: MirrorHolds<InternalItemSessionView extends ServerItemSessionView ? true : false>;
+	command: MirrorHolds<ServerItemSessionActionCommand extends InternalItemSessionCommand ? true : false>;
+};
