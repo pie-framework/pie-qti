@@ -300,6 +300,7 @@ export default {
 		},
 
 		selectPoint: {
+			unknownImageDimensions: 'لا يمكن عرض تفاعل اختيار النقاط هذا: حجم الصورة غير معروف، لذلك لا يمكن وضع النقاط بشكل صحيح. أضف العرض والارتفاع إلى الصورة، أو قدّم أبعاد الأصل.',
 			instruction: 'انقر على الصورة لتحديد النقاط',
 			instructionAria: 'انقر لتحديد النقاط على الصورة',
 			maxPointsReached: 'تم الوصول إلى الحد الأقصى للنقاط. قم بإزالة نقطة لإضافة نقطة جديدة.',
@@ -538,6 +539,7 @@ export default {
 		},
 
 		positionObject: {
+			unknownImageDimensions: 'لا يمكن وضع الكائنات: حجم صورة المسرح غير معروف. أضف العرض والارتفاع إلى الصورة، أو قدّم أبعاد الأصل.',
 			instruction: 'اسحب الكائنات على الصورة',
 			placeObject: 'ضع {object} على الصورة',
 			removeObject: 'إزالة {object}',
@@ -641,6 +643,7 @@ export default {
 		},
 
 		graphicOrder: {
+			unknownImageDimensions: 'لا يمكن عرض المناطق: حجم الصورة غير معروف. أضف العرض والارتفاع إلى الصورة، أو قدّم أبعاد الأصل.',
 			instruction: 'انقر على النقاط الساخنة لترتيبها',
 			diagramLabel: 'مخطط الترتيب',
 			altText: 'مخطط الترتيب',
@@ -679,6 +682,7 @@ export default {
 		},
 
 		graphicAssociate: {
+			unknownImageDimensions: 'لا يمكن عرض هذه الاقترانية المصوّرة: حجم الصورة غير معروف، لذلك لا يمكن وضع المناطق الساخنة. أضف العرض والارتفاع إلى الصورة، أو قدّم أبعاد الأصل.',
 			imageFallback: 'صورة هذا السؤال',
 			imageLoadError: 'تعذّر تحميل الصورة.',
 			unlabeledHotspot: 'المنطقة {index}',

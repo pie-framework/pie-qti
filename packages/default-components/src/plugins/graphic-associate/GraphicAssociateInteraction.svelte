@@ -48,16 +48,31 @@
 	const parsedCorrectResponse = $derived(shell.correctResponse);
 	const isShowingCorrect = $derived(shell.isShowingCorrect);
 	const correctPairs = $derived(Array.isArray(parsedCorrectResponse) ? parsedCorrectResponse : []);
-	// The stage's pixel space (shared ImageStage, `fallback-strict` sizing while the
-	// declared→natural→refuse rule lands for this interaction too). Hotspots are
-	// positioned in percentages of it, so the stage scales with its container (WCAG 1.4.10).
-	let imageWidth = $state(0);
-	let imageHeight = $state(0);
+	// The stage's pixel space (shared ImageStage): the image's declared width/height,
+	// else a raster image's natural size once loaded, else unknown — the hotspots are
+	// positioned in percentages of it, so unknown means no stage is drawn (a default
+	// would associate in a guessed space). The stage scales with its container (WCAG 1.4.10).
+	let imageWidth = $state<number | null>(null);
+	let imageHeight = $state<number | null>(null);
 	let imageFailed = $state(false);
+	let awaitingNaturalSize = $state(false);
 
-	const stageStyle = $derived(`max-width: calc(${imageWidth}px + 4px);`);
+	const stageStyle = $derived(`max-width: calc(${imageWidth ?? 0}px + 4px);`);
 
 	const imageData = $derived(parsedInteraction?.imageData ?? null);
+	const hasImageDimensions = $derived(imageWidth !== null && imageHeight !== null);
+	const missingDimensions = $derived(!!imageData && !hasImageDimensions && !awaitingNaturalSize);
+	const showDiagnostics = $derived(role !== 'candidate');
+
+	let warnedMissingDimensions = false;
+	$effect(() => {
+		if (missingDimensions && !warnedMissingDimensions) {
+			warnedMissingDimensions = true;
+			console.warn(
+				'[pie-qti-graphic-associate] The image has no known width/height, so its hotspots cannot be placed. Add width and height to the image, or supply the asset dimensions.',
+			);
+		}
+	});
 	const imageAlt = $derived(
 		imageAltText(imageData, translate(i18n, 'interactions.graphicAssociate.imageFallback', 'Image for this question')),
 	);
@@ -282,13 +297,13 @@
 	 * image (QTI 3.0 §8.29); a shape whose coords cannot be read has an empty box.
 	 */
 	function hotspotBounds(hotspot: GraphicAssociateHotspot): Bounds {
-		if (hotspot.shape === 'default') return { x: 0, y: 0, width: imageWidth, height: imageHeight };
+		if (hotspot.shape === 'default') return { x: 0, y: 0, width: imageWidth ?? 0, height: imageHeight ?? 0 };
 		return shapeBounds(hotspot.shape, hotspot.coords) ?? { x: 0, y: 0, width: 0, height: 0 };
 	}
 
 	/** Where an association line meets a hotspot: its shape's centre; the whole image's for the default shape. */
 	function hotspotCenter(hotspot: GraphicAssociateHotspot): { x: number; y: number } {
-		if (hotspot.shape === 'default') return { x: imageWidth / 2, y: imageHeight / 2 };
+		if (hotspot.shape === 'default') return { x: (imageWidth ?? 0) / 2, y: (imageHeight ?? 0) / 2 };
 		return shapeCenter(hotspot.shape, hotspot.coords);
 	}
 
@@ -302,10 +317,10 @@
 		const bounds = hotspotBounds(hotspot);
 		const pct = (value: number, total: number) => `${((value / total) * 100).toFixed(4)}%`;
 		return [
-			`left: ${pct(bounds.x + bounds.width / 2, imageWidth)}`,
-			`top: ${pct(bounds.y + bounds.height / 2, imageHeight)}`,
-			`width: ${pct(bounds.width, imageWidth)}`,
-			`height: ${pct(bounds.height, imageHeight)}`,
+			`left: ${pct(bounds.x + bounds.width / 2, imageWidth ?? 1)}`,
+			`top: ${pct(bounds.y + bounds.height / 2, imageHeight ?? 1)}`,
+			`width: ${pct(bounds.width, imageWidth ?? 1)}`,
+			`height: ${pct(bounds.height, imageHeight ?? 1)}`,
 			'pointer-events: none',
 		].join('; ');
 	}
@@ -341,6 +356,16 @@
 			</div>
 		{/if}
 
+		{#if missingDimensions && showDiagnostics}
+			<div part="diagnostic" class="alert alert-error qti-ga-diagnostic" role="alert">
+				{translate(
+					i18n,
+					'interactions.graphicAssociate.unknownImageDimensions',
+					'This graphic association cannot be shown: the size of its image is unknown, so the hotspots cannot be placed. Add width and height to the image, or supply the asset dimensions.',
+				)}
+			</div>
+		{/if}
+
 		<div part="layout" class="qti-ga-layout flex flex-col lg:flex-row gap-4">
 			<!-- Image with Hotspots -->
 			<div part="image-area" class="qti-ga-image-area flex-1">
@@ -365,14 +390,14 @@
 						errorPart="image-error"
 						loadErrorText={translate(i18n, 'interactions.graphicAssociate.imageLoadError', 'The image could not be loaded.')}
 						onImageError={warnImageFailed}
-						sizing="fallback-strict"
-						fallbackWidth={500}
-						fallbackHeight={300}
+						sizing="refuse"
 						bind:width={imageWidth}
 						bind:height={imageHeight}
 						bind:failed={imageFailed}
+						bind:awaiting={awaitingNaturalSize}
 					>
 
+					{#if hasImageDimensions}
 					<!-- The hotspots on the image, each in its real shape (QTI 3.0 §5.7.5–5.7.6: the
 					     area its shape and coords describe) with its state: a light halo under the
 					     outline keeps it visible on any image. Visual only — default-shape hotspots
@@ -398,7 +423,9 @@
 							</g>
 						{/each}
 					</svg>
+					{/if}
 
+					{#if hasImageDimensions}
 					<!-- SVG overlay for drawing connection lines (natural image coordinates, scales with the stage) -->
 					<svg
 						part="overlay"
@@ -443,12 +470,16 @@
 							{/each}
 						{/if}
 					</svg>
+					{/if}
 
 					<!-- The hotspot controls: one button per hotspot over its bounding box, for the
 					     keyboard and assistive technology, with its focus indicator. The button takes
 					     no pointer input itself; the shape drawn inside it does (HotspotShape, the
 					     same geometry as the outline), so pointer input hits the real shape and the
-					     press reaches the button. A small shape grows with the button's 24 px minimum. -->
+					     press reaches the button. A small shape grows with the button's 24 px minimum.
+					     Drawn only when the stage's pixel space is known: their boxes are percentages
+					     of it. -->
+					{#if hasImageDimensions}
 					{#each parsedInteraction.associableHotspots as hotspot}
 						{@const isSelected = isHotspotSelected(hotspot.identifier)}
 						{@const isMaxed = isHotspotMaxed(hotspot.identifier)}
@@ -493,6 +524,7 @@
 							</span>
 						</button>
 					{/each}
+					{/if}
 					</ImageStage>
 				</div>
 				{#if imageDescription}

@@ -48,17 +48,33 @@
 	const parsedResponse = $derived(shell.response);
 	const parsedCorrectResponse = $derived(shell.correctResponse);
 	const isShowingCorrect = $derived(shell.isShowingCorrect);
-	// The stage's pixel space (shared ImageStage, `fallback-strict` sizing while the
-	// declared→natural→refuse rule lands for this interaction too).
+	// The stage's pixel space (shared ImageStage): the image's declared width/height,
+	// else a raster image's natural size once loaded, else unknown — the areas live
+	// in that space, so unknown means no overlay is drawn (a default would place
+	// them in a guessed space).
 	let imageWidth = $state<number | null>(null);
 	let imageHeight = $state<number | null>(null);
 	let imageFailed = $state(false);
+	let awaitingNaturalSize = $state(false);
+
+	let warnedMissingDimensions = false;
+	$effect(() => {
+		if (missingDimensions && !warnedMissingDimensions) {
+			warnedMissingDimensions = true;
+			console.warn(
+				'[pie-qti-graphic-order] The image has no known width/height, so its areas cannot be placed. Add width and height to the image, or supply the asset dimensions.',
+			);
+		}
+	});
 
 	// Rendered width of the image, so the area badges keep their CSS size at any image scale.
 	let renderedWidth = $state(0);
 	const renderScale = $derived(imageWidth && renderedWidth > 0 ? renderedWidth / imageWidth : 1);
 
 	const imageData = $derived(parsedInteraction?.imageData ?? null);
+	const hasImageDimensions = $derived(imageWidth !== null && imageHeight !== null);
+	const missingDimensions = $derived(!!imageData && !hasImageDimensions && !awaitingNaturalSize);
+	const showDiagnostics = $derived(role !== 'candidate');
 	const imageAlt = $derived(
 		imageAltText(imageData, translate(i18n, 'interactions.graphicOrder.imageFallback', 'Image for this question')),
 	);
@@ -232,6 +248,16 @@
 			</div>
 		{/if}
 
+		{#if missingDimensions && showDiagnostics}
+			<div part="diagnostic" class="alert alert-error qti-go-diagnostic" role="alert">
+				{translate(
+					i18n,
+					'interactions.graphicOrder.unknownImageDimensions',
+					'The areas cannot be shown: the size of the image is unknown. Add width and height to the image, or supply the asset dimensions.',
+				)}
+			</div>
+		{/if}
+
 		<div part="layout" class="qti-go-layout flex flex-col gap-4">
 			<!-- Image Area -->
 			<div part="image-area" class="qti-go-image-area">
@@ -253,13 +279,12 @@
 							errorPart="image-error"
 							loadErrorText={translate(i18n, 'interactions.graphicOrder.imageLoadError', 'The image could not be loaded.')}
 							onImageError={warnImageFailed}
-							sizing="fallback-strict"
-							fallbackWidth={500}
-							fallbackHeight={300}
+							sizing="refuse"
 							reportWidth
 							bind:width={imageWidth}
 							bind:height={imageHeight}
 							bind:failed={imageFailed}
+							bind:awaiting={awaitingNaturalSize}
 							bind:renderedWidth
 						>
 							<!-- The areas the candidate orders, on the image (QTI 3.0 §5.61: "The delivery
@@ -268,7 +293,7 @@
 							     Visual only: the list is what the keyboard and assistive technology use,
 							     so the overlay is hidden from both and takes no pointer input. It covers
 							     exactly the image, in its natural pixel space, and scales with it. -->
-							{#if !imageFailed && (imageData.content || imageData.src)}
+							{#if hasImageDimensions && !imageFailed && (imageData.content || imageData.src)}
 								<svg
 									part="overlay"
 									class="qti-go-overlay"

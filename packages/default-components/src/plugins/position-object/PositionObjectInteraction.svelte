@@ -101,16 +101,32 @@
 	const parsedResponse = $derived(shell.response);
 	const parsedCorrectResponse = $derived(shell.correctResponse);
 	const isShowingCorrect = $derived(shell.isShowingCorrect);
-	// The stage's pixel space (shared ImageStage, `fallback-strict` sizing while the
-	// declared→natural→refuse rule lands for this interaction too). Points live in it.
-	let imageWidth = $state(0);
-	let imageHeight = $state(0);
+	// The stage's pixel space (shared ImageStage): the stage image's declared
+	// width/height, else a raster image's natural size once loaded, else unknown —
+	// QTI points live in that space, so unknown means nothing is placed (a default
+	// would score placements in a guessed space).
+	let imageWidth = $state<number | null>(null);
+	let imageHeight = $state<number | null>(null);
 	let imageFailed = $state(false);
+	let awaitingNaturalSize = $state(false);
 	// The authored reference point (QTI centerPoint), in object image pixels from
 	// its top-left; null means the QTI default, the object's centre.
 	const centerPoint = $derived(validCenterPoint(parsedInteraction?.centerPoint));
 
 	const imageData = $derived(parsedInteraction?.imageData ?? null);
+	const hasImageDimensions = $derived(imageWidth !== null && imageHeight !== null);
+	const missingDimensions = $derived(!!imageData && !hasImageDimensions && !awaitingNaturalSize);
+	const showDiagnostics = $derived(role !== 'candidate');
+
+	let warnedMissingDimensions = false;
+	$effect(() => {
+		if (missingDimensions && !warnedMissingDimensions) {
+			warnedMissingDimensions = true;
+			console.warn(
+				'[pie-qti-position-object] The stage image has no known width/height, so objects cannot be placed correctly. Add width and height to the image, or supply the asset dimensions.',
+			);
+		}
+	});
 	const imageAlt = $derived(
 		imageAltText(imageData, translate(i18n, 'interactions.positionObject.imageFallback', 'Image for this question')),
 	);
@@ -259,8 +275,8 @@
 	 * rounds (see emitPositions).
 	 */
 	function stagePointFromClient(clientX: number, clientY: number): { x: number; y: number } | null {
-		if (!imageContainer) return null;
-		return clientToImagePoint(clientX, clientY, imageContainer.getBoundingClientRect(), imageWidth, imageHeight, {
+		if (!imageContainer || !hasImageDimensions) return null;
+		return clientToImagePoint(clientX, clientY, imageContainer.getBoundingClientRect(), imageWidth ?? 0, imageHeight ?? 0, {
 			round: false,
 		});
 	}
@@ -268,7 +284,7 @@
 	/** Place a new instance of `stageId` with its reference point at (x, y). */
 	function placeStageAt(stageId: string, x: number, y: number): boolean {
 		const stage = getStageById(stageId);
-		if (!stage) return false;
+		if (!stage || !hasImageDimensions) return false;
 		if (isStageAtLimit(stage)) return false;
 		if (!canAddMore) return false;
 		positions = [...positions, { stageId, x, y }];
@@ -311,7 +327,7 @@
 
 			const stage = getStageById(stageId);
 			if (stage?.objectData) {
-				const renderScale = imageContainer ? imageContainer.getBoundingClientRect().width / imageWidth || 1 : 1;
+				const renderScale = imageContainer ? imageContainer.getBoundingClientRect().width / (imageWidth ?? 1) || 1 : 1;
 				const width = objectDimension(stage.objectData.width) * renderScale;
 				const height = objectDimension(stage.objectData.height) * renderScale;
 
@@ -431,12 +447,12 @@
 	 * reference point so that point (not the corner) lands on the recorded point.
 	 */
 	function objectBoxStyle(stage: PositionObjectStage, position: { x: number; y: number }, zIndex: number): string {
-		const width = stage.objectData ? `${(objectDimension(stage.objectData.width) / imageWidth) * 100}%` : 'auto';
-		const height = stage.objectData ? `${(objectDimension(stage.objectData.height) / imageHeight) * 100}%` : 'auto';
+		const width = stage.objectData ? `${(objectDimension(stage.objectData.width) / (imageWidth ?? 1)) * 100}%` : 'auto';
+		const height = stage.objectData ? `${(objectDimension(stage.objectData.height) / (imageHeight ?? 1)) * 100}%` : 'auto';
 		const reference = referenceFraction(stage);
 		return [
-			`left: ${(position.x / imageWidth) * 100}%`,
-			`top: ${(position.y / imageHeight) * 100}%`,
+			`left: ${(position.x / (imageWidth ?? 1)) * 100}%`,
+			`top: ${(position.y / (imageHeight ?? 1)) * 100}%`,
 			`width: ${width}`,
 			`height: ${height}`,
 			`z-index: ${zIndex}`,
@@ -457,7 +473,7 @@
 	 * Select a palette object for placement and move focus to the canvas.
 	 */
 	async function activateKeyboardPlacement(stageId: string) {
-		if (!canInteract) return;
+		if (!canInteract || !hasImageDimensions) return;
 		const stage = getStageById(stageId);
 		if (!stage || !canDragStage(stageId)) return;
 
@@ -467,7 +483,7 @@
 		// Initialise crosshair to the stage's last placed position, or centre
 		const existing = [...positions].reverse().find((p: Position) => p.stageId === stageId);
 		if (existing) {
-			crosshair.jumpTo(existing.x / imageWidth, existing.y / imageHeight);
+			crosshair.jumpTo(existing.x / (imageWidth ?? 1), existing.y / (imageHeight ?? 1));
 		} else {
 			crosshair.centre();
 		}
@@ -505,8 +521,8 @@
 		}
 		liveMessage = translate(i18n, 'interactions.positionObject.objectPlacedAt', '{object} placed at {x}%, {y}%.', {
 			object: stageName(stage),
-			x: percent(x, imageWidth),
-			y: percent(y, imageHeight),
+			x: percent(x, imageWidth ?? 0),
+			y: percent(y, imageHeight ?? 0),
 		});
 		selectedStageId = null;
 		crosshair.deactivate();
@@ -518,7 +534,7 @@
 	function placeAtCrosshair() {
 		if (!selectedStageId || !parsedInteraction?.imageData) return;
 		// Unrounded here: the emission step rounds (see emitPositions).
-		finishPlacement(selectedStageId, crosshair.x * imageWidth, crosshair.y * imageHeight);
+		finishPlacement(selectedStageId, crosshair.x * (imageWidth ?? 0), crosshair.y * (imageHeight ?? 0));
 	}
 
 	/** Single-pointer alternative to dragging (WCAG 2.5.7): click/tap the canvas to place the selected object. */
@@ -578,6 +594,16 @@
 			</div>
 		{/if}
 
+		{#if missingDimensions && showDiagnostics}
+			<div part="diagnostic" class="alert alert-error qti-po-diagnostic" role="alert">
+				{translate(
+					i18n,
+					'interactions.positionObject.unknownImageDimensions',
+					'Objects cannot be placed: the size of the stage image is unknown. Add width and height to the image, or supply the asset dimensions.',
+				)}
+			</div>
+		{/if}
+
 		<div part="layout" class="qti-po-layout flex flex-col lg:flex-row gap-4 items-start">
 			<!-- Canvas Area with Background Image -->
 			<div part="canvas-area" class="qti-po-canvas-area flex-1 min-w-0">
@@ -619,12 +645,11 @@
 						errorPart="image-error"
 						loadErrorText={translate(i18n, 'interactions.positionObject.imageLoadError', 'The image could not be loaded.')}
 						onImageError={warnImageFailed}
-						sizing="fallback-strict"
-						fallbackWidth={800}
-						fallbackHeight={600}
+						sizing="refuse"
 						bind:width={imageWidth}
 						bind:height={imageHeight}
 						bind:failed={imageFailed}
+						bind:awaiting={awaitingNaturalSize}
 						bind:container={imageContainer}
 					>
 
@@ -646,8 +671,8 @@
 										translate(i18n, 'accessibility.sentence', '{text}.', {
 											text: translate(i18n, 'interactions.positionObject.placedAtPercent', '{label} at {x}%, {y}%', {
 												label: stageName(stage),
-												x: percent(position.x, imageWidth),
-												y: percent(position.y, imageHeight),
+												x: percent(position.x, imageWidth ?? 0),
+												y: percent(position.y, imageHeight ?? 0),
 											}),
 										}),
 										isCorrect && translate(i18n, 'accessibility.correctPosition', 'Correct position.'),
@@ -724,8 +749,8 @@
 										role="img"
 										aria-label={translate(i18n, 'interactions.positionObject.correctPositionAtPercent', 'Correct position for {label}: {x}%, {y}%', {
 											label: stageName(stage),
-											x: percent(correctPos.x, imageWidth),
-											y: percent(correctPos.y, imageHeight),
+											x: percent(correctPos.x, imageWidth ?? 0),
+											y: percent(correctPos.y, imageHeight ?? 0),
 										})}
 									>
 										{#if stage.objectData}

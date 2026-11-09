@@ -67,22 +67,18 @@ function readCenterPoint(
 function imageDataFromObject(
 	objectElement: QTIElement | undefined,
 	context: Parameters<ElementExtractor<PositionObjectData>['extract']>[1],
-	defaultWidth: string,
-	defaultHeight: string,
+	fallback?: { width: string; height: string },
 ): ImageData | null {
 	if (!objectElement) return null;
 
 	const { utils, dom } = context;
 	const type = utils.getAttribute(objectElement, 'type', '');
 	const data = utils.getAttribute(objectElement, 'data', '');
-	const width = normalizePixelDimension(
-		utils.getAttribute(objectElement, 'width', ''),
-		defaultWidth,
-	);
-	const height = normalizePixelDimension(
-		utils.getAttribute(objectElement, 'height', ''),
-		defaultHeight,
-	);
+	// The pixel space is the authored width/height, when declared (the stage's
+	// natural size stands in when it is not). A `fallback` keeps a box size that
+	// is not a scoring space (the draggable object's 50×50).
+	const width = normalizePixelDimension(utils.getAttribute(objectElement, 'width', ''), fallback?.width);
+	const height = normalizePixelDimension(utils.getAttribute(objectElement, 'height', ''), fallback?.height);
 	const content = utils.getHtmlContent(objectElement);
 
 	if (type.startsWith('image/svg') && /<svg[\s>]/i.test(content)) {
@@ -128,8 +124,8 @@ export const standardPositionObjectExtractor: ElementExtractor<PositionObjectDat
 
 		const backgroundObject = stage ? utils.getChildrenByTag(stage, 'object')[0] : undefined;
 		const draggableObject = utils.getChildrenByTag(element, 'object')[0];
-		const imageData = imageDataFromObject(backgroundObject, context, '500', '300');
-		const objectData = imageDataFromObject(draggableObject, context, '50', '50');
+		const imageData = imageDataFromObject(backgroundObject, context);
+		const objectData = imageDataFromObject(draggableObject, context, { width: '50', height: '50' });
 		const maxChoices = utils.getNumberAttribute(element, 'maxChoices', 1);
 		const minChoices = utils.getNumberAttribute(element, 'minChoices', 0);
 		// The draggable object's authored alternative names it. No identifier

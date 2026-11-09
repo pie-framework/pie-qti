@@ -188,8 +188,10 @@ describe('standardPositionObjectExtractor', () => {
 			</positionObjectStage>
 		`);
 
-		expect(result.imageData?.width).toBe('500');
-		expect(result.imageData?.height).toBe('300');
+		// The stage's pixel space stays the image's own: a default would place points
+		// in a guessed space. The draggable object keeps its 50×50 fallback box.
+		expect(result.imageData?.width).toBeUndefined();
+		expect(result.imageData?.height).toBeUndefined();
 		expect(result.positionObjectStages[0].objectData?.width).toBe('50');
 		expect(result.positionObjectStages[0].objectData?.height).toBe('50');
 		expect(JSON.stringify(result)).not.toContain('tracker.test');

@@ -86,7 +86,7 @@ describe('standardGraphicAssociateExtractor', () => {
 		expect(result.maxAssociations).toBe(5);
 	});
 
-	test('uses default values when attributes are missing', () => {
+	test('keeps hotspot defaults but invents no image dimensions when attributes are missing', () => {
 		const xml = `
 			<graphicAssociateInteraction responseIdentifier="RESPONSE">
 				<object data="test.png" type="image/png"/>
@@ -101,8 +101,10 @@ describe('standardGraphicAssociateExtractor', () => {
 
 		expect(result.maxAssociations).toBe(1);
 		expect(result.minAssociations).toBe(0);
-		expect(result.imageData?.width).toBe('500');
-		expect(result.imageData?.height).toBe('300');
+		// The stage's pixel space stays the image's own: a default would place the
+		// hotspots in a guessed space. The renderer stages the raster at its natural size.
+		expect(result.imageData?.width).toBeUndefined();
+		expect(result.imageData?.height).toBeUndefined();
 		expect(result.associableHotspots[0].shape).toBe('rect');
 		expect(result.associableHotspots[0].coords).toBe('0,0,50,50');
 		expect(result.associableHotspots[0].matchMax).toBe(1);

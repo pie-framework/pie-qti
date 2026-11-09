@@ -243,6 +243,7 @@ export default {
 		},
 
 		selectPoint: {
+			unknownImageDimensions: 'Esta interacción de selección de puntos no puede mostrarse: el tamaño de su imagen es desconocido, por lo que no se pueden colocar puntos correctamente. Añade ancho y alto a la imagen, o indica las dimensiones del archivo.',
 			instruction: 'Haz clic en la imagen para seleccionar puntos',
 			instructionAria: 'Haz clic para seleccionar puntos en la imagen',
 			maxPointsReached: 'Número máximo de puntos alcanzado. Elimina un punto para agregar uno nuevo.',
@@ -458,6 +459,7 @@ export default {
 		},
 
 		positionObject: {
+			unknownImageDimensions: 'No se pueden colocar los objetos: el tamaño de la imagen del escenario es desconocido. Añade ancho y alto a la imagen, o indica las dimensiones del archivo.',
 			instruction: 'Arrastra objetos sobre la imagen',
 			placeObject: 'Colocar {object} en la imagen',
 			removeObject: 'Eliminar {object}',
@@ -549,6 +551,7 @@ export default {
 		},
 
 		graphicOrder: {
+			unknownImageDimensions: 'No se pueden mostrar las áreas: el tamaño de la imagen es desconocido. Añade ancho y alto a la imagen, o indica las dimensiones del archivo.',
 			instruction: 'Haz clic en puntos activos para ordenarlos',
 			diagramLabel: 'Diagrama de ordenamiento',
 			altText: 'Diagrama de ordenamiento',
@@ -578,6 +581,7 @@ export default {
 		},
 
 		graphicAssociate: {
+			unknownImageDimensions: 'Esta asociación gráfica no puede mostrarse: el tamaño de su imagen es desconocido, por lo que no se pueden colocar las zonas activas. Añade ancho y alto a la imagen, o indica las dimensiones del archivo.',
 			imageFallback: 'Imagen de esta pregunta',
 			imageLoadError: 'No se pudo cargar la imagen.',
 			unlabeledHotspot: 'Región {index}',

@@ -242,6 +242,7 @@ export default {
 		},
 
 		selectPoint: {
+			unknownImageDimensions: 'Cette interaction de sélection de points ne peut pas être affichée : la taille de son image est inconnue, les points ne peuvent donc pas être placés correctement. Ajoutez une largeur et une hauteur à l\'image, ou fournissez les dimensions du fichier.',
 			instruction: 'Cliquez sur l\'image pour sélectionner des points',
 			instructionAria: 'Cliquez pour sélectionner des points sur l\'image',
 			maxPointsReached: 'Nombre maximum de points atteint. Supprimez un point pour en ajouter un nouveau.',
@@ -457,6 +458,7 @@ export default {
 		},
 
 		positionObject: {
+			unknownImageDimensions: 'Les objets ne peuvent pas être placés : la taille de l\'image de la scène est inconnue. Ajoutez une largeur et une hauteur à l\'image, ou fournissez les dimensions du fichier.',
 			instruction: 'Faites glisser les objets sur l\'image',
 			placeObject: 'Placer {object} sur l\'image',
 			removeObject: 'Supprimer {object}',
@@ -548,6 +550,7 @@ export default {
 		},
 
 		graphicOrder: {
+			unknownImageDimensions: 'Les zones ne peuvent pas être affichées : la taille de l\'image est inconnue. Ajoutez une largeur et une hauteur à l\'image, ou fournissez les dimensions du fichier.',
 			instruction: 'Cliquez sur les zones sensibles pour les ordonner',
 			diagramLabel: 'Diagramme d\'ordre',
 			altText: 'Diagramme d\'ordre',
@@ -577,6 +580,7 @@ export default {
 		},
 
 		graphicAssociate: {
+			unknownImageDimensions: 'Cette association graphique ne peut pas être affichée : la taille de son image est inconnue, les zones réactives ne peuvent donc pas être placées. Ajoutez une largeur et une hauteur à l\'image, ou fournissez les dimensions du fichier.',
 			imageFallback: 'Image de cette question',
 			imageLoadError: 'L\'image n\'a pas pu être chargée.',
 			unlabeledHotspot: 'Région {index}',
