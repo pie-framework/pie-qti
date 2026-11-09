@@ -188,7 +188,7 @@ const IMAGE_ALTERNATIVES = `<?xml version="1.0" encoding="UTF-8"?>
       <associableHotspot identifier="IMG_ALT_GA_RIGHT_ZONE" shape="rect" coords="190,10,350,150" matchMax="1" hotspotLabel="Right zone">Right zone</associableHotspot>
     </graphicAssociateInteraction>
 
-    <graphicGapMatchInteraction responseIdentifier="GRAPHIC_GAP_MATCH_IMG_ALT">
+    <graphicGapMatchInteraction responseIdentifier="GRAPHIC_GAP_MATCH_IMG_ALT" maxAssociations="2">
       <prompt>Graphic gap match: drop each label on its zone.</prompt>
       <object type="image/svg+xml" width="360" height="160">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 160">

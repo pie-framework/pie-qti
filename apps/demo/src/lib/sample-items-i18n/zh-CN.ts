@@ -669,7 +669,7 @@ export const ITEMS_ZH_CN: Record<string, LocalizedItemData> = {
 
   <itemBody>
     <p>我们太阳系的内行星是离太阳最近的四颗岩石行星：水星、金星、地球和火星。</p>
-    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="4">
       <prompt>标记太阳系中的四颗内行星</prompt>
       <object type="image/svg+xml" width="800" height="400">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">

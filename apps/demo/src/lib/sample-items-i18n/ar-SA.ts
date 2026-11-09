@@ -670,7 +670,7 @@ export const ITEMS_AR_SA: Record<string, LocalizedItemData> = {
 
   <itemBody>
     <p>الكواكب الداخلية لنظامنا الشمسي هي الكواكب الصخرية الأربعة الأقرب إلى الشمس: عطارد، الزهرة، الأرض، والمريخ.</p>
-    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="4">
       <prompt>ضع اسم الكواكب الداخلية الأربعة في نظامنا الشمسي</prompt>
       <object type="image/svg+xml" width="800" height="400">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">

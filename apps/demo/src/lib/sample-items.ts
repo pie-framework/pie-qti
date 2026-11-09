@@ -1117,7 +1117,7 @@ export const GRAPHIC_GAP_MATCH_INTERACTION = `<?xml version="1.0" encoding="UTF-
 
   <itemBody>
     <p>The International Air Transport Association assigns three-letter codes to identify airports worldwide. For example, London Heathrow has code LHR.</p>
-    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="3">
       <prompt>Some of the labels on the following diagram are missing: can you identify the correct three-letter codes for the unlabelled airports?</prompt>
       <object type="image/svg+xml" width="206" height="280">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 206 280">
@@ -1195,7 +1195,7 @@ export const GRAPHIC_GAP_MATCH_SOLAR_SYSTEM = `<?xml version="1.0" encoding="UTF
 
   <itemBody>
     <p>The inner planets of our solar system are the four rocky planets closest to the Sun: Mercury, Venus, Earth, and Mars.</p>
-    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="4">
       <prompt>Label the four inner planets in our solar system</prompt>
       <object type="image/svg+xml" width="800" height="400">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">
@@ -1343,7 +1343,7 @@ export const GRAPHIC_GAP_MATCH_DIGESTIVE_SYSTEM = `<?xml version="1.0" encoding=
 
   <itemBody>
     <p>The digestive system breaks down food into nutrients that the body can absorb and use for energy, growth, and cell repair.</p>
-    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="6">
       <prompt>Label the major organs of the human digestive system</prompt>
       <object type="image/svg+xml" width="400" height="600">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600">
@@ -1440,7 +1440,7 @@ export const GRAPHIC_GAP_MATCH_SKELETON = `<?xml version="1.0" encoding="UTF-8"?
 
   <itemBody>
     <p>The human skeleton provides structure, protects organs, and enables movement. An adult human has 206 bones.</p>
-    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="6">
       <prompt>Label the major bones of the human skeleton</prompt>
       <object type="image/svg+xml" width="300" height="600">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 600">
@@ -1548,7 +1548,7 @@ export const GRAPHIC_GAP_MATCH_PLANT_CELL = `<?xml version="1.0" encoding="UTF-8
 
   <itemBody>
     <p>Plant cells have several specialized structures that distinguish them from animal cells, including a cell wall, chloroplasts, and a large central vacuole.</p>
-    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="5">
       <prompt>Label the major structures of a plant cell</prompt>
       <object type="image/svg+xml" width="500" height="400">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 400">
@@ -1648,7 +1648,7 @@ export const GRAPHIC_GAP_MATCH_WATER_CYCLE = `<?xml version="1.0" encoding="UTF-
 
   <itemBody>
     <p>The water cycle describes how water evaporates from the surface of the earth, rises into the atmosphere, cools and condenses into clouds, and falls back to the surface as precipitation.</p>
-    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="5">
       <prompt>Label the stages of the water cycle</prompt>
       <object type="image/svg+xml" width="600" height="400">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400">
@@ -1776,7 +1776,7 @@ export const GRAPHIC_GAP_MATCH_EARTH_LAYERS = `<?xml version="1.0" encoding="UTF
 
   <itemBody>
     <p>Earth is composed of four main layers: the inner core, outer core, mantle, and crust. Each layer has distinct physical and chemical properties.</p>
-    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="4">
       <prompt>Label the layers of the Earth</prompt>
       <object type="image/svg+xml" width="500" height="500">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
