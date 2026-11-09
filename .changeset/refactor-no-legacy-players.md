@@ -1,0 +1,17 @@
+---
+'@pie-qti/assessment-player': patch
+'@pie-qti/section-player': patch
+'@pie-qti/player-elements': patch
+'@pie-qti/i18n': patch
+---
+
+No-legacy removals in the assessment and section players (legacy audit items A1 to A4). The project is pre-1.0 and keeps no compatibility paths for its own earlier APIs, wire shapes or stored formats. Spec-conformant delivery, scoring, timing and test feedback behave as before.
+
+**Breaking:**
+
+- **`FinalizeAssessmentResponse.feedback` is gone** from `@pie-qti/assessment-player`, and so from `QtiAssessmentFinalizeResponse` in `@pie-qti/player-elements`, which aliases it. The contract documented it as "legacy: single string; prefer outcomes + assessment.testFeedback". For a test without `testFeedback`, the player showed that string as one synthetic end-of-test feedback entry. Test feedback now comes only from the test's and its test parts' `testFeedback` blocks, evaluated against the outcomes the backend returns. To migrate a backend that answered `finalizeAssessment` with a feedback string, author the text as `testFeedback` in the assessmentTest and return the test-level `outcomes` that select it. `SubmitItemResponse.feedback` (the per-item `FeedbackItem[]`) is unchanged.
+- **The reference backend no longer rebuilds an item's test-level state from its stored score** (`ReferenceBackendAdapter`). Sessions it stored before item test states existed (earlier beta builds) hold only `itemScores` for their submitted items. Outcome processing used to rebuild those items' variables from the scores, count them as responded from their raw responses, and infer correctness from SCORE and MAXSCORE. Such items now reach outcome processing as presented with only their SCORE: not responded, neither correct nor incorrect. Their scores still count toward the totals. Sessions stored by current builds are unaffected. A submission whose response processing fails still counts as presented, and as responded when the candidate gave a response, as before.
+- **`responseInvalid` is no longer an `AssessmentPlayerErrorCode`.** The `@pie-qti/i18n` catalogs no longer carry its message (`assessment.errors.codes.responseInvalid`) in any of the eight locales, and `MessageKey` no longer includes that key. Nothing has thrown the code since navigation stopped gating on response validity (cleanup phase 1): invalid responses are refused at submission, with `attemptValidationFailed`, `finalizeResponseInvalid` or `leavePartResponseInvalid`. Drop the code from any `switch` and the key from catalog overrides.
+- **`@pie-qti/section-player` no longer maps the pre-1.0 toolkit TTS provider shape.** A `textToSpeech` tool's `provider` now applies over the section player's defaults as given. To migrate, name the backend with `backend` (`'server'` or `'browser'`) and the server with `serverProvider` instead of a string `provider`, move `settings` keys to the top level, and use `endpointValidationMode: 'none'` instead of `validateEndpoint: false`. The old keys now reach the toolkit unchanged, and the toolkit rejects a string `provider`.
+
+Also removed, internal to `@pie-qti/assessment-player` and never reachable from its entry points: `TimeManagerConfig.warningThreshold`, which was kept "for compatibility" and merged into `warningThresholds`. The player now passes the whole warning list, so `TimeManager` fires exactly the thresholds it is given. The host options are unchanged: `timeWarningThreshold` (default 60) sets the default warning and `timeWarningThresholds` adds to it.
