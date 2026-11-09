@@ -206,7 +206,7 @@ describe('checkCurrentItem', () => {
 		// The non-adaptive item reopened writable with the outcomes restored, so the
 		// integrated feedback renders while the candidate revises.
 		const session = player.getCurrentItemSession();
-		expect(['initial', 'interacting']).toContain(session?.state().lifecycleStatus);
+		expect(session?.state().lifecycleStatus).toBeOneOf(['initial', 'interacting']);
 		expect(session?.state().outcomes.FEEDBACK).toBe('incorrect');
 	});
 
@@ -273,7 +273,7 @@ describe('checkCurrentItem', () => {
 		// Back to the checked item (allowReview default): it reopens attemptable, not closed.
 		await player.navigateTo(0);
 		const session = player.getCurrentItemSession();
-		expect(['initial', 'interacting']).toContain(session?.state().lifecycleStatus);
+		expect(session?.state().lifecycleStatus).toBeOneOf(['initial', 'interacting']);
 		expect(player.getCheckAnswerState()).toMatchObject({
 			available: true,
 			attemptsUsed: 1,

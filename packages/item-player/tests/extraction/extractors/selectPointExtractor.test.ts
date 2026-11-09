@@ -4,7 +4,8 @@
 
 import { describe, expect, test } from 'bun:test';
 import { Player } from '../../../src/core/Player.js';
-import { standardSelectPointExtractor } from '../../../src/interactions/select-point/extractor.js';
+import { type SelectPointData, standardSelectPointExtractor } from '../../../src/interactions/select-point/extractor.js';
+import type { SelectPointInteractionData } from '../../../src/interactions/shared/types.js';
 import type { ItemSessionEngineConfig } from '../../../src/types/index.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
@@ -166,7 +167,7 @@ describe('standardSelectPointExtractor', () => {
 						</qti-select-point-interaction>
 					</qti-item-body>
 				</qti-assessment-item>`;
-				const [interaction] = new Player({ itemXml }).getInteractionData() as Array<{ maxChoices: number }>;
+				const [interaction] = new Player({ itemXml }).getInteractionData() as readonly SelectPointInteractionData[];
 				expect(interaction?.maxChoices).toBe(0);
 			});
 		});
@@ -236,7 +237,7 @@ describe('standardSelectPointExtractor', () => {
 
 	describe('validation', () => {
 		test('validates correct selectPoint data', () => {
-			const data = {
+			const data: SelectPointData = {
 				maxChoices: 1,
 				minChoices: 0,
 				imageData: { type: 'image', src: 'test.png', width: '500', height: '400' },
@@ -250,7 +251,7 @@ describe('standardSelectPointExtractor', () => {
 		});
 
 		test('reports error when minChoices > maxChoices', () => {
-			const data = {
+			const data: SelectPointData = {
 				maxChoices: 1,
 				minChoices: 3,
 				imageData: { type: 'image', src: 'test.png', width: '500', height: '400' },
@@ -264,7 +265,7 @@ describe('standardSelectPointExtractor', () => {
 		});
 
 		test('reports error for negative maxChoices', () => {
-			const data = {
+			const data: SelectPointData = {
 				maxChoices: -1,
 				minChoices: 0,
 				imageData: { type: 'image', src: 'test.png', width: '500', height: '400' },
@@ -278,7 +279,7 @@ describe('standardSelectPointExtractor', () => {
 		});
 
 		test('allows maxChoices=0 (means unlimited per QTI spec)', () => {
-			const data = {
+			const data: SelectPointData = {
 				maxChoices: 0,
 				minChoices: 0,
 				imageData: { type: 'image', src: 'test.png', width: '500', height: '400' },
@@ -291,7 +292,7 @@ describe('standardSelectPointExtractor', () => {
 		});
 
 		test('reports warning for missing image data', () => {
-			const data = {
+			const data: SelectPointData = {
 				maxChoices: 1,
 				minChoices: 0,
 				imageData: null,

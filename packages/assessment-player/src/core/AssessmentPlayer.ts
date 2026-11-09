@@ -90,11 +90,6 @@ export interface BackendAssessmentPlayerConfig {
 	backend: BackendAdapter;
 	initSession: InitSessionRequest;
 	role?: QTIRole;
-	/**
-	 * @deprecated Ignored. The backend draws selection and ordering at session start; pass an rng to
-	 * `new ReferenceBackendAdapter({ rng })` for deterministic draws.
-	 */
-	rng?: () => number;
 	/** Definition-lifetime extractor and renderer extensions applied to every item. */
 	plugins?: readonly AssessmentItemDefinitionPlugin[];
 	/**
@@ -3741,7 +3736,8 @@ export class AssessmentPlayer {
 	// Session info + time helpers
 	// ---------------------------------------------------------------------------
 
-	public getItemSessionInfo(_itemIdentifier?: string): {
+	/** The current item's session-control state (attempts, feedback, review, skipping, comments); null before delivery. */
+	public getItemSessionInfo(): {
 		canSubmit: boolean;
 		remainingAttempts: number | null;
 		attemptCount: number;

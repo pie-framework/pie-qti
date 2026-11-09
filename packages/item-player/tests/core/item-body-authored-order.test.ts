@@ -151,7 +151,7 @@ describe.each(VERSIONS)('authored interaction order (%s)', (_version, itemXml) =
 			]);
 			const blanks = paragraphs[3];
 			const inlineSlots = blanks?.querySelectorAll(`[${INTERACTION_SLOT_ATTRIBUTE}]`) ?? [];
-			expect(inlineSlots.map((slot) => slot.getAttribute(INTERACTION_SLOT_ATTRIBUTE))).toEqual([
+			expect(inlineSlots.map((slot) => slot.getAttribute(INTERACTION_SLOT_ATTRIBUTE) ?? null)).toEqual([
 				mountFor(presentation, 'BLANK_1').slot,
 				mountFor(presentation, 'BLANK_2').slot,
 			]);

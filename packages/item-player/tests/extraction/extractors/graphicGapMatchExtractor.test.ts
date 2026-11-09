@@ -5,7 +5,10 @@
 import { describe, expect, test } from 'bun:test';
 import { Player } from '../../../src/core/Player.js';
 import type { GraphicGapMatchInteractionData } from '../../../src/interactions/shared/types.js';
-import { standardGraphicGapMatchExtractor } from '../../../src/interactions/graphic-gap-match/extractor.js';
+import {
+	type GraphicGapMatchData,
+	standardGraphicGapMatchExtractor,
+} from '../../../src/interactions/graphic-gap-match/extractor.js';
 import type { ItemSessionEngineConfig } from '../../../src/types/index.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
@@ -518,7 +521,7 @@ describe('standardGraphicGapMatchExtractor', () => {
 
 	describe('validation', () => {
 		test('validates correct graphicGapMatch data', () => {
-			const data = {
+			const data: GraphicGapMatchData = {
 				gapTexts: [
 					{ identifier: 'T1', text: 'Label 1', matchMax: 1 },
 					{ identifier: 'T2', text: 'Label 2', matchMax: 1 },
@@ -527,7 +530,9 @@ describe('standardGraphicGapMatchExtractor', () => {
 					{ identifier: 'H1', shape: 'rect', coords: '0,0,100,100', matchMax: 1 },
 					{ identifier: 'H2', shape: 'circle', coords: '200,200,50', matchMax: 1 },
 				],
-				imageData: { type: 'image', src: 'test.png', width: '500', height: '400' },
+				imageData: { type: 'image', src: 'test.png', width: 500, height: 400 },
+				gapImages: [],
+				maxAssociations: 1,
 				prompt: null,
 			};
 
@@ -538,10 +543,12 @@ describe('standardGraphicGapMatchExtractor', () => {
 		});
 
 		test('reports error for empty gapTexts', () => {
-			const data = {
+			const data: GraphicGapMatchData = {
 				gapTexts: [],
 				hotspots: [{ identifier: 'H1', shape: 'rect', coords: '0,0,100,100', matchMax: 1 }],
-				imageData: { type: 'image', src: 'test.png', width: '500', height: '400' },
+				imageData: { type: 'image', src: 'test.png', width: 500, height: 400 },
+				gapImages: [],
+				maxAssociations: 1,
 				prompt: null,
 			};
 
@@ -552,10 +559,12 @@ describe('standardGraphicGapMatchExtractor', () => {
 		});
 
 		test('reports error for empty hotspots', () => {
-			const data = {
+			const data: GraphicGapMatchData = {
 				gapTexts: [{ identifier: 'T1', text: 'Label', matchMax: 1 }],
 				hotspots: [],
-				imageData: { type: 'image', src: 'test.png', width: '500', height: '400' },
+				imageData: { type: 'image', src: 'test.png', width: 500, height: 400 },
+				gapImages: [],
+				maxAssociations: 1,
 				prompt: null,
 			};
 
@@ -566,13 +575,15 @@ describe('standardGraphicGapMatchExtractor', () => {
 		});
 
 		test('reports error for duplicate gapText identifiers', () => {
-			const data = {
+			const data: GraphicGapMatchData = {
 				gapTexts: [
 					{ identifier: 'T1', text: 'Label 1', matchMax: 1 },
 					{ identifier: 'T1', text: 'Label 2', matchMax: 1 },
 				],
 				hotspots: [{ identifier: 'H1', shape: 'rect', coords: '0,0,100,100', matchMax: 1 }],
-				imageData: { type: 'image', src: 'test.png', width: '500', height: '400' },
+				imageData: { type: 'image', src: 'test.png', width: 500, height: 400 },
+				gapImages: [],
+				maxAssociations: 1,
 				prompt: null,
 			};
 
@@ -583,13 +594,15 @@ describe('standardGraphicGapMatchExtractor', () => {
 		});
 
 		test('reports error for duplicate hotspot identifiers', () => {
-			const data = {
+			const data: GraphicGapMatchData = {
 				gapTexts: [{ identifier: 'T1', text: 'Label', matchMax: 1 }],
 				hotspots: [
 					{ identifier: 'H1', shape: 'rect', coords: '0,0,100,100', matchMax: 1 },
 					{ identifier: 'H1', shape: 'circle', coords: '200,200,50', matchMax: 1 },
 				],
-				imageData: { type: 'image', src: 'test.png', width: '500', height: '400' },
+				imageData: { type: 'image', src: 'test.png', width: 500, height: 400 },
+				gapImages: [],
+				maxAssociations: 1,
 				prompt: null,
 			};
 

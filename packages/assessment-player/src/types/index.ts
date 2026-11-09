@@ -6,7 +6,6 @@
  */
 
 export type QTIRole = import('@pie-qti/item-player').QTIRole;
-export type ResolvedItemDeliveryContext = import('@pie-qti/item-player').ResolvedItemDeliveryContext;
 export type OutcomeProcessingError = import('../integration/api-contract.js').OutcomeProcessingError;
 
 /**
@@ -27,19 +26,6 @@ export interface CandidateSectionView {
 	 * navigating to one is rejected with an `AssessmentPlayerError`.
 	 */
 	navigable: boolean;
-}
-
-/**
- * Minimal item reference shape used by the UI renderer.
- */
-export interface ItemRef {
-	identifier: string;
-	title?: string;
-	required?: boolean;
-	/** Client-safe item XML (backend filtered by role). */
-	itemXml?: string;
-	/** Optional resolved QTI 3 delivery context produced by package/assessment layers. */
-	deliveryContext?: ResolvedItemDeliveryContext;
 }
 
 /**

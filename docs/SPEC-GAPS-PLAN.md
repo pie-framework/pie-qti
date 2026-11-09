@@ -181,7 +181,7 @@ Test signal
 ### G-04: `patternMask` not enforced as live input constraint
 
 Scope       — `packages/default-components/src/plugins/text-entry/`
-Status      — Done (commit e2660fb, 2026-04-29)
+Status      — Done (commit e2660fb, 2026-04-29; XSD pattern semantics and response validation for text entry and extended text, 2026-11-09)
 Effort      — S
 Spec ref    — §3.2.2, §3.2.3
 

@@ -9,7 +9,7 @@
     "build": "tsc",
     "test": "bun test --preload ./tests/setup.ts && bun run test:component",
     "test:component": "vitest run",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p ./tsconfig.test.json --noEmit",
     "check": "svelte-check --tsconfig ./tsconfig.svelte.json",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",

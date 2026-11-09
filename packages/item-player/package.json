@@ -10,7 +10,7 @@
     "dev": "tsc --watch",
     "test": "bun test && tsc -p ./tsconfig.server-types.test.json && bun run test:component",
     "test:component": "vitest run",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p ./tsconfig.test.json --noEmit",
     "check": "svelte-check --tsconfig ./tsconfig.svelte.json",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
@@ -101,7 +101,5 @@
   },
   "files": [
     "dist"
-  ],
-  "unpkg": "./dist/element.js",
-  "jsdelivr": "./dist/element.js"
+  ]
 }

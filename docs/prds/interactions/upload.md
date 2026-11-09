@@ -38,9 +38,9 @@ This implementation uses **approach 1**: `FileUpload.svelte` reads the file with
 
 The consequence is that large files (multi-megabyte PDFs, high-resolution images) will produce large session payloads. There is currently **no enforced size limit** — the browser will hold whatever the user selects in memory. The host application is responsible for any upload-time size validation it needs. This is an intentional tradeoff: the player is a rendering layer, not a storage service. Adding a size gate inside the component would require a configurable prop (no standard QTI attribute for this), and that API has not been designed yet (see Open questions).
 
-### Why MIME restriction uses `<fileType>` child elements, not the `type` attribute
+### How the MIME restriction is read: the `type` attribute, and vendor `<fileType>` children
 
-The QTI 2.x spec defines a `type` attribute on `uploadInteraction` for MIME type constraints. However, QTI 3.0 moves to `<fileType>` child elements (allowing multiple types and richer structure). The extractor reads `<fileType>` child elements to future-proof for QTI 3.0 and because content packages already in the wild use the child-element form. The `type` attribute is still available through `rawAttributes` if a content author used it, but the component does not map it to the `accept` filter automatically. This is a known spec gap (see QTI alignment section).
+QTI defines the restriction as the `type` attribute on `uploadInteraction`: one MIME type in QTI 2.1 (`type [0..1]: mimeType`), a list in QTI 3.0 (§5.165.1, `MimeTypeList`). Neither version defines a `<fileType>` child element, but some content packages in the wild use one. The extractor reads `<fileType>` children when present and otherwise splits `type` on whitespace. Either way the MIME types become `fileTypes`, the file picker's `accept` filter.
 
 ### Why client-side type validation is best-effort
 
@@ -65,13 +65,12 @@ The `accept` attribute on `<input type="file">` is advisory — the OS file pick
 
 | Attribute | Reason |
 |-----------|--------|
-| `type` (QTI 2.x attribute) | The QTI 2.x `type` attribute is preserved in `rawAttributes` but is **not** used to populate `fileTypes` or the `accept` filter. Authors targeting this player should use `<fileType>` child elements. No migration path is provided yet. |
+| `type` | Full | Split on whitespace into `fileTypes` (the file picker's `accept` filter) when the element has no `<fileType>` children. QTI 2.1 allows one MIME type, QTI 3.0 a list (§5.165.1). |
 | `class` / `xml:lang` / `label` | QTI base-class attributes. Preserved in `rawAttributes` but not acted on. `xml:lang` would need RTL/lang propagation into the shadow DOM — not implemented. |
 
 ### Known gaps
 
-- **`type` attribute not mapped to `fileTypes`** — Content using `<uploadInteraction type="application/pdf">` will not restrict the file picker. The extractor reads only `<fileType>` children. A future fix should parse the `type` attribute and merge its tokens into `fileTypes` when no `<fileType>` children are present.
-- **No file size attribute** — Neither QTI 2.x nor 3.0 defines a max file size attribute. The implementation has no size cap. Large files cause large session payloads.
+- **No file size attribute** — Neither QTI 2.x nor 3.0 defines a max file size attribute. The component caps uploads at 50 MB by default (`maxFileSizeBytes`; `Infinity` disables the cap); large files still make large session payloads.
 - **`correctResponse` always empty** — The QTI spec technically allows a `correctResponse` of `baseType="file"` (the expected file content), but no known scoring scenario uses it and the response processing engine does not support comparing `file` values. Items must not declare a `correctResponse` for `uploadInteraction`.
 - **Human scoring integration is out of scope** — The player does not define how the submitted `QTIFileResponse` reaches a human grader. That is a host-application concern.
 
@@ -162,13 +161,13 @@ RTL layout is not explicitly tested. The component uses standard CSS flow and Da
 
 **Consequences:** Malicious or careless users can bypass type validation. Host applications that need hard enforcement must validate file content server-side.
 
-### `<fileType>` child elements, not the `type` attribute
+### The `type` attribute, with vendor `<fileType>` children first
 
-**Decision:** The extractor reads `<fileType>` child elements; the QTI 2.x `type` attribute is passed through in `rawAttributes` but is not used to populate `fileTypes`.
+**Decision:** The extractor reads `<fileType>` child elements when present, and otherwise the `type` attribute (split on whitespace) to populate `fileTypes`.
 
-**Rationale:** QTI 3.0 uses child elements, making child-element parsing the forward-compatible approach. Content packages that already target QTI 3.0 conventions work correctly. The extractor was written after QTI 3.0 was available, so the new form was chosen.
+**Rationale:** `type` is the QTI mechanism in both QTI 2.1 and QTI 3.0 (§5.165.1). `<fileType>` children are a vendor form some content packages use, so they are honoured too.
 
-**Alternatives considered:** Parse `type` attribute and merge with child elements. This is the right eventual behavior (see Open questions), but was deferred because the current content corpus uses child elements.
+**Alternatives considered:** Merge `type` with `<fileType>` children. Not done: content that uses the vendor children is expected to list every type there.
 
 **Consequences:** Content using `<uploadInteraction type="application/pdf">` (QTI 2.x form) will not have file type restriction applied. Authors must use `<fileType>` children.
 
@@ -425,14 +424,11 @@ AC-E2: Empty fileTypes array treated as unrestricted
 ```
 
 ```
-AC-E3: type attribute on element (QTI 2.x legacy form) — not enforced
+AC-E3: type attribute restricts the file picker
   Given: XML source is <uploadInteraction responseIdentifier="R" type="application/pdf">
          with no <fileType> child elements
   When: the item is loaded and rendered
-  Then: the file input has no accept attribute and any file type is accepted
-        (because the type attribute is not mapped to fileTypes)
-  Notes: this documents the known gap; the behavior is incorrect per QTI 2.x
-         spec but is the current implementation reality
+  Then: the file input's accept attribute is "application/pdf"
 ```
 
 ```
@@ -456,7 +452,7 @@ AC-E5: Zero-byte file
 ## Open questions
 
 - [ ] **Wildcard MIME matching** — `fileTypes: ['image/*']` sets `accept="image/*"` on the input (which the OS picker respects) but the client-side JS check does not currently match `image/png` against `image/*`. Should the component implement RFC 2045-style wildcard subtype matching?
-- [ ] **`type` attribute migration** — Should the extractor parse the QTI 2.x `type` attribute and use it when no `<fileType>` children are present? This would fix AC-E3 and improve QTI 2.x content compatibility.
+- [x] **`type` attribute migration** — Should the extractor parse the QTI 2.x `type` attribute and use it when no `<fileType>` children are present? (resolved) Yes: it does, for QTI 2.1 and 3.0 alike.
 - [x] **Response map type mismatch** — `InteractionValueMap.uploadInteraction` is now typed as `QTIFileResponse | null`, matching `cardinality="single"`.
 - [ ] **File size limit API** — Should a `maxBytes` prop (or a QTI extension attribute) be added to support deployment-specific size caps with a user-facing error message? This would address the silent performance degradation described in the storage decision.
 - [ ] **Live region for success states** — After a successful file selection, screen readers should announce the selected filename. An `aria-live="polite"` region wrapping the selected-file display is the standard pattern. Should this be added?
@@ -467,7 +463,7 @@ AC-E5: Zero-byte file
 
 - QTI spec: §3.4.4 uploadInteraction in `docs/QTI_techguide.md`
 - Response variable semantics: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
-- Spec gaps plan: `docs/SPEC-GAPS-PLAN.md` (no existing gap item covers the `type` attribute mapping; the response map mismatch and live region absence are newly documented here)
+- Spec gaps plan: `docs/SPEC-GAPS-PLAN.md` (the `type` attribute is mapped; the response map mismatch and live region absence are newly documented here)
 - Implementation:
   - Component: `packages/default-components/src/plugins/upload/UploadInteraction.svelte`
   - Shared sub-component: `packages/default-components/src/shared/components/FileUpload.svelte`

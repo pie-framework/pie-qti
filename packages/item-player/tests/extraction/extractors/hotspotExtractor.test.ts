@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardHotspotExtractor } from '../../../src/interactions/hotspot/extractor.js';
+import { type HotspotData, standardHotspotExtractor } from '../../../src/interactions/hotspot/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardHotspotExtractor', () => {
@@ -217,7 +217,7 @@ describe('standardHotspotExtractor', () => {
 
 	describe('validation', () => {
 		test('validates correct hotspot data', () => {
-			const data = {
+			const data: HotspotData = {
 				hotspotChoices: [
 					{ identifier: 'H1', shape: 'rect', coords: '0,0,100,100' },
 					{ identifier: 'H2', shape: 'circle', coords: '200,200,50' },
@@ -234,7 +234,7 @@ describe('standardHotspotExtractor', () => {
 		});
 
 		test('reports error for empty hotspotChoices', () => {
-			const data = {
+			const data: HotspotData = {
 				hotspotChoices: [],
 				imageData: { type: 'image', src: 'test.png', width: '500', height: '400' },
 				maxChoices: 1,
@@ -248,7 +248,7 @@ describe('standardHotspotExtractor', () => {
 		});
 
 		test('reports warning for missing image data', () => {
-			const data = {
+			const data: HotspotData = {
 				hotspotChoices: [{ identifier: 'H1', shape: 'rect', coords: '0,0,100,100' }],
 				imageData: null,
 				maxChoices: 1,
@@ -262,7 +262,7 @@ describe('standardHotspotExtractor', () => {
 		});
 
 		test('reports error for duplicate hotspot identifiers', () => {
-			const data = {
+			const data: HotspotData = {
 				hotspotChoices: [
 					{ identifier: 'H1', shape: 'rect', coords: '0,0,100,100' },
 					{ identifier: 'H1', shape: 'circle', coords: '200,200,50' },
@@ -279,7 +279,7 @@ describe('standardHotspotExtractor', () => {
 		});
 
 		test('reports warning when maxChoices exceeds hotspot count', () => {
-			const data = {
+			const data: HotspotData = {
 				hotspotChoices: [
 					{ identifier: 'H1', shape: 'rect', coords: '0,0,100,100' },
 					{ identifier: 'H2', shape: 'circle', coords: '200,200,50' },

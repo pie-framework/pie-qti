@@ -4,10 +4,12 @@ import {
 	Qti3ElementNameMapper,
 } from '@pie-qti/qti-common';
 import { standardExtendedTextExtractor } from '../../../src/interactions/extended-text/extractor.js';
-import type { VariableDeclaration } from '../../../src/extraction/types.js';
+import type { ExtractionVariableDeclaration } from '../../../src/extraction/types.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
-function declarations(declaration: VariableDeclaration): Map<string, VariableDeclaration> {
+function declarations(
+	declaration: ExtractionVariableDeclaration
+): Map<string, ExtractionVariableDeclaration> {
 	return new Map([[declaration.identifier, declaration]]);
 }
 

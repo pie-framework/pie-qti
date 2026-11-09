@@ -4,7 +4,7 @@
 
 import { type HTMLElement, parse } from 'node-html-parser';
 import { createExtractionContext } from '../../src/extraction/createContext.js';
-import type { ExtractionContext, VariableDeclaration } from '../../src/extraction/types.js';
+import type { ExtractionContext, ExtractionVariableDeclaration } from '../../src/extraction/types.js';
 import type { ItemSessionEngineConfig } from '../../src/types/index.js';
 import type { QTIElement } from '../../src/interactions/shared/types.js';
 
@@ -50,7 +50,7 @@ export function createTestContext(
 	element: QTIElement,
 	responseId: string = 'RESPONSE',
 	dom: QTIElement = element,
-	declarations: Map<string, VariableDeclaration> = new Map(),
+	declarations: Map<string, ExtractionVariableDeclaration> = new Map(),
 	config: ItemSessionEngineConfig = {} as ItemSessionEngineConfig
 ): ExtractionContext {
 	return createExtractionContext(element, responseId, dom, declarations, config);

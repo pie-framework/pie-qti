@@ -90,8 +90,6 @@ export interface TimeTrackingState {
 	currentItemId?: string;
 	/** Current section identifier */
 	currentSectionId?: string;
-	/** Current section start time */
-	currentSectionStartTime?: number;
 	/** Current testPart identifier */
 	currentTestPartId?: string;
 	/** Current testPart start time */
@@ -608,7 +606,6 @@ export class TimeManager {
 			sectionTimes: { ...state.sectionTimes },
 			testPartTimes: { ...(state.testPartTimes ?? {}) },
 			currentItemStartTime: undefined,
-			currentSectionStartTime: undefined,
 			currentTestPartStartTime: undefined,
 		};
 		this.sectionStarts.clear();

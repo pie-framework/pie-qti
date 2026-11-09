@@ -99,9 +99,9 @@ describe('AssessmentItemDefinition', () => {
 			.filter((node) => node.kind === 'html')
 			.map((node) => String(node.html))
 			.join('');
-		const blockMounts = presentation.flow
-			.filter((node) => node.kind === 'interaction' && node.mount.placement === 'block')
-			.map((node) => node.mount);
+		const blockMounts = presentation.flow.flatMap((node) =>
+			node.kind === 'interaction' && node.mount.placement === 'block' ? [node.mount] : []
+		);
 		expect(html).toContain('Choose A.');
 		expect(blockMounts).toHaveLength(1);
 		const block = blockMounts[0];
@@ -122,7 +122,7 @@ describe('AssessmentItemDefinition', () => {
 		const restored = definition.openSession({ restore: saved! });
 		expect(restored.state().responses.RESPONSE).toBe('A');
 		expect(restored.state().lifecycleStatus).toBe('suspended');
-		expect(restored.serialize().sessionGuid).toBe(saved?.sessionGuid);
+		expect(restored.serialize().sessionGuid).toBe(saved!.sessionGuid);
 
 		restored.dispose();
 	});
