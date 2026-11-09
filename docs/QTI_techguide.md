@@ -965,15 +965,18 @@ values as NULL: the result is 0, clamped to `lowerBound` and `upperBound`, not t
 `defaultValue`, which applies to a value with no `mapEntry`. `mapResponsePoint` treats a NULL point
 container the same way.
 
-Each `mapEntry` matches as its `caseSensitive` attribute says (the mapping's attribute when the entry
-has none, and the spec default is "false" — the QTI 2.2 XSD declares it optional with
-`default="false"` and the QTI 3.0 implementation guide has mapping "by default, NOT case sensitive"),
-so an authored mapping matches case-insensitively unless it says `caseSensitive="true"`: a
-case-sensitive entry matches only its own spelling, so a response in another case takes the
-`defaultValue`. Identifier values never fold case (QTI ASI §17), whatever the entry says — only
-string matching loosens. Mapping a container counts repeated values once (§15.3), and under
-case-insensitive matching the values an entry folds together count once too: {Paris, paris} maps
-Paris once, not twice.
+Each `mapEntry` matches as its `caseSensitive` attribute says. The spec default is "false": the QTI
+2.2 XSD declares the attribute optional with `default="false"`, and QTI 3.0 says "The default value
+is false" (§7.21.3). So an authored mapping matches case-insensitively unless an entry says
+`caseSensitive="true"`. A case-sensitive entry matches only its own spelling, so a response in
+another case takes the `defaultValue`. `<mapping>` itself has no `caseSensitive` attribute in any
+QTI version, so none is read there. Identifier values never fold case (QTI ASI §17), whatever the
+entry says: only string matching loosens. Apart from case, a string response must be the entry's
+key, up to Unicode canonical equivalence (see
+[String comparison](#string-comparison) for the host's opt-in folds). Mapping a container counts
+repeated values once (§15.3). Under case-insensitive matching, the values an entry matches count
+once too: {Paris, paris} maps Paris once, not twice. A value that no entry matches keeps its case,
+so {London, LONDON} is two values.
 
 ### map_response_point
 
@@ -1746,35 +1749,69 @@ These are the places where this project's scoring engine (`@pie-qti/qti-processi
 player (`@pie-qti/item-player`) differ from, or go beyond, the letter of QTI 2.2 and 3.0. The
 project follows the specification wherever it is clear, so each entry carries its status:
 
-- **Unicode folding in string comparison** changes the result for content QTI does define. It is a
-  divergence reported for a fix, not a deliberate exception.
+- **String comparison** follows the specification by default. It makes one choice where QTI is
+  silent (Unicode normalization), and it offers the host an opt-in to fold Arabic-script input.
 - **The other entries** only give a meaning to content QTI does not allow (a lexical form, an
   operator use or a `matchGroup` value outside the specification), or are an architecture choice.
   Conforming content scores and validates as the specification says.
 
-### Unicode folding in string comparison
+### String comparison
 
-QTI defines `match`, `member` and `contains` on `string` values as exact equality, `stringMatch` as
-equality up to the case rule it names, and `equal` on numeric base types only. This engine compares
-`string` values in a folded form in all of them, so the same answer typed in another script or
-encoding compares equal (`runtime/normalize.ts`, `normalizeResponse`, applied by
-`eval/evaluator.ts` and by mapping-entry lookup in `mapResponse`):
+QTI compares `string` values for equality. `match` is true "if the two expressions represent the
+same value" (QTI 3.0 §6.9.21), and `member` (§6.9.33) and `contains` (§6.9.25) compare the same
+way. `stringMatch` compares "according to the comparison rules" its attributes give (§6.9.48), and
+folds case only when `case-sensitive` is false (§5.138.1). A `mapEntry` matches case-insensitively
+unless its `case-sensitive` is true: "The default value is false" (§7.21.3). The engine compares
+`string` values this way in all of these operators, in `delete`, and when `mapResponse` looks up a
+mapping entry (`runtime/normalize.ts`, `normalizeResponse`, applied by `eval/evaluator.ts`).
+Case folding uses the content language, so Turkish and Azerbaijani fold the dotted and dotless i
+correctly. `patternMatch` and `patternMask` test the string as the candidate entered it, because the
+regular expression is the author's.
 
-- every Unicode decimal digit (`\p{Nd}`, e.g. Arabic-Indic `٣`) folds to its ASCII digit;
-- the Arabic decimal and thousands separators (`٫`, `٬`) fold to the content language's marks;
-- bidirectional controls and tatweel are removed, Arabic presentation forms fold to base letters,
-  and the text is NFC-normalized.
+One choice goes beyond the letter of QTI:
 
-Case folding still happens only where QTI asks for it (`stringMatch caseSensitive="false"`,
-case-insensitive mapping entries). An ASCII string compares exactly as the specification says.
+- **Canonical equivalence.** Both values are composed to NFC before they are compared. So `é` typed
+  as `e` plus a combining accent is the same value as a precomposed `é`. Status: a choice where the
+  specification is silent. QTI says nothing about Unicode normalization. Unicode conformance clause
+  C6 says canonically equivalent sequences must not be treated as distinct, and input methods
+  differ in which of the two forms they produce.
 
-**Status: divergence, reported for a fix.** QTI is clear: `match` is true when the two values are
-"the same value" (QTI 3.0 §6.9.21; `member` §6.9.33 and `contains` §6.9.25 compare the same way),
-and `٣` and `3` are different strings. Folding therefore changes the score of conforming content.
-The fix compares `string` values exactly in those operators and in mapping lookup, and keeps
-folding only where a host asks for it. It touches every `normalizeResponse` call in
-`eval/evaluator.ts` and the Arabic-script scoring tests, and needs a product decision for
-Arabic-script content, so it was not started in the 2026-11-09 audit.
+Typed numbers are read separately from string comparison. Text typed into an `integer` or `float`
+response can use digits in any script, the Arabic decimal and thousands separators, and the content
+language's own decimal and group marks (`parseResponseNumber`). Status: the delivery system's part.
+QTI leaves it to the delivery system to read typed text as a number, and the response stores the
+number.
+
+#### The `stringComparison` host option
+
+Folding more than that changes the score of conforming content. So any further folding is a
+delivery option that the host sets, and it is off by default:
+
+- `foldScriptInput` removes bidirectional controls (ALM, LRM, RLM, and the embeddings, overrides
+  and isolates) and tatweel. It folds Arabic presentation forms to their base letters, every Unicode
+  decimal digit (`\p{Nd}`, for example Arabic-Indic `٣`) to its ASCII digit, and the Arabic decimal
+  and thousands separators (`٫`, `٬`) to the content language's marks.
+- `foldLetterVariants` folds Arabic spelling variants: the hamza and madda alef forms become bare
+  alef, tashkeel is removed, `ة` becomes `ه` and `ى` becomes `ي`. This changes which spellings count
+  as correct.
+
+The option exists for right-to-left input methods that insert invisible marks or presentation
+forms, and for deployments that accept other scripts' digits in string answers. QTI string equality
+is exact, so the engine cannot assume either on the host's behalf.
+
+You can set the option on `createAssessmentItemDefinition` (both the client and the server entry
+points), on the `ItemPlayer` component and the `<pie-qti-item-player>` element, on
+`AssessmentPlayer.create` (or the `config` of the assessment shell and of
+`<pie-qti-assessment-player>`), and on the scorer (`ReferenceBackendAdapter`,
+`scoreAssessmentItem`). Give the player and the scorer the same value. The player's item sessions
+compute feedback and an adaptive item's outcomes, and the scorer re-runs response processing on
+the other items.
+
+```js
+createAssessmentItemDefinition({ itemXml, stringComparison: { foldScriptInput: true } });
+```
+
+Status: an opt-in for the host. Without it, the engine compares strings as QTI defines.
 
 ### Duration units and lexical forms
 
