@@ -1377,6 +1377,12 @@ export class Player {
 					}),
 				);
 			}
+			// gapMatch maxAssociations (0 = no restriction): the delivered interface refuses a
+			// placement past it; a restored or programmatic response over it is checked here.
+			const gapMatchMax = i.type === 'gapMatchInteraction' ? Number(i.maxAssociations ?? 0) : 0;
+			if (gapMatchMax > 0 && Array.isArray(value) && value.filter(isMeaningfulEntry).length > gapMatchMax) {
+				errors.push(`Response '${responseId}' exceeds maxAssociations=${gapMatchMax}`);
+			}
 			const shapeErrorCount = errors.length;
 
 			// matchGroup restricts which choices may pair. The renderers enforce it while the

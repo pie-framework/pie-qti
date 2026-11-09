@@ -318,6 +318,7 @@ export default {
 			filledGapAriaLabelWithHeld: '第 {position} 处空白（共 {total} 处），已填入 {word}。选择以替换为 {heldWord}。',
 			blankGapAriaLabelWithHeld: '第 {position} 处空白（共 {total} 处）。选择以在此放入 {heldWord}。',
 			placed: '已将 {word} 放入第 {position} 处空白（共 {total} 处）。',
+			associationLimitReached: '无法创建关联：已达到 {max} 个的上限。',
 			pointerInstructions: '先选择一个词，再选择一个空格。也可以拖放。',
 			instruction: '拖动单词填入空白处',
 			available: '可用的单词',
