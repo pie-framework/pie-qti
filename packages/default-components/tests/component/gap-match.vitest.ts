@@ -622,3 +622,49 @@ describe('word removal (round 6)', () => {
 		cleanupInteraction(mounted);
 	});
 });
+
+// createInteractionShell's rule: correct-answer mode is the scorer's view of an item that has a
+// correct response. Hosts pass null when the item declares none; a scorer then sees the
+// interaction as a candidate does. Only `disabled` stops interaction.
+describe('GapMatchInteraction correct-answer mode: role × correct response', () => {
+	const click = (element: Element | null) => element?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+	test.each([
+		['candidate', ['W2 G1'], false],
+		['candidate', null, false],
+		['scorer', ['W2 G1'], true],
+		['scorer', null, false],
+	] as const)('%s, correct response %j: correct-answer mode is %s, and placing emits', async (role, correctResponse, correctMode) => {
+		const mounted = mountInteraction(GapMatchInteraction, { interaction: gapData(), role, correctResponse });
+		await settle();
+
+		const gap = q(mounted, 'button[data-gap-id="G1"]');
+		expect(gap?.classList.contains('qti-gm-gap-correct')).toBe(correctMode);
+		expect(gap?.textContent).toBe(correctMode ? 'green' : '');
+		expect((gap?.getAttribute('aria-label') ?? '').includes('Correct answer')).toBe(correctMode);
+
+		click(q(mounted, 'button[data-word-id="W1"]'));
+		await settle();
+		click(q(mounted, 'button[data-gap-id="G1"]'));
+		await settle();
+		expect(mounted.events.at(-1)?.detail).toMatchObject({ responseId: 'RESPONSE', value: ['W1 G1'] });
+		cleanupInteraction(mounted);
+	});
+
+	test('disabled stops placement for a scorer without a correct response too', async () => {
+		const mounted = mountInteraction(GapMatchInteraction, {
+			interaction: gapData(),
+			role: 'scorer',
+			correctResponse: null,
+			disabled: true,
+		});
+		await settle();
+
+		click(q(mounted, 'button[data-word-id="W1"]'));
+		await settle();
+		click(q(mounted, 'button[data-gap-id="G1"]'));
+		await settle();
+		expect(mounted.events).toHaveLength(0);
+		cleanupInteraction(mounted);
+	});
+});

@@ -556,3 +556,44 @@ describe('OrderInteraction subset ordering (minChoices/maxChoices)', () => {
 		cleanupInteraction(mounted);
 	});
 });
+
+// createInteractionShell's rule: correct-answer mode is the scorer's view of an item that has a
+// correct response. Hosts pass null when the item declares none; a scorer then sees the
+// interaction as a candidate does. Only `disabled` stops interaction.
+describe('OrderInteraction correct-answer mode: role × correct response', () => {
+	const key = ['S1', 'S2', 'S3'];
+
+	test.each([
+		['candidate', key, false],
+		['candidate', null, false],
+		['scorer', key, true],
+		['scorer', null, false],
+	] as const)('%s, correct response %j: correct-answer mode is %s, and reordering emits', async (role, correctResponse, correctMode) => {
+		const mounted = mountInteraction(OrderInteraction, { interaction: orderData(), role, correctResponse });
+		await settle();
+
+		// The authored order matches the key, so in correct-answer mode every item is marked.
+		const items = qa<HTMLButtonElement>(mounted, 'button[part="item"]');
+		expect(items.map((item) => item.dataset.correct)).toEqual(Array(3).fill(String(correctMode)));
+
+		q<HTMLButtonElement>(mounted, 'button[aria-label="Move First later"]')!.click();
+		await settle();
+		expect(mounted.events.at(-1)?.detail).toMatchObject({ responseId: 'RESPONSE', value: ['S2', 'S1', 'S3'] });
+		cleanupInteraction(mounted);
+	});
+
+	test('disabled stops reordering for a scorer without a correct response too', async () => {
+		const mounted = mountInteraction(OrderInteraction, {
+			interaction: orderData(),
+			role: 'scorer',
+			correctResponse: null,
+			disabled: true,
+		});
+		await settle();
+
+		expect(qa(mounted, 'button.qti-sortable-move')).toHaveLength(0);
+		expect(qa<HTMLButtonElement>(mounted, 'button[part="item"]').every((item) => item.disabled)).toBe(true);
+		expect(mounted.events).toHaveLength(0);
+		cleanupInteraction(mounted);
+	});
+});

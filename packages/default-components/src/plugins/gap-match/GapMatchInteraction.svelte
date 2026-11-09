@@ -7,7 +7,7 @@
 	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import { tick } from 'svelte';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import { interactionAria } from '../../shared/utils/interactionAria';
@@ -27,11 +27,15 @@
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), security, onChange }: Props = $props();
 
-	// Parse props that may be JSON strings (web component usage)
-	const parsedInteraction = $derived(parseJsonProp<GapMatchInteractionData>(interaction));
-	const parsedResponse = $derived(parseJsonProp<string[]>(response));
-	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
-	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+	// Parse props that may be JSON strings (web component usage). Correct-answer mode is the
+	// scorer's view of an item that has a correct response (the shared shell's rule).
+	const shell = $derived(
+		createInteractionShell<GapMatchInteractionData, string[], string[]>({ interaction, response, correctResponse, role }),
+	);
+	const parsedInteraction = $derived(shell.interaction);
+	const parsedResponse = $derived(shell.response);
+	const parsedCorrectResponse = $derived(shell.correctResponse);
+	const isShowingCorrect = $derived(shell.isShowingCorrect);
 	const choicesContainerWidth = $derived(
 		normalizeCssPixelLength(parsedInteraction?.choicesContainerWidth),
 	);

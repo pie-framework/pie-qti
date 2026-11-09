@@ -196,3 +196,61 @@ describe('SliderInteraction (pie-qti-slider)', () => {
 		}
 	});
 });
+
+// createInteractionShell's rule: correct-answer mode is the scorer's view of an item that has a
+// correct response. Hosts pass null when the item declares none; a scorer then sees the
+// interaction as a candidate does. Outside that view only `disabled` stops interaction.
+describe('SliderInteraction correct-answer mode: role × correct response', () => {
+	test.each([
+		['candidate', 75, false],
+		['candidate', null, false],
+		['scorer', 75, true],
+		['scorer', null, false],
+	] as const)('%s, correct response %j: correct-answer mode is %s', async (role, correctResponse, correctMode) => {
+		const mounted = mountInteraction(SliderInteraction, { interaction: sliderData(), role, correctResponse });
+		await settle();
+
+		const input = q<HTMLInputElement>(mounted, 'input[type="range"]')!;
+		expect(q(mounted, '[part="value-card"]')?.classList.contains('qti-slider-correct')).toBe(correctMode);
+		expect((input.getAttribute('aria-valuetext') ?? '').includes('Correct answer')).toBe(correctMode);
+		// The correct-answer view shows the key on the control itself, so it is read-only there.
+		expect(input.disabled).toBe(correctMode);
+		// Outside the view the slider is untouched until moved: no value, and no correct answer.
+		const valueText = input.getAttribute('aria-valuetext') ?? '';
+		expect(valueText).not.toMatch(/undefined|\{answer\}/);
+		if (!correctMode) {
+			expect(valueText).toBe('No value selected');
+			expect(q(mounted, '[part="value-card"]')?.textContent).toContain('No value selected');
+		}
+	});
+
+	test.each([
+		['candidate', 75],
+		['candidate', null],
+		['scorer', null],
+	] as const)('%s, correct response %j: moving the slider emits', async (role, correctResponse) => {
+		const mounted = mountInteraction(SliderInteraction, { interaction: sliderData(), role, correctResponse });
+		await settle();
+
+		type(q<HTMLInputElement>(mounted, 'input[type="range"]')!, '40');
+		await settle();
+		expect(mounted.instance.response).toBe(40);
+		expect(mounted.events.at(-1)?.detail).toMatchObject({ responseId: 'RESPONSE', value: 40 });
+	});
+
+	test('disabled stops the slider for a scorer without a correct response too', async () => {
+		const mounted = mountInteraction(SliderInteraction, {
+			interaction: sliderData(),
+			role: 'scorer',
+			correctResponse: null,
+			disabled: true,
+		});
+		await settle();
+
+		const input = q<HTMLInputElement>(mounted, 'input[type="range"]')!;
+		expect(input.disabled).toBe(true);
+		type(input, '10');
+		await settle();
+		expect(mounted.events).toHaveLength(0);
+	});
+});

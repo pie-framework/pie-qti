@@ -442,3 +442,63 @@ describe('GraphicGapMatchInteraction (pie-qti-graphic-gap-match)', () => {
 		});
 	});
 });
+
+// createInteractionShell's rule: correct-answer mode is the scorer's view of an item that has a
+// correct response. Hosts pass null when the item declares none; a scorer then sees the
+// interaction as a candidate does. Outside that view only `disabled` stops interaction.
+describe('GraphicGapMatchInteraction correct-answer mode: role × correct response', () => {
+	function rainLabel(mounted: { host: HTMLElement }): HTMLButtonElement | undefined {
+		return qa<HTMLButtonElement>(mounted, '[part="labels"] button').find((b) => b.textContent?.trim() === 'Rain');
+	}
+
+	test.each([
+		['candidate', ['RAIN LAKE'], false],
+		['candidate', null, false],
+		['scorer', ['RAIN LAKE'], true],
+		['scorer', null, false],
+	] as const)('%s, correct response %j: correct-answer mode is %s', async (role, correctResponse, correctMode) => {
+		const mounted = mountInteraction(GraphicGapMatchInteraction, { interaction: ggmData(), role, correctResponse });
+		await settle();
+
+		// The correct-answer view shows the key on the hotspots and puts the label palette away.
+		expect(qa(mounted, '.qti-ggm-zone[data-correct]')).toHaveLength(correctMode ? 1 : 0);
+		expect(hotspotTargets(mounted)[1]!.getAttribute('aria-label')).toBe(
+			correctMode ? 'Hotspot 2. Correct answer: Rain.' : 'Hotspot 2. Empty.',
+		);
+		expect(q(mounted, '[part="labels"]') === null).toBe(correctMode);
+		cleanupInteraction(mounted);
+	});
+
+	test.each([
+		['candidate', ['RAIN LAKE']],
+		['candidate', null],
+		['scorer', null],
+	] as const)('%s, correct response %j: placing a label emits', async (role, correctResponse) => {
+		const mounted = mountInteraction(GraphicGapMatchInteraction, { interaction: ggmData(), role, correctResponse });
+		await settle();
+
+		pressKey(rainLabel(mounted)!, 'Enter');
+		await settle();
+		pressKey(hotspotTargets(mounted)[1]!, 'Enter');
+		await settle();
+		expect(mounted.events.at(-1)?.detail).toMatchObject({ responseId: 'RESPONSE', value: ['RAIN LAKE'] });
+		cleanupInteraction(mounted);
+	});
+
+	test('disabled stops placement for a scorer without a correct response too', async () => {
+		const mounted = mountInteraction(GraphicGapMatchInteraction, {
+			interaction: ggmData(),
+			role: 'scorer',
+			correctResponse: null,
+			disabled: true,
+		});
+		await settle();
+
+		pressKey(rainLabel(mounted)!, 'Enter');
+		await settle();
+		pressKey(hotspotTargets(mounted)[1]!, 'Enter');
+		await settle();
+		expect(mounted.events).toHaveLength(0);
+		cleanupInteraction(mounted);
+	});
+});

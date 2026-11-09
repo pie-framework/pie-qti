@@ -7,7 +7,7 @@
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import MatchDragDrop from '../../shared/components/MatchDragDrop.svelte';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
@@ -35,11 +35,15 @@
 	const uid = $props.id();
 	const promptId = `${uid}-prompt`;
 
-	// Parse props that may be JSON strings (web component usage)
-	const parsedInteraction = $derived(parseJsonProp<MatchInteractionData>(interaction));
-	const parsedResponse = $derived(parseJsonProp<string[]>(response));
-	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
-	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+	// Parse props that may be JSON strings (web component usage). Correct-answer mode is the
+	// scorer's view of an item that has a correct response (the shared shell's rule).
+	const shell = $derived(
+		createInteractionShell<MatchInteractionData, string[], string[]>({ interaction, response, correctResponse, role }),
+	);
+	const parsedInteraction = $derived(shell.interaction);
+	const parsedResponse = $derived(shell.response);
+	const parsedCorrectResponse = $derived(shell.correctResponse);
+	const isShowingCorrect = $derived(shell.isShowingCorrect);
 
 	// G-13 structured labels: the answer set becomes one ARIA group named by the prompt.
 	const structuredAria = $derived.by(() => {

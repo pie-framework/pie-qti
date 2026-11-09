@@ -711,3 +711,46 @@ describe('HottextInteraction style contracts', () => {
 		expect(spanCss.slice(0, spanCss.indexOf('}'))).toContain('display: inline;');
 	});
 });
+
+// createInteractionShell's rule: correct-answer mode is the scorer's view of an item that has a
+// correct response. Hosts pass null when the item declares none; a scorer then sees the
+// interaction as a candidate does. Only `disabled` stops interaction.
+describe('HottextInteraction correct-answer mode: role × correct response', () => {
+	test.each([
+		['candidate', ['H2'], false],
+		['candidate', null, false],
+		['scorer', ['H2'], true],
+		['scorer', null, false],
+	] as const)('%s, correct response %j: correct-answer mode is %s, and selecting emits', async (role, correctResponse, correctMode) => {
+		const mounted = mountInteraction(HottextInteraction, {
+			interaction: hottextData({ maxChoices: 2 }),
+			role,
+			correctResponse,
+		});
+		await settle();
+
+		const [fern, oak] = hottexts(mounted);
+		expect(oak!.classList.contains('correct')).toBe(correctMode);
+		expect(q(mounted, '[data-hottext-correct]') !== null).toBe(correctMode);
+
+		fern!.click();
+		await settle();
+		expect(mounted.events.at(-1)?.detail).toMatchObject({ responseId: 'RESPONSE', value: ['H1'] });
+		cleanupInteraction(mounted);
+	});
+
+	test('disabled stops selection for a scorer without a correct response too', async () => {
+		const mounted = mountInteraction(HottextInteraction, {
+			interaction: hottextData({ maxChoices: 2 }),
+			role: 'scorer',
+			correctResponse: null,
+			disabled: true,
+		});
+		await settle();
+
+		hottexts(mounted)[0]!.click();
+		await settle();
+		expect(mounted.events).toHaveLength(0);
+		cleanupInteraction(mounted);
+	});
+});

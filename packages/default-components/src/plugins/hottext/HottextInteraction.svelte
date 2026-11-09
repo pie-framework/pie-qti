@@ -6,7 +6,7 @@
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { HOTTEXT_SELECTOR } from './hottextSelector';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import { radioArrowStep, wrapIndex } from '../../shared/utils/radioGroup';
@@ -26,11 +26,20 @@
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 
-	// Parse props that may be JSON strings (web component usage)
-	const parsedInteraction = $derived(parseJsonProp<HottextInteractionData>(interaction));
-	const parsedResponse = $derived(parseJsonProp<string | string[]>(response));
-	const parsedCorrectResponse = $derived(parseJsonProp<string | string[]>(correctResponse));
-	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+	// Parse props that may be JSON strings (web component usage). Correct-answer mode is the
+	// scorer's view of an item that has a correct response (the shared shell's rule).
+	const shell = $derived(
+		createInteractionShell<HottextInteractionData, string | string[], string | string[]>({
+			interaction,
+			response,
+			correctResponse,
+			role,
+		}),
+	);
+	const parsedInteraction = $derived(shell.interaction);
+	const parsedResponse = $derived(shell.response);
+	const parsedCorrectResponse = $derived(shell.correctResponse);
+	const isShowingCorrect = $derived(shell.isShowingCorrect);
 
 	// Get correct IDs as array
 	const correctIds = $derived.by(() => {

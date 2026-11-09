@@ -356,3 +356,47 @@ describe('MatchDragDrop instance-unique ids', () => {
 		cleanupInteraction(first, second);
 	});
 });
+
+// createInteractionShell's rule: correct-answer mode is the scorer's view of an item that has a
+// correct response. Hosts pass null when the item declares none; a scorer then sees the
+// interaction as a candidate does. Only `disabled` stops interaction.
+describe('MatchInteraction correct-answer mode: role × correct response', () => {
+	const key = ['paris france', 'rome italy'];
+
+	test.each([
+		['candidate', key, false],
+		['candidate', null, false],
+		['scorer', key, true],
+		['scorer', null, false],
+	] as const)('%s, correct response %j: correct-answer mode is %s, and matching emits', async (role, correctResponse, correctMode) => {
+		const mounted = mountInteraction(MatchInteraction, { interaction: matchData(), role, correctResponse });
+		await settle();
+
+		const sources = qa(mounted, '[data-source-id]');
+		expect(sources.map((source) => source.getAttribute('data-correct'))).toEqual([String(correctMode), String(correctMode)]);
+
+		q<HTMLButtonElement>(mounted, '[data-source-id="paris"]')!.click();
+		await settle();
+		q<HTMLButtonElement>(mounted, '[part="target"]')!.click();
+		await settle();
+		expect(mounted.events.at(-1)?.detail).toMatchObject({ responseId: 'MATCH', value: ['paris france'] });
+		cleanupInteraction(mounted);
+	});
+
+	test('disabled stops matching for a scorer without a correct response too', async () => {
+		const mounted = mountInteraction(MatchInteraction, {
+			interaction: matchData(),
+			role: 'scorer',
+			correctResponse: null,
+			disabled: true,
+		});
+		await settle();
+
+		q<HTMLButtonElement>(mounted, '[data-source-id="paris"]')!.click();
+		await settle();
+		q<HTMLButtonElement>(mounted, '[part="target"]')!.click();
+		await settle();
+		expect(mounted.events).toHaveLength(0);
+		cleanupInteraction(mounted);
+	});
+});
