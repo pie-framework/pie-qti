@@ -121,7 +121,9 @@
 
 {#if interactive === 'pointer'}
 	<!-- A pointer hit area only: the keyboard and assistive technology use the control it
-	     stands for, rendered elsewhere, so this layer is hidden from both. -->
+	     stands for, rendered elsewhere, so this layer is hidden from both. Drag handlers are
+	     forwarded for hit areas that are drop targets (graphic gap match's whole-image
+	     backdrop). -->
 	<svelte:element
 		xmlns="http://www.w3.org/2000/svg"
 		this={tag}
@@ -129,6 +131,9 @@
 		{...presentation}
 		aria-hidden="true"
 		{onclick}
+		{ondragover}
+		{ondragleave}
+		{ondrop}
 	/>
 {:else if interactive}
 	<svelte:element

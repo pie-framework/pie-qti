@@ -109,6 +109,53 @@ describe('PositionObjectInteraction (pie-qti-position-object)', () => {
 		expect(q(mounted, '[aria-live="polite"]')?.textContent).toBe('Object 1 placed at 55%, 50%.');
 	});
 
+	test('keyboard: Shift gives fine steps, the crosshair clamps at the stage edges, and points are emitted as integers', async () => {
+		// Unlimited (maxChoices 0, matchMax 0) so the object can be placed again and again.
+		const mounted = mountInteraction(PositionObjectInteraction, {
+			interaction: positionData({
+				maxChoices: 0,
+				positionObjectStages: [
+					{
+						identifier: 'AIRPORT_SITE_RESPONSE',
+						label: '',
+						matchMax: 0,
+						objectData: { type: 'image', src: 'plane.png', width: '40', height: '40' },
+					},
+				],
+			}),
+		});
+		await settle();
+
+		pressKey(paletteItem(mounted), 'Enter');
+		await settle();
+		const area = canvas(mounted);
+		// One fine step from the centre (50%, 50%): 51% of 600 and 50% of 400.
+		pressKey(area, 'ArrowRight', { shiftKey: true });
+		pressKey(area, 'Enter');
+		await settle();
+		expect(mounted.instance.response).toEqual(['306 200']);
+
+		// Select again: the crosshair resumes at the last placed point (51%, 50%).
+		pressKey(paletteItem(mounted), 'Enter');
+		await settle();
+		// Twelve large steps right from 51% clamp at the right edge: 100% of 600.
+		for (let step = 0; step < 12; step++) pressKey(area, 'ArrowRight');
+		pressKey(area, 'Enter');
+		await settle();
+		expect(mounted.instance.response).toEqual(['306 200', '600 200']);
+
+		// Select again: the crosshair resumes at (100%, 50%). Twelve large steps down clamp at
+		// the bottom edge, then twenty-five large steps left clamp at the left edge: 0.
+		pressKey(paletteItem(mounted), 'Enter');
+		await settle();
+		for (let step = 0; step < 12; step++) pressKey(area, 'ArrowDown');
+		for (let step = 0; step < 25; step++) pressKey(area, 'ArrowLeft');
+		pressKey(area, 'Enter');
+		await settle();
+		expect(mounted.instance.response).toEqual(['306 200', '600 200', '0 400']);
+		expect(mounted.events.at(-1)?.detail).toMatchObject({ value: ['306 200', '600 200', '0 400'] });
+	});
+
 	test('single-pointer alternative: tap an object, then tap the scaled canvas to place it', async () => {
 		const mounted = mountInteraction(PositionObjectInteraction, { interaction: positionData() });
 		await settle();

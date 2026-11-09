@@ -320,7 +320,7 @@ function itemState(index: number, isGrabbed: boolean, isCorrect: boolean): strin
 					data-correct={isCorrect}
 					data-disabled={disabled}
 					part="item"
-					class="qti-sortable-item flex items-center gap-2 p-3 bg-base-200 rounded select-none transition-all w-full text-start"
+					class="qti-sortable-item flex items-center gap-2 p-3 bg-base-200 rounded select-none transition-all text-start"
 					class:cursor-grab={!disabled && !isGrabbed}
 					class:cursor-not-allowed={disabled}
 					class:opacity-50={disabled || draggedId === id}
@@ -383,7 +383,12 @@ function itemState(index: number, isGrabbed: boolean, isCorrect: boolean): strin
 		flex-wrap: wrap;
 	}
 
-	.qti-sortable-row { display: flex; gap: 0.5rem; align-items: center; min-width: 0; }
+	/*
+	 * Reflow (WCAG 1.4.10): on a narrow screen the row's move controls wrap under
+	 * the item instead of squeezing the item (and its label) into a clipped sliver;
+	 * wide screens keep them on the item's line.
+	 */
+	.qti-sortable-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; min-width: 0; }
 	.qti-sortable-moves { display: flex; flex: 0 0 auto; gap: 0.25rem; }
 	.qti-sortable-list[data-orientation='horizontal'] .qti-sortable-glyph:dir(rtl) {
 		display: inline-block;
@@ -398,11 +403,13 @@ function itemState(index: number, isGrabbed: boolean, isCorrect: boolean): strin
 	.qti-sortable-move:disabled { opacity: 0.4; cursor: default; }
 	.qti-sortable-move:focus-visible { outline: 2px solid var(--pie-qti-focus, #4338ca); outline-offset: 2px; }
 	.qti-sortable-item {
+		/* Grows to the row on wide screens; below 12rem of available width the row
+		   wraps and the item takes the full line, its label wrapping too. */
+		flex: 1 1 12rem;
 		min-width: 0;
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		width: 100%;
 		padding: 0.75rem;
 		border-radius: 0.5rem;
 		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));

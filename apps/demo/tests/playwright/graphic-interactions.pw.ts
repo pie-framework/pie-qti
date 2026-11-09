@@ -84,9 +84,27 @@ test.describe('hotspot multiple selection in the real custom element', () => {
 		await expect(star).toHaveAttribute('aria-pressed', 'true');
 		await expect(page.getByTestId('response')).toHaveText('["SUN","STAR"]');
 
-		// The focus ring is drawn on the region outline.
+		// The star is selected AND keyboard-focused here: the shared offset ring is
+		// its focus indicator — the region's halo layer widens into a focus-coloured
+		// ring around the region, distinct from the selected outline by geometry
+		// (WCAG 2.4.7).
 		expect(await star.evaluate((element) => element.matches(':focus-visible'))).toBe(true);
-		await expect(star).toHaveCSS('stroke-width', '3px');
+		const halo = await star.evaluate((element) => {
+			const ring = element.closest('g')?.querySelector('.qti-graphic-halo');
+			if (!ring) return null;
+			const style = getComputedStyle(ring);
+			// Resolve the theme's focus token the way the ring is coloured, whatever
+			// colour format the theme defines it in.
+			const probe = document.createElement('div');
+			probe.style.color = 'var(--pie-qti-focus, #4338ca)';
+			const interactionRoot = element.getRootNode().querySelector('.qti-hotspot-interaction');
+			interactionRoot?.appendChild(probe);
+			const focusColour = getComputedStyle(probe).color;
+			probe.remove();
+			return { width: style.strokeWidth, colour: style.stroke, focusColour };
+		});
+		expect(halo?.width).toBe('12px');
+		expect(halo?.colour).toBe(halo?.focusColour);
 		// Toggle buttons with aria-pressed, never radios: valid ARIA.
 		expect((await scan(page, 'pie-qti-hotspot')).violations).toEqual([]);
 
@@ -209,6 +227,86 @@ test.describe('graphic order shows its areas on the image', () => {
 			await host.getByRole('button', { name: 'Move Shale earlier', exact: true }).tap();
 			await expect.poll(() => areaBadges(host)).toEqual(['1', '3', '2']);
 		});
+	});
+});
+
+/**
+ * Reflow (WCAG 1.4.10): at 320 CSS px the ordering list's labels wrap instead of
+ * truncating, nothing overflows the viewport, and the move controls keep working.
+ */
+test.describe('graphic order list reflows at 320 px', () => {
+	test.use({ hasTouch: true, viewport: { width: 320, height: 720 } });
+
+	test('long labels wrap with no loss of content or function', async ({ page }) => {
+		const root = await openFixture(page, 'graphic-order-long-labels');
+		const host = root.locator('pie-qti-graphic-order');
+
+		// Every label is fully visible: no clipping (scrollWidth past clientWidth)
+		// and no one-line squeeze (the text spans at least two rendered lines).
+		const texts = host.locator('[part="text"]');
+		await expect(texts).toHaveCount(3);
+		const labels = host.locator('[part="list"] [role="listitem"]');
+		await expect(labels).toHaveCount(3);
+		for (let index = 0; index < 3; index++) {
+			const item = labels.nth(index);
+			const measurements = await item.locator('[part="item"]').evaluate((element) => {
+				const text = element.querySelector('[part="text"]')!;
+				const range = document.createRange();
+				range.selectNodeContents(text);
+				const lines = range.getClientRects().length;
+				return {
+					scrollWidth: text.scrollWidth,
+					clientWidth: text.clientWidth,
+					lines,
+				};
+			});
+			expect(measurements.scrollWidth, `label ${index + 1} clips horizontally`).toBeLessThanOrEqual(measurements.clientWidth + 1);
+			expect(measurements.lines, `label ${index + 1} renders on a single squeezed line`).toBeGreaterThanOrEqual(2);
+		}
+		// No horizontal overflow anywhere in the interaction.
+		const overflow = await host.evaluate((element) => element.scrollWidth - element.clientWidth);
+		expect(overflow).toBeLessThanOrEqual(1);
+
+		// The list keeps its function: the move controls reorder, and the areas follow.
+		await host.getByRole('button', { name: 'Move Shale layer, dark and thinly bedded with fossil impressions earlier', exact: true }).tap();
+		// Shale moved before Sandstone: the areas' badges follow the list, in choice order.
+		await expect
+			.poll(() =>
+				host.locator('svg[part="overlay"] .qti-go-area').evaluateAll((areas) =>
+					areas.map((area) => area.querySelector('.qti-go-badge')?.textContent?.trim() ?? ''),
+				),
+			)
+			.toEqual(['1', '3', '2']);
+	});
+});
+
+/**
+ * Graphic gap match: a whole-image (`default`) hotspot listed last must not take the
+ * clicks and drops of the hotspots it covers — its zone lies beneath the others, like the
+ * hotspot interaction's default region.
+ */
+test.describe('graphic gap match default shape lies beneath the others', () => {
+	test('a click on the lake places the held label on the lake, not the whole-image zone', async ({ page }) => {
+		const root = await openFixture(page, 'graphic-gap-match-default');
+		const host = root.locator('pie-qti-graphic-gap-match');
+		const image = host.locator('[part="image"]');
+
+		// Pick the label up (the click-to-place flow), then click inside the lake's area.
+		await host.locator('[part="labels"]').getByRole('button', { name: 'Rain' }).click();
+		const point = await imagePoint(image, { width: 400, height: 200 }, 100, 100);
+		await page.mouse.click(point.x, point.y);
+		await expect(page.getByTestId('response')).toHaveText('["RAIN LAKE"]');
+	});
+
+	test('a click outside every other hotspot fills the whole-image zone', async ({ page }) => {
+		const root = await openFixture(page, 'graphic-gap-match-default');
+		const host = root.locator('pie-qti-graphic-gap-match');
+		const image = host.locator('[part="image"]');
+
+		await host.locator('[part="labels"]').getByRole('button', { name: 'Rain' }).click();
+		const point = await imagePoint(image, { width: 400, height: 200 }, 340, 170);
+		await page.mouse.click(point.x, point.y);
+		await expect(page.getByTestId('response')).toHaveText('["RAIN ALL"]');
 	});
 });
 

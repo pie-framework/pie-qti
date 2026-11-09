@@ -237,6 +237,7 @@ export default {
 		},
 
 		selectPoint: {
+			unknownImageDimensions: 'Deze select-point-interactie kan niet worden getoond: de afmetingen van de afbeelding zijn onbekend, dus punten kunnen niet correct worden geplaatst. Voeg breedte en hoogte toe aan de afbeelding, of geef de afmetingen van het bestand op.',
 			instruction: 'Klik op de afbeelding om punten te selecteren',
 			instructionAria: 'Klik om punten op de afbeelding te selecteren',
 			maxPointsReached: 'Maximaal aantal punten bereikt. Verwijder een punt om een nieuwe toe te voegen.',
@@ -445,6 +446,7 @@ export default {
 		},
 
 		positionObject: {
+			unknownImageDimensions: 'Objecten kunnen niet worden geplaatst: de afmetingen van de sferafbeelding zijn onbekend. Voeg breedte en hoogte toe aan de afbeelding, of geef de afmetingen van het bestand op.',
 			instruction: 'Sleep objecten op de afbeelding',
 			placeObject: 'Plaats {object} op afbeelding',
 			removeObject: 'Verwijder {object}',
@@ -532,6 +534,7 @@ export default {
 		},
 
 		graphicOrder: {
+			unknownImageDimensions: 'De gebieden kunnen niet worden getoond: de afmetingen van de afbeelding zijn onbekend. Voeg breedte en hoogte toe aan de afbeelding, of geef de afmetingen van het bestand op.',
 			instruction: 'Klik op hotspots om ze te ordenen',
 			diagramLabel: 'Ordeningsdiagram',
 			altText: 'Ordeningsdiagram',
@@ -558,6 +561,7 @@ export default {
 		},
 
 		graphicAssociate: {
+			unknownImageDimensions: 'Deze grafische koppeling kan niet worden getoond: de afmetingen van de afbeelding zijn onbekend, dus de hotspots kunnen niet worden geplaatst. Voeg breedte en hoogte toe aan de afbeelding, of geef de afmetingen van het bestand op.',
 			imageFallback: 'Afbeelding bij deze vraag',
 			imageLoadError: 'De afbeelding kon niet worden geladen.',
 			unlabeledHotspot: 'Gebied {index}',

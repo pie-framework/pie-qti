@@ -6,6 +6,7 @@
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import ImageStage from '../../shared/components/ImageStage.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import { radioArrowStep, wrapIndex } from '../../shared/utils/radioGroup';
@@ -13,7 +14,7 @@
 	import HotspotShape from '../../shared/components/HotspotShape.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { minimumHint } from '../../shared/utils/minimumRequirement';
-	import { hitStrokeWidth, imageAltText, observeWidth, regionMarkerPoint, type Point } from '../../shared/utils/graphicRegions';
+	import { hitStrokeWidth, imageAltText, regionMarkerPoint, type Point } from '../../shared/utils/graphicRegions';
 
 	interface Props {
 		interaction?: HotspotInteractionData | string;
@@ -68,7 +69,6 @@
 
 	const choices = $derived(parsedInteraction?.hotspotChoices ?? []);
 	const imageData = $derived(parsedInteraction?.imageData ?? null);
-	const imageSrc = $derived(imageData?.type === 'image' ? (imageData.src ?? '') : '');
 
 	/**
 	 * The selected regions' identifiers, in selection order. The response is one identifier in
@@ -86,31 +86,12 @@
 		return selectedIds.includes(identifier);
 	}
 
-	// Raster images report their natural size once loaded; that is the pixel space
-	// QTI coords are authored in when the item declares no width/height.
-	let loadedImage = $state<{ src: string; width: number; height: number } | null>(null);
-	let failedSrc = $state<string | null>(null);
-	const naturalSize = $derived(loadedImage && loadedImage.src === imageSrc ? loadedImage : null);
-	const imageFailed = $derived(!!imageSrc && failedSrc === imageSrc);
-
-	function positiveNumber(value: unknown): number | null {
-		const n = value ? Number(value) : Number.NaN;
-		return Number.isFinite(n) && n > 0 ? n : null;
-	}
-
-	const authoredWidth = $derived(positiveNumber(imageData?.width));
-	const authoredHeight = $derived(positiveNumber(imageData?.height));
-	const hasAuthoredDimensions = $derived(authoredWidth !== null && authoredHeight !== null);
-	const imageWidth = $derived(hasAuthoredDimensions ? authoredWidth : (naturalSize?.width ?? null));
-	const imageHeight = $derived(hasAuthoredDimensions ? authoredHeight : (naturalSize?.height ?? null));
-
-	const mediaStyle = $derived.by(() => {
-		if (imageWidth && imageHeight) {
-			// Fill available width, but don't exceed the asset's natural width.
-			return `width: 100%; max-width: ${imageWidth}px; aspect-ratio: ${imageWidth} / ${imageHeight};`;
-		}
-		return 'width: 100%;';
-	});
+	// The stage's pixel space: the image's authored width/height, else its natural size once
+	// loaded (resolved by the shared ImageStage; `refuse` mode).
+	let imageWidth = $state<number | null>(null);
+	let imageHeight = $state<number | null>(null);
+	let imageFailed = $state(false);
+	let awaitingNaturalSize = $state(false);
 
 	// Hotspot `coords` are in the source image's pixel space, so the overlay
 	// viewBox has to be the image's intrinsic dimensions. Without them there is
@@ -118,7 +99,6 @@
 	// draw the overlay; tell authors why (console, and visibly outside the
 	// candidate role) — candidates never see authoring diagnostics.
 	const hasImageDimensions = $derived(imageWidth !== null && imageHeight !== null);
-	const awaitingNaturalSize = $derived(!!imageSrc && !hasAuthoredDimensions && !naturalSize && !imageFailed);
 	const missingDimensions = $derived(!!parsedInteraction && !hasImageDimensions && !awaitingNaturalSize);
 	const showDiagnostics = $derived(role !== 'candidate');
 
@@ -150,16 +130,8 @@
 	const imageDescription = $derived(imageData?.decorative ? '' : (imageData?.altDescription ?? ''));
 	const imageDescriptionId = $derived(`${uid}-image-description`);
 
-	function handleImageLoad(event: Event) {
-		const img = event.currentTarget as HTMLImageElement;
-		if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-			loadedImage = { src: imageSrc, width: img.naturalWidth, height: img.naturalHeight };
-		}
-	}
-
-	function handleImageError() {
-		failedSrc = imageSrc;
-		console.warn(`[pie-qti-hotspot] The hotspot image failed to load: ${imageSrc}`);
+	function warnImageFailed(src: string) {
+		console.warn(`[pie-qti-hotspot] The hotspot image failed to load: ${src}`);
 	}
 
 	/** Accessible, visible name of a region: its authored label, else its position. Never its identifier. */
@@ -376,41 +348,29 @@
 		{/if}
 
 		<div part="stage" class="qti-hotspot-stage">
-			<div class="qti-hotspot-media" style={mediaStyle} use:observeWidth={(width) => (renderedWidth = width)}>
-				<!-- Render the image/SVG with the author's text alternative -->
-				{#if imageData}
-					{#if imageData.type === 'svg'}
-						<div
-							part="image"
-							class="qti-hotspot-image"
-							role={imageData.decorative ? undefined : 'img'}
-							aria-hidden={imageData.decorative ? 'true' : undefined}
-							aria-label={imageData.decorative ? undefined : imageAlt}
-							aria-describedby={imageDescription ? imageDescriptionId : undefined}
-						>
-							{@html imageData.content}
-						</div>
-					{:else if imageFailed}
-						<div part="image-error" class="qti-hotspot-image qti-hotspot-image-error">
-							<p>{translate(i18n, 'interactions.hotspot.imageLoadError', 'The image could not be loaded.')}</p>
-							{#if imageData.alt && !imageData.decorative}
-								<p>{imageData.alt}</p>
-							{/if}
-						</div>
-					{:else}
-						<img
-							src={imageData.src}
-							alt={imageAlt}
-							aria-describedby={imageDescription ? imageDescriptionId : undefined}
-							part="image"
-							class="qti-hotspot-image"
-							onload={handleImageLoad}
-							onerror={handleImageError}
-						/>
-					{/if}
-					{#if imageDescription}
-						<p id={imageDescriptionId} class="qti-hotspot-sr-only">{imageDescription}</p>
-					{/if}
+			<ImageStage
+				{imageData}
+				alt={imageAlt}
+				description={imageDescription}
+				descriptionId={imageDescriptionId}
+				containerClass="qti-hotspot-media"
+				containerStyle="width: 100%;"
+				svgContentClass="qti-hotspot-image"
+				imgClass="qti-hotspot-image"
+				errorClass="qti-hotspot-image qti-hotspot-image-error"
+				mediaPart="image"
+				errorPart="image-error"
+				loadErrorText={translate(i18n, 'interactions.hotspot.imageLoadError', 'The image could not be loaded.')}
+				onImageError={warnImageFailed}
+				sizing="refuse"
+				bind:width={imageWidth}
+				bind:height={imageHeight}
+				bind:failed={imageFailed}
+				bind:awaiting={awaitingNaturalSize}
+				bind:renderedWidth
+			>
+				{#if imageDescription}
+					<p id={imageDescriptionId} class="qti-hotspot-sr-only">{imageDescription}</p>
 				{/if}
 
 				<!-- Overlay clickable areas using SVG.
@@ -431,7 +391,7 @@
 					<!-- A region's visible layers: light halo + dark outline (visible on any image), and a
 					     check marker for selected/correct (not colour alone). -->
 					{#snippet regionVisuals(choice: HotspotChoice, selected: boolean, correct: boolean)}
-						<HotspotShape shape={choice.shape} coords={choice.coords} interactive={false} presentation={{ class: 'qti-hotspot-halo' }} />
+						<HotspotShape shape={choice.shape} coords={choice.coords} interactive={false} presentation={{ class: 'qti-hotspot-halo qti-graphic-halo' }} />
 						<HotspotShape shape={choice.shape} coords={choice.coords} interactive={false} presentation={{ class: 'qti-hotspot-outline' }} />
 						{#if selected || correct}
 							{@const at = markerPoint(choice)}
@@ -456,7 +416,7 @@
 							{@const regionSelected = isSelected(choice.identifier)}
 							{@const isCorrectChoice = isCorrect(choice.identifier)}
 							<g
-								class="qti-hotspot-backdrop"
+								class="qti-hotspot-backdrop qti-graphic-region"
 								data-selected={regionSelected ? '' : undefined}
 								data-correct={isCorrectChoice ? '' : undefined}
 							>
@@ -479,7 +439,7 @@
 						<!-- One region: its visible layers, then the invisible interactive target on
 						     top, grown to 24×24 CSS px when small. -->
 						<g
-							class="qti-hotspot-region"
+							class="qti-hotspot-region qti-graphic-region"
 							data-selected={regionSelected ? '' : undefined}
 							data-correct={isCorrectChoice ? '' : undefined}
 						>
@@ -510,7 +470,7 @@
 					{/each}
 				</svg>
 				{/if}
-			</div>
+			</ImageStage>
 		</div>
 
 		{#if selectedRegionNames.length > 0 || correctRegionNames.length > 0}
@@ -660,17 +620,16 @@
 	.qti-hotspot-overlay[data-disabled] :global(:is(.qti-hotspot-shape, .qti-hotspot-pointer-target)) {
 		cursor: not-allowed;
 	}
-	/* Focus indicator drawn on the region outline (WCAG 2.4.7), haloed for any background */
-	.qti-hotspot-overlay :global(.qti-hotspot-shape:focus-visible) {
+	/*
+	 * Focus indicator: the shared offset ring in ImageStage's sheet — focus-within
+	 * on the region colours and widens its halo layer into a ring around the
+	 * region, distinct from the selected outline (WCAG 2.4.7). A default-shape
+	 * region's control sits in the authored loop while its halo paints in the
+	 * backdrop beneath the other regions, so its ring is bridged here.
+	 */
+	.qti-hotspot-overlay:has(:global(.qti-hotspot-shape-default:focus-visible)) :global(.qti-hotspot-backdrop .qti-graphic-halo) {
 		stroke: var(--pie-qti-focus, #4338ca);
-		stroke-width: 3px;
-	}
-	.qti-hotspot-overlay :global(.qti-hotspot-region:focus-within .qti-hotspot-halo) {
-		stroke-width: 9px;
-	}
-	/* A default-shape region's halo is in its backdrop, beneath the other regions */
-	.qti-hotspot-overlay:has(:global(.qti-hotspot-shape-default:focus-visible)) :global(.qti-hotspot-backdrop .qti-hotspot-halo) {
-		stroke-width: 9px;
+		stroke-width: 12px;
 	}
 
 	/* qti-unselected-hidden: unselected regions show only while focused; they stay operable */
@@ -694,42 +653,11 @@
 		width: 100%;
 		max-width: 100%;
 	}
-	.qti-hotspot-media {
-		position: relative;
-	}
 	.qti-hotspot-diagnostic {
 		font-size: 0.875rem;
 	}
-	.qti-hotspot-image {
-		display: block;
-		width: 100%;
-		height: 100%;
-	}
-	.qti-hotspot-image-error {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 0.25rem;
-		min-height: 6rem;
-		padding: 1rem;
-		text-align: center;
-		color: var(--pie-qti-error-text, #b91c1c);
-		border: 2px dashed var(--pie-qti-border-strong, #767676);
-		border-radius: 0.5rem;
-		box-sizing: border-box;
-	}
-	.qti-hotspot-image-error p {
-		margin: 0;
-	}
 	.qti-hotspot-correct-list {
 		margin-inline-start: 0.5rem;
-	}
-	/* Inline SVG injected via {@html} is not scoped; use :global to size it inside the shadow root. */
-	.qti-hotspot-image :global(svg) {
-		width: 100%;
-		height: 100%;
-		display: block;
 	}
 	.qti-hotspot-overlay {
 		position: absolute;

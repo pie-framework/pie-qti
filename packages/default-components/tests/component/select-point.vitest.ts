@@ -102,6 +102,42 @@ describe('SelectPointInteraction (pie-qti-select-point)', () => {
 		expect(liveRegion(mounted)).toBe('Point 1 placed at 60%, 55%.');
 	});
 
+	test('keyboard placement: Shift gives fine steps, and the crosshair clamps at the stage edges', async () => {
+		// Unlimited (maxChoices 0) so each Enter places another point.
+		const mounted = mountInteraction(SelectPointInteraction, {
+			interaction: selectPointData({ maxChoices: 0 }),
+		});
+		await settle();
+
+		const area = surface(mounted);
+		area.focus();
+		await settle();
+		// One fine step from the centre (50%, 50%): 51% of 500 and 50% of 300.
+		pressKey(area, 'ArrowRight', { shiftKey: true });
+		pressKey(area, 'Enter');
+		await settle();
+		expect(mounted.instance.response).toEqual(['255 150']);
+
+		// Twelve large steps right from 51% clamp at the right edge: 100% of 500.
+		for (let step = 0; step < 12; step++) pressKey(area, 'ArrowRight');
+		pressKey(area, 'Enter');
+		await settle();
+		expect(mounted.instance.response).toEqual(['255 150', '500 150']);
+
+		// Twelve large steps down from 50% clamp at the bottom edge.
+		for (let step = 0; step < 12; step++) pressKey(area, 'ArrowDown');
+		pressKey(area, 'Enter');
+		await settle();
+		expect(mounted.instance.response).toEqual(['255 150', '500 150', '500 300']);
+
+		// Twenty large steps left clamp at the left edge: 0%, never past the image.
+		for (let step = 0; step < 20; step++) pressKey(area, 'ArrowLeft');
+		pressKey(area, 'Enter');
+		await settle();
+		expect(mounted.instance.response).toEqual(['255 150', '500 150', '500 300', '0 300']);
+		expect(mounted.events.at(-1)?.detail).toMatchObject({ value: ['255 150', '500 150', '500 300', '0 300'] });
+	});
+
 	test('pointer placement maps the scaled rendering back to natural image coordinates', async () => {
 		const mounted = mountInteraction(SelectPointInteraction, { interaction: selectPointData() });
 		await settle();

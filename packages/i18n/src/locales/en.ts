@@ -248,6 +248,7 @@ export default {
 		},
 
 		selectPoint: {
+			unknownImageDimensions: 'This select-point interaction cannot be shown: the size of its image is unknown, so points cannot be placed correctly. Add width and height to the image, or supply the asset dimensions.',
 			instruction: 'Click on the image to select points',
 			instructionAria: 'Click to select points on the image',
 			maxPointsReached: 'Maximum points reached. Remove a point to add a new one.',
@@ -460,6 +461,7 @@ export default {
 		},
 
 		positionObject: {
+			unknownImageDimensions: 'Objects cannot be placed: the size of the stage image is unknown. Add width and height to the image, or supply the asset dimensions.',
 			instruction: 'Drag objects onto the image',
 			placeObject: 'Place {object} on image',
 			removeObject: 'Remove {object}',
@@ -547,6 +549,7 @@ export default {
 		},
 
 		graphicOrder: {
+			unknownImageDimensions: 'The areas cannot be shown: the size of the image is unknown. Add width and height to the image, or supply the asset dimensions.',
 			instruction: 'Click hotspots to order them',
 			diagramLabel: 'Ordering diagram',
 			altText: 'Ordering diagram',
@@ -573,6 +576,7 @@ export default {
 		},
 
 		graphicAssociate: {
+			unknownImageDimensions: 'This graphic association cannot be shown: the size of its image is unknown, so the hotspots cannot be placed. Add width and height to the image, or supply the asset dimensions.',
 			imageFallback: 'Image for this question',
 			imageLoadError: 'The image could not be loaded.',
 			unlabeledHotspot: 'Region {index}',

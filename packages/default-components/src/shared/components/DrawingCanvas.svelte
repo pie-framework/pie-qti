@@ -7,10 +7,20 @@
 
 	import type { QTIFileResponse } from '@pie-qti/item-player';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
+	import ImageStage from './ImageStage.svelte';
+	import { clientToImagePoint } from '../utils/graphicRegions';
 
-	type ImageData =
-		| { type: 'svg'; content?: string; width: string; height: string; alt?: string; altDescription?: string; decorative?: boolean }
-		| { type: 'image'; src?: string; width: string; height: string; alt?: string; altDescription?: string; decorative?: boolean };
+	/** The stage image as the graphic interactions deliver it (structurally `ImageStage`'s). */
+	type ImageData = {
+		type: 'image' | 'svg';
+		src?: string;
+		content?: string;
+		width?: string | number;
+		height?: string | number;
+		alt?: string;
+		altDescription?: string;
+		decorative?: boolean;
+	};
 
 	interface Props {
 		responseId: string;
@@ -48,14 +58,13 @@
 		lineJoin = 'round',
 	}: Props = $props();
 
-	function toNumber(v: string | undefined, fallback: number) {
-		if (!v) return fallback;
-		const n = Number(v);
-		return Number.isFinite(n) ? n : fallback;
-	}
-
-	const canvasWidth = $derived(toNumber(imageData?.width, 600));
-	const canvasHeight = $derived(toNumber(imageData?.height, 400));
+	// The canvas' pixel resolution (also the response PNG's size): the authored
+	// width/height, else 600×400 — a blank canvas is a valid answer, so unlike the
+	// graphic interactions the drawing stage never refuses an unknown image size
+	// (shared ImageStage, `fallback-loose` sizing).
+	let canvasWidth = $state(600);
+	let canvasHeight = $state(400);
+	let imageFailed = $state(false);
 
 	// The background image is ordinary content with its authored text alternative;
 	// only an author-marked decorative image stays hidden from assistive tech.
@@ -65,12 +74,8 @@
 	const imageDescription = $derived(imageData?.decorative ? '' : (imageData?.altDescription ?? ''));
 	const imageDescriptionId = $derived(`drawing-image-description-${responseId}`);
 	const instructionsId = $derived(`drawing-instructions-${responseId}`);
-	let failedSrc = $state<string | null>(null);
-	const imageFailed = $derived(imageData?.type === 'image' && !!imageData.src && failedSrc === imageData.src);
-
-	function handleImageError() {
-		failedSrc = imageData?.type === 'image' ? (imageData.src ?? null) : null;
-		console.warn(`[pie-qti-drawing] The background image failed to load: ${failedSrc ?? ''}`);
+	function warnImageFailed(src: string) {
+		console.warn(`[pie-qti-drawing] The background image failed to load: ${src}`);
 	}
 
 	let canvasEl = $state<HTMLCanvasElement | null>(null);
@@ -107,23 +112,14 @@
 
 	function getCanvasPoint(e: PointerEvent) {
 		if (!canvasEl) return { x: 0, y: 0 };
-		const rect = canvasEl.getBoundingClientRect();
-		// Get coordinates relative to canvas
-		let x = e.clientX - rect.left;
-		let y = e.clientY - rect.top;
-
-		// Scale from display size to canvas internal size (stays exact when the
-		// canvas is displayed responsively, WCAG 1.4.10)
-		const scaleX = canvasWidth / rect.width;
-		const scaleY = canvasHeight / rect.height;
-		x = x * scaleX;
-		y = y * scaleY;
-
-		// Clamp to canvas bounds
-		x = Math.max(0, Math.min(x, canvasWidth));
-		y = Math.max(0, Math.min(y, canvasHeight));
-
-		return { x, y };
+		// Client position relative to the canvas, scaled to its internal pixel size
+		// (stays exact when the canvas is displayed responsively, WCAG 1.4.10) and
+		// clamped to the canvas bounds. Unrounded: a stroke keeps its sub-pixel path.
+		return (
+			clientToImagePoint(e.clientX, e.clientY, canvasEl.getBoundingClientRect(), canvasWidth, canvasHeight, {
+				round: false,
+			}) ?? { x: 0, y: 0 }
+		);
 	}
 
 	function pointerDown(e: PointerEvent) {
@@ -228,44 +224,29 @@
 	<!-- The canvas scales with its container up to its authored pixel size; drawing
 	     coordinates are mapped from the displayed size, so strokes land where they
 	     are drawn at any scale (WCAG 1.4.10). -->
-	<div
-		class="qti-dc-canvas-wrap"
-		style="max-width: {canvasWidth}px; aspect-ratio: {canvasWidth} / {canvasHeight}; user-select: none;"
+	<ImageStage
+		imageData={imageData}
+		alt={backgroundAlt}
+		description={imageDescription}
+		descriptionId={imageDescriptionId}
+		containerClass="qti-dc-canvas-wrap"
+		containerStyle="user-select: none;"
+		svgContentClass="qti-dc-background qti-dc-background-svg"
+		imgClass="qti-dc-background qti-dc-background-img"
+		errorClass="qti-dc-background qti-dc-background-error"
+		mediaInlineStyle="pointer-events: none;"
+		loadErrorText={translate(i18n, 'interactions.drawing.imageLoadError', 'The background image could not be loaded.')}
+		onImageError={warnImageFailed}
+		sizing="fallback-loose"
+		fallbackWidth={600}
+		fallbackHeight={400}
+		bind:width={canvasWidth}
+		bind:height={canvasHeight}
+		bind:failed={imageFailed}
 	>
-		{#if imageData}
-			{#if imageData.type === 'svg'}
-				<div
-					class="qti-dc-background qti-dc-background-svg"
-					style="pointer-events: none;"
-					role={imageData.decorative ? undefined : 'img'}
-					aria-hidden={imageData.decorative ? 'true' : undefined}
-					aria-label={imageData.decorative ? undefined : backgroundAlt}
-					aria-describedby={imageDescription ? imageDescriptionId : undefined}
-				>
-					{@html imageData.content}
-				</div>
-			{:else if imageFailed}
-				<div class="qti-dc-background qti-dc-background-error">
-					<p>{translate(i18n, 'interactions.drawing.imageLoadError', 'The background image could not be loaded.')}</p>
-					{#if imageData.alt && !imageData.decorative}
-						<p>{imageData.alt}</p>
-					{/if}
-				</div>
-			{:else if imageData.src}
-				<img
-					class="qti-dc-background qti-dc-background-img"
-					src={imageData.src}
-					alt={backgroundAlt}
-					aria-describedby={imageDescription ? imageDescriptionId : undefined}
-					style="pointer-events: none;"
-					onerror={handleImageError}
-				/>
-			{/if}
-			{#if imageDescription}
-				<p id={imageDescriptionId} class="sr-only">{imageDescription}</p>
-			{/if}
+		{#if imageDescription}
+			<p id={imageDescriptionId} class="sr-only">{imageDescription}</p>
 		{/if}
-
 		<canvas
 			bind:this={canvasEl}
 			data-testid={testIdCanvas}
@@ -280,7 +261,7 @@
 			onpointercancel={pointerUp}
 			style="cursor: {disabled ? 'not-allowed' : 'crosshair'};"
 		></canvas>
-	</div>
+	</ImageStage>
 
 	<div aria-live="polite" class="sr-only">{announceText}</div>
 
@@ -302,38 +283,6 @@
 	.qti-dc-clear:focus-visible {
 		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
-	}
-	.qti-dc-canvas-wrap {
-		position: relative;
-		width: 100%;
-	}
-	.qti-dc-background {
-		position: absolute;
-		inset: 0;
-		width: 100%;
-		height: 100%;
-	}
-	.qti-dc-background-img {
-		object-fit: contain;
-	}
-	.qti-dc-background-svg :global(svg) {
-		display: block;
-		width: 100%;
-		height: 100%;
-	}
-	.qti-dc-background-error {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 0.25rem;
-		padding: 1rem;
-		box-sizing: border-box;
-		text-align: center;
-		color: var(--pie-qti-error-text, #b91c1c);
-	}
-	.qti-dc-background-error p {
-		margin: 0;
 	}
 	/* The drawing surface sits exactly over the background and stretches with the wrapper.
 	   The frame is an outline, not a border, so the canvas box maps 1:1 to drawing coordinates. */

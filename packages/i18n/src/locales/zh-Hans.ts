@@ -248,6 +248,7 @@ export default {
 		},
 
 		selectPoint: {
+			unknownImageDimensions: '无法显示此选点交互：图像尺寸未知，因此无法正确放置点。请为图像添加宽度和高度，或提供素材尺寸。',
 			instruction: '点击图像以选择点',
 			instructionAria: '点击以在图像上选择点',
 			maxPointsReached: '已达到最大点数。移除一个点以添加新点。',
@@ -458,6 +459,7 @@ export default {
 		},
 
 		positionObject: {
+			unknownImageDimensions: '无法放置对象：舞台图像的尺寸未知。请为图像添加宽度和高度，或提供素材尺寸。',
 			instruction: '将物体拖动到图像上',
 			placeObject: '将 {object} 放在图像上',
 			removeObject: '移除 {object}',
@@ -545,6 +547,7 @@ export default {
 		},
 
 		graphicOrder: {
+			unknownImageDimensions: '无法显示区域：图像尺寸未知。请为图像添加宽度和高度，或提供素材尺寸。',
 			instruction: '点击热点以对它们进行排序',
 			diagramLabel: '排序图',
 			altText: '排序图',
@@ -571,6 +574,7 @@ export default {
 		},
 
 		graphicAssociate: {
+			unknownImageDimensions: '无法显示此图形关联：图像尺寸未知，因此无法放置热区。请为图像添加宽度和高度，或提供素材尺寸。',
 			imageFallback: '本题的图像',
 			imageLoadError: '无法加载图像。',
 			unlabeledHotspot: '区域 {index}',

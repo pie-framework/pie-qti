@@ -259,8 +259,13 @@ export interface ImageData {
 	type: 'svg' | 'image';
 	content?: HtmlContent;
 	src?: string;
-	width: string;
-	height: string;
+	/**
+	 * The authored pixel dimensions, when the item declares them. Absent when it
+	 * does not: a raster image's natural size (once loaded) is the pixel space
+	 * the graphic interactions' coords and points are authored in.
+	 */
+	width?: string;
+	height?: string;
 	/** Short text alternative extracted from the QTI source (see `shared/imageAlt.ts`). */
 	alt?: string;
 	/** Longer description for complex images (SVG `<desc>`, resolved aria description). */

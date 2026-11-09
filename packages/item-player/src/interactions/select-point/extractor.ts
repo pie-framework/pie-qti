@@ -64,14 +64,11 @@ export const standardSelectPointExtractor: ElementExtractor<SelectPointData> = {
 			const objectElement = objectElements[0];
 			const type = utils.getAttribute(objectElement, 'type', '');
 			const data = utils.getAttribute(objectElement, 'data', '');
-			const width = normalizePixelDimension(
-				utils.getAttribute(objectElement, 'width', ''),
-				'500',
-			);
-			const height = normalizePixelDimension(
-				utils.getAttribute(objectElement, 'height', ''),
-				'300',
-			);
+			// The stage's pixel space: the authored width/height, when declared. Without
+			// them the renderer stages the raster at its natural size; a default here
+			// would silently place points in a guessed space.
+			const width = normalizePixelDimension(utils.getAttribute(objectElement, 'width', ''));
+			const height = normalizePixelDimension(utils.getAttribute(objectElement, 'height', ''));
 			const content = type.startsWith('image/svg') ? utils.getHtmlContent(objectElement) : '';
 
 			if (/<svg[\s>]/i.test(content)) {
@@ -97,14 +94,8 @@ export const standardSelectPointExtractor: ElementExtractor<SelectPointData> = {
 			// QTI 3.0 <img>: the alt attribute is the text alternative (alt="" = decorative)
 			const imgElement = imgElements[0];
 			const src = utils.getAttribute(imgElement, 'src', '');
-			const width = normalizePixelDimension(
-				utils.getAttribute(imgElement, 'width', ''),
-				'500',
-			);
-			const height = normalizePixelDimension(
-				utils.getAttribute(imgElement, 'height', ''),
-				'300',
-			);
+			const width = normalizePixelDimension(utils.getAttribute(imgElement, 'width', ''));
+			const height = normalizePixelDimension(utils.getAttribute(imgElement, 'height', ''));
 			imageData = {
 				type: 'image',
 				src,

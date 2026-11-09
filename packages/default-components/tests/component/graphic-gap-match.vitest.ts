@@ -38,6 +38,13 @@ function hotspotTargets(mounted: { host: HTMLElement }): Element[] {
 	return qa(mounted, '.qti-ggm-hotspot');
 }
 
+/** Begin dragging a palette label (the pointer drop's first half). */
+function labelDrop(mounted: { host: HTMLElement }, name: string) {
+	qa<HTMLButtonElement>(mounted, '[part="labels"] button')
+		.find((button) => button.textContent?.trim() === name)!
+		.dispatchEvent(new Event('dragstart', { bubbles: true }));
+}
+
 describe('GraphicGapMatchInteraction (pie-qti-graphic-gap-match)', () => {
 	test('renders the authored alt text on the background image', async () => {
 		const mounted = mountInteraction(GraphicGapMatchInteraction, { interaction: ggmData() });
@@ -121,6 +128,72 @@ describe('GraphicGapMatchInteraction (pie-qti-graphic-gap-match)', () => {
 		// A filled zone shows its label text on the image (not colour alone).
 		expect(q(mounted, '.qti-ggm-zone[data-filled] .qti-ggm-zone-text')?.textContent?.trim()).toBe('Rain');
 		expect(q(mounted, '[aria-live="polite"]')?.textContent).toContain('Rain placed on hotspot 2');
+	});
+
+	test("a default-shape hotspot lies beneath the others, like the hotspot one", async () => {
+		// The default shape is the whole image (QTI 3.0 §8.29); drawn in authored order it
+		// covers every hotspot listed before it — a click or drop there would fill the
+		// whole-image zone instead. So its layers and pointer target are painted first, in
+		// a backdrop group, while its control keeps its authored place for keyboard and AT.
+		const mounted = mountInteraction(GraphicGapMatchInteraction, {
+			interaction: ggmData({
+				gapTexts: [{ identifier: 'RAIN', text: 'Rain', matchMax: 1 }],
+				gapImages: [],
+				hotspots: [
+					{ identifier: 'LAKE', shape: 'rect', coords: '20,120,220,190', matchMax: 1 },
+					{ identifier: 'ALL', shape: 'default', coords: '', matchMax: 1 },
+				],
+			}),
+		});
+		await settle();
+
+		const overlay = q(mounted, 'svg[part="overlay"]')!;
+		const children = Array.from(overlay.children).map((node) => (node as SVGElement).getAttribute('class') ?? '');
+		// The whole-image zone paints before the other zone's shapes...
+		expect(children.findIndex((cls) => cls.includes('qti-ggm-backdrop'))).toBeLessThan(
+			children.findIndex((cls) => cls.includes('qti-ggm-zone') && !cls.includes('qti-ggm-backdrop')),
+		);
+		// ...its pointer target takes the drops on the rest of the image,
+		const backdropTarget = q(mounted, '.qti-ggm-backdrop [aria-hidden="true"].qti-ggm-hotspot')!;
+		expect(backdropTarget).not.toBeNull();
+		// ...and the whole-image zone's own control takes no pointer input, so a drop or
+		// click on the lake stays the lake's.
+		const controls = hotspotTargets(mounted).filter((target) => target.getAttribute('role') === 'button');
+		expect(controls).toHaveLength(2);
+		const defaultControl = controls.find((c) => c.getAttribute('aria-label')?.startsWith('Hotspot 2.'))!;
+		expect(defaultControl.getAttribute('style')).toContain('pointer-events: none');
+		// The lake's control takes pointer input as before.
+		const lakeControl = controls.find((c) => c.getAttribute('aria-label')?.startsWith('Hotspot 1.'))!;
+		expect(lakeControl.getAttribute('style')).not.toContain('pointer-events: none');
+
+		// Drops land on the real zones: the lake, then the whole image elsewhere.
+		labelDrop(mounted, 'Rain');
+		lakeControl.dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+		await settle();
+		expect(mounted.instance.response).toEqual(['RAIN LAKE']);
+	});
+
+	test('a drop on the whole-image backdrop fills the default-shape zone', async () => {
+		const mounted = mountInteraction(GraphicGapMatchInteraction, {
+			interaction: ggmData({
+				gapTexts: [{ identifier: 'RAIN', text: 'Rain', matchMax: 1 }],
+				gapImages: [],
+				hotspots: [
+					{ identifier: 'LAKE', shape: 'rect', coords: '20,120,220,190', matchMax: 1 },
+					{ identifier: 'ALL', shape: 'default', coords: '', matchMax: 1 },
+				],
+			}),
+		});
+		await settle();
+
+		labelDrop(mounted, 'Rain');
+		const backdropTarget = q(mounted, '.qti-ggm-backdrop [aria-hidden="true"].qti-ggm-hotspot')!;
+		backdropTarget.dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+		await settle();
+
+		expect(mounted.instance.response).toEqual(['RAIN ALL']);
+		expect(q(mounted, '.qti-ggm-zone[data-filled] .qti-ggm-zone-text')?.textContent?.trim()).toBe('Rain');
+		cleanupInteraction(mounted);
 	});
 
 	test('small drop zones grow to a 24 CSS px pointer target without changing their geometry', async () => {
