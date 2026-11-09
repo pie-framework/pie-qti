@@ -639,7 +639,7 @@ export const GAP_MATCH_INTERACTION = `<?xml version="1.0" encoding="UTF-8"?>
 
   <itemBody>
     <p>Drag the words to fill in the blanks:</p>
-    <gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+    <gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="3">
       <gapText identifier="W1" matchMax="1">photosynthesis</gapText>
       <gapText identifier="W2" matchMax="1">energy</gapText>
       <gapText identifier="W3" matchMax="1">oxygen</gapText>

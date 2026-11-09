@@ -13,7 +13,7 @@
     </correctResponse>
   </responseDeclaration>
   <itemBody>
-    <gapMatchInteraction responseIdentifier="RESPONSE">
+    <gapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="2">
       <prompt>Drag the correct animal type into each blank:</prompt>
       <gapText identifier="choice1">cat</gapText>
       <gapText identifier="choice2">salmon</gapText>

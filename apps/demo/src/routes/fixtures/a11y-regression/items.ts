@@ -40,7 +40,7 @@ const LEAKY_NAMES = `<?xml version="1.0" encoding="UTF-8"?>
 
     <p class="blanks">The capital of France is <textEntryInteraction responseIdentifier="TEXT_ENTRY_CAPITAL_IS_PARIS" expectedLength="10"/>, and France lies in <inlineChoiceInteraction responseIdentifier="INLINE_CHOICE_CONTINENT_IS_EUROPE"><inlineChoice identifier="INLINE_CHOICE_EUROPE_CORRECT_ANSWER">Europe</inlineChoice><inlineChoice identifier="INLINE_CHOICE_ASIA_WRONG">Asia</inlineChoice></inlineChoiceInteraction>.</p>
 
-    <gapMatchInteraction responseIdentifier="GAP_MATCH_SEINE_IN_PARIS" class="qti-choices-stacked">
+    <gapMatchInteraction responseIdentifier="GAP_MATCH_SEINE_IN_PARIS" class="qti-choices-stacked" maxAssociations="2">
       <prompt>Complete the sentences about rivers.</prompt>
       <gapText identifier="GAP_TEXT_SEINE_FLOWS_THROUGH_PARIS" matchMax="1">the Seine</gapText>
       <gapText identifier="GAP_TEXT_TAMIIS_NOT_A_RIVER" matchMax="1">the Tamis</gapText>
