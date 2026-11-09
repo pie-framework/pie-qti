@@ -1,6 +1,6 @@
 export * from './contracts/index.js';
 export * from './visibility/role-view.js';
-export { resolveQtiSectionComposition } from './composition/resolveQtiSectionComposition.js';
+export { filterToolsForRole, resolveQtiSectionComposition } from './composition/resolveQtiSectionComposition.js';
 export {
 	DEFAULT_DISPLAY_SETTINGS,
 	displaySettingsOf,
