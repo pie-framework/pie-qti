@@ -10,7 +10,7 @@
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
-	import { clientToImagePoint, imageAltText } from '../hotspot/graphicRegions';
+	import { clientToImagePoint, imageAltText } from '../../shared/utils/graphicRegions';
 
 	interface Props {
 		interaction?: SelectPointInteractionData | string;
