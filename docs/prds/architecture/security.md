@@ -25,8 +25,8 @@ and the shared delivery/presentation pipelines enforce policy at final egress. `
 created only after the last string transform before an HTML sink. Policy-checked scoped CSS stays
 separate from HTML and uses a dedicated style sink. The layers are configured through
 `PlayerSecurityConfig`.
-Conservative defaults are active in the central sanitizer and URL policy without any
-configuration; riskier capabilities require explicit opt-in. Same-DOM sanitization is a
+Conservative defaults are active in the central sanitizer, URL policy and parsing limits without
+any configuration; riskier capabilities require explicit opt-in. Same-DOM sanitization is a
 defense-in-depth boundary rather than a JavaScript sandbox. Content that is not trusted to run in
 the host origin should still be delivered through a suitably sandboxed, cross-origin iframe.
 
@@ -35,9 +35,9 @@ the host origin should still be delivered through a suitably sandboxed, cross-or
 - Section TTS projection and gap-match prompt reconstruction now use sanitized/text-only content;
   TTS enforces configured item-XML limits before its secondary DOM parse, and executable-attribute
   regression payloads cover both former sanitizer bypasses.
-- The item and assessment custom-element boundaries enable parsing limits by default. The lower
-  level framework API retains its compatibility default, and an explicit `enabled: false` remains
-  available to hosts with an equivalent upstream policy.
+- Parsing limits are on by default at every layer: the item and assessment custom elements, the
+  lower-level `Player` and `AssessmentItemDocument`, the server entry and the sanitizer. An
+  explicit `enabled: false` remains available to hosts with an equivalent upstream policy.
 - Filesystem storage canonicalizes its root and rejects pre-existing symbolic links that resolve
   outside it; Node archive extraction additionally rejects a symbolic link used as the extraction
   root and contains each existing output path to the canonical target. Segment-aware containment
@@ -101,17 +101,19 @@ well-known, host-trusted iframes (for example, embedded video players with known
 It does not constitute consent to allow arbitrary inline HTML documents. `srcdoc` is therefore
 always removed regardless of `allowIframes`.
 
-### Why lower-level `parsingLimits` defaults to disabled
+### Why `parsingLimits` is on by default
 
-The framework pre-dates the `parsingLimits` feature. Enabling limits by default would break
-existing integrations that pass large `itemXml` payloads or deeply nested HTML content.
-The limit defaults (10 MB XML, 5 MB HTML, 200 000 nodes, depth 200) were chosen to be
-generous enough for all known legitimate QTI items while still protecting against pathological
-inputs. Because the existing item corpus was not audited against these thresholds before
-shipping, the lower-level framework feature is opt-in: integrators who process untrusted content
-should enable it explicitly, and integrators who already have their own size/rate-limiting layer
-upstream may find it redundant. The public item and assessment custom elements are newer trust
-boundaries and enable the generous defaults unless the host explicitly opts out.
+Item XML is untrusted input wherever it enters, so the limits apply at every layer without
+configuration: the `Player`, `AssessmentItemDocument`, the server entry
+(`@pie-qti/item-player/server`), the sanitizer and the custom elements. The defaults (10 MB item
+XML, 5 MB HTML per sanitizer input, 200 000 elements, depth 200, DOCTYPE rejected) are generous
+enough for every legitimate QTI item in the repository's fixtures and public certification corpus
+while still bounding pathological inputs. QTI 2.x and 3.0 items are defined by XSDs and need no
+DOCTYPE; rejecting one closes off entity-expansion attacks.
+
+Raise an individual limit when trusted content legitimately exceeds it. Opt out entirely with
+`security.parsingLimits.enabled: false` only when the content is trusted, or when an upstream layer
+already enforces equivalent size, depth and DOCTYPE limits on everything that reaches the player.
 
 ### Why origin locking on first valid message
 
@@ -170,10 +172,10 @@ elements and attributes that have no legitimate use in QTI item bodies.
   `allowHttp`.
 - **FR-14:** When `allowedHosts` is non-empty, `sanitizeResourceUrl` must reject any
   absolute URL whose hostname is not in the list.
-- **FR-15:** When `parsingLimits.enabled` is `true`, `sanitizeHtml` must return `''` if the
+- **FR-15:** Unless `parsingLimits.enabled` is `false`, `sanitizeHtml` must return `''` if the
   input exceeds `maxHtmlBytes` (UTF-8), if traversal exceeds `maxHtmlNodes`, or if traversal
   exceeds `maxHtmlDepth`.
-- **FR-16:** When `parsingLimits.enabled` is `true`, `enforceItemXmlLimits` must throw if
+- **FR-16:** Unless `parsingLimits.enabled` is `false`, `enforceItemXmlLimits` must throw if
   `itemXml` exceeds `maxItemXmlBytes` or contains a `<!DOCTYPE` declaration. Any secondary parser,
   including the section player's spoken-catalog extraction, must call it before reparsing item XML.
 - **FR-17:** `toTrustedHtml(html, policyName)` must return a `TrustedHTML` value when
@@ -209,7 +211,7 @@ elements and attributes that have no legitimate use in QTI item bodies.
   non-literal positioning and active SVG mutation elements must be removed, while document-local
   SVG fragment references may be retained.
 - **FR-31:** Assessment Section parsing must enforce one total inline/external nesting budget.
-  Direct assessment parsing and the reference backend default to 32 levels; an explicitly enabled
+  Direct assessment parsing and the reference backend default to 32 levels; a configured
   custom-element `parsingLimits.maxHtmlDepth` override must reach both parser stages.
 - **FR-32:** Custom-element-shaped authored markup must be limited to the closed QTI 3 vocabulary;
   arbitrary `qti-*`, third-party custom elements, and customized built-ins must not invoke host
@@ -354,16 +356,18 @@ The conservative default avoids relying on browser-version-specific behavior.
 **Consequences:** Items that legitimately embed SVG diagrams as data URIs will have those
 images blocked unless the integrator opts in.
 
-### `parsingLimits` definition default and custom-element boundary default
+### `parsingLimits` on by default at every layer
 
-**Decision:** The lower-level definition default remains `false`; the public item and
-assessment custom elements set `enabled: true` unless the host explicitly supplies `false`.
-**Rationale:** Definition callers may already enforce equivalent upstream resource limits, while
-custom-element callers commonly accept item XML at the browser edge.
-**Alternatives considered:** Enable by default with high thresholds; add a migration path.  
-**Consequences:** NPM consumers using the custom-element boundary receive finite parsing limits
-without extra configuration, while definition hosts
-with an equivalent upstream policy can opt out explicitly.
+**Decision:** Parsing limits apply unless the host supplies `parsingLimits.enabled: false`, at
+every layer: `Player`, `AssessmentItemDocument`, the server entry, the sanitizer and the custom
+elements.  
+**Rationale:** Every layer can receive untrusted item XML, and the generous defaults leave
+legitimate content untouched.  
+**Alternatives considered:** Off by default below the custom elements, for hosts with their own
+upstream limits. Rejected: a secure default should not depend on the entry point, and those hosts
+can opt out explicitly.  
+**Consequences:** Every consumer receives finite parsing limits without configuration; hosts with
+an equivalent upstream policy, or trusted content that needs more, opt out or raise a limit.
 
 ### Trusted Types as opt-in defense-in-depth
 
@@ -444,7 +448,7 @@ documented as not recommended for production.
 | Object/embed allow | `PlayerSecurityConfig.allowObjectEmbeds` | Set `true` to permit `<object>` and `<embed>` elements. | `security: { allowObjectEmbeds: true }` |
 | Iframe allow | `PlayerSecurityConfig.allowIframes` | Set `true` to permit `<iframe>` elements (srcdoc always stripped). | `security: { allowIframes: true }` |
 | Trusted Types | `PlayerSecurityConfig.trustedTypesPolicyName` | Set to a CSP-allowed policy name; the player will create and use it. | `security: { trustedTypesPolicyName: 'pie-qti' }` |
-| Parsing limits | `ParsingLimitsConfig` | Enable and configure via `AssessmentItemDefinitionConfig.security.parsingLimits`. | `security: { parsingLimits: { enabled: true, maxItemXmlBytes: 1_000_000 } }` |
+| Parsing limits | `ParsingLimitsConfig` | On by default; raise a limit, or opt out with `enabled: false`, via `AssessmentItemDefinitionConfig.security.parsingLimits`. | `security: { parsingLimits: { maxItemXmlBytes: 1_000_000 } }` |
 | Interaction delivery schema | `InteractionModule.delivery` / `ElementExtractor.delivery` | Declare each rich HTML or resource URL path with `htmlField(...)` / `urlField(...)`; shared code enforces the active policy. | `delivery: { fields: [htmlField('prompt'), urlField('img', 'image', 'src')] }` |
 | Iframe host | `IFramePlayerHost` | Import from `@pie-qti/item-player/iframe` (browser-only subpath). | See `packages/item-player/docs/iframe-mode.md` |
 | Custom iframe sandbox | `IFramePlayerHostConfig.sandbox` | Override the sandbox attribute string. | `sandbox: 'allow-scripts allow-same-origin'` |
@@ -464,11 +468,12 @@ Key invariants:
 - `urlPolicy.allowDataImages` defaults to `true` (data images are common in QTI); 
   `allowSvgDataImages` defaults to `false`.
 - `urlPolicy.allowProtocolRelative` defaults to `false`.
-- `parsingLimits.enabled` defaults to `false` in the lower-level `Player`; item and assessment
-  custom elements default it to `true` unless explicitly disabled.
+- `parsingLimits.enabled` defaults to `true` at every layer (`Player`, `AssessmentItemDocument`,
+  the server entry, the sanitizer and the custom elements); only an explicit `false` disables the
+  limits. Each limit left unset takes its default.
 - `trustedTypesPolicyName` has no default; TT wrapping is inactive when absent.
 
-### `ParsingLimitsConfig` defaults (when enabled)
+### `ParsingLimitsConfig` defaults
 
 | Limit | Default value |
 |---|---|
@@ -479,8 +484,9 @@ Key invariants:
 | `rejectDoctype` | `true` |
 
 Assessment Section recursion has a separate always-on default of 32 levels. At the assessment
-custom-element boundary, an explicitly enabled `maxHtmlDepth` value also becomes the Section-depth
-override so that the preliminary and reference-backend parsers enforce the same budget.
+custom-element boundary, a configured `maxHtmlDepth` value also becomes the Section-depth
+override (unless the limits are disabled) so that the preliminary and reference-backend parsers
+enforce the same budget.
 
 ### iframe protocol versioning
 
@@ -569,22 +575,22 @@ AC-11: Host allowlist passes trusted host
   Then: Returns 'https://cdn.trusted.com/img.png'
 
 AC-12: parsingLimits maxHtmlBytes enforced
-  Given: parsingLimits.enabled=true, maxHtmlBytes=100
+  Given: parsingLimits.maxHtmlBytes=100 (enabled left unset)
   When: sanitizeHtml is called with a string longer than 100 UTF-8 bytes
   Then: Returns ''
 
 AC-13: parsingLimits maxHtmlNodes enforced
-  Given: parsingLimits.enabled=true, maxHtmlNodes=5
+  Given: parsingLimits.maxHtmlNodes=5 (enabled left unset)
   When: sanitizeHtml is called with HTML containing 10 elements
   Then: Returns ''
 
-AC-14: enforceItemXmlLimits rejects DOCTYPE
-  Given: parsingLimits.enabled=true, rejectDoctype=true
-  When: enforceItemXmlLimits('<!DOCTYPE foo><assessmentItem.../>', security) is called
+AC-14: enforceItemXmlLimits rejects DOCTYPE by default
+  Given: No security config
+  When: enforceItemXmlLimits('<!DOCTYPE foo><assessmentItem.../>') is called
   Then: Throws an error mentioning DOCTYPE
 
 AC-15: enforceItemXmlLimits does nothing when disabled
-  Given: No security config (parsingLimits.enabled defaults to false)
+  Given: parsingLimits.enabled=false
   When: enforceItemXmlLimits is called with oversized XML containing DOCTYPE
   Then: Does not throw
 

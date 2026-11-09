@@ -25,10 +25,13 @@ function getByteLengthUtf8(s: string): number {
 	return new TE().encode(s).byteLength;
 }
 
+/**
+ * The parsing limits in force: on unless the host opts out with `parsingLimits.enabled: false`,
+ * each limit taken from the config or its default.
+ */
 export function normalizeParsingLimits(security?: PlayerSecurityConfig): NormalizedParsingLimits {
 	const cfg = security?.parsingLimits;
-	const enabled = cfg?.enabled === true;
-	if (!enabled) {
+	if (cfg?.enabled === false) {
 		return { enabled: false, ...DEFAULTS };
 	}
 
