@@ -273,7 +273,7 @@ responseDeclaration identifier="RESPONSE"
   correctResponse > value: the correct identifier sequence (one per value element, in order)
 ```
 
-The player stores the response as `string[]` in `declarations[responseIdentifier].value`. The `qti-change` event `detail.value` carries the same `string[]`.
+The player stores the response as `string[]` in `declarations[responseIdentifier].value`. The `qti-change` event `detail.value` carries the same `string[]`, or `null` once a subset order is emptied (FR-16).
 
 ---
 
