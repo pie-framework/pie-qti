@@ -160,6 +160,44 @@ describe('ExtendedTextInteraction (pie-qti-extended-text)', () => {
 		expect(q(m, '[part="counter"]')!.textContent).toBe('4 / 20 characters');
 	});
 
+	test('without an authored expected length neither counter class shows a counter, in either format', async () => {
+		// Both counters are defined against expected-length (QTI 3 shared vocabulary §1.2.3.2:
+		// counter-down starts at it, counter-up increases to it), and by default no counter is
+		// displayed: no target is invented when the author gave none.
+		for (const counterClass of ['qti-counter-down', 'qti-counter-up']) {
+			for (const format of ['plain', 'xhtml']) {
+				const { expectedLength: _absent, ...withoutLength } = extendedTextData({
+					format,
+					interactionClasses: [counterClass],
+				});
+				const m = mountExtendedText({ interaction: withoutLength });
+				await settle();
+
+				expect(q(m, '[part="counter"]')).toBeNull();
+				expect(m.host.textContent).not.toMatch(/\/ ?\d+|remaining|200/);
+				const field = q(m, format === 'xhtml' ? '[role="textbox"]' : 'textarea');
+				expect(field).not.toBeNull();
+				expect(field!.hasAttribute('aria-describedby')).toBe(false);
+
+				if (format === 'plain') {
+					type(q<HTMLTextAreaElement>(m, 'textarea')!, 'a'.repeat(250));
+					await settle();
+					expect(q(m, '[part="counter"]')).toBeNull();
+					expect(announcement(m)).toBe('');
+				}
+				cleanupInteraction(...mounted.splice(0));
+			}
+		}
+	});
+
+	test('the box size does not depend on expectedLength: rows come from expectedLines', async () => {
+		const { expectedLength: _absent, ...withoutLength } = extendedTextData({ expectedLines: 4 });
+		const m = mountExtendedText({ interaction: withoutLength });
+		await settle();
+
+		expect(q<HTMLTextAreaElement>(m, 'textarea')!.getAttribute('rows')).toBe('4');
+	});
+
 	test('multiple strings get one independently named region each', async () => {
 		const m = mountExtendedText({
 			interaction: extendedTextData({ cardinality: 'multiple', minStrings: 0, maxStrings: 3 }),
