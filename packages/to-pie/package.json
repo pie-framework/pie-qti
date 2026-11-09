@@ -37,7 +37,7 @@
 		"@pie-qti/ims-cp-node": "workspace:*",
 		"@pie-qti/qti-common": "workspace:*",
 		"@pie-qti/transform-types": "workspace:*",
-		"fast-xml-parser": "^5.11.2",
+		"fast-xml-parser": "^5.12.0",
 		"image-size": "^2.0.4",
 		"node-html-parser": "^9.0.5",
 		"uuid": "^14.0.3",
