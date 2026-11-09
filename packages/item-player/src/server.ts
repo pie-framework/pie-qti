@@ -49,6 +49,8 @@ export interface ServerSerializedVariable {
 	cardinality: string;
 	value: unknown;
 	defaultValue: unknown;
+	/** Present only on response variables that have or had a correct response; null when it is NULL. */
+	correctResponse?: unknown;
 }
 
 export interface ServerResponseValidationIssue {
