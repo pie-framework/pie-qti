@@ -1,6 +1,7 @@
 import type {
 	AssessmentFinalizedEvent,
 	AssessmentResults,
+	AssessmentSessionState,
 	AssessmentTimeExpiryEvent,
 	AssessmentTimeState,
 	BackendAdapter,
@@ -118,7 +119,54 @@ export interface QtiAssessmentPlayerEventMap {
 	'autosave-failed': CustomEvent<QtiAssessmentAutosaveFailedDetail>;
 }
 
-export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<string, unknown>> {
+/**
+ * The imperative façade this element proxies to the mounted `AssessmentShell`
+ * component: every shell export the element calls, with the signatures the
+ * shell implements (each export forwards to the same-named headless player
+ * method). The element's `_instance` is typed with this interface, so a shell
+ * export that moves or changes shape fails to compile here instead of
+ * silently no-oping through optional chaining. `updateResponse` is a shell
+ * export the element does not proxy, so it is deliberately not part of the
+ * façade.
+ */
+export interface AssessmentShellApi {
+	/** Move forward (`AssessmentPlayer.next`). */
+	next(): Promise<void>;
+	/** Move back (`AssessmentPlayer.previous`). */
+	previous(): Promise<void>;
+	/** Jump to a delivered item index (`AssessmentPlayer.navigateTo`). */
+	navigateTo(index: number): Promise<void>;
+	/** Jump to the first item of a presented section (`AssessmentPlayer.navigateToSection`). */
+	navigateToSection(sectionIdentifier: string): Promise<void>;
+	/** End the test; `{ force: true }` is the proctor's administrative submit (`AssessmentPlayer.submit`). */
+	submit(options?: { force?: boolean }): Promise<AssessmentResults>;
+	/** The active item's current responses (`AssessmentPlayer.getResponses`). */
+	getResponses(): Record<string, unknown>;
+	/** The session snapshot a host persists and restores (`AssessmentPlayer.getState`). */
+	getState(): AssessmentSessionState;
+	/** Restore a previously saved session snapshot (`AssessmentPlayer.restoreState`). */
+	restoreState(state: AssessmentSessionState): Promise<void>;
+	/** Open the begin gate and start delivery and the clocks (the shell's own begin flow). */
+	start(): Promise<void>;
+	/** Whether delivery has begun (false while a begin gate holds the start screen). */
+	hasStarted(): boolean;
+	/** Proctor pause: freeze every clock and block candidate input until `resume`. */
+	pause(reason?: string): void;
+	/** End a proctor pause. */
+	resume(): void;
+	/** Whether a proctor pause is in force (a restored session may open paused). */
+	isPaused(): boolean;
+	/** The candidate-facing reason of the pause in force, if any. */
+	getPauseReason(): string | undefined;
+	/** Whether the session is terminal (finalized here, or restored already finalized). */
+	isFinalized(): boolean;
+	/** The countdown state for a proctor console (`AssessmentPlayer.getTimeState`). */
+	getTimeState(): AssessmentTimeState;
+	/** Save the current draft now, best-effort (`AssessmentPlayer.flushAutosave`). */
+	flushAutosave(): Promise<void>;
+}
+
+export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<string, unknown>, AssessmentShellApi> {
 	static get observedAttributes() {
 		return [
 			// Pure-QTI inputs
@@ -520,19 +568,21 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	}
 
 	/**
-	 * Imperative API (proxied through `AssessmentShell` exports)
+	 * Imperative API (proxied through the mounted shell's exports — the typed
+	 * `AssessmentShellApi` façade). Before the shell mounts, `_instance` is null
+	 * and every method resolves undefined / reports its safe default.
 	 */
 	async next() {
-		return this._instance?.next?.();
+		return this._instance?.next();
 	}
 	async previous() {
-		return this._instance?.previous?.();
+		return this._instance?.previous();
 	}
 	async navigateTo(index: number) {
-		return this._instance?.navigateTo?.(index);
+		return this._instance?.navigateTo(index);
 	}
 	async navigateToSection(sectionIdentifier: string) {
-		return this._instance?.navigateToSection?.(sectionIdentifier);
+		return this._instance?.navigateToSection(sectionIdentifier);
 	}
 	/**
 	 * End the test. A candidate's submit is refused while paused (and while questions in
@@ -545,50 +595,50 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	 * `results.endReason` on the finalized event and `session-finalized` detail.
 	 */
 	async submit(options?: { force?: boolean }): Promise<AssessmentResults | undefined> {
-		return this._instance?.submit?.(options);
+		return this._instance?.submit(options);
 	}
-	getResponses() {
-		return this._instance?.getResponses?.();
+	getResponses(): Record<string, unknown> | undefined {
+		return this._instance?.getResponses();
 	}
-	getState() {
-		return this._instance?.getState?.();
+	getState(): AssessmentSessionState | undefined {
+		return this._instance?.getState();
 	}
-	restoreState(state: unknown) {
-		return this._instance?.restoreState?.(state);
+	restoreState(state: AssessmentSessionState) {
+		return this._instance?.restoreState(state);
 	}
 	/** Open the begin gate (as the candidate's Begin does): delivery and the clocks start. */
 	async start() {
-		return this._instance?.start?.();
+		return this._instance?.start();
 	}
 	/** Whether delivery has begun (false while the begin gate holds the start screen). */
 	hasStarted(): boolean {
-		return this._instance?.hasStarted?.() ?? false;
+		return this._instance?.hasStarted() ?? false;
 	}
 	/**
 	 * Proctor pause: every clock freezes, candidate input is blocked and an overlay shows
 	 * `reason` (host-supplied, candidate-facing text) until `resume()`. Fires `player-pause`.
 	 */
 	pause(reason?: string): void {
-		this._instance?.pause?.(reason);
+		this._instance?.pause(reason);
 	}
 	/** End a proctor pause; the clocks continue where they froze. Fires `player-resume`. */
 	resume(): void {
-		this._instance?.resume?.();
+		this._instance?.resume();
 	}
 	/**
 	 * Whether a proctor pause is in force. A session restored paused reports it at
 	 * mount too (and fires `player-pause` then), so a proctor console can sync.
 	 */
 	isPaused(): boolean {
-		return this._instance?.isPaused?.() ?? false;
+		return this._instance?.isPaused() ?? false;
 	}
 	/** The candidate-facing reason of the pause in force, if any. */
 	getPauseReason(): string | undefined {
-		return this._instance?.getPauseReason?.();
+		return this._instance?.getPauseReason();
 	}
 	/** Whether the session is terminal: finalized here, or restored already finalized. */
 	isFinalized(): boolean {
-		return this._instance?.isFinalized?.() ?? false;
+		return this._instance?.isFinalized() ?? false;
 	}
 	/**
 	 * The countdown state for a proctor console: the nearest active limit (remaining and
@@ -596,11 +646,11 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	 * Undefined before the session is ready.
 	 */
 	getTimeState(): AssessmentTimeState | undefined {
-		return this._instance?.getTimeState?.();
+		return this._instance?.getTimeState();
 	}
 	/** Save the current draft now (best-effort), e.g. before the host tears the page down. */
 	async flushAutosave(): Promise<void> {
-		await this._instance?.flushAutosave?.();
+		await this._instance?.flushAutosave();
 	}
 
 	addEventListener<K extends keyof QtiAssessmentPlayerEventMap>(
