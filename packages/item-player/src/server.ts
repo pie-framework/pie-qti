@@ -48,7 +48,7 @@ export interface ServerSerializedVariable {
 	baseType?: string;
 	cardinality: string;
 	value: unknown;
-	defaultValue?: unknown;
+	defaultValue: unknown;
 }
 
 export interface ServerResponseValidationIssue {

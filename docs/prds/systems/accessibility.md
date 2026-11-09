@@ -16,7 +16,7 @@
 
 ## Summary
 
-The accessibility system is a cross-cutting set of patterns, components, and conventions that together satisfy WCAG 2.2 Level AA for K-12 standardized assessments delivered by the PIE-QTI framework. It covers screen reader announcement of dynamic state changes (`AccessibilityAnnouncer`), focus management across item navigation, ARIA attribute patterns inside Shadow DOM, visually-hidden text for assistive technology, keyboard navigation across every interaction type, minimum touch-target sizing, high-contrast theme support, and the implemented QTI 3.0 Personal Needs and Preferences (PNP) subset. Structured-label and braille support remain deferred under G-13.
+The accessibility system is a cross-cutting set of patterns, components, and conventions that together satisfy WCAG 2.2 Level AA for K-12 standardized assessments delivered by the PIE-QTI framework. It covers screen reader announcement of dynamic state changes (`AccessibilityAnnouncer`), focus management across item navigation, ARIA attribute patterns inside Shadow DOM, visually-hidden text for assistive technology, keyboard navigation across every interaction type, minimum touch-target sizing, high-contrast theme support, and the implemented QTI 3.0 Personal Needs and Preferences (PNP) subset, including structured labels and braille data exposure (G-13).
 
 ---
 
@@ -412,7 +412,7 @@ Then: Focus is not moved away from the candidate's current position
 
 - [x] **G-09 — PNP profile:** Shipped in commit `fa8fa97` (2026-04-28). Elimination tool, extended time, glossary/keyword-translation triggers and popups are implemented; color schemes set `data-qti-colorscheme` on the player root, and no scheme rulesets ship yet. See `docs/prds/systems/pnp.md` for full specification.
 
-- [x] **G-13 — Structured label and braille support (Tier 3):** `pnp.display.structuredLabelSupport` wraps the choice and match answer sets in a `role="group"` named by the prompt, with match columns named by their visible headings. `braille-text` catalog entries expose pre-transcribed braille through `getCatalogEntry` and the `qti-catalog-lookup` event; device routing stays host-side. Research finding and markup contract in `packages/item-player/docs/PNP.md`; tracked as Done in `docs/SPEC-GAPS-PLAN.md` §G-13.
+- [x] **G-13 — Structured label and braille support (Tier 3):** `pnp.display.structuredLabelSupport` makes the match answer set one `role="group"` named by the prompt, with its columns named by their visible headings; the choice answer set is always such a group, with or without the flag. `braille-text` catalog entries expose pre-transcribed braille through `getCatalogEntry` and the `qti-catalog-lookup` event; device routing stays host-side. Research finding and markup contract in `packages/item-player/docs/PNP.md`; tracked as Done in `docs/SPEC-GAPS-PLAN.md` §G-13.
 
 - [ ] **Cross-shadow ARIA with ARIA IDRef Reflection:** ARIA 1.3 defines `ariaLabelledByElements` / `ariaDescribedByElements` to allow IDREF relationships across shadow boundaries. As of 2026 this is not reliably supported in all target browsers. Once browser support stabilizes, interaction components should be updated to accept external labelling rather than requiring self-contained labels.
 

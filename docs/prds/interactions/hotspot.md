@@ -271,7 +271,7 @@ interface ImageData {
 | `disabled` | `boolean` | in | Default `false` |
 | `role` | `string` | in | `'candidate'` (default) or `'scorer'` |
 | `i18n` | `I18nProvider` | in | Optional; falls back to English strings |
-| `onChange` | `(value: string) => void` | in | Callback for Svelte usage (web component uses `qti-change` event) |
+| `onChange` | `(value: string \| null) => void` | in | Callback for Svelte usage (web component uses `qti-change` event); `null` on "Clear answer" |
 
 ### `qti-change` event payload
 
@@ -281,8 +281,9 @@ interface ImageData {
   bubbles: true,
   composed: true,
   detail: {
-    responseIdentifier: string,   // matches HotspotInteractionData.responseId
-    value: string                 // selected hotspotChoice identifier
+    responseId: string,           // matches HotspotInteractionData.responseId
+    value: string | null,         // selected hotspotChoice identifier; null on "Clear answer"
+    timestamp: number
   }
 }
 ```
