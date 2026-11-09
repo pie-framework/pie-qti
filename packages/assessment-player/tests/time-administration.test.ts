@@ -406,6 +406,32 @@ describe('warnings', () => {
 		await tick();
 		expect(warnings).toEqual([9, 4]);
 	});
+
+	test('without threshold options the one default warning fires at 60 seconds', async () => {
+		const warnings: number[] = [];
+		const { player, advance } = await deliver(testXml({ testLimits: '<timeLimits maxTime="100"/>' }), items('i1', 'i2'));
+		player.onTimeWarning((remaining) => warnings.push(remaining));
+		advance(30_000);
+		await tick();
+		expect(warnings).toEqual([]);
+		advance(20_000);
+		await tick();
+		expect(warnings).toEqual([50]);
+	});
+
+	test('additional thresholds join the default warning', async () => {
+		const warnings: number[] = [];
+		const { player, advance } = await deliver(testXml({ testLimits: '<timeLimits maxTime="100"/>' }), items('i1', 'i2'), {
+			timeWarningThresholds: [30],
+		});
+		player.onTimeWarning((remaining) => warnings.push(remaining));
+		advance(45_000);
+		await tick();
+		expect(warnings).toEqual([55]);
+		advance(30_000);
+		await tick();
+		expect(warnings).toEqual([55, 25]);
+	});
 });
 
 describe('reference backend timing', () => {

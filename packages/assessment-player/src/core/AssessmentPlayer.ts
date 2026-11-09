@@ -555,8 +555,8 @@ export class AssessmentPlayer {
 
 		this.timeManager = new TimeManager({
 			assessmentTimeLimits: this.assessment.timeLimits,
-			warningThreshold: config.timeWarningThreshold || 60,
-			warningThresholds: config.timeWarningThresholds,
+			// The default warning (60 s unless the host moves it), then any additional ones.
+			warningThresholds: [config.timeWarningThreshold || 60, ...(config.timeWarningThresholds ?? [])],
 			now: config.now,
 			extendedTime: config.pnp?.content?.extendedTime,
 			onWarning: (remainingSeconds) => this.notifyTimeWarning(remainingSeconds),
