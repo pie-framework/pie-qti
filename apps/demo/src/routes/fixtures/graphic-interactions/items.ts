@@ -109,8 +109,41 @@ const GRAPHIC_ORDER_AREAS = `<?xml version="1.0" encoding="UTF-8"?>
   <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
 </assessmentItem>`;
 
+/**
+ * Graphic associate with a triangular hotspot, whose bounding box is mostly outside the
+ * triangle: a click there must not select it (QTI 3.0 §5.7.5–5.7.6, the hotspot is the area
+ * its shape and coords describe).
+ */
+const GRAPHIC_ASSOCIATE_POLYGON = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="graphic-associate-polygon"
+  title="Graphic associate polygon" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="pair">
+    <correctResponse>
+      <value>MOUNTAIN SUN</value>
+    </correctResponse>
+  </responseDeclaration>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+  <itemBody>
+    <graphicAssociateInteraction responseIdentifier="RESPONSE" maxAssociations="1">
+      <prompt>Connect the mountain to what rises behind it.</prompt>
+      <object type="image/svg+xml" width="400" height="240">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240">
+          <title>A mountain with the sun behind it</title>
+          <rect width="400" height="240" fill="#f8fafc"/>
+          <polygon points="200,20 360,200 40,200" fill="#cbd5e1" stroke="#334155" stroke-width="2"/>
+          <circle cx="360" cy="40" r="24" fill="#fde68a" stroke="#92400e" stroke-width="2"/>
+        </svg>
+      </object>
+      <associableHotspot identifier="MOUNTAIN" shape="poly" coords="200,20,360,200,40,200" matchMax="1" hotspotLabel="Mountain">Mountain</associableHotspot>
+      <associableHotspot identifier="SUN" shape="circle" coords="360,40,24" matchMax="1" hotspotLabel="Sun">Sun</associableHotspot>
+    </graphicAssociateInteraction>
+  </itemBody>
+  <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
+</assessmentItem>`;
+
 export const GRAPHIC_INTERACTION_FIXTURES: Readonly<Record<string, string>> = {
 	'hotspot-multiple': HOTSPOT_MULTIPLE,
 	'hotspot-default': HOTSPOT_DEFAULT_SHAPE,
 	'graphic-order-areas': GRAPHIC_ORDER_AREAS,
+	'graphic-associate-polygon': GRAPHIC_ASSOCIATE_POLYGON,
 };

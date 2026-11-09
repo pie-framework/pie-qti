@@ -166,7 +166,6 @@ test.describe('hotspot default shape', () => {
 	});
 });
 
-
 /**
  * Graphic order (QTI 3.0 §5.61: "The delivery engine must clearly indicate all defined area(s)
  * of the image"): every area outlined on the image, with its place in the order.
@@ -213,3 +212,64 @@ test.describe('graphic order shows its areas on the image', () => {
 	});
 });
 
+/**
+ * Graphic associate: pointer input hits the hotspot's real shape (QTI 3.0 §5.7.5–5.7.6), drawn
+ * inside its button, never the rest of the button's bounding box; the buttons stay the keyboard
+ * and assistive-technology controls.
+ */
+test.describe('graphic associate pointer hit areas are the hotspot shapes', () => {
+	for (const input of ['mouse', 'touch'] as const) {
+		test.describe(input, () => {
+			test.use({ hasTouch: input === 'touch', viewport: { width: input === 'touch' ? 390 : 1280, height: 900 } });
+
+			test("a press inside a polygon's bounding box but outside the polygon does not select it", async ({ page }) => {
+				const root = await openFixture(page, 'graphic-associate-polygon');
+				const host = root.locator('pie-qti-graphic-associate');
+				const mountain = host.getByRole('button', { name: /^Mountain/ });
+				const image = host.locator('[part="image"]');
+				const press = async (x: number, y: number) => {
+					const point = await imagePoint(image, { width: 400, height: 240 }, x, y);
+					if (input === 'touch') await page.touchscreen.tap(point.x, point.y);
+					else await page.mouse.click(point.x, point.y);
+				};
+
+				// Inside the triangle's bounding box (40–360 × 20–200), outside the triangle.
+				await press(60, 40);
+				await expect(mountain).toHaveAttribute('aria-pressed', 'false');
+				// Inside the triangle.
+				await press(200, 150);
+				await expect(mountain).toHaveAttribute('aria-pressed', 'true');
+				// The sun completes the association.
+				await press(360, 40);
+				await expect(page.getByTestId('response')).toHaveText('["MOUNTAIN SUN"]');
+			});
+		});
+	}
+
+	test('a pointer press on a button activates it: its centre is on its shape', async ({ page }) => {
+		const root = await openFixture(page, 'graphic-associate-polygon');
+		const host = root.locator('pie-qti-graphic-associate');
+		// Playwright clicks the centre of each button, and checks the button receives the click.
+		await host.getByRole('button', { name: /^Mountain/ }).click();
+		await host.getByRole('button', { name: /^Sun/ }).click();
+		await expect(page.getByTestId('response')).toHaveText('["MOUNTAIN SUN"]');
+	});
+
+	test('the buttons keep keyboard operation and their focus indicator', async ({ page }) => {
+		const root = await openFixture(page, 'graphic-associate-polygon');
+		const host = root.locator('pie-qti-graphic-associate');
+		const mountain = host.getByRole('button', { name: /^Mountain/ });
+		const sun = host.getByRole('button', { name: /^Sun/ });
+
+		await mountain.focus();
+		await page.keyboard.press('Enter');
+		await expect(mountain).toHaveAttribute('aria-pressed', 'true');
+		expect(await mountain.evaluate((element) => element.matches(':focus-visible'))).toBe(true);
+		await expect(mountain).toHaveCSS('outline-style', 'solid');
+		await page.keyboard.press('Tab');
+		await expect(sun).toBeFocused();
+		await page.keyboard.press('Enter');
+		await expect(page.getByTestId('response')).toHaveText('["MOUNTAIN SUN"]');
+		expect((await scan(page, 'pie-qti-graphic-associate')).violations).toEqual([]);
+	});
+});

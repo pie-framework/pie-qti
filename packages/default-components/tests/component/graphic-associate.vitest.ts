@@ -369,3 +369,158 @@ describe('GraphicAssociateInteraction (pie-qti-graphic-associate)', () => {
 		cleanupInteraction(mounted);
 	});
 });
+
+/**
+ * QTI 3.0 §5.7.5–5.7.6: a hotspot is the area its shape and coords describe. Pointer input hits
+ * SVG shapes drawn from them (HotspotShape) inside each button, never the rest of the button's
+ * bounding box; the buttons stay the keyboard and assistive-technology controls, with their
+ * focus indicators, and the image shows each hotspot's real outline.
+ */
+describe('GraphicAssociateInteraction pointer hit areas are the hotspot shapes', () => {
+	/** A triangle whose bounding box (10–90 × 5–45) is mostly outside it, a circle and an ellipse. */
+	const SHAPED_HOTSPOTS: GraphicAssociateInteractionData['associableHotspots'] = [
+		{ identifier: 'PEAK', shape: 'poly', coords: '50,5,90,45,10,45', matchMax: 1, label: 'Peak' },
+		{ identifier: 'SUN', shape: 'circle', coords: '90,10,8', matchMax: 1, label: 'Sun' },
+		{ identifier: 'LAKE', shape: 'ellipse', coords: '20,15,10,6', matchMax: 1, label: 'Lake' },
+	];
+
+	function hitAreas(mounted: ReturnType<typeof mountInteraction>): SVGElement[] {
+		return qa<SVGElement>(mounted, 'button[part="hotspot"] .qti-ga-hit-area');
+	}
+
+	test("each button's pointer hit area is its hotspot's real shape, mapped onto the button's box", async () => {
+		const mounted = mountInteraction(GraphicAssociateInteraction, {
+			interaction: associateData({ associableHotspots: SHAPED_HOTSPOTS }),
+		});
+		await settle();
+
+		const [peak, sun, lake] = hitAreas(mounted);
+		expect(peak!.tagName).toBe('polygon');
+		expect(peak!.getAttribute('points')).toBe('50,5 90,45 10,45');
+		expect(sun!.tagName).toBe('circle');
+		expect([sun!.getAttribute('cx'), sun!.getAttribute('cy'), sun!.getAttribute('r')]).toEqual(['90', '10', '8']);
+		expect(lake!.tagName).toBe('ellipse');
+		expect([lake!.getAttribute('rx'), lake!.getAttribute('ry')]).toEqual(['10', '6']);
+		// Each hit area is drawn in an SVG whose viewBox is the hotspot's bounding box, stretched
+		// over the button: the shape fills the button exactly, and grows with its 24 px minimum.
+		const viewBoxes = hitAreas(mounted).map((area) => area.closest('svg')!.getAttribute('viewBox'));
+		expect(viewBoxes).toEqual(['10 5 80 40', '82 2 16 16', '10 9 20 12']);
+		for (const area of hitAreas(mounted)) {
+			expect(area.closest('svg')!.getAttribute('preserveAspectRatio')).toBe('none');
+			// Pointer only: the button is the control assistive technology and the keyboard use.
+			expect(area.getAttribute('aria-hidden')).toBe('true');
+			expect(area.hasAttribute('tabindex')).toBe(false);
+			expect(area.hasAttribute('role')).toBe(false);
+		}
+	});
+
+	test('a button takes the pointer on its shape only, never on the rest of its bounding box', async () => {
+		const mounted = mountInteraction(GraphicAssociateInteraction, {
+			interaction: associateData({ associableHotspots: SHAPED_HOTSPOTS }),
+		});
+		await settle();
+
+		for (const button of qa<HTMLButtonElement>(mounted, 'button[part="hotspot"]')) {
+			// The button and everything in it inherit "none"...
+			expect(button.style.pointerEvents).toBe('none');
+			// ...except the shape, whose painted area takes the pointer; the press bubbles to the button.
+			expect(button.querySelector('.qti-ga-hit-area')!.getAttribute('pointer-events')).toBe('visiblePainted');
+			expect(button.querySelector<HTMLElement>('.qti-ga-hotspot-label')!.style.pointerEvents).toBe('');
+		}
+	});
+
+	test('a press on a hit area activates its hotspot through its button', async () => {
+		const mounted = mountInteraction(GraphicAssociateInteraction, {
+			interaction: associateData({ associableHotspots: SHAPED_HOTSPOTS, maxAssociations: 2 }),
+		});
+		await settle();
+
+		const [peak, sun] = hitAreas(mounted);
+		const buttons = qa<HTMLButtonElement>(mounted, 'button[part="hotspot"]');
+		peak!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		expect(buttons[0]!.getAttribute('aria-pressed')).toBe('true');
+		expect(mounted.events).toHaveLength(0);
+
+		sun!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		expect(mounted.instance.response).toEqual(['PEAK SUN']);
+		expect(mounted.events).toHaveLength(1);
+		expect(mounted.events[0]!.detail).toMatchObject({ value: ['PEAK SUN'] });
+	});
+
+	test('the image shows every hotspot in its real shape, with its state', async () => {
+		const mounted = mountInteraction(GraphicAssociateInteraction, {
+			interaction: associateData({ associableHotspots: SHAPED_HOTSPOTS, maxAssociations: 2 }),
+			response: ['PEAK SUN'],
+		});
+		await settle();
+
+		const areasSvg = q(mounted, 'svg[part="areas"]')!;
+		expect(areasSvg.getAttribute('viewBox')).toBe('0 0 100 50');
+		expect(areasSvg.getAttribute('aria-hidden')).toBe('true');
+		expect(areasSvg.getAttribute('pointer-events')).toBe('none');
+		const areas = () => qa(mounted, 'svg[part="areas"] .qti-ga-area');
+		expect(areas().map((area) => area.querySelector('.qti-ga-area-outline')?.tagName)).toEqual([
+			'polygon',
+			'circle',
+			'ellipse',
+		]);
+		// Peak and Sun are at their matchMax of 1.
+		expect(areas().map((area) => area.hasAttribute('data-unavailable'))).toEqual([true, true, false]);
+		hitAreas(mounted)[2]!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		expect(areas().map((area) => area.hasAttribute('data-selected'))).toEqual([false, false, true]);
+
+		const scorer = mountInteraction(GraphicAssociateInteraction, {
+			interaction: associateData({ associableHotspots: SHAPED_HOTSPOTS }),
+			role: 'scorer',
+			correctResponse: ['PEAK LAKE'],
+		});
+		await settle();
+		expect(qa(scorer, 'svg[part="areas"] .qti-ga-area').map((area) => area.hasAttribute('data-correct'))).toEqual([
+			true,
+			false,
+			true,
+		]);
+		cleanupInteraction(mounted, scorer);
+	});
+
+	test('a default-shape hotspot (the whole image) lies beneath the others, as a whole-image button', async () => {
+		const mounted = mountInteraction(GraphicAssociateInteraction, {
+			interaction: associateData({
+				associableHotspots: [
+					...SHAPED_HOTSPOTS,
+					{ identifier: 'ANYWHERE', shape: 'default', coords: '', matchMax: 1, label: 'Anywhere' },
+				],
+			}),
+		});
+		await settle();
+
+		const buttons = qa<HTMLButtonElement>(mounted, 'button[part="hotspot"]');
+		// Keyboard order stays the authored order.
+		expect(buttons.map((button) => button.textContent?.trim())).toEqual(['Peak', 'Sun', 'Lake', 'Anywhere']);
+		const whole = buttons[3]!;
+		expect(whole.classList.contains('qti-ga-hotspot-default')).toBe(true);
+		for (const edge of ['left: 50%', 'top: 50%', 'width: 100%', 'height: 100%']) {
+			expect(whole.getAttribute('style')).toContain(edge);
+		}
+		const hit = whole.querySelector('.qti-ga-hit-area')!;
+		expect([hit.tagName, hit.getAttribute('width'), hit.getAttribute('height')]).toEqual(['rect', '100%', '100%']);
+		// Its outline is drawn first, beneath the others'.
+		expect(q(mounted, 'svg[part="areas"] .qti-ga-area .qti-ga-area-outline')?.tagName).toBe('rect');
+	});
+
+	test('disabled: a press on a hit area does nothing', async () => {
+		const mounted = mountInteraction(GraphicAssociateInteraction, {
+			interaction: associateData({ associableHotspots: SHAPED_HOTSPOTS }),
+			disabled: true,
+		});
+		await settle();
+
+		hitAreas(mounted)[0]!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		expect(q(mounted, 'button[part="hotspot"]')!.getAttribute('aria-pressed')).toBe('false');
+		expect(mounted.events).toHaveLength(0);
+	});
+});

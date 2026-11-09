@@ -12,9 +12,10 @@
 	import { countPairsWithId, pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import HotspotShape from '../../shared/components/HotspotShape.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { choicesShortOfMatchMin, minimumHint } from '../../shared/utils/minimumRequirement';
-	import { imageAltText, shapeBounds, shapeCenter } from '../hotspot/graphicRegions';
+	import { imageAltText, shapeBounds, shapeCenter, type Bounds } from '../hotspot/graphicRegions';
 
 	interface Props {
 		interaction?: GraphicAssociateInteractionData | string;
@@ -271,19 +272,51 @@
 	});
 
 	/**
-	 * Hotspot button box in percentages of the natural image, centred on the
-	 * region so the 24×24 CSS px minimum target (WCAG 2.5.8) grows symmetrically.
+	 * A hotspot's bounding box in natural image coordinates. The default shape is the whole
+	 * image (QTI 3.0 §8.29); a shape whose coords cannot be read has an empty box.
+	 */
+	function hotspotBounds(hotspot: GraphicAssociateHotspot): Bounds {
+		if (hotspot.shape === 'default') return { x: 0, y: 0, width: imageWidth, height: imageHeight };
+		return shapeBounds(hotspot.shape, hotspot.coords) ?? { x: 0, y: 0, width: 0, height: 0 };
+	}
+
+	/** Where an association line meets a hotspot: its shape's centre; the whole image's for the default shape. */
+	function hotspotCenter(hotspot: GraphicAssociateHotspot): { x: number; y: number } {
+		if (hotspot.shape === 'default') return { x: imageWidth / 2, y: imageHeight / 2 };
+		return shapeCenter(hotspot.shape, hotspot.coords);
+	}
+
+	/**
+	 * Hotspot button box in percentages of the natural image, centred on the region so the
+	 * 24×24 CSS px minimum target (WCAG 2.5.8) grows symmetrically. The button takes no pointer
+	 * input itself: only the shape drawn inside it does, so a press inside the bounding box but
+	 * outside the shape is not on the hotspot.
 	 */
 	function hotspotBoxStyle(hotspot: GraphicAssociateHotspot): string {
-		const bounds = shapeBounds(hotspot.shape, hotspot.coords) ?? { x: 0, y: 0, width: 0, height: 0 };
+		const bounds = hotspotBounds(hotspot);
 		const pct = (value: number, total: number) => `${((value / total) * 100).toFixed(4)}%`;
 		return [
 			`left: ${pct(bounds.x + bounds.width / 2, imageWidth)}`,
 			`top: ${pct(bounds.y + bounds.height / 2, imageHeight)}`,
 			`width: ${pct(bounds.width, imageWidth)}`,
 			`height: ${pct(bounds.height, imageHeight)}`,
+			'pointer-events: none',
 		].join('; ');
 	}
+
+	/** The viewBox of a button's hit-area SVG: the hotspot's bounding box, never empty. */
+	function hitViewBox(hotspot: GraphicAssociateHotspot): string {
+		const bounds = hotspotBounds(hotspot);
+		return `${bounds.x} ${bounds.y} ${Math.max(bounds.width, 1)} ${Math.max(bounds.height, 1)}`;
+	}
+
+	// The hotspots' outlines on the image, default-shape ones (the whole image) first so they
+	// lie beneath the others; each keeps its authored index for its name.
+	const areaOrder = $derived(
+		(parsedInteraction?.associableHotspots ?? [])
+			.map((hotspot, index) => ({ hotspot, index }))
+			.sort((a, b) => Number(b.hotspot.shape === 'default') - Number(a.hotspot.shape === 'default')),
+	);
 </script>
 
 <ShadowBaseStyles />
@@ -344,6 +377,32 @@
 						{/if}
 					{/if}
 
+					<!-- The hotspots on the image, each in its real shape (QTI 3.0 §5.7.5–5.7.6: the
+					     area its shape and coords describe) with its state: a light halo under the
+					     outline keeps it visible on any image. Visual only — default-shape hotspots
+					     (the whole image) first, beneath the others. -->
+					<svg
+						part="areas"
+						class="qti-ga-areas"
+						viewBox="0 0 {imageWidth} {imageHeight}"
+						xmlns="http://www.w3.org/2000/svg"
+						aria-hidden="true"
+						pointer-events="none"
+						data-disabled={canInteract ? undefined : ''}
+					>
+						{#each areaOrder as { hotspot } (hotspot.identifier)}
+							<g
+								class="qti-ga-area"
+								data-selected={isHotspotSelected(hotspot.identifier) ? '' : undefined}
+								data-correct={isHotspotInCorrectPair(hotspot.identifier) && !isHotspotSelected(hotspot.identifier) ? '' : undefined}
+								data-unavailable={isHotspotMaxed(hotspot.identifier) || blockedHotspots.has(hotspot.identifier) ? '' : undefined}
+							>
+								<HotspotShape shape={hotspot.shape} coords={hotspot.coords} interactive={false} presentation={{ class: 'qti-ga-area-halo' }} />
+								<HotspotShape shape={hotspot.shape} coords={hotspot.coords} interactive={false} presentation={{ class: 'qti-ga-area-outline' }} />
+							</g>
+						{/each}
+					</svg>
+
 					<!-- SVG overlay for drawing connection lines (natural image coordinates, scales with the stage) -->
 					<svg
 						part="overlay"
@@ -356,8 +415,8 @@
 							{@const hotspot1 = getHotspotById(id1)}
 							{@const hotspot2 = getHotspotById(id2)}
 							{#if hotspot1 && hotspot2}
-								{@const center1 = shapeCenter(hotspot1.shape, hotspot1.coords)}
-								{@const center2 = shapeCenter(hotspot2.shape, hotspot2.coords)}
+								{@const center1 = hotspotCenter(hotspot1)}
+								{@const center2 = hotspotCenter(hotspot2)}
 								{@const isCorrect = isCorrectPair(id1, id2)}
 								<line
 									x1={center1.x}
@@ -375,8 +434,8 @@
 								{@const hotspot2 = getHotspotById(id2)}
 								{@const isInUserPairs = pairs.some((p) => p === pair || p === `${id2} ${id1}`)}
 								{#if hotspot1 && hotspot2 && !isInUserPairs}
-									{@const center1 = shapeCenter(hotspot1.shape, hotspot1.coords)}
-									{@const center2 = shapeCenter(hotspot2.shape, hotspot2.coords)}
+									{@const center1 = hotspotCenter(hotspot1)}
+									{@const center2 = hotspotCenter(hotspot2)}
 									<line
 										x1={center1.x}
 										y1={center1.y}
@@ -389,7 +448,11 @@
 						{/if}
 					</svg>
 
-					<!-- Clickable hotspot areas -->
+					<!-- The hotspot controls: one button per hotspot over its bounding box, for the
+					     keyboard and assistive technology, with its focus indicator. The button takes
+					     no pointer input itself; the shape drawn inside it does (HotspotShape, the
+					     same geometry as the outline), so pointer input hits the real shape and the
+					     press reaches the button. A small shape grows with the button's 24 px minimum. -->
 					{#each parsedInteraction.associableHotspots as hotspot}
 						{@const isSelected = isHotspotSelected(hotspot.identifier)}
 						{@const isMaxed = isHotspotMaxed(hotspot.identifier)}
@@ -404,6 +467,7 @@
 							part="hotspot"
 							class="qti-ga-hotspot"
 							class:qti-ga-hotspot-round={hotspot.shape === 'circle' || hotspot.shape === 'ellipse'}
+							class:qti-ga-hotspot-default={hotspot.shape === 'default'}
 							class:qti-ga-hotspot-selected={isSelected}
 							class:qti-ga-hotspot-correct={isCorrect && !isSelected}
 							class:qti-ga-hotspot-unavailable={isMaxed || isBlocked}
@@ -414,7 +478,23 @@
 							aria-pressed={isSelected}
 							aria-label={hotspotAriaLabel(hotspot, usageCount, isCorrect, isBlocked)}
 						>
-							<span class="qti-ga-hotspot-label" aria-hidden="true">{hotspotName(hotspot)}</span>
+							<svg
+								class="qti-ga-hit"
+								viewBox={hitViewBox(hotspot)}
+								preserveAspectRatio="none"
+								xmlns="http://www.w3.org/2000/svg"
+								aria-hidden="true"
+							>
+								<HotspotShape
+									shape={hotspot.shape}
+									coords={hotspot.coords}
+									interactive={false}
+									presentation={{ class: 'qti-ga-hit-area', 'pointer-events': 'visiblePainted' }}
+								/>
+							</svg>
+							<span class="qti-ga-hotspot-label" aria-hidden="true">
+								{#if isSelected}<span class="qti-ga-hotspot-check">✓</span>{/if}{hotspotName(hotspot)}
+							</span>
 						</button>
 					{/each}
 					</div>
@@ -631,9 +711,56 @@
 	}
 
 	/*
-	 * Hotspot buttons: centred on their region (positions are percentages of the
-	 * natural image), never smaller than the 24×24 CSS px target minimum.
-	 * A light halo under a dark outline keeps the boundary visible on any image.
+	 * The hotspots on the image, in their real shapes (the outlines; the buttons below take the
+	 * pointer). A light halo under a dark outline keeps each boundary visible on any image
+	 * (WCAG 1.4.11).
+	 */
+	.qti-ga-areas {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		overflow: visible;
+		pointer-events: none;
+		z-index: 5;
+	}
+	.qti-ga-areas :global(.qti-ga-area-halo) {
+		fill: none;
+		stroke: #fff;
+		stroke-width: 5px;
+		vector-effect: non-scaling-stroke;
+	}
+	.qti-ga-areas :global(.qti-ga-area-outline) {
+		fill: none;
+		stroke: var(--pie-qti-border-strong, #767676);
+		stroke-width: 2px;
+		vector-effect: non-scaling-stroke;
+	}
+	/* Selected: a thicker outline (and a check on the label) — never colour alone (WCAG 1.4.1) */
+	.qti-ga-areas :global(.qti-ga-area[data-selected] .qti-ga-area-outline) {
+		stroke: var(--pie-qti-primary, oklch(45% 0.24 277));
+		stroke-width: 4px;
+	}
+	.qti-ga-areas :global(.qti-ga-area[data-selected] .qti-ga-area-halo) {
+		stroke-width: 8px;
+	}
+	/* Correct answer (scorer view): dashed success outline */
+	.qti-ga-areas :global(.qti-ga-area[data-correct] .qti-ga-area-outline) {
+		stroke: var(--pie-qti-success-text, #15803d);
+		stroke-dasharray: 6px 3px;
+		stroke-width: 3px;
+	}
+	.qti-ga-areas :global(.qti-ga-area[data-unavailable]),
+	.qti-ga-areas[data-disabled] :global(.qti-ga-area) {
+		opacity: 0.6;
+	}
+
+	/*
+	 * Hotspot buttons: centred on their region's bounding box (positions are percentages of the
+	 * natural image), never smaller than the 24×24 CSS px target minimum. Visually only their
+	 * label and focus indicator: the button takes no pointer input (inline pointer-events: none);
+	 * the shape inside it does, its viewBox the bounding box stretched over the button, so a small
+	 * shape grows with the button's minimum. A default-shape hotspot lies beneath the others.
 	 */
 	.qti-ga-hotspot {
 		position: absolute;
@@ -647,45 +774,49 @@
 		justify-content: center;
 		padding: 0;
 		margin: 0;
-		overflow: hidden;
-		cursor: pointer;
-		border: 2px solid var(--pie-qti-border-strong, #767676);
+		border: 0;
 		border-radius: 0.25rem;
-		box-shadow: 0 0 0 2px #fff;
-		background: color-mix(in srgb, var(--pie-qti-primary, #4338ca) 10%, transparent);
+		background: transparent;
 		color: var(--pie-qti-base-content, #1f2937);
 		font: inherit;
-		transition: background-color 120ms ease, border-color 120ms ease;
+	}
+	.qti-ga-hotspot-default {
+		z-index: 15;
 	}
 	.qti-ga-hotspot-round {
 		border-radius: 50%;
 	}
-	.qti-ga-hotspot:hover:not(:disabled) {
-		background: color-mix(in srgb, var(--pie-qti-primary, #4338ca) 22%, transparent);
+	.qti-ga-hit {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		overflow: visible;
+	}
+	.qti-ga-hit :global(.qti-ga-hit-area) {
+		fill: color-mix(in srgb, var(--pie-qti-primary, #4338ca) 10%, transparent);
+		stroke: none;
+		cursor: pointer;
+		transition: fill 120ms ease;
+	}
+	.qti-ga-hotspot:hover:not(:disabled) :global(.qti-ga-hit-area) {
+		fill: color-mix(in srgb, var(--pie-qti-primary, #4338ca) 22%, transparent);
+	}
+	.qti-ga-hotspot-selected :global(.qti-ga-hit-area) {
+		fill: color-mix(in srgb, var(--pie-qti-primary, #4338ca) 35%, transparent);
 	}
 	.qti-ga-hotspot:focus-visible {
 		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
 	}
-	/* Selected: thicker border plus a stripe pattern — never colour alone (WCAG 1.4.1) */
-	.qti-ga-hotspot-selected {
-		border-width: 4px;
-		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));
-		background: repeating-linear-gradient(
-			45deg,
-			color-mix(in srgb, var(--pie-qti-primary, #4338ca) 40%, transparent) 0 6px,
-			color-mix(in srgb, var(--pie-qti-primary, #4338ca) 12%, transparent) 6px 12px
-		);
-	}
-	/* Correct answer (scorer view): dashed success border */
-	.qti-ga-hotspot-correct {
-		border-style: dashed;
-		border-color: var(--pie-qti-success-text, #15803d);
+	.qti-ga-hotspot-unavailable :global(.qti-ga-hit-area),
+	.qti-ga-hotspot:disabled :global(.qti-ga-hit-area),
+	.qti-ga-hotspot[aria-disabled='true'] :global(.qti-ga-hit-area) {
+		cursor: not-allowed;
 	}
 	.qti-ga-hotspot-unavailable,
 	.qti-ga-hotspot:disabled,
 	.qti-ga-hotspot[aria-disabled='true'] {
-		cursor: not-allowed;
 		opacity: 0.6;
 	}
 
@@ -701,7 +832,9 @@
 		white-space: nowrap;
 		border: 0;
 	}
+	/* Above the hit-area SVG in the button; takes no pointer input (inherited). */
 	.qti-ga-hotspot-label {
+		position: relative;
 		font-size: 0.75rem;
 		font-weight: 700;
 		line-height: 1.1;
@@ -713,6 +846,13 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		max-width: 100%;
+	}
+	.qti-ga-hotspot-selected .qti-ga-hotspot-label {
+		background: var(--pie-qti-primary, oklch(45% 0.24 277));
+		color: #fff;
+	}
+	.qti-ga-hotspot-check {
+		margin-inline-end: 0.125rem;
 	}
 	.qti-ga-panel {
 		flex: 0 0 20rem;
