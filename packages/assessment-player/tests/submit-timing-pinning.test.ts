@@ -23,7 +23,7 @@ afterEach(() => {
 	localStorage.clear();
 });
 
-const choiceItemXml = (identifier: string, timeLimits = '') =>
+const choiceItemXml = (identifier: string) =>
 	`<assessmentItem ${NS} identifier="${identifier}" title="${identifier}" adaptive="false" timeDependent="false">
   <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"><correctResponse><value>A</value></correctResponse></responseDeclaration>
   <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"><defaultValue><value>0</value></defaultValue></outcomeDeclaration>
