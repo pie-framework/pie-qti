@@ -41,9 +41,9 @@ A hotspot on a map image is visually self-evident — the candidate sees the map
 
 1. **Keyboard reachability.** SVG elements are not natively focusable. The component makes each shape focusable by setting `tabindex=0` (or `-1` when `disabled`) and handling `keydown` for Enter and Space. This matches the `role="button"` semantic declared on each shape. The tab order follows DOM order, which is the order of `hotspotChoice` elements in the QTI XML.
 
-2. **Accessible name.** A screen reader reaching a shape with `role="button"` will read its accessible name. Without an explicit name, the name would be empty or derived from SVG content (which is none). The component generates `aria-label="Select hotspot {identifier}"` (with `". Correct answer"` appended in scorer role when the choice is correct). This is a fallback. The QTI spec provides `hotspotLabel` on `hotspotChoice` specifically to supply a meaningful human-readable name (e.g. "Glasgow" instead of "A"). The extractor reads `hotspotLabel` and includes it in the extracted data; the component should use it as the `aria-label` when present — **this is not yet wired up** (see Known gaps).
+2. **Accessible name.** A screen reader reaching a shape with `role="button"` reads its accessible name. QTI provides `hotspotLabel` on `hotspotChoice` to give a region a human-readable name (e.g. "Glasgow" instead of "A"), and the component uses it as the region's name. A region without one is named by its position, "Region 2 of 5" (`interactions.hotspot.regionOfTotal`), never by its identifier. In the scorer role, "Correct answer." is appended to a correct region's name.
 
-3. **Image alt text.** The background image itself needs an accessible description. The QTI spec does not mandate alt text on the `<object>` element, but WCAG 2.2 SC 1.1.1 does. The component supplies a fallback alt of `"Hotspot interaction"` when no i18n key is configured. Item authors should be instructed to use the `<object>` element's text content as the alt description, or to provide it via the i18n system.
+3. **Image alt text.** The background image needs a text alternative (WCAG 2.2 SC 1.1.1; QTI does not mandate one). The extractor reads the author's alternative from the QTI source: the `<object>` fallback text, `aria-label`/`aria-labelledby`, an inline SVG's `<title>`/`<desc>`, or an `<img alt>`, where an empty `alt` marks the image decorative. Without one, the image is named by the localized fallback `interactions.hotspot.imageFallback` ("Image for this question").
 
 ### Touch target sizing
 
@@ -81,9 +81,9 @@ The trade-off is that inline SVG in a shadow root has some quirks with Tailwind 
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `identifier` | ✅ Full | Required; deduplicated; used as response value |
-| `shape` | ✅ Full | `circle`, `rect`, `poly` rendered as SVG shapes. `ellipse` is in the type union but has no rendering branch; falls through without rendering. `default` is reserved for full-image fallback and also not rendered. |
-| `coords` | ✅ Partial | See coordinate format notes below. `rect` format has a spec divergence. |
-| `hotspotLabel` | ✅ Extracted | Extracted into `HotspotData.hotspotChoices[*].hotspotLabel`; **not yet used as `aria-label` in the component.** Falls back to `"Select hotspot {identifier}"`. |
+| `shape` | ✅ Partial | `circle`, `rect`, `ellipse` and `poly` are rendered as SVG shapes. `default` (the whole image) is not rendered, so a choice with it cannot be selected. See Known gaps. |
+| `coords` | ✅ Full | See coordinate format notes below. |
+| `hotspotLabel` | ✅ Full | Used verbatim as the region's accessible name and in the "Selected:" summary. A region without one is named by position ("Region 2 of 5"), never by its identifier. |
 | `fixed` | ❌ Not extracted | Spec: in interactions with shuffling, `fixed=true` choices keep their position. `hotspotInteraction` does not implement shuffle, so this attribute has no effect. Not extracted. |
 
 ### Image element
@@ -97,9 +97,9 @@ The spec defines the following formats (all coordinates are in natural image pix
 | Shape | Spec format | Notes |
 |-------|-------------|-------|
 | `circle` | `centerX,centerY,radius` | Renders as SVG `<circle cx cy r>`. Correctly implemented. |
-| `rect` | `left,top,right,bottom` (two corners) | **The component incorrectly interprets these as `x,y,width,height`**. See Known gaps — G-RECT. |
+| `rect` | `left,top,right,bottom` (two corners) | Renders as SVG `<rect>` with `width = right − left` and `height = bottom − top`. |
 | `poly` | `x1,y1,x2,y2,...,xn,yn` (vertex pairs) | Renders as SVG `<polygon points="...">`. Correctly implemented. Closing-point repeat is handled by the to-pie transformer but not in the component (the SVG polygon element closes automatically). |
-| `ellipse` | `centerX,centerY,radiusX,radiusY` | No rendering branch in the component. Shape type is in the TypeScript union but silently skipped. |
+| `ellipse` | `centerX,centerY,radiusX,radiusY` | Renders as SVG `<ellipse cx cy rx ry>`. |
 
 ### Response variable contract
 
@@ -116,12 +116,16 @@ The spec defines the following formats (all coordinates are in natural image pix
 
 ### Known gaps
 
-- **G-RECT: `rect` coordinate format divergence.** The QTI spec defines `rect` coords as `left,top,right,bottom` (two corners). The component's SVG `<rect>` expects `x,y,width,height`. The code comment in the component says "coords are x, y, width, height" — this is incorrect per spec. Items authored per spec with `rect` coords will render visually wrong (the rect will be at the correct top-left origin but with `width=right` and `height=bottom` instead of `width=right-left` and `height=bottom-top`). Items authored against the broken interpretation will work correctly but are non-portable. **This is a rendering bug that must be fixed.** To fix: in the `rect` branch, compute `width = coords[2] - coords[0]` and `height = coords[3] - coords[1]`. Also note: the to-pie transformer (`packages/to-pie/src/transformers/hotspot.ts`) correctly interprets `rect` as `x1,y1,x2,y2` and computes width/height — so the transformer is correct but the native QTI player component is wrong.
 - **Multi-select not implemented.** When `maxChoices > 1`, the spec requires a `multiple`-cardinality response (array of identifiers). The component stores `response` as a single string and `handleClick` replaces it unconditionally. An item with `maxChoices=2` will behave identically to `maxChoices=1`.
-- **`ellipse` shape not rendered.** The `ellipse` shape type is in the TypeScript union (from the extractor) but the component has no rendering branch for it. Hotspot choices with `shape="ellipse"` are silently skipped; the candidate cannot see or select them.
-- **`hotspotLabel` not used as `aria-label`.** The extractor reads `hotspotLabel` and includes it in `HotspotData`. The component does not read it when composing `aria-label`; all hotspots get the generic `"Select hotspot {identifier}"` label.
-- **Image alt text not author-configurable.** The `<object>` element's text content (which QTI uses as the fallback alt text) is not extracted as image alt text. The component uses a static i18n key fallback.
-- **`minChoices` not enforced at submission time.** Extracted and present in `HotspotData` but not checked against the number of selected hotspots before submission.
+- **`default` shape not rendered.** QTI's `default` shape is the whole image. `HotspotShape` has no geometry for it, so a `hotspotChoice` with `shape="default"` draws nothing and cannot be selected. A fix needs the image size in `HotspotShape`, and must draw the region beneath the others so it does not take their clicks.
+
+Resolved since the previous review, and no longer gaps:
+
+- **G-RECT**: a `rect` is drawn from its two corners (`HotspotShape.svelte`).
+- **`ellipse` shape**: rendered as an SVG ellipse.
+- **`hotspotLabel`**: the region's accessible name.
+- **Image alt text**: extracted from the QTI source (see [Accessibility challenge](#accessibility-challenge-graphical-interactions-and-screen-readers)).
+- **`minChoices`**: `Player.validateResponses()` reports a response with fewer selections incomplete.
 
 ---
 
@@ -148,8 +152,8 @@ The spec defines the following formats (all coordinates are in natural image pix
 
 ### Accessibility
 
-- **WCAG 2.2 SC 1.1.1 (Non-text content):** The background image must have a meaningful `alt` attribute. When the i18n key `interactions.hotspot.altText` is not configured, fall back to a descriptive string (not `""`). When `imageData.type === 'svg'`, the inline SVG must have a `<title>` element or `aria-label` on the `<svg>` container.
-- **WCAG 2.2 SC 1.3.1 (Info and relationships):** Each hotspot region must have `role="button"` and `aria-label` conveying the region's identity. When `hotspotLabel` is provided on the `hotspotChoice`, use it verbatim as the `aria-label`. Fall back to a translated "Select region {identifier}" string.
+- **WCAG 2.2 SC 1.1.1 (Non-text content):** The background image must have a meaningful text alternative: the author's, from the QTI source, else the localized `interactions.hotspot.imageFallback` string (not `""`). When `imageData.type === 'svg'`, the inline SVG must have a `<title>` element or `aria-label` on the `<svg>` container.
+- **WCAG 2.2 SC 1.3.1 (Info and relationships):** Each hotspot region must have `role="button"` and `aria-label` conveying the region's identity. When `hotspotLabel` is provided on the `hotspotChoice`, use it verbatim as the `aria-label`. Fall back to a translated position name ("Region 2 of 5"); never expose the identifier.
 - **WCAG 2.2 SC 1.4.3 (Contrast):** Selected and hover fill colours must provide sufficient contrast against the image content. The current blue (`rgba(59,130,246,0.3)`) may be insufficient over light-coloured images. Hosts may override via `::part(overlay)` and `::part(image)`. Consider a stroke-only visual indicator as an alternative.
 - **WCAG 2.2 SC 2.1.1 (Keyboard):** All hotspot regions must be reachable and operable by keyboard. Tab moves focus sequentially through regions. Enter and Space activate the focused region (same behaviour as click). Focus must be visible on each SVG shape — SVG elements need an explicit `:focus` CSS outline since the browser default focus ring may not appear on SVG shapes in all browsers.
 - **WCAG 2.2 SC 2.4.7 (Focus visible):** The focus indicator on each hotspot shape must be visible. Implement via `outline` on `.qti-hotspot-shape:focus`.
@@ -175,9 +179,9 @@ The spec defines the following formats (all coordinates are in natural image pix
 
 ### i18n
 
-- `interactions.hotspot.altText` — alt text for the background image when not SVG.
-- `interactions.hotspot.selected` — prefix label before the selected identifier in the info panel.
-- Hotspot accessible names should use a translated pattern like `interactions.hotspot.regionLabel` with `{identifier}` interpolation, falling back to `"Select hotspot {identifier}"`.
+- `interactions.hotspot.imageFallback` — text alternative for the background image when the QTI source gives none.
+- `interactions.hotspot.selectedRegion` — the "Selected: {region}" summary in the info panel.
+- `interactions.hotspot.regionOfTotal` — a region's name when it has no `hotspotLabel`: "Region {index} of {total}".
 
 ---
 
@@ -255,7 +259,7 @@ interface ImageData {
 **Invariants NOT enforced (gaps):**
 - Coord format correctness per shape type is not validated
 - Minimum hotspot bounding-box size (44×44 natural px) is not checked
-- `ellipse` shape is accepted without warning despite having no rendering support
+- An `ellipse` shape renders as an SVG ellipse; a `default` shape is accepted but not rendered (see Known gaps)
 
 ### Component props (`pie-qti-hotspot`)
 
@@ -495,7 +499,7 @@ AC-E7: maxChoices=0 (unlimited) in extractor
 ## Open questions
 
 - [ ] Should deselection be supported for single-select hotspots? The spec does not define a deselect gesture. Some delivery engines allow clicking a selected hotspot again to deselect it. This would require setting response to null/empty. Decide before implementing multi-select, since the pattern differs for single vs. multiple cardinality.
-- [ ] How should `ellipse` shape be handled? Options: (a) convert to SVG `<ellipse cx cy rx ry>` (straightforward); (b) approximate as a polygon (consistent with to-pie transformer's circle treatment); (c) raise a runtime warning and skip. The SVG `<ellipse>` approach is simplest and correct.
+- [x] How should `ellipse` shape be handled? (resolved) Option (a): it renders as an SVG `<ellipse cx cy rx ry>`.
 - [ ] Should the extractor warn when a hotspot's natural bounding box is below 44×44 px? This would help item authors catch WCAG 2.5.8 violations at authoring time, but requires the extractor to parse and compute shape geometry rather than just passing raw coord strings.
 - [ ] For multi-select: should clicking a selected hotspot deselect it (toggle), or should there be a separate "clear" button? Toggle is the most natural mobile pattern. A "clear all" button may be needed for users who have filled all selections and need to change one.
 - [ ] What is the intended behaviour when the image fails to load (broken URL)? Currently the overlay SVG still renders, but the hotspots float over the browser's broken-image icon, which has different dimensions than the natural image. Consider emitting a `qti-image-error` event or showing an error state.
