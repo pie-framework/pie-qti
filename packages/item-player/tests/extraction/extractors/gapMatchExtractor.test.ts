@@ -625,6 +625,7 @@ describe('standardGapMatchExtractor', () => {
 				gaps: ['G1', 'G2'],
 				promptText: 'Fill [GAP:G1] and [GAP:G2]',
 				shuffle: false,
+				maxAssociations: 1,
 				prompt: 'Fill the gaps',
 			};
 
@@ -641,6 +642,7 @@ describe('standardGapMatchExtractor', () => {
 				gaps: ['G1'],
 				promptText: 'Fill [GAP:G1]',
 				shuffle: false,
+				maxAssociations: 1,
 				prompt: null,
 			};
 
@@ -657,6 +659,7 @@ describe('standardGapMatchExtractor', () => {
 				gaps: ['G1'],
 				promptText: '[GAP:G1]',
 				shuffle: false,
+				maxAssociations: 1,
 				prompt: null,
 			};
 
@@ -673,6 +676,7 @@ describe('standardGapMatchExtractor', () => {
 				gaps: ['G1'],
 				promptText: '[GAP:G1]',
 				shuffle: false,
+				maxAssociations: 1,
 				prompt: null,
 			};
 
@@ -689,6 +693,7 @@ describe('standardGapMatchExtractor', () => {
 				gaps: ['G1'],
 				promptText: '[GAP:G1]',
 				shuffle: false,
+				maxAssociations: 1,
 				prompt: null,
 			};
 
@@ -705,6 +710,7 @@ describe('standardGapMatchExtractor', () => {
 				gapImages: [],
 				promptText: 'No gaps',
 				shuffle: false,
+				maxAssociations: 1,
 				prompt: null,
 			};
 
@@ -724,6 +730,7 @@ describe('standardGapMatchExtractor', () => {
 				gapImages: [],
 				promptText: '[GAP:G1]',
 				shuffle: false,
+				maxAssociations: 1,
 				prompt: null,
 			};
 

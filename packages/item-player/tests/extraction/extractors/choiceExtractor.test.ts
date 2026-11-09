@@ -5,6 +5,7 @@
 import { describe, expect, test } from 'bun:test';
 import { Player } from '../../../src/core/Player.js';
 import { type ChoiceData, standardChoiceExtractor } from '../../../src/interactions/choice/extractor.js';
+import type { ChoiceInteractionData } from '../../../src/interactions/shared/types.js';
 import type { ItemSessionEngineConfig } from '../../../src/types/index.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
@@ -176,7 +177,7 @@ describe('standardChoiceExtractor', () => {
 				<responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="identifier"/>
 				<itemBody>${xml}</itemBody>
 			</assessmentItem>`;
-			const [interaction] = new Player({ itemXml }).getInteractionData() as Array<{ maxChoices: number }>;
+			const [interaction] = new Player({ itemXml }).getInteractionData() as readonly ChoiceInteractionData[];
 			expect(interaction?.maxChoices).toBe(0);
 		});
 	});

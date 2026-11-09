@@ -5,6 +5,7 @@
 import { describe, expect, test } from 'bun:test';
 import { Player } from '../../../src/core/Player.js';
 import { type SelectPointData, standardSelectPointExtractor } from '../../../src/interactions/select-point/extractor.js';
+import type { SelectPointInteractionData } from '../../../src/interactions/shared/types.js';
 import type { ItemSessionEngineConfig } from '../../../src/types/index.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
@@ -166,7 +167,7 @@ describe('standardSelectPointExtractor', () => {
 						</qti-select-point-interaction>
 					</qti-item-body>
 				</qti-assessment-item>`;
-				const [interaction] = new Player({ itemXml }).getInteractionData() as Array<{ maxChoices: number }>;
+				const [interaction] = new Player({ itemXml }).getInteractionData() as readonly SelectPointInteractionData[];
 				expect(interaction?.maxChoices).toBe(0);
 			});
 		});

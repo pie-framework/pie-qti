@@ -19,10 +19,6 @@
 		// Vitest component tests that mount .svelte files; svelte-check and Vitest cover them.
 		"tests/component/**",
 		// Checks the built dist/server.d.ts without DOM types; see tsconfig.server-types.test.json.
-		"tests/types/**",
-		// Temporarily excluded: fix/spec-defaults-ggm rewrites this file. Its validate()
-		// fixtures predate the required maxAssociations and gapImages fields; fix them and
-		// drop this entry once that branch has merged.
-		"tests/extraction/extractors/graphicGapMatchExtractor.test.ts"
+		"tests/types/**"
 	]
 }
