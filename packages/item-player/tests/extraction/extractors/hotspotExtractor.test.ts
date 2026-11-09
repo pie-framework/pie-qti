@@ -294,5 +294,34 @@ describe('standardHotspotExtractor', () => {
 			expect(validation.valid).toBe(true);
 			expect(validation.warnings).toContain('maxChoices (5) exceeds the number of hotspots (2)');
 		});
+
+		// QTI 3.0 §8.29: the default shape is "the entire area of the associated image", so its
+		// coords say nothing; every other shape needs them.
+		test('a default-shape hotspot needs no coords; other shapes still do', () => {
+			const xml = `
+				<hotspotInteraction responseIdentifier="RESPONSE" maxChoices="1">
+					<object type="image/png" data="map.png" width="400" height="300" />
+					<hotspotChoice identifier="LAKE" shape="rect" coords="40,40,160,140" />
+					<hotspotChoice identifier="ELSEWHERE" shape="default" coords="" hotspotLabel="Somewhere else" />
+				</hotspotInteraction>
+			`;
+			const element = parseQTI(xml);
+			const data = standardHotspotExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+			expect(data.hotspotChoices[1]).toEqual({
+				identifier: 'ELSEWHERE',
+				shape: 'default',
+				coords: '',
+				hotspotLabel: 'Somewhere else',
+			});
+			expect(standardHotspotExtractor.validate!(data).valid).toBe(true);
+
+			const withoutCoords = standardHotspotExtractor.validate!({
+				...data,
+				hotspotChoices: [{ identifier: 'LAKE', shape: 'rect', coords: '' }],
+			});
+			expect(withoutCoords.valid).toBe(false);
+			expect(withoutCoords.errors).toContain('Hotspot LAKE must have coords');
+		});
 	});
 });

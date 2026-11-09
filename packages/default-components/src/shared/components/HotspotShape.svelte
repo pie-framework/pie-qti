@@ -15,13 +15,23 @@
 	 * drawn beneath the interactive shape): it is hidden from assistive technology, takes no
 	 * focus and handles no events.
 	 *
+	 * With `interactive="pointer"` the shape is a pointer hit area for a control rendered
+	 * elsewhere — the control the keyboard and assistive technology use, such as a button laid
+	 * over the shape's bounding box, or a region that must lie beneath the others. It is hidden
+	 * from assistive technology, takes no focus and handles `onclick` only, so pointer input hits
+	 * the real shape.
+	 *
+	 * The `default` shape is the whole image (QTI 3.0 §8.29 ShapeEnum): a rect at 0,0 whose
+	 * 100% width and height resolve against the enclosing `<svg>`'s viewBox, the image's own
+	 * pixel space. It covers every other region, so callers decide where it is painted.
+	 *
 	 * Renders in the SVG namespace regardless of compile-time context, so it works both inside
 	 * an `<svg>` tree and in a standalone component template.
 	 */
 	interface Props {
-		/** QTI shape: 'circle' | 'ellipse' | 'poly' | 'rect'. */
+		/** QTI shape: 'circle' | 'ellipse' | 'poly' | 'rect' | 'default' (the whole image). */
 		shape: string;
-		/** QTI coords: circle 'cx,cy,r'; ellipse 'cx,cy,rx,ry'; rect 'left,top,right,bottom'; poly 'x1,y1,x2,y2,...'. */
+		/** QTI coords: circle 'cx,cy,r'; ellipse 'cx,cy,rx,ry'; rect 'left,top,right,bottom'; poly 'x1,y1,x2,y2,...'; ignored for 'default'. */
 		coords: string;
 		/** Accessible name of the hotspot control (ignored when not interactive). */
 		label?: string;
@@ -38,8 +48,12 @@
 		 * option but one; those stay focusable by script, for the arrow keys.
 		 */
 		tabStop?: boolean;
-		/** False renders a visual-only layer: aria-hidden, unfocusable, no handlers. */
-		interactive?: boolean;
+		/**
+		 * true (default): the accessible control. false: a visual-only layer — aria-hidden,
+		 * unfocusable, no handlers. 'pointer': a pointer hit area for a control rendered
+		 * elsewhere — aria-hidden, unfocusable, `onclick` only.
+		 */
+		interactive?: boolean | 'pointer';
 		/** Visual state, spread onto the element: fill, stroke, class, style, data-* … */
 		presentation?: Record<string, unknown>;
 		onclick?: () => void;
@@ -94,15 +108,29 @@
 					.join(' ');
 				return { points };
 			}
+			case 'default':
+				// The whole image: percentages resolve against the enclosing viewBox.
+				return { x: 0, y: 0, width: '100%', height: '100%' };
 			default:
 				return {};
 		}
 	});
 
-	const tag = $derived(shape === 'poly' ? 'polygon' : shape);
+	const tag = $derived(shape === 'poly' ? 'polygon' : shape === 'default' ? 'rect' : shape);
 </script>
 
-{#if interactive}
+{#if interactive === 'pointer'}
+	<!-- A pointer hit area only: the keyboard and assistive technology use the control it
+	     stands for, rendered elsewhere, so this layer is hidden from both. -->
+	<svelte:element
+		xmlns="http://www.w3.org/2000/svg"
+		this={tag}
+		{...geometry}
+		{...presentation}
+		aria-hidden="true"
+		{onclick}
+	/>
+{:else if interactive}
 	<svelte:element
 		xmlns="http://www.w3.org/2000/svg"
 		this={tag}

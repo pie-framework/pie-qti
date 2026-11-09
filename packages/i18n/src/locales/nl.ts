@@ -229,6 +229,7 @@ export default {
 			imageLoadError: 'De afbeelding kon niet worden geladen.',
 			regionOfTotal: 'Gebied {index} van {total}',
 			selectedRegion: 'Geselecteerd: {region}',
+			maxChoicesReached: 'Je kunt maximaal {max} selecteren. Deselecteer er een om een andere te kiezen.',
 			minChoicesHint: {
 				one: 'Selecteer minimaal {count} gebied.',
 				other: 'Selecteer minimaal {count} gebieden.',

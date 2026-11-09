@@ -31,12 +31,14 @@
 3. SVG `<line>` elements are simpler to render and style than canvas paths — stroke color, width, dash pattern, and linecap are all CSS properties.
 4. Canvas would require explicit resize event handling and repainting; SVG does not.
 
-The SVG overlay has `pointer-events: none` so hotspot click events pass through to the `<button>` elements below. This is essential: without `pointer-events: none` on the SVG, lines drawn over hotspots would intercept clicks.
+The SVG overlay has `pointer-events: none` so hotspot presses pass through to the hotspots below. This is essential: without `pointer-events: none` on the SVG, lines drawn over hotspots would intercept clicks.
 
-**Why hotspots are `<button>` elements positioned absolutely**: Each `associableHotspot` is rendered as an absolutely positioned `<button>` whose dimensions and position are computed from the `coords` attribute. Buttons are used instead of `<area>` elements (which would require an image map) because:
+**Why hotspots are `<button>` elements positioned absolutely, hit on their real shape**: Each `associableHotspot` is rendered as an absolutely positioned `<button>` over its shape's bounding box, computed from the `coords` attribute. Buttons are used instead of `<area>` elements (which would require an image map) because:
 1. `<button>` is natively keyboard-accessible and focusable without custom ARIA.
-2. `<button disabled>` correctly communicates the maxed state to assistive technology.
+2. `aria-disabled` on a `<button>` communicates the maxed state to assistive technology while it stays focusable.
 3. Absolute positioning over an `<img>` or inline SVG is more predictable than image maps, which have browser-specific sizing quirks.
+
+A hotspot is the area its `shape` and `coords` describe (QTI 3.0 §5.7.5–5.7.6), not its bounding box. So the button takes no pointer input itself (`pointer-events: none`); inside it, an SVG `HotspotShape` drawn from the same `shape` and `coords` — its `viewBox` the bounding box, stretched over the button — does, and the press bubbles to the button. A press inside a polygon's bounding box but outside the polygon reaches nothing; a press on the shape activates the button exactly as before, and assistive technology and the keyboard keep using the button and its focus indicator. The visible outlines are drawn from the same geometry in an SVG layer beneath (`part="areas"`), so what the candidate sees is what takes the pointer.
 
 **Why the two-click model instead of drag-to-draw**: The candidate selects the first hotspot (which enters a "pending" state with visual feedback), then selects the second hotspot to complete the association. There is no drag gesture because:
 1. Drag-to-draw requires precise mouse tracking and is very difficult to implement accessibly — keyboard users and switch-access users cannot drag.
@@ -78,8 +80,8 @@ At lower grade bands (K–5), the interaction complexity (two-step click model, 
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `identifier` | ✅ Full | Required. Used as the pair component in response values and in ARIA labels. |
-| `shape` | ✅ Partial | Every QTI shape is shown: each hotspot is a button over its shape's bounding box (`shapeBounds`), round for `circle` and `ellipse`. `rect`, `circle` and `ellipse` are exact; a `poly` hotspot's area is approximated by its bounding box. See Known gaps. |
-| `coords` | ✅ Full (for supported shapes) | `rect`: `x1,y1,x2,y2`. `circle`: `cx,cy,r`. The hotspot button dimensions and the SVG line endpoint are both computed from `coords`. |
+| `shape` | ✅ Full | Every QTI shape is exact: each hotspot's pointer hit area and its outline on the image are the shape itself (`HotspotShape`), and its button covers the shape's bounding box for the keyboard, round for `circle` and `ellipse`. `default` is the whole image, a whole-image button beneath the others. |
+| `coords` | ✅ Full | `rect`: `x1,y1,x2,y2`. `circle`: `cx,cy,r`. `ellipse`: `cx,cy,rx,ry`. `poly`: vertex pairs. The hit area, the outline, the button box and the SVG line endpoint are all computed from `coords`. |
 | `matchMax` | ✅ Full | Per-hotspot maximum connections; `0` means unlimited. Enforced at activation: a hotspot at its `matchMax` is `aria-disabled` (still focusable — never the `disabled` property, which would drop focus off the activated control) and activating it is refused with a polite announcement naming the hotspot. |
 | `matchMin` | ✅ Full (G-06) | Extracted when `> 0`; `Player.validateResponses()` reports the response incomplete while a hotspot is used fewer times |
 | `matchGroup` | ✅ Full (G-01) | Extracted into `associableHotspots[].matchGroup`: the hotspots this one may be associated with. Enforced in the UI by the rule response validation applies (see Resolved gaps) |
@@ -115,16 +117,18 @@ The `width` and `height` attributes of `<object>` set the pixel dimensions of th
 
 **G-06 (`matchMin`, Done):** `Player.validateResponses()` counts each hotspot's appearances across pairs and reports the response incomplete while any hotspot is below its `matchMin`. See `docs/SPEC-GAPS-PLAN.md` §G-06.
 
+**Hit areas are the hotspot shapes (Done):** a hotspot is the area its `shape` and `coords` describe (QTI 3.0 §5.7.5–5.7.6). Each button takes no pointer input itself; the `HotspotShape` inside it does, so a press inside a `poly` hotspot's bounding box but outside the polygon does not select it, and the image shows each hotspot's real outline.
+
 ### Known gaps
 
-**A `poly` hotspot's hit area is its bounding box.** Each hotspot is a button over its shape's bounding box, round for `circle` and `ellipse`, so those shapes are exact. A `poly` hotspot takes clicks anywhere in its bounding box: a click outside the polygon but inside the box selects it, and neighbouring boxes can overlap. QTI defines a hotspot as the area its `shape` and `coords` describe (QTI 3.0 §5.7 AssociableHotspot), so this is a rendering divergence for `poly`, reported for a fix. The fix is to draw the hit areas as SVG shapes (`HotspotShape`, as the hotspot interaction does) and keep the buttons for keyboard access.
+None in the delivered behaviour above.
 
 ---
 
 ## Functional requirements
 
 - **FR-1:** The component renders the background image (raster or inline SVG) at the dimensions specified by the `<object>` element's `width` and `height` attributes. If those attributes are absent, the stage defaults to `500 × 300` px.
-- **FR-2:** Each `associableHotspot` with `shape="rect"` or `shape="circle"` is rendered as an absolutely positioned `<button>` overlaid on the image at the position and size derived from `coords`.
+- **FR-2:** Each `associableHotspot` is rendered as an absolutely positioned `<button>` over its shape's bounding box (derived from `coords`), for the keyboard and assistive technology. Pointer input hits only the shape itself: the button takes none, the `HotspotShape` inside it does. Each hotspot's outline and state are drawn in its shape on the image.
 - **FR-3:** Clicking an un-maxed hotspot when no hotspot is selected marks that hotspot as "pending" and displays an info banner identifying the selected hotspot and prompting the candidate to click a second hotspot.
 - **FR-4:** Clicking a second, different, un-maxed hotspot while one hotspot is pending creates a pair, adds it to the response array, draws a line between the two hotspot centers on the SVG overlay, and clears the pending selection.
 - **FR-5:** Clicking the already-selected (pending) hotspot again deselects it and clears the pending state without creating a pair.
@@ -132,7 +136,7 @@ The `width` and `height` attributes of `<object>` set the pixel dimensions of th
 - **FR-7:** Each `associableHotspot` whose `matchMax > 0` and whose usage count equals its `matchMax` is `aria-disabled` (still focusable). Activating it is refused with a polite announcement naming the hotspot ("Not possible: {label} cannot be in more associations."); a hotspot with `matchMax = 0` is unlimited and never maxes.
 - **FR-8:** Each formed association appears in the associations panel (right column on desktop, below on mobile) as a labeled row showing `hotspot1.label ↔ hotspot2.label`, a numeric index badge, and a remove button (when not disabled).
 - **FR-9:** Clicking the remove button on an association removes it from `pairs`, removes the corresponding SVG line, decrements affected hotspot usage counts (potentially un-maxing them), and emits a `qti-change` event.
-- **FR-10:** When `role === 'scorer'` and `correctResponse` is provided, each association in the panel is styled with a success badge if it matches a correct pair (order-insensitive). Each correct pair not present in the candidate's response is drawn as a dashed green line on the SVG overlay.
+- **FR-10:** When `role === 'scorer'` and `correctResponse` is provided (correct-answer mode, the `createInteractionShell` rule shared by every interaction), each association in the panel is styled with a success badge if it matches a correct pair (order-insensitive). Each correct pair not present in the candidate's response is drawn as a dashed green line on the SVG overlay. A scorer view without a correct response is the plain interaction, which emits normally.
 - **FR-11:** When `disabled=true`, all hotspot buttons are disabled and the remove buttons are hidden. The existing associations and lines remain visible.
 - **FR-12:** The `qti-change` event fires on every pair addition and pair removal. The event payload is the full current `pairs` array (not a delta).
 - **FR-13:** The component accepts `response` as an array of `"ID1 ID2"` strings and syncs `pairs` from it via a reactive `$effect`. This allows the host to restore a previous response (e.g. after page reload).
@@ -160,13 +164,13 @@ This interaction has significant accessibility challenges because its primary UX
 - The info banner ("Selected: X. Click another hotspot to create an association.") appears as a live region when a hotspot is selected. This banner should carry `aria-live="polite"` or equivalent so screen readers announce it on selection.
 
 **Touch targets:**
-- Each hotspot button must meet the WCAG 2.2 SC 2.5.8 (minimum 24×24 CSS pixels) target size. Hotspots derived from `coords` may be smaller. Item authors are responsible for authoring hotspots with adequate size; the component does not enforce a minimum size.
+- Each hotspot must meet the WCAG 2.2 SC 2.5.8 (minimum 24×24 CSS pixels) target size. The button is never smaller than 24×24 CSS px, and the shape inside it stretches with it, so a small hotspot's pointer hit area grows to the minimum.
 - The remove button in each association row is a `btn-xs` (32px minimum height via DaisyUI) — acceptable but borderline. Do not reduce it further.
 
 **Color alone:**
 - Connection lines are drawn in `--color-primary` (blue). Correct lines in scorer role are drawn in `--color-success` (green). These two states must not be distinguished by color alone (WCAG 1.4.1). The correct line in scorer mode uses a dashed stroke (`stroke-dasharray="4,4"`) to distinguish it visually from candidate lines in addition to color. The panel list also labels correct associations with a success badge.
-- Hotspot selected state is indicated by both a thicker border and a blue fill tint — not color alone.
-- Maxed hotspots use `opacity: 0.5` in addition to `cursor: not-allowed`.
+- Hotspot selected state is indicated by a thicker outline on the shape, a stronger tint and a check on the hotspot's label — not color alone.
+- Maxed hotspots are dimmed (`opacity: 0.6`) in addition to `cursor: not-allowed`.
 
 **Screen reader announcements:**
 - The associations panel is the text-accessible representation of all current connections. It must be navigable with screen reader virtual cursor.
@@ -253,7 +257,7 @@ Key types are defined in `packages/item-player/src/interactions/shared/types.ts`
 ```typescript
 interface GraphicAssociateHotspot {
   identifier: string;
-  shape: string;        // 'rect' | 'circle' (others extracted but not rendered)
+  shape: string;        // 'rect' | 'circle' | 'ellipse' | 'poly' | 'default' (the whole image)
   coords: string;       // comma-separated coordinate string per QTI spec
   matchMax: number;     // defaults to 1 if absent in XML
   label: string;        // text content of element, falls back to identifier
@@ -468,9 +472,19 @@ Notes: Center of circle is (cx,cy) directly from coords
 ```
 Given: The SVG overlay is rendered over the image and hotspot buttons
 When: The candidate attempts to click on a drawn line
-Then: The click passes through to the hotspot button or image beneath;
+Then: The click passes through to the hotspot shape or image beneath;
       no click handler on the SVG line is triggered
 Notes: Verify pointer-events:none is applied to the SVG element
+```
+
+**AC-20: Pointer input hits the hotspot's real shape**
+```
+Given: A triangular hotspot (shape="poly") whose bounding box is mostly outside the triangle
+When: The candidate clicks or taps inside the bounding box but outside the triangle
+Then: The hotspot is not selected
+When: The candidate clicks or taps inside the triangle
+Then: The hotspot is selected (its button has aria-pressed="true")
+Notes: Covered by apps/demo/tests/playwright/graphic-interactions.pw.ts (mouse and touch)
 ```
 
 ### Accessibility
@@ -522,14 +536,13 @@ Notes: This provides context for screen reader users who cannot see the image
 
 ### Edge cases
 
-**AC-E1: Hotspot with unknown shape**
+**AC-E1: Polygon and default-shape hotspots**
 ```
-Given: An associableHotspot with shape="poly" in the XML
+Given: An associableHotspot with shape="poly", and one with shape="default"
 When: The component renders
-Then: A button is rendered over the polygon's bounding box;
-      the interaction functions for every hotspot;
-      no JavaScript error is thrown
-Notes: the hit area is the bounding box, not the polygon (see Known gaps)
+Then: The polygon's button covers its bounding box for the keyboard while only the polygon
+      takes pointer input (AC-20); the default-shape hotspot is a whole-image button beneath the
+      others; the interaction functions for every hotspot; no JavaScript error is thrown
 ```
 
 **AC-E2: maxAssociations=1 (default)**
@@ -573,7 +586,7 @@ Then: No prompt element is rendered (no empty paragraph or whitespace);
 
 - [ ] Should duplicate pair creation be blocked in the UI? The current code allows it when `matchMax > 1` on both hotspots. The QTI spec is silent on this for `graphicAssociateInteraction`. A consistent policy should account for `matchGroup`, which already filters the partners of a selected hotspot.
 - [x] ~~Should `maxAssociations=0` be treated as unlimited (like `maxChoices=0` in `choiceInteraction`) or as an authoring error?~~ Resolved (round 8): both `maxAssociations=0` and `matchMax=0` are unlimited, matching the delivery engine and the sibling pairing surfaces (see Background).
-- [ ] Should `poly` hotspots get a polygon hit area instead of their bounding box (see Known gaps)? `HotspotShape` already draws every QTI shape in SVG.
+- [x] Should `poly` hotspots get a polygon hit area instead of their bounding box? (resolved) Yes: every hotspot's pointer hit area is its real shape (`HotspotShape` inside the button), and the image shows that shape's outline.
 
 ---
 
@@ -583,7 +596,8 @@ Then: No prompt element is rendered (no empty paragraph or whitespace);
 - Spec gaps: `docs/SPEC-GAPS-PLAN.md` §G-01 (`matchGroup`, Done), §G-06 (`matchMin` enforcement, Done)
 - Shared pairing rule: `packages/item-player/src/core/matchGroups.ts` (`isMatchGroupCompatible`), used through `packages/default-components/src/shared/utils/matchGroupUtils.ts`
 - Response tracking: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
-- Component: `packages/default-components/src/plugins/graphic-associate/GraphicAssociateInteraction.svelte`
+- Component: `packages/default-components/src/plugins/graphic-associate/GraphicAssociateInteraction.svelte`; hit-area and outline geometry in `packages/default-components/src/shared/components/HotspotShape.svelte`
+- Browser checks: `apps/demo/tests/playwright/graphic-interactions.pw.ts` (polygon hit testing by mouse and touch, keyboard operation)
 - Extractor: `packages/item-player/src/interactions/graphic-associate/extractor.ts`
 - Type definitions: `packages/item-player/src/interactions/shared/types.ts` (`GraphicAssociateInteractionData`, `GraphicAssociateHotspot`)
 - Extractor tests: `packages/item-player/tests/extraction/extractors/graphicAssociateExtractor.test.ts`
