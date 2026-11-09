@@ -42,7 +42,7 @@
 		"@pie-qti/item-player": "workspace:*",
 		"@pie-qti/to-pie": "workspace:*",
 		"@pie-qti/transform-core": "workspace:*",
-		"typescript": "^5.9.3",
+		"typescript": "^7.0.2",
 		"xmllint-wasm": "^5.3.0"
 	},
 	"type": "module",

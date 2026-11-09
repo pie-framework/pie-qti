@@ -47,7 +47,7 @@
     "esbuild": "^0.28.2",
     "linkedom": "^0.18.13",
     "svelte": "^5.57.1",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vite": "^8.3.4"
   },
   "repository": {

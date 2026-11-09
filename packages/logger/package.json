@@ -3,7 +3,7 @@
   "version": "1.0.0-beta.4",
   "main": "./dist/index.js",
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   },
   "exports": {
     ".": {

@@ -8,7 +8,7 @@
   "devDependencies": {
     "@pie-qti/default-components": "workspace:*",
     "@pie-qti/theme-daisyui": "workspace:*",
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   },
   "exports": {
     ".": {

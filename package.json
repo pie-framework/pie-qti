@@ -87,7 +87,7 @@
     "lefthook": "^2.1.16",
     "publint": "^0.3.25",
     "turbo": "^2.11.10",
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   },
   "overrides": {
     "postcss-selector-parser": "7.1.6"
