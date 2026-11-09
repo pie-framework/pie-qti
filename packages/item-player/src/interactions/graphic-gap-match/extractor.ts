@@ -10,6 +10,7 @@ import {
 	normalizePixelDimension,
 } from '../../security/styleValues.js';
 import { extractImageAlternative, imgAlternativeSource } from '../shared/imageAlt.js';
+import { predatesQti22 } from '../shared/specDefaults.js';
 
 /**
  * Image data for graphic gap match interaction
@@ -53,15 +54,6 @@ export interface GraphicGapMatchData {
 	}>;
 	hotspots: Array<{ identifier: string; shape: string; coords: string; matchMax: number; matchGroup?: string[] }>;
 	prompt: string | null;
-}
-
-/**
- * Whether the item's QTI version defines an interaction-level `maxAssociations` on
- * graphicGapMatchInteraction: QTI 2.2 and 3.0 do (each with default "1"); QTI 2.0/2.1
- * and unknown versions do not, so an absent attribute cannot mean the spec default.
- */
-function isInteractionCapDefined(qtiVersion: string | undefined): boolean {
-	return qtiVersion === '2.2' || qtiVersion === '3.0' || qtiVersion === undefined || qtiVersion === 'unknown';
 }
 
 /**
@@ -148,15 +140,13 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 		// Extract interaction-level attributes with the per-version spec default for an
 		// absent maxAssociations: QTI 2.2 (Table 5.41.2) and QTI 3.0 (Table 5.60.2) give
 		// it the default "1" (0 = no restriction), while the attribute does not exist on
-		// graphicGapMatchInteraction in the QTI 2.1 XSD, so absent means no interaction
-		// cap there (the only 2.1 limits are the per-choice matchMax values). An explicit
-		// value is honoured in every version as leniency, with "0" meaning unlimited.
-		// Without a detected version the extractor follows the QTI 2.2 assumption
-		// detectQtiVersion makes for unversioned items.
+		// graphicGapMatchInteraction in QTI 2.1, so absent means no interaction cap there
+		// (the only 2.1 limits are the per-choice matchMax values). An explicit value is
+		// honoured in every version as leniency, with "0" meaning unlimited.
 		const maxAssociations = utils.getNumberAttribute(
 			element,
 			'maxAssociations',
-			isInteractionCapDefined(context.config.qtiVersion) ? 1 : 0,
+			predatesQti22(context) ? 0 : 1,
 		);
 
 		// Extract gapText children (draggable text labels)
