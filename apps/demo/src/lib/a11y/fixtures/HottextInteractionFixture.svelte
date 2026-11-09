@@ -46,9 +46,9 @@
 
 <div class="space-y-3">
 	<p class="text-sm text-base-content/70">
-		Fixture for hottext/text highlighting interaction. Use Tab to navigate between selectable text
-		spans, Space/Enter to select. Selection state announced to screen readers with proper ARIA
-		attributes.
+		Fixture for a single-select hottext interaction, exposed as a radio group. Tab reaches the
+		group once (the checked span, or the first); the arrow keys move between spans and check
+		them, and Space or Enter checks the focused span. "Clear answer" retracts the selection.
 	</p>
 
 	{#if mounted && itemSession.session}
