@@ -139,6 +139,29 @@ function canPlaceLabel(labelId: string, hotspotId: string): boolean {
 	return !!label && !!hotspot && isCompatibleMatchGroup(label, hotspot);
 }
 
+/**
+ * Whether `pairs` would hold more associations than the interaction's `maxAssociations`
+ * allows (QTI: 0 means no restriction). The per-label and per-hotspot `matchMax` need no
+ * separate check here: the placement model holds one pair per label and one pair per
+ * hotspot, so a placement never raises either side's count above 1.
+ */
+function exceedsMaxAssociations(candidatePairs: string[]): boolean {
+	const max = Number(parsedInteraction?.maxAssociations ?? 0);
+	return max > 0 && candidatePairs.length > max;
+}
+
+/** Announce a refused placement: the author's data-max-selections-message wins. */
+function announceAssociationLimit() {
+	liveMessage =
+		parsedInteraction?.maxSelectionsMessage?.trim() ||
+		translate(
+			i18n,
+			'interactions.graphicGapMatch.associationLimitReached',
+			'Association not possible: the limit of {max} is reached.',
+			{ max: Number(parsedInteraction?.maxAssociations ?? 0) },
+		);
+}
+
 // Hotspots the label being placed may not go on, due to matchGroup: the dragged label during a
 // drag (what a drop would place), else the held one.
 const blockedHotspotIds = $derived.by(() => {
@@ -243,6 +266,16 @@ function handleHotspotDrop(event: DragEvent, hotspotId: string) {
 
 	// Add new pair
 	newPairs.push(`${draggedTextId} ${hotspotId}`);
+
+	// maxAssociations: refuse a placement that would exceed the interaction's cap — the
+	// same maxima response validation enforces, announced here so an over-limit response
+	// never reaches the submit that would reject it.
+	if (exceedsMaxAssociations(newPairs)) {
+		announceAssociationLimit();
+		draggedTextId = null;
+		hoveredHotspotId = null;
+		return;
+	}
 
 	isInternalUpdate = true; // Mark as internal update to prevent sync effect from overwriting
 	pairs = newPairs;
@@ -378,6 +411,13 @@ function placePickedUpLabelOnHotspot(hotspotId: string) {
 	let newPairs = pairs.filter((p) => !p.startsWith(`${pickedUpLabel} `));
 	newPairs = newPairs.filter((p) => !p.endsWith(` ${hotspotId}`));
 	newPairs.push(`${pickedUpLabel} ${hotspotId}`);
+
+	// maxAssociations: refuse a placement that would exceed the interaction's cap; the
+	// label stays held so the candidate can place it elsewhere or cancel.
+	if (exceedsMaxAssociations(newPairs)) {
+		announceAssociationLimit();
+		return;
+	}
 
 	isInternalUpdate = true; // Mark as internal update
 	pairs = newPairs;

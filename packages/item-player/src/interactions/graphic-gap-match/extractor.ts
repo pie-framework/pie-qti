@@ -136,7 +136,14 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 			};
 		}
 
-		// Extract interaction-level attributes
+		// Extract interaction-level attributes. Deliberate divergence from the spec default:
+		// QTI 2.2 (Table 5.41.2) and QTI 3.0 (Table 5.60.2) give max-associations the default
+		// "1" (and the attribute does not exist at all on graphicGapMatchInteraction in the
+		// QTI 2.1 XSD), but this extractor keeps 0 = unlimited for items that omit it, so
+		// delivered content authored without the attribute keeps its historical behaviour.
+		// Conformance risk: an item relying on the missing attribute is more permissive than
+		// the 2.2/3.0 default; conformant items author the attribute explicitly. See
+		// docs/prds/interactions/graphic-gap-match.md ("maxAssociations default").
 		const maxAssociations = utils.getNumberAttribute(element, 'maxAssociations', 0);
 
 		// Extract gapText children (draggable text labels)

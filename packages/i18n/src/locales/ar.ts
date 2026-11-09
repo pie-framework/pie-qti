@@ -428,6 +428,7 @@ export default {
 			imageLoadError: 'تعذّر تحميل الصورة.',
 			unknownImageDimensions: 'لا يمكن عرض النقاط الساخنة: أبعاد الصورة غير معروفة. أضف العرض والارتفاع إلى الصورة.',
 			minPlacementsHint: 'لا يزال يتعين وضعها على المناطق: {labels}.',
+			associationLimitReached: 'لا يمكن إنشاء الارتباط: تم الوصول إلى الحد {max}.',
 		},
 
 		order: {
@@ -492,6 +493,16 @@ export default {
 				other: 'أنشئ {count} ارتباط على الأقل.',
 			},
 			minChoiceUsesHint: 'يحتاج إلى مزيد من الارتباطات: {items}.',
+			maxAssociationsHint: {
+				zero: 'يمكنك إنشاء ما يصل إلى {count} ارتباطات.',
+				one: 'يمكنك إنشاء ما يصل إلى {count} ارتباط.',
+				two: 'يمكنك إنشاء ما يصل إلى {count} ارتباطين.',
+				few: 'يمكنك إنشاء ما يصل إلى {count} ارتباطات.',
+				many: 'يمكنك إنشاء ما يصل إلى {count} ارتباطًا.',
+				other: 'يمكنك إنشاء ما يصل إلى {count} ارتباط.',
+			},
+			choiceLimitReached: 'غير ممكن: لا يمكن أن يكون {label} في مزيد من الارتباطات.',
+			associationLimitReached: 'لا يمكن إنشاء الارتباط: تم الوصول إلى الحد {max}.',
 		},
 
 		positionObject: {

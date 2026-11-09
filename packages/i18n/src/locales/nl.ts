@@ -359,6 +359,7 @@ export default {
 			imageLoadError: 'De afbeelding kon niet worden geladen.',
 			unknownImageDimensions: 'De hotspots kunnen niet worden weergegeven: de afmetingen van de afbeelding zijn onbekend. Voeg breedte en hoogte toe aan de afbeelding.',
 			minPlacementsHint: 'Nog te plaatsen op de gebieden: {labels}.',
+			associationLimitReached: 'Koppeling niet mogelijk: de limiet van {max} is bereikt.',
 		},
 
 		order: {
@@ -415,6 +416,12 @@ export default {
 				other: 'Maak minimaal {count} associaties.',
 			},
 			minChoiceUsesHint: 'Heeft meer associaties nodig: {items}.',
+			maxAssociationsHint: {
+				one: 'U kunt maximaal {count} associatie maken.',
+				other: 'U kunt maximaal {count} associaties maken.',
+			},
+			choiceLimitReached: 'Niet mogelijk: {label} kan niet in meer associaties zitten.',
+			associationLimitReached: 'Associatie niet mogelijk: de limiet van {max} is bereikt.',
 		},
 
 		positionObject: {

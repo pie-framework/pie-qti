@@ -372,6 +372,7 @@ export default {
 			imageLoadError: 'The image could not be loaded.',
 			unknownImageDimensions: 'The hotspots cannot be shown: the size of the image is unknown. Add width and height to the image.',
 			minPlacementsHint: 'Still to place on the hotspots: {labels}.',
+			associationLimitReached: 'Association not possible: the limit of {max} is reached.',
 		},
 
 		order: {
@@ -428,6 +429,12 @@ export default {
 				other: 'Make at least {count} associations.',
 			},
 			minChoiceUsesHint: 'Needs more associations: {items}.',
+			maxAssociationsHint: {
+				one: 'You can make up to {count} association.',
+				other: 'You can make up to {count} associations.',
+			},
+			choiceLimitReached: 'Not possible: {label} cannot be in more associations.',
+			associationLimitReached: 'Association not possible: the limit of {max} is reached.',
 		},
 
 		positionObject: {
