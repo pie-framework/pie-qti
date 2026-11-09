@@ -75,17 +75,30 @@
 			: false
 	);
 
+	// Single cardinality (maxChoices=1) is a radio group: one checked hottext, which another
+	// one replaces and which activating it again never unchecks. Multiple selection keeps
+	// aria-pressed toggle buttons, checkbox-like.
+	const isSingle = $derived(parsedInteraction?.maxChoices === 1);
+
 	// An unselected hottext can still be chosen: below the cap, or always when a single
 	// selection switches (maxChoices=1). Drives the visible "selectable" cue.
-	const canChooseUnselected = $derived(
-		parsedInteraction ? parsedInteraction.maxChoices === 1 || canSelectMore : false
-	);
+	const canChooseUnselected = $derived(parsedInteraction ? isSingle || canSelectMore : false);
 
 	/**
 	 * Check if a hottext element is selected
 	 */
 	function isSelected(identifier: string): boolean {
 		return selectedIds.includes(identifier);
+	}
+
+	/**
+	 * The passage's hottext elements that carry an identifier, in document order.
+	 */
+	function hottextElements(): HTMLElement[] {
+		if (!contentElement) return [];
+		return Array.from(contentElement.querySelectorAll<HTMLElement>(HOTTEXT_SELECTOR)).filter(
+			(elem) => !!elem.getAttribute('identifier')
+		);
 	}
 
 	/**
@@ -128,24 +141,27 @@
 	}
 
 	/**
-	 * Handle hottext element click.
+	 * Handle hottext activation: click or tap, Enter or Space, or an arrow key in the radio group.
 	 *
 	 * Selection semantics match ChoiceInteraction where the widgets overlap:
-	 * - `maxChoices=1` (single cardinality) is radio-like: selecting another hottext
-	 *   replaces the current selection instead of being refused.
-	 * - Activating a selected hottext deselects it for every cardinality: each span is an
-	 *   `aria-pressed` toggle button, and removing a selection never exceeds `maxChoices`.
-	 * - With `maxChoices>1`, a selection beyond the cap is refused; the cap message explains it.
+	 * - `maxChoices=1` (single cardinality) is a radio group, like ChoiceInteraction's native
+	 *   radios: selecting another hottext replaces the current selection, and activating the
+	 *   checked hottext again keeps it. "Clear answer" is the explicit way to retract it.
+	 * - With `maxChoices>1` each span is an `aria-pressed` toggle button, checkbox-like:
+	 *   activating a selected hottext deselects it, which never exceeds `maxChoices`, and a
+	 *   selection beyond the cap is refused; the cap message explains it.
 	 */
 	function handleHottextClick(identifier: string) {
 		if (disabled || !parsedInteraction) return;
 
-		if (isSelected(identifier)) {
-			// Deselect
-			selectedIds = selectedIds.filter((id) => id !== identifier);
-		} else if (parsedInteraction.maxChoices === 1) {
+		if (isSingle) {
+			// A checked radio stays checked: nothing changes, so nothing is emitted
+			if (isSelected(identifier)) return;
 			// Switch: the new hottext replaces the previous selection
 			selectedIds = [identifier];
+		} else if (isSelected(identifier)) {
+			// Toggle off
+			selectedIds = selectedIds.filter((id) => id !== identifier);
 		} else if (canSelectMore) {
 			// Select
 			selectedIds = [...selectedIds, identifier];
@@ -155,47 +171,115 @@
 		}
 
 		// Return single string for maxChoices=1, array for multiple selection
-		const responseValue = parsedInteraction.maxChoices === 1
-			? (selectedIds.length > 0 ? selectedIds[0] : null)
-			: selectedIds;
+		const responseValue = isSingle ? (selectedIds[0] ?? null) : selectedIds;
 
 		response = responseValue;
-		// Emit unconditionally: a null value is the deselect/clear signal the player listens for.
 		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: responseValue, onChange });
 		updateHottextStyles();
 	}
 
 	/**
-	 * Clear the whole selection from the footer button. The button removes itself with
-	 * the selection, which would drop keyboard focus to the document; focus moves to
-	 * the first hottext element instead, the interaction's surviving control.
+	 * The move an arrow key makes through the radio group, in document order: 1 forward,
+	 * -1 back, 0 for any other key. Up/Down are fixed; Left/Right follow the inline
+	 * direction, as native radios do, so under RTL ArrowLeft moves forward.
 	 */
-	async function clearSelection() {
+	function arrowStep(key: string, elem: HTMLElement): number {
+		if (key === 'ArrowDown') return 1;
+		if (key === 'ArrowUp') return -1;
+		if (key !== 'ArrowLeft' && key !== 'ArrowRight') return 0;
+		const rtl = getComputedStyle(elem).direction === 'rtl';
+		return (key === 'ArrowRight') !== rtl ? 1 : -1;
+	}
+
+	/**
+	 * Keyboard model. Enter and Space activate the focused hottext in either mode. In the
+	 * radio group (single selection) the arrow keys move focus to the next or previous
+	 * hottext, wrapping at the ends, and check it (WAI-ARIA APG radio group pattern); Tab
+	 * leaves the group from its one tab stop. Toggle buttons (multiple selection) are each a
+	 * Tab stop and leave the arrow keys alone, so the text can still be read and scrolled.
+	 */
+	function handleHottextKeydown(event: KeyboardEvent, htmlElem: HTMLElement, identifier: string) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			handleHottextClick(identifier);
+			return;
+		}
+		// Modified arrows stay with the browser and assistive technology (Alt+Left is Back).
+		if (!isSingle || disabled || event.altKey || event.ctrlKey || event.metaKey) return;
+		const step = arrowStep(event.key, htmlElem);
+		if (step === 0) return;
+		event.preventDefault();
+
+		const radios = hottextElements();
+		const index = radios.indexOf(htmlElem);
+		if (index < 0) return;
+		const next = radios[(index + step + radios.length) % radios.length];
+		const nextId = next?.getAttribute('identifier');
+		if (!next || !nextId) return;
+		next.focus();
+		handleHottextClick(nextId);
+	}
+
+	// Clear answer: the visible way to retract the whole answer, with the same name and the
+	// same rule as ChoiceInteraction's control (WCAG 3.2.4): offered only while there is an
+	// answer to retract and the interaction is enabled.
+	const canClearAnswer = $derived(selectedIds.length > 0 && !disabled);
+
+	/**
+	 * Retract the whole answer. The control removes itself with the answer, which would drop
+	 * keyboard focus to the document; focus moves to the first hottext instead — the radio
+	 * group's tab stop once nothing is checked — as ChoiceInteraction focuses its first radio.
+	 */
+	async function clearAnswer() {
 		if (disabled || !parsedInteraction) return;
 		selectedIds = [];
 		// Return null for single selection, empty array for multiple
-		const responseValue = parsedInteraction.maxChoices === 1 ? null : [];
+		const responseValue = isSingle ? null : [];
 		response = responseValue;
+		// Emit unconditionally: a null value is the clear signal the player listens for.
 		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: responseValue, onChange });
 		updateHottextStyles();
 		await tick();
-		contentElement?.querySelector<HTMLElement>(HOTTEXT_SELECTOR)?.focus();
+		hottextElements()[0]?.focus();
 	}
 
 	/**
-	 * Update visual styles of hottext elements based on selection state
+	 * Update the ARIA state, tab order and visual styles of the hottext elements from the
+	 * selection, cardinality and disabled state.
 	 */
-	function updateHottextStyles() {		if (!contentElement) return;
+	function updateHottextStyles() {
+		const elements = hottextElements();
+		if (elements.length === 0) return;
 
-		const hottextElements = contentElement.querySelectorAll(HOTTEXT_SELECTOR);
-		hottextElements.forEach((elem: Element) => {
-			const identifier = elem.getAttribute('identifier');
+		// Roving tabindex (single selection): the radio group is one tab stop, the checked
+		// radio or else the first one, and the arrow keys move within it.
+		const tabStop = isSingle
+			? (elements.find((elem) => isSelected(elem.getAttribute('identifier') ?? '')) ?? elements[0])
+			: null;
+
+		for (const htmlElem of elements) {
+			const identifier = htmlElem.getAttribute('identifier');
 			if (identifier) {
-				const htmlElem = elem as HTMLElement;
 				const selected = isSelected(identifier);
 
-				// Update ARIA state
-				htmlElem.setAttribute('aria-pressed', selected ? 'true' : 'false');
+				// Update ARIA state: a radio is checked, a toggle button is pressed
+				if (isSingle) {
+					htmlElem.setAttribute('aria-checked', selected ? 'true' : 'false');
+					htmlElem.removeAttribute('aria-pressed');
+				} else {
+					htmlElem.setAttribute('aria-pressed', selected ? 'true' : 'false');
+					htmlElem.removeAttribute('aria-checked');
+				}
+
+				// Tab order: none while disabled, one stop for the radio group, every toggle button
+				const tabbable = !disabled && (!isSingle || htmlElem === tabStop);
+				htmlElem.setAttribute('tabindex', tabbable ? '0' : '-1');
+				// A disabled hottext says so, as a disabled native control does
+				if (disabled) {
+					htmlElem.setAttribute('aria-disabled', 'true');
+				} else {
+					htmlElem.removeAttribute('aria-disabled');
+				}
 
 				// Update the localized state word in the accessible name
 				const stateSpan = htmlElem.querySelector<HTMLElement>(':scope > [data-hottext-state]');
@@ -257,7 +341,7 @@
 					htmlElem.setAttribute('aria-labelledby', labelIds.join(' '));
 				}
 			}
-		});
+		}
 	}
 
 	/**
@@ -265,23 +349,21 @@
 	 */
 	$effect(() => {
 		if (!contentElement) return;
+		// Single selection is a radio group; multiple selection keeps toggle buttons.
+		// The spans stay inline in the running text either way.
+		const role = isSingle ? 'radio' : 'button';
 
-		const hottextElements = contentElement.querySelectorAll(HOTTEXT_SELECTOR);
-		hottextElements.forEach((elem: Element) => {
-			const identifier = elem.getAttribute('identifier');
+		for (const htmlElem of hottextElements()) {
+			const identifier = htmlElem.getAttribute('identifier');
 			if (identifier) {
-				const htmlElem = elem as HTMLElement;
-
 				// Make it visually interactive
 				htmlElem.style.cursor = disabled ? 'default' : 'pointer';
 				htmlElem.style.padding = '2px 4px';
 				htmlElem.style.borderRadius = '3px';
 				htmlElem.style.transition = 'all 0.2s';
 
-				// Make keyboard accessible
-				htmlElem.setAttribute('role', 'button');
-				htmlElem.setAttribute('tabindex', disabled ? '-1' : '0');
-				htmlElem.setAttribute('aria-pressed', isSelected(identifier) ? 'true' : 'false');
+				// Make keyboard accessible; ARIA state and tab order follow in updateHottextStyles()
+				htmlElem.setAttribute('role', role);
 
 				// Structured accessible name from the rendered content + a localized state
 				ensureAccessibleNameStructure(htmlElem, identifier);
@@ -290,14 +372,9 @@
 				htmlElem.onclick = () => handleHottextClick(identifier);
 
 				// Add keyboard handler
-				htmlElem.onkeydown = (e: KeyboardEvent) => {
-					if (e.key === 'Enter' || e.key === ' ') {
-						e.preventDefault();
-						handleHottextClick(identifier);
-					}
-				};
+				htmlElem.onkeydown = (event: KeyboardEvent) => handleHottextKeydown(event, htmlElem, identifier);
 			}
-		});
+		}
 
 		updateHottextStyles();
 	});
@@ -342,11 +419,13 @@
 			</div>
 		{/if}
 
+		<!-- Single selection: a radio group (role="radio" spans, roving tabindex, arrow keys).
+		     Multiple selection: a group of aria-pressed toggle buttons. -->
 		<div
 			bind:this={contentElement}
 			part="content"
 			class="hottext-content qti-hottext-content qti-rich-content prose max-w-none"
-			role="group"
+			role={isSingle ? 'radiogroup' : 'group'}
 			aria-label={translate(i18n, 'interactions.hottext.ariaLabel', 'Text selection interaction')}
 		>
 			{@html parsedInteraction.contentHtml}
@@ -365,14 +444,15 @@
 				{/if}
 			</div>
 
-			{#if selectedIds.length > 0}
+			<!-- Same name and rule as ChoiceInteraction's "Clear answer" (WCAG 3.2.4) -->
+			{#if canClearAnswer}
 				<button
 					type="button"
+					part="clear"
 					class="btn btn-sm btn-ghost"
-					onclick={clearSelection}
-					{disabled}
+					onclick={clearAnswer}
 				>
-					{translate(i18n, 'interactions.hottext.clearSelection', 'Clear Selection')}
+					{translate(i18n, 'interactions.choice.clearAnswer', 'Clear answer')}
 				</button>
 			{/if}
 		</div>
