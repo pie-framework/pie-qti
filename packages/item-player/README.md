@@ -36,7 +36,8 @@ const definition = createAssessmentItemDefinition({
   itemXml: qtiXml,
   role: 'candidate',
   security: {
-    parsingLimits: { enabled: true, rejectDoctype: true },
+    // Parsing limits are on by default; tune one here, or opt out with `enabled: false`.
+    parsingLimits: { maxItemXmlBytes: 2_000_000 },
     trustedTypesPolicyName: 'qti-content'
   },
   plugins
@@ -216,7 +217,10 @@ resource URL fields with a `delivery` schema. See
 ## Security boundary
 
 The player applies configured HTML sanitation, URL policy, parsing limits, and optional Trusted
-Types finalization to declared delivery fields. Plugins are trusted executable application code and
+Types finalization to declared delivery fields. The parsing limits (item XML size, HTML size,
+element count and depth, DOCTYPE rejection) apply by default at every entry point, including the
+server entry; set `security.parsingLimits.enabled: false` to opt out, for trusted content or behind
+an equivalent upstream limit. Plugins are trusted executable application code and
 are not sandboxed. Sanitized same-DOM content is still not equivalent to isolating untrusted
 JavaScript; use a suitably sandboxed cross-origin iframe when content is not trusted to run in the
 host origin.
