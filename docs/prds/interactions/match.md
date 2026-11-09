@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: matchInteraction
-  Last reviewed: 2026-11-07
+  Last reviewed: 2026-11-09
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-11-07
+**Last reviewed:** 2026-11-09
 
 ---
 
@@ -118,12 +118,13 @@ When `shuffle=true`, the extractor returns `sourceSet` and `targetSet` shuffled 
 - **FR-10:** Render the `prompt` HTML content above the matching grid when present.
 - **FR-11:** On mobile viewports (≤640px), stack the source and target columns vertically rather than side-by-side, and support touch drag-and-drop via the `touchDrag` action.
 - **FR-12:** Apply `matchGroup` with the shared rule (`isMatchGroupCompatible` from `@pie-qti/item-player`) for every input method: while a source is selected or dragged, mark the targets it may not be paired with `aria-disabled="true"` and refuse their activation and drops. Without `matchGroup` on either side, any source may be paired with any target.
+- **FR-13:** When a pairing is refused at a cap — the interaction's `maxAssociations` or the source's `matchMax` — announce the refusal through the polite live region, naming the limit or the source, identically for drag, keyboard and touch input; repeating the same refused attempt announces again.
 
 ---
 
 ## Non-functional requirements
 
-- **Accessibility:** Each source item and each target item must be a focusable `<button>`. Source buttons must have `aria-pressed` indicating keyboard selection state. Source buttons must carry a comprehensive `aria-label` that includes: the item text, any current match ("Matched with X"), and selection state. Target buttons must carry an `aria-label` including: the item text and either "Matched with Y" or "Available for matching". An `aria-live="polite"` region must announce pairings and cancellations as they occur. A visually hidden instruction block must explain the two-step keyboard workflow. Focus must not be programmatically moved after a pairing; the user continues tabbing through the grid.
+- **Accessibility:** Each source item and each target item must be a focusable `<button>`. Source buttons must have `aria-pressed` indicating keyboard selection state. Source buttons must carry a comprehensive `aria-label` that includes: the item text, any current match ("Matched with X"), and selection state. Target buttons must carry an `aria-label` including: the item text and either "Matched with Y" or "Available for matching". An `aria-live="polite"` region must announce pairings, cancellations and refused pairings as they occur. A pairing refused at a cap names what is exhausted: the interaction's `maxAssociations` ("Association not possible: the limit of {max} is reached.") or the source at its `matchMax` ("Not possible: {label} cannot be in more associations."), the same split the associate and graphic-associate interactions use — not a generic "maximum reached" wording without a number. A visually hidden instruction block must explain the two-step keyboard workflow. Focus must not be programmatically moved after a pairing; the user continues tabbing through the grid.
 - **Touch targets:** Each source and target button must have a minimum height of 60px CSS (`min-h-[60px]`). The clear (✕) button must be at least 24×24px. WCAG 2.2 SC 2.5.8 requires 24×24px for all targets; the 60px minimum row height satisfies this with margin.
 - **Performance:** Extraction and rendering for a 5×5 matching grid (25 choices total) must complete in under 16 ms on a mid-range mobile device. The grid is a static layout with no virtual scrolling.
 - **Cross-platform:** Touch drag must use the `touchDrag` Svelte action from `@pie-qti/qti-common`. The stacked single-column layout at ≤640px must make tap-to-pair functional without requiring physical drag.
@@ -389,6 +390,16 @@ AC-A9: Disabled inputs convey state to assistive technology
   Given: the item rendered with disabled=true
   When: a screen reader navigates to any source or target button
   Then: the button is announced as disabled (HTML disabled attribute present)
+
+AC-A10: A pairing refused at a cap is announced and named
+  Given: source Paris with matchMax=1, already paired once, with maxAssociations=0 (unlimited)
+  When: the candidate selects Paris and activates target Italy
+  Then: no pair is created; the live region announces "Not possible: Paris cannot be in more associations."
+
+AC-A11: An interaction-cap refusal names the limit
+  Given: an item with maxAssociations=1 and one pair already formed
+  When: the candidate pairs any remaining source with any remaining target
+  Then: no pair is created; the live region announces "Association not possible: the limit of 1 is reached."
 ```
 
 ### matchGroup (G-01)

@@ -32,6 +32,13 @@ const UNLABELLED_HOTSPOTS: GraphicAssociateInteractionData['associableHotspots']
 	{ identifier: 'PUMP', shape: 'circle', coords: '70,20,10', matchMax: 1, label: '' },
 ];
 
+/** Hotspots whose caps are all explicit zeros: the QTI reading of 0 is "no restriction". */
+const UNLIMITED_HOTSPOTS: GraphicAssociateInteractionData['associableHotspots'] = [
+	{ identifier: 'H1', shape: 'rect', coords: '0,0,40,20', matchMax: 0, label: 'Hotspot 1' },
+	{ identifier: 'H2', shape: 'rect', coords: '50,0,90,20', matchMax: 0, label: 'Hotspot 2' },
+	{ identifier: 'H10', shape: 'rect', coords: '0,25,40,45', matchMax: 0, label: 'Hotspot 10' },
+];
+
 afterEach(() => {
 	vi.restoreAllMocks();
 	// Remove any hosts appended during the test.
@@ -302,5 +309,63 @@ describe('GraphicAssociateInteraction (pie-qti-graphic-associate)', () => {
 		expect(q(capped, '.qti-ga-live-region')?.textContent).toContain('limit of 1 is reached');
 		expect(capped.instance.response).toEqual(['H1 H2']);
 		cleanupInteraction(capped);
+	});
+
+	test('maxAssociations=0 is unlimited: pairs keep forming and no "limit of 0" refusal (round 8)', async () => {
+		// QTI reads maxAssociations=0 as "no upper bound", the same reading response
+		// validation and the sibling pairing surfaces apply. The former literal guard
+		// made every second click announce "the limit of 0 is reached".
+		const mounted = mountInteraction(GraphicAssociateInteraction, {
+			interaction: associateData({
+				maxAssociations: 0,
+				associableHotspots: UNLIMITED_HOTSPOTS,
+			}),
+		});
+		await settle();
+
+		const hotspots = qa<HTMLButtonElement>(mounted, 'button[part="hotspot"]');
+		hotspots[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		hotspots[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		expect(mounted.instance.response).toEqual(['H1 H2']);
+
+		// A second association still forms past the "0".
+		hotspots[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		hotspots[2].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		expect(mounted.instance.response).toEqual(['H1 H2', 'H2 H10']);
+		expect(q(mounted, '.qti-ga-live-region')?.textContent).not.toContain('limit of 0');
+
+		// The counter states the count without a misleading "/0" maximum.
+		expect(q(mounted, 'h3.card-title')?.textContent?.trim()).toBe('Associations (2)');
+		cleanupInteraction(mounted);
+	});
+
+	test('a matchMax=0 hotspot is unlimited: reusable and never refused by name (round 8)', async () => {
+		const mounted = mountInteraction(GraphicAssociateInteraction, {
+			interaction: associateData({
+				maxAssociations: 0,
+				associableHotspots: UNLIMITED_HOTSPOTS,
+			}),
+			response: ['H1 H2'],
+		});
+		await settle();
+
+		const hotspots = qa<HTMLButtonElement>(mounted, 'button[part="hotspot"]');
+		// The accessible name states unlimited instead of a misleading "0/0 connections".
+		expect(hotspots[0].getAttribute('aria-label')).toBe('Hotspot 1 (1 connections, unlimited).');
+		expect(hotspots[0].getAttribute('aria-disabled')).toBeNull();
+
+		// H1 is already used once, yet a literal "0" reading must not refuse it again.
+		hotspots[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		hotspots[2].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+
+		expect(mounted.instance.response).toEqual(['H1 H2', 'H1 H10']);
+		expect(q(mounted, '.qti-ga-live-region')?.textContent).toContain('Association made.');
+		cleanupInteraction(mounted);
 	});
 });

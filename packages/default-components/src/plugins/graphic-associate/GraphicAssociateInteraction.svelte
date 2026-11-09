@@ -77,7 +77,12 @@
 	}
 
 	const canInteract = $derived(!disabled);
-	const canAddMore = $derived(!parsedInteraction || pairs.length < parsedInteraction.maxAssociations);
+	// The interaction's association cap (QTI maxAssociations): 0 means unlimited, as the
+	// sibling pairing surfaces (AssociateInteraction, MatchDragDrop) and the delivery
+	// engine read it.
+	const canAddMore = $derived(
+		!parsedInteraction || parsedInteraction.maxAssociations <= 0 || pairs.length < parsedInteraction.maxAssociations,
+	);
 
 	// Hotspots incompatible with the currently selected hotspot due to matchGroup constraints
 	const blockedHotspots = $derived.by(() => {
@@ -104,7 +109,7 @@
 
 		// Count how many times this hotspot is already used
 		const usageCount = countPairsWithId(pairs, hotspotId);
-		if (usageCount >= hotspot.matchMax) {
+		if (isAtMatchMax(hotspot, usageCount)) {
 			// This hotspot is at its maximum connections: refuse, announced.
 			announce(
 				translate(i18n, 'interactions.graphicAssociate.hotspotLimitReached', 'Not possible: {label} cannot be in more associations.', {
@@ -196,20 +201,32 @@
 		return countPairsWithId(pairs, id);
 	}
 
+	/** A hotspot's own cap (QTI matchMax): 0 means unlimited, as for every associable choice. */
+	function isAtMatchMax(hotspot: GraphicAssociateHotspot, usageCount: number): boolean {
+		return hotspot.matchMax > 0 && usageCount >= hotspot.matchMax;
+	}
+
 	function isHotspotMaxed(id: string): boolean {
 		const hotspot = getHotspotById(id);
 		if (!hotspot) return false;
-		return getHotspotUsageCount(id) >= hotspot.matchMax;
+		return isAtMatchMax(hotspot, getHotspotUsageCount(id));
 	}
 
 	function hotspotAriaLabel(hotspot: GraphicAssociateHotspot, usageCount: number, isCorrect: boolean, isBlocked: boolean): string {
+		const label = hotspotName(hotspot);
 		return joinSentences(
 			translate(i18n, 'accessibility.sentence', '{text}.', {
-				text: translate(i18n, 'interactions.graphicAssociate.hotspotConnections', '{label} ({usageCount}/{matchMax} connections)', {
-					label: hotspotName(hotspot),
-					usageCount,
-					matchMax: hotspot.matchMax,
-				}),
+				text:
+					hotspot.matchMax > 0
+						? translate(i18n, 'interactions.graphicAssociate.hotspotConnections', '{label} ({usageCount}/{matchMax} connections)', {
+								label,
+								usageCount,
+								matchMax: hotspot.matchMax,
+							})
+						: translate(i18n, 'interactions.graphicAssociate.hotspotConnectionsUnlimited', '{label} ({usageCount} connections, unlimited)', {
+								label,
+								usageCount,
+							}),
 			}),
 			isCorrect
 				? translate(i18n, 'accessibility.correctAnswer', 'Correct answer.')
@@ -435,10 +452,14 @@
 				<div class="qti-ga-card card bg-base-100 border border-base-300">
 					<div class="qti-ga-card-body card-body p-4">
 						<h3 class="card-title text-sm">
-							{translate(i18n, 'interactions.graphicAssociate.associationsCount', 'Associations ({count}/{max})', {
-								count: pairs.length,
-								max: parsedInteraction.maxAssociations,
-							})}
+							{parsedInteraction.maxAssociations > 0
+								? translate(i18n, 'interactions.graphicAssociate.associationsCount', 'Associations ({count}/{max})', {
+										count: pairs.length,
+										max: parsedInteraction.maxAssociations,
+									})
+								: translate(i18n, 'interactions.graphicAssociate.associationsCountUnlimited', 'Associations ({count})', {
+										count: pairs.length,
+									})}
 						</h3>
 
 						{#if pairs.length === 0}

@@ -213,6 +213,63 @@ describe('MatchInteraction (pie-qti-match)', () => {
 	});
 });
 
+describe('MatchDragDrop refusal announcements (round 8)', () => {
+	const source = { identifier: 'paris', text: '<p>Paris</p>' };
+	const targets = [
+		{ identifier: 'france', text: '<p>France</p>', matchMax: 1 },
+		{ identifier: 'italy', text: '<p>Italy</p>', matchMax: 1 },
+	];
+
+	test('a per-source matchMax refusal names the choice, not just "maximum reached"', async () => {
+		const mounted = mountInteraction(MatchDragDrop, {
+			sourceSet: [{ ...source, matchMax: 1 }],
+			targetSet: targets,
+			pairs: ['paris france'],
+			maxAssociations: 0,
+			onPairsChange: () => {},
+		});
+		await settle();
+
+		q<HTMLButtonElement>(mounted, '[data-source-id="paris"]')?.click();
+		await settle();
+		const [, italy] = qa<HTMLButtonElement>(mounted, '[part="target"]');
+		italy!.click();
+		await settle();
+
+		expect(liveRegion(mounted)).toBe('Not possible: Paris cannot be in more associations.');
+
+		// The same refused attempt again still announces: a toggled zero-width space
+		// (not read by screen readers) turns the identical text into a change.
+		const live = q(mounted, '[aria-live="polite"]')!;
+		const firstText = live.textContent;
+		italy!.click();
+		await settle();
+		expect(live.textContent).not.toBe(firstText);
+		expect(liveRegion(mounted).replace(/\u200b/g, '')).toBe('Not possible: Paris cannot be in more associations.');
+		cleanupInteraction(mounted);
+	});
+
+	test('an interaction maxAssociations refusal names the limit', async () => {
+		const mounted = mountInteraction(MatchDragDrop, {
+			sourceSet: [{ ...source, matchMax: 2 }],
+			targetSet: targets,
+			pairs: ['paris france'],
+			maxAssociations: 1,
+			onPairsChange: () => {},
+		});
+		await settle();
+
+		q<HTMLButtonElement>(mounted, '[data-source-id="paris"]')?.click();
+		await settle();
+		const [, italy] = qa<HTMLButtonElement>(mounted, '[part="target"]');
+		italy!.click();
+		await settle();
+
+		expect(liveRegion(mounted)).toBe('Association not possible: the limit of 1 is reached.');
+		cleanupInteraction(mounted);
+	});
+});
+
 describe('MatchDragDrop instance-unique ids', () => {
 	/** Ids that occur more than once in the document. */
 	function duplicateIds(): string[] {
