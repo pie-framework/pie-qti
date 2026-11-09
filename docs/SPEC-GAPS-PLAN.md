@@ -1056,7 +1056,6 @@ Known, accepted delivery limits from the round-5 delivery review and the later l
 - No mid-session time extension: PNP extended time is fixed when the player is created — `packages/assessment-player/src/core/TimeManager.ts`.
 - PNP `line-reader` is parsed into the profile's tool supports, but no built-in line reader renders it — `packages/item-player/src/pnp/parsePnpXml.ts`.
 - The section tool bar hosts only the tools the host configures; there is no built-in calculator, ruler, protractor or TTS of pie-qti's own — `packages/section-player/src/components/QtiToolButtonBar.svelte`.
-- `templateDeclaration@paramVariable` is not applied: a `<param>` inside an `<object>` whose value names a template variable declared with `paramVariable="true"` is delivered with the variable's name, not its value (QTI 2.2 §7.24.2). Confined to legacy plugin-style `object` parameters — `packages/item-player/src/core/Player.ts` (template content pass).
 
 ---
 
