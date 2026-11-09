@@ -1021,19 +1021,34 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		}
 		case 'randominteger': {
 			// Every QTI version defines randomInteger as an empty element (2.1 RandomInteger.Type
-			// extends EmptyPrimitiveType, line 9317; 2.2 line 16462; 3.0 RandomIntegerDType): the
-			// min/max/step attributes are its only input, and a child-expression form is invalid.
-			const minAttr = attrAsExpr('min', 'integer');
-			const maxAttr = attrAsExpr('max', 'integer');
-			if (!minAttr || !maxAttr) throw new Error('<randomInteger> requires min/max attributes');
-			return { kind: 'expr.randomInteger', id, min: minAttr, max: maxAttr, step: attrAsExpr('step', 'integer') };
+			// extends EmptyPrimitiveType, line 9317; 2.2 line 16462; 3.0 RandomIntegerDType line
+			// 8487): its attributes are its only input, and a child-expression form is invalid. Only
+			// max is required. min is optional with default "0" (2.1 line 3364, 2.2 line 8515, 3.0
+			// line 8490), so an absent min reads as that literal, in the shape attrAsExpr gives a
+			// numeric attribute. step is optional with default "1" (2.1 line 3394, 2.2 line 8530, 3.0
+			// line 8514); the evaluator applies it when the node has no step.
+			const max = attrAsExpr('max', 'integer');
+			if (!max) throw new Error('<randomInteger> requires a max attribute');
+			const min: ExpressionNode = attrAsExpr('min', 'integer') ?? {
+				kind: 'expr.baseValue',
+				id: newAstId('expr'),
+				baseType: 'integer',
+				text: '0',
+			};
+			return { kind: 'expr.randomInteger', id, min, max, step: attrAsExpr('step', 'integer') };
 		}
 		case 'randomfloat': {
-			// Like randomInteger, an empty element: min/max attributes only.
-			const minAttr = attrAsExpr('min', 'float');
-			const maxAttr = attrAsExpr('max', 'float');
-			if (!minAttr || !maxAttr) throw new Error('<randomFloat> requires min/max attributes');
-			return { kind: 'expr.randomFloat', id, min: minAttr, max: maxAttr };
+			// Like randomInteger, an empty element: max is required, and min is optional with default
+			// "0" (2.1 line 3409, 2.2 line 8485, 3.0 line 8459), read as that literal when absent.
+			const max = attrAsExpr('max', 'float');
+			if (!max) throw new Error('<randomFloat> requires a max attribute');
+			const min: ExpressionNode = attrAsExpr('min', 'float') ?? {
+				kind: 'expr.baseValue',
+				id: newAstId('expr'),
+				baseType: 'float',
+				text: '0',
+			};
+			return { kind: 'expr.randomFloat', id, min, max };
 		}
 		case 'mathconstant': {
 			const name = (getAttr(el, 'name') || '').trim().toLowerCase();

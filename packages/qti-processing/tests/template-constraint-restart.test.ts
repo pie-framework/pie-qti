@@ -7,7 +7,8 @@
  */
 
 import { describe, expect, it } from 'bun:test';
-import { buildTemplateProcessingAst } from '../src/ast/build.js';
+import { buildExpression, buildTemplateProcessingAst } from '../src/ast/build.js';
+import { evalExpr } from '../src/eval/evaluator.js';
 import { OperatorRegistry } from '../src/eval/operators.js';
 import { execProgram } from '../src/exec/execute.js';
 import { DeclarationContext } from '../src/runtime/context.js';
@@ -143,12 +144,29 @@ describe('templateConstraint restart', () => {
 /**
  * randomInteger and randomFloat are empty elements in every QTI version (2.1 RandomInteger.Type
  * extends EmptyPrimitiveType, line 9317; 2.2 line 16462; 3.0 RandomIntegerDType line 8487; same
- * for RandomFloat): min/max/step are attributes, and the element takes no child expressions.
+ * for RandomFloat): min/max/step are attributes, and the element takes no child expressions. Only
+ * max is required: min is optional with default "0" for both elements (2.1 lines 3364 and 3409,
+ * 2.2 lines 8515 and 8485, 3.0 lines 8490 and 8459), and randomInteger's step defaults to "1".
  */
 describe('randomInteger and randomFloat element forms', () => {
 	function templateOf(body: string): Element {
 		return parseXml(`<templateProcessing>${body}</templateProcessing>`).documentElement;
 	}
+
+	/** Random draws 0, 1/40, …, 39/40 and just under 1, so every value of a small range comes up. */
+	const SWEEP = [...Array.from({ length: 40 }, (_, i) => i / 40), 0.999_999];
+
+	/** What `xml` yields under each draw of the sweep, as single values of `baseType`. */
+	function drawsOf(xml: string, baseType: 'integer' | 'float'): number[] {
+		const expression = buildExpression(parseXml(xml).documentElement);
+		return SWEEP.map((draw) => {
+			const v = evalExpr({ ctx: new DeclarationContext({}), ops: new OperatorRegistry(), rng: () => draw }, expression);
+			expect(v).toMatchObject({ kind: 'value', baseType, cardinality: 'single' });
+			return v.kind === 'value' ? Number(v.value) : Number.NaN;
+		});
+	}
+
+	const distinct = (values: number[]): number[] => [...new Set(values)].sort((a, b) => a - b);
 
 	it('draws an integer from the min/max/step attributes and a float from min/max', () => {
 		const ctx = new DeclarationContext(makeDecls());
@@ -165,14 +183,48 @@ describe('randomInteger and randomFloat element forms', () => {
 		expect(ctx.getValue('T2')).toEqual(qtiValue('float', 'single', 0.5));
 	});
 
+	it('defaults an absent min to 0: <randomInteger max="3"/> only ever yields 0..3', () => {
+		const values = drawsOf('<randomInteger max="3"/>', 'integer');
+		expect(values.every((n) => Number.isInteger(n) && n >= 0 && n <= 3)).toBe(true);
+		expect(distinct(values)).toEqual([0, 1, 2, 3]);
+	});
+
+	it('defaults an absent min to 0: <randomFloat max="1.5"/> yields values in [0, 1.5]', () => {
+		const values = drawsOf('<randomFloat max="1.5"/>', 'float');
+		expect(values.every((x) => x >= 0 && x <= 1.5)).toBe(true);
+		// The lowest draw lands on the defaulted min, the highest just under max.
+		expect(Math.min(...values)).toBe(0);
+		expect(Math.max(...values)).toBeGreaterThan(1.49);
+	});
+
+	it('still requires max on both elements', () => {
+		for (const xml of ['<randomInteger/>', '<randomInteger min="1" step="2"/>']) {
+			expect(() => buildExpression(parseXml(xml).documentElement)).toThrow('<randomInteger> requires a max attribute');
+		}
+		for (const xml of ['<randomFloat/>', '<randomFloat min="0.5"/>']) {
+			expect(() => buildExpression(parseXml(xml).documentElement)).toThrow('<randomFloat> requires a max attribute');
+		}
+	});
+
+	it('still steps by 1 when step is absent, as its XSD default reads', () => {
+		expect(drawsOf('<randomInteger max="3"/>', 'integer')).toEqual(drawsOf('<randomInteger max="3" step="1"/>', 'integer'));
+		expect(drawsOf('<randomInteger min="2" max="5"/>', 'integer')).toEqual(
+			drawsOf('<randomInteger min="2" max="5" step="1"/>', 'integer'),
+		);
+		expect(distinct(drawsOf('<randomInteger min="2" max="5"/>', 'integer'))).toEqual([2, 3, 4, 5]);
+		// An explicit step does thin the range, so the equalities above are not vacuous.
+		expect(distinct(drawsOf('<randomInteger max="3" step="2"/>', 'integer'))).toEqual([0, 2]);
+	});
+
 	it('is a compile error for the child-expression form no QTI version defines', () => {
+		// The legacy form carries min and max as children, so it has no max attribute.
 		const childForm = '<setTemplateValue identifier="T"><randomInteger><baseValue baseType="integer">1</baseValue><baseValue baseType="integer">5</baseValue></randomInteger></setTemplateValue>';
 		expect(() => buildTemplateProcessingAst(templateOf(childForm), {})).toThrow(
-			'<randomInteger> requires min/max attributes',
+			'<randomInteger> requires a max attribute',
 		);
 		const floatChildForm = '<setTemplateValue identifier="T"><randomFloat><baseValue baseType="float">0</baseValue><baseValue baseType="float">1</baseValue></randomFloat></setTemplateValue>';
 		expect(() => buildTemplateProcessingAst(templateOf(floatChildForm), {})).toThrow(
-			'<randomFloat> requires min/max attributes',
+			'<randomFloat> requires a max attribute',
 		);
 	});
 });
