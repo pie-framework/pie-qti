@@ -402,4 +402,79 @@ describe('PositionObjectInteraction (pie-qti-position-object)', () => {
 		expect(q(neither, '.mt-2')).toBeNull();
 		cleanupInteraction(both, neither);
 	});
+
+	test('maxChoices=0 is unlimited: with the extracted matchMax 0 the object is placed again and again (round 8)', async () => {
+		// The extractor carries maxChoices into the object's own limit, so QTI's
+		// maxChoices="0" ("no limit") arrives as matchMax 0. Read literally, that left the
+		// object aria-disabled, out of the tab order and unplaceable: "mark every airport"
+		// could never be answered.
+		const mounted = mountInteraction(PositionObjectInteraction, {
+			interaction: positionData({
+				maxChoices: 0,
+				positionObjectStages: [
+					{
+						identifier: 'AIRPORT_SITE_RESPONSE',
+						label: 'Airport',
+						matchMax: 0,
+						objectData: { type: 'image', src: 'plane.png', width: '40', height: '40' },
+					},
+				],
+			}),
+		});
+		await settle();
+		const live = () => q(mounted, '[aria-live="polite"]')?.textContent ?? '';
+
+		for (let placement = 1; placement <= 3; placement++) {
+			pressKey(paletteItem(mounted), 'Enter');
+			await settle();
+			pressKey(canvas(mounted), 'ArrowRight');
+			await settle();
+			pressKey(canvas(mounted), 'Enter');
+			await settle();
+
+			// Each Enter places and announces the placement; no refusal is announced.
+			expect(live()).toMatch(/^Airport placed at \d+%, \d+%\.$/);
+			expect(live()).not.toMatch(/Not possible|maximum/);
+			// canDragStage keeps the object draggable after every placement.
+			expect(paletteItem(mounted).getAttribute('draggable')).toBe('true');
+			expect(paletteItem(mounted).getAttribute('aria-disabled')).toBeNull();
+			expect(paletteItem(mounted).getAttribute('tabindex')).toBe('0');
+		}
+
+		expect(mounted.instance.response).toHaveLength(3);
+		// The usage label states unlimited, never "/0".
+		expect(paletteItem(mounted).getAttribute('aria-label')).toBe('Airport (3 used, unlimited).');
+		expect(paletteItem(mounted).getAttribute('aria-label')).not.toContain('/0');
+		expect(paletteItem(mounted).textContent).toContain('3 used, unlimited');
+		expect(paletteItem(mounted).textContent).not.toContain('/0');
+		cleanupInteraction(mounted);
+	});
+
+	test('a restored response lands on an unlimited object in hand-built multi-object data (round 8)', async () => {
+		// Restore maps points to objects by array order. An unlimited object (matchMax 0)
+		// takes every remaining point; read as a cap of zero it took none, so the first
+		// point went to the next object and the rest were dropped.
+		const mounted = mountInteraction(PositionObjectInteraction, {
+			interaction: positionData({
+				maxChoices: 0,
+				positionObjectStages: [
+					{ identifier: 'PIN', label: 'Pin', matchMax: 0, objectData: { type: 'image', src: 'pin.png', width: '20', height: '20' } },
+					{ identifier: 'FLAG', label: 'Flag', matchMax: 1, objectData: { type: 'image', src: 'flag.png', width: '20', height: '20' } },
+				],
+			}),
+			response: ['60 40', '120 80', '180 120'],
+		});
+		await settle();
+
+		const placed = qa(mounted, '[part="placed"]');
+		expect(placed).toHaveLength(3);
+		expect(placed.map((element) => element.getAttribute('aria-label'))).toEqual([
+			'Pin at 10%, 10%.',
+			'Pin at 20%, 20%.',
+			'Pin at 30%, 30%.',
+		]);
+		const [pin] = qa<HTMLElement>(mounted, '[part="palette-item"]');
+		expect(pin!.getAttribute('aria-label')).toBe('Pin (3 used, unlimited).');
+		cleanupInteraction(mounted);
+	});
 });

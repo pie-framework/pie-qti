@@ -459,6 +459,8 @@ export default {
 			availableObjectsCount: '可用的物体({count}/{max})',
 			dragObjectsInstruction: '将物体拖动到画布上进行定位。',
 			used: '已使用 {usageCount}/{matchMax}',
+			objectUsageUnlimited: '{label}(已使用 {usageCount}，无限制)',
+			usedUnlimited: '已使用 {usageCount}，无限制',
 			objectSelected: '已选择 {object}。按 Tab 键移到画布，然后使用方向键定位。按 Enter 键放置，按 Esc 键取消。',
 			objectPlacedAt: '已将 {object} 放置在 {x}%，{y}%。',
 			placementCancelled: '已取消放置。',

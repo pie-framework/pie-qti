@@ -447,6 +447,8 @@ export default {
 			availableObjectsCount: 'วัตถุที่พร้อมใช้งาน ({count}/{max})',
 			dragObjectsInstruction: 'ลากวัตถุบนแคนวาสเพื่อวางตำแหน่ง',
 			used: '{usageCount}/{matchMax} ใช้แล้ว',
+			objectUsageUnlimited: '{label} ({usageCount} ใช้แล้ว, ไม่จำกัด)',
+			usedUnlimited: '{usageCount} ใช้แล้ว, ไม่จำกัด',
 			objectSelected: 'เลือก {object} แล้ว กด Tab ไปที่แคนวาส แล้วใช้ปุ่มลูกศรเพื่อจัดตำแหน่ง กด Enter เพื่อวางหรือ Escape เพื่อยกเลิก',
 			objectPlacedAt: 'วาง {object} ที่ {x}%, {y}% แล้ว',
 			placementCancelled: 'ยกเลิกการวางแล้ว',

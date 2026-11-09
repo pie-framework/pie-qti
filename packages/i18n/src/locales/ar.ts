@@ -531,6 +531,8 @@ export default {
 			availableObjectsCount: 'الكائنات المتاحة ({count}/{max})',
 			dragObjectsInstruction: 'اسحب الكائنات على اللوحة لوضعها.',
 			used: '{usageCount}/{matchMax} مستخدم',
+			objectUsageUnlimited: '{label} ({usageCount} مستخدم، غير محدود)',
+			usedUnlimited: '{usageCount} مستخدم، غير محدود',
 			objectSelected: 'تم تحديد {object}. انتقل بمفتاح Tab إلى اللوحة، ثم استخدم مفاتيح الأسهم لتحديد موضعه. اضغط Enter لوضعه أو Escape للإلغاء.',
 			objectPlacedAt: 'تم وضع {object} عند {x}٪، {y}٪.',
 			placementCancelled: 'تم إلغاء الوضع.',

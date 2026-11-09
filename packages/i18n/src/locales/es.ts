@@ -457,6 +457,8 @@ export default {
 			availableObjectsCount: 'Objetos disponibles ({count}/{max})',
 			dragObjectsInstruction: 'Arrastra objetos sobre el lienzo para posicionarlos.',
 			used: '{usageCount}/{matchMax} usado',
+			objectUsageUnlimited: '{label} ({usageCount} usado, ilimitado)',
+			usedUnlimited: '{usageCount} usado, ilimitado',
 			objectSelected: '{object} seleccionado. Ve con Tab al lienzo y usa las flechas para posicionarlo. Presiona Intro para colocarlo o Escape para cancelar.',
 			objectPlacedAt: '{object} colocado en {x} %, {y} %.',
 			placementCancelled: 'Colocación cancelada.',

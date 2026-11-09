@@ -43,7 +43,7 @@ When the item contains two or more `positionObjectStage` elements (each with a d
 
 **This implementation's non-standard workaround and its limits:**
 
-The component internally tracks an array of `{ stageId, x, y }` positions. The `stageId` field records which `positionObjectStage` the candidate dragged from. On change events the component strips `stageId` before emitting the QTI-format `string[]` response. When the component is initialised from a saved response (e.g. returning to a previously answered item), it attempts to reconstruct `stageId` from the array order: points 0..matchMax-1 are attributed to stage 0, points matchMax..2×matchMax-1 to stage 1, and so on. This reconstruction is order-dependent and fails silently if the candidate placed objects in a different order or if the response was produced by a different delivery engine. The visual display may be incorrect on restore; scoring is unaffected (it always uses coordinates). The internal `stageId` tracking is a UX convenience, not a scoring mechanism.
+The component internally tracks an array of `{ stageId, x, y }` positions. The `stageId` field records which `positionObjectStage` the candidate dragged from. On change events the component strips `stageId` before emitting the QTI-format `string[]` response. When the component is initialised from a saved response (e.g. returning to a previously answered item), it attempts to reconstruct `stageId` from the array order: points 0..matchMax-1 are attributed to stage 0, points matchMax..2×matchMax-1 to stage 1, and so on; a stage whose `matchMax` is 0 (unlimited) takes every remaining point. This reconstruction is order-dependent and fails silently if the candidate placed objects in a different order or if the response was produced by a different delivery engine. The visual display may be incorrect on restore; scoring is unaffected (it always uses coordinates). The internal `stageId` tracking is a UX convenience, not a scoring mechanism.
 
 **QTI 3.0 resolution — deferred:**
 
@@ -88,7 +88,7 @@ As in QTI 2.2 and 3.0, `positionObjectStage` is the **parent** of `positionObjec
 | Draggable object | interaction's `object` child | Rendered in the palette; its declared `width`/`height` (default 50×50) size the placed box |
 | `label` | the draggable object's authored text alternative | Names the object in the palette and announcements; never falls back to the identifier (which can leak the answer key) |
 | `class` on the interaction | interaction element | Extracted into the stage entry's `classes`; not currently applied to the rendered palette element |
-| Placement limit | interaction `maxChoices` | Becomes the stage entry's `matchMax` (one draggable object, placed up to `maxChoices` times) |
+| Placement limit | interaction `maxChoices` | Becomes the stage entry's `matchMax` (one draggable object, placed up to `maxChoices` times). `maxChoices="0"` ("no limit") arrives as `matchMax` 0, which the component reads as unlimited too |
 
 ### Background image (`object` element)
 
@@ -148,7 +148,7 @@ Resolved since the previous review, and no longer gaps:
 - **FR-6:** The recorded coordinate SHALL be the stage position of the object's reference point: its authored `centerPoint`, or the centre of its bounding rectangle when none is authored. The placed object SHALL render with that point on the recorded coordinate, for pointer, touch, click-to-place and keyboard placement alike.
 - **FR-7:** A placed object SHALL be re-draggable to a new position within the canvas. Moving an existing placement SHALL update its coordinate in the response array at the same index.
 - **FR-8:** A placed object SHALL have a remove button that removes it from the canvas and restores it as available in the palette.
-- **FR-9:** The palette item for a stage SHALL become non-draggable (visually dimmed, `draggable=false`) when that stage's `matchMax` placements have been used.
+- **FR-9:** The palette item for a stage SHALL become non-draggable (visually dimmed, `draggable=false`) when that stage's `matchMax` placements have been used. A `matchMax` of 0 — what an unlimited `maxChoices="0"` produces — never runs out: the object stays placeable and its usage is stated as unlimited ("Plane (2 used, unlimited)."), not as "2/0 used".
 - **FR-10:** The palette item for any stage SHALL become non-draggable when the interaction-level `maxChoices` total has been reached (and `maxChoices > 0`). A placement attempt refused at a cap — keyboard Enter, canvas click/tap or drag drop — SHALL be announced through the polite live region naming the maximum ("The maximum of {max} placements is reached."), never silently ignored; the crosshair placement mode stays active so Escape still works.
 - **FR-11:** When `role="scorer"` and `correctResponse` is non-empty, the component SHALL display correct-position ghost overlays (dashed green outline) at the correct coordinates for each stage.
 - **FR-12:** When `role="scorer"`, user-placed objects that fall within 5 pixels of a correct position SHALL display a visual match indicator (green border, checkmark badge).
@@ -276,7 +276,7 @@ interface PositionObjectCenterPoint {
 
 interface PositionObjectStage {
   identifier: string;
-  matchMax: number;   // max placements for this stage; default 1
+  matchMax: number;   // max placements for this stage; default 1; 0 = unlimited
   objectData: { type: 'image' | 'svg'; src?: string; content?: HtmlContent; width?: string; height?: string } | null;
   label: string;      // text content of the stage element, or identifier as fallback
 }
@@ -550,7 +550,8 @@ Given: maxChoices=0 (spec: no upper limit)
 When: The candidate places 10 objects (assuming stage matchMax is sufficient)
 Then: All 10 placements are accepted
       The response contains 10 "x y" strings
-      The palette does NOT show a "/" total count (or shows "10/∞")
+      The palette does NOT show a "/" total count: the object reads "10 used, unlimited"
+      and stays placeable (an extracted maxChoices="0" gives the object matchMax 0)
 ```
 
 **AC-E3: Missing draggable object**

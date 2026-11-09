@@ -456,6 +456,8 @@ export default {
 			availableObjectsCount: 'Obiecte disponibile ({count}/{max})',
 			dragObjectsInstruction: 'Trage obiectele pe canvas pentru a le poziționa.',
 			used: '{usageCount}/{matchMax} folosit',
+			objectUsageUnlimited: '{label} ({usageCount} folosit, nelimitat)',
+			usedUnlimited: '{usageCount} folosit, nelimitat',
 			objectSelected: '{object} selectat. Mergi cu Tab la canvas, apoi folosește săgețile pentru a-l poziționa. Apasă Enter pentru a-l plasa sau Escape pentru a anula.',
 			objectPlacedAt: '{object} plasat la {x}%, {y}%.',
 			placementCancelled: 'Plasare anulată.',

@@ -446,6 +446,8 @@ export default {
 			availableObjectsCount: 'Beschikbare objecten ({count}/{max})',
 			dragObjectsInstruction: 'Sleep objecten op het canvas om ze te positioneren.',
 			used: '{usageCount}/{matchMax} gebruikt',
+			objectUsageUnlimited: '{label} ({usageCount} gebruikt, onbeperkt)',
+			usedUnlimited: '{usageCount} gebruikt, onbeperkt',
 			objectSelected: '{object} geselecteerd. Ga met Tab naar het canvas en gebruik de pijltjestoetsen om het te positioneren. Druk op Enter om het te plaatsen of op Escape om te annuleren.',
 			objectPlacedAt: '{object} geplaatst op {x}%, {y}%.',
 			placementCancelled: 'Plaatsing geannuleerd.',

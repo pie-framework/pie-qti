@@ -174,18 +174,20 @@
 			const y = parseFloat(parts[1]);
 
 			// For simple cases with one stage, all points belong to that stage. For
-			// multiple stages, distribute by stage order and matchMax.
+			// multiple stages, distribute by stage order and matchMax (0 = unlimited:
+			// such a stage takes every remaining point).
 			let stageId = '';
 			if (stages.length === 1) {
 				stageId = stages[0].identifier;
 			} else {
 				let pointIndex = 0;
 				for (const stage of stages) {
-					if (pointIndex + stage.matchMax > i) {
+					const capacity = stage.matchMax > 0 ? stage.matchMax : Number.POSITIVE_INFINITY;
+					if (pointIndex + capacity > i) {
 						stageId = stage.identifier;
 						break;
 					}
-					pointIndex += stage.matchMax;
+					pointIndex += capacity;
 				}
 			}
 
@@ -219,10 +221,19 @@
 		return positions.filter((p) => p.stageId === id).length;
 	}
 
+	/**
+	 * An object's own placement limit. The extractor carries the interaction's
+	 * maxChoices into it, and QTI reads maxChoices="0" as "no limit", so 0 means
+	 * unlimited here too — otherwise an unlimited item could never be answered.
+	 */
+	function isStageAtLimit(stage: PositionObjectStage): boolean {
+		return stage.matchMax > 0 && getStageUsageCount(stage.identifier) >= stage.matchMax;
+	}
+
 	function canDragStage(id: string): boolean {
 		const stage = getStageById(id);
 		if (!stage) return false;
-		return getStageUsageCount(id) < stage.matchMax;
+		return !isStageAtLimit(stage);
 	}
 
 	function emitPositions() {
@@ -250,7 +261,7 @@
 	function placeStageAt(stageId: string, x: number, y: number): boolean {
 		const stage = getStageById(stageId);
 		if (!stage) return false;
-		if (getStageUsageCount(stageId) >= stage.matchMax) return false;
+		if (isStageAtLimit(stage)) return false;
 		if (!canAddMore) return false;
 		positions = [...positions, { stageId, x, y }];
 		emitPositions();
@@ -835,11 +846,17 @@
 									aria-disabled={!canInteract || !canDrag ? 'true' : undefined}
 									aria-label={joinSentences(
 										translate(i18n, 'accessibility.sentence', '{text}.', {
-											text: translate(i18n, 'interactions.positionObject.objectUsage', '{label} ({usageCount}/{matchMax} used)', {
-												label: name,
-												usageCount,
-												matchMax: stage.matchMax,
-											}),
+											text:
+												stage.matchMax > 0
+													? translate(i18n, 'interactions.positionObject.objectUsage', '{label} ({usageCount}/{matchMax} used)', {
+															label: name,
+															usageCount,
+															matchMax: stage.matchMax,
+														})
+													: translate(i18n, 'interactions.positionObject.objectUsageUnlimited', '{label} ({usageCount} used, unlimited)', {
+															label: name,
+															usageCount,
+														}),
 										}),
 										selectedStageId === stage.identifier &&
 											translate(i18n, 'interactions.graphicGapMatch.selectedHint', 'Selected for placement.'),
@@ -872,10 +889,12 @@
 									<div class="flex-1 min-w-0" aria-hidden="true">
 										<div class="font-medium text-sm truncate">{name}</div>
 										<div class="text-xs text-base-content/60">
-											{translate(i18n, 'interactions.positionObject.used', '{usageCount}/{matchMax} used', {
-												usageCount,
-												matchMax: stage.matchMax,
-											})}
+											{stage.matchMax > 0
+												? translate(i18n, 'interactions.positionObject.used', '{usageCount}/{matchMax} used', {
+														usageCount,
+														matchMax: stage.matchMax,
+													})
+												: translate(i18n, 'interactions.positionObject.usedUnlimited', '{usageCount} used, unlimited', { usageCount })}
 										</div>
 									</div>
 

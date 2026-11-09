@@ -459,6 +459,8 @@ export default {
 			availableObjectsCount: 'Available Objects ({count}/{max})',
 			dragObjectsInstruction: 'Drag objects onto the canvas to position them.',
 			used: '{usageCount}/{matchMax} used',
+			objectUsageUnlimited: '{label} ({usageCount} used, unlimited)',
+			usedUnlimited: '{usageCount} used, unlimited',
 			objectSelected: '{object} selected. Tab to the canvas, then use the arrow keys to position it. Press Enter to place it or Escape to cancel.',
 			objectPlacedAt: '{object} placed at {x}%, {y}%.',
 			placementCancelled: 'Placement cancelled.',

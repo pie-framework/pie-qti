@@ -456,6 +456,8 @@ export default {
 			availableObjectsCount: 'Objets disponibles ({count}/{max})',
 			dragObjectsInstruction: 'Faites glisser les objets sur le canevas pour les positionner.',
 			used: '{usageCount}/{matchMax} utilisé',
+			objectUsageUnlimited: '{label} ({usageCount} utilisé, illimité)',
+			usedUnlimited: '{usageCount} utilisé, illimité',
 			objectSelected: '{object} sélectionné. Allez avec Tab sur le canevas, puis utilisez les touches fléchées pour le positionner. Appuyez sur Entrée pour le placer ou sur Échap pour annuler.',
 			objectPlacedAt: '{object} placé à {x} %, {y} %.',
 			placementCancelled: 'Placement annulé.',
