@@ -6,14 +6,14 @@
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import DrawingCanvas from '../../shared/components/DrawingCanvas.svelte';
-		import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+		import { parseJsonProp, responseProp } from '../../shared/utils/webComponentHelpers';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	interface Props {
 		interaction?: DrawingInteractionData | string;
-		response?: QTIFileResponse | string | null;
+		response?: QTIFileResponse | null;
 		disabled?: boolean;
 		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
@@ -22,9 +22,9 @@
 
 	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), typeset, onChange }: Props = $props();
 
-	// Parse props that may be JSON strings (web component usage)
+	// Parse props that may be JSON strings (web component usage); the response is a value
 	const parsedInteraction = $derived(parseJsonProp<DrawingInteractionData>(interaction));
-	const parsedResponse = $derived(parseJsonProp<QTIFileResponse>(response));
+	const parsedResponse = $derived(responseProp(response));
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();

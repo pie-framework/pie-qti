@@ -76,4 +76,31 @@ describe('extended text response semantics', () => {
 			}),
 		).toBeNull();
 	});
+
+	// `base` is 10 when not authored. Interaction data whose base no number can be written in (an
+	// integer from 2 through 36: digits 0-9, then A-Z) is read in base 10 instead of throwing or
+	// dropping the candidate's number.
+	describe.each([0, 1, 37, Number.NaN, 2.5, -16, undefined])('with base %p', (base) => {
+		const interaction = (cardinality: 'single' | 'record', baseType?: 'integer' | 'float') =>
+			({ cardinality, baseType, base }) as unknown as Parameters<typeof createExtendedTextResponse>[1];
+
+		test('a number set by a host shows in base 10', () => {
+			expect(extendedTextResponseToStrings(255, interaction('single', 'integer'))).toEqual(['255']);
+		});
+
+		test('typed text is read as a base-10 number', () => {
+			expect(createExtendedTextResponse(['42'], interaction('single', 'integer'))).toBe(42);
+			expect(createExtendedTextResponse(['1.50'], interaction('single', 'float'))).toBe(1.5);
+			expect(createExtendedTextResponse(['1.50'], interaction('record'))).toMatchObject({
+				stringValue: '1.50',
+				floatValue: 1.5,
+				nsf: 3,
+			});
+		});
+	});
+
+	test('the numeric record reads an unusable base as base 10', () => {
+		expect(createExtendedTextNumericRecord('FF', 0)).toMatchObject({ floatValue: null });
+		expect(createExtendedTextNumericRecord('42', 0)).toMatchObject({ floatValue: 42, integerValue: 42 });
+	});
 });

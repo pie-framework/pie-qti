@@ -207,11 +207,11 @@ The subset zones' own labels, control names and announcements are the shared `in
 **Alternatives considered:** Start with `null` and require the candidate to establish an order from scratch — rejected because it breaks "confirm default order" as a valid candidate action (a candidate who agrees with the authored order would need to drag something to establish any response at all).  
 **Consequences:** Scoring works correctly out of the box — `RESPONSE` will always be a non-null ordered array. However, the `$dirty` flag is not set until `hasConfirmed` becomes true, ensuring that an interaction the candidate never touched is not submitted as a committed response.
 
-### Props accept both parsed objects and JSON strings
+### Interaction data accepts an object or its JSON; responses are values
 
-**Decision:** `interaction`, `response` and `correctResponse` are processed by `createInteractionShell` (`parseJsonProp`) before use, which also gives correct-answer mode: the `scorer` role with a correct response.  
-**Rationale:** When used as a native web component via HTML attributes, all prop values arrive as strings. When used as a Svelte component inside the item player, they arrive as typed objects. `parseJsonProp` handles both cases transparently. Without this, the web component usage would require a separate wrapper.  
-**Consequences:** Small runtime cost of attempting `JSON.parse` on every render for the web component case. Negligible for the number of hotspots typical in K-12 items (2–8).
+**Decision:** `interaction` is processed by `createInteractionShell` (`parseJsonProp`) before use; `response` and `correctResponse` pass through it as values. Their lists arrive as JavaScript properties, or as the JSON text an HTML attribute carries: a string reading as a JSON array is read as that list, any other string stays as given. The shell also gives correct-answer mode: the `scorer` role with a correct response.  
+**Rationale:** An HTML attribute carries the interaction data as JSON text; inside the item player it arrives as an object, and `parseJsonProp` handles both cases. Without this, the web component usage would require a separate wrapper. Responses are values the item player sets as JavaScript properties; a string in a response is never re-read as arbitrary JSON — only list text is read as a list.  
+**Consequences:** Small runtime cost of attempting `JSON.parse` on the interaction data for the web component case. Negligible for the number of hotspots typical in K-12 items (2–8).
 
 ### `qti-change` events dispatched from the root element inside shadow DOM
 

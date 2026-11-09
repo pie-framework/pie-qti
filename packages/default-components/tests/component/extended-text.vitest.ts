@@ -653,3 +653,175 @@ describe('ExtendedTextInteraction patternMask message', () => {
 		expect(announcement(m)).toBe('Numbers only.');
 	});
 });
+
+// A string response is the candidate's text. Text that happens to read as JSON (a number, a
+// literal, a quoted string, an array) is still that text: the field shows it and reports it as
+// written, however the host hands it back.
+describe('ExtendedTextInteraction keeps a string answer exactly as written', () => {
+	const JSON_LOOKING_ANSWERS = ['1.50', '1e5', 'true', 'null', '"quoted"', '[1]'];
+	// A valid base keeps these about the response's text alone.
+	const stringData = () => extendedTextData({ base: 10 });
+
+	test.each(JSON_LOOKING_ANSWERS)('a response of %s set by the host stays exactly that text', async (answer) => {
+		const m = mountExtendedText({ interaction: stringData(), response: answer });
+		await settle();
+
+		const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
+		expect(textarea.value).toBe(answer);
+
+		// The candidate's next edit starts from that text; an edit that keeps it reports it unchanged.
+		type(textarea, answer);
+		await settle();
+		expect(m.events.at(-1)!.detail.value).toBe(answer);
+		expect(m.instance.response).toBe(answer);
+		expect(textarea.value).toBe(answer);
+	});
+
+	test.each(JSON_LOOKING_ANSWERS)('typing %s reports it unchanged and the field keeps it', async (answer) => {
+		const m = mountExtendedText({ interaction: stringData() });
+		await settle();
+
+		// Character by character, as a candidate types: no prefix is rewritten either.
+		const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
+		for (let end = 1; end <= answer.length; end++) {
+			type(textarea, answer.slice(0, end));
+			await settle();
+			expect(textarea.value).toBe(answer.slice(0, end));
+		}
+		expect(m.events.map((event) => event.detail.value)).toEqual(
+			Array.from({ length: answer.length }, (_, index) => answer.slice(0, index + 1)),
+		);
+		expect(m.instance.response).toBe(answer);
+
+		// The item player sets the response it stored back on the element as a property, and
+		// assigns the interaction data again with it.
+		m.instance.response = answer;
+		m.instance.interaction = stringData();
+		await settle();
+		expect(textarea.value).toBe(answer);
+		expect(m.events).toHaveLength(answer.length);
+	});
+
+	test.each(JSON_LOOKING_ANSWERS)('a correct response of %s is shown as that text', async (answer) => {
+		const m = mountExtendedText({
+			interaction: stringData(),
+			role: 'scorer',
+			disabled: true,
+			correctResponse: answer,
+		});
+		await settle();
+
+		const correct = q(m, '[part="correct-answer"]');
+		expect(correct).not.toBeNull();
+		// The heading, then one line per correct string.
+		expect(Array.from(correct!.children).slice(1).map((line) => line.textContent)).toEqual([answer]);
+	});
+
+	test.each([
+		['float', '1.50', 1.5],
+		['float', '1e5', 100000],
+		['integer', '42', 42],
+	] as const)('a %s response reports the number %s reads as, and the field keeps the text', async (baseType, typed, value) => {
+		const m = mountExtendedText({ interaction: extendedTextData({ baseType, base: 10 }) });
+		await settle();
+
+		const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
+		type(textarea, typed);
+		await settle();
+		expect(m.events[0]!.detail.value).toBe(value);
+		expect(m.instance.response).toBe(value);
+
+		// The player stores the number and sets it back, with the interaction data: the field keeps
+		// what the candidate typed.
+		m.instance.response = value;
+		m.instance.interaction = extendedTextData({ baseType, base: 10 });
+		await settle();
+		expect(textarea.value).toBe(typed);
+	});
+
+	test('a numeric response set by the host shows as its number', async () => {
+		const m = mountExtendedText({ interaction: extendedTextData({ baseType: 'float', base: 10 }), response: 1.5 });
+		await settle();
+
+		expect(q<HTMLTextAreaElement>(m, 'textarea')!.value).toBe('1.5');
+	});
+});
+
+// The item player hands every prop to the interaction's custom element as a JavaScript property
+// (`assignProps`); HTML markup can give the interaction data as a JSON attribute instead.
+describe('pie-qti-extended-text custom element', () => {
+	type ExtendedTextElement = HTMLElement & Record<string, unknown>;
+
+	const elements: HTMLElement[] = [];
+
+	afterEach(() => {
+		for (const element of elements.splice(0)) element.remove();
+	});
+
+	async function connect(element: ExtendedTextElement) {
+		const events: CustomEvent[] = [];
+		element.addEventListener('qti-change', (event) => events.push(event as CustomEvent));
+		document.body.appendChild(element);
+		elements.push(element);
+		// The element mounts its component a microtask after it connects.
+		await settle();
+		await settle();
+		const textarea = element.shadowRoot?.querySelector<HTMLTextAreaElement>('textarea') ?? null;
+		return { events, textarea };
+	}
+
+	test('a string response set as a property is never re-read as JSON', async () => {
+		const element = document.createElement('pie-qti-extended-text') as ExtendedTextElement;
+		Object.assign(element, { interaction: extendedTextData({ base: 10 }), response: '1.50' });
+		const { events, textarea } = await connect(element);
+
+		expect(textarea?.value).toBe('1.50');
+
+		type(textarea!, '1e5');
+		await settle();
+		expect(events.map((event) => event.detail.value)).toEqual(['1e5']);
+		expect(textarea!.value).toBe('1e5');
+
+		// The player sets the stored response back, as it does after every change.
+		element.response = '1e5';
+		await settle();
+		expect(textarea!.value).toBe('1e5');
+
+		element.response = 'null';
+		await settle();
+		expect(textarea!.value).toBe('null');
+	});
+
+	test('interaction data given as a JSON attribute still renders the interaction', async () => {
+		const element = document.createElement('pie-qti-extended-text') as ExtendedTextElement;
+		element.setAttribute('interaction', JSON.stringify(extendedTextData({ base: 10 })));
+		const { events, textarea } = await connect(element);
+
+		expect(textarea).not.toBeNull();
+		expect(element.shadowRoot?.querySelector('[part="prompt"]')?.textContent?.trim()).toBe('Explain your reasoning.');
+
+		type(textarea!, '1.50');
+		await settle();
+		expect(events.map((event) => event.detail.value)).toEqual(['1.50']);
+		expect(textarea!.value).toBe('1.50');
+	});
+});
+
+// `base` is the number base the candidate's text is read in, 10 when not authored (QTI 2.1 and
+// QTI 3.0 extendedTextInteraction). Data whose base is not a usable one (an integer from 2 through
+// 36: digits 0-9, then A-Z) is read in base 10, never with an error.
+describe('ExtendedTextInteraction with an invalid base', () => {
+	test.each([0, 1, 37, Number.NaN, 2.5, undefined])('base %s reads and shows numbers in base 10 instead of throwing', async (base) => {
+		const interaction = { ...extendedTextData({ baseType: 'integer' }), base } as ExtendedTextInteractionData;
+		const m = mountExtendedText({ interaction, response: 255 });
+		await settle();
+
+		const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
+		expect(textarea.value).toBe('255');
+
+		type(textarea, '42');
+		await settle();
+		expect(m.events[0]!.detail.value).toBe(42);
+		expect(textarea.value).toBe('42');
+	});
+});

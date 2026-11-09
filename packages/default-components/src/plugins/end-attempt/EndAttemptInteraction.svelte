@@ -6,7 +6,7 @@
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import { tick } from 'svelte';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { parseJsonProp, responseProp } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
@@ -20,9 +20,9 @@
 
 	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), onChange }: Props = $props();
 
-	// Parse props that may be JSON strings (web component usage)
+	// Parse props that may be JSON strings (web component usage); the response is a value
 	const parsedInteraction = $derived(parseJsonProp<EndAttemptInteractionData>(interaction));
-	const parsedResponse = $derived(parseJsonProp<boolean>(response));
+	const parsedResponse = $derived(responseProp(response));
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();

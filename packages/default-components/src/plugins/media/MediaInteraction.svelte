@@ -5,7 +5,7 @@
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { joinSentences, translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { parseJsonProp, responseProp } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import {
@@ -34,9 +34,9 @@
 	/** A paused player this close to the beginning has been returned to the start. */
 	const START_EPSILON_SECONDS = 0.25;
 
-	// Parse props that may be JSON strings (web component usage)
+	// Parse props that may be JSON strings (web component usage); the response is a value
 	const parsedInteraction = $derived(parseJsonProp<MediaInteractionData>(interaction));
-	const parsedResponse = $derived(parseJsonProp<number>(response));
+	const parsedResponse = $derived(responseProp(response));
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
