@@ -308,7 +308,9 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 					identifiers.add(hotspot.identifier);
 				}
 
-				if (!hotspot.coords) {
+				// The default shape is the whole image (QTI 3.0 §8.29), so its coords
+				// may be empty — the same rule the hotspot extractor applies.
+				if (!hotspot.coords && hotspot.shape !== 'default') {
 					errors.push(`Hotspot ${hotspot.identifier} must have coords`);
 				}
 			}

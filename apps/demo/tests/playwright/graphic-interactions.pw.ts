@@ -89,8 +89,22 @@ test.describe('hotspot multiple selection in the real custom element', () => {
 		// ring around the region, distinct from the selected outline by geometry
 		// (WCAG 2.4.7).
 		expect(await star.evaluate((element) => element.matches(':focus-visible'))).toBe(true);
-		await expect(star.locator('xpath=ancestor::g[1]').locator('.qti-graphic-halo')).toHaveCSS('stroke-width', '12px');
-		await expect(star.locator('xpath=ancestor::g[1]').locator('.qti-graphic-halo')).toHaveCSS('stroke', 'rgb(67, 56, 202)');
+		const halo = await star.evaluate((element) => {
+			const ring = element.closest('g')?.querySelector('.qti-graphic-halo');
+			if (!ring) return null;
+			const style = getComputedStyle(ring);
+			// Resolve the theme's focus token the way the ring is coloured, whatever
+			// colour format the theme defines it in.
+			const probe = document.createElement('div');
+			probe.style.color = 'var(--pie-qti-focus, #4338ca)';
+			const interactionRoot = element.getRootNode().querySelector('.qti-hotspot-interaction');
+			interactionRoot?.appendChild(probe);
+			const focusColour = getComputedStyle(probe).color;
+			probe.remove();
+			return { width: style.strokeWidth, colour: style.stroke, focusColour };
+		});
+		expect(halo?.width).toBe('12px');
+		expect(halo?.colour).toBe(halo?.focusColour);
 		// Toggle buttons with aria-pressed, never radios: valid ARIA.
 		expect((await scan(page, 'pie-qti-hotspot')).violations).toEqual([]);
 

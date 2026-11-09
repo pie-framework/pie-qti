@@ -611,5 +611,24 @@ describe('standardGraphicGapMatchExtractor', () => {
 			expect(validation.valid).toBe(false);
 			expect(validation.errors).toContain('Duplicate hotspot identifier: H1');
 		});
+
+		test('a default-shape hotspot needs no coords: it is the whole image (QTI 3.0 §8.29)', () => {
+			const data: GraphicGapMatchData = {
+				gapTexts: [{ identifier: 'T1', text: 'Label', matchMax: 1 }],
+				hotspots: [
+					{ identifier: 'H1', shape: 'rect', coords: '0,0,100,100', matchMax: 1 },
+					{ identifier: 'ALL', shape: 'default', coords: '', matchMax: 1 },
+				],
+				imageData: { type: 'image', src: 'test.png', width: 500, height: 400 },
+				gapImages: [],
+				maxAssociations: 1,
+				prompt: null,
+			};
+
+			const validation = standardGraphicGapMatchExtractor.validate!(data);
+
+			expect(validation.valid).toBe(true);
+			expect(validation.errors).toBeUndefined();
+		});
 	});
 });
