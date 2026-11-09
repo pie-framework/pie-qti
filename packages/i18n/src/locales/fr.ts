@@ -347,7 +347,7 @@ export default {
 			pickedUp: 'Saisi : {label}. Allez avec Tab sur une zone sensible et appuyez sur Entrée pour le placer.',
 			alreadyPlacedSentence: 'Déjà placé sur une zone sensible.',
 			unavailableSentence: 'Indisponible en raison d\'une restriction de groupe d\'association.',
-			heldHint: 'Saisi. Allez avec Tab sur une zone sensible et appuyez sur Entrée pour le placer.',
+			heldHint: 'Allez avec Tab sur une zone sensible et appuyez sur Entrée pour le placer.',
 			pickUpHint: 'Appuyez sur Espace ou Entrée pour saisir.',
 			selectedHint: 'Sélectionné pour placement.',
 			selectHint: 'Appuyez sur Espace pour sélectionner.',

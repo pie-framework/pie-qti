@@ -347,7 +347,7 @@ export default {
 			pickedUp: 'Apucat: {label}. Mergi cu Tab la un hotspot și apasă Enter pentru a-l plasa.',
 			alreadyPlacedSentence: 'Deja plasat pe un hotspot.',
 			unavailableSentence: 'Indisponibil din cauza unei restricții de grup de potrivire.',
-			heldHint: 'Apucat. Mergi cu Tab la un hotspot și apasă Enter pentru a-l plasa.',
+			heldHint: 'Mergi cu Tab la un hotspot și apasă Enter pentru a-l plasa.',
 			pickUpHint: 'Apasă Spațiu sau Enter pentru a apuca.',
 			selectedHint: 'Selectat pentru plasare.',
 			selectHint: 'Apasă Spațiu pentru a selecta.',

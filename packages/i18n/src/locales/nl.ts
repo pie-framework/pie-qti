@@ -341,7 +341,7 @@ export default {
 			pickedUp: 'Opgepakt: {label}. Ga met Tab naar een hotspot en druk op Enter om het te plaatsen.',
 			alreadyPlacedSentence: 'Al geplaatst op een hotspot.',
 			unavailableSentence: 'Niet beschikbaar door een beperking van de koppelgroep.',
-			heldHint: 'Opgepakt. Ga met Tab naar een hotspot en druk op Enter om het te plaatsen.',
+			heldHint: 'Ga met Tab naar een hotspot en druk op Enter om het te plaatsen.',
 			pickUpHint: 'Druk op Spatie of Enter om op te pakken.',
 			selectedHint: 'Geselecteerd voor plaatsing.',
 			selectHint: 'Druk op Spatie om te selecteren.',

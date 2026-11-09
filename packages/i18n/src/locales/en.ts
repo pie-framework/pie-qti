@@ -354,7 +354,7 @@ export default {
 			pickedUp: 'Picked up: {label}. Tab to a hotspot and press Enter to place it.',
 			alreadyPlacedSentence: 'Already placed on a hotspot.',
 			unavailableSentence: 'Not available due to a match group restriction.',
-			heldHint: 'Picked up. Tab to a hotspot and press Enter to place it.',
+			heldHint: 'Tab to a hotspot and press Enter to place it.',
 			pickUpHint: 'Press Space or Enter to pick up.',
 			selectedHint: 'Selected for placement.',
 			selectHint: 'Press Space to select.',

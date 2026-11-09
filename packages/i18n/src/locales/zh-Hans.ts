@@ -354,7 +354,7 @@ export default {
 			pickedUp: '已拿起：{label}。按 Tab 键移到热点，然后按 Enter 键放置。',
 			alreadyPlacedSentence: '已放置在热点上。',
 			unavailableSentence: '因匹配组限制而不可用。',
-			heldHint: '已拿起。按 Tab 键移到热点，然后按 Enter 键放置。',
+			heldHint: '按 Tab 键移到热点，然后按 Enter 键放置。',
 			pickUpHint: '按空格键或 Enter 键拿起。',
 			selectedHint: '已选择以进行放置。',
 			selectHint: '按空格键选择。',

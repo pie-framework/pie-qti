@@ -342,7 +342,7 @@ export default {
 			pickedUp: 'หยิบ {label} แล้ว กด Tab ไปยังฮอตสปอตแล้วกด Enter เพื่อวาง',
 			alreadyPlacedSentence: 'วางบนฮอตสปอตแล้ว',
 			unavailableSentence: 'ไม่พร้อมใช้งานเนื่องจากข้อจำกัดของกลุ่มการจับคู่',
-			heldHint: 'หยิบแล้ว กด Tab ไปยังฮอตสปอตแล้วกด Enter เพื่อวาง',
+			heldHint: 'กด Tab ไปยังฮอตสปอตแล้วกด Enter เพื่อวาง',
 			pickUpHint: 'กด Space หรือ Enter เพื่อหยิบ',
 			selectedHint: 'เลือกเพื่อวางแล้ว',
 			selectHint: 'กด Space เพื่อเลือก',

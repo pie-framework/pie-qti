@@ -410,7 +410,7 @@ export default {
 			pickedUp: 'تم الإمساك بـ {label}. انتقل بمفتاح Tab إلى نقطة ساخنة واضغط Enter لوضعها.',
 			alreadyPlacedSentence: 'تم وضعها بالفعل على نقطة ساخنة.',
 			unavailableSentence: 'غير متاح بسبب قيد مجموعة المطابقة.',
-			heldHint: 'تم الإمساك. انتقل بمفتاح Tab إلى نقطة ساخنة واضغط Enter لوضعها.',
+			heldHint: 'انتقل بمفتاح Tab إلى نقطة ساخنة واضغط Enter لوضعها.',
 			pickUpHint: 'اضغط على مفتاح المسافة أو Enter للإمساك.',
 			selectedHint: 'محددة للوضع.',
 			selectHint: 'اضغط على مفتاح المسافة للتحديد.',

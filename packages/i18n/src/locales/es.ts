@@ -348,7 +348,7 @@ export default {
 			pickedUp: 'Agarrado: {label}. Ve con Tab a un punto activo y presiona Intro para colocarlo.',
 			alreadyPlacedSentence: 'Ya colocado en un punto activo.',
 			unavailableSentence: 'No disponible por una restricción del grupo de emparejamiento.',
-			heldHint: 'Agarrado. Ve con Tab a un punto activo y presiona Intro para colocarlo.',
+			heldHint: 'Ve con Tab a un punto activo y presiona Intro para colocarlo.',
 			pickUpHint: 'Presiona Espacio o Intro para agarrar.',
 			selectedHint: 'Seleccionado para colocación.',
 			selectHint: 'Presiona Espacio para seleccionar.',
