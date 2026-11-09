@@ -227,13 +227,13 @@ Choice text is rendered via `{@html}` (via `SortableList`). Content is sanitized
 
 **Consequences:** Each arrow-key press emits a `qti-change` event. Consumers who listen to `qti-change` for analytics purposes should be aware that multiple events may fire during a single keyboard drag session.
 
-### Props accept both parsed objects and JSON strings (web component compatibility)
+### Interaction data accepts an object or its JSON; responses are values (web component compatibility)
 
-**Decision:** `interaction`, `response`, `correctResponse`, and `i18n` are each parsed with `parseJsonProp` before use.
+**Decision:** `interaction` is parsed with `parseJsonProp` before use (through `createInteractionShell`). `response` and `correctResponse` are values and are never parsed.
 
-**Rationale:** When the component is used as a native web component (via HTML attributes), prop values arrive as strings. When used as a Svelte component inside the item player, they arrive as typed objects. `parseJsonProp` handles both transparently. This avoids a separate web-component wrapper.
+**Rationale:** An HTML attribute carries the interaction data as JSON text; inside the item player it arrives as an object, and `parseJsonProp` handles both. This avoids a separate web-component wrapper. A response is a value that the item player sets as a JavaScript property; across the interactions, strings in responses are identifiers or the candidate's text, which must never be re-read as JSON.
 
-**Consequences:** There is a small runtime cost of attempting JSON.parse on every reactive update for the web component case. This is negligible for the data sizes involved.
+**Consequences:** Hosts set `response` and `correctResponse` as JavaScript properties. There is a small runtime cost of attempting JSON.parse on the interaction data for the web component case. This is negligible for the data sizes involved.
 
 ### Position badges are visible numbers, not ARIA-only
 

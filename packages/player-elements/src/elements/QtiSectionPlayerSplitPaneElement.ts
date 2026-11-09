@@ -1,7 +1,7 @@
 import type { I18nProvider } from '@pie-qti/i18n';
 import type { PciConfiguration, PlayerSecurityConfig } from '@pie-qti/item-player';
 import type { ResolvedQtiSectionComposition } from '@pie-qti/section-player';
-import SectionPlayerSplitPane from '../../../section-player/src/components/SectionPlayerSplitPane.svelte';
+import SectionPlayerSplitPane from '@pie-qti/section-player/components/SectionPlayerSplitPane.svelte';
 import { QTI_SECTION_PLAYER_SPLITPANE_TAG } from '../constants.js';
 import { parseHeadingLevel } from '../utils/heading-level.js';
 import { BaseSvelteMountElement } from './BaseSvelteMountElement.js';

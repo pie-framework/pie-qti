@@ -20,7 +20,7 @@ import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { choicesShortOfMatchMin } from '../../shared/utils/minimumRequirement';
-import { hitStrokeWidth, imageAltText, observeWidth, shapeCenter } from '../hotspot/graphicRegions';
+import { hitStrokeWidth, imageAltText, observeWidth, shapeCenter } from '../../shared/utils/graphicRegions';
 
 import '../../shared/styles/shared.css';
 import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
@@ -42,12 +42,13 @@ const uid = $props.id();
 // Parse props that may be JSON strings (web component usage). Correct-answer mode is the
 // scorer's view of an item that has a correct response (the shared shell's rule).
 const shell = $derived(
-	createInteractionShell<GraphicGapMatchInteractionData, string | string[], string[]>({
-		interaction,
-		response,
-		correctResponse,
-		role,
-	}),
+		createInteractionShell<GraphicGapMatchInteractionData, string | string[], string[]>({
+			interaction,
+			response,
+			correctResponse,
+			role,
+			listResponse: true,
+		}),
 );
 const parsedInteraction = $derived(shell.interaction);
 const parsedResponse = $derived(shell.response);

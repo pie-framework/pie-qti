@@ -15,7 +15,7 @@
 	import HotspotShape from '../../shared/components/HotspotShape.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { choicesShortOfMatchMin, minimumHint } from '../../shared/utils/minimumRequirement';
-	import { imageAltText, shapeBounds, shapeCenter, type Bounds } from '../hotspot/graphicRegions';
+	import { imageAltText, shapeBounds, shapeCenter, type Bounds } from '../../shared/utils/graphicRegions';
 
 	interface Props {
 		interaction?: GraphicAssociateInteractionData | string;
@@ -39,6 +39,7 @@
 			response,
 			correctResponse,
 			role,
+			listResponse: true,
 		}),
 	);
 	const parsedInteraction = $derived(shell.interaction);

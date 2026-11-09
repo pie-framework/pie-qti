@@ -3,7 +3,7 @@
 	import { ReferenceBackendAdapter, type SecureAssessment } from '@pie-qti/assessment-player';
 	import type { QtiSectionRuntimeHostContract, QtiSectionSnapshot } from '@pie-qti/section-player';
 	import { DefaultI18nProvider } from '@pie-qti/i18n';
-	import { AssessmentShell } from '$assessment-components';
+	import { AssessmentShell } from '@pie-qti/assessment-player/components';
 
 	/**
 	 * Fixture for resilience flows (safe load/failure screens, error boundaries).

@@ -126,11 +126,11 @@
 **Alternatives considered:** Read `cardinality` from a passed `ResponseDeclaration`. Rejected: adds coupling and requires an additional prop.  
 **Consequences:** If a non-conformant QTI item declares `maxChoices=1` with `multiple` cardinality (which is invalid per spec), the component will render radios and produce a single-string response, which will mismatch the declared cardinality. This is an authoring error and the extractor's validator will flag `maxChoices` inconsistencies.
 
-### Props accept both parsed objects and JSON strings
+### Interaction data accepts an object or its JSON; responses are values
 
-**Decision:** `interaction`, `response`, `correctResponse`, and `i18n` are each parsed with `parseJsonProp` before use.  
-**Rationale:** When the component is used as a native web component (via HTML attributes), all prop values arrive as strings. When used as a Svelte component inside the item player, they arrive as typed objects. `parseJsonProp` handles both transparently. Without this, the web component usage would require a separate wrapper component.  
-**Consequences:** There is a small runtime cost of attempting JSON.parse on every render for the web component case. This is negligible for the number of choices involved.
+**Decision:** `interaction` is parsed with `parseJsonProp` before use (through `createInteractionShell`). `response` and `correctResponse` are values and are never parsed.  
+**Rationale:** An HTML attribute carries the interaction data as JSON text; inside the item player it arrives as an object, and `parseJsonProp` handles both. A response is a choice identifier, and identifiers such as `true`, `false` and `null` are valid: read as JSON they would become a boolean or no answer, and the candidate's selection would vanish. The item player sets responses as JavaScript properties.  
+**Consequences:** Hosts set `response` and `correctResponse` as JavaScript properties. There is a small runtime cost of attempting JSON.parse on the interaction data for the web component case, negligible for the number of choices involved.
 
 ### `qti-change` events are dispatched from the root `<div>`, not the `<input>`
 

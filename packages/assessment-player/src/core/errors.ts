@@ -71,11 +71,20 @@ export type AssessmentPlayerErrorCode =
 export type AssessmentPlayerErrorParams = Record<string, string | number>;
 
 /**
+ * Brand on every `AssessmentPlayerError`, which `isAssessmentPlayerError` checks instead of
+ * `instanceof`: an error often crosses copies of this module (the player-elements bundle
+ * carries its own; a host may load this package beside it), and `Symbol.for` gives every
+ * copy the same symbol.
+ */
+const ASSESSMENT_PLAYER_ERROR_BRAND = Symbol.for('pie-qti.AssessmentPlayerError');
+
+/**
  * Error thrown (or returned as a typed rejection) by the assessment player core.
  *
  * `message` keeps the original, developer-facing text (including raw backend error
  * strings) for logs and host callbacks; `code` and `params` drive the localized,
- * candidate-safe rendering in the shell.
+ * candidate-safe rendering in the shell. Recognize one with `isAssessmentPlayerError`,
+ * not `instanceof`, which fails for an error made by another copy of the package.
  */
 export class AssessmentPlayerError extends Error {
 	readonly code: AssessmentPlayerErrorCode;
@@ -94,6 +103,7 @@ export class AssessmentPlayerError extends Error {
 		this.code = code;
 		this.params = params;
 		this.originalError = options?.cause;
+		Object.defineProperty(this, ASSESSMENT_PLAYER_ERROR_BRAND, { value: true });
 	}
 
 	/** i18n key the shell renders this error through (`assessment.errors.codes.*`). */
@@ -102,8 +112,13 @@ export class AssessmentPlayerError extends Error {
 	}
 }
 
+/** True for an `AssessmentPlayerError` from any copy of this package. */
 export function isAssessmentPlayerError(error: unknown): error is AssessmentPlayerError {
-	return error instanceof AssessmentPlayerError;
+	return (
+		typeof error === 'object' &&
+		error !== null &&
+		(error as Record<symbol, unknown>)[ASSESSMENT_PLAYER_ERROR_BRAND] === true
+	);
 }
 
 /**

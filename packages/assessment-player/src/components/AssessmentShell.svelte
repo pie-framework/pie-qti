@@ -12,7 +12,7 @@
 		SectionPlayerSplitPane,
 		SectionPlayerVertical,
 		TestFeedback as SectionTestFeedback,
-	} from '../../../section-player/src/components/index.js';
+	} from '@pie-qti/section-player/components';
 	import type { BackendAssessmentPlayerConfig, SubmissionBlocker } from '../core/AssessmentPlayer.js';
 	import { AssessmentPlayer } from '../core/AssessmentPlayer.js';
 	import type { AutosaveState } from '../core/AutosaveManager.js';

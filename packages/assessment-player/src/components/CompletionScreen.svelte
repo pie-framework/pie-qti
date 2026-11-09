@@ -15,7 +15,7 @@
 	import type { PlayerSecurityConfig } from '@pie-qti/item-player';
 	import type { QtiSectionRole, QtiSectionRuntimeHostContract } from '@pie-qti/section-player';
 	import type { QtiSharedHtmlBlock } from '@pie-qti/section-player';
-	import { TestFeedback as SectionTestFeedback } from '../../../section-player/src/components/index.js';
+	import { TestFeedback as SectionTestFeedback } from '@pie-qti/section-player/components';
 	import type { AssessmentEndReason, ResultsSummary } from '../types/index.js';
 
 	interface Props {

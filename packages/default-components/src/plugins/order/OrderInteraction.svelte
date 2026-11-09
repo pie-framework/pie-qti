@@ -38,7 +38,7 @@
 	// Parse props that may be JSON strings (web component usage). Correct-answer mode is the
 	// scorer's view of an item that has a correct response (the shared shell's rule).
 	const shell = $derived(
-		createInteractionShell<OrderInteractionData, string[], string[]>({ interaction, response, correctResponse, role }),
+		createInteractionShell<OrderInteractionData, string[], string[]>({ interaction, response, correctResponse, role, listResponse: true }),
 	);
 	const parsedInteraction = $derived(shell.interaction);
 	const parsedResponse = $derived(shell.response);
