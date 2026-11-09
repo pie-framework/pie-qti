@@ -9,6 +9,7 @@
 import { describe, expect, test } from 'bun:test';
 import { Player } from '../../src/core/Player.js';
 import { createShuffleRng, hashStringToSeed, maybeShuffle, shuffleWithFixed } from '../../src/core/shuffle.js';
+import type { ChoiceInteractionData } from '../../src/interactions/shared/types.js';
 
 function choiceItemXml(shuffle: boolean, fixedIds: string[] = []): string {
 	const ids = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -31,7 +32,7 @@ function choiceItemXml(shuffle: boolean, fixedIds: string[] = []): string {
 }
 
 function orderOf(player: Player): string[] {
-	const data = player.getInteractionData()[0] as { choices: Array<{ identifier: string }> };
+	const data = player.getInteractionData()[0] as ChoiceInteractionData;
 	return data.choices.map((c) => c.identifier);
 }
 

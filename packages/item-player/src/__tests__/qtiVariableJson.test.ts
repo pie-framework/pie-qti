@@ -14,7 +14,8 @@ import type { BaseType } from '@pie-qti/qti-processing';
 import { Player } from '../core/Player.js';
 import { fromQtiVariableJson, toQtiVariableJson } from '../pci/qtiVariableJson.js';
 import { PCI_REGISTRY_GLOBAL } from '../pci/registry.js';
-import type { ExtractedPci, PciModuleResolver, QtiPciInstance } from '../pci/types.js';
+import type { PciModuleResolver, QtiPciInstance } from '../pci/types.js';
+import type { PortableCustomInteractionData } from '../interactions/shared/types.js';
 
 const FILE_A = {
 	name: 'hello.txt',
@@ -250,7 +251,7 @@ function jsonModule(response: unknown) {
 async function mountPci(itemXml: string, response: unknown, seed?: Record<string, unknown>) {
 	const module = jsonModule(response);
 	const player = new Player({ itemXml, pci: { moduleResolver: module.resolver } });
-	const host = player.createPciHost(player.getInteractionData()[0] as ExtractedPci);
+	const host = player.createPciHost(player.getInteractionData()[0] as PortableCustomInteractionData);
 	if (seed) player.setResponses(seed);
 	await host.load();
 	host.initialize({ appendChild: () => {} } as unknown as HTMLElement);

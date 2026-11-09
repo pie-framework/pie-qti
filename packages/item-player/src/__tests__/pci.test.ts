@@ -11,12 +11,14 @@ import { fromQtiVariableJson, toQtiVariableJson } from '../pci/qtiVariableJson.j
 import { PciLoadError, PciModuleResolverRequiredError } from '../pci/types.js';
 import type {
 	ExtractedPci,
+	PciInteractionStatus,
 	PciModuleResolver,
 	QtiCustomInteractionRegistration,
 	QtiPciConfiguration,
 	QtiPciInstance,
 } from '../pci/types.js';
 import { portableCustomExtractor } from '../interactions/portable-custom/extractor.js';
+import type { PortableCustomInteractionData } from '../interactions/shared/types.js';
 import { createExtractionUtils } from '../extraction/index.js';
 import { Qti3AttributeNameMapper, Qti3ElementNameMapper } from '@pie-qti/qti-common';
 import { parse } from 'node-html-parser';
@@ -47,20 +49,23 @@ function makeInstance(overrides: Partial<Record<string, unknown>> = {}) {
 		getState: mock(() => undefined),
 		destroy: mock(() => {}),
 		...overrides,
-	} as unknown as QtiPciInstance & Record<string, ReturnType<typeof mock>>;
+		} as unknown as QtiPciInstance & Record<string, ReturnType<typeof mock>>;
 }
+
+/** A mock instance: the spec methods plus a mocked `destroy` the host may call. */
+type MockPciInstance = ReturnType<typeof makeInstance>;
 
 interface RegistrationFixture {
 	registration: QtiCustomInteractionRegistration;
 	getInstance: ReturnType<typeof mock>;
-	instances: QtiPciInstance[];
+	instances: MockPciInstance[];
 	configurations: QtiPciConfiguration[];
 	states: unknown[];
 }
 
 /** A spec-shaped registration whose getInstance returns a fresh mock instance. */
 function makeRegistration(instanceOverrides: Partial<Record<string, unknown>> = {}): RegistrationFixture {
-	const instances: QtiPciInstance[] = [];
+	const instances: MockPciInstance[] = [];
 	const configurations: QtiPciConfiguration[] = [];
 	const states: unknown[] = [];
 	const getInstance = mock((_dom: HTMLElement, configuration: QtiPciConfiguration, state?: unknown) => {
@@ -288,7 +293,7 @@ describe('PciHost', () => {
 	it('instantiates with the status its options derive at instantiation time', async () => {
 		const registry = makeRegistry();
 		const fixture = makeRegistration();
-		let status = 'interacting' as const;
+		let status: PciInteractionStatus = 'interacting';
 		const host = new PciHost(makeData(), {
 			moduleResolver: resolverRegistering(registry, fixture.registration),
 			registry: registry.observation,
@@ -606,7 +611,7 @@ describe('installPciRegistry', () => {
 	it('ignores registrations that are not spec-shaped', () => {
 		const registry = makeRegistry();
 		registry.context.register({} as QtiCustomInteractionRegistration);
-		registry.context.register({ typeIdentifier: '', getInstance: () => {} });
+		registry.context.register({ typeIdentifier: '', getInstance: () => undefined });
 		expect(registry.observation.registeredTypes()).toEqual([]);
 	});
 
@@ -958,6 +963,7 @@ describe('portableCustomExtractor', () => {
 			responseIdentifier: 'R',
 			customInteractionTypeIdentifier: 'urn:x',
 			primaryPath: '',
+			modules: [],
 			markup: '',
 			config: {},
 		});
@@ -1036,7 +1042,7 @@ describe('Player PCI integration', () => {
 				moduleResolver: resolver,
 			},
 		});
-		const interaction = player.getInteractionData()[0] as ExtractedPci;
+		const interaction = player.getInteractionData()[0] as PortableCustomInteractionData;
 		const host = player.createPciHost(interaction);
 
 		player.setResponses({ PCI_RESPONSE: 'restored-answer' });
@@ -1061,7 +1067,7 @@ describe('Player PCI integration', () => {
 			itemXml: QTI3_PCI_ITEM,
 			pci: { moduleResolver: resolver },
 		});
-		const host = player.createPciHost(player.getInteractionData()[0] as ExtractedPci);
+		const host = player.createPciHost(player.getInteractionData()[0] as PortableCustomInteractionData);
 		await host.load();
 		host.initialize(makeDomNode());
 
@@ -1086,7 +1092,7 @@ describe('Player PCI integration', () => {
 			itemXml: QTI3_PCI_ITEM,
 			pci: { moduleResolver: resolver },
 		});
-		const host = player.createPciHost(player.getInteractionData()[0] as ExtractedPci);
+		const host = player.createPciHost(player.getInteractionData()[0] as PortableCustomInteractionData);
 		await host.load();
 		host.initialize(makeDomNode());
 

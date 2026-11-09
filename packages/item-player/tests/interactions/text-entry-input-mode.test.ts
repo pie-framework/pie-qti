@@ -13,6 +13,7 @@ describe('textEntryInputMode', () => {
 	test('without a patternMask no numeric keyboard can be proven: keep the text keyboard', () => {
 		expect(textEntryInputMode({ baseType: 'integer', patternMask: null })).toBeUndefined();
 		expect(textEntryInputMode({ baseType: 'float', patternMask: null })).toBeUndefined();
+		// @ts-expect-error -- an absent patternMask from an untyped caller is treated like none.
 		expect(textEntryInputMode({ baseType: 'integer', patternMask: undefined })).toBeUndefined();
 	});
 
