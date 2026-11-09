@@ -16,7 +16,8 @@ import type {
 	QTIRole,
 	RubricBlock,
 } from '../types/index.js';
-import { processFeedbackInline } from '@pie-qti/qti-common';
+import { cleanFeedbackText, processFeedbackInline } from '@pie-qti/qti-common';
+import { extractShownFeedback, type ShownFeedback } from './feedbackAnnouncement.js';
 import { buildScopedStylesheetCss } from '../components/utils/stylesheetRender.js';
 import { buildEffectiveStimulusContent, injectStimulusContent } from '../components/utils/stimulusRender.js';
 import { isInlineInteractionType } from '../interactions/inline/render-plan.js';
@@ -163,6 +164,13 @@ export interface ItemPresentation {
 	readonly flow: readonly ItemPresentationFlowNode[];
 	/** Policy-checked CSS is kept out of the HTML/Trusted Types pipeline. */
 	readonly scopedCss: string;
+	/**
+	 * The feedbackInline and feedbackBlock this body shows, read as accessible text in document
+	 * order. The plan splices shown feedback into the body and leaves no marker behind, so this is
+	 * the one place the shown feedback survives as data — the item body announces it while the
+	 * candidate can still hear it (WCAG 4.1.3 Status Messages).
+	 */
+	readonly shownFeedback: ShownFeedback;
 }
 
 export function createItemPresentation({
@@ -184,7 +192,7 @@ export function createItemPresentation({
 		: baseCapabilities;
 	const effectiveDisabled = disabled || roleCapabilities.isReadOnly;
 	const correctResponses = roleCapabilities.canViewCorrectResponses ? source.correctResponses : {};
-	const { html, scopedCss } = buildItemBodyPresentation({
+	const { html, scopedCss, shownFeedback } = buildItemBodyPresentation({
 		source,
 		role,
 		outcomeValues,
@@ -224,6 +232,7 @@ export function createItemPresentation({
 			...mounts.map((mount): ItemPresentationFlowNode => ({ kind: 'interaction', mount })),
 		],
 		scopedCss,
+		shownFeedback,
 	});
 }
 
@@ -254,7 +263,7 @@ function buildItemBodyPresentation({
 	itemBodyScopeSelector: string;
 	renderItemBodyRubrics: boolean;
 	showFeedback: boolean;
-}): { html: string; scopedCss: string } {
+}): { html: string; scopedCss: string; shownFeedback: ShownFeedback } {
 	let html = htmlToString(source.itemBodyHtml);
 	const scopedCss = buildScopedStylesheetCss(source.deliveryContext, itemBodyScopeSelector);
 	const effectiveStimulusContent = buildEffectiveStimulusContent(
@@ -266,6 +275,13 @@ function buildItemBodyPresentation({
 	html = renderRubricBlocksForRole(html, role, { renderRubrics: renderItemBodyRubrics });
 
 	const heuristics = normalizeHeuristicsConfig(heuristicsConfig);
+	// While every feedback element is still in the HTML, read which of them the outcomes show and
+	// what they say, with the same text heuristics, so the body can announce it (WCAG 4.1.3) once
+	// this presentation renders it.
+	const shownFeedback = extractShownFeedback(html, outcomeValues, {
+		hideAll: !showFeedback,
+		transform: heuristics.feedbackTextFormatting ? (content) => cleanFeedbackText(content) : undefined,
+	});
 	html = processFeedbackInline(html, {
 		outcomeValues,
 		applyHeuristics: heuristics.feedbackTextFormatting,
@@ -273,7 +289,7 @@ function buildItemBodyPresentation({
 		hideAll: !showFeedback,
 	});
 
-	return { html, scopedCss };
+	return { html, scopedCss, shownFeedback };
 }
 
 function finalizeItemBodyHtml(

@@ -608,6 +608,7 @@ export default {
 		close: 'Close feedback',
 		closeFeedback: 'Dismiss feedback',
 		testFeedback: 'Test feedback',
+		shown: 'Feedback is shown.',
 	},
 
 	assessment: {

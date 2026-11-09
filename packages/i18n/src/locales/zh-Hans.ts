@@ -608,6 +608,7 @@ export default {
 		close: '关闭反馈',
 		closeFeedback: '关闭反馈',
 		testFeedback: '测试反馈',
+		shown: '已显示反馈。',
 	},
 
 	assessment: {

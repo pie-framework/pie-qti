@@ -596,6 +596,7 @@ export default {
 		close: 'ปิดคำติชม',
 		closeFeedback: 'ละเว้นคำติชม',
 		testFeedback: 'คำติชมการทดสอบ',
+		shown: 'มีการแสดงคำติชม',
 	},
 
 	assessment: {
