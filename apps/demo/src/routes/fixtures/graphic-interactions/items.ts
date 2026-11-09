@@ -141,9 +141,42 @@ const GRAPHIC_ASSOCIATE_POLYGON = `<?xml version="1.0" encoding="UTF-8"?>
   <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
 </assessmentItem>`;
 
+/**
+ * Graphic gap match with a whole-image (`default`) hotspot listed last: a click on the
+ * lake's area must fill the lake, not the zone that covers the whole image.
+ */
+const GRAPHIC_GAP_MATCH_DEFAULT = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="graphic-gap-match-default"
+  title="Graphic gap match default shape" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair">
+    <correctResponse>
+      <value>RAIN LAKE</value>
+    </correctResponse>
+  </responseDeclaration>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+  <itemBody>
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+      <prompt>Where does the rain fall?</prompt>
+      <object type="image/svg+xml" width="400" height="200">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
+          <title>A lake with an island</title>
+          <rect width="400" height="200" fill="#f0fdf4"/>
+          <rect x="40" y="40" width="120" height="100" fill="#bfdbfe" stroke="#1e3a8a" stroke-width="2"/>
+          <circle cx="300" cy="100" r="40" fill="#d9f99d" stroke="#3f6212" stroke-width="2"/>
+        </svg>
+      </object>
+      <gapText identifier="RAIN" matchMax="1">Rain</gapText>
+      <associableHotspot identifier="LAKE" shape="rect" coords="40,40,160,140" matchMax="1" hotspotLabel="Lake"/>
+      <associableHotspot identifier="ALL" shape="default" coords="" matchMax="1" hotspotLabel="Anywhere else"/>
+    </graphicGapMatchInteraction>
+  </itemBody>
+  <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
+</assessmentItem>`;
+
 export const GRAPHIC_INTERACTION_FIXTURES: Readonly<Record<string, string>> = {
 	'hotspot-multiple': HOTSPOT_MULTIPLE,
 	'hotspot-default': HOTSPOT_DEFAULT_SHAPE,
 	'graphic-order-areas': GRAPHIC_ORDER_AREAS,
 	'graphic-associate-polygon': GRAPHIC_ASSOCIATE_POLYGON,
+	'graphic-gap-match-default': GRAPHIC_GAP_MATCH_DEFAULT,
 };

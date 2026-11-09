@@ -213,6 +213,36 @@ test.describe('graphic order shows its areas on the image', () => {
 });
 
 /**
+ * Graphic gap match: a whole-image (`default`) hotspot listed last must not take the
+ * clicks and drops of the hotspots it covers — its zone lies beneath the others, like the
+ * hotspot interaction's default region.
+ */
+test.describe('graphic gap match default shape lies beneath the others', () => {
+	test('a click on the lake places the held label on the lake, not the whole-image zone', async ({ page }) => {
+		const root = await openFixture(page, 'graphic-gap-match-default');
+		const host = root.locator('pie-qti-graphic-gap-match');
+		const image = host.locator('[part="image"]');
+
+		// Pick the label up (the click-to-place flow), then click inside the lake's area.
+		await host.locator('[part="labels"]').getByRole('button', { name: 'Rain' }).click();
+		const point = await imagePoint(image, { width: 400, height: 200 }, 100, 100);
+		await page.mouse.click(point.x, point.y);
+		await expect(page.getByTestId('response')).toHaveText('["RAIN LAKE"]');
+	});
+
+	test('a click outside every other hotspot fills the whole-image zone', async ({ page }) => {
+		const root = await openFixture(page, 'graphic-gap-match-default');
+		const host = root.locator('pie-qti-graphic-gap-match');
+		const image = host.locator('[part="image"]');
+
+		await host.locator('[part="labels"]').getByRole('button', { name: 'Rain' }).click();
+		const point = await imagePoint(image, { width: 400, height: 200 }, 340, 170);
+		await page.mouse.click(point.x, point.y);
+		await expect(page.getByTestId('response')).toHaveText('["RAIN ALL"]');
+	});
+});
+
+/**
  * Graphic associate: pointer input hits the hotspot's real shape (QTI 3.0 §5.7.5–5.7.6), drawn
  * inside its button, never the rest of the button's bounding box; the buttons stay the keyboard
  * and assistive-technology controls.

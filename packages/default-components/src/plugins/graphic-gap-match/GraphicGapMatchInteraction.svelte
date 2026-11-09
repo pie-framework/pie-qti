@@ -648,6 +648,60 @@ function handleRootKeyDown(event: KeyboardEvent) {
 						viewBox="0 0 {imageWidth} {imageHeight}"
 						data-disabled={disabled ? '' : undefined}
 					>
+						<!-- Default-shape hotspots are the whole image (QTI 3.0 §8.29), so they lie
+						     beneath every other hotspot: their layers and pointer target are painted
+						     first, and a drop or click on another hotspot stays that hotspot's. -->
+						{#each parsedInteraction.hotspots as hotspot (hotspot.identifier)}
+							{#if hotspot.shape === 'default'}
+								{@const matchedGapText = getMatchedGapText(hotspot.identifier)}
+								{@const matchedLabelName = matchedGapText ? getLabelName(matchedGapText) : undefined}
+								{@const correctGapText = getCorrectGapText(hotspot.identifier)}
+								{@const correctLabelName = correctGapText ? getLabelName(correctGapText) : undefined}
+								{@const isCorrect = isCorrectHotspot(hotspot.identifier)}
+								{@const isBlocked = blockedHotspotIds.has(hotspot.identifier)}
+								{@const hotspotReady = !!pickedUpLabel && !disabled && !isBlocked}
+								{@const center = shapeCenter(hotspot.shape, hotspot.coords)}
+								<g
+									class="qti-ggm-zone qti-ggm-backdrop"
+									data-filled={matchedGapText ? '' : undefined}
+									data-correct={!matchedGapText && isCorrect ? '' : undefined}
+									data-ready={hotspotReady ? '' : undefined}
+									data-hovered={hoveredHotspotId === hotspot.identifier ? '' : undefined}
+									data-blocked={isBlocked ? '' : undefined}
+								>
+									<HotspotShape shape={hotspot.shape} coords={hotspot.coords} interactive={false} presentation={{ class: 'qti-ggm-halo' }} />
+									<HotspotShape shape={hotspot.shape} coords={hotspot.coords} interactive={false} presentation={{ class: 'qti-ggm-outline' }} />
+									{#if matchedLabelName || (isCorrect && correctLabelName)}
+										<text
+											x={center.x}
+											y={center.y}
+											text-anchor="middle"
+											dominant-baseline="middle"
+											class="qti-ggm-zone-text"
+											style="font-size: {14 / renderScale}px;"
+											aria-hidden="true"
+										>
+											{matchedLabelName ?? correctLabelName}
+										</text>
+									{/if}
+									<HotspotShape
+										shape={hotspot.shape}
+										coords={hotspot.coords}
+										interactive="pointer"
+										presentation={{
+											class: `qti-ggm-hotspot qti-ggm-pointer-target${hotspotReady ? ' qti-ggm-hotspot-ready' : ''}`,
+											'data-filled': matchedGapText ? '' : undefined,
+											style: `cursor: ${disabled || isBlocked ? 'not-allowed' : hotspotReady ? 'copy' : 'pointer'};`,
+										}}
+										ondragover={(e) => handleHotspotDragOver(e, hotspot.identifier)}
+										ondragleave={handleHotspotDragLeave}
+										ondrop={(e) => handleHotspotDrop(e, hotspot.identifier)}
+										onclick={() => placePickedUpLabelOnHotspot(hotspot.identifier)}
+									/>
+								</g>
+							{/if}
+						{/each}
+
 						{#each parsedInteraction.hotspots as hotspot, hotspotIndex (hotspot.identifier)}
 							{@const matchedGapText = getMatchedGapText(hotspot.identifier)}
 							{@const matchedLabelName = matchedGapText ? getLabelName(matchedGapText) : undefined}
@@ -704,7 +758,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 										class: `qti-ggm-hotspot${hotspotReady ? ' qti-ggm-hotspot-ready' : ''}`,
 										'data-filled': matchedGapText ? '' : undefined,
 										'aria-disabled': isBlocked ? 'true' : undefined,
-										style: `--qti-hit-stroke: ${hitStrokeWidth(hotspot.shape, hotspot.coords, renderScale)}px; cursor: ${disabled || isBlocked ? 'not-allowed' : hotspotReady ? 'copy' : 'pointer'};`,
+										style: `--qti-hit-stroke: ${hitStrokeWidth(hotspot.shape, hotspot.coords, renderScale)}px; cursor: ${disabled || isBlocked ? 'not-allowed' : hotspotReady ? 'copy' : 'pointer'};${hotspot.shape === 'default' ? ' pointer-events: none;' : ''}`,
 									}}
 									ondragover={(e) => handleHotspotDragOver(e, hotspot.identifier)}
 									ondragleave={handleHotspotDragLeave}
