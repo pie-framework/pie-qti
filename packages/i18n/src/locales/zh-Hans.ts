@@ -878,7 +878,6 @@ export default {
 				itemTimeExpired: '本题的时间限制已到。',
 				reviewNotAllowed: '无法返回本题。',
 				responseRequired: '继续之前必须回答本题。',
-				responseInvalid: '继续之前请提供有效的答案。',
 				finalizeResponseRequired: '提交前仍有题目需要作答：{items}。',
 				finalizeResponseInvalid: '部分答案尚未完成。提交前请检查这些题目：{items}。',
 				leavePartResponseRequired: '本部分仍有题目需要作答后才能继续：{items}。',

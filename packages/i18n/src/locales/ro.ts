@@ -885,7 +885,6 @@ export default {
 				itemTimeExpired: 'Timpul limită pentru această întrebare a expirat.',
 				reviewNotAllowed: 'Nu te poți întoarce la această întrebare.',
 				responseRequired: 'Trebuie să răspunzi la această întrebare înainte de a continua.',
-				responseInvalid: 'Te rugăm să oferi un răspuns valid înainte de a continua.',
 				finalizeResponseRequired: 'Unele întrebări încă au nevoie de un răspuns înainte de predare: {items}.',
 				finalizeResponseInvalid: 'Unele răspunsuri nu sunt încă complete. Verifică aceste întrebări înainte de predare: {items}.',
 				leavePartResponseRequired: 'Unele întrebări din această parte nu au încă răspuns înainte de a continua: {items}.',

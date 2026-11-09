@@ -252,8 +252,8 @@ None of these contradicts a clear QTI rule. The first is a test-coverage note; t
 - **FR-11:** `restoreState(state)` must navigate to the item identified by `state.currentItemIdentifier`, restore `visitedItems` into `NavigationManager`, and rehydrate `itemResults` from `state.itemScores` so that `submit()` can skip already-submitted items.
 - **FR-12:** `destroy()` must unsubscribe and dispose the current live item session, clear cached definitions and all event listener sets, and release timer resources.
 - **FR-13:** `getVisibleFeedback()` after successful finalization must evaluate preserved structured
-  `testFeedback` against `FinalizeAssessmentResponse.outcomes`; when no structured feedback exists,
-  the legacy `FinalizeAssessmentResponse.feedback` string may be exposed as one compatibility item.
+  `testFeedback` against `FinalizeAssessmentResponse.outcomes`; test feedback comes only from the
+  test's and its test parts' `testFeedback` blocks.
 - **FR-14:** `getAllSections()` must enumerate sections across all test parts in document order.
 - **FR-15:** `getCurrentItemSession()` must return the exact live session owned for the active item. `toSectionComposition()` must place that same reference on only the active `QtiSectionItemRef`; it must not create a renderer-side session or pass serialized state as a synchronization mechanism.
 - **FR-16:** Before leaving an active item, assessment-player must serialize its live session into `AssessmentSessionState.itemSessions`, dispose it, and later restore through `AssessmentItemDefinition.openSession({ restore, responses })`. A restored state with a different item identifier must be rejected.

@@ -409,7 +409,6 @@ export class AssessmentPlayer {
 	private finalResults: AssessmentResults | null = null;
 	/** Scopes whose time limit expired without late submission, keyed `scope:identifier`. */
 	private readonly lockedScopes = new Set<string>();
-	private legacyFeedback: string | undefined;
 	/**
 	 * Navigation serialization: exactly one navigation or submission transition may run at
 	 * a time. While set, further navigation and submit calls are rejected as busy.
@@ -555,8 +554,8 @@ export class AssessmentPlayer {
 
 		this.timeManager = new TimeManager({
 			assessmentTimeLimits: this.assessment.timeLimits,
-			warningThreshold: config.timeWarningThreshold || 60,
-			warningThresholds: config.timeWarningThresholds,
+			// The default warning (60 s unless the host moves it), then any additional ones.
+			warningThresholds: [config.timeWarningThreshold || 60, ...(config.timeWarningThresholds ?? [])],
 			now: config.now,
 			extendedTime: config.pnp?.content?.extendedTime,
 			onWarning: (remainingSeconds) => this.notifyTimeWarning(remainingSeconds),
@@ -1828,15 +1827,8 @@ export class AssessmentPlayer {
 	 */
 	public getVisibleFeedback(): VisibleTestFeedback[] {
 		const outcomes = this.testOutcomes;
-		const parts = this.assessment.testParts ?? [];
-		const hasStructured =
-			(this.assessment.testFeedback?.length ?? 0) > 0 || parts.some((part) => (part.testFeedback?.length ?? 0) > 0);
-		if (!hasStructured) {
-			return this.finalized && this.legacyFeedback
-				? [{ key: 'testFeedback', identifier: 'testFeedback', content: this.legacyFeedback, access: 'atEnd' }]
-				: [];
-		}
 		if (!outcomes) return [];
+		const parts = this.assessment.testParts ?? [];
 
 		const shown: VisibleTestFeedback[] = [];
 		const add = (items: TestFeedbackItem[] | undefined, ended: boolean, current: boolean, part?: SecureTestPart) => {
@@ -3647,7 +3639,6 @@ export class AssessmentPlayer {
 		// Delivery is over: no clock keeps running, and no later expiry can fire.
 		this.timeManager?.pause();
 		this.timeManager?.stopTimer();
-		this.legacyFeedback = finalized.feedback;
 		this.testOutcomes = cloneData(finalized.outcomes ?? this.testOutcomes ?? {})!;
 		this.notifyTestFeedbackChange();
 		this.reportOutcomeProcessingError(finalized.outcomeProcessingError);

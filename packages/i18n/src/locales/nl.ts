@@ -865,7 +865,6 @@ export default {
 				itemTimeExpired: 'De tijdslimiet voor deze vraag is verlopen.',
 				reviewNotAllowed: 'Je kunt niet terug naar deze vraag.',
 				responseRequired: 'Je moet deze vraag beantwoorden voordat je verdergaat.',
-				responseInvalid: 'Geef een geldig antwoord voordat je verdergaat.',
 				finalizeResponseRequired: 'Sommige vragen hebben nog een antwoord nodig voordat je kunt inleveren: {items}.',
 				finalizeResponseInvalid: 'Sommige antwoorden zijn nog niet compleet. Controleer deze vragen voordat je inlevert: {items}.',
 				leavePartResponseRequired: 'Sommige vragen in dit onderdeel moeten nog worden beantwoord voordat je verder kunt: {items}.',

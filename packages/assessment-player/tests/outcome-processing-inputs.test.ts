@@ -82,17 +82,23 @@ const VERSIONS = {
 
 afterEach(() => localStorage.clear());
 
-async function deliver(version: keyof typeof VERSIONS) {
+/** Opens a session on the test; `replace` swaps fixture items by identifier (QTI 2.2 XML, converted for 3.0). */
+async function deliver(version: keyof typeof VERSIONS, replace: Record<string, string> = {}) {
 	const { test: xml, item: itemXml } = VERSIONS[version];
 	const assessment = await ReferenceBackendAdapter.parseAssessmentTestXml(xml, {
-		itemXmlMap: Object.fromEntries(Object.keys(ITEMS22).map((id) => [`${id}.xml`, itemXml(id)])),
+		itemXmlMap: Object.fromEntries(
+			Object.keys(ITEMS22).map((id) => [
+				`${id}.xml`,
+				replace[id] ? (version === 'QTI 3.0' ? convertQti2ToQti3(replace[id]) : replace[id]) : itemXml(id),
+			]),
+		),
 	});
 	const backend = new ReferenceBackendAdapter();
 	backend.registerAssessment(assessment.identifier, assessment);
 	const { sessionId } = await backend.initSession({ assessmentId: assessment.identifier, candidateId: 'candidate' });
 	const submit = async (itemIdentifier: string, responses: Record<string, string>) =>
 		(await backend.submitResponses({ sessionId, itemIdentifier, responses, submittedAt: Date.now() })).outcomes;
-	return { assessment, submit };
+	return { assessment, backend, sessionId, submit };
 }
 
 describe.each(Object.keys(VERSIONS) as Array<keyof typeof VERSIONS>)('%s outcome-processing inputs', (version) => {
@@ -140,5 +146,30 @@ describe.each(Object.keys(VERSIONS) as Array<keyof typeof VERSIONS>)('%s outcome
 		expect(outcomes).toMatchObject({ MIN_TOTAL: -1, MATH_MAX: 3 });
 		// item-4 declares no normalMaximum, so the maximum over the whole test is NULL.
 		expect(outcomes?.MAX_TOTAL).toBeNull();
+	});
+
+	test('an item whose response processing fails is presented and responded, neither correct nor incorrect', async () => {
+		// An unknown statement fails the item's response processing; the scorer records score 0.
+		const unscorable = ITEMS22['item-2'].replace(
+			/<responseProcessing>[\s\S]*<\/responseProcessing>/,
+			'<responseProcessing><unknownStatement/></responseProcessing>',
+		);
+		const { submit } = await deliver(version, { 'item-2': unscorable });
+		const outcomes = await submit('item-2', { RESPONSE: 'A' });
+		expect(outcomes).toMatchObject({ PRESENTED: 1, RESPONDED: 1, CORRECT: 0, INCORRECT: 0, HITS_TOTAL: 0 });
+	});
+
+	test('a stored score without its item state reaches outcome processing as SCORE only', async () => {
+		const { backend, sessionId, submit } = await deliver(version);
+		expect(await submit('item-1', { RESPONSE: 'A' })).toMatchObject({ RESPONDED: 1, CORRECT: 1, HITS_TOTAL: 1 });
+		// What sessions stored before item test states existed hold: the item scores alone.
+		const key = `qti_session_${sessionId}`;
+		const stored = JSON.parse(localStorage.getItem(key) ?? '{}');
+		delete stored.itemTestStates;
+		localStorage.setItem(key, JSON.stringify(stored));
+
+		const { outcomes } = await backend.finalizeAssessment({ sessionId });
+		// Presented, with its SCORE (weighted 2); nothing is reconstructed from the score.
+		expect(outcomes).toMatchObject({ PRESENTED: 1, RESPONDED: 0, CORRECT: 0, INCORRECT: 0, HITS_TOTAL: 0, WEIGHTED: 2 });
 	});
 });
