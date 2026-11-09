@@ -11,7 +11,7 @@ export type {
 	ScopeTimeExpiryEvent,
 	SubmissionBlocker,
 } from './core/AssessmentPlayer.js';
-export type { ForwardTransitionInfo, ItemAnswerStatus, NavigationMode, ReviewItemView } from './core/index.js';
+export type { ForwardTransitionInfo, ItemAnswerStatus, ReviewItemView } from './core/index.js';
 // Autosave: debounced draft persistence through BackendAdapter.saveState.
 export type { AutosaveState, AutosaveStatus } from './core/index.js';
 export { AssessmentPlayer, NavigationManager } from './core/index.js';
@@ -20,8 +20,6 @@ export {
 	AssessmentPlayerError,
 	assessmentErrorDisplay,
 	isAssessmentPlayerError,
-	isSubmissionBlockedError,
-	shortSupportCode,
 	type AssessmentErrorDisplay,
 	type AssessmentPlayerErrorCode,
 	type AssessmentPlayerErrorParams,
@@ -39,7 +37,6 @@ export type {
 	CheckAnswerState,
 	ItemFeedbackEntry,
 	ItemFeedbackView,
-	ItemRef,
 	ItemResult,
 	NavigationState,
 	QTIRole,
