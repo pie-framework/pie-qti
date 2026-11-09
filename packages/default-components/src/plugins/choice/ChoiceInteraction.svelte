@@ -3,7 +3,7 @@
 <script lang="ts">
 	import type { ChoiceInteractionData } from '@pie-qti/item-player';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
-	import { createEliminationTool, eliminationActionLabel } from '../../shared/utils/eliminationTool.svelte';
+	import { createEliminationTool } from '../../shared/utils/eliminationTool.svelte';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import { normalizeHeuristicsConfig, type QtiHeuristicsConfig } from '@pie-qti/item-player';
 	import { processFeedbackInline } from '@pie-qti/qti-common';
@@ -99,10 +99,11 @@
 	let rootElement: HTMLDivElement | undefined = $state();
 
 	// Elimination tool (QTI 3.0 PNP §6.2): eliminated choices remain in DOM and in the response;
-	// only the candidate's view of them changes.
+	// only the candidate's view of them changes. Each toggle is named "Eliminate" plus its choice
+	// in both states: aria-pressed says whether it is eliminated, so the name never flips to
+	// "Restore" (WCAG 4.1.2), and the visible label is the same ✕ in both states (2.5.3).
 	const elimination = createEliminationTool();
-	const eliminationLabel = (identifier: string): string =>
-		eliminationActionLabel(elimination.isEliminated(identifier), i18n);
+	const eliminationVerb = $derived(translate(i18n, 'interactions.choice.eliminateChoice', 'Eliminate'));
 
 	// Answer masking state: choices the candidate has revealed. A masked choice cannot be selected.
 	let revealedChoices = $state(new Set<string>());
@@ -303,7 +304,7 @@
 							aria-labelledby={`${eliminationVerbId(choice.identifier)} ${textId}`}
 							aria-pressed={elimination.isEliminated(choice.identifier)}
 							onclick={() => elimination.toggle(choice.identifier)}
-						><span class="sr-only" id={eliminationVerbId(choice.identifier)}>{eliminationLabel(choice.identifier)}</span>✕</button>
+						><span class="sr-only" id={eliminationVerbId(choice.identifier)}>{eliminationVerb}</span>✕</button>
 					{/if}
 				</div>
 			{/each}
@@ -357,7 +358,7 @@
 							aria-labelledby={`${eliminationVerbId(choice.identifier)} ${textId}`}
 							aria-pressed={elimination.isEliminated(choice.identifier)}
 							onclick={() => elimination.toggle(choice.identifier)}
-						><span class="sr-only" id={eliminationVerbId(choice.identifier)}>{eliminationLabel(choice.identifier)}</span>✕</button>
+						><span class="sr-only" id={eliminationVerbId(choice.identifier)}>{eliminationVerb}</span>✕</button>
 					{/if}
 				</div>
 			{/each}

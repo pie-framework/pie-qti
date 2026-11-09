@@ -77,14 +77,14 @@ describe('HottextInteraction (pie-qti-hottext)', () => {
 
 		const spans = hottexts(mounted);
 		expect(spans).toHaveLength(3);
-		const expectedNames = ['fern Selectable', 'oak Selectable', 'rock Selectable'];
+		const expectedNames = ['fern', 'oak', 'rock'];
 		spans.forEach((hottext, index) => {
 			expect(hottext.getAttribute('role')).toBe('button');
 			expect(hottext.getAttribute('tabindex')).toBe('0');
 			expect(hottext.getAttribute('aria-pressed')).toBe('false');
 			expect(hottext.hasAttribute('aria-checked')).toBe(false);
-			// The name comes from the rendered content plus a localized state word via
-			// aria-labelledby — never a hardcoded English label.
+			// The name comes from the rendered content via aria-labelledby — never a hardcoded
+			// English label, and never the state, which aria-pressed carries.
 			expect(hottext.getAttribute('aria-label')).toBeNull();
 			expect(nameFromLabelledBy(mounted.host, hottext)).toBe(expectedNames[index]);
 		});
@@ -101,7 +101,7 @@ describe('HottextInteraction (pie-qti-hottext)', () => {
 
 		const spans = hottexts(mounted);
 		expect(spans).toHaveLength(3);
-		const expectedNames = ['fern Selectable', 'oak Selectable', 'rock Selectable'];
+		const expectedNames = ['fern', 'oak', 'rock'];
 		spans.forEach((hottext, index) => {
 			expect(hottext.getAttribute('role')).toBe('radio');
 			expect(hottext.getAttribute('aria-checked')).toBe('false');
@@ -113,17 +113,79 @@ describe('HottextInteraction (pie-qti-hottext)', () => {
 		expect(qa(mounted, '[aria-pressed]')).toHaveLength(0);
 	});
 
-	test('the localized state word in the name follows the selection', async () => {
-		const mounted = mountInteraction(HottextInteraction, { interaction: hottextData() });
+	test('the accessible name is the content alone and stays the same as the selection changes (state is aria-checked/aria-pressed)', async () => {
+		for (const maxChoices of [1, 2]) {
+			const mounted = mountInteraction(HottextInteraction, { interaction: hottextData({ maxChoices }) });
+			await settle();
+
+			const [fern, oak] = hottexts(mounted);
+			const stateAttribute = maxChoices === 1 ? 'aria-checked' : 'aria-pressed';
+			const namesBefore = hottexts(mounted).map((hottext) => nameFromLabelledBy(mounted.host, hottext));
+			const labelledByBefore = hottexts(mounted).map((hottext) => hottext.getAttribute('aria-labelledby'));
+			oak!.click();
+			await settle();
+
+			expect(oak!.getAttribute(stateAttribute)).toBe('true');
+			expect(fern!.getAttribute(stateAttribute)).toBe('false');
+			// Neither the name nor what it is built from changes with the state.
+			expect(hottexts(mounted).map((hottext) => nameFromLabelledBy(mounted.host, hottext))).toEqual(namesBefore);
+			expect(hottexts(mounted).map((hottext) => hottext.getAttribute('aria-labelledby'))).toEqual(labelledByBefore);
+			expect(namesBefore).toEqual(['fern', 'oak', 'rock']);
+			// No state word is rendered anywhere: assistive technology speaks the state once.
+			expect(mounted.host.textContent).not.toMatch(/Selectable|\bSelected\b(?!:)/);
+			cleanupInteraction(mounted);
+		}
+	});
+
+	test('an empty hottext is named by its position in reading order, never its identifier, in both modes', async () => {
+		const nl = new DefaultI18nProvider('nl');
+		await nl.loadLocale('nl');
+		for (const maxChoices of [1, 2]) {
+			for (const i18n of [undefined, nl]) {
+				const mounted = mountInteraction(HottextInteraction, {
+					interaction: hottextData({
+						maxChoices,
+						contentHtml:
+							'<p>The <hottext identifier="H1">fern</hottext>, <hottext identifier="EMPTY_IS_CORRECT"></hottext> and the <hottext identifier="H3">rock</hottext>.</p>',
+						hottextChoices: [{ identifier: 'H1' }, { identifier: 'EMPTY_IS_CORRECT' }, { identifier: 'H3' }],
+					}),
+					i18n,
+				});
+				await settle();
+
+				const empty = hottexts(mounted)[1]!;
+				const expected = i18n ? i18n.t('accessibility.choiceFallback', { index: 2 }) : 'Choice 2';
+				expect(expected).not.toBe('accessibility.choiceFallback');
+				expect(nameFromLabelledBy(mounted.host, empty)).toBe(expected);
+				expect(nameFromLabelledBy(mounted.host, empty)).not.toContain('EMPTY_IS_CORRECT');
+				// The spans with content keep their own names.
+				expect(nameFromLabelledBy(mounted.host, hottexts(mounted)[0]!)).toBe('fern');
+
+				// Still operable, and the name stays put when its state changes.
+				empty.click();
+				await settle();
+				expect(empty.getAttribute(maxChoices === 1 ? 'aria-checked' : 'aria-pressed')).toBe('true');
+				expect(nameFromLabelledBy(mounted.host, empty)).toBe(expected);
+				cleanupInteraction(mounted);
+			}
+		}
+	});
+
+	test('a hottext whose content is an image is named by that content (its alt), not by the fallback', async () => {
+		const mounted = mountInteraction(HottextInteraction, {
+			interaction: hottextData({
+				contentHtml:
+					'<p>Pick <hottext identifier="H1"><img src="leaf.png" alt="a fern leaf"></hottext> or <hottext identifier="H2">oak</hottext>.</p>',
+				hottextChoices: [{ identifier: 'H1' }, { identifier: 'H2' }],
+			}),
+		});
 		await settle();
 
-		const [fern, oak] = hottexts(mounted);
-		oak!.click();
-		await settle();
-
-		expect(oak!.getAttribute('aria-checked')).toBe('true');
-		expect(nameFromLabelledBy(mounted.host, oak!)).toBe('oak Selected');
-		expect(nameFromLabelledBy(mounted.host, fern!)).toBe('fern Selectable');
+		const image = hottexts(mounted)[0]!;
+		expect(image.querySelector('[data-hottext-fallback]')).toBeNull();
+		// aria-labelledby points at the rendered content; the browser names it from the img alt.
+		const content = mounted.host.querySelector(`#${CSS.escape(image.getAttribute('aria-labelledby') ?? '')}`);
+		expect(content?.querySelector('img')?.getAttribute('alt')).toBe('a fern leaf');
 	});
 
 	test('clicking a hottext selects it and emits a single-value response', async () => {
@@ -190,7 +252,7 @@ describe('HottextInteraction (pie-qti-hottext)', () => {
 		expect(mounted.instance.response).toBe('H1');
 		expect(mounted.events).toHaveLength(1);
 		expect(fern.getAttribute('aria-checked')).toBe('true');
-		expect(nameFromLabelledBy(mounted.host, fern)).toBe('fern Selected');
+		expect(nameFromLabelledBy(mounted.host, fern)).toBe('fern');
 		expect(q(mounted, '[part="footer"]')?.textContent).toContain('1 / 3');
 	});
 
@@ -208,8 +270,8 @@ describe('HottextInteraction (pie-qti-hottext)', () => {
 		expect(mounted.events.map((event) => event.detail.value)).toEqual(['H1', 'H2']);
 		expect(fern!.getAttribute('aria-checked')).toBe('false');
 		expect(oak!.getAttribute('aria-checked')).toBe('true');
-		expect(nameFromLabelledBy(mounted.host, fern!)).toBe('fern Selectable');
-		expect(nameFromLabelledBy(mounted.host, oak!)).toBe('oak Selected');
+		expect(nameFromLabelledBy(mounted.host, fern!)).toBe('fern');
+		expect(nameFromLabelledBy(mounted.host, oak!)).toBe('oak');
 		expect(q(mounted, '[part="footer"]')?.textContent).toContain('1 / 3');
 		// Unselected hottexts stay visibly selectable: one more choice is always possible.
 		expect(fern!.classList.contains('selectable')).toBe(true);
@@ -397,16 +459,16 @@ describe('HottextInteraction (pie-qti-hottext)', () => {
 		hottexts(second)[0]!.click();
 		await settle();
 
-		for (const [mounted, firstName] of [
-			[first, 'fern Selectable'],
-			[second, 'fern Selected'],
-		] as const) {
+		for (const mounted of [first, second]) {
 			const fern = hottexts(mounted)[0]!;
 			for (const id of (fern.getAttribute('aria-labelledby') ?? '').split(' ')) {
 				expect(mounted.host.contains(document.getElementById(id))).toBe(true);
 			}
-			expect(nameFromLabelledBy(mounted.host, fern)).toBe(firstName);
+			// Each span is named from its own interaction's content, whatever the other's state.
+			expect(nameFromLabelledBy(mounted.host, fern)).toBe('fern');
 		}
+		expect(hottexts(first)[0]!.getAttribute('aria-checked')).toBe('false');
+		expect(hottexts(second)[0]!.getAttribute('aria-checked')).toBe('true');
 		cleanupInteraction(first, second);
 	});
 
@@ -555,9 +617,9 @@ describe('HottextInteraction (pie-qti-hottext)', () => {
 		const [fern, oak] = hottexts(mounted);
 		expect(oak!.classList.contains('correct')).toBe(true);
 		// Non-color indicator: an sr-only "Correct answer" phrase joins the accessible name.
-		expect(nameFromLabelledBy(mounted.host, oak!)).toBe('oak Selectable Correct answer: oak.');
+		expect(nameFromLabelledBy(mounted.host, oak!)).toBe('oak Correct answer: oak.');
 		// The other hottexts carry no correct marker.
-		expect(nameFromLabelledBy(mounted.host, fern!)).toBe('fern Selectable');
+		expect(nameFromLabelledBy(mounted.host, fern!)).toBe('fern');
 	});
 
 	test('review (disabled scorer view) keeps the candidate answer and the correct-answer marker', async () => {
@@ -575,7 +637,7 @@ describe('HottextInteraction (pie-qti-hottext)', () => {
 		expect(fern!.getAttribute('aria-checked')).toBe('true');
 		expect(fern!.classList.contains('selected')).toBe(true);
 		expect(oak!.classList.contains('correct')).toBe(true);
-		expect(nameFromLabelledBy(mounted.host, oak!)).toBe('oak Selectable Correct answer: oak.');
+		expect(nameFromLabelledBy(mounted.host, oak!)).toBe('oak Correct answer: oak.');
 		expect(tabStops(mounted)).toEqual(['-1', '-1', '-1']);
 		expect(qa(mounted, 'button')).toHaveLength(0);
 	});

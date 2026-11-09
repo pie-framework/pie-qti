@@ -112,7 +112,6 @@ export default {
 				other: 'Select at least {count} answers.',
 			},
 			eliminateChoice: 'Eliminate',
-			restoreChoice: 'Restore',
 		},
 
 		upload: {
@@ -225,8 +224,6 @@ export default {
 			selected: 'Selected:',
 			selectText: 'Select text from the passage',
 			ariaLabel: 'Text selection interaction',
-			selectableState: 'Selectable',
-			selectedState: 'Selected',
 			maxChoicesReached: 'You can select up to {max}. Deselect one to choose another.',
 		},
 
@@ -357,9 +354,8 @@ export default {
 			pickedUp: 'Picked up: {label}. Tab to a hotspot and press Enter to place it.',
 			alreadyPlacedSentence: 'Already placed on a hotspot.',
 			unavailableSentence: 'Not available due to a match group restriction.',
-			heldHint: 'Picked up. Tab to a hotspot and press Enter to place it.',
+			heldHint: 'Tab to a hotspot and press Enter to place it.',
 			pickUpHint: 'Press Space or Enter to pick up.',
-			selectedHint: 'Selected for placement.',
 			selectHint: 'Press Space to select.',
 			hotspotContains: 'Hotspot {number}. Contains {label}.',
 			hotspotCorrectAnswer: 'Hotspot {number}. Correct answer: {label}.',
@@ -380,7 +376,6 @@ export default {
 			moveEarlierItem: 'Move {item} earlier',
 			moveLaterItem: 'Move {item} later',
 			eliminateItem: 'Eliminate {item}',
-			restoreItem: 'Restore {item}',
 			instruction: 'Use the move buttons or drag items to reorder them.',
 			keyboardInstructions: 'Press Space or Enter to grab an item. Use arrow keys to move the item. Press Space or Enter again to drop. Press Escape to cancel.',
 			grabbed: 'Grabbed. Use arrow keys to move.',
@@ -883,7 +878,6 @@ export default {
 				itemTimeExpired: 'The time limit for this question has expired.',
 				reviewNotAllowed: 'You cannot return to this question.',
 				responseRequired: 'You must answer this question before continuing.',
-				responseInvalid: 'Please provide a valid answer before continuing.',
 				finalizeResponseRequired: 'Some questions still need an answer before you can submit: {items}.',
 				finalizeResponseInvalid: 'Some answers are not complete yet. Check these questions before you submit: {items}.',
 				leavePartResponseRequired: 'Some questions in this part still need an answer before you can continue: {items}.',

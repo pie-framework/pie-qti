@@ -183,3 +183,34 @@ describe.each([
 		expect(shown(resumed)).toEqual(['Right so far', 'Part 1 right']);
 	});
 });
+
+describe('test feedback source', () => {
+	test('only testFeedback blocks show, whatever else the finalize response carries', async () => {
+		const xml = `<assessmentTest ${NS} identifier="plain-test" title="Plain test">
+  <testPart identifier="part-1" navigationMode="linear" submissionMode="individual">
+    <assessmentSection identifier="section-1" title="One" visible="true">
+      <assessmentItemRef identifier="item-1" href="item-1.xml"/>
+    </assessmentSection>
+  </testPart>
+</assessmentTest>`;
+		const assessment = await ReferenceBackendAdapter.parseAssessmentTestXml(xml, {
+			itemXmlMap: { 'item-1.xml': item('item-1') },
+		});
+		const backend = new ReferenceBackendAdapter();
+		backend.registerAssessment(assessment.identifier, assessment);
+		const finalize = backend.finalizeAssessment.bind(backend);
+		// A backend that answers with a feedback string beside its outcomes: the test declares no
+		// testFeedback, so there is nothing to show.
+		backend.finalizeAssessment = async (request) => Object.assign(await finalize(request), { feedback: '<p>Well done</p>' });
+		const player = await AssessmentPlayer.create({
+			backend,
+			initSession: { assessmentId: assessment.identifier, candidateId: 'candidate' },
+		});
+		players.push(player);
+
+		player.updateResponse('RESPONSE', 'A');
+		await player.submit();
+		expect(player.getNavigationState().isComplete).toBe(true);
+		expect(player.getVisibleFeedback()).toEqual([]);
+	});
+});

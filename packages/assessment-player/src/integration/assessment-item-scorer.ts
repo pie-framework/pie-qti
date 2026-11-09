@@ -4,6 +4,7 @@ import {
 	type SerializedItemSessionVariable,
 } from '@pie-qti/item-player';
 import { parseXml, type QtiValue, qtiNull, qtiValue, type TestItemState } from '@pie-qti/qti-processing';
+import { hasAnyResponse } from '../core/AssessmentSessionCoordinator.js';
 import { isAdaptiveItemXml } from '../core/testStructure.js';
 import type { AssessmentScoringResult, ResponseValue } from './api-contract.js';
 
@@ -81,13 +82,17 @@ export function scoreAssessmentItem(input: AssessmentItemScoringInput): Assessme
  * item's outcomes are taken as submitted (they accumulate across attempts, so running
  * response processing again would apply the attempt twice or reset what earlier attempts
  * accumulated). Without a session only a non-templated, non-adaptive item is scored.
+ *
+ * When response processing fails the item scores 0 out of 1, and its test state holds no
+ * variables: the item still counts as presented, and as responded when the candidate gave
+ * any response.
  */
 export function scoreAssessmentItemForTest({
 	itemXml,
 	responses,
 	itemSession,
 	requireItemSession,
-}: AssessmentItemScoringInput): { result: AssessmentScoringResult; testState?: ItemTestState } {
+}: AssessmentItemScoringInput): { result: AssessmentScoringResult; testState: ItemTestState } {
 	const itemIdentifier = getAssessmentItemIdentifier(itemXml);
 	if (!itemSession && (requireItemSession === true || itemScoringRequiresSession(itemXml))) {
 		throw new AssessmentItemScoringError(
@@ -158,6 +163,7 @@ export function scoreAssessmentItemForTest({
 				completed: false,
 				outcomeValues: {},
 			},
+			testState: { variables: {}, responded: hasAnyResponse(responses) },
 		};
 	}
 }

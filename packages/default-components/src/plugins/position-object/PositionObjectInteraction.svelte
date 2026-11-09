@@ -861,8 +861,6 @@
 															usageCount,
 														}),
 										}),
-										selectedStageId === stage.identifier &&
-											translate(i18n, 'interactions.graphicGapMatch.selectedHint', 'Selected for placement.'),
 									)}
 									aria-pressed={selectedStageId === stage.identifier}
 								>

@@ -7,6 +7,7 @@
 	import { createConfirmationFlow } from '../../shared/utils/confirmationFlow.svelte';
 	import { createEliminationTool } from '../../shared/utils/eliminationTool.svelte';
 	import { accessibleTextFromHtml } from '../../shared/utils/accessibleText.js';
+	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
@@ -198,13 +199,19 @@
 	// Elimination tool (QTI 3.0 PNP §6.2): scratch-work toggles; the response is untouched.
 	const elimination = createEliminationTool();
 	// Each toggle is named for its item (image alt and MathML included), not just
-	// "Eliminate", so screen reader users know which choice a toggle acts on.
+	// "Eliminate", so screen reader users know which choice a toggle acts on. The name is the
+	// same in both states: aria-pressed says whether the item is eliminated, so it never flips
+	// to "Restore" (WCAG 4.1.2), and the visible ✕ never changes either (2.5.3). An item with
+	// nothing to read is named by its presented position, never by its identifier.
 	const eliminationLabel = (identifier: string): string => {
-		const choice = parsedInteraction?.choices.find((c) => c.identifier === identifier);
-		const item = accessibleTextFromHtml(choice?.text) || identifier;
-		return elimination.isEliminated(identifier)
-			? translate(i18n, 'interactions.order.restoreItem', 'Restore {item}', { item })
-			: translate(i18n, 'interactions.order.eliminateItem', 'Eliminate {item}', { item });
+		const choices = parsedInteraction?.choices ?? [];
+		const index = choices.findIndex((c) => c.identifier === identifier);
+		const item = choiceAccessibleName({
+			i18n,
+			label: accessibleTextFromHtml(choices[index]?.text),
+			position: index + 1,
+		});
+		return translate(i18n, 'interactions.order.eliminateItem', 'Eliminate {item}', { item });
 	};
 </script>
 

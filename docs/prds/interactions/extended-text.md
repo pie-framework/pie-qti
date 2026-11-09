@@ -62,7 +62,7 @@ The QTI 3.0 tag name is `qti-extended-text-interaction` (kebab-case) with attrib
 |-----------|-------------|--------|----------|
 | `responseIdentifier` | 2.x / 3.0 | Supported | Binds to the response variable declared by `responseDeclaration`. Extracted as `responseId` in `ExtendedTextInteractionData`. |
 | `expectedLines` | 2.x / 3.0 | Supported (display hint) | Sets the editor's `minHeight` as `expectedLines × 24px`, floored at 200px. Does not enforce a line count limit. Default: 3. |
-| `expectedLength` | 2.x / 3.0 | Supported (display hint) | Stored in `ExtendedTextInteractionData.expectedLength`. No character limit is enforced in the UI. Default: 200. |
+| `expectedLength` | 2.x / 3.0 | Supported (display hint) | Stored in `ExtendedTextInteractionData.expectedLength`, absent when not authored (a hint with no default in any QTI version). No character limit is enforced in the UI. The `qti-counter-up`/`qti-counter-down` counters need it: without it they show no counter. |
 | `placeholderText` | 2.x / 3.0 | Supported | Passed to TipTap `Placeholder` extension. Rendered via `::before` pseudo-element when the editor is empty. Default: `"Enter your response..."`. |
 | `format` | 2.2 / 3.0 | Partially supported | Extracted and stored. All three values (`plain`, `preFormatted`, `xhtml`) render the same TipTap editor; no format-specific rendering distinctions are implemented. Unknown values emit a validator warning. Default: `"plain"`. |
 | `patternMask` | 2.x / 3.0 | Enforced by validation | Delivered as `ExtendedTextInteractionData.patternMask`, with `patternMaskMessage` from `data-patternmask-message`. `Player.validateResponses()` marks a `string` response invalid when any of its strings does not match the XSD pattern (QTI 3.0 §5.48.4). The pattern also decides the numeric keyboard (FR-25). The editor shows no inline message yet (see Known gaps). |
@@ -92,7 +92,7 @@ The QTI 3.0 tag name is `qti-extended-text-interaction` (kebab-case) with attrib
 - **FR-6:** The `onChange` callback prop (used in Svelte embedding) must also be called on every content change.
 - **FR-7:** When `role="scorer"` and a non-null `correctResponse` is provided, the component must display the correct response below the editor in a visually distinct container.
 - **FR-8:** The extractor must accept both `extendedTextInteraction` (QTI 2.x) and `qti-extended-text-interaction` (QTI 3.0 kebab-case) element names.
-- **FR-9:** The extractor must apply default values when attributes are absent: `expectedLines=3`, `expectedLength=200`, `format="plain"`, `placeholderText=""`.
+- **FR-9:** The extractor must apply default values when attributes are absent: `expectedLines=3`, `format="plain"`, `placeholderText=""`. An absent `expectedLength` stays absent: it is a hint with no default in QTI 2.1, 2.2 or 3.0, and the counters count against it.
 - **FR-10:** The extractor must emit a validation error if `expectedLines < 1` or `expectedLength < 1`. It must emit a validation warning (not error) for an unrecognized `format` value.
 - **FR-11:** The toolbar must include Bold, Italic, Insert Inline Math, and Insert Block Math controls. All toolbar controls must be disabled when the editor is not editable.
 - **FR-12:** The math editor (MathLive modal) must open when the user activates Insert Inline Math or Insert Block Math. Confirming the modal must insert a KaTeX-rendered math node at the cursor and return focus to the editor. Cancelling (Cancel, Escape, or a click on the backdrop) must close it without modification and return focus to the control that opened it — the toolbar button, or the editor when an existing math node was opened for editing.
@@ -186,7 +186,7 @@ Defined in `packages/item-player/src/interactions/shared/types.ts`:
 export interface ExtendedTextInteractionData extends BaseInteractionData {
   type: 'extendedTextInteraction';
   expectedLines: number;      // Default 3; used for editor minHeight
-  expectedLength: number;     // Default 200; stored but not enforced in UI
+  expectedLength?: number;    // Absent when not authored; stored but not enforced in UI
   placeholderText: string;    // Default ""; rendered as TipTap placeholder
   format: string;             // Default "plain"; stored but all values use same editor
 }
@@ -309,7 +309,7 @@ AC-16: QTI 3.0 element name
 AC-17: Extractor defaults
   Given: An <extendedTextInteraction responseIdentifier="RESPONSE" /> with no other attributes
   When: The extractor runs
-  Then: expectedLines=3, expectedLength=200, format="plain", placeholderText=""
+  Then: expectedLines=3, format="plain", placeholderText=""; expectedLength is absent
 
 AC-18: Extractor validation — invalid expectedLines
   Given: Data with expectedLines=0

@@ -39,9 +39,9 @@ The image is constrained with `width: 100%; max-width: <naturalWidth>px` and an 
 
 A hotspot on a map image is visually self-evident — the candidate sees the map, reads the question, and clicks a region. For a blind user or a user navigating by keyboard, none of that is available. Two separate problems must be solved:
 
-1. **Keyboard reachability.** SVG elements are not natively focusable. The component makes each shape focusable by setting `tabindex=0` (or `-1` when `disabled`) and handling `keydown` for Enter and Space. This matches the `role="button"` semantic declared on each shape. The tab order follows DOM order, which is the order of `hotspotChoice` elements in the QTI XML.
+1. **Keyboard reachability.** SVG elements are not natively focusable. The component makes each shape focusable with `tabindex` (`-1` on every shape when `disabled`) and handles `keydown`. With `maxChoices=1` the regions are a radio group, like single-select hottext and `choiceInteraction`'s radios: one Tab stop (roving tabindex: the checked region, else the first), arrow keys that move to the next or previous region and check it, and Space or Enter to check the focused region. With any other `maxChoices` each region is a toggle button and its own Tab stop, activated by Enter or Space. The order is DOM order, which is the order of `hotspotChoice` elements in the QTI XML.
 
-2. **Accessible name.** A screen reader reaching a shape with `role="button"` reads its accessible name. QTI provides `hotspotLabel` on `hotspotChoice` to give a region a human-readable name (e.g. "Glasgow" instead of "A"), and the component uses it as the region's name. A region without one is named by its position, "Region 2 of 5" (`interactions.hotspot.regionOfTotal`), never by its identifier. In the scorer role, "Correct answer." is appended to a correct region's name.
+2. **Accessible name.** A screen reader reaching a region (`role="radio"` in single selection, `role="button"` otherwise) reads its accessible name. QTI provides `hotspotLabel` on `hotspotChoice` to give a region a human-readable name (e.g. "Glasgow" instead of "A"), and the component uses it as the region's name. A region without one is named by its position, "Region 2 of 5" (`interactions.hotspot.regionOfTotal`), never by its identifier. In the scorer role, "Correct answer." is appended to a correct region's name.
 
 3. **Image alt text.** The background image needs a text alternative (WCAG 2.2 SC 1.1.1; QTI does not mandate one). The extractor reads the author's alternative from the QTI source: the `<object>` fallback text, `aria-label`/`aria-labelledby`, an inline SVG's `<title>`/`<desc>`, or an `<img alt>`, where an empty `alt` marks the image decorative. Without one, the image is named by the localized fallback `interactions.hotspot.imageFallback` ("Image for this question").
 
@@ -57,7 +57,7 @@ HTML `<map>` and `<area>` elements provide native image-map semantics and were t
 
 1. **Responsive scaling.** `<area>` coords are pixel-absolute. They require JavaScript to be recalculated when the image resizes, and browsers do not consistently scale image maps. SVG `viewBox` scaling is automatic and CSS-driven.
 2. **Visual feedback.** SVG shapes can receive CSS fill, stroke, and transition styling. An `<area>` element has no visible rendering and cannot show selection state without additional DOM elements.
-3. **ARIA support.** SVG elements accept `role`, `aria-label`, `aria-pressed`, and `tabindex`, making them suitable interactive elements when attributed correctly.
+3. **ARIA support.** SVG elements accept `role`, `aria-label`, `aria-checked`, `aria-pressed`, and `tabindex`, making them suitable interactive elements when attributed correctly.
 
 The trade-off is that inline SVG in a shadow root has some quirks with Tailwind utility classes and hover pseudo-classes. The component includes fallback native CSS for hover state in the `<style>` block alongside the Tailwind utilities.
 
@@ -138,7 +138,7 @@ Resolved since the previous review, and no longer gaps:
 - **FR-5:** For each `hotspotChoice` with `shape="poly"`, render an SVG `<polygon>` whose `points` attribute is constructed from alternating x,y coordinate pairs.
 - **FR-6:** Unselected hotspot regions must have a transparent (or near-transparent) fill so the image beneath is visible. A hover state provides visual affordance that the region is clickable.
 - **FR-7:** When a hotspot is selected, its fill and stroke change to a visually distinct selected state (blue fill/stroke by default). The change must apply immediately on click/tap/Enter/Space without a page reload.
-- **FR-8:** Clicking or tapping a selected hotspot (when `maxChoices=1`) replaces the current selection — it does not deselect. There is no deselect gesture for single-select.
+- **FR-8:** Clicking or tapping the selected hotspot (when `maxChoices=1`) keeps it selected and emits nothing — it does not deselect; selecting another hotspot replaces it. A "Clear answer" button (`interactions.choice.clearAnswer`, the name `choiceInteraction` and hottext use for the same control), shown while there is an answer and the interaction is enabled, retracts it: it emits `null` and moves focus to the first region.
 - **FR-9:** On each selection change, emit a `qti-change` CustomEvent from the root element with `{ responseIdentifier, value }`. The event must bubble and be `composed: true` so it crosses the shadow DOM boundary.
 - **FR-10:** Accept a `response` prop reflecting the current response state. On initial mount with a pre-set `response`, the corresponding hotspot(s) must render in selected state without emitting a `qti-change` event.
 - **FR-11:** When `disabled=true`, all hotspot shapes must be non-interactive (no click/keydown handling, `tabindex=-1`). The `disabled` state must be visually distinguishable (e.g. `cursor: not-allowed` on the overlay, reduced opacity).
@@ -153,13 +153,13 @@ Resolved since the previous review, and no longer gaps:
 ### Accessibility
 
 - **WCAG 2.2 SC 1.1.1 (Non-text content):** The background image must have a meaningful text alternative: the author's, from the QTI source, else the localized `interactions.hotspot.imageFallback` string (not `""`). When `imageData.type === 'svg'`, the inline SVG must have a `<title>` element or `aria-label` on the `<svg>` container.
-- **WCAG 2.2 SC 1.3.1 (Info and relationships):** Each hotspot region must have `role="button"` and `aria-label` conveying the region's identity. When `hotspotLabel` is provided on the `hotspotChoice`, use it verbatim as the `aria-label`. Fall back to a translated position name ("Region 2 of 5"); never expose the identifier.
+- **WCAG 2.2 SC 1.3.1 (Info and relationships):** Each hotspot region must have `role="radio"` (single selection, inside a `role="radiogroup"` overlay named by the prompt, else by the localized "Hotspot interaction") or `role="button"` (multiple selection), and an `aria-label` conveying the region's identity. When `hotspotLabel` is provided on the `hotspotChoice`, use it verbatim as the `aria-label`. Fall back to a translated position name ("Region 2 of 5"); never expose the identifier.
 - **WCAG 2.2 SC 1.4.3 (Contrast):** Selected and hover fill colours must provide sufficient contrast against the image content. The current blue (`rgba(59,130,246,0.3)`) may be insufficient over light-coloured images. Hosts may override via `::part(overlay)` and `::part(image)`. Consider a stroke-only visual indicator as an alternative.
-- **WCAG 2.2 SC 2.1.1 (Keyboard):** All hotspot regions must be reachable and operable by keyboard. Tab moves focus sequentially through regions. Enter and Space activate the focused region (same behaviour as click). Focus must be visible on each SVG shape — SVG elements need an explicit `:focus` CSS outline since the browser default focus ring may not appear on SVG shapes in all browsers.
+- **WCAG 2.2 SC 2.1.1 (Keyboard):** All hotspot regions must be reachable and operable by keyboard. In single selection the radio group is one Tab stop: the arrow keys move to the next or previous region, wrapping, and check it (Left/Right follow the inline direction, mirrored under RTL; with Alt, Ctrl or Meta they are left to the browser), and Space or Enter checks the focused region. In multiple selection Tab moves focus sequentially through regions and Enter and Space activate the focused region (same behaviour as click). Focus must be visible on each SVG shape — SVG elements need an explicit `:focus` CSS outline since the browser default focus ring may not appear on SVG shapes in all browsers.
 - **WCAG 2.2 SC 2.4.7 (Focus visible):** The focus indicator on each hotspot shape must be visible. Implement via `outline` on `.qti-hotspot-shape:focus`.
 - **WCAG 2.2 SC 2.5.3 (Label in name):** The `aria-label` on each button must describe the region; for scorer role, append ". Correct answer" or similar translated suffix when the choice is correct.
 - **WCAG 2.2 SC 2.5.8 (Target size minimum):** In rendered CSS pixels, each hotspot must have a minimum bounding box of 44×44 CSS px. This cannot be enforced at runtime (it depends on rendered size), but the extractor should warn when a hotspot's natural-coordinate bounding box is smaller than 44×44 (assuming full natural-size rendering).
-- **WCAG 2.2 SC 4.1.2 (Name, role, value):** `aria-pressed="true"/"false"` communicates selected state for each button-role shape.
+- **WCAG 2.2 SC 4.1.2 (Name, role, value):** In single selection `aria-checked="true"/"false"` communicates the selected state of each radio region, and activating the checked region never unchecks it, as a native radio. In multiple selection `aria-pressed="true"/"false"` communicates the state of each toggle-button region. The two never mix, and the region's name never carries the state. A disabled region carries `aria-disabled="true"`.
 
 ### Performance
 
@@ -392,8 +392,10 @@ AC-17: poly shape renders at correct position
 AC-A1: Hotspot regions are keyboard-focusable
   Given: the item from AC-1 rendered without disabled
   When: the candidate presses Tab until focus enters the interaction
-  Then: the first hotspot shape receives a visible focus ring; subsequent Tab presses move
-        focus to each remaining hotspot in DOM order
+  Then: the first hotspot shape receives a visible focus ring. With maxChoices=1 the regions
+        are one Tab stop (the next Tab leaves the interaction) and the arrow keys move between
+        them; with maxChoices>1 subsequent Tab presses move focus to each remaining hotspot in
+        DOM order
 
 AC-A2: Enter activates a focused hotspot
   Given: the item from AC-1 with keyboard focus on hotspot "A"
@@ -411,12 +413,14 @@ AC-A4: Focused hotspot has visible focus ring in all browsers
   Then: a visible outline (minimum 2px solid, non-transparent) appears around the shape
   Notes: SVG shapes require explicit :focus CSS outline; test in Chrome, Firefox, and Safari
 
-AC-A5: aria-pressed reflects selection state
-  Given: the item from AC-1 with no selection
+AC-A5: aria-checked reflects selection state (single selection)
+  Given: the item from AC-1 (maxChoices=1) with no selection
   When: the item renders
-  Then: all hotspot shapes have aria-pressed="false"
+  Then: all hotspot shapes are role="radio" with aria-checked="false" inside a role="radiogroup";
+        none has aria-pressed
   When: the candidate selects hotspot "A"
-  Then: hotspot "A" has aria-pressed="true"; others remain aria-pressed="false"
+  Then: hotspot "A" has aria-checked="true"; others remain aria-checked="false"
+  Notes: with maxChoices>1 the shapes are role="button" toggle buttons with aria-pressed instead
 
 AC-A6: hotspotLabel used as aria-label when provided
   Given: an item where hotspotChoice identifier="A" has hotspotLabel="Glasgow"
@@ -498,7 +502,7 @@ AC-E7: maxChoices=0 (unlimited) in extractor
 
 ## Open questions
 
-- [ ] Should deselection be supported for single-select hotspots? The spec does not define a deselect gesture. Some delivery engines allow clicking a selected hotspot again to deselect it. This would require setting response to null/empty. Decide before implementing multi-select, since the pattern differs for single vs. multiple cardinality.
+- [x] Should deselection be supported for single-select hotspots? (resolved) Not by re-activation: the spec defines no deselect gesture, so single selection follows native radios, single-select hottext and `choiceInteraction` — activating the checked region keeps it, and "Clear answer" retracts the answer (`null`).
 - [x] How should `ellipse` shape be handled? (resolved) Option (a): it renders as an SVG `<ellipse cx cy rx ry>`.
 - [ ] Should the extractor warn when a hotspot's natural bounding box is below 44×44 px? This would help item authors catch WCAG 2.5.8 violations at authoring time, but requires the extractor to parse and compute shape geometry rather than just passing raw coord strings.
 - [ ] For multi-select: should clicking a selected hotspot deselect it (toggle), or should there be a separate "clear" button? Toggle is the most natural mobile pattern. A "clear all" button may be needed for users who have filled all selections and need to change one.

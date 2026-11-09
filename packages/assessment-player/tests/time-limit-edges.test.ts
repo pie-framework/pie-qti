@@ -269,6 +269,27 @@ describe('late-submission combinations', () => {
 	});
 });
 
+describe('TimeManager warning thresholds', () => {
+	test('fires exactly the thresholds it is given, each once', async () => {
+		let now = 1_000;
+		const warnings: number[] = [];
+		const manager = new TimeManager({
+			assessmentTimeLimits: { maxTime: 100 },
+			warningThresholds: [30],
+			now: () => now,
+			onWarning: (remainingSeconds) => warnings.push(remainingSeconds),
+		});
+		// 45 s remain: past no threshold the manager was given, so nothing fires.
+		now += 55_000;
+		await new Promise((resolve) => setTimeout(resolve, 1_100));
+		expect(warnings).toEqual([]);
+		now += 20_000;
+		await new Promise((resolve) => setTimeout(resolve, 1_100));
+		expect(warnings).toEqual([25]);
+		manager.destroy();
+	});
+});
+
 describe('TimeManager.formatTime digits', () => {
 	test('pads with Western digits by default', () => {
 		expect(TimeManager.formatTime(65)).toBe('1:05');

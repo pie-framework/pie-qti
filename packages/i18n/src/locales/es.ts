@@ -116,7 +116,6 @@ export default {
 				other: 'Selecciona al menos {count} respuestas.',
 			},
 			eliminateChoice: 'Descartar',
-			restoreChoice: 'Restaurar',
 		},
 
 		upload: {
@@ -219,8 +218,6 @@ export default {
 			selected: 'Seleccionado:',
 			selectText: 'Selecciona texto del pasaje',
 			ariaLabel: 'Interacción de selección de texto',
-			selectableState: 'Seleccionable',
-			selectedState: 'Seleccionado',
 			maxChoicesReached: 'Puedes seleccionar hasta {max}. Desmarca una para elegir otra.',
 		},
 
@@ -351,9 +348,8 @@ export default {
 			pickedUp: 'Agarrado: {label}. Ve con Tab a un punto activo y presiona Intro para colocarlo.',
 			alreadyPlacedSentence: 'Ya colocado en un punto activo.',
 			unavailableSentence: 'No disponible por una restricción del grupo de emparejamiento.',
-			heldHint: 'Agarrado. Ve con Tab a un punto activo y presiona Intro para colocarlo.',
+			heldHint: 'Ve con Tab a un punto activo y presiona Intro para colocarlo.',
 			pickUpHint: 'Presiona Espacio o Intro para agarrar.',
-			selectedHint: 'Seleccionado para colocación.',
 			selectHint: 'Presiona Espacio para seleccionar.',
 			hotspotContains: 'Punto activo {number}. Contiene {label}.',
 			hotspotCorrectAnswer: 'Punto activo {number}. Respuesta correcta: {label}.',
@@ -374,7 +370,6 @@ export default {
 			moveEarlierItem: 'Mover {item} antes',
 			moveLaterItem: 'Mover {item} después',
 			eliminateItem: 'Descartar {item}',
-			restoreItem: 'Restaurar {item}',
 			instruction: 'Usa los botones de movimiento o arrastra los elementos para ordenarlos.',
 			keyboardInstructions: 'Presiona Espacio o Enter para agarrar un elemento. Usa las flechas para mover el elemento. Presiona Espacio o Enter nuevamente para soltar. Presiona Escape para cancelar.',
 			grabbed: 'Agarrado. Usa las flechas para mover.',
@@ -886,7 +881,6 @@ export default {
 				itemTimeExpired: 'El tiempo límite para esta pregunta ha expirado.',
 				reviewNotAllowed: 'No puedes volver a esta pregunta.',
 				responseRequired: 'Debes responder esta pregunta antes de continuar.',
-				responseInvalid: 'Proporciona una respuesta válida antes de continuar.',
 				finalizeResponseRequired: 'Algunas preguntas aún necesitan respuesta antes de que puedas entregar: {items}.',
 				finalizeResponseInvalid: 'Algunas respuestas aún no están completas. Revisa estas preguntas antes de entregar: {items}.',
 				leavePartResponseRequired: 'Algunas preguntas de esta parte aún necesitan respuesta antes de continuar: {items}.',

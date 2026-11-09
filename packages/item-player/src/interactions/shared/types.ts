@@ -95,7 +95,8 @@ export interface ExtendedTextInteractionData extends BaseInteractionData<'extend
 	/** Zero means no authored upper bound. */
 	maxStrings: number;
 	expectedLines: number;
-	expectedLength: number;
+	/** The authored expected length, a hint with no default in any QTI version; absent when not authored. */
+	expectedLength?: number;
 	prompt: HtmlContent | null;
 	placeholderText: string;
 	format: string;

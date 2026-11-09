@@ -148,7 +148,6 @@ export default {
 				other: 'اختر {count} إجابة على الأقل.',
 			},
 			eliminateChoice: 'استبعاد',
-			restoreChoice: 'استعادة',
 		},
 
 		upload: {
@@ -273,8 +272,6 @@ export default {
 			selected: 'محدد:',
 			selectText: 'اختر نصًا من الفقرة',
 			ariaLabel: 'تفاعل تحديد النص',
-			selectableState: 'قابل للاختيار',
-			selectedState: 'مُختار',
 			maxChoicesReached: 'يمكنك اختيار {max} خيارات كحد أقصى. ألغِ اختيار أحد الخيارات لاختيار آخر.',
 		},
 
@@ -413,9 +410,8 @@ export default {
 			pickedUp: 'تم الإمساك بـ {label}. انتقل بمفتاح Tab إلى نقطة ساخنة واضغط Enter لوضعها.',
 			alreadyPlacedSentence: 'تم وضعها بالفعل على نقطة ساخنة.',
 			unavailableSentence: 'غير متاح بسبب قيد مجموعة المطابقة.',
-			heldHint: 'تم الإمساك. انتقل بمفتاح Tab إلى نقطة ساخنة واضغط Enter لوضعها.',
+			heldHint: 'انتقل بمفتاح Tab إلى نقطة ساخنة واضغط Enter لوضعها.',
 			pickUpHint: 'اضغط على مفتاح المسافة أو Enter للإمساك.',
-			selectedHint: 'محددة للوضع.',
 			selectHint: 'اضغط على مفتاح المسافة للتحديد.',
 			hotspotContains: 'النقطة الساخنة {number}. تحتوي على {label}.',
 			hotspotCorrectAnswer: 'النقطة الساخنة {number}. الإجابة الصحيحة: {label}.',
@@ -436,7 +432,6 @@ export default {
 			moveEarlierItem: 'نقل {item} إلى الأمام',
 			moveLaterItem: 'نقل {item} إلى الخلف',
 			eliminateItem: 'استبعاد {item}',
-			restoreItem: 'إعادة {item}',
 			instruction: 'استخدم أزرار النقل أو اسحب العناصر لتغيير ترتيبها.',
 			keyboardInstructions: 'اضغط على مفتاح المسافة أو الإدخال للإمساك بعنصر. استخدم مفاتيح الأسهم لتحريك العنصر. اضغط على مفتاح المسافة أو الإدخال مرة أخرى للإفلات. اضغط على Escape للإلغاء.',
 			grabbed: 'تم الإمساك. استخدم مفاتيح الأسهم للتحريك.',
@@ -990,7 +985,6 @@ export default {
 				itemTimeExpired: 'انتهى الوقت المحدد لهذا السؤال.',
 				reviewNotAllowed: 'لا يمكنك العودة إلى هذا السؤال.',
 				responseRequired: 'يجب الإجابة على هذا السؤال قبل المتابعة.',
-				responseInvalid: 'يرجى تقديم إجابة صالحة قبل المتابعة.',
 				finalizeResponseRequired: 'لا تزال بعض الأسئلة بحاجة إلى إجابة قبل أن تتمكن من التسجيل: {items}.',
 				finalizeResponseInvalid: 'بعض الإجابات غير مكتملة بعد. راجع هذه الأسئلة قبل التسجيل: {items}.',
 				leavePartResponseRequired: 'بعض الأسئلة في هذا الجزء ما زالت تحتاج إلى إجابة قبل المتابعة: {items}.',
