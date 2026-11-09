@@ -287,7 +287,8 @@ export default {
 			navigateToTarget: 'Navigeer naar een doel en druk op Spatie of Enter om te koppelen',
 			selectionCancelled: 'Selectie geannuleerd',
 			matchCleared: 'Koppeling gewist voor {item}',
-			maxReached: 'Maximum aantal koppelingen bereikt. Verwijder een paar om een nieuw paar toe te voegen.',
+			associationLimitReached: 'Koppeling niet mogelijk: de limiet van {max} is bereikt.',
+			sourceLimitReached: 'Niet mogelijk: {label} kan niet in meer koppelingen zitten.',
 			pairCreated: '{source} gekoppeld aan {target}.',
 			minAssociationsHint: {
 				one: 'Maak minimaal {count} koppeling.',
@@ -422,6 +423,7 @@ export default {
 			},
 			choiceLimitReached: 'Niet mogelijk: {label} kan niet in meer associaties zitten.',
 			associationLimitReached: 'Associatie niet mogelijk: de limiet van {max} is bereikt.',
+			notAvailableSentence: 'Niet beschikbaar door een beperking van de koppelgroep.',
 		},
 
 		positionObject: {
@@ -434,6 +436,11 @@ export default {
 			positioned: '{label} gepositioneerd op ({x}, {y})',
 			minimumRequired: 'Minimaal vereist: {minChoices}',
 			maximumAllowed: 'Maximum: {maxChoices}',
+			maxChoicesReached: {
+				one: 'Plaatsen niet mogelijk: de limiet van {max} is bereikt.',
+				other: 'Plaatsen niet mogelijk: de limiet van {max} is bereikt.',
+			},
+			objectLimitReached: 'Niet mogelijk: {object} kan niet opnieuw worden geplaatst.',
 			availableObjects: 'Beschikbare objecten',
 			objectUsage: '{label} ({usageCount}/{matchMax} gebruikt)',
 			availableObjectsCount: 'Beschikbare objecten ({count}/{max})',
@@ -527,9 +534,11 @@ export default {
 			imageLoadError: 'De afbeelding kon niet worden geladen.',
 			unlabeledHotspot: 'Gebied {index}',
 			hotspotConnections: '{label} ({usageCount}/{matchMax} verbindingen)',
+			hotspotConnectionsUnlimited: '{label} ({usageCount} verbindingen, onbeperkt)',
 			notAvailableSentence: 'Niet beschikbaar door een beperking van de koppelgroep.',
 			selectAnotherHotspot: 'Geselecteerd: {label}. Selecteer nog een hotspot om een associatie te maken.',
 			associationsCount: 'Associaties ({count}/{max})',
+			associationsCountUnlimited: 'Associaties ({count})',
 			clickHotspotsToAssociate: 'Selecteer twee hotspots op de afbeelding om een associatie te maken.',
 			pairDescription: '{first} geassocieerd met {second}',
 			removeAssociation: 'Associatie tussen {first} en {second} verwijderen',

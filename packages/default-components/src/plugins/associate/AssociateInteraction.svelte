@@ -196,7 +196,12 @@
 		// If a different item is clicked, check matchGroup compatibility then create a pair.
 		// Both caps are re-checked against the would-be response, so every path that
 		// completes a pair refuses alike (the same rule MatchDragDrop applies per match).
-		if (blockedChoices.has(choiceId)) return;
+		// A refused partner is announced: aria-disabled alone states availability, not the
+		// reason an activation did nothing (WCAG 4.1.3).
+		if (blockedChoices.has(choiceId)) {
+			announce(translate(i18n, 'interactions.associate.notAvailableSentence', 'Not available due to a match group restriction.'));
+			return;
+		}
 		const newPair = `${selectedForPairing} ${choiceId}`;
 		const newPairs = [...pairs, newPair];
 		if (maxAssociations > 0 && newPairs.length > maxAssociations) {

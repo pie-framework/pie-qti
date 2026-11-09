@@ -288,7 +288,8 @@ export default {
 			navigateToTarget: 'นำทางไปยังเป้าหมายและกด Space หรือ Enter เพื่อจับคู่',
 			selectionCancelled: 'ยกเลิกการเลือก',
 			matchCleared: 'ล้างการจับคู่สำหรับ {item} แล้ว',
-			maxReached: 'ถึงจำนวนการจับคู่สูงสุดแล้ว ลบคู่หนึ่งออกเพื่อเพิ่มคู่ใหม่',
+			associationLimitReached: 'สร้างความเชื่อมโยงไม่ได้: ถึงขีดจำกัด {max} แล้ว',
+			sourceLimitReached: 'ไม่สามารถทำได้: {label} ไม่สามารถอยู่ในความเชื่อมโยงเพิ่มเติมได้',
 			pairCreated: 'จับคู่ {source} กับ {target} แล้ว',
 			minAssociationsHint: {
 				one: 'จับคู่อย่างน้อย {count} คู่',
@@ -423,6 +424,7 @@ export default {
 			},
 			choiceLimitReached: 'ไม่สามารถทำได้: {label} ไม่สามารถอยู่ในความสัมพันธ์เพิ่มเติมได้',
 			associationLimitReached: 'สร้างความสัมพันธ์ไม่ได้: ถึงขีดจำกัด {max} แล้ว',
+			notAvailableSentence: 'ไม่พร้อมใช้งานเนื่องจากข้อจำกัดของกลุ่มการจับคู่',
 		},
 
 		positionObject: {
@@ -435,6 +437,11 @@ export default {
 			positioned: 'วาง {label} ที่ ({x}, {y})',
 			minimumRequired: 'จำเป็นขั้นต่ำ: {minChoices}',
 			maximumAllowed: 'สูงสุด: {maxChoices}',
+			maxChoicesReached: {
+				one: 'วางไม่ได้แล้ว: ถึงขีดจำกัด {max} แล้ว',
+				other: 'วางไม่ได้แล้ว: ถึงขีดจำกัด {max} แล้ว',
+			},
+			objectLimitReached: 'ไม่สามารถทำได้: ไม่สามารถวาง {object} อีกได้',
 			availableObjects: 'วัตถุที่พร้อมใช้งาน',
 			objectUsage: '{label} ({usageCount}/{matchMax} ใช้แล้ว)',
 			availableObjectsCount: 'วัตถุที่พร้อมใช้งาน ({count}/{max})',
@@ -528,9 +535,11 @@ export default {
 			imageLoadError: 'ไม่สามารถโหลดรูปภาพได้',
 			unlabeledHotspot: 'พื้นที่ {index}',
 			hotspotConnections: '{label} ({usageCount}/{matchMax} การเชื่อมต่อ)',
+			hotspotConnectionsUnlimited: '{label} ({usageCount} การเชื่อมต่อ, ไม่จำกัด)',
 			notAvailableSentence: 'ไม่พร้อมใช้งานเนื่องจากข้อจำกัดของกลุ่มการจับคู่',
 			selectAnotherHotspot: 'เลือกแล้ว: {label} เลือกฮอตสปอตอื่นเพื่อสร้างความสัมพันธ์',
 			associationsCount: 'ความสัมพันธ์ ({count}/{max})',
+			associationsCountUnlimited: 'ความสัมพันธ์ ({count})',
 			clickHotspotsToAssociate: 'เลือกฮอตสปอตสองจุดบนภาพเพื่อสร้างความสัมพันธ์',
 			pairDescription: '{first} สัมพันธ์กับ {second}',
 			removeAssociation: 'ลบความสัมพันธ์ระหว่าง {first} และ {second}',

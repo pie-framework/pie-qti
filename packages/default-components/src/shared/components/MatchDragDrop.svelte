@@ -130,6 +130,15 @@ async function selectTarget(targetId: string) {
 	if (source?.isConnected) source.focus();
 }
 
+/**
+ * Announce a refusal. Repeating the same refused attempt would leave the live text
+ * unchanged, which assistive technology does not announce, so a repeat toggles a
+ * trailing zero-width space (silent to screen readers) to make it a change.
+ */
+function announceRefusal(message: string) {
+	announceText = announceText === message ? `${message}\u200b` : message;
+}
+
 // Enforce the same capacity and compatibility rules for every input method.
 function createMatch(sourceId: string, targetId: string): boolean {
 	if (disabled) return false;
@@ -138,9 +147,19 @@ function createMatch(sourceId: string, targetId: string): boolean {
 	if (!source || !target || !isCompatibleMatchGroup(source, target)) return false;
 	const newPairs = createOrUpdatePair(pairs, sourceId, targetId);
 	const sourceCount = getTargetsForSource(newPairs, sourceId).length;
-	if ((maxAssociations > 0 && newPairs.length > maxAssociations) ||
-		((source.matchMax ?? 1) > 0 && sourceCount > (source.matchMax ?? 1))) {
-		announceText = translate(i18n, 'interactions.match.maxReached', 'Maximum associations reached. Remove a pair to add a new one.');
+	const matchMax = source.matchMax ?? 1;
+	// The two caps are refused separately and named (WCAG 3.3.1): the interaction's
+	// maxAssociations names the limit, the source's own matchMax names the choice.
+	if (maxAssociations > 0 && newPairs.length > maxAssociations) {
+		announceRefusal(translate(i18n, 'interactions.match.associationLimitReached', 'Association not possible: the limit of {max} is reached.', { max: maxAssociations }));
+		return false;
+	}
+	if (matchMax > 0 && sourceCount > matchMax) {
+		announceRefusal(
+			translate(i18n, 'interactions.match.sourceLimitReached', 'Not possible: {label} cannot be in more associations.', {
+				label: choiceLabel(source),
+			}),
+		);
 		return false;
 	}
 	onPairsChange(newPairs);

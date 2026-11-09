@@ -52,7 +52,7 @@
 	import { tick } from 'svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
-	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
+	import { joinSentences, translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import DragHandle from '../../shared/components/DragHandle.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
@@ -257,6 +257,30 @@
 		return true;
 	}
 
+	/**
+	 * A refused placement is announced, never silent (WCAG 3.3.1/4.1.3): naming the
+	 * interaction's maxChoices when that cap is what refused it, else the object
+	 * whose own limit is used up. Pressing Enter again on the same refusal would leave
+	 * the live text unchanged, which assistive technology does not announce, so a
+	 * repeat toggles a trailing zero-width space (silent to screen readers).
+	 */
+	function announcePlacementRefused(stage: PositionObjectStage) {
+		const maxChoices = parsedInteraction?.maxChoices ?? 0;
+		const message =
+			maxChoices > 0 && positions.length >= maxChoices
+				? translatePlural(
+						i18n,
+						'interactions.positionObject.maxChoicesReached',
+						{ one: 'The maximum of {max} placement is reached.', other: 'The maximum of {max} placements is reached.' },
+						maxChoices,
+						{ max: maxChoices },
+					)
+				: translate(i18n, 'interactions.positionObject.objectLimitReached', 'Not possible: {object} cannot be placed again.', {
+						object: stageName(stage),
+					});
+		liveMessage = liveMessage === message ? `${message}\u200b` : message;
+	}
+
 	function handleDragStart(event: DragEvent, stageId: string, existingIndex?: number) {
 		if (!canInteract) return;
 		draggedStageId = stageId;
@@ -315,8 +339,9 @@
 				const movingIndex = draggedPositionIndex;
 				positions = positions.map((pos, idx) => (idx === movingIndex ? { ...pos, ...point } : pos));
 				emitPositions();
-			} else {
-				placeStageAt(draggedStageId, point.x, point.y);
+			} else if (!placeStageAt(draggedStageId, point.x, point.y)) {
+				const stage = getStageById(draggedStageId);
+				if (stage) announcePlacementRefused(stage);
 			}
 		}
 
@@ -454,7 +479,13 @@
 
 	function finishPlacement(stageId: string, x: number, y: number) {
 		const stage = getStageById(stageId);
-		if (!stage || !placeStageAt(stageId, x, y)) return;
+		if (!stage) return;
+		if (!placeStageAt(stageId, x, y)) {
+			// Refused at a cap: say so. The object stays selected and the crosshair active,
+			// so the candidate can still cancel with Escape or move on; nothing is placed.
+			announcePlacementRefused(stage);
+			return;
+		}
 		liveMessage = translate(i18n, 'interactions.positionObject.objectPlacedAt', '{object} placed at {x}%, {y}%.', {
 			object: stageName(stage),
 			x: percent(x, imageWidth),
@@ -741,13 +772,18 @@
 					<p id={imageDescriptionId} class="qti-po-sr-only">{imageDescription}</p>
 				{/if}
 
-				{#if parsedInteraction.minChoices > 0}
+				{#if parsedInteraction.minChoices > 0 || parsedInteraction.maxChoices > 0}
+					<!-- The limits are stated up front (WCAG 3.3.2): the maximum is named even when
+					     the item declares no minimum, so the cap is known before the first refusal. -->
 					<div class="text-xs text-base-content/60 mt-2">
-						{translate(i18n, 'interactions.positionObject.minimumRequired', 'Minimum required: {minChoices}', {
-							minChoices: parsedInteraction.minChoices,
-						})}
+						{#if parsedInteraction.minChoices > 0}
+							{translate(i18n, 'interactions.positionObject.minimumRequired', 'Minimum required: {minChoices}', {
+								minChoices: parsedInteraction.minChoices,
+							})}
+						{/if}
 						{#if parsedInteraction.maxChoices > 0}
-							| {translate(i18n, 'interactions.positionObject.maximumAllowed', 'Maximum: {maxChoices}', {
+							{#if parsedInteraction.minChoices > 0}|{/if}
+							{translate(i18n, 'interactions.positionObject.maximumAllowed', 'Maximum: {maxChoices}', {
 								maxChoices: parsedInteraction.maxChoices,
 							})}
 						{/if}

@@ -281,6 +281,40 @@ describe('AssociateInteraction (pie-qti-associate)', () => {
 			cleanupInteraction(mounted);
 		});
 
+		test('activating a matchGroup-incompatible choice announces why it did nothing (round 8)', async () => {
+			// aria-disabled states availability, but an activation that silently does
+			// nothing gives the screen reader no reason (WCAG 4.1.3): the refusal is
+			// announced through the polite region, like every sibling pairing surface.
+			const mounted = mountInteraction(AssociateInteraction, {
+				interaction: associateData({
+					choices: [
+						{ identifier: 'A_cap', text: '<p>Paris</p>', matchMax: 1, matchGroup: ['A_country'] },
+						{ identifier: 'A_country', text: '<p>France</p>', matchMax: 1, matchGroup: ['A_cap'] },
+						{ identifier: 'B_cap', text: '<p>Rome</p>', matchMax: 1, matchGroup: ['B_country'] },
+						{ identifier: 'B_country', text: '<p>Italy</p>', matchMax: 1, matchGroup: ['B_cap'] },
+					],
+				}),
+			});
+			await settle();
+
+			const [paris, france, rome] = choiceButtons(mounted);
+			paris!.click();
+			await settle();
+			const live = q(mounted, '.qti-associate-live-region');
+
+			rome!.click();
+			await settle();
+			expect(mounted.events).toHaveLength(0);
+			expect(live?.textContent?.trim()).toBe('Not available due to a match group restriction.');
+			// The pending selection survives the refusal: the compatible partner still pairs.
+			expect(paris!.getAttribute('aria-pressed')).toBe('true');
+
+			france!.click();
+			await settle();
+			expect(mounted.instance.response).toEqual(['A_cap A_country']);
+			cleanupInteraction(mounted);
+		});
+
 		test('tokens shared as group labels still pair (AC-E4)', async () => {
 			const mounted = mountInteraction(AssociateInteraction, {
 				interaction: associateData({

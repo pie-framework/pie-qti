@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: graphicAssociateInteraction
-  Last reviewed: 2026-11-07
+  Last reviewed: 2026-11-09
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-11-07
+**Last reviewed:** 2026-11-09
 
 ---
 
@@ -45,9 +45,9 @@ The SVG overlay has `pointer-events: none` so hotspot click events pass through 
 
 **Why association order in the stored string is first-clicked, second-clicked**: When the candidate clicks hotspot A then hotspot B, the pair is stored as `"A B"` (not sorted). Pair comparison at scoring time must check both orderings — and the component's `isCorrectPair()` and `removePair()` logic do so. This means the response array is not normalized, which is intentional: normalization would make the response harder to reconstruct for display (the correct indicator shown after submission uses the pair string as-is from the `correctResponse`).
 
-**Why `maxAssociations` is enforced optimistically**: The `canAddMore` guard (`pairs.length < interaction.maxAssociations`) is checked when the second hotspot is clicked, not when the first is selected. This means the candidate can select a first hotspot even when at the maximum — they will see the selection indicator but the pair will not be formed when they click the second hotspot. This is intentional: showing feedback ("you have reached the limit") only after a second click avoids confusingly disabling hotspot interaction entirely when at the limit, since the candidate might want to deselect the current first hotspot.
+**Why `maxAssociations` is enforced optimistically**: The `canAddMore` guard (`maxAssociations <= 0`, i.e. unlimited, or `pairs.length < maxAssociations`) is checked when the second hotspot is clicked, not when the first is selected. This means the candidate can select a first hotspot even when at the maximum — they will see the selection indicator but the pair will not be formed when they click the second hotspot. This is intentional: showing feedback ("you have reached the limit") only after a second click avoids confusingly disabling hotspot interaction entirely when at the limit, since the candidate might want to deselect the current first hotspot.
 
-**Why `matchMax=0` is not treated as unlimited**: Unlike `maxChoices=0` in `choiceInteraction` (which the spec defines as "unlimited"), the spec does not give `matchMax=0` a special meaning. The extractor defaults `matchMax` to `1` when absent. A hotspot with `matchMax=0` would never be activatable, which would be an authoring error. The validator warns when `matchMax < 0` but does not specially handle `0`.
+**Why `0` means unlimited (maxAssociations and matchMax)**: QTI reads an explicit `0` on `maxAssociations` and `matchMax` as "no restriction" — the same zero-means-unlimited convention as `maxChoices=0` in `choiceInteraction`. The delivery engine applies that reading wherever it checks these maxima, and the sibling pairing surfaces (AssociateInteraction, MatchDragDrop, graphic-gap-match) do too, so the component mirrors it: `maxAssociations="0"` lets associations form freely and a hotspot with `matchMax="0"` can be used in any number of associations. The extractor defaults `maxAssociations` to `1` when the attribute is absent (the spec default), and `matchMax` to `1` — so unlimited pairing requires the explicit `0`. A guard written as a bare `pairs.length < maxAssociations` or `usageCount >= matchMax` without the `> 0` check turns "unlimited" into "none", refusing every pairing with a nonsensical "the limit of 0 is reached" announcement.
 
 **K-12 use cases**: This interaction type is appropriate for grades 6–12. Common uses include:
 - Biology: connecting organs to functions, cell structures to roles
@@ -70,7 +70,7 @@ At lower grade bands (K–5), the interaction complexity (two-step click model, 
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `responseIdentifier` | ✅ Full | Extracted as `responseId`; used in `qti-change` event payload |
-| `maxAssociations` | ✅ Full | Defaults to `1` if absent. Enforced at second-click time. `0` is not treated as unlimited. |
+| `maxAssociations` | ✅ Full | Defaults to `1` if absent; `0` means unlimited, as response validation reads it. Enforced at second-click time and announced when a pairing is refused. |
 | `minAssociations` | ✅ Extracted, not enforced | Extracted and displayed as "Minimum required: N" in the panel. Not validated at submission time. See Known gaps (G-06). |
 
 ### Supported attributes on `associableHotspot`
@@ -80,7 +80,7 @@ At lower grade bands (K–5), the interaction complexity (two-step click model, 
 | `identifier` | ✅ Full | Required. Used as the pair component in response values and in ARIA labels. |
 | `shape` | ✅ Partial | `rect` and `circle` rendered. `poly` and `ellipse` are defined in the QTI spec but are not handled — hotspots with those shapes are silently skipped at render time (the extractor extracts them, but the component template has no branch for them). See Known gaps. |
 | `coords` | ✅ Full (for supported shapes) | `rect`: `x1,y1,x2,y2`. `circle`: `cx,cy,r`. The hotspot button dimensions and the SVG line endpoint are both computed from `coords`. |
-| `matchMax` | ✅ Full | Per-hotspot maximum connections. Enforced at selection time: clicking a maxed hotspot as the first selection is silently rejected; the button is `disabled` when maxed. |
+| `matchMax` | ✅ Full | Per-hotspot maximum connections; `0` means unlimited. Enforced at activation: a hotspot at its `matchMax` is `aria-disabled` (still focusable — never the `disabled` property, which would drop focus off the activated control) and activating it is refused with a polite announcement naming the hotspot. |
 | `matchMin` | ✅ Full (G-06) | Extracted when `> 0`; `Player.validateResponses()` reports the response incomplete while a hotspot is used fewer times |
 | `matchGroup` | ✅ Full (G-01) | Extracted into `associableHotspots[].matchGroup`: the hotspots this one may be associated with. Enforced in the UI by the rule response validation applies (see Resolved gaps) |
 | `class` (CSS classes) | ✅ Partial | Extracted as `classes?: string[]`; not currently used for rendering. |
@@ -128,8 +128,8 @@ The `width` and `height` attributes of `<object>` set the pixel dimensions of th
 - **FR-3:** Clicking an un-maxed hotspot when no hotspot is selected marks that hotspot as "pending" and displays an info banner identifying the selected hotspot and prompting the candidate to click a second hotspot.
 - **FR-4:** Clicking a second, different, un-maxed hotspot while one hotspot is pending creates a pair, adds it to the response array, draws a line between the two hotspot centers on the SVG overlay, and clears the pending selection.
 - **FR-5:** Clicking the already-selected (pending) hotspot again deselects it and clears the pending state without creating a pair.
-- **FR-6:** Clicking any hotspot when `pairs.length >= maxAssociations` does not create a new pair. The `canAddMore` guard is evaluated at second-click time.
-- **FR-7:** Each `associableHotspot` whose usage count equals its `matchMax` is rendered `disabled`. Clicking a disabled hotspot as the first selection has no effect.
+- **FR-6:** Clicking a second hotspot while `maxAssociations > 0` and `pairs.length >= maxAssociations` does not create a new pair; the refusal is announced ("Association not possible: the limit of {max} is reached."). `maxAssociations = 0` imposes no limit. The `canAddMore` guard is evaluated at second-click time.
+- **FR-7:** Each `associableHotspot` whose `matchMax > 0` and whose usage count equals its `matchMax` is `aria-disabled` (still focusable). Activating it is refused with a polite announcement naming the hotspot ("Not possible: {label} cannot be in more associations."); a hotspot with `matchMax = 0` is unlimited and never maxes.
 - **FR-8:** Each formed association appears in the associations panel (right column on desktop, below on mobile) as a labeled row showing `hotspot1.label ↔ hotspot2.label`, a numeric index badge, and a remove button (when not disabled).
 - **FR-9:** Clicking the remove button on an association removes it from `pairs`, removes the corresponding SVG line, decrements affected hotspot usage counts (potentially un-maxing them), and emits a `qti-change` event.
 - **FR-10:** When `role === 'scorer'` and `correctResponse` is provided, each association in the panel is styled with a success badge if it matches a correct pair (order-insensitive). Each correct pair not present in the candidate's response is drawn as a dashed green line on the SVG overlay.
@@ -155,7 +155,7 @@ This interaction has significant accessibility challenges because its primary UX
 
 **ARIA:**
 - Each hotspot button's `aria-label` must include: the hotspot label, the current usage count, the `matchMax`, and whether the hotspot is part of a correct pair in scorer role. The current implementation renders: `"{label} ({usageCount}/{matchMax} connections){, Correct answer}"`.
-- Disabled hotspot buttons (`disabled` attribute) are correctly announced as unavailable by screen readers.
+- Maxed or matchGroup-blocked hotspot buttons carry `aria-disabled="true"` and stay focusable — the `disabled` property is never used, so the control cannot vanish from under the candidate's focus — and a refusal on activation is announced through the polite live region below the description.
 - The SVG overlay carries `pointer-events: none` and no ARIA roles — it is purely decorative. Connections are represented in text in the associations panel, which is the accessible form of the response.
 - The info banner ("Selected: X. Click another hotspot to create an association.") appears as a live region when a hotspot is selected. This banner should carry `aria-live="polite"` or equivalent so screen readers announce it on selection.
 
@@ -321,8 +321,19 @@ Notes: The guard is at second-click time; selecting E as first hotspot succeeds
 ```
 Given: Hotspot A has matchMax=1 and is already part of pair "A B"
 When: The candidate attempts to click hotspot A as the first selection
-Then: Hotspot A's button is disabled; the click has no effect;
+Then: Hotspot A's button is aria-disabled (not disabled, so focus never falls off);
+      the click is refused with a polite announcement naming A;
       no info banner appears; selectedHotspot remains null
+```
+
+**AC-4a: 0 means unlimited (round 8)**
+```
+Given: maxAssociations="0", or a hotspot with matchMax="0"
+When: The candidate forms associations freely
+Then: Pairs keep forming past any literal "0" reading; no "the limit of 0 is reached"
+      refusal; a matchMax=0 hotspot is never aria-disabled and its accessible name
+      states the usage as unlimited instead of "(n/0 connections)"; the panel counter
+      shows the count without a "/0" maximum
 ```
 
 **AC-5: Remove pair**
@@ -533,8 +544,8 @@ Then: The counter shows "Associations (1/1)";
 ```
 Given: All hotspots have matchMax=1 and are already in pairs
 When: The candidate attempts to click any hotspot
-Then: All hotspot buttons are disabled;
-      no info banner appears;
+Then: All hotspot buttons are aria-disabled (still focusable);
+      the refusal announces the maxed hotspot by name;
       the response is unchanged
 ```
 
@@ -561,7 +572,7 @@ Then: No prompt element is rendered (no empty paragraph or whitespace);
 ## Open questions
 
 - [ ] Should duplicate pair creation be blocked in the UI? The current code allows it when `matchMax > 1` on both hotspots. The QTI spec is silent on this for `graphicAssociateInteraction`. A consistent policy should account for `matchGroup`, which already filters the partners of a selected hotspot.
-- [ ] Should `maxAssociations=0` be treated as unlimited (like `maxChoices=0` in `choiceInteraction`) or as an authoring error (current behavior)? The QTI spec section for `graphicAssociateInteraction` does not explicitly state the semantics of `maxAssociations=0`.
+- [x] ~~Should `maxAssociations=0` be treated as unlimited (like `maxChoices=0` in `choiceInteraction`) or as an authoring error?~~ Resolved (round 8): both `maxAssociations=0` and `matchMax=0` are unlimited, matching the delivery engine and the sibling pairing surfaces (see Background).
 - [ ] The `poly` and `ellipse` hotspot shapes are silently unsupported. Should this be tracked as a formal spec gap item in `SPEC-GAPS-PLAN.md`? The `coords` format for `poly` (`x1,y1,x2,y2,...`) would need a new geometric center calculation and a new rendering strategy (SVG `<polygon>` element positioned absolutely, or a clip path).
 
 ---

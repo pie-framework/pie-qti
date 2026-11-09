@@ -292,7 +292,8 @@ export default {
 			navigateToTarget: 'Navighează la o țintă și apasă Spațiu sau Enter pentru a potrivi',
 			selectionCancelled: 'Selecție anulată',
 			matchCleared: 'Potrivire ștearsă pentru {item}',
-			maxReached: 'S-a atins numărul maxim de asocieri. Elimină o pereche pentru a adăuga una nouă.',
+			associationLimitReached: 'Asociere imposibilă: s-a atins limita de {max}.',
+			sourceLimitReached: 'Imposibil: {label} nu poate face parte din mai multe asocieri.',
 			pairCreated: '{source} potrivit cu {target}.',
 			minAssociationsHint: {
 				one: 'Creează cel puțin o potrivire.',
@@ -431,6 +432,7 @@ export default {
 			},
 			choiceLimitReached: 'Imposibil: {label} nu poate face parte din mai multe asocieri.',
 			associationLimitReached: 'Asociere imposibilă: s-a atins limita de {max}.',
+			notAvailableSentence: 'Indisponibil din cauza unei restricții de grup de potrivire.',
 		},
 
 		positionObject: {
@@ -443,6 +445,12 @@ export default {
 			positioned: '{label} poziționat la ({x}, {y})',
 			minimumRequired: 'Minim necesar: {minChoices}',
 			maximumAllowed: 'Maxim: {maxChoices}',
+			maxChoicesReached: {
+				one: 'Plasarea nu este posibilă: s-a atins limita de {max}.',
+				few: 'Plasarea nu este posibilă: s-a atins limita de {max}.',
+				other: 'Plasarea nu este posibilă: s-a atins limita de {max}.',
+			},
+			objectLimitReached: 'Imposibil: {object} nu poate fi plasat din nou.',
 			availableObjects: 'Obiecte disponibile',
 			objectUsage: '{label} ({usageCount}/{matchMax} folosit)',
 			availableObjectsCount: 'Obiecte disponibile ({count}/{max})',
@@ -540,9 +548,11 @@ export default {
 			imageLoadError: 'Imaginea nu a putut fi încărcată.',
 			unlabeledHotspot: 'Regiunea {index}',
 			hotspotConnections: '{label} ({usageCount}/{matchMax} conexiuni)',
+			hotspotConnectionsUnlimited: '{label} ({usageCount} conexiuni, nelimitate)',
 			notAvailableSentence: 'Indisponibil din cauza unei restricții de grup de potrivire.',
 			selectAnotherHotspot: 'Selectat: {label}. Selectează alt hotspot pentru a crea o asociere.',
 			associationsCount: 'Asocieri ({count}/{max})',
+			associationsCountUnlimited: 'Asocieri ({count})',
 			clickHotspotsToAssociate: 'Selectează două hotspot-uri pe imagine pentru a crea o asociere.',
 			pairDescription: '{first} asociat cu {second}',
 			removeAssociation: 'Elimină asocierea dintre {first} și {second}',

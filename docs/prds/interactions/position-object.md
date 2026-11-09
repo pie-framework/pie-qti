@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: positionObjectInteraction
-  Last reviewed: 2026-11-07
+  Last reviewed: 2026-11-09
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-11-07
+**Last reviewed:** 2026-11-09
 
 ---
 
@@ -73,7 +73,7 @@ The only example in the IMS QTI 2.2 specification places multiple copies of an i
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `responseIdentifier` | ✅ Full | Extracted as `responseId`; used as the key in `qti-change` event payload |
-| `maxChoices` | ✅ Full | Maximum total placements across all stages. `0` = unlimited. Enforced by the component: the palette item becomes non-draggable when the limit is reached |
+| `maxChoices` | ✅ Full | Maximum total placements across all stages. `0` = unlimited. Enforced by the component: the palette item becomes non-draggable when the limit is reached, and a placement refused at the limit is announced (see FR-10) |
 | `minChoices` | ✅ Full | Minimum placements for a complete response. `Player.validateResponses()` reports the response incomplete while fewer than `minChoices` coordinates are placed; the component shows the requirement as a text hint and leaves submit gating to the host |
 | `centerPoint` | ✅ Full | The point on the object image treated as the object's position: an offset from the object image's top-left corner, in its own pixels, horizontal then vertical (IntegerList of two). That point is held under the pointer, placed on the recorded point, and recorded as the response. When absent, the spec default applies: the centre of the object image's bounding rectangle. Read in every spelling: `centerPoint` (QTI 2.2), `centrePoint` (QTI 2.1 schema), `center-point` (QTI 3.0) and `centre-point` (a QTI 2.1 item converted to QTI 3.0). A malformed value is treated as absent |
 
@@ -149,12 +149,12 @@ Resolved since the previous review, and no longer gaps:
 - **FR-7:** A placed object SHALL be re-draggable to a new position within the canvas. Moving an existing placement SHALL update its coordinate in the response array at the same index.
 - **FR-8:** A placed object SHALL have a remove button that removes it from the canvas and restores it as available in the palette.
 - **FR-9:** The palette item for a stage SHALL become non-draggable (visually dimmed, `draggable=false`) when that stage's `matchMax` placements have been used.
-- **FR-10:** The palette item for any stage SHALL become non-draggable when the interaction-level `maxChoices` total has been reached (and `maxChoices > 0`).
+- **FR-10:** The palette item for any stage SHALL become non-draggable when the interaction-level `maxChoices` total has been reached (and `maxChoices > 0`). A placement attempt refused at a cap — keyboard Enter, canvas click/tap or drag drop — SHALL be announced through the polite live region naming the maximum ("The maximum of {max} placements is reached."), never silently ignored; the crosshair placement mode stays active so Escape still works.
 - **FR-11:** When `role="scorer"` and `correctResponse` is non-empty, the component SHALL display correct-position ghost overlays (dashed green outline) at the correct coordinates for each stage.
 - **FR-12:** When `role="scorer"`, user-placed objects that fall within 5 pixels of a correct position SHALL display a visual match indicator (green border, checkmark badge).
 - **FR-13:** When `disabled=true`, all drag interactions SHALL be inert. The remove button SHALL not appear. Placed objects SHALL be visible but not interactive.
 - **FR-14:** When the `response` prop is set externally (e.g. on item load), the component SHALL initialise positions from the response array. For single-stage items this SHALL be exact. For multi-stage items, array-order reconstruction SHALL be used and is acknowledged as best-effort.
-- **FR-15:** The component SHALL display a `minChoices`/`maxChoices` counter indicating how many objects have been placed and how many are allowed or required.
+- **FR-15:** The component SHALL display a `minChoices`/`maxChoices` counter indicating how many objects have been placed and how many are allowed or required. The maximum is stated whenever `maxChoices > 0`, including items that declare no minimum (WCAG 3.3.2: the cap is known before the first refusal).
 
 ---
 
@@ -168,7 +168,7 @@ Free drag-and-drop has no native keyboard equivalent. WCAG 2.2 Success Criterion
 - **Keyboard placement:** Enter or Space on a palette item selects the object and moves focus to the canvas, which becomes a focusable `role="application"` (so screen readers pass the arrow keys through) with an instruction label. The arrow keys move a visible crosshair (5% steps, 1% with Shift), each move announced as a position; Enter or Space places the object at the crosshair, Escape cancels. The crosshair starts on the object's last placement, else the centre.
 - **Single-pointer placement:** after selecting an object, a click or tap on the canvas places it there; no dragging is needed.
 - Placed objects are `role="group"` elements named with the object and its position in percent of the stage ("Airport at 25%, 40%."), holding their remove button ("Remove Airport"), so no button nests inside a button.
-- Placements, removals and cancellations are announced through a polite live region.
+- Placements, removals, cancellations and refused placements are announced through a polite live region. A placement refused at the interaction's `maxChoices` names the maximum ("The maximum of {max} placements is reached."); pressing Enter again re-announces it, and the placement mode stays active, so Escape still cancels and the response is unchanged.
 
 **Other accessibility requirements:**
 
@@ -319,7 +319,8 @@ Then: The response is an array of three "x y" strings
 Given: An item with two positionObjectStages each with matchMax=2, and maxChoices=2
 When: The candidate places one object from each stage (total 2 placements)
 Then: Both palette items become non-draggable regardless of per-stage matchMax
-      A third drag attempt produces no new placement
+      A third drag attempt produces no new placement and announces
+      "The maximum of 2 placements is reached."
 ```
 
 **AC-4: Per-stage matchMax enforced independently**
@@ -514,6 +515,24 @@ Given: role="scorer" with both correct and incorrect placements visible
 When: Inspecting the visual indicators
 Then: Correct positions have both a green border AND a checkmark badge (non-color indicator)
       Ghost overlays for unplaced correct positions use dashed border AND are distinct from placed objects
+```
+
+**AC-A7: A placement refused at maxChoices is announced (round 8)**
+```
+Given: maxChoices=1, the stage's matchMax allows more picks, and a restored response
+       already holds one placement
+When: The candidate picks the object in the palette and presses Enter on the canvas
+      (or taps/clicks the canvas, or drops a drag)
+Then: No second placement is recorded; the live region announces
+      "The maximum of 1 placement is reached."; the crosshair stays active and
+      Escape still cancels with the usual announcement
+```
+
+**AC-A8: The maximum is stated for a maxChoices-only item**
+```
+Given: minChoices=0 and maxChoices=2
+When: The component renders
+Then: The hint line shows "Maximum: 2" without any "Minimum required" text
 ```
 
 ### Edge cases

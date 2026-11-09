@@ -299,7 +299,8 @@ export default {
 			navigateToTarget: 'Navigate to a target and press Space or Enter to match',
 			selectionCancelled: 'Selection cancelled',
 			matchCleared: 'Match cleared for {item}',
-			maxReached: 'Maximum associations reached. Remove a pair to add a new one.',
+			associationLimitReached: 'Association not possible: the limit of {max} is reached.',
+			sourceLimitReached: 'Not possible: {label} cannot be in more associations.',
 			pairCreated: '{source} matched with {target}.',
 			minAssociationsHint: {
 				one: 'Make at least {count} match.',
@@ -435,6 +436,7 @@ export default {
 			},
 			choiceLimitReached: 'Not possible: {label} cannot be in more associations.',
 			associationLimitReached: 'Association not possible: the limit of {max} is reached.',
+			notAvailableSentence: 'Not available due to a match group restriction.',
 		},
 
 		positionObject: {
@@ -447,6 +449,11 @@ export default {
 			positioned: 'Positioned {label} at ({x}, {y})',
 			minimumRequired: 'Minimum required: {minChoices}',
 			maximumAllowed: 'Maximum: {maxChoices}',
+			maxChoicesReached: {
+				one: 'The maximum of {max} placement is reached.',
+				other: 'The maximum of {max} placements is reached.',
+			},
+			objectLimitReached: 'Not possible: {object} cannot be placed again.',
 			availableObjects: 'Available Objects',
 			objectUsage: '{label} ({usageCount}/{matchMax} used)',
 			availableObjectsCount: 'Available Objects ({count}/{max})',
@@ -540,9 +547,11 @@ export default {
 			imageLoadError: 'The image could not be loaded.',
 			unlabeledHotspot: 'Region {index}',
 			hotspotConnections: '{label} ({usageCount}/{matchMax} connections)',
+			hotspotConnectionsUnlimited: '{label} ({usageCount} connections, unlimited)',
 			notAvailableSentence: 'Not available due to a match group restriction.',
 			selectAnotherHotspot: 'Selected: {label}. Select another hotspot to create an association.',
 			associationsCount: 'Associations ({count}/{max})',
+			associationsCountUnlimited: 'Associations ({count})',
 			clickHotspotsToAssociate: 'Select two hotspots on the image to create an association.',
 			pairDescription: '{first} associated with {second}',
 			removeAssociation: 'Remove association between {first} and {second}',

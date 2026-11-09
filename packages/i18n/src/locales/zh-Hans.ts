@@ -299,7 +299,8 @@ export default {
 			navigateToTarget: '导航到目标并按空格键或回车键进行匹配',
 			selectionCancelled: '已取消选择',
 			matchCleared: '已清除 {item} 的匹配',
-			maxReached: '已达到最大关联数。请移除一对后再添加新的一对。',
+			associationLimitReached: '无法创建关联：已达到 {max} 个的上限。',
+			sourceLimitReached: '无法操作：{label} 不能参与更多关联。',
 			pairCreated: '{source} 已与 {target} 匹配。',
 			minAssociationsHint: {
 				one: '请至少完成 {count} 组匹配。',
@@ -435,6 +436,7 @@ export default {
 			},
 			choiceLimitReached: '无法操作：{label} 不能参与更多关联。',
 			associationLimitReached: '无法创建关联：已达到 {max} 个的上限。',
+			notAvailableSentence: '因匹配组限制而不可用。',
 		},
 
 		positionObject: {
@@ -447,6 +449,11 @@ export default {
 			positioned: '已将 {label} 放置在 ({x}, {y})',
 			minimumRequired: '最少需要:{minChoices}',
 			maximumAllowed: '最多:{maxChoices}',
+			maxChoicesReached: {
+				one: '无法继续放置：已达到 {max} 个的上限。',
+				other: '无法继续放置：已达到 {max} 个的上限。',
+			},
+			objectLimitReached: '无法操作：{object} 不能再次放置。',
 			availableObjects: '可用的物体',
 			objectUsage: '{label}(已使用 {usageCount}/{matchMax})',
 			availableObjectsCount: '可用的物体({count}/{max})',
@@ -540,9 +547,11 @@ export default {
 			imageLoadError: '无法加载图像。',
 			unlabeledHotspot: '区域 {index}',
 			hotspotConnections: '{label}（{usageCount}/{matchMax} 个连接）',
+			hotspotConnectionsUnlimited: '{label}（{usageCount} 个连接，无限制）',
 			notAvailableSentence: '因匹配组限制而不可用。',
 			selectAnotherHotspot: '已选择：{label}。请选择另一个热点以创建关联。',
 			associationsCount: '关联（{count}/{max}）',
+			associationsCountUnlimited: '关联（{count}）',
 			clickHotspotsToAssociate: '选择图像上的两个热点以创建关联。',
 			pairDescription: '{first} 与 {second} 关联',
 			removeAssociation: '移除 {first} 与 {second} 之间的关联',

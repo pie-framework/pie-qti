@@ -1,7 +1,7 @@
 import type { PositionObjectInteractionData } from '@pie-qti/item-player';
 import { afterEach, beforeAll, describe, expect, test, vi } from 'vitest';
 import PositionObjectInteraction from '../../src/plugins/position-object/PositionObjectInteraction.svelte';
-import { mountInteraction, pressKey, q, qa, settle } from './helpers';
+import { cleanupInteraction, mountInteraction, pressKey, q, qa, settle } from './helpers';
 
 beforeAll(() => {
 	// jsdom implements neither DragEvent nor hit-testing; the shared touchDrag helper
@@ -271,5 +271,135 @@ describe('PositionObjectInteraction (pie-qti-position-object)', () => {
 		const error = q(mounted, '[part="image-error"]');
 		expect(error?.textContent).toContain('The image could not be loaded.');
 		expect(error?.textContent).toContain('Map of the region');
+	});
+
+	test('a keyboard placement refused at maxChoices announces the cap and keeps the placement mode (round 8)', async () => {
+		// The palette object can still be picked up (matchMax 2), but a restored response
+		// has used up maxChoices=1: Enter used to do nothing, silently.
+		const mounted = mountInteraction(PositionObjectInteraction, {
+			interaction: positionData({
+				maxChoices: 1,
+				positionObjectStages: [
+					{
+						identifier: 'AIRPORT_SITE_RESPONSE',
+						label: 'Plane',
+						matchMax: 2,
+						objectData: { type: 'image', src: 'plane.png', width: '40', height: '40' },
+					},
+				],
+			}),
+			response: ['150 100'],
+		});
+		await settle();
+
+		pressKey(paletteItem(mounted), 'Enter');
+		await settle();
+		const area = canvas(mounted);
+		expect(area.getAttribute('role')).toBe('application');
+
+		pressKey(area, 'Enter');
+		await settle();
+
+		expect(mounted.instance.response).toEqual(['150 100']);
+		const live = q(mounted, '[aria-live="polite"]')!;
+		expect(live.textContent).toBe('The maximum of 1 placement is reached.');
+
+		// Pressing Enter again re-announces: the same text would be no change, so a
+		// toggled zero-width space (not read by screen readers) makes it one.
+		const firstText = live.textContent;
+		pressKey(canvas(mounted), 'Enter');
+		await settle();
+		expect(live.textContent).not.toBe(firstText);
+		expect(live.textContent?.replace(/\u200b/g, '')).toBe('The maximum of 1 placement is reached.');
+		expect(mounted.instance.response).toEqual(['150 100']);
+
+		// The crosshair stays active, so the candidate can still leave with Escape.
+		expect(canvas(mounted).getAttribute('role')).toBe('application');
+		pressKey(canvas(mounted), 'Escape');
+		await settle();
+		expect(q(mounted, '[aria-live="polite"]')?.textContent).toBe('Placement cancelled.');
+		expect(canvas(mounted).getAttribute('role')).toBeNull();
+		cleanupInteraction(mounted);
+	});
+
+	test('a click-to-place refused at maxChoices announces the cap too (round 8)', async () => {
+		const mounted = mountInteraction(PositionObjectInteraction, {
+			interaction: positionData({
+				maxChoices: 1,
+				positionObjectStages: [
+					{
+						identifier: 'AIRPORT_SITE_RESPONSE',
+						label: 'Plane',
+						matchMax: 2,
+						objectData: { type: 'image', src: 'plane.png', width: '40', height: '40' },
+					},
+				],
+			}),
+			response: ['150 100'],
+		});
+		await settle();
+
+		paletteItem(mounted).click();
+		await settle();
+		const area = canvas(mounted);
+		mockRect(area, 0, 0, 300, 200);
+		area.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 150, clientY: 50 }));
+		await settle();
+
+		expect(mounted.instance.response).toEqual(['150 100']);
+		expect(q(mounted, '[aria-live="polite"]')?.textContent).toBe('The maximum of 1 placement is reached.');
+		cleanupInteraction(mounted);
+	});
+
+	test('a drop refused at maxChoices announces the cap as well (round 8)', async () => {
+		const mounted = mountInteraction(PositionObjectInteraction, {
+			interaction: positionData({
+				maxChoices: 1,
+				positionObjectStages: [
+					{
+						identifier: 'AIRPORT_SITE_RESPONSE',
+						label: 'Plane',
+						matchMax: 2,
+						objectData: { type: 'image', src: 'plane.png', width: '40', height: '40' },
+					},
+				],
+			}),
+			response: ['150 100'],
+		});
+		await settle();
+
+		const area = canvas(mounted);
+		mockRect(area, 0, 0, 300, 200);
+		paletteItem(mounted).dispatchEvent(new Event('dragstart', { bubbles: true }));
+		area.dispatchEvent(new MouseEvent('drop', { bubbles: true, cancelable: true, clientX: 150, clientY: 100 }));
+		await settle();
+
+		expect(mounted.instance.response).toEqual(['150 100']);
+		expect(q(mounted, '[aria-live="polite"]')?.textContent).toBe('The maximum of 1 placement is reached.');
+		cleanupInteraction(mounted);
+	});
+
+	test('the maximum is stated up front even when the item declares no minimum (round 8)', async () => {
+		const maxOnly = mountInteraction(PositionObjectInteraction, {
+			interaction: positionData({ minChoices: 0, maxChoices: 2 }),
+		});
+		await settle();
+		expect(q(maxOnly, '.mt-2')?.textContent).toContain('Maximum: 2');
+		expect(q(maxOnly, '.mt-2')?.textContent).not.toContain('Minimum required');
+		cleanupInteraction(maxOnly);
+
+		const both = mountInteraction(PositionObjectInteraction, {
+			interaction: positionData({ minChoices: 1, maxChoices: 2 }),
+		});
+		await settle();
+		expect(q(both, '.mt-2')?.textContent).toContain('Minimum required: 1');
+		expect(q(both, '.mt-2')?.textContent).toContain('Maximum: 2');
+
+		const neither = mountInteraction(PositionObjectInteraction, {
+			interaction: positionData({ minChoices: 0, maxChoices: 0 }),
+		});
+		await settle();
+		expect(q(neither, '.mt-2')).toBeNull();
+		cleanupInteraction(both, neither);
 	});
 });
