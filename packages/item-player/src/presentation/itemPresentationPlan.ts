@@ -10,6 +10,7 @@ import { sanitizeHtml } from '../core/sanitizer.js';
 import { htmlToString, toTrustedHtml } from '../core/trustedTypes.js';
 import type { PnpProfile } from '../pnp/types.js';
 import { getRoleCapabilities, type RoleCapabilities } from '../core/rolePolicy.js';
+import { escapeHtmlAttribute } from '../security/escapeHtml.js';
 import type {
 	HtmlContent,
 	PlayerSecurityConfig,
@@ -375,14 +376,6 @@ function serializeHtmlChildren(element: ParsedHtmlElement): string {
 	return ([...element.childNodes] as unknown as ParsedHtmlElement[])
 		.map((child) => child.toString())
 		.join('');
-}
-
-function escapeHtmlAttribute(value: string): string {
-	return value
-		.replace(/&/g, '&amp;')
-		.replace(/"/g, '&quot;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;');
 }
 
 /**
