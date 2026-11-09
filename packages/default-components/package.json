@@ -32,7 +32,7 @@
     "@pie-qti/item-player": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
     "@pie-qti/qti-processing": "workspace:*",
-    "mathlive": "^0.111.1"
+    "mathlive": "^0.111.4"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.4",
