@@ -288,16 +288,6 @@ function buildStatements(
 				});
 				break;
 			}
-			case 'console': {
-				if (mode !== 'response') {
-					throw new Error(`Unknown processing statement tag: <${tag}> (mode=${mode})`);
-				}
-				if (childElements(el).length > 0) {
-					throw new Error('Unsupported processing statement tag: <console> with child elements');
-				}
-				// Diagnostic/vendor trace marker found in legacy fixtures; it has no QTI processing effect.
-				break;
-			}
 			default:
 				// Unknown statement tags in processing are almost always a correctness bug.
 				// Fail loudly so we surface missing QTI coverage via fixtures/tests.
