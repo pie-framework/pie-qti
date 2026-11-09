@@ -1018,8 +1018,10 @@ touched. The operators carry NULL through (§15.3):
   -3. `substring` is NULL for a NULL string, start or length.
 - An undefined result is NULL, not an error: `divide` by 0, `integerDivide` and `integerModulus` by
   0, and a `divide` or `power` result outside the float range. `max`, `min`, `gcd` and `lcm` are
-  NULL for an operand that is not a number. `integerDivide` rounds down: -7 divided by 2 is -4, and
-  `integerModulus` of the two is 1.
+  NULL for an operand that is not a number. `integerDivide` divides the operands as they are and
+  rounds the quotient down: -7 divided by 2 is -4, and `integerModulus` of the two is 1; the
+  operands themselves are not truncated, so `integerDivide(6.9, 1.9)` is 3 and only an actual zero
+  divisor is NULL (0.9 divides).
 - A NULL condition is not true: `responseIf`, `responseElseIf` and their outcome and template
   counterparts pass to the next branch, and a NULL `templateConstraint` restarts template
   processing.

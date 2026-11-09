@@ -1063,9 +1063,10 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 		case 'expr.mod':
 		case 'expr.integerDivide': {
 			// QTI ASI §15.3: a NULL operand gives NULL. power "shall result in NULL" outside the float
-			// value set; integerDivide is NULL for a zero divisor, and rounds x/y down to the greatest
-			// integer not above it (-7/2 is -4, which integerModulus's x - z*y agrees with). mod, the
-			// floating remainder, is NULL for a zero divisor as divide is.
+			// value set; integerDivide is NULL for a zero divisor, and dividing the operands as they
+			// are (no truncation of either), rounds x/y down to the greatest integer not above it
+			// (-7/2 is -4, which integerModulus's x - z*y agrees with). mod, the floating remainder,
+			// is NULL for a zero divisor as divide is.
 			const name = expr.kind.slice('expr.'.length);
 			const resultBaseType: BaseType = expr.kind === 'expr.integerDivide' ? 'integer' : 'float';
 			const aV = evalExpr(env, expr.a);
@@ -1081,7 +1082,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			if (expr.kind === 'expr.power') result = a ** b;
 			else if (b === 0) result = Number.NaN;
 			else if (expr.kind === 'expr.mod') result = a % b;
-			else result = Math.floor(Math.trunc(a) / Math.trunc(b));
+			else result = Math.floor(a / b);
 			if (!Number.isFinite(result)) return qtiNull(resultBaseType, 'single');
 			// No negative zero: -4 mod 2 and 0 integerDivide -5 are 0.
 			return qtiValue(resultBaseType, 'single', result === 0 ? 0 : result);
@@ -1504,12 +1505,15 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const bV = evalExpr(env, expr.b);
 			if (aV.kind === 'invalid' || bV.kind === 'invalid') return qtiNull();
 			if (isNullValue(aV) || isNullValue(bV)) return qtiNull('integer', 'single');
-			const a = Math.trunc(toNumber(aV));
-			const b = Math.trunc(toNumber(bV));
+			// The operands divide as they are — no truncation — so only an actual zero divisor is
+			// NULL, and the identity x = integerDivide(x,y)*y + integerModulus(x,y) holds for float
+			// operands too.
+			const a = toNumber(aV);
+			const b = toNumber(bV);
 			if (!Number.isFinite(a) || !Number.isFinite(b) || b === 0) return qtiNull();
 			// Mathematical modulus: a - b*floor(a/b)
 			const m = a - b * Math.floor(a / b);
-			return qtiValue('integer', 'single', m);
+			return qtiValue('integer', 'single', m === 0 ? 0 : m);
 		}
 		case 'expr.gcd':
 		case 'expr.lcm': {
