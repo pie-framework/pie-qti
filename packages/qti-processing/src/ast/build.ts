@@ -805,7 +805,9 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			const shape = (getAttr(el, 'shape') || '').trim() as any;
 			const coords = (getAttr(el, 'coords') || '').trim();
 			if (!shape) throw new Error('<inside> requires shape attribute');
-			if (!coords) throw new Error('<inside> requires coords attribute');
+			// Shape vocabulary (QTI 2.2 ASI §5.54.2): "default" is the entire area of the image,
+			// so it takes no coordinates; every other shape is defined by its coords.
+			if (!coords && shape !== 'default') throw new Error('<inside> requires coords attribute');
 			if (kids.length !== 1) throw new Error('<inside> requires exactly one child expression');
 			return { kind: 'expr.inside', id, shape, coords, value: buildExpression(kids[0]!, options) };
 		}

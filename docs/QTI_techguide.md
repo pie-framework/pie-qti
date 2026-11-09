@@ -996,6 +996,7 @@ For custom scoring logic, use `responseCondition` with expressions:
 | Arithmetic | `sum`, `product`, `divide`, `subtract` |
 | Container | `contains`, `member`, `containerSize`, `delete`, `multiple`, `ordered` |
 | String | `stringMatch`, `patternMatch`, `substring` |
+| Spatial | `inside` |
 | Null handling | `isNull`, `null` |
 
 ### NULL Operands
@@ -1048,6 +1049,13 @@ float.
 - `sum`, `product`, `max`, `min`, `gcd` and `lcm` take single, multiple or ordered operands, and a
   container takes part with each of its values: `max({1,5,3}, 7)` is 7 and `gcd({12,18})` is 6. An
   empty container is NULL, so it makes the result NULL.
+
+### Spatial Operators
+
+- `inside` is true when its point lies within the area its `shape` and `coords` describe, in the
+  coordinate formats of the hotspot shapes. `shape="default"` is the entire area of the image: it
+  takes no coordinates (`coords` may be empty or absent) and every point is inside it. A NULL point
+  gives NULL.
 
 ---
 
