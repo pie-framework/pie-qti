@@ -55,6 +55,80 @@ describe('AssociateInteraction (pie-qti-associate)', () => {
 		cleanupInteraction(mounted);
 	});
 
+	test('a textless choice is named by a localized ordinal, never its identifier', async () => {
+		const mounted = mountInteraction(AssociateInteraction, {
+			interaction: associateData({
+				choices: [
+					{ identifier: 'SECRET_KEY', text: '<img src="x.png">', matchMax: 1 },
+					{ identifier: 'A_country', text: '<p>France</p>', matchMax: 1 },
+				],
+			}),
+		});
+		await settle();
+
+		// The image has no alt and nothing else to read: the button still carries a
+		// non-empty name, and it is the presented position — not the identifier,
+		// which can leak the answer key to screen reader users (WCAG 4.1.2).
+		const textless = choiceButtons(mounted)[0]!;
+		const name = textless.getAttribute('aria-label') ?? '';
+		expect(name).toBe('Choice 1');
+		expect(name).not.toContain('SECRET_KEY');
+		expect(textless.hasAttribute('aria-labelledby')).toBe(false);
+
+		// An authored label still wins: the content-ful choice is named by its
+		// rendered content through aria-labelledby, with no aria-label on top.
+		const labelled = choiceButtons(mounted)[1]!;
+		const named = document.getElementById(labelled.getAttribute('aria-labelledby') ?? '');
+		expect(named?.textContent?.trim()).toBe('France');
+		expect(labelled.hasAttribute('aria-label')).toBe(false);
+		cleanupInteraction(mounted);
+	});
+
+	test('removing a pair with a textless choice announces its ordinal, not its identifier', async () => {
+		const mounted = mountInteraction(AssociateInteraction, {
+			interaction: associateData({
+				choices: [
+					{ identifier: 'SECRET_KEY', text: '<img src="x.png">', matchMax: 1 },
+					{ identifier: 'A_country', text: '<p>France</p>', matchMax: 1 },
+				],
+			}),
+			response: ['SECRET_KEY A_country'],
+		});
+		await settle();
+
+		// The remove control is named by the same names the choices carry.
+		const remove = q<HTMLButtonElement>(mounted, '[part="pair-remove"]')!;
+		expect(remove.getAttribute('aria-label')).toBe('Remove association between Choice 1 and France');
+
+		remove.click();
+		await settle();
+		expect(q(mounted, '.qti-associate-live-region')?.textContent?.trim()).toBe(
+			'Removed association between Choice 1 and France.',
+		);
+		expect(mounted.instance.response).toEqual([]);
+		cleanupInteraction(mounted);
+	});
+
+	test('a choice limit refusal announces the textless choice by ordinal, not identifier', async () => {
+		const mounted = mountInteraction(AssociateInteraction, {
+			interaction: associateData({
+				choices: [
+					{ identifier: 'SECRET_KEY', text: '<img src="x.png">', matchMax: 1 },
+					{ identifier: 'A_country', text: '<p>France</p>', matchMax: 1 },
+				],
+			}),
+			response: ['SECRET_KEY A_country'],
+		});
+		await settle();
+
+		const live = q(mounted, '.qti-associate-live-region');
+		choiceButtons(mounted)[0]!.click();
+		await settle();
+		expect(mounted.events).toHaveLength(0);
+		expect(live?.textContent?.trim()).toBe('Not possible: Choice 1 cannot be in more associations.');
+		cleanupInteraction(mounted);
+	});
+
 	test('selecting two choices creates the pair and emits qti-change', async () => {
 		const mounted = mountInteraction(AssociateInteraction, { interaction: associateData() });
 		await settle();
