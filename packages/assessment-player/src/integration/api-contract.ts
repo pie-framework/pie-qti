@@ -568,8 +568,6 @@ export interface FinalizeAssessmentResponse {
 	maxScore: number;
 	/** Per-item results */
 	itemScores: Record<string, AssessmentScoringResult>;
-	/** Assessment-level feedback (legacy: single string; prefer outcomes + assessment.testFeedback) */
-	feedback?: string;
 	/** Test-level outcome values after outcomeProcessing; testFeedback visibility reads them. */
 	outcomes?: TestOutcomeValues;
 	/** Set when test-level outcome processing failed; item results are still returned. */
