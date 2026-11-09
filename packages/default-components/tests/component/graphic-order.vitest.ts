@@ -400,3 +400,66 @@ describe('GraphicOrderInteraction subset ordering', () => {
 		cleanupInteraction(mounted);
 	});
 });
+
+/**
+ * Correct-answer mode is the scorer role with a correct response, and nothing else
+ * (createInteractionShell: role === 'scorer' && correctResponse !== undefined). Without one, a
+ * scorer sees the plain interaction, which emits normally; only `disabled` stops interaction.
+ */
+describe('GraphicOrderInteraction correct-answer mode: role × correct response', () => {
+	const CORRECT = ['TOPSOIL_CORRECT_FIRST', 'SEDIMENT', 'BEDROCK_CORRECT_LAST'];
+
+	for (const role of ['candidate', 'scorer'] as const) {
+		for (const correctResponse of [CORRECT, null]) {
+			const showsCorrect = role === 'scorer' && correctResponse !== null;
+			test(`${role} ${correctResponse ? 'with' : 'without'} a correct response: ${showsCorrect ? '' : 'no '}correct-answer mode, emits normally`, async () => {
+				// The candidate's order puts Sediment second, where the correct order has it.
+				const mounted = mountInteraction(GraphicOrderInteraction, {
+					interaction: orderData(),
+					role,
+					correctResponse,
+					response: ['BEDROCK_CORRECT_LAST', 'SEDIMENT', 'TOPSOIL_CORRECT_FIRST'],
+				});
+				await settle();
+
+				const correctRows = qa(mounted, 'button[part="item"][data-correct="true"]');
+				expect(correctRows).toHaveLength(showsCorrect ? 1 : 0);
+
+				// Interactivity is governed by `disabled` alone.
+				q<HTMLButtonElement>(mounted, 'button[aria-label="Move Top Soil earlier"]')!.click();
+				await settle();
+				expect(mounted.events).toHaveLength(1);
+				cleanupInteraction(mounted);
+			});
+		}
+	}
+
+	test('subset ordering: the "Correct order" list only for a scorer with a correct response', async () => {
+		const subset = orderData({ minChoices: 1, maxChoices: 2 });
+		for (const [role, correctResponse, shown] of [
+			['scorer', ['SEDIMENT'], true],
+			['scorer', null, false],
+			['candidate', ['SEDIMENT'], false],
+		] as const) {
+			const mounted = mountInteraction(GraphicOrderInteraction, { interaction: subset, role, correctResponse });
+			await settle();
+			expect(!!q(mounted, '[part="correct-order"]')).toBe(shown);
+			cleanupInteraction(mounted);
+		}
+	});
+
+	test('a disabled scorer view without a correct response does not reorder', async () => {
+		const mounted = mountInteraction(GraphicOrderInteraction, {
+			interaction: orderData(),
+			role: 'scorer',
+			correctResponse: null,
+			disabled: true,
+		});
+		await settle();
+
+		q<HTMLButtonElement>(mounted, 'button[aria-label="Move Top Soil earlier"]')?.click();
+		await settle();
+		expect(mounted.events).toHaveLength(0);
+		cleanupInteraction(mounted);
+	});
+});

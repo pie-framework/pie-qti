@@ -10,7 +10,7 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import SortableList from '../../shared/components/SortableList.svelte';
 	import OrderSubset from '../../shared/components/OrderSubset.svelte';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import HotspotShape from '../../shared/components/HotspotShape.svelte';
@@ -33,11 +33,20 @@
 
 	const uid = $props.id();
 
-	// Parse props that may be JSON strings (web component usage)
-	const parsedInteraction = $derived(parseJsonProp<GraphicOrderInteractionData>(interaction));
-	const parsedResponse = $derived(parseJsonProp<string[]>(response));
-	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
-	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+	// Props may be JSON strings (web component usage). Correct-answer mode is the scorer role
+	// with a correct response, as in every interaction.
+	const shell = $derived(
+		createInteractionShell<GraphicOrderInteractionData, string[], string[]>({
+			interaction,
+			response,
+			correctResponse,
+			role,
+		}),
+	);
+	const parsedInteraction = $derived(shell.interaction);
+	const parsedResponse = $derived(shell.response);
+	const parsedCorrectResponse = $derived(shell.correctResponse);
+	const isShowingCorrect = $derived(shell.isShowingCorrect);
 	const imageWidth = $derived(
 		normalizePixelDimension(parsedInteraction?.imageData?.width, '500') ?? '500',
 	);

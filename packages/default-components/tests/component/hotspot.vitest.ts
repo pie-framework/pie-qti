@@ -1021,6 +1021,47 @@ describe('HotspotInteraction default-shape region', () => {
 	});
 });
 
+/**
+ * Correct-answer mode is the scorer role with a correct response, and nothing else
+ * (createInteractionShell: role === 'scorer' && correctResponse !== undefined). Without one, a
+ * scorer sees the plain interaction, which emits normally; only `disabled` stops interaction.
+ */
+describe('HotspotInteraction correct-answer mode: role × correct response', () => {
+	for (const role of ['candidate', 'scorer'] as const) {
+		for (const correctResponse of ['H2', null] as const) {
+			const showsCorrect = role === 'scorer' && correctResponse !== null;
+			test(`${role} ${correctResponse ? 'with' : 'without'} a correct response: ${showsCorrect ? '' : 'no '}correct-answer mode, emits normally`, async () => {
+				const mounted = mountInteraction(HotspotInteraction, { interaction: hotspotData(), role, correctResponse });
+				await settle();
+
+				expect(qa(mounted, '.qti-hotspot-region[data-correct]')).toHaveLength(showsCorrect ? 1 : 0);
+				expect(regions(mounted)[1]!.getAttribute('aria-label')).toBe(showsCorrect ? 'A house. Correct answer.' : 'A house');
+				expect(!!q(mounted, '.qti-hotspot-correct-list')).toBe(showsCorrect);
+
+				// Interactivity is governed by `disabled` alone.
+				tap(regions(mounted)[0]!);
+				await settle();
+				expect(mounted.events.map((event) => event.detail.value)).toEqual(['H1']);
+			});
+		}
+	}
+
+	test('a disabled scorer view without a correct response does not emit', async () => {
+		const mounted = mountInteraction(HotspotInteraction, {
+			interaction: hotspotData(),
+			role: 'scorer',
+			correctResponse: null,
+			disabled: true,
+		});
+		await settle();
+
+		tap(regions(mounted)[0]!);
+		await settle();
+		expect(mounted.events).toHaveLength(0);
+		expect(qa(mounted, '[data-correct]')).toHaveLength(0);
+	});
+});
+
 describe('HotspotInteraction clear control names the same function as choiceInteraction', () => {
 	let nl: DefaultI18nProvider;
 

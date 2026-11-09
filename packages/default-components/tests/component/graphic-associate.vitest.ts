@@ -524,3 +524,57 @@ describe('GraphicAssociateInteraction pointer hit areas are the hotspot shapes',
 		expect(mounted.events).toHaveLength(0);
 	});
 });
+
+/**
+ * Correct-answer mode is the scorer role with a correct response, and nothing else
+ * (createInteractionShell: role === 'scorer' && correctResponse !== undefined). Without one, a
+ * scorer sees the plain interaction, which emits normally; only `disabled` stops interaction.
+ */
+describe('GraphicAssociateInteraction correct-answer mode: role × correct response', () => {
+	for (const role of ['candidate', 'scorer'] as const) {
+		for (const correctResponse of [['H1 H2'], null]) {
+			const showsCorrect = role === 'scorer' && correctResponse !== null;
+			test(`${role} ${correctResponse ? 'with' : 'without'} a correct response: ${showsCorrect ? '' : 'no '}correct-answer mode, emits normally`, async () => {
+				const mounted = mountInteraction(GraphicAssociateInteraction, {
+					interaction: associateData({ maxAssociations: 2 }),
+					role,
+					correctResponse,
+				});
+				await settle();
+
+				// The expected association is drawn and its hotspots marked only in correct-answer mode.
+				expect(qa(mounted, '.qti-ga-line-expected')).toHaveLength(showsCorrect ? 1 : 0);
+				expect(qa(mounted, 'svg[part="areas"] .qti-ga-area[data-correct]')).toHaveLength(showsCorrect ? 2 : 0);
+				const firstName = qa(mounted, 'button[part="hotspot"]')[0]!.getAttribute('aria-label');
+				expect(firstName?.includes('Correct answer.')).toBe(showsCorrect);
+
+				// Interactivity is governed by `disabled` alone.
+				const [h1, , h10] = qa<HTMLButtonElement>(mounted, 'button[part="hotspot"]');
+				h1!.click();
+				await settle();
+				h10!.click();
+				await settle();
+				expect(mounted.events.map((event) => event.detail.value)).toEqual([['H1 H10']]);
+				cleanupInteraction(mounted);
+			});
+		}
+	}
+
+	test('a disabled scorer view without a correct response does not associate', async () => {
+		const mounted = mountInteraction(GraphicAssociateInteraction, {
+			interaction: associateData(),
+			role: 'scorer',
+			correctResponse: null,
+			disabled: true,
+		});
+		await settle();
+
+		for (const button of qa<HTMLButtonElement>(mounted, 'button[part="hotspot"]')) {
+			button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		}
+		await settle();
+		expect(mounted.events).toHaveLength(0);
+		expect(qa(mounted, '.qti-ga-line-expected')).toHaveLength(0);
+		cleanupInteraction(mounted);
+	});
+});

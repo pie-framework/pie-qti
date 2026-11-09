@@ -7,7 +7,7 @@
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
 	import { countPairsWithId, pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
@@ -31,11 +31,20 @@
 
 	const uid = $props.id();
 
-	// Parse props that may be JSON strings (web component usage)
-	const parsedInteraction = $derived(parseJsonProp<GraphicAssociateInteractionData>(interaction));
-	const parsedResponse = $derived(parseJsonProp<string[]>(response));
-	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
-	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+	// Props may be JSON strings (web component usage). Correct-answer mode is the scorer role
+	// with a correct response, as in every interaction.
+	const shell = $derived(
+		createInteractionShell<GraphicAssociateInteractionData, string[], string[]>({
+			interaction,
+			response,
+			correctResponse,
+			role,
+		}),
+	);
+	const parsedInteraction = $derived(shell.interaction);
+	const parsedResponse = $derived(shell.response);
+	const parsedCorrectResponse = $derived(shell.correctResponse);
+	const isShowingCorrect = $derived(shell.isShowingCorrect);
 	const correctPairs = $derived(Array.isArray(parsedCorrectResponse) ? parsedCorrectResponse : []);
 	const imageWidth = $derived(
 		Number(normalizePixelDimension(parsedInteraction?.imageData?.width, '500') ?? '500'),
