@@ -425,7 +425,7 @@ describe('mapEntry case sensitivity', () => {
 		baseType: 'identifier' | 'string',
 	): QtiValue {
 		return run(
-			{ OUT, RESPONSE: responseDecl(response, { defaultValue: 0, caseSensitive: 'true', entries }, baseType) },
+			{ OUT, RESPONSE: responseDecl(response, { defaultValue: 0, entries }, baseType) },
 			`<setOutcomeValue identifier="OUT"><mapResponse identifier="RESPONSE"/></setOutcomeValue>`,
 		).getValue('OUT');
 	}
@@ -464,10 +464,11 @@ describe('mapEntry case sensitivity', () => {
 /**
  * The spec default for mapEntry@caseSensitive is "false" (QTI 2.2 XSD declares it optional with
  * default "false"; the 2.1 Best Practice: "The default is false"; the QTI 3.0 implementation
- * guide: string mapping is "by default, NOT case sensitive"), so a mapping that names no
- * caseSensitive matches case-insensitively. Identifier values never fold case (QTI ASI §17),
- * whatever the mapping says. Container deduplication counts once what the mapping matches as the
- * same value (§15.3), so {Paris, paris} counts once under case-insensitive matching.
+ * guide: string mapping is "by default, NOT case sensitive"), so an entry that names no
+ * caseSensitive matches case-insensitively. `<mapping>` itself defines no such attribute in any
+ * QTI version, so a mapping-level one is not read. Identifier values never fold case (QTI ASI
+ * §17). Container deduplication counts once what the mapping matches as the same value (§15.3),
+ * so {Paris, paris} counts once under case-insensitive matching.
  */
 describe('mapEntry case sensitivity defaults to case-insensitive', () => {
 	const OUT = { identifier: 'OUT', baseType: 'float' as const, cardinality: 'single' as const, value: qtiValue('float', 'single', 0) };
@@ -496,20 +497,18 @@ describe('mapEntry case sensitivity defaults to case-insensitive', () => {
 		expect(mapped('respiration', specDefault, 'string')).toEqual(qtiValue('float', 'single', 7));
 	});
 
-	it('keeps an explicit caseSensitive="true" string mapping exact', () => {
+	it('keeps an explicit caseSensitive="true" string entry exact', () => {
 		const exact = {
 			defaultValue: 7,
-			caseSensitive: 'true',
 			entries: { photosynthesis: { mapKey: 'photosynthesis', mappedValue: 2, caseSensitive: 'true' } },
 		};
 		expect(mapped('photosynthesis', exact, 'string')).toEqual(qtiValue('float', 'single', 2));
 		expect(mapped('Photosynthesis', exact, 'string')).toEqual(qtiValue('float', 'single', 7));
 	});
 
-	it('inherits an explicit caseSensitive="false" from the mapping element', () => {
+	it('matches an entry without caseSensitive case-insensitively, as the XSD default reads', () => {
 		const lenient = {
 			defaultValue: 0,
-			caseSensitive: 'false',
 			entries: { Paris: { mapKey: 'Paris', mappedValue: 1 } },
 		};
 		expect(mapped('PARIS', lenient, 'string')).toEqual(qtiValue('float', 'single', 1));
@@ -524,10 +523,9 @@ describe('mapEntry case sensitivity defaults to case-insensitive', () => {
 		expect(mapped(['Paris', 'London'], cities, 'string', 'multiple')).toEqual(qtiValue('float', 'single', 1.5));
 	});
 
-	it('keeps case-distinct string values distinct under an explicit caseSensitive="true" mapping', () => {
+	it('keeps case-distinct string values distinct under explicit caseSensitive="true" entries', () => {
 		const exact = {
 			defaultValue: 0.5,
-			caseSensitive: 'true',
 			entries: { Paris: { mapKey: 'Paris', mappedValue: 1, caseSensitive: 'true' } },
 		};
 		expect(mapped(['Paris', 'paris'], exact, 'string', 'multiple')).toEqual(qtiValue('float', 'single', 1.5));
@@ -538,12 +536,23 @@ describe('mapEntry case sensitivity defaults to case-insensitive', () => {
 		// loosens string matching only.
 		const idMapping = {
 			defaultValue: 0.5,
-			caseSensitive: 'false',
 			entries: { Paris: { mapKey: 'Paris', mappedValue: 1, caseSensitive: 'false' } },
 		};
 		expect(mapped('Paris', idMapping, 'identifier')).toEqual(qtiValue('float', 'single', 1));
 		expect(mapped('paris', idMapping, 'identifier')).toEqual(qtiValue('float', 'single', 0.5));
 		expect(mapped(['Paris', 'paris'], idMapping, 'identifier', 'multiple')).toEqual(qtiValue('float', 'single', 1.5));
+	});
+
+	it('ignores a mapping-level caseSensitive attribute, which no QTI version defines', () => {
+		// caseSensitive exists on mapEntry only (2.1 XSD line 6347 Mapping.Type, 3.0 MappingDType).
+		// A mapping-level attribute is invalid content: it is not read, so the entries keep the
+		// spec default of case-insensitive matching.
+		const authored = {
+			defaultValue: 0.5,
+			caseSensitive: 'true',
+			entries: { Paris: { mapKey: 'Paris', mappedValue: 1 } },
+		} as NonNullable<DeclarationMap['RESPONSE']['mapping']>;
+		expect(mapped('PARIS', authored, 'string')).toEqual(qtiValue('float', 'single', 1));
 	});
 });
 

@@ -1028,16 +1028,10 @@ export const TEMPLATE_VARIABLE_DEMO = `<?xml version="1.0" encoding="UTF-8"?>
 
   <templateProcessing>
     <setTemplateValue identifier="A">
-      <randomInteger>
-        <baseValue baseType="integer">1</baseValue>
-        <baseValue baseType="integer">20</baseValue>
-      </randomInteger>
+      <randomInteger min="1" max="20"/>
     </setTemplateValue>
     <setTemplateValue identifier="B">
-      <randomInteger>
-        <baseValue baseType="integer">1</baseValue>
-        <baseValue baseType="integer">20</baseValue>
-      </randomInteger>
+      <randomInteger min="1" max="20"/>
     </setTemplateValue>
     <setTemplateValue identifier="ANSWER">
       <sum>

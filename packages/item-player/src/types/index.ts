@@ -46,11 +46,6 @@ export interface Mapping {
 	defaultValue?: number;
 	lowerBound?: number;
 	upperBound?: number;
-	/**
-	 * QTI attribute on <mapping>. When "false", string mappings are case-insensitive by default.
-	 * Stored as raw string to match XML attribute values ("true"/"false").
-	 */
-	caseSensitive?: string;
 	entries: Record<string, MapEntry>;
 }
 

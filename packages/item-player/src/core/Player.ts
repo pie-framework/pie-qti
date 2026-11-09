@@ -1573,7 +1573,7 @@ export class Player {
 				return;
 			}
 			case 'match_nothing':
-			case 'cc2_match_nothing': { // QTI 2.1 compatibility
+			case 'cc2_match_nothing': { // Official IMS QTI 3.0 rptemplate
 				const isEmptyResponse = (v: QtiValue | undefined): boolean => {
 					if (!v) return true;
 					if (v.kind === 'null') return true;
@@ -1604,7 +1604,7 @@ export class Player {
 				return;
 			}
 			case 'map_response_point':
-			case 'cc2_map_response_point': { // QTI 2.1 compatibility
+			case 'cc2_map_response_point': { // Official IMS QTI 3.0 rptemplate
 				setScore(mapResponse(true));
 				return;
 			}
@@ -2058,8 +2058,7 @@ export class Player {
 		const upperBound = this.getAttrMapped(mappingEl, 'upperBound') ? Number(this.getAttrMapped(mappingEl, 'upperBound')) : undefined;
 		// mapEntry@caseSensitive defaults to "false" (QTI 2.2 XSD, optional, default "false"):
 		// string entries match case-insensitively unless authored "true". The mapping element
-		// itself has no such attribute in 2.2 — reading one is accepted as leniency.
-		const mappingCaseSensitive = this.getAttrMapped(mappingEl, 'caseSensitive') || 'false';
+		// itself defines no caseSensitive attribute in any QTI version, so none is read.
 		const entries: Record<string, any> = {};
 
 		const normalizePairKey = (k: string): string => {
@@ -2079,9 +2078,8 @@ export class Player {
 			const mappedValue = this.getAttrMapped(e, 'mappedValue');
 			if (!mapKey || mappedValue === null) continue;
 			// Only string values fold case: identifier and the other base types always match
-			// exactly (QTI ASI §17), whatever the entry or mapping says.
-			const effectiveCaseSensitive =
-				baseType === 'string' ? this.getAttrMapped(e, 'caseSensitive') || mappingCaseSensitive : 'true';
+			// exactly (QTI ASI §17), whatever the entry says.
+			const effectiveCaseSensitive = baseType === 'string' ? this.getAttrMapped(e, 'caseSensitive') || 'false' : 'true';
 			const storedKey =
 				baseType === 'pair'
 					? normalizePairKey(mapKey)
@@ -2099,7 +2097,7 @@ export class Player {
 			}
 		}
 
-		return { defaultValue, lowerBound, upperBound, caseSensitive: mappingCaseSensitive, entries };
+		return { defaultValue, lowerBound, upperBound, entries };
 	}
 
 	private parseAreaMapping(areaMappingEl: Element): AreaMapping {

@@ -3,25 +3,47 @@
   "cases": [
     {
       "name": "Hello exact-case matches caseSensitive=true entry",
-      "responses": { "R": "Hello" },
-      "expect": { "outcomes": { "SCORE": 2 } }
+      "responses": {
+        "R": "Hello"
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 2
+        }
+      }
     },
     {
       "name": "hello lower-case does not match caseSensitive=true entry",
-      "responses": { "R": "hello" },
-      "expect": { "outcomes": { "SCORE": 0 } }
+      "responses": {
+        "R": "hello"
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 0
+        }
+      }
     },
     {
-      "name": "WORLD upper-case matches mapping caseSensitive=false entry",
-      "responses": { "R": "WORLD" },
-      "expect": { "outcomes": { "SCORE": 1 } }
+      "name": "WORLD upper-case matches the case-insensitive entry",
+      "responses": {
+        "R": "WORLD"
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 1
+        }
+      }
     },
     {
-      "name": "World mixed-case matches mapping caseSensitive=false entry",
-      "responses": { "R": "World" },
-      "expect": { "outcomes": { "SCORE": 1 } }
+      "name": "World mixed-case matches the case-insensitive entry",
+      "responses": {
+        "R": "World"
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 1
+        }
+      }
     }
   ]
 }
-
-

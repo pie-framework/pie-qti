@@ -87,13 +87,25 @@ export function toStringValue(v: QtiValue): string {
 const DECIMAL_SECONDS = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 
 /**
- * The seconds a QTI duration literal denotes, or null when it is not one.
+ * The seconds an item-XML duration literal denotes, or null when it is not one.
  *
  * QTI 2.x and 3.0 define a duration as "a single float that records time in seconds", bound to
- * xsd:double, so `30` and `2.5` are the specified lexical forms (QTI 2.2 and 3.0 ASI information
- * models, baseType `duration`). ISO 8601 / xsd:duration literals such as `PT30S` are accepted as
- * well, as a documented leniency for content that writes durations that way; a year counts as
- * 365 days and a month as 30.
+ * xsd:double, so `30` and `2.5` are the whole lexical space (2.1 TimeLimits attributes, 2.2 and
+ * 3.0 `NonNegativeDouble`). ISO 8601 literals such as `PT30S` are not XML durations; they are
+ * the encoding of the PCI v1.0 Appendix A variable-JSON boundary, which parseDurationSeconds
+ * reads.
+ */
+export function parseXmlDurationSeconds(text: string): number | null {
+	const t = text.trim();
+	if (!DECIMAL_SECONDS.test(t)) return null;
+	const seconds = Number(t);
+	return Number.isFinite(seconds) ? seconds : null;
+}
+
+/**
+ * The seconds a QTI duration literal denotes, or null when it is not one: the xsd:double form
+ * XML uses, plus the ISO 8601 / xsd:duration form (`PT30S`) that the PCI v1.0 Appendix A
+ * variable-JSON binding encodes durations in. A year counts as 365 days and a month as 30.
  */
 export function parseDurationSeconds(text: string): number | null {
 	const t = text.trim();
@@ -189,7 +201,8 @@ export function coerceBaseValue(baseType: BaseType, text: string, language?: str
 			return qtiValue('point', 'single', `${parts[0]} ${parts[1]}`);
 		}
 		case 'duration': {
-			const seconds = parseDurationSeconds(t);
+			// Item XML binds duration to xsd:double seconds; ISO 8601 literals are not XML durations.
+			const seconds = parseXmlDurationSeconds(t);
 			if (seconds === null) return qtiInvalid(`invalid duration: ${t}`, 'duration', 'single');
 			// QTI durations are seconds; stored as a number so comparisons work on the value.
 			return qtiValue('duration', 'single', seconds);
