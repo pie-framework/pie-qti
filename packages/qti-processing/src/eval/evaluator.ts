@@ -7,6 +7,7 @@ import type { BaseType, Cardinality, Declaration, LookupTableTable, Mapping, Map
 import {
 	coerceBaseValue,
 	durationSeconds,
+	isNullValue,
 	normalizeForCompare,
 	qtiInvalid,
 	qtiNull,
@@ -77,9 +78,12 @@ export function applyLookupTable(source: QtiValue, table: LookupTableTable, base
 }
 
 /**
- * The mapping entry for a response value. String keys also compare in their
- * normalised form, case folded where the entry is not case sensitive, so an
- * answer typed in other digits or another Unicode encoding finds its entry.
+ * The mapping entry for a response value. Each entry is matched as case sensitively as it says
+ * (mapEntry caseSensitive, QTI ASI §5): the lookup is by the exact key — the player also stores a
+ * case-insensitive entry under its lower-case key — and string keys also compare in their
+ * normalised form, case folded only where the entry is not case sensitive, so an answer typed in
+ * other digits, another Unicode encoding or, for such an entry, another case finds its entry. A
+ * case-sensitive entry is never found by folding the response's case.
  */
 function findMappingEntry(
 	mapping: Mapping,
@@ -87,9 +91,7 @@ function findMappingEntry(
 	baseType: BaseType | undefined,
 	language: string | undefined,
 ): MappingEntry | undefined {
-	const exact =
-		mapping.entries[key] ??
-		(baseType === 'string' || baseType === 'identifier' ? mapping.entries[key.toLowerCase()] : undefined);
+	const exact = mapping.entries[key];
 	if (exact || baseType !== 'string') return exact;
 	const typed = normalizeResponse(key, { language });
 	const typedFolded = normalizeResponse(key, { language, ignoreCase: true });
@@ -155,35 +157,35 @@ function mapMappedValue(
 	return raw;
 }
 
-/**
- * Whether QTI reads a value as NULL (ASI §5): no value at all, and also, as "empty containers and
- * empty strings are always treated as NULL values", an empty container or string. A response the
- * candidate cleared arrives as an empty container and reads as unanswered, like one never touched.
- */
-function isNullValue(v: QtiValue): boolean {
-	if (v.kind === 'null') return true;
-	if (v.kind !== 'value') return false;
-	const raw = v.value;
-	return raw === null || raw === undefined || raw === '' || (Array.isArray(raw) && raw.length === 0);
-}
-
 /** The values of a multiple or ordered container; a single value reads as a container of that one value. */
 function containerValues(v: Extract<QtiValue, { kind: 'value' }>): unknown[] {
 	return Array.isArray(v.value) ? v.value : [v.value];
 }
 
 /**
- * The numbers a `sum` or `product` operand contributes: one for a single value, each value of a
- * multiple or ordered container. NULL, including an empty container, gives null.
+ * The numbers a numeric operand contributes to `sum`, `product`, `max`, `min`, `gcd` and `lcm`,
+ * which take single, multiple or ordered operands (QTI ASI §15.3): one for a single value, each
+ * value of a container. NULL gives null, and so do an empty container and an empty string, which
+ * QTI reads as NULL (ASI §5).
  */
 function numericOperandValues(v: QtiValue): number[] | null {
-	if (v.kind !== 'value') return null;
+	if (v.kind !== 'value' || isNullValue(v)) return null;
 	if (v.cardinality === 'multiple' || v.cardinality === 'ordered') {
-		const values = Array.isArray(v.value) ? v.value : [];
-		if (values.length === 0) return null;
-		return values.map((value) => toNumber({ kind: 'value', baseType: v.baseType, cardinality: 'single', value }));
+		return containerValues(v).map((value) => toNumber({ kind: 'value', baseType: v.baseType, cardinality: 'single', value }));
 	}
 	return [toNumber(v)];
+}
+
+/** The greatest common divisor of two integers; gcd(0, n) is |n| and gcd(0, 0) is 0. */
+function greatestCommonDivisor(x: number, y: number): number {
+	let a = Math.abs(x);
+	let b = Math.abs(y);
+	while (b !== 0) {
+		const t = a % b;
+		a = b;
+		b = t;
+	}
+	return a;
 }
 
 export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
@@ -1005,7 +1007,11 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const start = evalExpr(env, expr.start);
 			const length = expr.length ? evalExpr(env, expr.length) : undefined;
 			if (value.kind === 'invalid' || start.kind === 'invalid' || length?.kind === 'invalid') return qtiInvalid('substring invalid');
-			if (value.kind === 'null') return qtiNull('string', 'single');
+			// A NULL operand gives NULL (QTI ASI §15.3), the empty string included (§5); a start
+			// past the end still gives the empty string.
+			if (isNullValue(value) || isNullValue(start) || (length !== undefined && isNullValue(length))) {
+				return qtiNull('string', 'single');
+			}
 
 			const s = toStringValue(value);
 
@@ -1030,25 +1036,32 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const idx = Math.min(v.value.length - 1, Math.floor(env.rng() * v.value.length));
 			return qtiValue(v.baseType, 'single', (v.value as any[])[idx]);
 		}
-		case 'expr.power': {
-			const a = toNumber(evalExpr(env, expr.a));
-			const b = toNumber(evalExpr(env, expr.b));
-			const n = Math.pow(a, b);
-			if (!Number.isFinite(n)) return qtiInvalid('power invalid');
-			return qtiValue('float', 'single', n);
-		}
-		case 'expr.mod': {
-			const a = toNumber(evalExpr(env, expr.a));
-			const b = toNumber(evalExpr(env, expr.b));
-			const n = a % b;
-			if (!Number.isFinite(n)) return qtiInvalid('mod invalid');
-			return qtiValue('float', 'single', n);
-		}
+		case 'expr.power':
+		case 'expr.mod':
 		case 'expr.integerDivide': {
-			const a = toNumber(evalExpr(env, expr.a));
-			const b = toNumber(evalExpr(env, expr.b));
-			if (!Number.isFinite(a) || !Number.isFinite(b) || b === 0) return qtiInvalid('integerDivide invalid');
-			return qtiValue('integer', 'single', Math.trunc(a / b));
+			// QTI ASI §15.3: a NULL operand gives NULL. power "shall result in NULL" outside the float
+			// value set; integerDivide is NULL for a zero divisor, and rounds x/y down to the greatest
+			// integer not above it (-7/2 is -4, which integerModulus's x - z*y agrees with). mod, the
+			// floating remainder, is NULL for a zero divisor as divide is.
+			const name = expr.kind.slice('expr.'.length);
+			const resultBaseType: BaseType = expr.kind === 'expr.integerDivide' ? 'integer' : 'float';
+			const aV = evalExpr(env, expr.a);
+			const bV = evalExpr(env, expr.b);
+			if (aV.kind === 'invalid' || bV.kind === 'invalid') return qtiInvalid(`${name} operand invalid`, resultBaseType, 'single');
+			if (isNullValue(aV) || isNullValue(bV)) return qtiNull(resultBaseType, 'single');
+			const a = toNumber(aV);
+			const b = toNumber(bV);
+			if (!Number.isFinite(a) || !Number.isFinite(b)) {
+				return qtiInvalid(`${name} operand is not a finite number`, resultBaseType, 'single');
+			}
+			let result: number;
+			if (expr.kind === 'expr.power') result = a ** b;
+			else if (b === 0) result = Number.NaN;
+			else if (expr.kind === 'expr.mod') result = a % b;
+			else result = Math.floor(Math.trunc(a) / Math.trunc(b));
+			if (!Number.isFinite(result)) return qtiNull(resultBaseType, 'single');
+			// No negative zero: -4 mod 2 and 0 integerDivide -5 are 0.
+			return qtiValue(resultBaseType, 'single', result === 0 ? 0 : result);
 		}
 		case 'expr.mean':
 		case 'expr.sampleVariance':
@@ -1163,8 +1176,27 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			return qtiValue('boolean', 'single', !toBoolean(v));
 		}
 		case 'expr.anyN': {
-			const trueCount = expr.ops.reduce((acc, o) => acc + (toBoolean(evalExpr(env, o)) ? 1 : 0), 0);
-			return qtiValue('boolean', 'single', trueCount >= expr.min && trueCount <= expr.max);
+			// Three-valued (QTI ASI §15.3): false when more than max operands are true or more than
+			// n - min are false; true when at least min are true; otherwise the NULL operands leave the
+			// result undetermined, and it is NULL — with min 3 and max 4, {true,true,false,NULL} is
+			// NULL, {true,false,false,NULL} false and {true,true,true,NULL} true. min and max may name
+			// a variable (integerOrVariableRef); a bound that does not resolve leaves it undetermined.
+			const min = resolveNumberOrVarRef(String(expr.min));
+			const max = resolveNumberOrVarRef(String(expr.max));
+			let trueCount = 0;
+			let falseCount = 0;
+			let unknown: QtiValue | undefined;
+			for (const op of expr.ops) {
+				const v = evalExpr(env, op);
+				if (v.kind === 'invalid') unknown = qtiInvalid('anyN operand invalid', 'boolean', 'single');
+				else if (isNullValue(v)) unknown ??= qtiNull('boolean', 'single');
+				else if (toBoolean(v)) trueCount++;
+				else falseCount++;
+			}
+			if (!Number.isFinite(min) || !Number.isFinite(max)) return unknown ?? qtiNull('boolean', 'single');
+			if (trueCount > max || falseCount > expr.ops.length - min) return qtiValue('boolean', 'single', false);
+			if (trueCount >= min) return qtiValue('boolean', 'single', true);
+			return unknown ?? qtiValue('boolean', 'single', false);
 		}
 		case 'expr.allN': {
 			const trueCount = expr.ops.reduce((acc, o) => acc + (toBoolean(evalExpr(env, o)) ? 1 : 0), 0);
@@ -1188,7 +1220,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const a = evalExpr(env, expr.a);
 			const b = evalExpr(env, expr.b);
 			if (a.kind === 'invalid' || b.kind === 'invalid') return qtiInvalid('subtract operand invalid', 'float', 'single');
-			if (a.kind === 'null' || b.kind === 'null') return qtiNull('float', 'single');
+			if (isNullValue(a) || isNullValue(b)) return qtiNull('float', 'single');
 			const na = toNumber(a);
 			const nb = toNumber(b);
 			if (!Number.isFinite(na) || !Number.isFinite(nb)) return qtiInvalid('subtract operand is not a finite number', 'float', 'single');
@@ -1213,45 +1245,37 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			return qtiValue(allInteger ? 'integer' : 'float', 'single', acc);
 		}
 		case 'expr.divide': {
+			// QTI ASI §15.3: a NULL operand gives NULL, and so does a zero divisor or a result outside
+			// the float value set: "the operator should result in NULL".
 			const a = evalExpr(env, expr.a);
 			const b = evalExpr(env, expr.b);
 			if (a.kind === 'invalid' || b.kind === 'invalid') return qtiInvalid('divide operand invalid', 'float', 'single');
-			if (a.kind === 'null' || b.kind === 'null') return qtiNull('float', 'single');
+			if (isNullValue(a) || isNullValue(b)) return qtiNull('float', 'single');
 			const na = toNumber(a);
 			const nb = toNumber(b);
 			if (!Number.isFinite(na) || !Number.isFinite(nb)) return qtiInvalid('divide operand is not a finite number', 'float', 'single');
 			const out = na / nb;
-			return Number.isFinite(out) ? qtiValue('float', 'single', out) : qtiInvalid('divide result is not finite', 'float', 'single');
+			return nb !== 0 && Number.isFinite(out) ? qtiValue('float', 'single', out) : qtiNull('float', 'single');
 		}
-		case 'expr.max': {
-			if (expr.values.length === 0) return qtiInvalid('max requires at least one operand');
-			const nums: number[] = [];
-			let allInteger = true;
-			for (const op of expr.values) {
-				const v = evalExpr(env, op);
-				if (v.kind === 'invalid') return qtiInvalid('max operand invalid', 'float', 'single');
-				if (v.kind === 'null') return qtiNull('float', 'single');
-				const n = toNumber(v);
-				if (!Number.isFinite(n)) return qtiInvalid('max operand is not a finite number', 'float', 'single');
-				if (v.baseType !== 'integer') allInteger = false;
-				nums.push(n);
-			}
-			return qtiValue(allInteger ? 'integer' : 'float', 'single', Math.max(...nums));
-		}
+		case 'expr.max':
 		case 'expr.min': {
-			if (expr.values.length === 0) return qtiInvalid('min requires at least one operand');
+			// QTI ASI §15.3: the operands may be single, multiple or ordered, and a container takes
+			// part with each of its values. A NULL operand, an empty container among them (§5), or a
+			// value that is not numerical gives NULL. Integer when every operand is integer.
+			const name = expr.kind === 'expr.max' ? 'max' : 'min';
+			if (expr.values.length === 0) return qtiInvalid(`${name} requires at least one operand`);
 			const nums: number[] = [];
 			let allInteger = true;
 			for (const op of expr.values) {
 				const v = evalExpr(env, op);
-				if (v.kind === 'invalid') return qtiInvalid('min operand invalid', 'float', 'single');
-				if (v.kind === 'null') return qtiNull('float', 'single');
-				const n = toNumber(v);
-				if (!Number.isFinite(n)) return qtiInvalid('min operand is not a finite number', 'float', 'single');
+				if (v.kind === 'invalid') return qtiInvalid(`${name} operand invalid`, 'float', 'single');
+				const numbers = numericOperandValues(v);
+				if (numbers === null || numbers.some((n) => !Number.isFinite(n))) return qtiNull('float', 'single');
 				if (v.baseType !== 'integer') allInteger = false;
-				nums.push(n);
+				nums.push(...numbers);
 			}
-			return qtiValue(allInteger ? 'integer' : 'float', 'single', Math.min(...nums));
+			const result = expr.kind === 'expr.max' ? Math.max(...nums) : Math.min(...nums);
+			return qtiValue(allInteger ? 'integer' : 'float', 'single', result);
 		}
 		case 'expr.round':
 		case 'expr.truncate': {
@@ -1456,7 +1480,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const aV = evalExpr(env, expr.a);
 			const bV = evalExpr(env, expr.b);
 			if (aV.kind === 'invalid' || bV.kind === 'invalid') return qtiNull();
-			if (aV.kind === 'null' || bV.kind === 'null') return qtiNull();
+			if (isNullValue(aV) || isNullValue(bV)) return qtiNull('integer', 'single');
 			const a = Math.trunc(toNumber(aV));
 			const b = Math.trunc(toNumber(bV));
 			if (!Number.isFinite(a) || !Number.isFinite(b) || b === 0) return qtiNull();
@@ -1464,51 +1488,32 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const m = a - b * Math.floor(a / b);
 			return qtiValue('integer', 'single', m);
 		}
-		case 'expr.gcd': {
-			const vals = expr.values.map((e) => evalExpr(env, e));
-			if (vals.some((v) => v.kind === 'invalid' || v.kind === 'null')) return qtiNull();
-			const ints = vals.map((v) => Math.trunc(toNumber(v)));
-			if (ints.some((n) => !Number.isFinite(n))) return qtiNull();
-
-			const gcd2 = (x: number, y: number): number => {
-				x = Math.abs(x);
-				y = Math.abs(y);
-				while (y !== 0) {
-					const t = x % y;
-					x = y;
-					y = t;
-				}
-				return x;
-			};
-			return qtiValue('integer', 'single', ints.reduce((acc, n) => gcd2(acc, n), 0));
-		}
+		case 'expr.gcd':
 		case 'expr.lcm': {
-			const vals = expr.values.map((e) => evalExpr(env, e));
-			if (vals.some((v) => v.kind === 'invalid' || v.kind === 'null')) return qtiNull();
-			const ints = vals.map((v) => Math.trunc(toNumber(v)));
-			if (ints.some((n) => !Number.isFinite(n))) return qtiNull();
-
-			const gcd2 = (x: number, y: number): number => {
-				x = Math.abs(x);
-				y = Math.abs(y);
-				while (y !== 0) {
-					const t = x % y;
-					x = y;
-					y = t;
-				}
-				return x;
-			};
-			const lcm2 = (x: number, y: number): number => {
-				x = Math.abs(x);
-				y = Math.abs(y);
-				if (x === 0 || y === 0) return 0;
-				return (x / gcd2(x, y)) * y;
-			};
-			return qtiValue('integer', 'single', ints.reduce((acc, n) => lcm2(acc, n), 1));
+			// QTI ASI §15.3: the operands may be single, multiple or ordered, and a container takes
+			// part with each of its values. A NULL operand, an empty container among them (§5), or a
+			// value that is not numerical gives NULL. gcd(0, n) is n and gcd(0, 0) is 0; lcm is 0
+			// when any value is 0.
+			const ints: number[] = [];
+			for (const op of expr.values) {
+				const v = evalExpr(env, op);
+				if (v.kind === 'invalid') return qtiNull('integer', 'single');
+				const numbers = numericOperandValues(v);
+				if (numbers === null || numbers.some((n) => !Number.isFinite(n))) return qtiNull('integer', 'single');
+				for (const n of numbers) ints.push(Math.trunc(n));
+			}
+			if (expr.kind === 'expr.gcd') {
+				return qtiValue('integer', 'single', ints.reduce((acc, n) => greatestCommonDivisor(acc, n), 0));
+			}
+			const lcm = ints.reduce((acc, n) => {
+				if (acc === 0 || n === 0) return 0;
+				return Math.abs(acc / greatestCommonDivisor(acc, n)) * Math.abs(n);
+			}, 1);
+			return qtiValue('integer', 'single', lcm);
 		}
 		case 'expr.mathOperator': {
 			const args = expr.values.map((e) => evalExpr(env, e));
-			if (args.some((v) => v.kind === 'invalid' || v.kind === 'null')) return qtiNull();
+			if (args.some((v) => v.kind === 'invalid' || isNullValue(v))) return qtiNull();
 			const nums = args.map((v) => toNumber(v));
 			if (nums.some((n) => !Number.isFinite(n))) return qtiNull();
 
@@ -1646,7 +1651,10 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			return qtiValue(resultBaseType, 'single', result);
 		}
 		case 'expr.roundTo': {
-			const value = toNumber(evalExpr(env, expr.value));
+			const valueV = evalExpr(env, expr.value);
+			// An empty string is NULL, as QTI reads it (ASI §5).
+			if (valueV.kind === 'invalid' || isNullValue(valueV)) return qtiNull();
+			const value = toNumber(valueV);
 			const figures = Math.floor(toNumber(evalExpr(env, expr.figures)));
 			if (!Number.isFinite(value) || !Number.isFinite(figures) || figures < 0) return qtiNull();
 

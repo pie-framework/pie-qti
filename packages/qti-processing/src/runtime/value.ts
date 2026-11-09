@@ -19,6 +19,18 @@ export function isNull(v: QtiValue): boolean {
 	return v.kind === 'null';
 }
 
+/**
+ * Whether QTI reads a value as NULL (ASI §5): no value at all, and also, as "empty containers and
+ * empty strings are always treated as NULL values", an empty container or string. A response the
+ * candidate cleared arrives as an empty container and reads as unanswered, like one never touched.
+ */
+export function isNullValue(v: QtiValue): boolean {
+	if (v.kind === 'null') return true;
+	if (v.kind !== 'value') return false;
+	const raw = v.value;
+	return raw === null || raw === undefined || raw === '' || (Array.isArray(raw) && raw.length === 0);
+}
+
 export function isInvalid(v: QtiValue): v is Extract<QtiValue, { kind: 'invalid' }> {
 	return v.kind === 'invalid';
 }
