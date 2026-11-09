@@ -8,6 +8,12 @@ This document is the authoritative meta-plan for closing gaps between the QTI sp
 PIE-QTI implementation. Each section maps to one or more concrete sub-tasks that can be handed to an
 AI agent or a human engineer. Sections are ordered by priority tier.
 
+> **Policy (2026-11-09):** follow the QTI spec wherever it is clear, per version; no legacy code.
+> The project is pre-1.0, so there is no backwards-compatibility surface: no shims, deprecated
+> aliases, ignored parameters or migration paths for the project's own past behavior, and no
+> non-spec leniency in parsing. Supporting an older QTI version's defined behavior is compliance,
+> not legacy. See "Spec Compliance and No Legacy Code" in `AGENTS.md`.
+
 > **Goal (2026-10-17):** feature completeness against the QTI 2.2 and 3.0 specifications and a
 > proper 1.0 release. Every item in this plan is committed work on that path — including the PCI
 > spec contract (G-08, phases 1–3 landed), structured labels and braille support (G-13, landed),

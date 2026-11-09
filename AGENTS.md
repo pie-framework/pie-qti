@@ -38,6 +38,14 @@ Before any merge request:
 4. Accessibility should be checked for new or changed assessment interactions.
 5. QTI specification compliance should be verified for QTI behavior changes.
 
+## Spec Compliance and No Legacy Code
+
+This project is pre-1.0. There is no backwards-compatibility surface to preserve.
+
+- **Follow the QTI spec wherever it is clear, per QTI version.** Do not document a divergence from a clear spec rule as a deliberate choice; fix it. Supporting a behavior an older QTI version defines (2.1 vs 2.2 vs 3.0 differences) is compliance, not legacy. Keep a documented divergence only where the spec is ambiguous or silent, with the reasoning.
+- **No legacy code.** Do not add or keep shims, deprecated aliases, ignored parameters, pure-delegation wrappers, mirror types, or migration paths for this project's own past APIs, formats or behavior. Remove them, with a "Breaking:" note in the changeset.
+- **No non-spec leniency.** Do not read attributes or elements no QTI version defines. Where real-world content needs a tolerance, document the evidence next to the code.
+
 ## Monorepo Structure
 
 The repository contains many packages under `packages/`, including assessment and item players, section player, default components, QTI processing, schema/types packages, packaging utilities, themes, storage, and test utilities. When making changes, consider cross-package impacts.
