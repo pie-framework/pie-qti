@@ -219,7 +219,11 @@ async function runStep(page: Page, file: EvalFile, step: EvalStep): Promise<{ su
 					const index = choices.findIndex((choice) => choice.identifier === id);
 					if (index < 0) throw new Error(`Unknown hotspot ${id}`);
 					const name = choices[index].hotspotLabel?.trim() || `Region ${index + 1} of ${choices.length}`;
-					await host.getByRole('button', { name, exact: true }).first().click();
+					// A single-select hotspot is a radio group; multiple selection keeps toggle buttons.
+					const region = host
+						.getByRole('radio', { name, exact: true })
+						.or(host.getByRole('button', { name, exact: true }));
+					await region.first().click();
 					return {};
 				}
 			}

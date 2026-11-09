@@ -618,8 +618,8 @@ describe('Task 5 — assessment player section composition delegation', () => {
 		expect(composition.layout).toBe('split-pane');
 		expect(composition.sharedContext.passages[0]?.rawHtml).toContain('passage');
 		expect(composition.sharedContext.rubricBlocks.map((block) => block.identifier)).toContain('testpart-directions');
-		expect(composition.activeItem.identifier).toBe(player.getCurrentItem()?.identifier);
-		expect(composition.activeItem.session).toBe(player.getCurrentItemSession());
+		expect(composition.activeItem.identifier).toBe(player.getCurrentItem()!.identifier);
+		expect(composition.activeItem.session).toBe(player.getCurrentItemSession()!);
 		expect(composition.section.itemRefs.filter((item) => item.session)).toHaveLength(1);
 	});
 

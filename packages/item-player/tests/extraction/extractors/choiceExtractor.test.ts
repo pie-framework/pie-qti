@@ -4,7 +4,8 @@
 
 import { describe, expect, test } from 'bun:test';
 import { Player } from '../../../src/core/Player.js';
-import { standardChoiceExtractor } from '../../../src/interactions/choice/extractor.js';
+import { type ChoiceData, standardChoiceExtractor } from '../../../src/interactions/choice/extractor.js';
+import type { ChoiceInteractionData } from '../../../src/interactions/shared/types.js';
 import type { ItemSessionEngineConfig } from '../../../src/types/index.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
@@ -176,7 +177,7 @@ describe('standardChoiceExtractor', () => {
 				<responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="identifier"/>
 				<itemBody>${xml}</itemBody>
 			</assessmentItem>`;
-			const [interaction] = new Player({ itemXml }).getInteractionData() as Array<{ maxChoices: number }>;
+			const [interaction] = new Player({ itemXml }).getInteractionData() as readonly ChoiceInteractionData[];
 			expect(interaction?.maxChoices).toBe(0);
 		});
 	});
@@ -209,13 +210,14 @@ describe('standardChoiceExtractor', () => {
 
 	describe('validation', () => {
 		test('validates correct choice data', () => {
-			const data = {
+			const data: ChoiceData = {
 				choices: [
 					{ identifier: 'A', text: 'Choice A' },
 					{ identifier: 'B', text: 'Choice B' },
 				],
 				shuffle: false,
 				maxChoices: 1,
+				minChoices: 0,
 				prompt: null,
 			};
 
@@ -226,10 +228,11 @@ describe('standardChoiceExtractor', () => {
 		});
 
 		test('reports error for empty choices', () => {
-			const data = {
+			const data: ChoiceData = {
 				choices: [],
 				shuffle: false,
 				maxChoices: 1,
+				minChoices: 0,
 				prompt: null,
 			};
 
@@ -240,13 +243,14 @@ describe('standardChoiceExtractor', () => {
 		});
 
 		test('reports error for missing choice identifiers', () => {
-			const data = {
+			const data: ChoiceData = {
 				choices: [
 					{ identifier: '', text: 'Choice A' },
 					{ identifier: 'B', text: 'Choice B' },
 				],
 				shuffle: false,
 				maxChoices: 1,
+				minChoices: 0,
 				prompt: null,
 			};
 
@@ -257,13 +261,14 @@ describe('standardChoiceExtractor', () => {
 		});
 
 		test('reports error for duplicate identifiers', () => {
-			const data = {
+			const data: ChoiceData = {
 				choices: [
 					{ identifier: 'A', text: 'Choice A' },
 					{ identifier: 'A', text: 'Choice B' },
 				],
 				shuffle: false,
 				maxChoices: 1,
+				minChoices: 0,
 				prompt: null,
 			};
 
@@ -274,13 +279,14 @@ describe('standardChoiceExtractor', () => {
 		});
 
 		test('reports warning when maxChoices exceeds choice count', () => {
-			const data = {
+			const data: ChoiceData = {
 				choices: [
 					{ identifier: 'A', text: 'Choice A' },
 					{ identifier: 'B', text: 'Choice B' },
 				],
 				shuffle: false,
 				maxChoices: 5,
+				minChoices: 0,
 				prompt: null,
 			};
 

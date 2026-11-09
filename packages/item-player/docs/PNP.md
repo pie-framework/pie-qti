@@ -33,31 +33,36 @@ profile only (no AfA XML feature maps to it). The design anchors are the real on
 
 ### Markup contract
 
-With `pnp.display.structuredLabelSupport: true`:
+`choiceInteraction` needs no flag: its answer set is always one `role="group"`. An authored
+accessibility label names it; otherwise the prompt does, via `aria-labelledby` → the prompt
+element's id; without either, an i18n fallback name (`interactions.choice.groupLabel`, "Answer
+choices") applies.
+
+`pnp.display.structuredLabelSupport: true` gives `matchInteraction` the same structure:
 
 | Interaction | Markup |
 | --- | --- |
-| `choiceInteraction` | The interaction root becomes `role="group"`, named by the prompt via `aria-labelledby` → the prompt element's id. Without a prompt, an i18n fallback name (`interactions.choice.groupLabel`, "Answer choices") applies, unless the item authors an accessibility label, which wins. |
-| `matchInteraction` | Same group treatment on the interaction root, plus each answer column takes its visible column heading ("Source items to match" / "Target items for matching") as its `aria-labelledby` name instead of the hidden `aria-label`. |
+| `matchInteraction` | The interaction root becomes `role="group"`, named by the prompt via `aria-labelledby`; without a prompt, an authored accessibility label names it, else an i18n fallback (`interactions.match.groupLabel`, "Matching items"). Each answer column takes its visible column heading ("Source items to match" / "Target items for matching") as its `aria-labelledby` name instead of the hidden `aria-label`. |
 
-When the flag is off, rendering is byte-for-byte the behavior this player shipped
-before G-13. The flag rides the presentation plan to every block interaction
-(`BlockInteractionMount.structuredLabelSupport`), so third-party components can honor
-it the same way.
+With the flag off, the match interaction renders no group, and its columns keep hidden
+`aria-label` names with the same text as their headings. The flag rides the presentation plan to
+every block interaction (`BlockInteractionMount.structuredLabelSupport`), so third-party components
+can honor it the same way.
 
 ### Manual verification (NVDA, ~5 minutes)
 
 Automated tests pin the markup; one screen-reader pass confirms the announced
 experience. No braille display or braille knowledge is needed:
 
-1. Open an item with a prompted `choiceInteraction` and `structuredLabelSupport: true`.
+1. Open an item with a prompted `choiceInteraction`.
 2. Focus the first choice: NVDA should announce the prompt text, then the choice
    ("radio button, 1 of 4" and its label).
 3. Shift+Tab back into the group from a later choice: NVDA should announce the group
    name (the prompt) on entry.
-4. Open a `matchInteraction`: each column should announce its heading name when
-   focused.
-5. Repeat with the flag off: behavior is the pre-G-13 rendering (no group name).
+4. Open a prompted `matchInteraction` with `structuredLabelSupport: true`: NVDA should announce
+   the group name (the prompt) on entry, and each column its heading name when focused.
+5. Repeat with the flag off: the choice group and its name are unchanged. The match interaction
+   announces no group name; its columns announce the same names, from their hidden labels.
 
 ## Braille (`braille-text`)
 

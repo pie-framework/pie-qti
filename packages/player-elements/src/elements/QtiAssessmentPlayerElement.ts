@@ -25,6 +25,12 @@ import { parseHeadingLevel } from '../utils/heading-level.js';
 import { safeJsonParse } from '../utils/json.js';
 import { BaseSvelteMountElement } from './BaseSvelteMountElement.js';
 
+/**
+ * The element's config: the headless player's config plus `rng`, which seeds the
+ * built-in reference backend (reference/preview mode).
+ */
+type AssessmentElementConfig = Partial<BackendAssessmentPlayerConfig> & { rng?: () => number };
+
 export type QtiAssessmentResponseChangeDetail = {
 	responses: Record<string, unknown>;
 };
@@ -151,7 +157,7 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	#itemBaseUrl: string | undefined;
 	#items: QtiItemMap | undefined;
 	#itemFetchPolicy: QtiItemFetchPolicy | undefined;
-	#config: Partial<BackendAssessmentPlayerConfig> = {};
+	#config: AssessmentElementConfig = {};
 	#security: PlayerSecurityConfig | undefined;
 	#pci: PciConfiguration | undefined;
 	#referenceMode = false;
@@ -260,7 +266,7 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 		}
 
 		if (name === 'config-json') {
-			const parsed = safeJsonParse<Partial<BackendAssessmentPlayerConfig>>(newValue);
+			const parsed = safeJsonParse<AssessmentElementConfig>(newValue);
 			if (parsed) this.#config = parsed;
 		}
 
@@ -276,7 +282,7 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	get config() {
 		return this.#config;
 	}
-	set config(value: Partial<BackendAssessmentPlayerConfig>) {
+	set config(value: AssessmentElementConfig) {
 		this.#config = value ?? {};
 		// Let #syncFromQti mount once the assessment backend is ready.
 		if (this.#allowMount) {

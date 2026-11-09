@@ -18,14 +18,8 @@ export interface TimeManagerConfig {
 	/** Assessment-level time limits */
 	assessmentTimeLimits?: TimeLimits;
 	/**
-	 * Warning threshold (seconds before expiry). Kept for compatibility; merged into
-	 * `warningThresholds`.
-	 */
-	warningThreshold?: number;
-	/**
-	 * Warning thresholds (seconds before expiry), largest first. Each fires once per
-	 * limiting scope when the remaining time first reaches it, in addition to
-	 * `warningThreshold`.
+	 * Warning thresholds (seconds before expiry). Each fires once per limiting scope when
+	 * the remaining time first reaches it, largest first. Without any, nothing warns.
 	 */
 	warningThresholds?: number[];
 	/** Callback when a warning threshold is reached */
@@ -90,8 +84,6 @@ export interface TimeTrackingState {
 	currentItemId?: string;
 	/** Current section identifier */
 	currentSectionId?: string;
-	/** Current section start time */
-	currentSectionStartTime?: number;
 	/** Current testPart identifier */
 	currentTestPartId?: string;
 	/** Current testPart start time */
@@ -230,9 +222,7 @@ export class TimeManager {
 
 	/** Every configured warning threshold, deduplicated, largest first. */
 	private warningThresholdList(): number[] {
-		const thresholds = new Set<number>(this.config.warningThresholds ?? []);
-		thresholds.add(this.config.warningThreshold ?? 60);
-		return [...thresholds].sort((a, b) => b - a);
+		return [...new Set(this.config.warningThresholds ?? [])].sort((a, b) => b - a);
 	}
 
 	private getActiveCandidates(): Array<{
@@ -608,7 +598,6 @@ export class TimeManager {
 			sectionTimes: { ...state.sectionTimes },
 			testPartTimes: { ...(state.testPartTimes ?? {}) },
 			currentItemStartTime: undefined,
-			currentSectionStartTime: undefined,
 			currentTestPartStartTime: undefined,
 		};
 		this.sectionStarts.clear();

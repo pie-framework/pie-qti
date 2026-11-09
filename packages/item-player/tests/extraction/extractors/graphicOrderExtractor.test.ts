@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardGraphicOrderExtractor } from '../../../src/interactions/graphic-order/extractor.js';
+import { type GraphicOrderData, standardGraphicOrderExtractor } from '../../../src/interactions/graphic-order/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardGraphicOrderExtractor', () => {
@@ -240,7 +240,7 @@ describe('standardGraphicOrderExtractor', () => {
 
 	describe('validation', () => {
 		test('validates correct graphicOrder data', () => {
-			const data = {
+			const data: GraphicOrderData = {
 				hotspotChoices: [
 					{ identifier: 'A', label: 'A', shape: 'rect', coords: '0,0,100,100' },
 					{ identifier: 'B', label: 'B', shape: 'rect', coords: '100,0,200,100' },
@@ -256,7 +256,7 @@ describe('standardGraphicOrderExtractor', () => {
 		});
 
 		test('reports error for insufficient hotspots', () => {
-			const data = {
+			const data: GraphicOrderData = {
 				hotspotChoices: [{ identifier: 'A', label: 'A', shape: 'rect', coords: '0,0,100,100' }],
 				imageData: { type: 'image', src: 'test.png', width: '500', height: '400' },
 				prompt: null,
@@ -269,7 +269,7 @@ describe('standardGraphicOrderExtractor', () => {
 		});
 
 		test('reports error for duplicate identifiers', () => {
-			const data = {
+			const data: GraphicOrderData = {
 				hotspotChoices: [
 					{ identifier: 'A', label: 'A', shape: 'rect', coords: '0,0,100,100' },
 					{ identifier: 'A', label: 'B', shape: 'rect', coords: '100,0,200,100' },
@@ -285,7 +285,7 @@ describe('standardGraphicOrderExtractor', () => {
 		});
 
 		test('reports warning for missing image data', () => {
-			const data = {
+			const data: GraphicOrderData = {
 				hotspotChoices: [
 					{ identifier: 'A', label: 'A', shape: 'rect', coords: '0,0,100,100' },
 					{ identifier: 'B', label: 'B', shape: 'rect', coords: '100,0,200,100' },

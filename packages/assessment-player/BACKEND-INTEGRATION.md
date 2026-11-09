@@ -456,10 +456,10 @@ return {
 The optional `outcomes` map holds the test-level outcome values after outcome processing
 (`TestOutcomeValues`: a scalar, an array for a multiple or ordered outcome, `null` for NULL) and
 drives QTI `testFeedback` visibility. Return it from `submitResponses()` and from a resumed
-`initSession()` as well, so `access="during"` feedback follows each submission. The older single
-`feedback` string is retained for compatibility; structured assessment feedback plus outcome values
-is preferred. Report an outcome-processing failure as `outcomeProcessingError` here too (see
-[Item submission](#item-submission)); the finalization still succeeds.
+`initSession()` as well, so `access="during"` feedback follows each submission. Test feedback comes
+only from the test's `testFeedback` blocks evaluated against these outcomes; the response carries
+no feedback text of its own. Report an outcome-processing failure as `outcomeProcessingError` here
+too (see [Item submission](#item-submission)); the finalization still succeeds.
 
 ## Reference adapter
 

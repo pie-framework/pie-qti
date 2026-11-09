@@ -27,8 +27,6 @@ export type AssessmentPlayerErrorCode =
 	| 'reviewNotAllowed'
 	/** The item must be answered before navigation away is allowed. */
 	| 'responseRequired'
-	/** The item's responses fail validation and navigation away is blocked. */
-	| 'responseInvalid'
 	/**
 	 * Ending the test was refused: items in individual parts that do not allow skipping
 	 * still have no response (`params.items` lists their numbers).
@@ -124,7 +122,7 @@ export function isSubmissionBlockedError(error: unknown): error is AssessmentPla
 }
 
 /** Deterministic short support code for an arbitrary (non-coded) error message. */
-export function shortSupportCode(message: string): string {
+function shortSupportCode(message: string): string {
 	let hash = 0;
 	const source = message.slice(0, 256);
 	for (let i = 0; i < source.length; i++) {

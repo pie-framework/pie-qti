@@ -8,8 +8,6 @@
  * avoids a second, divergent source of navigation truth.
  */
 
-export type NavigationMode = 'linear' | 'nonlinear';
-
 export class NavigationManager {
 	private visitedItems: Set<number>;
 

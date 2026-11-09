@@ -33,7 +33,10 @@ export interface StoredSession {
 	createdAt: number;
 	/** Finalized flag */
 	finalized: boolean;
-	/** Per-item variables and flags from the latest submission, read by test-level outcome processing. */
+	/**
+	 * Per-item variables and flags from each item's latest counted submission, read by
+	 * test-level outcome processing. Absent until the session's first counted submission.
+	 */
 	itemTestStates?: Record<string, ItemTestState>;
 	/**
 	 * Set when test-level outcome processing failed: candidate responses stay persisted,
@@ -93,13 +96,4 @@ export function findLatestSession(
 		return null;
 	}
 	return latest;
-}
-
-/** Remove a stored session (reference "start over" clears its draft through `saveState`). */
-export function removeSession(sessionId: SessionId): void {
-	try {
-		localStorage.removeItem(STORAGE_PREFIX + sessionId);
-	} catch {
-		// Storage unavailable: nothing to remove.
-	}
 }

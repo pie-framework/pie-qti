@@ -202,9 +202,11 @@ describe('drawingUtils', () => {
 			};
 
 			const fileResponse: QTIFileResponse = {
-				fileName: 'drawing.png',
-				mimeType: 'image/png',
-				data: 'base64data',
+				name: 'drawing.png',
+				type: 'image/png',
+				size: 0,
+				lastModified: 0,
+				dataUrl: 'data:image/png;base64,base64data',
 				imageData,
 			};
 
@@ -224,9 +226,11 @@ describe('drawingUtils', () => {
 
 		test('should return null for response without imageData', () => {
 			const fileResponse: QTIFileResponse = {
-				fileName: 'drawing.png',
-				mimeType: 'image/png',
-				data: 'base64data',
+				name: 'drawing.png',
+				type: 'image/png',
+				size: 0,
+				lastModified: 0,
+				dataUrl: 'data:image/png;base64,base64data',
 			};
 
 			const result = getImageDataFromResponse(fileResponse);
@@ -245,9 +249,11 @@ describe('drawingUtils', () => {
 			}
 
 			const fileResponse: QTIFileResponse = {
-				fileName: 'drawing.png',
-				mimeType: 'image/png',
-				data: 'base64data',
+				name: 'drawing.png',
+				type: 'image/png',
+				size: 0,
+				lastModified: 0,
+				dataUrl: 'data:image/png;base64,base64data',
 				imageData: {
 					data,
 					width: 60,
@@ -268,9 +274,11 @@ describe('drawingUtils', () => {
 			}
 
 			const fileResponse: QTIFileResponse = {
-				fileName: 'drawing.png',
-				mimeType: 'image/png',
-				data: 'base64data',
+				name: 'drawing.png',
+				type: 'image/png',
+				size: 0,
+				lastModified: 0,
+				dataUrl: 'data:image/png;base64,base64data',
 				imageData: {
 					data,
 					width: 100,
@@ -291,9 +299,11 @@ describe('drawingUtils', () => {
 
 		test('should return false for response without imageData', () => {
 			const fileResponse: QTIFileResponse = {
-				fileName: 'drawing.png',
-				mimeType: 'image/png',
-				data: 'base64data',
+				name: 'drawing.png',
+				type: 'image/png',
+				size: 0,
+				lastModified: 0,
+				dataUrl: 'data:image/png;base64,base64data',
 			};
 
 			expect(analyzeDrawing(fileResponse)).toBe(false);
@@ -309,9 +319,11 @@ describe('drawingUtils', () => {
 			}
 
 			const fileResponse: QTIFileResponse = {
-				fileName: 'drawing.png',
-				mimeType: 'image/png',
-				data: 'base64data',
+				name: 'drawing.png',
+				type: 'image/png',
+				size: 0,
+				lastModified: 0,
+				dataUrl: 'data:image/png;base64,base64data',
 				imageData: {
 					data,
 					width: 20,

@@ -38,24 +38,20 @@ describe('resolveSectionTtsProviderConfig', () => {
 		});
 	});
 
-	test('maps the pre-1.0 toolkit keys onto the 1.0 shape', () => {
-		const config = resolveSectionTtsProviderConfig({
-			provider: 'custom',
-			validateEndpoint: true,
-			settings: { layoutMode: 'left-aligned', speedOptions: [1, 1.5] },
-		});
-		expect(config).toMatchObject({
-			backend: 'server',
-			serverProvider: 'custom',
-			layoutMode: 'left-aligned',
-			speedOptions: [1, 1.5],
-		});
-		expect(config).not.toHaveProperty('provider');
-		expect(config).not.toHaveProperty('settings');
-		expect(config).not.toHaveProperty('validateEndpoint');
-		expect(resolveSectionTtsProviderConfig({ provider: 'browser' })).toMatchObject({ backend: 'browser' });
+	test('applies the host record over the defaults as given, translating no keys', () => {
 		expect(resolveSectionTtsProviderConfig({ provider: { id: 'tts-server' } })).toMatchObject({
 			provider: { id: 'tts-server' },
+		});
+		// Only the toolkit's own keys configure it: a string `provider` does not name the server
+		// (`serverProvider` does) and nested `settings` set no layout; both reach it unchanged.
+		expect(
+			resolveSectionTtsProviderConfig({ provider: 'custom', settings: { layoutMode: 'left-aligned' } }),
+		).toMatchObject({
+			backend: 'server',
+			serverProvider: 'polly',
+			layoutMode: 'expanding-row',
+			provider: 'custom',
+			settings: { layoutMode: 'left-aligned' },
 		});
 	});
 

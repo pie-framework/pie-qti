@@ -360,13 +360,7 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 			renderItemBodyRubrics: this.#renderItemBodyRubrics,
 			typeset: this.#typeset,
 			i18n: this.#resolveI18n(),
-			security: {
-				...(this.#security ?? {}),
-				parsingLimits: {
-					enabled: true,
-					...(this.#security?.parsingLimits ?? {}),
-				},
-			},
+			security: this.#security,
 			pnp: this.#pnp,
 			deliveryContext: this.#deliveryContext,
 			resolveProcessingFragment: this.#resolveProcessingFragment,

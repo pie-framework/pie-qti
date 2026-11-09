@@ -16,14 +16,6 @@
  * Settings apply per item where `setItemSettings` has set them, and fall back to the shared settings.
  */
 
-import type { AssessmentPlayerErrorCode } from './errors.js';
-
-/** Why navigation away from an item is blocked; localized via `assessment.errors.codes.<reason>`. */
-export type ItemNavigationBlockReason = Extract<
-	AssessmentPlayerErrorCode,
-	'responseRequired' | 'responseInvalid'
->;
-
 export interface ItemSessionControlSettings {
 	maxAttempts?: number; // default 1; 0 = unlimited (adaptive items)
 	showFeedback?: boolean;
@@ -218,66 +210,6 @@ export class ItemSessionController {
 	}
 
 	/**
-	 * Validate that an item has valid responses (if validation is required).
-	 * `error` is a stable reason code, localized by the shell — never raw English text.
-	 */
-	validateItem(itemIdentifier: string, hasValidResponses: boolean): {
-		isValid: boolean;
-		error?: ItemNavigationBlockReason;
-	} {
-		if (!this.mustValidateResponses(itemIdentifier)) {
-			return { isValid: true };
-		}
-
-		const state = this.sessionStates.get(itemIdentifier);
-		if (!state) {
-			return { isValid: true };
-		}
-
-		// If item is required and has no valid responses, fail validation
-		if (!hasValidResponses) {
-			return {
-				isValid: false,
-				error: 'responseInvalid',
-			};
-		}
-
-		return { isValid: true };
-	}
-
-	/**
-	 * Check if navigation away from current item is allowed.
-	 * `reason` is a stable code the shell localizes — never raw English text.
-	 */
-	canNavigateAway(itemIdentifier: string, hasValidResponses: boolean): {
-		allowed: boolean;
-		reason?: ItemNavigationBlockReason;
-	} {
-		const state = this.sessionStates.get(itemIdentifier);
-		if (!state) {
-			return { allowed: true };
-		}
-
-		// Check if skipping is allowed when item is unanswered
-		if (!state.isAnswered && !this.canSkip(itemIdentifier)) {
-			return {
-				allowed: false,
-				reason: 'responseRequired',
-			};
-		}
-
-		// Check validation requirements
-		if (this.mustValidateResponses(itemIdentifier) && state.isAnswered && !hasValidResponses) {
-			return {
-				allowed: false,
-				reason: 'responseInvalid',
-			};
-		}
-
-		return { allowed: true };
-	}
-
-	/**
 	 * Get full settings
 	 */
 	getSettings(): ItemSessionControlSettings {
@@ -308,25 +240,5 @@ export class ItemSessionController {
 	 */
 	restoreStates(states: Map<string, ItemSessionState>): void {
 		this.sessionStates = new Map(states);
-	}
-
-	/**
-	 * Reset session state for an item (useful for practice/retry scenarios)
-	 */
-	resetItem(itemIdentifier: string): void {
-		const state = this.sessionStates.get(itemIdentifier);
-		if (state) {
-			state.attemptCount = 0;
-			state.isAnswered = false;
-			state.isSubmitted = false;
-			state.lastSubmissionTime = undefined;
-		}
-	}
-
-	/**
-	 * Clear all session states
-	 */
-	clear(): void {
-		this.sessionStates.clear();
 	}
 }

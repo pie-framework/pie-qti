@@ -235,6 +235,10 @@
 	}
 
 	const format = $derived(parsedInteraction?.format ?? 'plain');
+	// Character counters (QTI 3 shared vocabulary §1.2.3.2): qti-counter-down starts at the
+	// authored expected-length and counts down to 0; qti-counter-up starts at 0 and increases to
+	// it. Both are defined by that length, and by default no counter is displayed, so without an
+	// authored expected length (absent, or 0) neither class shows one: no target is invented.
 	const expectedLength = $derived(parsedInteraction?.expectedLength ?? 0);
 	const classes = $derived(parsedInteraction?.interactionClasses ?? []);
 	const showCounterDown = $derived(classes.includes('qti-counter-down') && expectedLength > 0);

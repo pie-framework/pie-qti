@@ -14,7 +14,8 @@ import type { BaseType } from '@pie-qti/qti-processing';
 import { Player } from '../core/Player.js';
 import { fromQtiVariableJson, toQtiVariableJson } from '../pci/qtiVariableJson.js';
 import { PCI_REGISTRY_GLOBAL } from '../pci/registry.js';
-import type { ExtractedPci, PciModuleResolver, QtiPciInstance } from '../pci/types.js';
+import type { PciModuleResolver, QtiPciInstance } from '../pci/types.js';
+import type { PortableCustomInteractionData } from '../interactions/shared/types.js';
 
 const FILE_A = {
 	name: 'hello.txt',
@@ -172,9 +173,23 @@ describe('QTI variable JSON: records', () => {
 			a: { baseType: 'integer', cardinality: 'single', value: 1 },
 		});
 	});
+
+	it('reads a member whose key is not a QTI base type as NULL', () => {
+		expect(
+			fromQtiVariableJson({
+				record: [
+					{ name: 'a', base: { custom: 'x' } },
+					{ name: 'b', list: { custom: ['x', 'y'] } },
+				],
+			}),
+		).toEqual({
+			a: { cardinality: 'single', value: null },
+			b: { cardinality: 'multiple', value: null },
+		});
+	});
 });
 
-describe('QTI variable JSON: non-spec input and declaration fallback', () => {
+describe('QTI variable JSON: non-spec input', () => {
 	it('rejects a pair, directedPair or point that is not an array', () => {
 		expect(fromQtiVariableJson({ base: { pair: 'A B' } })).toBeNull();
 		expect(fromQtiVariableJson({ base: { directedPair: 'S1 T2' } })).toBeNull();
@@ -197,12 +212,22 @@ describe('QTI variable JSON: non-spec input and declaration fallback', () => {
 		expect(fromQtiVariableJson({ list: { duration: ['PT1S', 'PT2S'] } })).toEqual([1, 2]);
 	});
 
-	it('passes a value that is not variable JSON through unchanged', () => {
-		expect(fromQtiVariableJson('plain')).toBe('plain');
+	it('reads anything that is not variable JSON as NULL', () => {
+		expect(fromQtiVariableJson('plain')).toBeNull();
+		expect(fromQtiVariableJson(42)).toBeNull();
+		expect(fromQtiVariableJson(true)).toBeNull();
+		expect(fromQtiVariableJson(['A', 'B'])).toBeNull();
+		expect(fromQtiVariableJson({ answer: 'A' })).toBeNull();
+		expect(fromQtiVariableJson({ value: 3 })).toBeNull();
 	});
 
-	it('converts by the declared base type when the JSON names an unknown one', () => {
-		expect(fromQtiVariableJson({ base: { custom: ['A', 'B'] } }, { baseType: 'pair', cardinality: 'single' })).toBe('A B');
+	it('reads a base or list wrapper whose key is not a QTI base type as NULL', () => {
+		expect(fromQtiVariableJson({ base: { custom: 'A' } })).toBeNull();
+		expect(fromQtiVariableJson({ base: { custom: ['A', 'B'] } })).toBeNull();
+		expect(fromQtiVariableJson({ list: { pointish: [[1, 2]] } })).toBeNull();
+		// The spec forms still decode.
+		expect(fromQtiVariableJson({ base: { identifier: 'A' } })).toBe('A');
+		expect(fromQtiVariableJson({ list: { identifier: ['A', 'B'] } })).toEqual(['A', 'B']);
 	});
 });
 
@@ -283,7 +308,7 @@ function jsonModule(response: unknown) {
 async function mountPci(itemXml: string, response: unknown, seed?: Record<string, unknown>) {
 	const module = jsonModule(response);
 	const player = new Player({ itemXml, pci: { moduleResolver: module.resolver } });
-	const host = player.createPciHost(player.getInteractionData()[0] as ExtractedPci);
+	const host = player.createPciHost(player.getInteractionData()[0] as PortableCustomInteractionData);
 	if (seed) player.setResponses(seed);
 	await host.load();
 	host.initialize({ appendChild: () => {} } as unknown as HTMLElement);
@@ -335,6 +360,18 @@ describe('Player with a conformant PCI', () => {
 		expect(record.player.getResponses().RESPONSE ?? null).toBeNull();
 		expect(record.player.processResponses().score).toBe(0);
 		record.player.destroy();
+	});
+
+	it('stores no response for a module answering a raw non-JSON value', async () => {
+		const raw = await mountPci(PAIR_ITEM, 'A B');
+		expect(raw.player.getResponses().RESPONSE ?? null).toBeNull();
+		expect(raw.player.processResponses().score).toBe(0);
+		raw.player.destroy();
+
+		const plainObject = await mountPci(PAIR_ITEM, { answer: 'A B' });
+		expect(plainObject.player.getResponses().RESPONSE ?? null).toBeNull();
+		expect(plainObject.player.processResponses().score).toBe(0);
+		plainObject.player.destroy();
 	});
 
 	it('seeds a restored pair and duration as spec JSON state', async () => {

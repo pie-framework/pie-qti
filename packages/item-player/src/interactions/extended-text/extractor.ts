@@ -17,7 +17,12 @@ export interface ExtendedTextData {
 	minStrings: number;
 	maxStrings: number;
 	expectedLines: number;
-	expectedLength: number;
+	/**
+	 * The authored expected length, absent when not authored. A hint with no default in QTI 2.1
+	 * (`xs:int`, optional), 2.2 (`xs:nonNegativeInteger`, optional) or 3.0, and not a limit; the
+	 * `qti-counter-up`/`qti-counter-down` counters count against it, so none is invented.
+	 */
+	expectedLength?: number;
 	prompt: string | null;
 	placeholderText: string;
 	format: string;
@@ -57,7 +62,9 @@ export const standardExtendedTextExtractor: ElementExtractor<ExtendedTextData> =
 			cardinality === 'single' || cardinality === 'record' ? 1 : 0,
 		);
 		const expectedLines = utils.getNumberAttribute(element, 'expectedLines', 3);
-		const expectedLength = utils.getNumberAttribute(element, 'expectedLength', 200);
+		// A hint with no spec default: absent stays absent.
+		const authoredExpectedLength = utils.getAttribute(element, 'expectedLength', '');
+		const expectedLength = authoredExpectedLength ? Number(authoredExpectedLength) : undefined;
 		const placeholderText = utils.getAttribute(element, 'placeholderText', '');
 		const format = utils.getAttribute(element, 'format', 'plain');
 		const patternMask = utils.getAttribute(element, 'patternMask', '') || null;
@@ -73,7 +80,7 @@ export const standardExtendedTextExtractor: ElementExtractor<ExtendedTextData> =
 			minStrings,
 			maxStrings,
 			expectedLines,
-			expectedLength,
+			...(expectedLength !== undefined ? { expectedLength } : {}),
 			prompt,
 			placeholderText,
 			format,
@@ -112,8 +119,8 @@ export const standardExtendedTextExtractor: ElementExtractor<ExtendedTextData> =
 			errors.push('expectedLines must be a non-negative integer');
 		}
 
-		// Validate expectedLength
-		if (!Number.isInteger(data.expectedLength) || data.expectedLength < 0) {
+		// Validate expectedLength, when authored
+		if (data.expectedLength !== undefined && (!Number.isInteger(data.expectedLength) || data.expectedLength < 0)) {
 			errors.push('expectedLength must be a non-negative integer');
 		}
 

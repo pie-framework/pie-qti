@@ -5,7 +5,7 @@
 import { describe, expect, test } from 'bun:test';
 import { Player } from '../../../src/core/Player.js';
 import type { GapMatchInteractionData } from '../../../src/interactions/shared/types.js';
-import { standardGapMatchExtractor } from '../../../src/interactions/gap-match/extractor.js';
+import { type GapMatchData, standardGapMatchExtractor } from '../../../src/interactions/gap-match/extractor.js';
 import type { ItemSessionEngineConfig } from '../../../src/types/index.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
@@ -616,7 +616,7 @@ describe('standardGapMatchExtractor', () => {
 
 	describe('validation', () => {
 		test('validates correct gapMatch data', () => {
-			const data = {
+			const data: GapMatchData = {
 				gapTexts: [
 					{ identifier: 'T1', text: 'Text 1', matchMax: 1 },
 					{ identifier: 'T2', text: 'Text 2', matchMax: 1 },
@@ -625,6 +625,7 @@ describe('standardGapMatchExtractor', () => {
 				gaps: ['G1', 'G2'],
 				promptText: 'Fill [GAP:G1] and [GAP:G2]',
 				shuffle: false,
+				maxAssociations: 1,
 				prompt: 'Fill the gaps',
 			};
 
@@ -635,12 +636,13 @@ describe('standardGapMatchExtractor', () => {
 		});
 
 		test('validates an image-only item (gapImg without gapText)', () => {
-			const data = {
+			const data: GapMatchData = {
 				gapTexts: [],
 				gapImages: [{ identifier: 'I1', src: 'images/sun.png', alt: 'Sun', matchMax: 1 }],
 				gaps: ['G1'],
 				promptText: 'Fill [GAP:G1]',
 				shuffle: false,
+				maxAssociations: 1,
 				prompt: null,
 			};
 
@@ -651,12 +653,13 @@ describe('standardGapMatchExtractor', () => {
 		});
 
 		test('reports error for empty gapTexts and gapImages', () => {
-			const data = {
+			const data: GapMatchData = {
 				gapTexts: [],
 				gapImages: [],
 				gaps: ['G1'],
 				promptText: '[GAP:G1]',
 				shuffle: false,
+				maxAssociations: 1,
 				prompt: null,
 			};
 
@@ -667,12 +670,13 @@ describe('standardGapMatchExtractor', () => {
 		});
 
 		test('reports error for a gapImg without an image source', () => {
-			const data = {
+			const data: GapMatchData = {
 				gapTexts: [{ identifier: 'T1', text: 'Text', matchMax: 1 }],
 				gapImages: [{ identifier: 'I1', src: '', alt: 'Sun', matchMax: 1 }],
 				gaps: ['G1'],
 				promptText: '[GAP:G1]',
 				shuffle: false,
+				maxAssociations: 1,
 				prompt: null,
 			};
 
@@ -683,12 +687,13 @@ describe('standardGapMatchExtractor', () => {
 		});
 
 		test('reports error when a gapImg identifier collides with a gapText identifier', () => {
-			const data = {
+			const data: GapMatchData = {
 				gapTexts: [{ identifier: 'T1', text: 'Text', matchMax: 1 }],
 				gapImages: [{ identifier: 'T1', src: 'images/sun.png', alt: 'Sun', matchMax: 1 }],
 				gaps: ['G1'],
 				promptText: '[GAP:G1]',
 				shuffle: false,
+				maxAssociations: 1,
 				prompt: null,
 			};
 
@@ -699,11 +704,13 @@ describe('standardGapMatchExtractor', () => {
 		});
 
 		test('reports error for empty gaps', () => {
-			const data = {
+			const data: GapMatchData = {
 				gapTexts: [{ identifier: 'T1', text: 'Text', matchMax: 1 }],
 				gaps: [],
+				gapImages: [],
 				promptText: 'No gaps',
 				shuffle: false,
+				maxAssociations: 1,
 				prompt: null,
 			};
 
@@ -714,14 +721,16 @@ describe('standardGapMatchExtractor', () => {
 		});
 
 		test('reports error for duplicate gapText identifiers', () => {
-			const data = {
+			const data: GapMatchData = {
 				gapTexts: [
 					{ identifier: 'T1', text: 'Text 1', matchMax: 1 },
 					{ identifier: 'T1', text: 'Text 2', matchMax: 1 },
 				],
 				gaps: ['G1'],
+				gapImages: [],
 				promptText: '[GAP:G1]',
 				shuffle: false,
+				maxAssociations: 1,
 				prompt: null,
 			};
 

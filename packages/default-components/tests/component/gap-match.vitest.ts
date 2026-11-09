@@ -70,6 +70,40 @@ describe('GapMatchInteraction (pie-qti-gap-match)', () => {
 		cleanupInteraction(mounted);
 	});
 
+	test('an alt-less gap image is named by a localized ordinal, never its identifier', async () => {
+		const mounted = mountInteraction(GapMatchInteraction, {
+			interaction: gapData({
+				gapImages: [
+					{ identifier: 'SECRET_KEY', src: 'x.png', alt: '', matchMax: 1 },
+					{ identifier: 'europe', src: 'europe.png', alt: 'Map of Europe', matchMax: 1 },
+				],
+			}),
+		});
+		await settle();
+
+		// The image has no alt: the tile still carries a non-empty name, and it is the
+		// tile's presented position in the palette (after the two gap texts) — not the
+		// identifier, which can leak the answer key to screen reader users (WCAG 4.1.2).
+		const textless = q(mounted, 'button[data-word-id="SECRET_KEY"]')!;
+		expect(textless.getAttribute('aria-label')).toBe('Choice 3');
+
+		// An authored alt still wins.
+		expect(q(mounted, 'button[data-word-id="europe"]')?.getAttribute('aria-label')).toBe('Map of Europe');
+
+		// Pick-up and placement announcements use the same name.
+		textless.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		expect(liveRegion(mounted)).toBe('Choice 3 picked up. Select a blank to place it, or press Escape to cancel.');
+
+		q(mounted, 'button[data-gap-id="G1"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		expect(mounted.instance.response).toEqual(['SECRET_KEY G1']);
+		expect(q(mounted, 'button[data-gap-id="G1"]')?.getAttribute('aria-label')).toContain(
+			'Blank 1 of 1, filled with Choice 3',
+		);
+		cleanupInteraction(mounted);
+	});
+
 	test('pick-up flow: select a word, click a gap, pair is emitted and rendered', async () => {
 		const mounted = mountInteraction(GapMatchInteraction, { interaction: gapData() });
 		await settle();

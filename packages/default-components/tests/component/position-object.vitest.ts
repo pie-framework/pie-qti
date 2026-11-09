@@ -113,8 +113,13 @@ describe('PositionObjectInteraction (pie-qti-position-object)', () => {
 		const mounted = mountInteraction(PositionObjectInteraction, { interaction: positionData() });
 		await settle();
 
+		const nameBefore = paletteItem(mounted).getAttribute('aria-label');
 		paletteItem(mounted).click();
 		await settle();
+		// Selected for placement: aria-pressed alone says so; the name does not repeat it (WCAG 4.1.2).
+		expect(paletteItem(mounted).getAttribute('aria-pressed')).toBe('true');
+		expect(paletteItem(mounted).getAttribute('aria-label')).toBe(nameBefore);
+		expect(paletteItem(mounted).getAttribute('aria-label')).not.toContain('Selected');
 		// The 600×400 stage is rendered at half size (300×200) at (0, 0).
 		const area = canvas(mounted);
 		mockRect(area, 0, 0, 300, 200);

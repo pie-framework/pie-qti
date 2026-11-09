@@ -33,11 +33,9 @@
     },
     "@pie-qti/section-player": {
       "@pie-players/pie-assessment-toolkit": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
-      "@pie-players/pie-calculator-desmos": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package\u2019s contracts-only dist",
       "@pie-players/pie-default-tool-loaders": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
       "@pie-players/pie-tool-calculator-desmos": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
       "@pie-players/pie-tool-tts-inline": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
-      "@pie-players/tts-client-server": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package\u2019s contracts-only dist",
       "@pie-qti/default-components": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
       "@pie-qti/i18n": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
       "@pie-qti/ims-cp-core": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist"

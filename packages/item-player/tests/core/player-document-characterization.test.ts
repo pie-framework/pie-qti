@@ -403,7 +403,7 @@ describe('Player document characterization', () => {
 	});
 
 	test('projects response, outcome, and template declarations into extraction context', () => {
-		let capturedContext: ExtractionContext | null = null;
+		let capturedContext = null as ExtractionContext | null;
 		const capturingExtractor: ElementExtractor = {
 			id: 'test:capture-choice-context',
 			name: 'Capture Choice Context',
@@ -495,13 +495,13 @@ describe('Player document characterization', () => {
 		});
 
 		expect(String(player.getRubrics()[0].html)).toContain('Candidate rubric');
-		expect(player.processResponses().modalFeedback[0]).toMatchObject({
+		expect(player.processResponses().modalFeedback?.[0]).toMatchObject({
 			identifier: 'SHOW_FEEDBACK',
 			outcomeIdentifier: 'FEEDBACK',
 			showHide: 'show',
 			title: 'Hint',
 		});
-		expect(String(player.processResponses().modalFeedback[0].content)).toContain('Feedback body');
+		expect(String(player.processResponses().modalFeedback?.[0].content)).toContain('Feedback body');
 	});
 
 	test('applies extraction security after Player-level extraction', () => {
@@ -516,7 +516,7 @@ describe('Player document characterization', () => {
 				urlPolicy: {
 					allowHttps: true,
 					allowHttp: false,
-					allowDataImage: false,
+					allowDataImages: false,
 					allowProtocolRelative: false,
 				},
 			},

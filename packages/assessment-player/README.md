@@ -212,10 +212,10 @@ it against server-owned source and state.
 - `backend: BackendAdapter`
 - `initSession: InitSessionRequest`
 
-It also accepts definition plugins, security and PCI policy, PNP, i18n, deterministic RNG, section
-host/tool configuration, display hints, timing warnings, and compatibility callbacks. Prefer the
-`onItemChange()`, `onSectionChange()`, `onResponseChange()`, `onComplete()`, and timing subscription
-methods when lifecycle-managed unsubscription is useful.
+It also accepts definition plugins, security and PCI policy, PNP, i18n, a deterministic clock
+(`now`), section host/tool configuration, display hints, timing warnings, and lifecycle callbacks.
+Prefer the `onItemChange()`, `onSectionChange()`, `onResponseChange()`, `onComplete()`, and timing
+subscription methods when lifecycle-managed unsubscription is useful.
 
 Definition plugins use `AssessmentItemDefinitionPlugin` from `@pie-qti/item-player` and are applied
 to every item definition created by the assessment player.

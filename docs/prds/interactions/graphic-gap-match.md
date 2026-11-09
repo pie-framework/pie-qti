@@ -437,11 +437,12 @@ AC-A3: Escape cancels keyboard selection
   Then: Mercury's aria-pressed returns to false; aria-live announces "Selection cancelled";
         no pair is created; hotspot buttons return to tabindex=-1
 
-AC-A4: aria-label on label button reflects placement state
+AC-A4: Label button description reflects placement state; its name does not change
   Given: Mercury is placed on hotspot A
   When: a screen reader reads the Mercury button
-  Then: the announced label includes "Mercury" and "Already placed on hotspot"
-        (or equivalent phrasing indicating the label is in use)
+  Then: its name is "Mercury", as before it was picked up or placed; its description
+        (aria-describedby) includes "Already placed on a hotspot" (or equivalent phrasing).
+        The picked-up state is aria-pressed alone: neither name nor hint repeats it
 
 AC-A5: aria-label on hotspot reflects availability and contents
   Given: hotspot 1 has Mercury placed; hotspot 2 is empty

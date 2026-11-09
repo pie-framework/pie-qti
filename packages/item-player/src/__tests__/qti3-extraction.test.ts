@@ -7,6 +7,12 @@
 
 import { describe, it, expect } from 'bun:test';
 import { Player } from '../core/Player.js';
+import type {
+	ChoiceInteractionData,
+	ExtendedTextInteractionData,
+	MatchInteractionData,
+	TextEntryInteractionData,
+} from '../interactions/shared/types.js';
 
 // QTI 3.0 sample items
 const QTI3_SIMPLE_CHOICE = `<?xml version="1.0" encoding="UTF-8"?>
@@ -175,7 +181,7 @@ describe('QTI 3.0 Extraction', () => {
 
 			// Verify interaction was extracted
 			expect(interactions).toHaveLength(1);
-			const interaction = interactions[0];
+			const interaction = interactions[0] as ChoiceInteractionData;
 
 			expect(interaction.type).toBe('choiceInteraction'); // normalized to QTI 2.x camelCase
 			expect(interaction.responseId).toBe('RESPONSE');
@@ -204,7 +210,7 @@ describe('QTI 3.0 Extraction', () => {
 			const interactions = player.getInteractionData();
 
 			expect(interactions).toHaveLength(1);
-			const interaction = interactions[0];
+			const interaction = interactions[0] as TextEntryInteractionData;
 
 			expect(interaction.type).toBe('textEntryInteraction'); // normalized to QTI 2.x camelCase
 			expect(interaction.responseId).toBe('RESPONSE');
@@ -227,7 +233,7 @@ describe('QTI 3.0 Extraction', () => {
 			const interactions = player.getInteractionData();
 
 			expect(interactions).toHaveLength(1);
-			const interaction = interactions[0];
+			const interaction = interactions[0] as ExtendedTextInteractionData;
 
 			expect(interaction.type).toBe('extendedTextInteraction'); // normalized to QTI 2.x camelCase
 			expect(interaction.responseId).toBe('RESPONSE');
@@ -243,7 +249,7 @@ describe('QTI 3.0 Extraction', () => {
 			const interactions = player.getInteractionData();
 
 			expect(interactions).toHaveLength(1);
-			const interaction = interactions[0];
+			const interaction = interactions[0] as MatchInteractionData;
 
 			expect(interaction.type).toBe('matchInteraction'); // normalized to QTI 2.x camelCase
 			expect(interaction.responseId).toBe('RESPONSE');
@@ -293,7 +299,7 @@ describe('QTI 3.0 Extraction', () => {
 
 			// No explicit mappers - should automatically use QTI 2.x defaults
 			const player = new Player({ itemXml: qti2xml });
-			const interactions = player.getInteractionData();
+			const interactions = player.getInteractionData() as readonly ChoiceInteractionData[];
 
 			expect(interactions).toHaveLength(1);
 			expect(interactions[0].type).toBe('choiceInteraction');

@@ -18,8 +18,22 @@ describe('createItemPresentation', () => {
 				<choiceInteraction responseIdentifier="RESPONSE"><simpleChoice identifier="A">A</simpleChoice></choiceInteraction>
 			`,
 			interactions: [
-				{ type: 'inlineChoiceInteraction', responseId: 'INLINE', choices: [{ identifier: 'A', text: 'A' }] },
-				{ type: 'choiceInteraction', responseId: 'RESPONSE', choices: [{ identifier: 'A', text: 'A' }] },
+				{
+					type: 'inlineChoiceInteraction',
+					responseId: 'INLINE',
+					choices: [{ identifier: 'A', text: 'A' }],
+					shuffle: false,
+					label: null,
+				},
+				{
+					type: 'choiceInteraction',
+					responseId: 'RESPONSE',
+					choices: [{ identifier: 'A', text: 'A' }],
+					shuffle: false,
+					maxChoices: 1,
+					minChoices: 0,
+					prompt: null,
+				},
 			],
 			correctResponses: { RESPONSE: 'A', INLINE: 'A' },
 		});
@@ -136,22 +150,27 @@ describe('createItemPresentation', () => {
 	it('injects delivery-context styles and stimulus content before rendering inline segments', () => {
 		const deliveryContext: ResolvedItemDeliveryContext = {
 			itemHref: 'items/item.xml',
-			itemBasePath: 'items',
 			stimuli: {
 				stimulus1: {
 					identifier: 'stimulus1',
 					href: 'stimulus.xml',
+					resolvedHref: 'items/stimulus.xml',
 					bodyHtml: '<p data-catalog-idref="term">Shared stimulus</p>',
+					stylesheets: [],
+					validationMessages: [],
 				},
 			},
 			stylesheets: [
 				{
 					href: 'style.css',
+					resolvedHref: 'items/style.css',
+					xml: '<qti-stylesheet href="style.css" type="text/css"/>',
 					cssText: '.stem { color: red; }',
 					source: 'item',
 				},
 			],
 			catalogSources: [],
+			validationMessages: [],
 		};
 		const source = presentationSource({
 			bodyHtml: '<qti-assessment-stimulus-ref identifier="stimulus1" /><p class="stem">Stem</p>',

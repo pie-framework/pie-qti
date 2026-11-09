@@ -65,9 +65,9 @@ The section tool bar composes external tool packages from the sibling
 
 These packages are pinned to **exact matching versions** because they inter-depend internally with
 exact pins; upgrading requires bumping all of them in lockstep (toolkit registry classes must not
-be loaded twice under different version strings). `pie-calculator-desmos` and `tts-client-server`
-are declared directly as well: the tool bar's Svelte sources, compiled into
-`@pie-qti/player-elements`, reach them.
+be loaded twice under different version strings). Packages only the default tool loaders import,
+such as `pie-calculator-desmos` and `tts-client-server`, are not listed here:
+`pie-default-tool-loaders` declares them itself.
 
 ### Tool bar interface locale
 
@@ -116,6 +116,11 @@ The default TTS tool configuration targets a host-served Polly endpoint at `/api
 (`endpointMode: 'synthesizePath'`). Hosts must either serve that route or override
 `sectionTools[].provider` when composing the section elements. Without it, TTS tool activations
 fail at request time.
+
+A `textToSpeech` tool's `provider` is the toolkit's own TTS provider configuration (`backend`,
+`serverProvider`, `apiEndpoint`, `endpointMode`, `transportMode`, `defaultVoice` and so on),
+applied over these defaults as given. The section player sets its `language` from the content
+language and, for Polly, a `defaultVoice` for that language unless the provider names one.
 
 ## License
 

@@ -9,6 +9,7 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
+	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
@@ -95,12 +96,15 @@
 	 * The draggable pool: gapText words and gapImg image tiles share one identifier
 	 * space and one set of placement rules, so everything downstream (palette,
 	 * drop handling, pick-up flow, matchMax/matchGroup constraints) works on this
-	 * combined list. Image choices are named by their alt text.
+	 * combined list. Image choices are named by their alt text; a word or image
+	 * whose content carries no readable text is named by its presented position in
+	 * the palette ("Choice 3"), never by its identifier, which is meaningless and
+	 * potentially answer-leaking to candidates using a screen reader.
 	 */
 	type PaletteWord = {
 		identifier: string;
 		kind: 'text' | 'image';
-		/** Readable name: gapText content, or the image's alt text. */
+		/** Readable name: gapText content, the image's alt text, else a localized ordinal. */
 		name: string;
 		src?: string;
 		width?: number;
@@ -126,7 +130,7 @@
 			words.push({
 				identifier: gapImage.identifier,
 				kind: 'image',
-				name: gapImage.alt || gapImage.identifier,
+				name: gapImage.alt,
 				src: gapImage.src,
 				...(gapImage.width !== undefined ? { width: gapImage.width } : {}),
 				...(gapImage.height !== undefined ? { height: gapImage.height } : {}),
@@ -135,6 +139,11 @@
 				...(gapImage.matchGroup ? { matchGroup: gapImage.matchGroup } : {}),
 			});
 		}
+		// Content-less words take the ordinal of their palette position (1-based, as
+		// presented after shuffle); an authored name passes through unchanged.
+		words.forEach((word, index) => {
+			word.name = choiceAccessibleName({ i18n, label: word.name, position: index + 1 });
+		});
 		return words;
 	});
 
@@ -265,7 +274,9 @@
 
 	function getWordText(wordId: string): string {
 		const word = paletteWords.find((w) => w.identifier === wordId);
-		return word?.name ?? wordId;
+		// An unknown id has no name to substitute: the identifier stays out of
+		// announcements, as it stays out of every accessible name.
+		return word?.name ?? '';
 	}
 
 	function onWordDragStart(e: DragEvent, wordId: string) {

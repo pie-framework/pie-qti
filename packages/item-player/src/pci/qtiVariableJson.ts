@@ -27,12 +27,6 @@ export interface QtiRecordField {
 	value: unknown;
 }
 
-/** The response declaration a value is bound to, when the caller knows it. */
-export interface QtiVariableJsonDeclaration {
-	baseType?: BaseType;
-	cardinality?: Cardinality;
-}
-
 const KNOWN_BASE_TYPES: ReadonlySet<string> = new Set([
 	'boolean',
 	'integer',
@@ -69,26 +63,33 @@ export function toQtiVariableJson(
 }
 
 /**
- * QTI variable JSON as the player's runtime value. The JSON names each value's base type; a name
- * that is not a QTI base type reads by the declared one. A value outside the binding reads as
- * NULL: a pair, directedPair or point that is not an array, a duration that is not an ISO 8601
- * string, a record that is not an array of named members. One such list member makes the whole
- * list NULL. Anything that is not variable JSON passes through unchanged.
+ * QTI variable JSON as the player's runtime value. Only the PCI v1.0 Appendix A binding is read;
+ * everything else reads as NULL:
+ *
+ * - a value that is not variable JSON: not an object, or an object with no `base`, `list` or
+ *   `record` key (a raw runtime value such as `"A B"` included);
+ * - a `base` or `list` wrapper that is not one `{"<baseType>": value}` entry naming a QTI base
+ *   type;
+ * - a value outside its base type's binding: a pair, directedPair or point that is not an array,
+ *   a duration that is not an ISO 8601 string, a record that is not an array of named members.
+ *   One such list member makes the whole list NULL.
+ *
+ * The base type the JSON names is the one the value is read by, also when it differs from the
+ * response declaration's.
  */
-export function fromQtiVariableJson(json: unknown, declaration?: QtiVariableJsonDeclaration): unknown {
-	if (json === null || json === undefined) return null;
-	if (!isPlainObject(json)) return json;
+export function fromQtiVariableJson(json: unknown): unknown {
+	if (!isPlainObject(json)) return null;
 	if ('base' in json) {
-		const entry = typedEntry(json.base, declaration?.baseType);
+		const entry = typedEntry(json.base);
 		return entry ? valueOrNull(decodeBaseValue(entry.baseType, entry.value)) : null;
 	}
 	if ('list' in json) {
-		const entry = typedEntry(json.list, declaration?.baseType);
+		const entry = typedEntry(json.list);
 		if (!entry || !Array.isArray(entry.value)) return null;
 		return decodeList(entry.baseType, entry.value);
 	}
 	if ('record' in json) return recordFromJson(json.record);
-	return json;
+	return null;
 }
 
 /** Guard for config sources: only QTI base-type names are kept as-is. */
@@ -147,23 +148,21 @@ function recordFromJson(record: unknown): Record<string, QtiRecordField> | null 
 
 function memberField(member: Record<string, unknown>): QtiRecordField {
 	if ('list' in member) {
-		const entry = typedEntry(member.list, undefined);
+		const entry = typedEntry(member.list);
 		if (!entry || !Array.isArray(entry.value)) return { cardinality: 'multiple', value: null };
-		return withBaseType(entry.baseType, {
+		return {
+			baseType: entry.baseType,
 			cardinality: 'multiple',
 			value: decodeList(entry.baseType, entry.value),
-		});
+		};
 	}
-	const entry = 'base' in member ? typedEntry(member.base, undefined) : null;
+	const entry = 'base' in member ? typedEntry(member.base) : null;
 	if (!entry) return { cardinality: 'single', value: null };
-	return withBaseType(entry.baseType, {
+	return {
+		baseType: entry.baseType,
 		cardinality: 'single',
 		value: valueOrNull(decodeBaseValue(entry.baseType, entry.value)),
-	});
-}
-
-function withBaseType(baseType: string, field: QtiRecordField): QtiRecordField {
-	return isKnownBaseType(baseType) ? { baseType, ...field } : field;
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -176,13 +175,13 @@ const REJECTED = Symbol('rejected');
 /** An ISO 8601 duration literal, as the binding writes durations (`PT1M30S`). */
 const ISO_8601_DURATION = /^-?P/;
 
-/** The one `{"<baseType>": value}` entry of a base or list wrapper. */
-function typedEntry(wrapper: unknown, declared: BaseType | undefined): { baseType: string; value: unknown } | null {
+/** The one `{"<baseType>": value}` entry of a base or list wrapper; null unless it names a QTI base type. */
+function typedEntry(wrapper: unknown): { baseType: BaseType; value: unknown } | null {
 	if (!isPlainObject(wrapper)) return null;
 	const entries = Object.entries(wrapper);
 	if (entries.length !== 1) return null;
 	const [key, value] = entries[0]!;
-	return { baseType: isKnownBaseType(key) || !declared ? key : declared, value };
+	return isKnownBaseType(key) ? { baseType: key, value } : null;
 }
 
 function encodeBaseValue(baseType: string, value: unknown): unknown {

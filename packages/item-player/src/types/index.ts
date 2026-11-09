@@ -408,8 +408,8 @@ export interface PlayerSecurityConfig {
 	/** Allow <iframe> usage (default false) */
 	allowIframes?: boolean;
 	/**
-	 * Optional parsing/processing guardrails to reduce DoS risk from untrusted QTI.
-	 * Disabled by default for compatibility.
+	 * Parsing/processing guardrails that reduce DoS risk from untrusted QTI. On by default;
+	 * `parsingLimits.enabled: false` opts out.
 	 */
 	parsingLimits?: ParsingLimitsConfig;
 	/**
@@ -423,28 +423,29 @@ export interface PlayerSecurityConfig {
 
 export interface ParsingLimitsConfig {
 	/**
-	 * Enables parsing limits. When false/undefined, the player behaves exactly as before (compat default).
+	 * The limits apply unless this is `false`. Opt out only for trusted content that needs more
+	 * than the limits allow (or a DOCTYPE), never to accept untrusted QTI.
 	 */
 	enabled?: boolean;
 	/**
-	 * Reject any XML containing <!DOCTYPE ...> (case-insensitive) when enabled.
+	 * Reject any XML containing <!DOCTYPE ...> (case-insensitive). Default true.
 	 * Helps reduce entity-expansion and other parser edge-case risks.
 	 */
 	rejectDoctype?: boolean;
 	/**
-	 * Maximum bytes for `itemXml` input (UTF-8). Enforced when enabled.
+	 * Maximum bytes for `itemXml` input (UTF-8). Default 10,000,000.
 	 */
 	maxItemXmlBytes?: number;
 	/**
-	 * Maximum bytes for HTML strings passed to sanitizer (UTF-8). Enforced when enabled.
+	 * Maximum bytes for HTML strings passed to the sanitizer (UTF-8). Default 5,000,000.
 	 */
 	maxHtmlBytes?: number;
 	/**
-	 * Maximum number of element nodes sanitized per HTML input. Enforced when enabled.
+	 * Maximum number of element nodes sanitized per HTML input. Default 200,000.
 	 */
 	maxHtmlNodes?: number;
 	/**
-	 * Maximum element depth sanitized per HTML input. Enforced when enabled.
+	 * Maximum element depth sanitized per HTML input. Default 200.
 	 */
 	maxHtmlDepth?: number;
 }

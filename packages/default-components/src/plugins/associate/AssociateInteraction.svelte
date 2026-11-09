@@ -8,6 +8,7 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { accessibleTextFromHtml } from '../../shared/utils/accessibleText.js';
+	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
 	import { countPairsWithId, pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
@@ -223,17 +224,21 @@
 		const removed = pairs[index];
 		emitChange(pairs.filter((_, i) => i !== index));
 		// Announce the removal politely: the focused remove button vanishes with the pair,
-		// so the live region is what tells assistive technology what just happened.
+		// so the live region is what tells assistive technology what just happened. Only
+		// pairs of known choices render a remove control, so both are found and named;
+		// an identifier is never announced.
 		if (removed) {
 			const [id1, id2] = removed.split(' ');
 			const choice1 = parsedInteraction?.choices.find((c) => c.identifier === id1);
 			const choice2 = parsedInteraction?.choices.find((c) => c.identifier === id2);
-			announce(
-				translate(i18n, 'interactions.associate.removedAssociationBetween', 'Removed association between {first} and {second}.', {
-					first: choice1 ? getChoiceLabel(choice1) : id1,
-					second: choice2 ? getChoiceLabel(choice2) : id2,
-				}),
-			);
+			if (choice1 && choice2) {
+				announce(
+					translate(i18n, 'interactions.associate.removedAssociationBetween', 'Removed association between {first} and {second}.', {
+						first: getChoiceLabel(choice1),
+						second: getChoiceLabel(choice2),
+					}),
+				);
+			}
 		}
 		void moveFocusAfterRemoval(index);
 	}
@@ -266,14 +271,31 @@
 		);
 	}
 
+	// 1-based position of each choice as presented to the candidate (after shuffle):
+	// the localized-ordinal name of a choice whose content carries no text.
+	const choicePositions = $derived.by(() => {
+		const positions = new Map<string, number>();
+		(parsedInteraction?.choices ?? []).forEach((choice, index) => positions.set(choice.identifier, index + 1));
+		return positions;
+	});
+
+	/** Whether the choice's content carries readable text (text, image alt, MathML alttext). */
+	function hasAuthoredLabel(choice: { text: HtmlContent }): boolean {
+		return accessibleTextFromHtml(choice.text) !== '';
+	}
+
 	/**
-	 * Readable choice name for labels and announcements. Image alt and MathML
-	 * alttext participate. Identifiers never prefix the name: they are
-	 * meaningless (and potentially answer-leaking) to candidates using a screen
-	 * reader, so they only serve as a last resort for content-less choices.
+	 * Readable choice name for labels and announcements: the authored content (image
+	 * alt and MathML alttext participate), else a localized ordinal of the presented
+	 * position ("Choice 3"). Never the identifier: it is meaningless (and potentially
+	 * answer-leaking) to candidates using a screen reader.
 	 */
 	function getChoiceLabel(choice: { identifier: string; text: HtmlContent }): string {
-		return accessibleTextFromHtml(choice.text) || choice.identifier;
+		return choiceAccessibleName({
+			i18n,
+			label: accessibleTextFromHtml(choice.text),
+			position: choicePositions.get(choice.identifier) ?? 0,
+		});
 	}
 
 	function getRemoveAssociationLabel(choice1: { identifier: string; text: HtmlContent }, choice2: { identifier: string; text: HtmlContent }): string {
@@ -312,18 +334,21 @@
 			{@const isBlocked = blockedChoices.has(choice.identifier)}
 			{@const isMaxed = isChoiceMaxed(choice)}
 			{@const isUnavailable = isBlocked || isMaxed}
+			{@const hasLabel = hasAuthoredLabel(choice)}
 			{@const choiceTextId = `${uid}-choice-${choice.identifier}-text`}
 			{@const choiceStateId = `${uid}-choice-${choice.identifier}-state`}
 			<!-- A maxed choice stays focusable: the disabled property would remove the very
 			     control the candidate just activated from under their focus; aria-disabled
-			     plus the handler's refusal guard instead. -->
+			     plus the handler's refusal guard instead. A choice with no readable content
+			     (an image without alt) is named by its ordinal, never left nameless. -->
 			<button
 				part="choice"
 				class="btn btn-outline {isSelected ? 'btn-accent' : inPair ? 'btn-primary' : isCorrect ? 'btn-success' : 'btn-neutral'}"
 				class:opacity-40={isUnavailable}
 				class:cursor-not-allowed={isUnavailable}
 				type="button"
-				aria-labelledby={choiceTextId}
+				aria-labelledby={hasLabel ? choiceTextId : undefined}
+				aria-label={hasLabel ? undefined : getChoiceLabel(choice)}
 				aria-describedby={describedByIds(!isShowingCorrect && helperId, choiceStateId, minHint && minHintId)}
 				aria-pressed={isSelected}
 				aria-disabled={isUnavailable ? 'true' : undefined}

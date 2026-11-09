@@ -88,9 +88,7 @@ describe('vendor interaction delivery', () => {
 			],
 		});
 
-		expect(
-			(interaction as { imageData: { src?: string } | null }).imageData?.src,
-		).toBe('');
+		expect((interaction.imageData as { src?: string } | null)?.src).toBe('');
 	});
 
 	test('applies object-embed policy to standard media delivery', () => {
@@ -119,12 +117,8 @@ describe('vendor interaction delivery', () => {
 			},
 		});
 
-		const media = interaction as {
-			mediaElement: { src: string };
-			allowObjectEmbeds?: boolean;
-		};
-		expect(media.mediaElement.src).toBe('https://cdn.example.com/content.swf');
-		expect(media.allowObjectEmbeds).toBe(true);
+		expect((interaction.mediaElement as { src: string }).src).toBe('https://cdn.example.com/content.swf');
+		expect(interaction.allowObjectEmbeds).toBe(true);
 	});
 
 	test('fails closed for malformed values at authored standard sink fields', () => {

@@ -51,7 +51,6 @@ import {
 } from '@pie-qti/ims-cp-core';
 import type {
 	AssessmentSessionState,
-	AssessmentScoringResult,
 	BackendAdapter,
 	FinalizeAssessmentRequest,
 	FinalizeAssessmentResponse,
@@ -87,7 +86,6 @@ import {
 	testOutcomeDeclarations,
 	toCanonicalQtiName,
 } from '../core/testStructure.js';
-import { hasAnyResponse } from '../core/AssessmentSessionCoordinator.js';
 import { parseAssessmentTestXml } from './qti-test-parser.js';
 import {
 	firstEligibleItem,
@@ -105,7 +103,6 @@ import {
 import {
 	AssessmentItemScoringError,
 	defaultItemTestState,
-	type ItemTestState,
 	scoreAssessmentItemForTest,
 } from './assessment-item-scorer.js';
 
@@ -174,10 +171,6 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 
 	private getAssessment(assessmentId: string): SecureAssessment {
 		return this.registeredAssessments.get(assessmentId) ?? this.createDemoAssessment(assessmentId);
-	}
-
-	private hasAnyResponse(responses: Record<string, unknown>): boolean {
-		return hasAnyResponse(responses);
 	}
 
 	/**
@@ -376,11 +369,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 				session.state.itemScores = {};
 			}
 			session.state.itemScores[request.itemIdentifier] = result;
-			if (testState) {
-				session.itemTestStates = { ...(session.itemTestStates ?? {}), [request.itemIdentifier]: testState };
-			} else if (session.itemTestStates) {
-				delete session.itemTestStates[request.itemIdentifier];
-			}
+			session.itemTestStates = { ...session.itemTestStates, [request.itemIdentifier]: testState };
 		}
 		if (request.itemSession) {
 			session.state.itemSessions = {
@@ -398,7 +387,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 				attemptCount: (previousItemSession?.attemptCount ?? 0) + (countAttempt ? 1 : 0),
 				// QTI: a response still equal to its declared default is no response (the
 				// numberResponded test), so a default-valued untouched item is not answered.
-				isAnswered: testState?.responded ?? this.hasAnyResponse(request.responses),
+				isAnswered: testState.responded === true,
 				isSubmitted: countAttempt ? true : (previousItemSession?.isSubmitted ?? false),
 				lastSubmissionTime: countAttempt ? request.submittedAt : previousItemSession?.lastSubmissionTime,
 			},
@@ -417,7 +406,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		saveSession(session);
 
 		const { outcomes, error } = this.currentOutcomes(session);
-		const currentVariables = testState?.variables ?? this.scoredItemVariables(result);
+		const currentVariables = testState.variables;
 		const decls = navigationDeclarations(session, outcomes, {
 			...applyVariableMappings(currentVariables, current.item.variableMappings),
 			...(currentVariables.SCORE ? {} : { SCORE: qtiValue('float', 'single', result.score) }),
@@ -751,50 +740,33 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 	// =========================================================================
 
 	/**
-	 * Test-level view of every delivered item. Items not yet submitted carry their declared defaults
-	 * and count as not presented; sessions stored before item test states existed fall back to the
-	 * submitted scores, leaving correctness to SCORE/MAXSCORE inference.
+	 * Test-level view of every delivered item. A submitted item is presented and carries the state
+	 * its latest counted submission recorded (a score without one carries only its SCORE); an item
+	 * not yet submitted carries its declared defaults and counts as not presented.
 	 */
 	private buildTestItems(session: StoredSession): TestItemState[] {
 		const itemScores = session.state.itemScores ?? {};
 		return getItemRefsInOrder(session.assessment).map(({ item, sectionIdentifiers }) => {
 			const scoring = itemScores[item.identifier];
 			const presented = scoring !== undefined;
-			const stored = presented ? session.itemTestStates?.[item.identifier] : undefined;
-			const itemState = presented ? stored : defaultItemTestState(item.itemXml);
-			const variables: Record<string, QtiValue> = {
-				...(itemState?.variables ?? (scoring ? this.scoredItemVariables(scoring) : {})),
-			};
+			const itemState = presented ? session.itemTestStates?.[item.identifier] : defaultItemTestState(item.itemXml);
+			const variables: Record<string, QtiValue> = { ...(itemState?.variables ?? {}) };
 			if (scoring && !variables.SCORE) variables.SCORE = qtiValue('float', 'single', scoring.score);
 			Object.assign(variables, applyVariableMappings(variables, item.variableMappings));
-			const legacy = presented && !stored;
 			return {
 				identifier: item.identifier,
 				sectionIdentifiers,
 				categories: item.categories,
 				weights: item.weights ? Object.fromEntries(item.weights.map((w) => [w.identifier, w.value])) : undefined,
 				variables,
-				outcomeBounds: (itemState ?? defaultItemTestState(item.itemXml))?.outcomeBounds,
+				outcomeBounds: itemState?.outcomeBounds ?? defaultItemTestState(item.itemXml)?.outcomeBounds,
 				presented,
-				responded: legacy
-					? this.hasAnyResponse(session.state.itemResponses[item.identifier] ?? {})
-					: presented && itemState?.responded === true,
-				...(legacy
-					? {}
-					: { correct: presented && itemState?.correct === true, incorrect: presented && itemState?.correct === false }),
+				responded: presented && itemState?.responded === true,
+				correct: presented && itemState?.correct === true,
+				incorrect: presented && itemState?.correct === false,
 				selected: true,
 			};
 		});
-	}
-
-	/** Variables recoverable from a scoring result alone: numbers as float, everything else as string. */
-	private scoredItemVariables(scoring: AssessmentScoringResult): Record<string, QtiValue> {
-		return Object.fromEntries(
-			Object.entries(scoring.outcomeValues || {}).map(([k, v]) => [
-				k,
-				typeof v === 'number' ? qtiValue('float', 'single', v) : qtiValue('string', 'single', String(v)),
-			])
-		);
 	}
 
 	// =========================================================================

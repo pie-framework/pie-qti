@@ -220,7 +220,7 @@ export interface PciHostOptions {
 	 * evaluates anything in the page; throwing denies the module.
 	 */
 	modulePolicy?: PciModulePolicy;
-	/** The bound response declaration, for QTI variable JSON conversion at the boundary. */
+	/** The bound response declaration; the held response seeds `getInstance` as QTI variable JSON by it. */
 	responseDeclaration?: PciResponseDeclarationInfo;
 	/**
 	 * The interaction status `getInstance` receives, fixed at instantiation. A

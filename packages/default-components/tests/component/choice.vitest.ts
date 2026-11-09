@@ -208,17 +208,26 @@ describe('ChoiceInteraction (pie-qti-choice)', () => {
 		eliminate?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		await settle();
 
+		// A toggle button keeps its name; aria-pressed alone says it is eliminated (WCAG 4.1.2),
+		// so the state is announced once and the name never flips to "Restore".
 		expect(eliminate?.getAttribute('aria-pressed')).toBe('true');
-		const restoreLabelledBy = eliminate?.getAttribute('aria-labelledby') ?? '';
-		const restoreName = restoreLabelledBy
+		expect(eliminate?.getAttribute('aria-labelledby')).toBe(labelledBy);
+		const pressedName = labelledBy
 			.split(' ')
 			.map((id) => mounted.host.querySelector(`#${CSS.escape(id)}`)?.textContent?.trim())
 			.filter(Boolean)
 			.join(' ');
-		expect(restoreName).toBe('Restore Alpha');
+		expect(pressedName).toBe('Eliminate Alpha');
 		expect(eliminate?.closest('[part="option"]')?.hasAttribute('data-eliminated')).toBe(true);
 		// Elimination is scratch work: the response is untouched.
 		expect(mounted.instance.response).toBeUndefined();
+
+		// Pressing it again restores the choice; the name still does not change.
+		eliminate?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		expect(eliminate?.getAttribute('aria-pressed')).toBe('false');
+		expect(eliminate?.closest('[part="option"]')?.hasAttribute('data-eliminated')).toBe(false);
+		expect(mounted.host.textContent).not.toContain('Restore');
 	});
 
 	test('answer masking: masked choices hide their input behind a reveal button', async () => {

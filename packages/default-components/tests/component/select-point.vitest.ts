@@ -1,7 +1,8 @@
 import type { SelectPointInteractionData } from '@pie-qti/item-player';
+import { DefaultI18nProvider } from '@pie-qti/i18n';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import SelectPointInteraction from '../../src/plugins/select-point/SelectPointInteraction.svelte';
-import { mountInteraction, pressKey, q, qa, settle } from './helpers';
+import { cleanupInteraction, mountInteraction, pressKey, q, qa, settle } from './helpers';
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -214,5 +215,31 @@ describe('SelectPointInteraction (pie-qti-select-point)', () => {
 		await settle();
 
 		expect(mounted.events).toHaveLength(0);
+	});
+
+	test('the clear control is "Clear answer", the name choice, hottext and hotspot use for it (WCAG 3.2.4)', async () => {
+		const nl = new DefaultI18nProvider('nl');
+		await nl.loadLocale('nl');
+		for (const i18n of [undefined, nl]) {
+			const mounted = mountInteraction(SelectPointInteraction, {
+				interaction: selectPointData({ maxChoices: 2 }),
+				response: ['100 100', '200 150'],
+				i18n,
+			});
+			await settle();
+
+			const expected = i18n ? i18n.t('interactions.choice.clearAnswer') : 'Clear answer';
+			expect(expected).not.toBe('interactions.choice.clearAnswer');
+			const clear = qa<HTMLButtonElement>(mounted, 'button').find((button) => button.textContent?.trim() === expected);
+			expect(clear).toBeDefined();
+			expect(mounted.host.textContent).not.toContain('Clear All');
+
+			clear!.click();
+			await settle();
+			expect(mounted.instance.response).toEqual([]);
+			expect(mounted.events.at(-1)?.detail).toMatchObject({ responseId: 'RESPONSE', value: [] });
+			expect(qa(mounted, 'button').some((button) => button.textContent?.trim() === expected)).toBe(false);
+			cleanupInteraction(mounted);
+		}
 	});
 });

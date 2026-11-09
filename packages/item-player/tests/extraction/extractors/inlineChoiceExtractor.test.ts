@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardInlineChoiceExtractor } from '../../../src/interactions/inline-choice/extractor.js';
+import { type InlineChoiceData, standardInlineChoiceExtractor } from '../../../src/interactions/inline-choice/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardInlineChoiceExtractor', () => {
@@ -215,12 +215,13 @@ describe('standardInlineChoiceExtractor', () => {
 
 	describe('validation', () => {
 		test('validates correct inlineChoice data', () => {
-			const data = {
+			const data: InlineChoiceData = {
 				choices: [
 					{ identifier: 'A', text: 'Choice A' },
 					{ identifier: 'B', text: 'Choice B' },
 				],
 				shuffle: false,
+				label: null,
 			};
 
 			const validation = standardInlineChoiceExtractor.validate!(data);
@@ -230,9 +231,10 @@ describe('standardInlineChoiceExtractor', () => {
 		});
 
 		test('reports error for empty choices', () => {
-			const data = {
+			const data: InlineChoiceData = {
 				choices: [],
 				shuffle: false,
+				label: null,
 			};
 
 			const validation = standardInlineChoiceExtractor.validate!(data);
@@ -242,12 +244,13 @@ describe('standardInlineChoiceExtractor', () => {
 		});
 
 		test('reports error for missing identifiers', () => {
-			const data = {
+			const data: InlineChoiceData = {
 				choices: [
 					{ identifier: 'A', text: 'Choice A' },
 					{ identifier: '', text: 'Choice B' },
 				],
 				shuffle: false,
+				label: null,
 			};
 
 			const validation = standardInlineChoiceExtractor.validate!(data);
@@ -257,12 +260,13 @@ describe('standardInlineChoiceExtractor', () => {
 		});
 
 		test('reports error for duplicate identifiers', () => {
-			const data = {
+			const data: InlineChoiceData = {
 				choices: [
 					{ identifier: 'A', text: 'Choice A' },
 					{ identifier: 'A', text: 'Choice B' },
 				],
 				shuffle: false,
+				label: null,
 			};
 
 			const validation = standardInlineChoiceExtractor.validate!(data);
@@ -276,9 +280,10 @@ describe('standardInlineChoiceExtractor', () => {
 			for (let i = 1; i <= 20; i++) {
 				choices.push({ identifier: `C${i}`, text: `Choice ${i}` });
 			}
-			const data = {
+			const data: InlineChoiceData = {
 				choices,
 				shuffle: false,
+				label: null,
 			};
 
 			const validation = standardInlineChoiceExtractor.validate!(data);

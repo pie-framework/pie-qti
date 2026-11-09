@@ -21,9 +21,9 @@ const TEXT_APPEARANCE_PROPERTIES: ReadonlyArray<[keyof PnpTextAppearance, string
 ];
 
 /**
- * Apply a PNP profile to the player root element as attributes and custom properties,
- * which the default runtime stylesheet renders: color scheme, magnification, inverted
- * polarity, single-column layout and text appearance.
+ * Apply a PNP profile to the player root element as attributes and custom properties. The
+ * default runtime stylesheet renders color scheme, inverted polarity, single-column layout and
+ * text appearance; magnification is set for host stylesheets only.
  */
 export function applyPnpToRoot(rootEl: HTMLElement, pnp: PnpProfile | undefined): void {
 	const display = pnp?.display;

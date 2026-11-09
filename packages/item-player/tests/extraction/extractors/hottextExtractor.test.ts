@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardHottextExtractor } from '../../../src/interactions/hottext/extractor.js';
+import { type HottextData, standardHottextExtractor } from '../../../src/interactions/hottext/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardHottextExtractor', () => {
@@ -173,13 +173,14 @@ describe('standardHottextExtractor', () => {
 
 	describe('validation', () => {
 		test('validates correct hottext data', () => {
-			const data = {
+			const data: HottextData = {
 				hottextChoices: [
 					{ identifier: 'H1', text: 'Text 1' },
 					{ identifier: 'H2', text: 'Text 2' },
 				],
 				contentHtml: '<p>Content</p>',
 				maxChoices: 1,
+				minChoices: 0,
 				prompt: null,
 			};
 
@@ -190,10 +191,11 @@ describe('standardHottextExtractor', () => {
 		});
 
 		test('reports error for empty hottextChoices', () => {
-			const data = {
+			const data: HottextData = {
 				hottextChoices: [],
 				contentHtml: '<p>Content</p>',
 				maxChoices: 1,
+				minChoices: 0,
 				prompt: null,
 			};
 
@@ -204,13 +206,14 @@ describe('standardHottextExtractor', () => {
 		});
 
 		test('reports error for duplicate identifiers', () => {
-			const data = {
+			const data: HottextData = {
 				hottextChoices: [
 					{ identifier: 'H1', text: 'Text 1' },
 					{ identifier: 'H1', text: 'Text 2' },
 				],
 				contentHtml: '<p>Content</p>',
 				maxChoices: 1,
+				minChoices: 0,
 				prompt: null,
 			};
 
@@ -221,13 +224,14 @@ describe('standardHottextExtractor', () => {
 		});
 
 		test('reports warning when maxChoices exceeds hottext count', () => {
-			const data = {
+			const data: HottextData = {
 				hottextChoices: [
 					{ identifier: 'H1', text: 'Text 1' },
 					{ identifier: 'H2', text: 'Text 2' },
 				],
 				contentHtml: '<p>Content</p>',
 				maxChoices: 5,
+				minChoices: 0,
 				prompt: null,
 			};
 
@@ -238,7 +242,7 @@ describe('standardHottextExtractor', () => {
 		});
 
 		test('warns instead of dropping hottext when minChoices exceeds the effective maxChoices', () => {
-			const data = {
+			const data: HottextData = {
 				hottextChoices: [
 					{ identifier: 'A', text: 'who bought' },
 					{ identifier: 'B', text: 'includes' },

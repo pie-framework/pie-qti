@@ -137,7 +137,7 @@ Legend: "—" = the attribute does not exist in that version; "optional" = optio
 | `minStrings` | 0 | 0 | 0 | 0 | Aligned |
 | `maxStrings` | optional (required for a container response) | same | same | 1 for a single or record response; 0 (no cap) for a container | Aligned (follows the response cardinality) |
 | `expectedLines` | optional (hint) | optional | optional | 3, used to size the box | Aligned (sizing fallback) |
-| `expectedLength` | optional (hint) | optional | optional | 200 | Flagged: the `qti-counter-up`/`qti-counter-down` counter counts against this fallback when the author gave no length. Not a spec default; a presentation follow-up |
+| `expectedLength` | optional (hint) | optional | optional | none: absent stays absent | Aligned: with no authored length, `qti-counter-up`/`qti-counter-down` show no counter (both are defined against `expected-length`, and no counter is the vocabulary's default); nothing sizes from it |
 | `format` | plain | plain | plain | plain | Aligned |
 | `patternMask` | optional | optional | optional | none | Aligned |
 
@@ -239,8 +239,6 @@ Legend: "—" = the attribute does not exist in that version; "optional" = optio
   `0`.)
 - **Slider `step` for float responses.** The information model's description and its default disagree; the
   player keeps the schema default `1`.
-- **extendedTextInteraction `expectedLength`.** The counter shown for `qti-counter-up`/`qti-counter-down`
-  uses the extractor's fallback of 200 when the author gave no `expected-length`.
 
 See also: [QTI technical implementation guide](QTI_techguide.md), and the interaction PRDs under
 [`prds/interactions/`](prds/interactions/), for example
