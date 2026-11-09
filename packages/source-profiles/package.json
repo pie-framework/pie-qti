@@ -1,6 +1,6 @@
 {
 	"name": "@pie-qti/source-profiles",
-	"version": "0.2.1",
+	"version": "1.0.0-beta.4",
 	"description": "Source profile detectors and extraction helpers for real-world QTI packages",
 	"type": "module",
 	"main": "./dist/index.js",

@@ -1,5 +1,5 @@
 ---
-'@pie-qti/core': patch
+'@pie-qti/transform-core': patch
 '@pie-qti/pci-runner': patch
 '@pie-qti/pie-to-qti2': patch
 '@pie-qti/player-elements': patch

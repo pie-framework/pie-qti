@@ -1,6 +1,6 @@
 ---
 '@pie-qti/assessment-player': patch
-'@pie-qti/core': patch
+'@pie-qti/transform-core': patch
 '@pie-qti/item-player': patch
 ---
 
