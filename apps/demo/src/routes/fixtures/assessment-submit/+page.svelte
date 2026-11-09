@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { ReferenceBackendAdapter, type SecureAssessment, type SubmitResponsesRequest, type FinalizeAssessmentRequest } from '@pie-qti/assessment-player';
 	import { DefaultI18nProvider } from '@pie-qti/i18n';
-	import { AssessmentShell } from '$assessment-components';
+	import { AssessmentShell } from '@pie-qti/assessment-player/components';
 
 	let submitCalls = $state(0);
 	let finalizeCalls = $state(0);

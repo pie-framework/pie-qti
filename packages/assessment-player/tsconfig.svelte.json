@@ -1,14 +1,9 @@
 {
-	"extends": "./tsconfig.json",
+	"extends": ["./tsconfig.json", "../../tsconfig.workspace-aliases.json"],
 	"compilerOptions": {
 		"declaration": true,
 		"declarationMap": false,
 		"rootDir": "..",
-		"paths": {
-			"@pie-qti/item-player/components": [
-				"../item-player/src/components/index.ts"
-			]
-		},
 		"types": [
 			"svelte"
 		]

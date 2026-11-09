@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { SectionMenu } from '$assessment-components';
+	import { SectionMenu } from '@pie-qti/assessment-player/components';
 
 	let sections = $state([
 		{ id: 'sec-1', index: 0, title: 'Section 1', navigable: true, answered: 2, total: 4, isCurrent: true },

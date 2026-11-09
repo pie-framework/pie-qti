@@ -2,7 +2,7 @@
 	
 	import type { InitSessionRequest } from '@pie-qti/assessment-player';
 	import { ReferenceBackendAdapter } from '@pie-qti/assessment-player';
-import { AssessmentShell } from '$assessment-components';
+import { AssessmentShell } from '@pie-qti/assessment-player/components';
 	import { SAMPLE_ASSESSMENTS } from '#lib/sample-assessments.js';
 
 	const secureAssessment = SAMPLE_ASSESSMENTS[0]?.assessment ?? null;

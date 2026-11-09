@@ -1,6 +1,6 @@
 import { svelte } from '@sveltejs/vite-plugin-svelte';
-import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
+import { workspaceViteAliases } from '../../scripts/workspace-aliases.mjs';
 
 export default defineConfig({
 	plugins: [
@@ -10,11 +10,9 @@ export default defineConfig({
 		}),
 	],
 	resolve: {
-		alias: {
-			'@pie-qti/item-player/components': fileURLToPath(
-				new URL('../item-player/src/components/index.ts', import.meta.url),
-			),
-		},
+		// The section and assessment player components ship as source only; they are
+		// compiled here under their workspace-only names (tsconfig.workspace-aliases.json).
+		alias: workspaceViteAliases(),
 	},
 	build: {
 		lib: {

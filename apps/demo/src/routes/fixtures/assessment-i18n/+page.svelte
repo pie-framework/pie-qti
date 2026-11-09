@@ -2,7 +2,7 @@
 	import { setContext } from 'svelte';
 	import { DefaultI18nProvider, type I18nProvider } from '@pie-qti/i18n';
 	import { ReferenceBackendAdapter, type BackendAssessmentPlayerConfig } from '@pie-qti/assessment-player';
-	import { AssessmentShell } from '$assessment-components';
+	import { AssessmentShell } from '@pie-qti/assessment-player/components';
 	import { READING_COMPREHENSION_ASSESSMENT } from '#lib/sample-assessments.js';
 
 	let provider = $state<I18nProvider | null>(null);
