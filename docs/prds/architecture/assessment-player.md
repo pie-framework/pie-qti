@@ -205,17 +205,19 @@ A test part cannot be re-entered, so a question left owing an answer in a part t
 
 ### Known divergences from spec
 
-- **Timing evidence (G-22):** scoped clocks and `minTime`/`maxTime` enforcement exist, and the
+None of these contradicts a clear QTI rule. The first is a test-coverage note; the other two are architecture choices the specification leaves to the delivery system.
+
+- **Timing evidence (G-22, coverage note):** scoped clocks and `minTime`/`maxTime` enforcement exist, and the
   built-in `duration`, `TESTPART_ID.duration` and `SECTION_ID.duration` variables are exposed to
   test-level outcome processing in seconds from the timing clocks. Direct integration coverage for
   every minimum-time scope and simultaneous expiry combination remains.
-- **Client-evaluated navigation rules:** for a move without a backend decision the player
+- **Client-evaluated navigation rules (architecture):** QTI defines what branch rules and preconditions mean and when they apply (QTI 3.0 §2.8.2, §5.23), not which component evaluates them. For a move without a backend decision the player
   evaluates branch rules and preconditions itself. It reads the item variables the client holds
   (the accepted item session, with the backend's `result.outcomeValues` over its outcomes), and a
   condition using a `random*` operator draws from the client's `Math.random`, not the backend's
   rng. A production backend stays authoritative and must refuse a submission for an item its own
   rules make ineligible.
-- **Item feedback with secured production content:** the check-answer flow and the submit-on-move
+- **Item feedback with secured production content (architecture):** QTI decides feedback visibility from outcome values (QTI 3.0 §5.93) and does not say where response processing runs. The check-answer flow and the submit-on-move
   transition surface item feedback from the candidate session's own response processing (and from
   a backend `result.feedback` when the session produces no modal feedback). Production item XML
   delivered without `<responseProcessing>` therefore needs the backend to return feedback through

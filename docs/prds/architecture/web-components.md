@@ -110,7 +110,7 @@ The component is included via `<ShadowBaseStyles />` at the top of each interact
 
 - **Spec version(s):** QTI 2.1 / 2.2 / 3.0
 - **Spec section(s):** §4 assessmentItem interaction rendering; QTI 3.0 §7 web component rendering model
-- **Known divergences:** QTI 3.0 defines a `qti-change` event contract with specific detail shape; this implementation follows that contract (`{ responseId, value, timestamp }`). The `composed: true` flag is not mentioned in QTI 2.2 but is required for Shadow DOM use.
+- **Known divergences:** none. QTI defines no DOM events for interaction changes; the QTI 3.0 Information Model has no event model at all. `qti-change`, with detail `{ responseId, value, timestamp }`, is this project's own contract. It is dispatched with `bubbles: true` and `composed: true` so it crosses shadow roots.
 
 ---
 
