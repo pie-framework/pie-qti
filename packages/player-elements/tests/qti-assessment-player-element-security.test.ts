@@ -1,7 +1,8 @@
 import './setup';
 import { describe, expect, test } from 'bun:test';
 import type { BackendAdapter } from '@pie-qti/assessment-player';
-import type { PciModuleResolver } from '@pie-qti/item-player';
+import type { PciModuleResolver, PlayerSecurityConfig } from '@pie-qti/item-player';
+import { normalizeParsingLimits } from '@pie-qti/item-player/security';
 import { QtiAssessmentPlayerElement } from '../src/elements/QtiAssessmentPlayerElement.js';
 
 const backend: BackendAdapter = {
@@ -41,10 +42,10 @@ class TestAssessmentElement extends QtiAssessmentPlayerElement {
 		return this.getProps() as {
 			backend: BackendAdapter;
 			initSession: { assessmentId: string; candidateId: string };
-			config: {
-				security?: { parsingLimits?: { enabled?: boolean } };
-				pci?: { baseUrl?: string; moduleResolver: PciModuleResolver };
-			};
+				config: {
+					security?: PlayerSecurityConfig;
+					pci?: { baseUrl?: string; moduleResolver: PciModuleResolver };
+				};
 		};
 	}
 
@@ -75,6 +76,22 @@ function assessmentWithNestedSections(depth: number): string {
 	return `<assessmentTest identifier="depth-override" title="Depth override"><testPart identifier="part" navigationMode="nonlinear" submissionMode="simultaneous">${sections}</testPart></assessmentTest>`;
 }
 
+type LoadOutcome = { loaded: true } | { loaded: false; message: string };
+
+/** Loads raw assessment XML in reference mode and reports whether it loaded. */
+function loadInReferenceMode(element: TestAssessmentElement, xml: string): Promise<LoadOutcome> {
+	element.referenceMode = true;
+	return new Promise((resolve) => {
+		element.addEventListener('load-end', () => resolve({ loaded: true }), { once: true });
+		element.addEventListener(
+			'load-error',
+			(event) => resolve({ loaded: false, message: (event as CustomEvent<{ message: string }>).detail.message }),
+			{ once: true },
+		);
+		element.assessmentTestXml = xml;
+	});
+}
+
 describe('assessment player security boundary', () => {
 	test('does not silently create the answer-bearing reference backend for raw XML', () => {
 		const element = createElement();
@@ -99,7 +116,8 @@ describe('assessment player security boundary', () => {
 		const props = element.exposeProps();
 		expect(props.backend).toBe(backend);
 		expect(props.initSession).toEqual({ assessmentId: 'assessment-1', candidateId: 'candidate-1' });
-		expect(props.config.security?.parsingLimits?.enabled).toBe(true);
+		// Without a security config the shell still parses under the default limits.
+		expect(normalizeParsingLimits(props.config.security).enabled).toBe(true);
 	});
 
 	test('presentation attributes reach the shell without re-resolving the assessment', () => {
@@ -367,6 +385,47 @@ describe('assessment player security boundary', () => {
 		await loaded;
 
 		expect(element.exposeProps().initSession.assessmentId).toBe('depth-override');
+	});
+
+	// Parsing limits are on unless the host opts out with `enabled: false`; the element passes
+	// the host's config through and reads it the way the item player does.
+	describe('parsing limits for each accepted security config', () => {
+		test('no config: limits apply and section nesting keeps the parsers default depth', async () => {
+			const tooDeep = createElement();
+			expect(await loadInReferenceMode(tooDeep, assessmentWithNestedSections(33))).toEqual({
+				loaded: false,
+				message: expect.stringContaining('exceeds maxSectionDepth (32)'),
+			});
+
+			const atDefault = createElement();
+			expect(await loadInReferenceMode(atDefault, assessmentWithNestedSections(32))).toEqual({ loaded: true });
+			expect(atDefault.exposeProps().config.security).toBeUndefined();
+			expect(normalizeParsingLimits(atDefault.exposeProps().config.security).enabled).toBe(true);
+		});
+
+		test('maxHtmlDepth without enabled: the depth bounds section nesting', async () => {
+			const shallow = createElement();
+			shallow.security = { parsingLimits: { maxHtmlDepth: 1 } };
+			expect(await loadInReferenceMode(shallow, assessmentWithNestedSections(2))).toEqual({
+				loaded: false,
+				message: expect.stringContaining('exceeds maxSectionDepth (1)'),
+			});
+
+			const deep = createElement();
+			deep.security = { parsingLimits: { maxHtmlDepth: 33 } };
+			expect(await loadInReferenceMode(deep, assessmentWithNestedSections(33))).toEqual({ loaded: true });
+			expect(normalizeParsingLimits(deep.exposeProps().config.security)).toMatchObject({
+				enabled: true,
+				maxHtmlDepth: 33,
+			});
+		});
+
+		test('enabled: false: no limit applies, not even a configured depth or size', async () => {
+			const element = createElement();
+			element.security = { parsingLimits: { enabled: false, maxHtmlDepth: 1, maxItemXmlBytes: 16 } };
+			expect(await loadInReferenceMode(element, assessmentWithNestedSections(2))).toEqual({ loaded: true });
+			expect(normalizeParsingLimits(element.exposeProps().config.security).enabled).toBe(false);
+		});
 	});
 
 	test('does not carry a local preview session into an injected backend', async () => {

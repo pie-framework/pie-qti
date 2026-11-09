@@ -6,6 +6,7 @@
  */
 
 import type { HTMLElement } from 'node-html-parser';
+import type { ExtendedTextNumericRecord } from '../extended-text/response.js';
 import type { ExtractedPci } from '../../pci/types.js';
 import type { HtmlContent, QTIFileResponse } from '../../types/index.js';
 
@@ -303,6 +304,11 @@ export interface GraphicGapMatchInteractionData extends BaseInteractionData<'gra
 	prompt: HtmlContent | null;
 	imageData: ImageData | null;
 	maxAssociations: number;
+	/**
+	 * The associations a valid response makes (QTI 2.2 `minAssociations`; QTI 3.0 §5.60.1).
+	 * Present only when above 0.
+	 */
+	minAssociations?: number;
 	gapTexts: Array<{ identifier: string; text: string; matchMax: number; matchGroup?: string[] }>;
 	/** Image-based draggable labels (gapImg elements); rendered as <img> in the choice pool */
 	gapImages: Array<{ identifier: string; src: string; alt: string; matchMax: number; matchGroup?: string[]; width?: number; height?: number }>;
@@ -557,30 +563,57 @@ export interface InteractionDataMap {
 }
 
 /**
- * Map interaction types to their response value types
- * Ensures getValue/setValue use the correct types
+ * Map interaction types to the value a component's `qti-change` event (and its
+ * `onChange` callback) carries: the raw component output, before the player
+ * normalizes it into the QTI response declaration. The response variable the
+ * player stores is that normalized value, returned by `Player.getResponses`.
+ *
+ * Each entry is derived from the component's emission sites; see
+ * `tests/web-components/interaction-value-map.test.ts` for the compile-time pins.
  */
 export interface InteractionValueMap {
-	choiceInteraction: string | string[];
+	/** ChoiceInteraction: the selected identifier, the selected identifiers, or null on "clear answer". */
+	choiceInteraction: string | string[] | null;
+	/** InlineTextEntry: the text as typed. */
 	textEntryInteraction: string;
-	extendedTextInteraction: string;
+	/** ExtendedTextInteraction: `createExtendedTextResponse`'s value; null once emptied. */
+	extendedTextInteraction: string | number | Array<string | number> | ExtendedTextNumericRecord | null;
+	/** InlineChoice: the chosen option identifier. */
 	inlineChoiceInteraction: string;
-	orderInteraction: string[];
-	matchInteraction: Record<string, string>;
-	associateInteraction: Array<[string, string]>;
-	gapMatchInteraction: Record<string, string>;
+	/** OrderInteraction: the ordered identifiers; null when a subset order is cleared. */
+	orderInteraction: string[] | null;
+	/** MatchInteraction: pairs as `"source target"` strings. */
+	matchInteraction: string[];
+	/** AssociateInteraction: associations as `"A B"` strings. */
+	associateInteraction: string[];
+	/** GapMatchInteraction: pairs as `"gapText gap"` strings. */
+	gapMatchInteraction: string[];
+	/** SliderInteraction: the slider value. */
 	sliderInteraction: number;
-	hotspotInteraction: string[];
-	graphicGapMatchInteraction: Record<string, string>;
+	/** HotspotInteraction: the selected hotspot identifier (multi-select is not implemented), or null on "clear answer". */
+	hotspotInteraction: string | null;
+	/** GraphicGapMatchInteraction: pairs as `"gapText hotspot"` strings. */
+	graphicGapMatchInteraction: string[];
+	/** UploadInteraction: the file response; null when cleared. */
 	uploadInteraction: QTIFileResponse | null;
-	drawingInteraction: string;
-	customInteraction: any;
+	/** DrawingInteraction: the drawing response; null when the canvas is cleared. */
+	drawingInteraction: QTIFileResponse | null;
+	/** CustomInteraction fallback: the manual-entry value; null when cleared. */
+	customInteraction: string | null;
+	/** PortableCustomInteraction: whatever the PCI module publishes. */
 	portableCustomInteraction: unknown;
-	mediaInteraction: any;
-	hottextInteraction: string[];
-	selectPointInteraction: Array<{ x: number; y: number }>;
-	graphicOrderInteraction: string[];
-	graphicAssociateInteraction: Array<[string, string]>;
-	positionObjectInteraction: Record<string, { x: number; y: number }>;
+	/** MediaInteraction: the play count so far. */
+	mediaInteraction: number;
+	/** HottextInteraction: single select emits the identifier or null (cleared); multiple emits the identifiers. */
+	hottextInteraction: string | string[] | null;
+	/** SelectPointInteraction: `maxChoices=1` emits `"x y"` or null (cleared); otherwise the `"x y"` strings. */
+	selectPointInteraction: string | string[] | null;
+	/** GraphicOrderInteraction: the ordered hotspot identifiers; null when a subset order is cleared. */
+	graphicOrderInteraction: string[] | null;
+	/** GraphicAssociateInteraction: associations as `"A B"` strings. */
+	graphicAssociateInteraction: string[];
+	/** PositionObjectInteraction: placements as `"x y"` strings in natural image pixels. */
+	positionObjectInteraction: string[];
+	/** EndAttemptInteraction: always emitted as `true`. */
 	endAttemptInteraction: boolean;
 }

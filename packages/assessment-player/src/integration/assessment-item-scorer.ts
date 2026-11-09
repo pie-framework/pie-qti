@@ -3,7 +3,7 @@ import {
 	type SerializedItemSessionState,
 	type SerializedItemSessionVariable,
 } from '@pie-qti/item-player';
-import { parseXml, type QtiValue, qtiNull, qtiValue, type TestItemState } from '@pie-qti/qti-processing';
+import { parseXml, type QtiValue, qtiNull, qtiValue, type StringComparisonOptions, type TestItemState } from '@pie-qti/qti-processing';
 import { hasAnyResponse } from '../core/AssessmentSessionCoordinator.js';
 import { isAdaptiveItemXml } from '../core/testStructure.js';
 import type { AssessmentScoringResult, ResponseValue } from './api-contract.js';
@@ -23,6 +23,11 @@ export interface AssessmentItemScoringInput {
 	 * template values the item XML alone does not show).
 	 */
 	requireItemSession?: boolean;
+	/**
+	 * String comparison folds beyond QTI's equality, as the delivery's input needs them; see the
+	 * item player's `AssessmentItemDefinitionConfig.stringComparison`. Exact when absent.
+	 */
+	stringComparison?: StringComparisonOptions;
 }
 
 /** Why the reference scorer refused to score a submission. */
@@ -92,6 +97,7 @@ export function scoreAssessmentItemForTest({
 	responses,
 	itemSession,
 	requireItemSession,
+	stringComparison,
 }: AssessmentItemScoringInput): { result: AssessmentScoringResult; testState: ItemTestState } {
 	const itemIdentifier = getAssessmentItemIdentifier(itemXml);
 	if (!itemSession && (requireItemSession === true || itemScoringRequiresSession(itemXml))) {
@@ -109,6 +115,7 @@ export function scoreAssessmentItemForTest({
 		const definition = createAssessmentItemDefinition({
 			itemXml,
 			role: 'scorer',
+			...(stringComparison ? { stringComparison } : {}),
 		});
 		// A restored session keeps its template and context values: template processing
 		// does not run again for a restore.

@@ -8,6 +8,7 @@ import type {
 	Cardinality as ProcessingCardinality,
 	ProcessingFragmentResolver,
 	QtiValue,
+	StringComparisonOptions,
 } from '@pie-qti/qti-processing';
 import type {
 	AttributeNameMapper,
@@ -89,12 +90,16 @@ export interface SerializedItemSessionVariable {
 	baseType?: VariableBaseType;
 	cardinality: VariableCardinality;
 	value: any;
-	defaultValue?: any;
+	/**
+	 * The variable's default value for this session, which a setDefaultValue
+	 * template rule can change; null when the variable has no default value.
+	 */
+	defaultValue: any;
 	/**
 	 * The response declaration's correct response for this session, including one
 	 * computed by a setCorrectResponse template rule (QTI ASI §10.3: templateRule
-	 * effects are fixed for the session). Present only on response variables whose
-	 * declaration has one; snapshots saved by older builds may omit it.
+	 * effects are fixed for the session). Present only on response variables that
+	 * have a correct response.
 	 */
 	correctResponse?: any;
 }
@@ -335,6 +340,8 @@ export interface ItemSessionEngineConfig {
 	 * Keyed by operator `class` (preferred) or `definition` URI.
 	 */
 	customOperators?: Record<string, (args: QtiValue[], meta: { class?: string; definition?: string }) => QtiValue>;
+	/** String comparison folds beyond QTI's equality; see `AssessmentItemDefinitionConfig.stringComparison`. */
+	stringComparison?: StringComparisonOptions;
 	/**
 	 * Host-controlled resolver for xi:include processing fragments.
 	 * The player never fetches an authored href directly; package hosts must resolve

@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
 import { createAssessmentItemDefinition } from '../../src/core/AssessmentItemDefinition.js';
-import type { SerializedItemSessionState } from '../../src/types/index.js';
 
 /**
  * QTI ASI §10.3: template processing fixes the item's template variables — and
@@ -156,30 +155,22 @@ describe('templated item session restore', () => {
 		reopened.dispose();
 	});
 
-	test('old snapshots without correctResponse/defaultValue fields still restore', () => {
+	test('every serialized variable carries defaultValue, null when it has none', () => {
 		const definition = createAssessmentItemDefinition({ itemXml: QTI22_TEMPLATE_CORRECT_ITEM, seed: 7 });
+		const session = definition.openSession();
+		const saved = session.serialize();
+		session.dispose();
 
-		const first = definition.openSession();
-		const key = first.state().templates.KEY as number;
-		const correct = key + 10;
-		first.dispatch({ action: 'setResponse', responseIdentifier: 'RESPONSE', value: correct });
-		const saved = first.serialize();
-		first.dispose();
-
-		// Simulate a snapshot persisted by an older player build: no correctResponse.
-		const legacy = JSON.parse(JSON.stringify(saved)) as SerializedItemSessionState;
-		for (const variable of Object.values(legacy.responseVariables)) {
-			delete variable.correctResponse;
-			delete variable.defaultValue;
-		}
-
-		const reopened = definition.openSession({ restore: legacy });
-		expect(reopened.state().responses.RESPONSE).toBe(correct);
-		expect(reopened.state().templates.KEY).toBe(key);
-		const rescored = reopened.dispatch({ action: 'scoreAttempt' });
-		// Without the template-computed correct response the item cannot score,
-		// which is the legacy behavior; the restore itself must not throw.
-		expect(rescored.result?.scoring?.score).toBe(0);
-		reopened.dispose();
+		const variables = [
+			...Object.values(saved.responseVariables),
+			...Object.values(saved.outcomeVariables),
+			...Object.values(saved.templateVariables),
+			...Object.values(saved.contextVariables),
+		];
+		expect(variables.length).toBeGreaterThan(0);
+		for (const variable of variables) expect(variable).toHaveProperty('defaultValue');
+		// RESPONSE declares no default value; SCORE declares 0.
+		expect(saved.responseVariables.RESPONSE?.defaultValue).toBeNull();
+		expect(saved.outcomeVariables.SCORE?.defaultValue).toBe(0);
 	});
 });

@@ -33,6 +33,8 @@
 		processingFragmentLimits?: AssessmentItemDefinitionConfig['processingFragmentLimits'];
 		/** Explicit opt-in and host resolver for Portable Custom Interaction modules. */
 		pci?: AssessmentItemDefinitionConfig['pci'];
+		/** String comparison folds beyond QTI's equality; see `AssessmentItemDefinitionConfig`. */
+		stringComparison?: AssessmentItemDefinitionConfig['stringComparison'];
 		/** Definition-lifetime extractor and renderer extensions for standalone delivery. */
 		plugins?: readonly AssessmentItemDefinitionPlugin[];
 		/** Controlled/current responses, keyed by response identifier */
@@ -59,6 +61,7 @@
 		resolveProcessingFragment,
 		processingFragmentLimits,
 		pci,
+		stringComparison,
 		plugins,
 		responses: responseValues = {},
 		disabled = false,
@@ -105,6 +108,7 @@
 					processingFragmentLimits,
 					pci,
 					plugins,
+					...(stringComparison ? { stringComparison } : {}),
 				});
 				nextSession = definition.openSession({ responses: initialResponses });
 				ownsSession = true;

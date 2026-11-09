@@ -66,6 +66,7 @@ type ItemPlayerElementProps = {
 	resolveProcessingFragment: AssessmentItemDefinitionConfig['resolveProcessingFragment'];
 	processingFragmentLimits: AssessmentItemDefinitionConfig['processingFragmentLimits'];
 	pci: AssessmentItemDefinitionConfig['pci'];
+	stringComparison: AssessmentItemDefinitionConfig['stringComparison'];
 	plugins: readonly AssessmentItemDefinitionPlugin[] | undefined;
 	responses: PieQtiItemPlayerResponseMap | undefined;
 	onResponseChange: (id: string, value: unknown) => void;
@@ -106,6 +107,7 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 	#resolveProcessingFragment: AssessmentItemDefinitionConfig['resolveProcessingFragment'];
 	#processingFragmentLimits: AssessmentItemDefinitionConfig['processingFragmentLimits'];
 	#pci: AssessmentItemDefinitionConfig['pci'];
+	#stringComparison: AssessmentItemDefinitionConfig['stringComparison'];
 	#plugins: readonly AssessmentItemDefinitionPlugin[] | undefined;
 	#session: ItemSession | undefined;
 	/** The provider and locale whose view's `ready` this element already awaits. */
@@ -218,6 +220,18 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 	}
 	set pci(value: AssessmentItemDefinitionConfig['pci']) {
 		this.#pci = value;
+		this.#update();
+	}
+
+	/**
+	 * String comparison folds beyond QTI's equality for the candidates' input, applied when the
+	 * element creates its own definition (see `AssessmentItemDefinitionConfig.stringComparison`).
+	 */
+	get stringComparison() {
+		return this.#stringComparison;
+	}
+	set stringComparison(value: AssessmentItemDefinitionConfig['stringComparison']) {
+		this.#stringComparison = value ? Object.freeze({ ...value }) : undefined;
 		this.#update();
 	}
 
@@ -352,6 +366,7 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 			resolveProcessingFragment: this.#resolveProcessingFragment,
 			processingFragmentLimits: this.#processingFragmentLimits,
 			pci: this.#pci,
+			stringComparison: this.#stringComparison,
 			plugins: this.#plugins,
 			responses: this.#responses,
 			onResponseChange: (responseId, value) => {
