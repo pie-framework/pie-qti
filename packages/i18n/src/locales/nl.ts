@@ -320,6 +320,7 @@ export default {
 			minPlacementsHint: 'Nog te plaatsen in de lege plekken: {words}.',
 			notCompatibleSentence: 'Niet compatibel met het geselecteerde woord.',
 			wordRemovedFromBlanks: '{word} verwijderd uit de gaten.',
+			requiredBlanksLegend: 'Lege plekken met een * zijn verplicht.',
 		},
 
 		graphicGapMatch: {

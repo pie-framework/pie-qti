@@ -93,6 +93,23 @@
 	});
 
 	/**
+	 * Gaps authored `required` (QTI 2.1 gap; QTI 3.0 §5.55.5): a valid response fills each of
+	 * them, which response validation enforces, so the candidate is told which ones (WCAG
+	 * 3.3.2). Each shows a visible mark — a character a legend explains, not a colour alone —
+	 * and, since a gap is a button and `aria-required` is not allowed on that role, states
+	 * the requirement as its accessible description.
+	 */
+	const requiredGapIds = $derived(new Set(parsedInteraction?.requiredGaps ?? []));
+	const requiredDescription = $derived(
+		translate(i18n, 'accessibility.sentence', '{text}.', { text: translate(i18n, 'common.required', 'Required') }),
+	);
+
+	/** The id of a required gap's description: per instance, and by position, so any identifier is safe. */
+	function requiredDescriptionId(gapId: string): string {
+		return `${uid}-gap-${gapPositions.positions.get(gapId) ?? 0}-required`;
+	}
+
+	/**
 	 * The draggable pool: gapText words and gapImg image tiles share one identifier
 	 * space and one set of placement rules, so everything downstream (palette,
 	 * drop handling, pick-up flow, matchMax/matchGroup constraints) works on this
@@ -457,6 +474,11 @@
 	{:else}
 
 		<p>{i18n?.t('interactions.gapMatch.pointerInstructions') ?? 'Select a word, then select a blank. You can also drag and drop.'}</p>
+		{#if requiredGapIds.size > 0}
+			<p part="required-legend" class="qti-gm-required-legend">
+				{translate(i18n, 'interactions.gapMatch.requiredBlanksLegend', 'Blanks marked * are required.')}
+			</p>
+		{/if}
 
 		<div class="qti-gm-layout">
 		<!-- Available gap texts (draggable words) -->
@@ -524,6 +546,7 @@
 		{@const showCorrect = isCorrectGap(gapId)}
 		{@const showWord = selected || (showCorrect ? getCorrectWord(gapId) : '')}
 		{@const shownWord = showWord === '' ? null : paletteWords.find((w) => w.identifier === showWord)}
+		{@const required = requiredGapIds.has(gapId)}
 		<button
 			part="gap"
 			type="button"
@@ -533,8 +556,10 @@
 			class:qti-gm-gap-ready={pickedUpWord !== null && !blockedGapIds.has(gapId)}
 			class:is-dragover={dragOverGap === gapId}
 			data-empty={showWord === '' ? 'true' : undefined}
+			data-required={required ? 'true' : undefined}
 			aria-disabled={disabled || blockedGapIds.has(gapId) ? 'true' : undefined}
 			aria-label={gapAriaLabel(gapId)}
+			aria-describedby={required ? requiredDescriptionId(gapId) : undefined}
 			ondragover={(e: DragEvent) => onGapDragOver(gapId, e)}
 			ondragleave={() => onGapDragLeave(gapId)}
 			ondrop={(e: DragEvent) => onGapDrop(gapId, e)}
@@ -544,8 +569,13 @@
 				<img class="qti-gm-gap-img" src={shownWord.src} alt="" width={shownWord.width} height={shownWord.height} />
 			{:else}
 				{showWord === '' ? '' : getWordText(showWord)}
-			{/if}
+			{/if}{#if required}<span class="qti-gm-gap-required-mark" aria-hidden="true">*</span>{/if}
 		</button>
+		{#if required}
+			<!-- Hidden, yet still the gap's description (aria-describedby reads hidden text), so
+			     reading the sentence does not say it twice. -->
+			<span id={requiredDescriptionId(gapId)} hidden>{requiredDescription}</span>
+		{/if}
 	{/snippet}
 	{#if promptSegments.length > 0}
 		<!-- The prompt with live gap controls, rendered once. The extractor's promptText IS the
@@ -653,6 +683,17 @@
 	:global(.qti-gm-gap-target[data-empty='true']::before) {
 		/* Ensure empty gaps reserve the same line-height as filled gaps (no visible text). */
 		content: '\00a0';
+	}
+	/* Required gap (QTI gap `required`): an asterisk, which the legend explains, so the cue is
+	   a character and not a colour alone (WCAG 1.4.1); the text token keeps it at 4.5:1. */
+	.qti-gm-gap-required-mark {
+		margin-inline-start: 0.125rem;
+		font-weight: 700;
+		color: var(--pie-qti-error-text, #b91c1c);
+	}
+	.qti-gm-required-legend {
+		margin: 0;
+		font-size: 0.875rem;
 	}
 	:global(.qti-gm-gap-target.is-dragover) {
 		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));

@@ -326,6 +326,7 @@ export default {
 			minPlacementsHint: 'Reste à placer dans les blancs : {words}.',
 			notCompatibleSentence: 'Incompatible avec le mot sélectionné.',
 			wordRemovedFromBlanks: '{word} a été retiré des cases.',
+			requiredBlanksLegend: 'Les blancs marqués d\'un * sont requis.',
 		},
 
 		graphicGapMatch: {

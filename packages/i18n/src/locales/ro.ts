@@ -326,6 +326,7 @@ export default {
 			minPlacementsHint: 'Mai sunt de plasat în spațiile libere: {words}.',
 			notCompatibleSentence: 'Incompatibil cu cuvântul selectat.',
 			wordRemovedFromBlanks: 'S-a eliminat {word} din spații.',
+			requiredBlanksLegend: 'Spațiile libere marcate cu * sunt obligatorii.',
 		},
 
 		graphicGapMatch: {

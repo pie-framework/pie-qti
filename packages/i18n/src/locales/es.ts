@@ -327,6 +327,7 @@ export default {
 			minPlacementsHint: 'Falta colocar en los espacios en blanco: {words}.',
 			notCompatibleSentence: 'No compatible con la palabra seleccionada.',
 			wordRemovedFromBlanks: 'Se eliminó {word} de los espacios.',
+			requiredBlanksLegend: 'Los espacios en blanco marcados con * son requeridos.',
 		},
 
 		graphicGapMatch: {

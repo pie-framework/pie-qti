@@ -333,6 +333,7 @@ export default {
 			minPlacementsHint: '还需放入空白处：{words}。',
 			notCompatibleSentence: '与所选词语不兼容。',
 			wordRemovedFromBlanks: '已将 {word} 从空格中移除。',
+			requiredBlanksLegend: '标有 * 的空白处为必填。',
 		},
 
 		graphicGapMatch: {

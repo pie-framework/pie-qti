@@ -333,6 +333,7 @@ export default {
 			minPlacementsHint: 'Still to place in the blanks: {words}.',
 			notCompatibleSentence: 'Not compatible with the selected word.',
 			wordRemovedFromBlanks: '{word} removed from the blanks.',
+			requiredBlanksLegend: 'Blanks marked * are required.',
 		},
 
 		graphicGapMatch: {

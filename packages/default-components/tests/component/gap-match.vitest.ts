@@ -490,6 +490,106 @@ describe('GapMatchInteraction (pie-qti-gap-match)', () => {
 			cleanupInteraction(mounted);
 		});
 	});
+
+	// gap `required` (QTI 2.1 gap; QTI 3.0 §5.55.5): a valid response fills every required gap,
+	// which response validation enforces. The candidate is told which gaps those are (WCAG 3.3.2).
+	describe('required gaps', () => {
+		const click = (element: Element | null) => element?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		const requiredFirst = () =>
+			gapData({ promptText: 'A [GAP:G1] b [GAP:G2] c.', gaps: ['G1', 'G2'], requiredGaps: ['G1'] });
+
+		/** The text of the elements an element's aria-describedby names, in order. */
+		function description(element: Element | null): string {
+			return (element?.getAttribute('aria-describedby') ?? '')
+				.split(/\s+/)
+				.filter(Boolean)
+				.map((id) => document.getElementById(id)?.textContent?.trim() ?? '')
+				.join(' ');
+		}
+
+		test('a required gap carries a visible mark that is a character, not only a colour', async () => {
+			const mounted = mountInteraction(GapMatchInteraction, { interaction: requiredFirst() });
+			await settle();
+
+			const required = q(mounted, 'button[data-gap-id="G1"]');
+			const optional = q(mounted, 'button[data-gap-id="G2"]');
+			expect(required?.getAttribute('data-required')).toBe('true');
+			expect(optional?.hasAttribute('data-required')).toBe(false);
+			// The mark is visible text in the gap; it is hidden from assistive technology,
+			// which hears the requirement from the description instead.
+			const mark = required?.querySelector('.qti-gm-gap-required-mark');
+			expect(mark?.textContent).toBe('*');
+			expect(mark?.getAttribute('aria-hidden')).toBe('true');
+			expect(optional?.querySelector('.qti-gm-gap-required-mark')).toBeNull();
+			// A visible legend says what the mark means.
+			expect(q(mounted, '[part="required-legend"]')?.textContent?.trim()).toBe('Blanks marked * are required.');
+			cleanupInteraction(mounted);
+		});
+
+		test('a required gap states the requirement in its description: a button cannot be aria-required', async () => {
+			const mounted = mountInteraction(GapMatchInteraction, { interaction: requiredFirst() });
+			await settle();
+
+			const required = q(mounted, 'button[data-gap-id="G1"]');
+			const optional = q(mounted, 'button[data-gap-id="G2"]');
+			// aria-required is not allowed on role=button, so the description carries it.
+			expect(required?.hasAttribute('aria-required')).toBe(false);
+			expect(description(required)).toBe('Required.');
+			expect(optional?.hasAttribute('aria-describedby')).toBe(false);
+			// The name stays the gap's own (its ordinal and state), never the identifier.
+			expect(required?.getAttribute('aria-label')).toBe('Blank 1 of 2. Drop an answer here.');
+			cleanupInteraction(mounted);
+		});
+
+		test('a filled required gap stays marked and described', async () => {
+			const mounted = mountInteraction(GapMatchInteraction, { interaction: requiredFirst() });
+			await settle();
+
+			click(q(mounted, 'button[data-word-id="W1"]'));
+			await settle();
+			click(q(mounted, 'button[data-gap-id="G1"]'));
+			await settle();
+
+			const required = q(mounted, 'button[data-gap-id="G1"]');
+			expect(mounted.instance.response).toEqual(['W1 G1']);
+			expect(required?.getAttribute('data-required')).toBe('true');
+			expect(required?.querySelector('.qti-gm-gap-required-mark')?.textContent).toBe('*');
+			expect(description(required)).toBe('Required.');
+			cleanupInteraction(mounted);
+		});
+
+		test('without required gaps there is no mark, legend or description', async () => {
+			const mounted = mountInteraction(GapMatchInteraction, { interaction: gapData() });
+			await settle();
+
+			expect(q(mounted, '[data-required]')).toBeNull();
+			expect(q(mounted, '.qti-gm-gap-required-mark')).toBeNull();
+			expect(q(mounted, '[part="required-legend"]')).toBeNull();
+			expect(q(mounted, 'button[data-gap-id="G1"]')?.hasAttribute('aria-describedby')).toBe(false);
+			cleanupInteraction(mounted);
+		});
+
+		test('the legend and the description are localized', async () => {
+			const messages: Record<string, string> = {
+				'interactions.gapMatch.requiredBlanksLegend': 'Lege plekken met een * zijn verplicht.',
+				'common.required': 'Verplicht',
+			};
+			const i18n = {
+				getLocale: () => 'nl',
+				setLocale: () => {},
+				t: (key: string, fallback?: unknown, values?: Record<string, unknown>) => {
+					const message = messages[key] ?? (typeof fallback === 'string' ? fallback : key);
+					return message.replace(/\{(\w+)\}/g, (_match, name: string) => String(values?.[name] ?? ''));
+				},
+			};
+			const mounted = mountInteraction(GapMatchInteraction, { interaction: requiredFirst(), i18n });
+			await settle();
+
+			expect(q(mounted, '[part="required-legend"]')?.textContent?.trim()).toBe('Lege plekken met een * zijn verplicht.');
+			expect(description(q(mounted, 'button[data-gap-id="G1"]'))).toBe('Verplicht.');
+			cleanupInteraction(mounted);
+		});
+	});
 });
 
 describe('word removal (round 6)', () => {
