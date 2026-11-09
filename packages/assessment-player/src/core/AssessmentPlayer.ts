@@ -466,17 +466,6 @@ export class AssessmentPlayer {
 	 * leaves them only if that end does not finalize (the end of the test never navigates).
 	 */
 	private readonly expiriesDuringEnd: Array<{ scope: 'testPart' | 'section' | 'item'; identifier: string }> = [];
-	/**
-	 * The backend's decision for leaving an item (`nextItemIdentifier`) that delivery has not
-	 * followed yet: a submission that stays on the item (a practice check, a counted
-	 * endAttemptInteraction) keeps it; so does a branch exit refused while questions of the part
-	 * still owed an answer, and the end of the test's own collection (which never navigates).
-	 * The next forward step from that item that submits nothing — the candidate moves on with
-	 * the response unchanged — follows it; a changed response re-submits and the fresh decision
-	 * replaces it. One decision is kept at a time: any later counted submission replaces it (the
-	 * outcomes it was decided on have moved), and following it clears it.
-	 */
-	private keptBranchDecision: { itemIdentifier: string; target: string } | null = null;
 	/** The delivered items as the delivery rules walk them (index-aligned with `items`). */
 	private deliveredForRules: DeliveredItem[] = [];
 	/** Flat index per item identifier. */
@@ -969,7 +958,6 @@ export class AssessmentPlayer {
 				if (!accepted.has(identifier)) this.lastSubmittedResponses.delete(identifier);
 			}
 			this.lastItemFeedback = null;
-			this.keptBranchDecision = null;
 			this.templateDefaultsByPart.clear();
 			// Delivery repositions to the first open item of the furthest part reached (else
 			// the first open item after it); with none left, the expiry dead end: the
@@ -1652,10 +1640,10 @@ export class AssessmentPlayer {
 		// is what Next does now — unless Next re-submits a changed response, which decides anew.
 		const kept = this.nextSubmits(current) ? null : this.keptBranchDecisionFor(current);
 		if (kept) {
-			const target = this.branchTargetIndex(current, kept.target);
+			const target = this.branchTargetIndex(current, kept);
 			return {
 				nextIndex: target >= 0 ? target : null,
-				leavesTestPart: this.branchExitLeavesPart(current, kept.target),
+				leavesTestPart: this.branchExitLeavesPart(current, kept),
 			};
 		}
 		const nextIndex = this.forwardStepIndex(current);
@@ -2231,9 +2219,10 @@ export class AssessmentPlayer {
 			this.timeManager?.resetExpiryRecord();
 			this.lockExpiredScopesFromClocks(state.timing);
 			this.templateDefaultsByPart.clear();
-			// The snapshot replaces delivery: a backend decision kept for the old position is void.
-			this.keptBranchDecision = null;
-			// The snapshot carries the proctor pause; the begin gate keeps holding the clocks.
+			// The snapshot replaces delivery — kept branch decisions included, so a restored
+			// session lands identically (a snapshot from before the feature simply carries
+			// none). The snapshot carries the proctor pause; the begin gate keeps holding the
+			// clocks.
 			const wasPaused = this.paused;
 			this.paused = state.timing?.isPaused === true;
 			this.pauseReason = this.paused ? state.timing?.pauseReason : undefined;
@@ -2451,8 +2440,14 @@ export class AssessmentPlayer {
 		// check's, an end-attempt's, a branch exit held back, an end of the test that did not
 		// complete); with none on record, the delivery rules decide (`ruleForwardIndex`).
 		const kept = submits ? null : this.keptBranchDecisionFor(q);
+		// Next from a simultaneous part's last item always crosses (or ends the test): the
+		// part commits at the crossing, and only then is a decision on record to follow.
+		const crossesSimultaneousPart =
+			!submits && !kept && this.endsTestPart(q) && this.isSimultaneousSubmission(q);
+		// On a crossing the pre-flush rule result is provisional: the flush can still change
+		// the outcomes the rules read, so the landing is computed again after it.
 		const forward = submits ? this.nextUnlockedIndex(q.index) : kept ? -1 : this.ruleForwardIndex(q);
-		if (!kept && forward < 0) return;
+		if (!kept && forward < 0 && !crossesSimultaneousPart) return;
 
 		this.sessionCoordinator.markAnswered(q.identifier, responses);
 		// QTI allowSkipping (individual parts only): an item that is about to be submitted
@@ -2467,12 +2462,12 @@ export class AssessmentPlayer {
 		// part still owes an answer: the part cannot be re-entered. The current item is this
 		// move's own submission (or already accepted as it stands).
 		const leavesPart = kept
-			? this.branchExitLeavesPart(q, kept.target)
-			: this.items[forward]!.testPart !== q.testPart;
+			? this.branchExitLeavesPart(q, kept)
+			: crossesSimultaneousPart || this.items[forward]!.testPart !== q.testPart;
 		if (leavesPart && !this.isItemLocked(q)) this.assertCanLeaveScope(q, { exclude: q });
 		if (submits) {
 			const before = this.currentItemIndex;
-			this.keptBranchDecision = null;
+			this.clearKeptBranchDecisions();
 			await this.submitCurrentItemInternal();
 			// The submission may branch, navigate, or finalize the test (EXIT_TEST); in those
 			// cases navigation stops here.
@@ -2482,11 +2477,14 @@ export class AssessmentPlayer {
 			// The move submits nothing, so its minimum times are checked here (an end of the
 			// test checks its own). One that can no longer be followed (it would re-enter a part
 			// already left) leaves the forward step to the delivery rules.
-			const target = this.items[this.branchTargetIndex(q, kept.target)];
+			const target = this.items[this.branchTargetIndex(q, kept)];
 			if (target && !this.isItemLocked(q)) this.assertTransitionMinimum(q, target);
 			const before = this.currentItemIndex;
-			await this.followBranch(q, kept.target);
+			await this.followBranch(q, kept);
 			if (this.currentItemIndex !== before || this.finalized) return;
+		} else if (crossesSimultaneousPart) {
+			await this.crossSimultaneousPart(q);
+			return;
 		}
 		// The candidate may still return and re-attempt this item: reopen it writable while
 		// attempts remain (a no-op for closed single-attempt or writable items), so the
@@ -2497,6 +2495,53 @@ export class AssessmentPlayer {
 		const nextIndex = this.unsubmittedForwardIndex(q);
 		if (nextIndex < 0) return;
 		await this.performNavigateTo(nextIndex);
+	}
+
+	/**
+	 * Leave the simultaneous test part `last` belongs to: its pending responses go out
+	 * first (a failed request throws and keeps the candidate here for a retry), and the
+	 * branch decision the flush returns for the part's last item — the part's testPart
+	 * branchRule ran there, with every item's variables committed — is what delivery
+	 * follows, through `followBranch`'s part-leave, EXIT_TEST and finalized guards. With
+	 * no decision (or one that led nowhere) the delivery rules decide on the committed
+	 * state, honouring the following parts' preconditions.
+	 */
+	private async crossSimultaneousPart(last: FlatItem): Promise<void> {
+		await this.submitSimultaneousItems(this.items.filter((item) => item.testPart === last.testPart));
+		const target = this.partCrossingDecisionTarget(last);
+		if (target !== null) {
+			const before = this.currentItemIndex;
+			await this.followBranch(last, target);
+			if (this.currentItemIndex !== before || this.finalized) return;
+		}
+		// No decision moved delivery: the delivery rules decide, as the navigation rules
+		// check them — on the state the flush just committed.
+		const nextIndex = this.unsubmittedForwardIndex(last);
+		if (nextIndex < 0) return;
+		await this.performNavigateTo(nextIndex);
+	}
+
+	/**
+	 * The branch decision a simultaneous part's flush left for its last item, when it takes
+	 * delivery out of the part that is ending. A target inside that part is rejected: the
+	 * part is being left, its responses are out, and its rules cannot deliver into it again.
+	 */
+	private partCrossingDecisionTarget(last: FlatItem): string | null {
+		const target = this.keptBranchDecisionFor(last);
+		if (!target) return null;
+		const targetIndex = this.indexOfItem(target);
+		if (targetIndex >= 0 && this.items[targetIndex]!.testPart === last.testPart) return null;
+		return target;
+	}
+
+	/** Whether the delivered item after `q` lies outside `q`'s test part (or nothing does). */
+	private endsTestPart(q: FlatItem): boolean {
+		return this.items[q.index + 1]?.testPart !== q.testPart;
+	}
+
+	/** The part's effective QTI submission mode. */
+	private isSimultaneousSubmission(q: FlatItem): boolean {
+		return (q.testPart.submissionMode ?? this.assessment.submissionMode) === 'simultaneous';
 	}
 
 	/**
@@ -2514,15 +2559,46 @@ export class AssessmentPlayer {
 	}
 
 	/**
-	 * The backend decision kept for leaving `q`, if delivery has not followed it yet. A decision
-	 * onto an item an expired time limit has closed since is passed over like the item itself:
-	 * the delivery rules then find the next open item.
+	 * The backend's decisions for leaving an item (`nextItemIdentifier`), keyed per item on
+	 * the session state (`state.branchDecisions`) with that item's last-submission record,
+	 * so a restored session lands identically. A counted submission that stays on the item
+	 * (a practice check, a counted endAttemptInteraction) keeps its decision; so does a
+	 * branch exit refused while questions of the part still owed an answer, and a
+	 * simultaneous part's crossing flush keeps the decision made for its last item. The next
+	 * forward step from that item that submits nothing — the candidate moves on with the
+	 * response unchanged — follows it; a changed response re-submits and the fresh decision
+	 * replaces it. At most the freshest decision is kept: any later counted submission voids
+	 * the earlier ones (the outcomes they were decided on have moved), and following a
+	 * decision clears it.
 	 */
-	private keptBranchDecisionFor(q: FlatItem): { itemIdentifier: string; target: string } | null {
-		const kept = this.keptBranchDecision?.itemIdentifier === q.identifier ? this.keptBranchDecision : null;
-		if (!kept) return null;
-		const target = this.items[this.indexOfItem(kept.target)];
-		return target && this.isItemLocked(target) ? null : kept;
+
+	/** The backend decision kept for `q` that delivery has not followed yet (its target). */
+	private keptDecisionTarget(q: FlatItem): string | null {
+		const target = this.state.branchDecisions?.[q.identifier];
+		return target ?? null;
+	}
+
+	/** Keep `target` as the one decision delivery may still follow — the item's freshest. */
+	private keepBranchDecision(q: FlatItem, target: string): void {
+		this.state.branchDecisions = { [q.identifier]: target };
+	}
+
+	/** Every kept decision is void: a counted submission moved the outcomes they decided on. */
+	private clearKeptBranchDecisions(): void {
+		delete this.state.branchDecisions;
+	}
+
+	/**
+	 * The backend decision kept for leaving `q` — its item's entry in the session state
+	 * (`branchDecisions`), made by `q`'s last counted submission — if delivery has not
+	 * followed it yet. A decision onto an item an expired time limit has closed since is
+	 * passed over like the item itself: the delivery rules then find the next open item.
+	 */
+	private keptBranchDecisionFor(q: FlatItem): string | null {
+		const target = this.keptDecisionTarget(q);
+		if (!target) return null;
+		const targetItem = this.items[this.indexOfItem(target)];
+		return targetItem && this.isItemLocked(targetItem) ? null : target;
 	}
 
 	/**
@@ -2543,7 +2619,7 @@ export class AssessmentPlayer {
 	 */
 	private unsubmittedForwardIndex(q: FlatItem): number {
 		const kept = this.keptBranchDecisionFor(q);
-		return kept ? this.branchTargetIndex(q, kept.target) : this.ruleForwardIndex(q);
+		return kept ? this.branchTargetIndex(q, kept) : this.ruleForwardIndex(q);
 	}
 
 	/**
@@ -3009,12 +3085,12 @@ export class AssessmentPlayer {
 			//   (for the part, or the test), the ended scope finalizes like a normal end of test.
 			// A submission that stays on the item (a practice check, a counted end-attempt) keeps
 			// the decision instead: the next forward step from the item that submits nothing
-			// follows it. Either way it replaces a decision kept for another item, which was made
-			// on outcomes this submission has moved.
-			this.keptBranchDecision = null;
+			// follows it. Either way it voids every earlier decision, which was made on outcomes
+			// this submission has moved.
+			this.clearKeptBranchDecisions();
 			if (options.followBranching === false) {
 				if (res.nextItemIdentifier) {
-					this.keptBranchDecision = { itemIdentifier: q.identifier, target: res.nextItemIdentifier };
+					this.keepBranchDecision(q, res.nextItemIdentifier);
 				}
 			} else if (res.nextItemIdentifier) {
 				await this.followBranch(q, res.nextItemIdentifier);
@@ -3057,12 +3133,12 @@ export class AssessmentPlayer {
 		const standing = this.items[this.currentItemIndex] ?? q;
 		// A test part delivery already left is never re-entered, whatever the decision says.
 		if (targetIndex >= 0 && this.partOrder(this.items[targetIndex]) < this.partOrder(standing)) {
-			this.keptBranchDecision = null;
+			this.clearKeptBranchDecisions();
 			return;
 		}
 		// An end of the test is running: it collects where the candidate stands.
 		if (this.endReason !== null) {
-			this.keptBranchDecision = { itemIdentifier: q.identifier, target };
+			this.keepBranchDecision(q, target);
 			return;
 		}
 		// Delivery moved on while the submission was in flight: the decision no longer applies.
@@ -3071,10 +3147,10 @@ export class AssessmentPlayer {
 			if (target === 'EXIT_TEST') this.assertNoSubmissionBlockers();
 			else if (this.branchExitLeavesPart(q, target)) this.assertCanLeaveScope(q, { exclude: q });
 		} catch (error) {
-			this.keptBranchDecision = { itemIdentifier: q.identifier, target };
+			this.keepBranchDecision(q, target);
 			throw error;
 		}
-		this.keptBranchDecision = null;
+		this.clearKeptBranchDecisions();
 		if (target === 'EXIT_TEST') {
 			await this.endTestInternal({ reason: 'branch' });
 			return;
@@ -3325,8 +3401,15 @@ export class AssessmentPlayer {
 				// The accepted response set: a retry, a later collection pass, or finalize
 				// must not re-submit identical responses for this item.
 				this.lastSubmittedResponses.set(q.identifier, cloneResponseRecord(responsesForItem));
-				// A decision kept for another item was made on outcomes this one has moved.
-				this.keptBranchDecision = null;
+				// This submission voids every earlier decision (the outcomes they were decided
+				// on have moved). Only a part crossing keeps the fresh one — the decision the
+				// part's last item returns is what the crossing follows — while the end of the
+				// test's own collection (the same submit path, for every item) stores none: it
+				// never navigates.
+				this.clearKeptBranchDecisions();
+				if (this.endReason === null && res.nextItemIdentifier) {
+					this.keepBranchDecision(q, res.nextItemIdentifier);
+				}
 				this.setTestOutcomes(res.outcomes);
 				this.reportOutcomeProcessingError(res.outcomeProcessingError);
 			}
@@ -3656,7 +3739,8 @@ export class AssessmentPlayer {
 			results.outcomeProcessingError = this.reportedOutcomeProcessingError;
 		}
 		this.finalResults = results;
-		this.keptBranchDecision = null;
+		// The test is over: no decision remains for delivery to follow.
+		this.clearKeptBranchDecisions();
 		// Every delivered item session is over, the active one included: the player's record
 		// of the ended test reports each as final, never as owing a submission.
 		this.closeItemSessionsForEnd();
@@ -4019,7 +4103,7 @@ export class AssessmentPlayer {
 		this.timeManager?.destroy();
 		this.releaseCurrentItemSession();
 		this.lastItemFeedback = null;
-		this.keptBranchDecision = null;
+		this.clearKeptBranchDecisions();
 		this.itemDefinitions.clear();
 		this.itemChangeListeners.clear();
 		this.sectionChangeListeners.clear();
