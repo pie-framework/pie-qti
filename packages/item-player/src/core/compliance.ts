@@ -5,9 +5,10 @@ import {
 	type QtiVersionDetection,
 	type QtiVocabularyVersion,
 } from '@pie-qti/qti-common';
-import { childElements, findAssessmentItem, findFirstDescendant, getAttr, parseXml } from '@pie-qti/qti-processing';
+import { childElements, findAssessmentItem, findFirstDescendant, parseXml } from '@pie-qti/qti-processing';
 import type { ExtractionRegistry } from '../extraction/ExtractionRegistry.js';
 import { findUnextractableInteractions } from '../extraction/interactionCoverage.js';
+import { readResponseIdentifier } from '../extraction/responseIdentifier.js';
 
 export type QtiItemDiagnosticCode =
 	/** Strict mode checks QTI 2.2 and 3.0, the certifiable versions; this item is another version. */
@@ -204,7 +205,7 @@ function responseBindings(
 	const bindings: Array<{ element: string; responseIdentifier: string }> = [];
 	const visit = (element: Element): void => {
 		if (elementNameMapper.toCanonical(element.nodeName) === 'rubricblock') return;
-		const responseIdentifier = getAttr(element, 'responseIdentifier')?.trim();
+		const responseIdentifier = readResponseIdentifier(element)?.trim();
 		if (responseIdentifier) bindings.push({ element: element.nodeName, responseIdentifier });
 		for (const child of childElements(element)) visit(child);
 	};

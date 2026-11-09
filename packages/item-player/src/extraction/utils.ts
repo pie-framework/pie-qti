@@ -5,8 +5,9 @@
  */
 
 import type { ElementNameMapper, AttributeNameMapper } from '@pie-qti/qti-common';
-import { Qti2xElementNameMapper, Qti2xAttributeNameMapper } from '@pie-qti/qti-common';
 import { sanitizeTextContent } from '../core/sanitizer.js';
+import { defaultExtractionMappers } from '../core/nameMappers.js';
+import { escapeHtmlAttribute } from '../security/escapeHtml.js';
 import { readAloudAttributes } from './interactionAccessibility.js';
 import type { PlayerSecurityConfig } from '../types/index.js';
 import type { QTIElement } from '../interactions/shared/types.js';
@@ -149,8 +150,7 @@ export function createExtractionUtils(
 	attributeMapper?: AttributeNameMapper
 ): ExtractionUtils {
 	// Default to QTI 2.x mappers (primary supported QTI format)
-	const elementMapper = mapper || new Qti2xElementNameMapper();
-	const attrMapper = attributeMapper || new Qti2xAttributeNameMapper();
+	const { elementMapper, attrMapper } = defaultExtractionMappers(mapper, attributeMapper);
 	return {
 		matchesTag(element: QTIElement, tagName: string): boolean {
 			return matchesTagName(element.rawTagName, tagName, elementMapper);
@@ -211,12 +211,12 @@ export function createExtractionUtils(
 			if (attributes?.['data-catalog-idref'] && wrapsContentWithIdref(element, attributes['data-catalog-idref'])) {
 				delete attributes['data-catalog-idref'];
 			}
-			const wrapped =
-				html && attributes && Object.keys(attributes).length > 0
-					? `<span ${Object.entries(attributes)
-							.map(([name, value]) => `${name}="${value.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`)
-							.join(' ')}>${html}</span>`
-					: html;
+		const wrapped =
+			html && attributes && Object.keys(attributes).length > 0
+				? `<span ${Object.entries(attributes)
+						.map(([name, value]) => `${name}="${escapeHtmlAttribute(value)}"`)
+						.join(' ')}>${html}</span>`
+				: html;
 			return sanitizeTextContent(wrapped, { security });
 		},
 

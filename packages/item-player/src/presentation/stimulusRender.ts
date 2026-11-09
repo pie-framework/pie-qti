@@ -1,4 +1,5 @@
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
+import { escapeHtmlAttribute } from '../security/escapeHtml.js';
 
 export type StimulusSanitizer = (html: string) => string;
 
@@ -76,12 +77,4 @@ function mergeClassAttribute(attrs: string, className: string): string {
 	const classes = new Set(existing.split(/\s+/).filter(Boolean));
 	classes.add(className);
 	return attrs.replace(classMatch[0], `class=${quote}${Array.from(classes).join(' ')}${quote}`);
-}
-
-function escapeHtmlAttribute(value: string): string {
-	return value
-		.replace(/&/g, '&amp;')
-		.replace(/"/g, '&quot;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;');
 }

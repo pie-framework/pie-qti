@@ -51,8 +51,11 @@ export function patternExcludesMinus(pattern: string): boolean {
 /**
  * The index just past a character class that cannot match `-`, or `undefined`
  * when the class is unbalanced or holds a member or range that can.
+ *
+ * Shared with {@link patternExcludesMinus}'s consumers (inline text entry and
+ * extended text), which is why it is exported.
  */
-function classExcludesMinus(pattern: string, open: number): number | undefined {
+export function classExcludesMinus(pattern: string, open: number): number | undefined {
 	let index = open + 1;
 	// A negated class matches everything its members do not, `-` included.
 	if (pattern[index] === '^') return undefined;

@@ -17,6 +17,7 @@ import {
 	type PciResolutionConfig,
 } from './resolutionConfig.js';
 import { createAmdLoader } from './amdLoader.js';
+import { pciEntryModule, resolvePciModuleUrl } from './modulePaths.js';
 
 const DEFAULT_REGISTRATION_TIMEOUT_MS = 5000;
 
@@ -159,9 +160,7 @@ export class PageRealmPciSession implements PciModuleSession {
 	 * dependencies wire up before the registration is read.
 	 */
 	private async loadViaAmd(context: PciLoadContext): Promise<void> {
-		const entry =
-			this.data.modules.find((module) => module.primaryPath === this.data.primaryPath) ??
-			this.data.modules[this.data.modules.length - 1];
+		const entry = pciEntryModule(this.data);
 		const entryId = entry?.id || this.data.primaryPath;
 		const attempt = async (entryPath: string, kind: PciModulePathKind): Promise<void> => {
 			const config = await this.loadResolutionConfig();
@@ -234,17 +233,7 @@ export class PageRealmPciSession implements PciModuleSession {
 	}
 
 	private resolveUrl(path: string): string {
-		if (/^[a-z][a-z\d+.-]*:/i.test(path) || path.startsWith('//') || path.startsWith('/')) {
-			return path;
-		}
-		if (!this.baseUrl) return path;
-		// Relative path: resolve against baseUrl
-		const base = this.baseUrl.endsWith('/') ? this.baseUrl : this.baseUrl + '/';
-		try {
-			return new URL(path, base).href;
-		} catch {
-			return base + path;
-		}
+		return resolvePciModuleUrl(path, this.baseUrl);
 	}
 
 	private adoptRegistration(

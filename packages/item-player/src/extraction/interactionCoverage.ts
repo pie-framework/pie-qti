@@ -1,6 +1,7 @@
 import { type ElementNameMapper, isQtiVocabularyElement } from '@pie-qti/qti-common';
-import { childElements, getAttr } from '@pie-qti/qti-processing';
+import { childElements } from '@pie-qti/qti-processing';
 import type { ExtractionRegistry } from './ExtractionRegistry.js';
+import { readResponseIdentifier } from './responseIdentifier.js';
 
 /**
  * An item body element that interaction extraction does not deliver, although it is meant to be
@@ -45,7 +46,8 @@ export function findUnextractableInteractions(
 		const canonical = elementNameMapper.toCanonical(name);
 		if (canonical === 'rubricblock') return;
 
-		const responseIdentifier = getAttr(element, 'responseIdentifier')?.trim();
+		// Diagnostics read the binding on the authored XML tree, trimmed.
+		const responseIdentifier = readResponseIdentifier(element)?.trim();
 		if (responseIdentifier) {
 			if (extractionRegistry.getExtractorsForType(canonical).length === 0) {
 				found.push({ reason: 'unregistered', element: name, responseIdentifier });
