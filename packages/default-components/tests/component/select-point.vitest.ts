@@ -150,6 +150,22 @@ describe('SelectPointInteraction (pie-qti-select-point)', () => {
 		expect(liveRegion(mounted)).toContain('Maximum points reached');
 	});
 
+	test('maxChoices=0 means no restriction: points keep placing and the response is an array', async () => {
+		// The QTI 2.2/3.0 default for an absent maxChoices on a multiple-point response.
+		const mounted = mountInteraction(SelectPointInteraction, {
+			interaction: selectPointData({ maxChoices: 0 }),
+			response: ['100 60', '400 240'],
+		});
+		await settle();
+
+		pressKey(surface(mounted), 'Enter');
+		await settle();
+
+		expect(Array.isArray(mounted.instance.response)).toBe(true);
+		expect(mounted.instance.response).toHaveLength(3);
+		expect(liveRegion(mounted)).not.toContain('Maximum points reached');
+	});
+
 	test('a failed image shows a localized message; the selection area keeps working', async () => {
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		const mounted = mountInteraction(SelectPointInteraction, { interaction: selectPointData() });

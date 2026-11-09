@@ -52,7 +52,7 @@
 |-----------|---------|-----------|
 | `responseIdentifier` | ✅ Full | Extracted as `responseId`; used in the `qti-change` event payload. The radio group `name` is unique per rendered instance instead, so two renderings of the same item never share a radio group |
 | `shuffle` | ✅ Full | Shuffles choice order at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads |
-| `maxChoices` | ✅ Full | `1` → radio buttons; `>1` or `0` → checkboxes; `0` triggers a validator warning |
+| `maxChoices` | ✅ Full | `1` → radio buttons; `>1` or `0` → checkboxes; `0` triggers a validator warning. An absent attribute takes the per-version spec default: 1 in QTI 2.2/3.0, 0 (no restriction) in QTI 2.1 — or 1 when the response is single cardinality, which holds one choice |
 | `minChoices` | ❌ Not extracted | Spec defines this as a completeness constraint. Not in `ChoiceInteractionData`; not enforced. See Known gaps. |
 | `orientation` | ❌ Not extracted | Visual hint (`horizontal`/`vertical`). Not in `ChoiceInteractionData`. The component always renders vertically. Low priority since most K-12 content doesn't use it. |
 
@@ -148,7 +148,7 @@ interface ChoiceInteractionData extends BaseInteractionData {
   type: 'choiceInteraction';
   responseId: string;           // from responseIdentifier attribute
   shuffle: boolean;             // shuffled order applied at extraction time
-  maxChoices: number;           // 1 = single (radio), >1 or 0 = multiple (checkbox)
+  maxChoices: number;           // 1 = single (radio), >1 or 0 = multiple (checkbox); absent: 1 (QTI 2.2/3.0), 0 (QTI 2.1)
   prompt: string | null;        // HTML content of <prompt> child, or null
   choices: Array<{
     identifier: string;         // from simpleChoice identifier attribute

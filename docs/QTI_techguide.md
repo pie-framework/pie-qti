@@ -225,6 +225,8 @@ QTI supports **21 standard interaction types** organized into four functional ca
 
 Examples in this section use QTI 2.x syntax. For QTI 3.0, apply the naming conventions from the mapping table in Part I.
 
+Attribute defaults below are summaries. The audited, per-version defaults for every interaction attribute (QTI 2.1, 2.2 and 3.0 XSDs and information models), with what this player applies, are in [`QTI_attribute_defaults.md`](QTI_attribute_defaults.md).
+
 ## 3.1 Simple Selection Interactions
 
 ### 3.1.1 choiceInteraction
@@ -239,7 +241,7 @@ Examples in this section use QTI 2.x syntax. For QTI 3.0, apply the naming conve
 |-----------|----------|-------------|
 | `responseIdentifier` | Required | Identifier binding to responseDeclaration |
 | `shuffle` | Optional | If true, randomizes choice order on delivery. Default: false |
-| `maxChoices` | Optional | Maximum selections allowed. 0=unlimited, 1=single-choice (radio). Default: 1 |
+| `maxChoices` | Optional | Maximum selections allowed. 0=unlimited, 1=single-choice (radio). Default: 1 (QTI 2.2/3.0); 0 in QTI 2.1 |
 | `minChoices` | Optional | Minimum selections required for valid response. Default: 0 |
 | `orientation` | Optional | Visual hint: 'horizontal' or 'vertical' |
 
@@ -582,7 +584,7 @@ Graphical interactions involve a background image with defined regions (hotspots
 | Attribute | Required | Description |
 |-----------|----------|-------------|
 | `responseIdentifier` | Required | Identifier binding to responseDeclaration |
-| `maxChoices` | Optional | Maximum points selectable. 0=unlimited. Default: 1 |
+| `maxChoices` | Optional | Maximum points selectable. 0=unlimited. Default: 0 (QTI 2.2/3.0) |
 | `minChoices` | Optional | Minimum points required. Default: 0 |
 
 **Scoring with areaMapping:**
