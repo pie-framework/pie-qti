@@ -164,8 +164,7 @@ are not written. A resource's `baseId` and `extensions` follow the PIE encoding 
 Each `extensions` key is one classification with one taxon per value, in array order, and no
 `purpose`: PIE does not interpret the keys, so it does not map them onto LOM vocabulary. A value other
 than a string also carries its JSON in the classification's `description`, which `@pie-qti/to-pie`
-reads back with its type and order. `@pie-qti/to-pie` also reads the `pie:searchMetaData:` source that
-earlier releases wrote; for a key under both, `pie:extension:` wins. The plugin's package output fills
+reads back with its type and order. The plugin's package output fills
 both from the PIE item, and the passage's `extensions` on the passage resource.
 
 `tests/integration/manifest-lom.test.ts` validates generated manifests against IMS CP 1.1 with IEEE LOM.

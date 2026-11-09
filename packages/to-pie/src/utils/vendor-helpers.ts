@@ -6,7 +6,7 @@
  */
 
 import type { HTMLElement } from 'node-html-parser';
-import type { CustomAttributes, VendorClasses } from '../types/vendor-extensions.js';
+import type { CustomAttributes, VendorClasses } from '@pie-qti/transform-types';
 
 /**
  * Extract and categorize CSS classes from an element

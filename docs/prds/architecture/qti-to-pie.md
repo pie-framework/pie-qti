@@ -224,7 +224,7 @@ Key source files:
 - `packages/to-pie/src/package-transformer.ts` — `transformQtiPackageToPie`, `transformAnalyzedQtiPackageToPie` (takes an already-analyzed package graph, for callers like `package-exploder.ts` that need it analyzed once), bounded item concurrency (`itemConcurrency`), sidecar emission, package-level diagnostic rollup, MIME inference
 - `packages/types/src/source-profile.ts` — `QtiSourceProfile`, `QtiItemHandler`, `QtiItemDecorator`, `SourceProfileMatch`, `SourceProfileDiagnostic`, `SourceProfileFallbackPolicy`, `ConversionTrace`, `TransformTraceEvent`
 - `packages/source-profiles/src/` — default generic `QtiSourceProfile` implementations such as `common-cartridge-csm`; host packages register partner/publisher profiles using the same API
-- `packages/to-pie/src/types/vendor-extensions.ts` — `VendorDetector`, `VendorTransformer`, `VendorInfo`, `AssetResolver`, `CssClassExtractor`, `MetadataExtractor`, `VendorClasses`, `ResolvedAsset`, `VendorExtensionHooks`
+- `packages/types/src/transform/vendor-extensions.ts` — `VendorDetector`, `VendorTransformer`, `VendorInfo`, `AssetResolver`, `CssClassExtractor`, `MetadataExtractor`, `VendorClasses`, `ResolvedAsset`, `VendorExtensionHooks` (exported from `@pie-qti/transform-types`)
 - `packages/to-pie/src/utils/pie-extension.ts` — `hasPieExtension`, `extractPieExtension`, `PieExtensionData`, `PIE_NAMESPACE`, `PIE_PREFIX`
 - `packages/to-pie/src/utils/qti-extension-embedder.ts` — `embedQtiSourceInPie`, `extractQtiSourceFromPie`, `hasQtiSource`
 - `packages/to-pie/src/extractors/standard-metadata-extractor.ts` — standard metadata extraction from QTI metadata fields
