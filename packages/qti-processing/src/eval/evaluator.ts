@@ -81,13 +81,13 @@ export function applyLookupTable(source: QtiValue, table: LookupTableTable, base
  * The mapping entry for a response value. Each entry is matched as case sensitively as it says
  * (mapEntry caseSensitive, QTI ASI §5), with the spec default of false (QTI 2.2 XSD: optional,
  * default "false"; the 2.1 Best Practice: "The default is false"; the QTI 3.0 implementation
- * guide: "by default, NOT case sensitive") — an entry, or the mapping the player read as
- * leniency, matches case-insensitively unless it says "true". Only string values fold: identifier
- * and the other base types match exactly (QTI ASI §17). The lookup is by the exact key — the
- * player also stores a case-insensitive entry under its lower-case key — and string keys also
- * compare in their normalised form, case folded only where the entry is not case sensitive, so an
- * answer typed in other digits, another Unicode encoding or, for such an entry, another case finds
- * its entry. A case-sensitive entry is never found by folding the response's case.
+ * guide: "by default, NOT case sensitive") — an entry matches case-insensitively unless it says
+ * "true". Only string values fold: identifier and the other base types match exactly (QTI ASI
+ * §17). The lookup is by the exact key — the player also stores a case-insensitive entry under
+ * its lower-case key — and string keys also compare in their normalised form, case folded only
+ * where the entry is not case sensitive, so an answer typed in other digits, another Unicode
+ * encoding or, for such an entry, another case finds its entry. A case-sensitive entry is never
+ * found by folding the response's case.
  */
 function findMappingEntry(
 	mapping: Mapping,
@@ -100,7 +100,7 @@ function findMappingEntry(
 	const typed = normalizeResponse(key, { language });
 	const typedFolded = normalizeResponse(key, { language, ignoreCase: true });
 	return Object.values(mapping.entries).find((entry) =>
-		((entry.caseSensitive ?? mapping.caseSensitive) ?? 'false') !== 'true'
+		(entry.caseSensitive ?? 'false') !== 'true'
 			? normalizeResponse(entry.mapKey, { language, ignoreCase: true }) === typedFolded
 			: normalizeResponse(entry.mapKey, { language }) === typed,
 	);
@@ -150,15 +150,13 @@ function mapMappedValue(
 		return mapOne(String(current.value));
 	}
 
-	// §15.3 counts a repeated value once. Under case-insensitive string matching the mapping
-	// matches the spec default, so the values it folds together — {Paris, paris} — count once
-	// too: an entry that matches case-insensitively deduplicates by its folded key (which also
-	// folds the lower-case alias the player stores beside it), a case-sensitive entry by its own
-	// key, and a value no entry matches by its normalized key, folded when the mapping's default
-	// matching is case-insensitive.
-	const caseInsensitiveDefault = (mapping.caseSensitive ?? 'false') !== 'true';
+	// §15.3 counts a repeated value once. String entries default to case-insensitive (the
+	// mapEntry@caseSensitive spec default), so the values they fold together — {Paris, paris} —
+	// count once too: an entry that matches case-insensitively deduplicates by its folded key
+	// (which also folds the lower-case alias the player stores beside it), a case-sensitive entry
+	// by its own key, and a string value no entry matches by its normalized, folded key.
 	const entryDedupKey = (entry: MappingEntry): string => {
-		const matchesInsensitively = ((entry.caseSensitive ?? mapping.caseSensitive) ?? 'false') !== 'true';
+		const matchesInsensitively = (entry.caseSensitive ?? 'false') !== 'true';
 		const mapKey = decl.baseType === 'string' && matchesInsensitively ? normalizeResponse(entry.mapKey, { language, ignoreCase: true }) : entry.mapKey;
 		return `entry:${mapKey}`;
 	};
@@ -170,7 +168,7 @@ function mapMappedValue(
 		const entry = findMappingEntry(mapping, key, decl.baseType, language);
 		const dedupKey = entry
 			? entryDedupKey(entry)
-			: decl.baseType === 'string' && caseInsensitiveDefault
+			: decl.baseType === 'string'
 				? normalizeResponse(key, { language, ignoreCase: true })
 				: key;
 		if (counted.has(dedupKey)) continue;
