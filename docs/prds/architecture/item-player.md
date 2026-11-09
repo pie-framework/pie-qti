@@ -58,7 +58,7 @@ The `customOperators` key in `AssessmentItemDefinitionConfig` is the escape hatc
 
 The player defaults to blocking `<object>`, `<embed>`, and `<iframe>` elements, stripping all `on*` event handlers case-insensitively, and blocking protocol-relative URLs. These were not always the defaults: the security audit (commit `a87ca31`) identified real XSS bypass classes in earlier versions including mixed-case `onClick`, `iframe[srcdoc]`, and SVG `xlink:href`. The lesson was that "reasonable" sanitizer defaults are routinely insufficient for attacker-controlled HTML. The current defaults are conservative because the cost of being too strict is a logged warning and a visible gap; the cost of being too permissive is XSS in a product used by K-12 students.
 
-Parsing limits (`ParsingLimitsConfig`) are opt-in rather than default because they impose hard limits that could break large legitimate items. When rendering content from known-safe authors, the limits add no value and risk false-positive failures. For untrusted deployments, enabling `security.parsingLimits` is strongly recommended in addition to origin isolation.
+Parsing limits (`ParsingLimitsConfig`) are on by default for the same reason: item XML is untrusted input, and the generous defaults (10 MB item XML, 5 MB HTML per sanitizer input, 200 000 elements, depth 200, DOCTYPE rejected) leave legitimate items untouched. A host whose content is trusted, or whose upstream layer already enforces equivalent limits, can raise an individual limit or opt out with `security.parsingLimits.enabled: false`. For untrusted deployments, keep them on in addition to origin isolation.
 
 ---
 
@@ -332,9 +332,9 @@ AC-S2: <object> embeds blocked by default
 ```
 
 ```
-AC-S3: Parsing limits enforce max XML size when enabled
-  Given: An AssessmentItemDefinitionConfig with security.parsingLimits: { enabled: true, maxItemXmlBytes: 1024 }
-         and an itemXml string larger than 1024 bytes
+AC-S3: Parsing limits enforce max XML size by default
+  Given: An AssessmentItemDefinitionConfig with security.parsingLimits: { maxItemXmlBytes: 1024 }
+         (enabled left unset) and an itemXml string larger than 1024 bytes
   When: createAssessmentItemDefinition({ itemXml, role: 'candidate', security: { parsingLimits: ... } }) is called
   Then: An error is thrown before any XML parsing occurs
 ```
