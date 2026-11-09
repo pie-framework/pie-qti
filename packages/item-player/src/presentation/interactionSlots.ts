@@ -1,4 +1,5 @@
 import { type HTMLElement as ParsedHtmlElement, NodeType, parse } from 'node-html-parser';
+import { readResponseIdentifier } from '../extraction/responseIdentifier.js';
 import type { BaseInteractionData } from '../interactions/shared/types.js';
 
 /**
@@ -117,12 +118,9 @@ function elementChildren(element: ParsedHtmlElement): ParsedHtmlElement[] {
 	);
 }
 
+/** Slot hiding reads the binding on the HTML tree, without a mapper. */
 function responseIdentifierOf(element: ParsedHtmlElement): string | undefined {
-	return (
-		element.getAttribute('responseIdentifier') ||
-		element.getAttribute('response-identifier') ||
-		undefined
-	);
+	return readResponseIdentifier(element);
 }
 
 /**

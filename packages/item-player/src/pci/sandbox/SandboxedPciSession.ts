@@ -10,6 +10,7 @@ import type {
 import { PciLoadError } from '../types.js';
 import { htmlToString, sanitizeSharedHtml } from '../../security/index.js';
 import { createIframeFrameConnector } from './iframeConnector.js';
+import { pciEntryModule, resolvePciModuleUrl } from '../modulePaths.js';
 import { languageDirection } from '@pie-qti/i18n';
 import {
 	createSandboxEnvelope,
@@ -216,9 +217,7 @@ export class SandboxedPciSession implements PciModuleSession {
 						: {}),
 				};
 			});
-		const entry =
-			this.data.modules.find((module) => module.primaryPath === this.data.primaryPath) ??
-			this.data.modules[this.data.modules.length - 1];
+		const entry = pciEntryModule(this.data);
 		const markup = this.data.markup;
 		return {
 			typeIdentifier: this.data.customInteractionTypeIdentifier,
@@ -261,16 +260,7 @@ export class SandboxedPciSession implements PciModuleSession {
 	}
 
 	private resolveUrl(path: string): string {
-		if (/^[a-z][a-z\d+.-]*:/i.test(path) || path.startsWith('//') || path.startsWith('/')) {
-			return path;
-		}
-		if (!this.baseUrl) return path;
-		const base = this.baseUrl.endsWith('/') ? this.baseUrl : this.baseUrl + '/';
-		try {
-			return new URL(path, base).href;
-		} catch {
-			return base + path;
-		}
+		return resolvePciModuleUrl(path, this.baseUrl);
 	}
 
 	private post(type: Parameters<typeof createSandboxEnvelope>[0], payload: unknown): void {

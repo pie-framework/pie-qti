@@ -59,6 +59,10 @@ export {
 	type OrderChoiceLimits,
 	type OrderSubsetInteraction,
 } from './interactions/order/limits.js';
+// The XSD pattern scan shared by the inline text-entry and extended-text mobile
+// keyboards: a numeric pad is only safe when the authored patternMask provably
+// excludes `-` (phone number pads offer no minus key).
+export { classExcludesMinus, patternExcludesMinus } from './interactions/text-entry/inputMode.js';
 // Render-facing interaction contracts. Standard extractors remain implementation details.
 export type * from './interactions/shared/types.js';
 export {
