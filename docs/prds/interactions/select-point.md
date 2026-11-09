@@ -139,7 +139,7 @@ Resolved since the previous review, and no longer gaps:
 - **FR-4:** Emit a `qti-change` CustomEvent from the root element after every point addition or removal. The event payload must contain `responseIdentifier` and `value`. For `maxChoices=1`, `value` is a single `"x y"` string or `null`. For `maxChoices>1`, `value` is an array of `"x y"` strings.
 - **FR-5:** When `selectedPoints.length === maxChoices`, block further clicks (do not add new points) and display an alert informing the candidate that the maximum has been reached.
 - **FR-6:** When `minChoices > 0`, display a badge indicating whether the minimum has been met. The badge must update reactively as points are added or removed.
-- **FR-7:** Provide a "Clear All" button when at least one point is selected. Activating it removes all points and emits a `qti-change` event with `null` (single cardinality) or `[]` (multiple cardinality).
+- **FR-7:** Provide a "Clear answer" button when at least one point is selected. Activating it removes all points and emits a `qti-change` event with `null` (single cardinality) or `[]` (multiple cardinality).
 - **FR-8:** Accept an inbound `response` prop and initialize `selectedPoints` from it. Support the `"x y"` string and an array of `"x y"` strings; any other value places no points.
 - **FR-9:** When `disabled=true`, the image container must be non-interactive (no clicks accepted, cursor must be `default`). Point markers must be disabled. Clear All must be disabled. No `qti-change` events may fire.
 - **FR-10:** When `role='scorer'` and `correctResponse` is provided, display correct-answer markers (green, `✓` label) at the correct point positions on the image, overlaid on top of the candidate's markers. The scoring regions (`areaMapEntry` areas) must never be rendered visually.
@@ -197,7 +197,7 @@ Labels used by the component are sourced from the `i18n` provider under the `int
 | `interactions.selectPoint.selectAtLeast` | "Select at least {minChoices}" |
 | `interactions.selectPoint.maxPointsReached` | "Maximum points reached. Remove a point to add a new one." |
 
-The "Clear All" button and the "Maximum points reached" alert use hardcoded English strings in the current implementation and are not yet i18n-keyed.
+The "Clear answer" button uses `interactions.choice.clearAnswer`, the key `choiceInteraction`, hottext and hotspot use for the control with the same function, so its name is the same across the player in every locale (WCAG 3.2.4).
 
 ---
 
@@ -346,9 +346,9 @@ AC-7: Remove point by clicking marker
   When: the candidate clicks the marker
   Then: the marker disappears; qti-change fires with value=null (single) or [] (multiple)
 
-AC-8: Clear All removes all points
+AC-8: Clear answer removes all points
   Given: an item with 2 points placed
-  When: the candidate clicks "Clear All"
+  When: the candidate clicks "Clear answer"
   Then: both markers disappear; qti-change fires with [] (or null for single cardinality)
 
 AC-9: Scoring correct point with circle areaMapping
