@@ -694,7 +694,11 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 					? {}
 					: { sectionReferenceLimits: { maxDepth: configuredSectionDepth } }),
 			});
-			const backend = new ReferenceBackendAdapter({ rng: this.#config.rng });
+			// The reference backend scores submitted items: it compares strings as the player does.
+			const backend = new ReferenceBackendAdapter({
+				rng: this.#config.rng,
+				...(this.#config.stringComparison ? { stringComparison: this.#config.stringComparison } : {}),
+			});
 			backend.registerAssessment(assessmentId, secure);
 			this.#backend = backend;
 			this.#initSession = { assessmentId, candidateId };

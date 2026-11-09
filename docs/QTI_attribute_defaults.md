@@ -187,7 +187,7 @@ Legend: "—" = the attribute does not exist in that version; "optional" = optio
 | Attribute | 2.1 | 2.2 | 3.0 | Player | Verdict |
 |-----------|-----|-----|-----|--------|---------|
 | `maxAssociations` | — | 1 | 1 | 2.1: 0 (no cap); 2.2/3.0: 1 | Fixed (was 0 in every version) |
-| `minAssociations` | — | optional | optional | not read (no minimum) | Aligned for absence; an authored value is not enforced (feature gap) |
+| `minAssociations` | — | optional | optional | 0 (delivered only when above 0) | Aligned; an authored value is enforced by response validation |
 | `gapText`/`gapImg`/`associableHotspot` `matchMax` | required | required | required | fallback 1 | Required (fallback for invalid content) |
 | `gapText` `matchMin` | 0 | 0 | 0 | 0 | Aligned |
 
@@ -239,9 +239,6 @@ Legend: "—" = the attribute does not exist in that version; "optional" = optio
   `0`.)
 - **Slider `step` for float responses.** The information model's description and its default disagree; the
   player keeps the schema default `1`.
-- **Authored values not enforced** (absence is handled correctly): `minAssociations` on graphic gap match.
-  Gap match `minAssociations`, `gap` `required`, and `inlineChoiceInteraction` `required` and QTI 3.0
-  `min-choices` are enforced by response validation.
 
 See also: [QTI technical implementation guide](QTI_techguide.md), and the interaction PRDs under
 [`prds/interactions/`](prds/interactions/), for example

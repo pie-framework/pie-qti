@@ -22,7 +22,7 @@ import {
 } from '@pie-qti/item-player';
 import { DefaultI18nProvider, type I18nProvider } from '@pie-qti/i18n';
 import { isShownByIdentifier } from '@pie-qti/qti-common';
-import type { DeclarationMap, QtiValue } from '@pie-qti/qti-processing';
+import type { DeclarationMap, QtiValue, StringComparisonOptions } from '@pie-qti/qti-processing';
 import type { QtiSectionRuntimeHostContract, QtiSectionToolConfig } from '@pie-qti/section-player';
 import type {
 	AssessmentRubricBlock,
@@ -114,6 +114,13 @@ export interface BackendAssessmentPlayerConfig {
 	 * Without this resolver, authored PCI code remains disabled.
 	 */
 	pci?: PciConfiguration;
+	/**
+	 * String comparison folds beyond QTI's equality for the candidates' input, applied by every
+	 * item session the player opens (see the item player's
+	 * `AssessmentItemDefinitionConfig.stringComparison`). Exact when absent. Give the scoring
+	 * backend the same setting: it re-runs response processing on submitted items.
+	 */
+	stringComparison?: StringComparisonOptions;
 	/**
 	 * Optional host hooks for delegated section rendering.
 	 * Used for section shared-content URL policy and runtime callbacks.
@@ -2043,6 +2050,7 @@ export class AssessmentPlayer {
 			pci: this.config.pci,
 			plugins: this.config.plugins,
 			deliveryContext: q.item.deliveryContext,
+			...(this.config.stringComparison ? { stringComparison: this.config.stringComparison } : {}),
 		});
 		this.itemDefinitions.set(q.identifier, definition);
 		return definition;

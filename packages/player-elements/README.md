@@ -76,6 +76,8 @@ Attribute-backed properties are `itemXml`, `role`, and `disabled`. JavaScript-on
   injected session;
 - `plugins` — immutable `AssessmentItemDefinitionPlugin` descriptors used only when the element
   creates its own definition/session;
+- `stringComparison` — opt-in folds for string comparison in scoring, used only when the element
+  creates its own definition/session (see [String comparison](#string-comparison));
 - `renderItemBodyRubrics`, `typeset`, `i18n`, `security`, `pnp`, `deliveryContext`, `pci`,
   `resolveProcessingFragment`, `processingFragmentLimits`, and `responses`.
 
@@ -255,6 +257,22 @@ shell, like `config`.
 ```html
 <pie-qti-assessment-player full-viewport heading-level="1"></pie-qti-assessment-player>
 ```
+
+## String comparison
+
+Scoring compares string answers as QTI defines: exactly, up to Unicode canonical equivalence, with
+case folded only where the item asks for it. A host whose candidates type with input methods that
+add bidi marks, tatweel or presentation forms to right-to-left text, or that accepts other scripts'
+digits in string answers, opts in:
+
+```js
+item.stringComparison = { foldScriptInput: true };
+assessment.config = { stringComparison: { foldScriptInput: true } };
+```
+
+`foldLetterVariants: true` also accepts Arabic spelling variants (hamza and madda alef forms for
+bare alef, tashkeel, ه for ة and ي for ى). In reference mode the assessment element's local backend
+scores with the same setting; an authoritative backend sets it on its own scorer.
 
 ## Section elements
 

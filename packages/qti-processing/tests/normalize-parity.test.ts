@@ -1,8 +1,13 @@
 // Parity test: the cases of pie-elements-ng's
 // packages/shared/controller-utils/tests/response-normalizer.test.ts, run against
-// the port, so the two normalisers stay converged.
+// the port, so the two normalisers stay converged. pie-elements-ng folds script
+// input by default; here that fold is the host's `stringComparison.foldScriptInput`
+// option, so its cases run with it on.
 import { describe, expect, it } from 'bun:test';
-import { foldCase, foldDigits, normalizeResponse } from '../src/runtime/normalize.js';
+import { foldCase, foldDigits, type NormalizeOptions, normalizeResponse } from '../src/runtime/normalize.js';
+
+/** pie-elements-ng's default: script input folded. */
+const scriptInput = (options: NormalizeOptions = {}): NormalizeOptions => ({ ...options, foldScriptInput: true });
 
 // Every run of Unicode decimal digits, as the code point of its zero.
 const DIGIT_ZEROS: number[] = [];
@@ -71,6 +76,7 @@ describe('normalizeResponse', () => {
       const ascii = randomAscii(1 + Math.floor(random() * 30));
       for (const language of [undefined, 'en-US', 'es', 'de', 'fr', 'ar', 'ar-MA', 'tr']) {
         expect(normalizeResponse(ascii, { language })).toBe(ascii);
+        expect(normalizeResponse(ascii, scriptInput({ language }))).toBe(ascii);
       }
     }
   });
@@ -78,28 +84,33 @@ describe('normalizeResponse', () => {
   it('is idempotent', () => {
     for (let i = 0; i < 200; i++) {
       const value = inSystem(ARABIC_INDIC, `${randomNumber()}٫${randomNumber()} ${randomAscii(8)}`);
-      const once = normalizeResponse(value, {
-        language: 'ar',
-        ignoreCase: true,
-        foldLetterVariants: true,
-      });
-      expect(
-        normalizeResponse(once, { language: 'ar', ignoreCase: true, foldLetterVariants: true })
-      ).toBe(once);
+      for (const options of [
+        { language: 'ar', ignoreCase: true },
+        scriptInput({ language: 'ar', ignoreCase: true, foldLetterVariants: true }),
+      ]) {
+        const once = normalizeResponse(value, options);
+        expect(normalizeResponse(once, options)).toBe(once);
+      }
     }
   });
 
+  it('by default only composes to NFC: script input stays as typed', () => {
+    const typed = '\u200F١٢\u200E \u2067x\u2069 \u061C\u202Bي\u202C كــتاب ﻟﻤﻮ ٣٫٥';
+    expect(normalizeResponse(typed, { language: 'ar' })).toBe(typed);
+    expect(normalizeResponse('e\u0301', { language: 'ar' })).toBe('é');
+  });
+
   it('reads ٫ and ٬ with the marks the content language writes Western digits with', () => {
-    expect(normalizeResponse('٣٫٥')).toBe('3.5');
-    expect(normalizeResponse('١٬٢٣٤٫٥', { language: 'ar-EG' })).toBe('1,234.5');
-    expect(normalizeResponse('١٬٢٣٤٫٥', { language: 'ar-MA' })).toBe('1.234,5');
-    expect(normalizeResponse('۱٬۲۳۴٫۵', { language: 'fa' })).toBe('1,234.5');
-    expect(normalizeResponse('3٫5', { language: 'de' })).toBe('3,5');
+    expect(normalizeResponse('٣٫٥', scriptInput())).toBe('3.5');
+    expect(normalizeResponse('١٬٢٣٤٫٥', scriptInput({ language: 'ar-EG' }))).toBe('1,234.5');
+    expect(normalizeResponse('١٬٢٣٤٫٥', scriptInput({ language: 'ar-MA' }))).toBe('1.234,5');
+    expect(normalizeResponse('۱٬۲۳۴٫۵', scriptInput({ language: 'fa' }))).toBe('1,234.5');
+    expect(normalizeResponse('3٫5', scriptInput({ language: 'de' }))).toBe('3,5');
   });
 
   it('keeps an ASCII comma as written, whatever the content language', () => {
-    expect(normalizeResponse('3,5', { language: 'en-US' })).toBe('3,5');
-    expect(normalizeResponse('3.5', { language: 'de' })).toBe('3.5');
+    expect(normalizeResponse('3,5', scriptInput({ language: 'en-US' }))).toBe('3,5');
+    expect(normalizeResponse('3.5', scriptInput({ language: 'de' }))).toBe('3.5');
   });
 
   it('matches a separator-and-digit answer against its authored ASCII form in each system', () => {
@@ -107,13 +118,13 @@ describe('normalizeResponse', () => {
       for (let i = 0; i < 50; i++) {
         const [whole, fraction] = [randomNumber(), randomNumber()];
         const typed = `${inSystem(zero, whole)}٫${inSystem(zero, fraction)}`;
-        expect(normalizeResponse(typed, { language: 'ar' })).toBe(`${whole}.${fraction}`);
+        expect(normalizeResponse(typed, scriptInput({ language: 'ar' }))).toBe(`${whole}.${fraction}`);
       }
     }
   });
 
   it('falls back to point-decimal marks for an invalid tag', () => {
-    expect(normalizeResponse('٣٫٥', { language: 'not a tag!' })).toBe('3.5');
+    expect(normalizeResponse('٣٫٥', scriptInput({ language: 'not a tag!' }))).toBe('3.5');
   });
 
   it('keeps point-decimal marks for a tag the runtime has no data for, on a host in any locale', () => {
@@ -127,40 +138,46 @@ describe('normalizeResponse', () => {
     Intl.NumberFormat = GermanHostNumberFormat;
     try {
       for (const language of ['xx', 'und', 'english']) {
-        expect(normalizeResponse('١٬٢٣٤٫٥', { language }), language).toBe('1,234.5');
+        expect(normalizeResponse('١٬٢٣٤٫٥', scriptInput({ language })), language).toBe('1,234.5');
       }
-      expect(normalizeResponse('١٬٢٣٤٫٥', { language: 'it' })).toBe('1.234,5');
+      expect(normalizeResponse('١٬٢٣٤٫٥', scriptInput({ language: 'it' }))).toBe('1.234,5');
     } finally {
       Intl.NumberFormat = NumberFormat;
     }
   });
 
   it('composes decomposed text to NFC', () => {
-    expect(normalizeResponse('e\u0301')).toBe('é');
-    expect(normalizeResponse('ا\u0653')).toBe('آ');
+    for (const options of [{}, scriptInput()]) {
+      expect(normalizeResponse('e\u0301', options)).toBe('é');
+      expect(normalizeResponse('ا\u0653', options)).toBe('آ');
+    }
   });
 
   it('removes bidi controls and tatweel', () => {
-    expect(normalizeResponse('\u200F١٢\u200E \u2067x\u2069 \u061C\u202Bي\u202C')).toBe('12 x ي');
-    expect(normalizeResponse('كــتــاب')).toBe('كتاب');
+    expect(normalizeResponse('\u200F١٢\u200E \u2067x\u2069 \u061C\u202Bي\u202C', scriptInput())).toBe('12 x ي');
+    expect(normalizeResponse('كــتــاب', scriptInput())).toBe('كتاب');
   });
 
   it('folds Arabic presentation forms to their base letters', () => {
-    expect(normalizeResponse('ﻟﻤﻮ')).toBe('لمو');
-    expect(normalizeResponse('ﻻ')).toBe('لا');
+    expect(normalizeResponse('ﻟﻤﻮ', scriptInput())).toBe('لمو');
+    expect(normalizeResponse('ﻻ', scriptInput())).toBe('لا');
   });
 
   it('folds Arabic letter variants only when asked', () => {
     const variants = 'أَحْمَد إِلى آمِنة مدرسة';
     expect(normalizeResponse(variants)).toBe(variants.normalize('NFC'));
+    expect(normalizeResponse(variants, scriptInput())).toBe(variants.normalize('NFC'));
     expect(normalizeResponse(variants, { foldLetterVariants: true })).toBe('احمد الي امنه مدرسه');
+    expect(normalizeResponse(variants, scriptInput({ foldLetterVariants: true }))).toBe('احمد الي امنه مدرسه');
   });
 
   it('folds case only when asked, in the content language', () => {
-    expect(normalizeResponse('Paris')).toBe('Paris');
-    expect(normalizeResponse('Paris', { ignoreCase: true })).toBe('paris');
-    expect(normalizeResponse('İSTANBUL', { language: 'tr', ignoreCase: true })).toBe('istanbul');
-    expect(normalizeResponse('ISPARTA', { language: 'tr-TR', ignoreCase: true })).toBe('ısparta');
+    for (const options of [{}, scriptInput()]) {
+      expect(normalizeResponse('Paris', options)).toBe('Paris');
+      expect(normalizeResponse('Paris', { ...options, ignoreCase: true })).toBe('paris');
+      expect(normalizeResponse('İSTANBUL', { ...options, language: 'tr', ignoreCase: true })).toBe('istanbul');
+      expect(normalizeResponse('ISPARTA', { ...options, language: 'tr-TR', ignoreCase: true })).toBe('ısparta');
+    }
   });
 
   it('never parts two strings that toLowerCase() folds together, outside Turkish and Azerbaijani', () => {
@@ -189,10 +206,12 @@ describe('normalizeResponse', () => {
       }
       if (authored.toLowerCase() !== typed.toLowerCase()) continue;
       for (const language of [undefined, 'en-US', 'de', 'el', 'lt', 'ar']) {
-        expect(
-          normalizeResponse(typed, { language, ignoreCase: true }),
-          JSON.stringify([authored, typed, language])
-        ).toBe(normalizeResponse(authored, { language, ignoreCase: true }));
+        for (const options of [{ language, ignoreCase: true }, scriptInput({ language, ignoreCase: true })]) {
+          expect(
+            normalizeResponse(typed, options),
+            JSON.stringify([authored, typed, options])
+          ).toBe(normalizeResponse(authored, options));
+        }
       }
     }
   });

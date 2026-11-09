@@ -304,6 +304,11 @@ export interface GraphicGapMatchInteractionData extends BaseInteractionData<'gra
 	prompt: HtmlContent | null;
 	imageData: ImageData | null;
 	maxAssociations: number;
+	/**
+	 * The associations a valid response makes (QTI 2.2 `minAssociations`; QTI 3.0 §5.60.1).
+	 * Present only when above 0.
+	 */
+	minAssociations?: number;
 	gapTexts: Array<{ identifier: string; text: string; matchMax: number; matchGroup?: string[] }>;
 	/** Image-based draggable labels (gapImg elements); rendered as <img> in the choice pool */
 	gapImages: Array<{ identifier: string; src: string; alt: string; matchMax: number; matchGroup?: string[]; width?: number; height?: number }>;
