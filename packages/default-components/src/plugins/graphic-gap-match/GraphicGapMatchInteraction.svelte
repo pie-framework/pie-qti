@@ -331,15 +331,26 @@ function cancelledMessage(): string {
 	return translate(i18n, 'common.selectionCancelled', 'Selection cancelled');
 }
 
-/** Accessible name of a palette label: its name, then its state, then what a key press does. */
-function paletteLabelAriaLabel(name: string, placed: boolean, held: boolean): string {
+/**
+ * Accessible description of a palette label: whether it is already placed, then what a key
+ * press does. The label's name stays its own name and aria-pressed carries the picked-up
+ * state, so neither changes the name nor is said twice (WCAG 4.1.2).
+ */
+function paletteLabelHint(placed: boolean, held: boolean): string {
 	return joinSentences(
-		translate(i18n, 'accessibility.sentence', '{text}.', { text: name }),
 		placed && translate(i18n, 'interactions.graphicGapMatch.alreadyPlacedSentence', 'Already placed on a hotspot.'),
 		held
-			? translate(i18n, 'interactions.graphicGapMatch.heldHint', 'Picked up. Tab to a hotspot and press Enter to place it.')
+			? translate(i18n, 'interactions.graphicGapMatch.heldHint', 'Tab to a hotspot and press Enter to place it.')
 			: translate(i18n, 'interactions.graphicGapMatch.pickUpHint', 'Press Space or Enter to pick up.'),
 	);
+}
+
+/**
+ * Id of a palette label's hidden description, unique per interaction instance. Built from the
+ * label's kind and position, never its identifier, which must not reach the DOM.
+ */
+function paletteHintId(kind: 'text' | 'image', index: number): string {
+	return `${uid}-${kind}-label-hint-${index}`;
 }
 
 /**
@@ -510,7 +521,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 					<div class="qti-ggm-labels-title w-full text-sm text-base-content/70 font-semibold mb-2">
 						{i18n?.t('interactions.graphicGapMatch.availableHeading') ?? 'Available Labels:'}
 					</div>
-					{#each parsedInteraction.gapTexts as gapText (gapText.identifier)}
+					{#each parsedInteraction.gapTexts as gapText, textIndex (gapText.identifier)}
 						{@const matchedHotspot = getMatchedHotspot(gapText.identifier)}
 						{@const isDragged = draggedTextId === gapText.identifier}
 						{@const isHeld = pickedUpLabel === gapText.identifier}
@@ -526,7 +537,8 @@ function handleRootKeyDown(event: KeyboardEvent) {
 								onkeydown={(e) => handleLabelKeyDown(e, gapText.identifier)}
 								disabled={disabled || !!matchedHotspot}
 								aria-pressed={isHeld}
-								aria-label={paletteLabelAriaLabel(gapText.text, !!matchedHotspot, isHeld)}
+								aria-label={gapText.text}
+								aria-describedby={paletteHintId('text', textIndex)}
 								class="btn btn-md font-medium transition-all"
 								class:btn-primary={!matchedHotspot && !isHeld}
 								class:qti-ggm-label-held={isHeld}
@@ -539,6 +551,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 							>
 								{gapText.text}
 							</button>
+							<span id={paletteHintId('text', textIndex)} hidden>{paletteLabelHint(!!matchedHotspot, isHeld)}</span>
 							{#if matchedHotspot && !disabled}
 								<button
 									type="button"
@@ -554,7 +567,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 						</div>
 					{/each}
 
-					{#each (parsedInteraction.gapImages ?? []) as gapImage (gapImage.identifier)}
+					{#each (parsedInteraction.gapImages ?? []) as gapImage, imageIndex (gapImage.identifier)}
 						{@const matchedHotspot = getMatchedHotspot(gapImage.identifier)}
 						{@const isDragged = draggedTextId === gapImage.identifier}
 						{@const isHeld = pickedUpLabel === gapImage.identifier}
@@ -571,7 +584,8 @@ function handleRootKeyDown(event: KeyboardEvent) {
 								onkeydown={(e) => handleLabelKeyDown(e, gapImage.identifier)}
 								disabled={disabled || !!matchedHotspot}
 								aria-pressed={isHeld}
-								aria-label={paletteLabelAriaLabel(gapImageName, !!matchedHotspot, isHeld)}
+								aria-label={gapImageName}
+								aria-describedby={paletteHintId('image', imageIndex)}
 								class="btn btn-md p-1 transition-all"
 								class:btn-primary={!matchedHotspot && !isHeld}
 								class:qti-ggm-label-held={isHeld}
@@ -586,6 +600,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 									style={gapImage.width ? `width: ${gapImage.width}px; max-width: 100%;` : ''}
 								/>
 							</button>
+							<span id={paletteHintId('image', imageIndex)} hidden>{paletteLabelHint(!!matchedHotspot, isHeld)}</span>
 							{#if matchedHotspot && !disabled}
 								<button
 									type="button"

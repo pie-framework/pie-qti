@@ -2,11 +2,13 @@
 
 <script lang="ts">
 	import type { HotspotChoice, HotspotInteractionData } from '@pie-qti/item-player';
+	import { tick } from 'svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
+	import { radioArrowStep, wrapIndex } from '../../shared/utils/radioGroup';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import HotspotShape from '../../shared/components/HotspotShape.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
@@ -20,7 +22,8 @@
 		disabled?: boolean;
 		role?: string;
 		i18n?: I18nProvider;
-		onChange?: (value: string) => void;
+		/** Called with the chosen region's identifier, or null when the answer is cleared. */
+		onChange?: (value: string | null) => void;
 	}
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
@@ -150,8 +153,8 @@
 	const correctRegionNames = $derived(correctIds.map((id) => regionNameById(id)).filter(Boolean));
 
 	// Minimum requirement (minChoices): stated while fewer regions are selected, the same minimum
-	// response validation enforces; the author's message wins. The regions have no group of
-	// their own, so each region is described by it. Only while the candidate can still answer.
+	// response validation enforces; the author's message wins. Each region is described by it,
+	// so it is heard on the region that has focus. Only while the candidate can still answer.
 	const minHintId = `${uid}-min-hint`;
 	const selectionCount = $derived(Array.isArray(parsedResponse) ? parsedResponse.length : parsedResponse ? 1 : 0);
 	const minHint = $derived(
@@ -165,20 +168,94 @@
 		})
 	);
 
-	function handleClick(identifier: string) {
-		if (!disabled) {
-			response = identifier;
-			// Call onChange callback if provided (for Svelte component usage)
-			emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: identifier, onChange });
-		}
+	// Single cardinality (maxChoices=1) is a radio group, as single-select hottext and
+	// choiceInteraction's radios: one checked region, which another one replaces and which
+	// activating it again never unchecks; "Clear answer" retracts it. Any other maxChoices
+	// keeps aria-pressed toggle buttons, each its own Tab stop.
+	const isSingle = $derived(parsedInteraction?.maxChoices === 1);
+
+	// The radio group is named by the prompt, else by a generic localized label.
+	const promptId = `${uid}-prompt`;
+	const hasPrompt = $derived(!!parsedInteraction?.prompt);
+	const radioGroupAria = $derived.by(() => {
+		if (!isSingle) return {};
+		if (hasPrompt) return { role: 'radiogroup', 'aria-labelledby': promptId };
+		return { role: 'radiogroup', 'aria-label': translate(i18n, 'interactions.hotspot.ariaLabel', 'Hotspot interaction') };
+	});
+
+	// Roving tabindex (single selection): the radio group is one Tab stop — the checked region,
+	// else the first — and the arrow keys move within it.
+	const tabStopIdentifier = $derived(
+		isSingle
+			? (choices.find((choice) => choice.identifier === parsedResponse)?.identifier ?? choices[0]?.identifier)
+			: undefined
+	);
+
+	let overlayElement: SVGSVGElement | undefined = $state();
+
+	/** The interactive region targets, in hotspotChoice order. */
+	function regionElements(): SVGElement[] {
+		return overlayElement ? Array.from(overlayElement.querySelectorAll<SVGElement>('.qti-hotspot-shape')) : [];
 	}
 
-	function handleKeyDown(e: KeyboardEvent, identifier: string) {
+	/**
+	 * Select a region: click or tap, Enter or Space, or an arrow key in the radio group.
+	 * In the radio group, activating the checked region again keeps it and emits nothing.
+	 */
+	function select(identifier: string) {
 		if (disabled) return;
-		if (e.key === 'Enter' || e.key === ' ') {
-			e.preventDefault();
-			handleClick(identifier);
+		if (isSingle && parsedResponse === identifier) return;
+		response = identifier;
+		// Call onChange callback if provided (for Svelte component usage)
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: identifier, onChange });
+	}
+
+	/**
+	 * Keyboard model. Enter and Space activate the focused region in either mode. In the radio
+	 * group (single selection) the arrow keys move focus to the next or previous region, in
+	 * hotspotChoice order and wrapping at the ends, and check it (WAI-ARIA APG radio group);
+	 * Tab leaves the group from its one Tab stop. Toggle buttons leave the arrow keys alone.
+	 */
+	function handleKeyDown(event: KeyboardEvent, index: number) {
+		if (disabled) return;
+		const choice = choices[index];
+		if (!choice) return;
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			select(choice.identifier);
+			return;
 		}
+		if (!isSingle) return;
+		const regions = regionElements();
+		const current = regions[index];
+		if (!current) return;
+		const step = radioArrowStep(event, current);
+		if (step === 0) return;
+		event.preventDefault();
+		const nextIndex = wrapIndex(index, step, choices.length);
+		const next = choices[nextIndex];
+		if (!next) return;
+		regions[nextIndex]?.focus();
+		select(next.identifier);
+	}
+
+	// Clear answer: the visible way to retract the radio group's answer, with the same name and
+	// rule as choiceInteraction's control (WCAG 3.2.4): offered only while there is an answer
+	// to retract and the interaction is enabled.
+	const canClearAnswer = $derived(isSingle && !!parsedResponse && !disabled);
+
+	/**
+	 * Retract the answer. The control removes itself with the answer, which would drop keyboard
+	 * focus to the document; focus moves to the first region instead — the radio group's Tab
+	 * stop once nothing is checked — as choiceInteraction focuses its first radio.
+	 */
+	async function clearAnswer() {
+		if (disabled || !parsedInteraction) return;
+		response = null;
+		// A null value is the clear signal the player listens for.
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction.responseId, value: null, onChange });
+		await tick();
+		regionElements()[0]?.focus();
 	}
 </script>
 
@@ -190,7 +267,7 @@
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
 		{#if parsedInteraction.prompt}
-			<div part="prompt" class="qti-hotspot-prompt qti-rich-content font-semibold">
+			<div id={promptId} part="prompt" class="qti-hotspot-prompt qti-rich-content font-semibold">
 				{@html parsedInteraction.prompt}
 			</div>
 		{/if}
@@ -245,14 +322,18 @@
 
 				<!-- Overlay clickable areas using SVG.
 				     Only rendered when the image's intrinsic dimensions are known: the
-				     viewBox must match the pixel space the coords were authored in. -->
+				     viewBox must match the pixel space the coords were authored in.
+				     Single selection: the overlay is a radio group of role="radio" regions
+				     (roving tabindex, arrow keys). Multiple: aria-pressed toggle buttons. -->
 				{#if hasImageDimensions}
 				<svg
+					bind:this={overlayElement}
 					part="overlay"
 					class="qti-hotspot-overlay"
 					viewBox="0 0 {imageWidth} {imageHeight}"
 					xmlns="http://www.w3.org/2000/svg"
 					data-disabled={disabled ? '' : undefined}
+					{...radioGroupAria}
 				>
 					{#each choices as choice, index}
 						{@const isSelected = parsedResponse === choice.identifier}
@@ -283,15 +364,20 @@
 								coords={choice.coords}
 								label={regionAriaLabel(regionName(choice, index), isCorrectChoice)}
 								{disabled}
+								role={isSingle ? 'radio' : 'button'}
 								pressed={isSelected}
+								checked={isSelected}
+								tabStop={!isSingle || choice.identifier === tabStopIdentifier}
 								presentation={{
 									class: 'qti-hotspot-shape',
 									style: `--qti-hit-stroke: ${hitStrokeWidth(choice.shape, choice.coords, renderScale)}px;`,
 									'data-selected': isSelected ? '' : undefined,
 									'aria-describedby': minHint ? minHintId : undefined,
+									// A disabled region says so, as a disabled native control does
+									'aria-disabled': disabled ? 'true' : undefined,
 								}}
-								onclick={() => handleClick(choice.identifier)}
-								onkeydown={(e) => handleKeyDown(e, choice.identifier)}
+								onclick={() => select(choice.identifier)}
+								onkeydown={(event) => handleKeyDown(event, index)}
 							/>
 						</g>
 					{/each}
@@ -310,6 +396,12 @@
 				{/if}
 			</div>
 		{/if}
+		<!-- Same name and rule as choiceInteraction's "Clear answer" (WCAG 3.2.4) -->
+		{#if canClearAnswer}
+			<button type="button" part="clear" class="qti-clear-btn" onclick={clearAnswer}>
+				{translate(i18n, 'interactions.choice.clearAnswer', 'Clear answer')}
+			</button>
+		{/if}
 		<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(parsedResponse ?? null)} />
 		{#if parsedInteraction.maxSelectionsMessage}
 			{@const selected = Array.isArray(parsedResponse) ? parsedResponse : (parsedResponse ? [parsedResponse] : [])}
@@ -325,6 +417,23 @@
 		font-size: 0.875rem;
 		color: var(--pie-qti-warning-text, #92400e);
 		margin-block-start: 0.25rem;
+	}
+
+	/* Clear answer (single selection): same look as choiceInteraction's, a 44 px touch target */
+	.qti-clear-btn {
+		justify-self: start;
+		min-height: 2.75rem;
+		padding: 0.375rem 1rem;
+		border: 1px solid var(--pie-qti-border-strong, #767676);
+		border-radius: 0.5rem;
+		background: transparent;
+		color: inherit;
+		font: inherit;
+		cursor: pointer;
+	}
+	.qti-clear-btn:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
 	}
 
 	/*

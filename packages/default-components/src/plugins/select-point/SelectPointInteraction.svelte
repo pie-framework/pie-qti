@@ -430,9 +430,10 @@
 					{/if}
 				</div>
 
+				<!-- Same name as choice's, hottext's and hotspot's control with the same function (WCAG 3.2.4) -->
 				{#if selectedPoints.length > 0}
 					<button type="button" class="btn btn-sm btn-ghost qti-sp-button" onclick={clearAllPoints} {disabled}>
-						{translate(i18n, 'common.clearAll', 'Clear All')}
+						{translate(i18n, 'interactions.choice.clearAnswer', 'Clear answer')}
 					</button>
 				{/if}
 			</div>

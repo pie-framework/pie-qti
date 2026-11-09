@@ -82,7 +82,7 @@
 
 ### Known gaps
 
-- **G-09 (PNP elimination tool):** Implemented for `choiceInteraction`; when `pnp.cognitive.eliminationTool` is enabled, each choice can be visually eliminated without removing it from the response pool. Each toggle is named from its localized action ("Eliminate"/"Restore") plus the rendered choice text via `aria-labelledby`, and is a 44×44 px target.
+- **G-09 (PNP elimination tool):** Implemented for `choiceInteraction`; when `pnp.cognitive.eliminationTool` is enabled, each choice can be visually eliminated without removing it from the response pool. Each toggle is named from its localized action ("Eliminate") plus the rendered choice text via `aria-labelledby`; the name is the same in both states, and `aria-pressed` says whether the choice is eliminated (the visible ✕ never changes either). It is a 44×44 px target.
 - **G-13 (PNP structural labels):** Done. The choice set is always announced as one `role="group"` associated with the prompt via `aria-labelledby`; `pnp.display.structuredLabelSupport` does not change choice rendering (it switches only the match interaction's group and column labels). Without a prompt the group gets a localized generic name; an authored accessibility name still wins. Markup contract and NVDA checklist in `packages/item-player/docs/PNP.md`; tracked as Done in `docs/SPEC-GAPS-PLAN.md`.
 - **`minChoices`** (resolved): extracted, stated by the component, and enforced by response validation.
 
@@ -112,7 +112,7 @@
 - **Accessibility:** Each choice must be a native `<input type="radio">` or `<input type="checkbox">` wrapped in a `<label>`. The label must contain both the input and the choice text so the entire label is clickable. Radio inputs sharing the same `name` attribute form an ARIA radio group; the name and every id the component references (prompt, choice text, elimination verb) are unique per rendered instance, so several interactions, or two renderings of one item, can share a document. Touch targets must be at least 44×44 CSS px (WCAG 2.2 SC 2.5.8): the whole choice row is the target, and the elimination toggle is a 44×44 px circle. The component must be operable by keyboard: Tab to reach the group, arrow keys to navigate within radio groups, Space to toggle checkboxes. Keyboard focus must stay visible on the row even when the native control is hidden (`qti-input-control-hidden`), and the selection-limit alert uses the `--pie-qti-warning-text` token for WCAG 1.4.3 contrast.
 - **Performance:** Extraction and rendering must complete in under 16 ms for up to 10 choices on a mid-range mobile device. Shadow DOM means no layout recalculation from host-page style changes.
 - **Cross-platform:** Touch selection (tap to choose) must work identically to mouse click. The interaction must be usable on both portrait and landscape mobile orientations. Multi-column shared-vocabulary layouts collapse to one column on narrow containers (WCAG 1.4.10).
-- **i18n:** Candidate-visible strings are translated via the `i18n` provider: `interactions.choice.correct`, `interactions.choice.groupLabel`, `interactions.choice.maxChoicesReached` ({max} interpolated), `interactions.choice.clearAnswer`, `interactions.choice.eliminateChoice`, `interactions.choice.restoreChoice`, `interactions.choice.revealChoice`. Each falls back to its English string when no provider is supplied.
+- **i18n:** Candidate-visible strings are translated via the `i18n` provider: `interactions.choice.correct`, `interactions.choice.groupLabel`, `interactions.choice.maxChoicesReached` ({max} interpolated), `interactions.choice.clearAnswer`, `interactions.choice.eliminateChoice`, `interactions.choice.revealChoice`. Each falls back to its English string when no provider is supplied.
 - **Security:** Choice text is rendered via `{@html}`. Content is sanitized upstream by the item player's HTML sanitizer before reaching the component. The component trusts the `interaction.choices[*].text` values as safe HTML.
 
 ---
@@ -282,7 +282,8 @@ AC-A8: A refused selection is announced
 AC-A9: The elimination toggle names its choice
   Given: the elimination tool is enabled
   When: a screen reader reaches a toggle
-  Then: it is announced as "Eliminate" (or "Restore" once used) followed by the choice text
+  Then: it is announced as "Eliminate" followed by the choice text, as a toggle button whose
+        pressed state says whether the choice is eliminated; the name does not change once used
 ```
 
 ### Edge cases

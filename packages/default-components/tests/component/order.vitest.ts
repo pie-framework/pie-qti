@@ -69,9 +69,30 @@ describe('OrderInteraction (pie-qti-order)', () => {
 
 		// Elimination is scratch work: the response stays untouched.
 		expect(mounted.instance.response).toBeUndefined();
+		// A toggle button keeps its name; aria-pressed alone says the item is eliminated
+		// (WCAG 4.1.2), so the state is announced once and the name never flips to "Restore".
 		expect(buttons[0].getAttribute('aria-pressed')).toBe('true');
-		expect(buttons[0].getAttribute('aria-label')).toBe('Restore First');
+		expect(buttons[0].getAttribute('aria-label')).toBe('Eliminate First');
 		expect(qa(mounted, '[data-eliminated]')).toHaveLength(1);
+		cleanupInteraction(mounted);
+	});
+
+	test('elimination tool: an item with nothing to read is named by its position, never its identifier', async () => {
+		const mounted = mountInteraction(OrderInteraction, {
+			interaction: orderData({
+				choices: [
+					{ identifier: 'S1', text: '<p>First</p>' },
+					{ identifier: 'STEP_TWO_IS_CORRECT', text: '<p></p>' },
+					{ identifier: 'S3', text: '<p>Third</p>' },
+				],
+			}),
+			eliminationTool: true,
+		});
+		await settle();
+
+		const label = qa(mounted, 'button.qti-eliminate-btn')[1]?.getAttribute('aria-label');
+		expect(label).toBe('Eliminate Choice 2');
+		expect(label).not.toContain('STEP_TWO_IS_CORRECT');
 		cleanupInteraction(mounted);
 	});
 

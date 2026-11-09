@@ -114,7 +114,6 @@ export default {
 				other: 'Selecteer minimaal {count} antwoorden.',
 			},
 			eliminateChoice: 'Uitsluiten',
-			restoreChoice: 'Herstellen',
 		},
 
 		upload: {
@@ -214,8 +213,6 @@ export default {
 			selected: 'Geselecteerd:',
 			selectText: 'Selecteer tekst uit de passage',
 			ariaLabel: 'Tekstselectie-interactie',
-			selectableState: 'Selecteerbaar',
-			selectedState: 'Geselecteerd',
 			maxChoicesReached: 'Je kunt maximaal {max} selecteren. Deselecteer er een om een andere te kiezen.',
 		},
 
@@ -344,9 +341,8 @@ export default {
 			pickedUp: 'Opgepakt: {label}. Ga met Tab naar een hotspot en druk op Enter om het te plaatsen.',
 			alreadyPlacedSentence: 'Al geplaatst op een hotspot.',
 			unavailableSentence: 'Niet beschikbaar door een beperking van de koppelgroep.',
-			heldHint: 'Opgepakt. Ga met Tab naar een hotspot en druk op Enter om het te plaatsen.',
+			heldHint: 'Ga met Tab naar een hotspot en druk op Enter om het te plaatsen.',
 			pickUpHint: 'Druk op Spatie of Enter om op te pakken.',
-			selectedHint: 'Geselecteerd voor plaatsing.',
 			selectHint: 'Druk op Spatie om te selecteren.',
 			hotspotContains: 'Hotspot {number}. Bevat {label}.',
 			hotspotCorrectAnswer: 'Hotspot {number}. Juist antwoord: {label}.',
@@ -367,7 +363,6 @@ export default {
 			moveEarlierItem: '{item} naar voren verplaatsen',
 			moveLaterItem: '{item} naar achteren verplaatsen',
 			eliminateItem: '{item} schrappen',
-			restoreItem: '{item} terugzetten',
 			instruction: 'Gebruik de verplaatsknoppen of sleep items om de volgorde te wijzigen.',
 			keyboardInstructions: 'Druk op Spatie of Enter om een item te pakken. Gebruik pijltjestoetsen om het item te verplaatsen. Druk opnieuw op Spatie of Enter om neer te zetten. Druk op Escape om te annuleren.',
 			grabbed: 'Gepakt. Gebruik pijltjestoetsen om te verplaatsen.',

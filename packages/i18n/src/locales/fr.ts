@@ -115,7 +115,6 @@ export default {
 				other: 'Sélectionnez au moins {count} réponses.',
 			},
 			eliminateChoice: 'Écarter',
-			restoreChoice: 'Rétablir',
 		},
 
 		upload: {
@@ -218,8 +217,6 @@ export default {
 			selected: 'Sélectionné :',
 			selectText: 'Sélectionnez du texte dans le passage',
 			ariaLabel: 'Interaction de sélection de texte',
-			selectableState: 'Sélectionnable',
-			selectedState: 'Sélectionné',
 			maxChoicesReached: 'Vous pouvez sélectionner jusqu’à {max} réponses. Désélectionnez-en une pour en choisir une autre.',
 		},
 
@@ -350,9 +347,8 @@ export default {
 			pickedUp: 'Saisi : {label}. Allez avec Tab sur une zone sensible et appuyez sur Entrée pour le placer.',
 			alreadyPlacedSentence: 'Déjà placé sur une zone sensible.',
 			unavailableSentence: 'Indisponible en raison d\'une restriction de groupe d\'association.',
-			heldHint: 'Saisi. Allez avec Tab sur une zone sensible et appuyez sur Entrée pour le placer.',
+			heldHint: 'Allez avec Tab sur une zone sensible et appuyez sur Entrée pour le placer.',
 			pickUpHint: 'Appuyez sur Espace ou Entrée pour saisir.',
-			selectedHint: 'Sélectionné pour placement.',
 			selectHint: 'Appuyez sur Espace pour sélectionner.',
 			hotspotContains: 'Zone sensible {number}. Contient {label}.',
 			hotspotCorrectAnswer: 'Zone sensible {number}. Bonne réponse : {label}.',
@@ -373,7 +369,6 @@ export default {
 			moveEarlierItem: 'Déplacer {item} avant',
 			moveLaterItem: 'Déplacer {item} après',
 			eliminateItem: 'Éliminer {item}',
-			restoreItem: 'Rétablir {item}',
 			instruction: 'Utilisez les boutons de déplacement ou faites glisser les éléments pour les réorganiser.',
 			keyboardInstructions: 'Appuyez sur Espace ou Entrée pour saisir un élément. Utilisez les touches fléchées pour déplacer l\'élément. Appuyez à nouveau sur Espace ou Entrée pour déposer. Appuyez sur Échap pour annuler.',
 			grabbed: 'Saisi. Utilisez les touches fléchées pour déplacer.',

@@ -67,9 +67,39 @@ describe('GraphicGapMatchInteraction (pie-qti-graphic-gap-match)', () => {
 		await settle();
 
 		const imageLabel = qa<HTMLButtonElement>(mounted, '[part="labels"] button').find((button) => button.querySelector('img'));
-		expect(imageLabel?.getAttribute('aria-label')).toMatch(/^Label\./);
+		expect(imageLabel?.getAttribute('aria-label')).toBe('Label');
 		expect(imageLabel?.querySelector('img')?.getAttribute('alt')).toBe('Label');
 		expect(mounted.host.innerHTML).not.toContain('CLOUD_IS_TOP_RIGHT');
+	});
+
+	test('a palette label keeps its name as it is picked up and placed; the hint is its description', async () => {
+		const mounted = mountInteraction(GraphicGapMatchInteraction, { interaction: ggmData() });
+		await settle();
+
+		const rain = qa<HTMLButtonElement>(mounted, '[part="labels"] button').find((b) => b.textContent?.trim() === 'Rain')!;
+		/** The description text the button references (a hidden element, not read twice in browse mode). */
+		const description = () => {
+			const target = mounted.host.querySelector(`#${CSS.escape(rain.getAttribute('aria-describedby') ?? '')}`);
+			expect(target?.hasAttribute('hidden')).toBe(true);
+			return target?.textContent?.trim();
+		};
+
+		expect(rain.getAttribute('aria-label')).toBe('Rain');
+		expect(rain.getAttribute('aria-pressed')).toBe('false');
+		expect(description()).toBe('Press Space or Enter to pick up.');
+
+		// Held: aria-pressed alone says it is picked up; the name does not repeat it.
+		pressKey(rain, 'Enter');
+		await settle();
+		expect(rain.getAttribute('aria-pressed')).toBe('true');
+		expect(rain.getAttribute('aria-label')).toBe('Rain');
+		expect(description()).toBe('Tab to a hotspot and press Enter to place it.');
+
+		// Placed: still the same name; the description says where it is.
+		pressKey(hotspotTargets(mounted)[1]!, 'Enter');
+		await settle();
+		expect(rain.getAttribute('aria-label')).toBe('Rain');
+		expect(description()).toContain('Already placed on a hotspot.');
 	});
 
 	test('keyboard: pick up a label, then place it on a drop zone', async () => {

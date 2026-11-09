@@ -183,10 +183,10 @@ test.describe('no QTI identifiers in accessible names', () => {
 		const options = await blanks.locator('select option').allTextContents();
 		expect(options.join(' ')).not.toMatch(/INLINE_CHOICE_/);
 
-		// Hotspot regions: the authored hotspot labels.
+		// Hotspot regions (single selection, so radios): the authored hotspot labels.
 		const hotspot = root.locator('pie-qti-hotspot');
 		for (const label of ['Circle', 'Square', 'Octagon']) {
-			await expect(hotspot.getByRole('button', { name: label, exact: true })).toHaveCount(1);
+			await expect(hotspot.getByRole('radio', { name: label, exact: true })).toHaveCount(1);
 		}
 	});
 
@@ -274,15 +274,12 @@ test.describe('no QTI identifiers in accessible names', () => {
 			}),
 		).toHaveCount(1);
 
-		await root.locator('pie-qti-hotspot').getByRole('button', { name: 'Octagon', exact: true }).click();
+		await root.locator('pie-qti-hotspot').getByRole('radio', { name: 'Octagon', exact: true }).click();
 		await root.locator('pie-qti-graphic-order').getByRole('button', { name: 'Move Sandstone later' }).click();
 
 		// Every interaction really changed state, and announced it by content.
 		await expect(root.locator('pie-qti-choice').getByRole('radio', { name: 'Mars', exact: true })).toBeChecked();
-		await expect(root.locator('pie-qti-hotspot').getByRole('button', { name: 'Octagon', exact: true })).toHaveAttribute(
-			'aria-pressed',
-			'true',
-		);
+		await expect(root.locator('pie-qti-hotspot').getByRole('radio', { name: 'Octagon', exact: true })).toBeChecked();
 		await expect.poll(() => perceivedText(root)).toContain('Eiffel Tower matched with Paris.');
 		const perceived = await perceivedText(root);
 		expect(perceived).toContain('Placed the Seine in blank 1 of 2.');

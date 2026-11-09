@@ -115,7 +115,6 @@ export default {
 				other: 'Selectează cel puțin {count} de răspunsuri.',
 			},
 			eliminateChoice: 'Elimină',
-			restoreChoice: 'Restabilește',
 		},
 
 		upload: {
@@ -218,8 +217,6 @@ export default {
 			selected: 'Selectat:',
 			selectText: 'Selectează text din pasaj',
 			ariaLabel: 'Interacțiune de selecție text',
-			selectableState: 'Selectabil',
-			selectedState: 'Selectat',
 			maxChoicesReached: 'Poți selecta cel mult {max}. Deselectează una pentru a alege alta.',
 		},
 
@@ -350,9 +347,8 @@ export default {
 			pickedUp: 'Apucat: {label}. Mergi cu Tab la un hotspot și apasă Enter pentru a-l plasa.',
 			alreadyPlacedSentence: 'Deja plasat pe un hotspot.',
 			unavailableSentence: 'Indisponibil din cauza unei restricții de grup de potrivire.',
-			heldHint: 'Apucat. Mergi cu Tab la un hotspot și apasă Enter pentru a-l plasa.',
+			heldHint: 'Mergi cu Tab la un hotspot și apasă Enter pentru a-l plasa.',
 			pickUpHint: 'Apasă Spațiu sau Enter pentru a apuca.',
-			selectedHint: 'Selectat pentru plasare.',
 			selectHint: 'Apasă Spațiu pentru a selecta.',
 			hotspotContains: 'Hotspot {number}. Conține {label}.',
 			hotspotCorrectAnswer: 'Hotspot {number}. Răspuns corect: {label}.',
@@ -373,7 +369,6 @@ export default {
 			moveEarlierItem: 'Mută {item} înainte',
 			moveLaterItem: 'Mută {item} după',
 			eliminateItem: 'Elimină {item}',
-			restoreItem: 'Restabilește {item}',
 			instruction: 'Folosește butoanele de mutare sau trage elementele pentru a le reordona.',
 			keyboardInstructions: 'Apasă Spațiu sau Enter pentru a apuca un element. Folosește săgețile pentru a muta elementul. Apasă din nou Spațiu sau Enter pentru a plasa. Apasă Escape pentru a anula.',
 			grabbed: 'Apucat. Folosește săgețile pentru a muta.',

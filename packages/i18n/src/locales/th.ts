@@ -115,7 +115,6 @@ export default {
 				other: 'เลือกคำตอบอย่างน้อย {count} ข้อ',
 			},
 			eliminateChoice: 'ตัดออก',
-			restoreChoice: 'เรียกคืน',
 		},
 
 		upload: {
@@ -215,8 +214,6 @@ export default {
 			selected: 'เลือกแล้ว:',
 			selectText: 'เลือกข้อความจากข้อความ',
 			ariaLabel: 'การโต้ตอบการเลือกข้อความ',
-			selectableState: 'เลือกได้',
-			selectedState: 'เลือกแล้ว',
 			maxChoicesReached: 'คุณเลือกได้สูงสุด {max} รายการ ให้ยกเลิกการเลือกหนึ่งรายการเพื่อเลือกรายการอื่น',
 		},
 
@@ -345,9 +342,8 @@ export default {
 			pickedUp: 'หยิบ {label} แล้ว กด Tab ไปยังฮอตสปอตแล้วกด Enter เพื่อวาง',
 			alreadyPlacedSentence: 'วางบนฮอตสปอตแล้ว',
 			unavailableSentence: 'ไม่พร้อมใช้งานเนื่องจากข้อจำกัดของกลุ่มการจับคู่',
-			heldHint: 'หยิบแล้ว กด Tab ไปยังฮอตสปอตแล้วกด Enter เพื่อวาง',
+			heldHint: 'กด Tab ไปยังฮอตสปอตแล้วกด Enter เพื่อวาง',
 			pickUpHint: 'กด Space หรือ Enter เพื่อหยิบ',
-			selectedHint: 'เลือกเพื่อวางแล้ว',
 			selectHint: 'กด Space เพื่อเลือก',
 			hotspotContains: 'ฮอตสปอต {number} มี {label}',
 			hotspotCorrectAnswer: 'ฮอตสปอต {number} คำตอบที่ถูกต้อง: {label}',
@@ -368,7 +364,6 @@ export default {
 			moveEarlierItem: 'เลื่อน {item} ไปก่อนหน้า',
 			moveLaterItem: 'เลื่อน {item} ไปถัดไป',
 			eliminateItem: 'ตัด {item} ออก',
-			restoreItem: 'เรียก {item} คืน',
 			instruction: 'ใช้ปุ่มเลื่อนหรือลากรายการเพื่อจัดลำดับใหม่',
 			keyboardInstructions: 'กด Space หรือ Enter เพื่อจับรายการ ใช้ปุ่มลูกศรเพื่อย้ายรายการ กด Space หรือ Enter อีกครั้งเพื่อวาง กด Escape เพื่อยกเลิก',
 			grabbed: 'จับแล้ว ใช้ปุ่มลูกศรเพื่อย้าย',
