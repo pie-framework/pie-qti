@@ -18,8 +18,8 @@ import type {
 } from '../types/index.js';
 import { cleanFeedbackText, processFeedbackInline } from '@pie-qti/qti-common';
 import { extractShownFeedback, type ShownFeedback } from './feedbackAnnouncement.js';
-import { buildScopedStylesheetCss } from '../components/utils/stylesheetRender.js';
-import { buildEffectiveStimulusContent, injectStimulusContent } from '../components/utils/stimulusRender.js';
+import { buildScopedStylesheetCss } from './stylesheetRender.js';
+import { buildEffectiveStimulusContent, injectStimulusContent } from './stimulusRender.js';
 import { isInlineInteractionType } from '../interactions/inline/render-plan.js';
 import { textEntryStringIdentifier } from '../interactions/text-entry/response.js';
 import type {
