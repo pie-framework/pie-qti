@@ -74,7 +74,7 @@ import type {
 	SerializedItemSessionState,
 	SerializedItemSessionVariable,
 } from '../types/index.js';
-import type { BaseInteractionData } from '../interactions/shared/types.js';
+import type { BaseInteractionData, TextEntryInteractionData } from '../interactions/shared/types.js';
 import type { ResponseValidationResult } from '../types/responseValidation.js';
 import type { ComponentRegistry } from './ComponentRegistry.js';
 import { createComponentRegistry } from './ComponentRegistry.js';
@@ -104,6 +104,7 @@ import {
 	createExtendedTextNumericRecord,
 	EXTENDED_TEXT_RECORD_FIELD_TYPES,
 } from '../interactions/extended-text/response.js';
+import { createTextEntryStringResponse, textEntryStringIdentifier } from '../interactions/text-entry/response.js';
 
 type DeclKind = 'response' | 'outcome' | 'template' | 'context';
 
@@ -610,8 +611,33 @@ export class Player {
 			const d = this.decls[id];
 			if (!d) continue;
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
+			// Only a response a textEntryInteraction binds can carry a stringIdentifier companion.
+			if (this.itemDocument.getTextEntryBase(id) !== undefined) this.applyTextEntryStringResponse(id, raw);
 			applyToPci(id, this.qtiValueToPci(d.value));
 		}
+	}
+
+	/**
+	 * textEntryInteraction@stringIdentifier (QTI ASI §5.122.3; `string-identifier` in QTI 3.0):
+	 * writing the text entry's response also writes the response its stringIdentifier names, with
+	 * the text as entered before the numeric response reads it — "3.50" where the float response
+	 * is 3.5 — or NULL for an empty field, so response processing can score that lexical form. A
+	 * stringIdentifier that repeats the response, or names no declared response, is ignored.
+	 */
+	private applyTextEntryStringResponse(responseId: string, raw: unknown): void {
+		const interaction = this.getInteractionData().find(
+			(candidate): candidate is TextEntryInteractionData =>
+				candidate.type === 'textEntryInteraction' && candidate.responseId === responseId,
+		);
+		const stringIdentifier = interaction ? textEntryStringIdentifier(interaction) : undefined;
+		const companion = stringIdentifier ? this.decls[stringIdentifier] : undefined;
+		if (!interaction || !companion || (companion as any).__kind !== 'response') return;
+		companion.value = this.coerceToDeclarationValue(
+			companion.baseType,
+			companion.cardinality,
+			createTextEntryStringResponse(raw, interaction),
+			companion.identifier,
+		);
 	}
 
 	/**

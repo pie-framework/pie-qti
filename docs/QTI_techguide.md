@@ -444,12 +444,13 @@ Examples in this section use QTI 2.x syntax. For QTI 3.0, apply the naming conve
 |-----------|----------|-------------|
 | `responseIdentifier` | Required | Identifier binding to responseDeclaration |
 | `base` | Optional | Number base for an integer or float response (default: 10) |
+| `stringIdentifier` | Optional | Identifier of a companion string response that captures the text as entered |
 | `expectedLength` | Optional | Hint for rendering field width (in characters) |
 | `patternMask` | Optional | Regular expression for input validation |
 | `placeholderText` | Optional | Hint text displayed when field is empty |
 | `format` | Optional | (QTI 2.2+) Display format hint |
 
-**Implementation Notes:** Use `stringMatch` or `patternMatch` operators in response processing for text comparison. Set `caseSensitive` attribute as appropriate. The `patternMask` provides client-side validation but should also be validated server-side. With `base`, the player reads the text the candidate enters in that base (`101` in base 2 is 5); values that are already numbers, such as a restored response or the declared correct response, are not read again.
+**Implementation Notes:** Use `stringMatch` or `patternMatch` operators in response processing for text comparison. Set `caseSensitive` attribute as appropriate. The `patternMask` provides client-side validation but should also be validated server-side. With `base`, the player reads the text the candidate enters in that base (`101` in base 2 is 5); values that are already numbers, such as a restored response or the declared correct response, are not read again. With `stringIdentifier`, every change to the field also sets the named string response to the text as entered, before the numeric response reads it (`3.50` where a float response is 3.5, `101` where a base-2 integer response is 5), or NULL when the field is empty. Response processing can score that text, and a restored session shows it in the field. Completion and validation read the main response only. A `stringIdentifier` that repeats `responseIdentifier` or names no declared response is ignored.
 
 ---
 

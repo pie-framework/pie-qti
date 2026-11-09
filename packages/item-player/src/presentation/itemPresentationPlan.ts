@@ -20,6 +20,7 @@ import { processFeedbackInline } from '@pie-qti/qti-common';
 import { buildScopedStylesheetCss } from '../components/utils/stylesheetRender.js';
 import { buildEffectiveStimulusContent, injectStimulusContent } from '../components/utils/stimulusRender.js';
 import { isInlineInteractionType } from '../interactions/inline/render-plan.js';
+import { textEntryStringIdentifier } from '../interactions/text-entry/response.js';
 import type {
 	BaseInteractionData,
 	InlineChoiceInteractionData,
@@ -118,6 +119,12 @@ export type InlineInteractionMount =
 	| (InlineInteractionMountBase & {
 			readonly renderer: 'text-entry';
 			readonly interaction: TextEntryInteractionData;
+			/**
+			 * The text the candidate entered, held by the response the interaction's
+			 * stringIdentifier names: the field shows it while it is present, so "3.50" is restored
+			 * as typed rather than as the numeric response's 3.5.
+			 */
+			readonly stringResponse?: ItemPresentationResponseValue | null;
 	  })
 	| (InlineInteractionMountBase & {
 			readonly renderer: 'inline-choice';
@@ -413,11 +420,18 @@ function createInteractionMounts({
 				slot,
 				position: { index: inlineIndex, count: inlineCount },
 			};
-			mounts.push(
-				interaction.type === 'textEntryInteraction'
-					? { ...inline, renderer: 'text-entry', interaction: interaction as TextEntryInteractionData }
-					: { ...inline, renderer: 'inline-choice', interaction: interaction as InlineChoiceInteractionData }
-			);
+			if (interaction.type === 'textEntryInteraction') {
+				const textEntry = interaction as TextEntryInteractionData;
+				const stringIdentifier = textEntryStringIdentifier(textEntry);
+				mounts.push({
+					...inline,
+					renderer: 'text-entry',
+					interaction: textEntry,
+					...(stringIdentifier ? { stringResponse: responses[stringIdentifier] ?? null } : {}),
+				});
+			} else {
+				mounts.push({ ...inline, renderer: 'inline-choice', interaction: interaction as InlineChoiceInteractionData });
+			}
 			continue;
 		}
 		try {

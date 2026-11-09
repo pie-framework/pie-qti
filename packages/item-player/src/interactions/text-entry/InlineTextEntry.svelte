@@ -13,6 +13,11 @@
 		/** The id of the sentence or paragraph the blank sits in, which describes it. */
 		contextId?: string;
 		response?: string;
+		/**
+		 * The text the candidate entered, held by the response the interaction's stringIdentifier
+		 * names. Shown while present, so a restored "3.50" reads as typed, not as the numeric 3.5.
+		 */
+		stringResponse?: unknown;
 		correctAnswer?: string | null;
 		disabled?: boolean;
 		i18n?: I18nProvider;
@@ -24,6 +29,7 @@
 		position,
 		contextId,
 		response = '',
+		stringResponse = null,
 		correctAnswer = null,
 		disabled = false,
 		i18n,
@@ -37,7 +43,13 @@
 
 	let invalid = $state(false);
 	const validationError = $derived(invalid ? textEntryPatternMessage(i18n, interaction) : null);
-	const displayValue = $derived(correctAnswer !== null ? correctAnswer : response);
+	// stringIdentifier: the captured text is what the candidate typed; else the response itself.
+	const enteredText = $derived(
+		interaction.stringIdentifier && typeof stringResponse === 'string' && stringResponse.length > 0
+			? stringResponse
+			: response,
+	);
+	const displayValue = $derived(correctAnswer !== null ? correctAnswer : enteredText);
 	const label = $derived(inlineInteractionLabel(i18n, interaction, position));
 	const inputMode = $derived(textEntryInputMode(interaction));
 	const inputWidthClass = $derived((interaction.interactionClasses ?? []).find((className) => className.startsWith('qti-input-width-')));

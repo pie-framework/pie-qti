@@ -221,14 +221,14 @@
 			});
 
 			if (mount.renderer === 'text-entry') {
-				const props: ComponentProps<typeof InlineTextEntry> = $state({ interaction: mount.interaction, ...shared() });
+				const props: ComponentProps<typeof InlineTextEntry> = $state({ interaction: mount.interaction, ...shared(), stringResponse: mount.stringResponse });
 				const instance = mountComponent(InlineTextEntry, { target: element, props });
 				return {
 					element,
 					update(next) {
 						if (next.placement !== 'inline' || next.renderer !== 'text-entry') return;
 						mount = next;
-						Object.assign(props, { interaction: next.interaction, ...shared() });
+						Object.assign(props, { interaction: next.interaction, ...shared(), stringResponse: next.stringResponse });
 					},
 					placed(slot) {
 						props.contextId = slot ? sentenceContextId(slot, node, contextId) : undefined;

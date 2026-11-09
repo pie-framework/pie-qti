@@ -1,0 +1,16 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "textEntryInteraction@stringIdentifier (QTI 2.2 ASI 5.122.3): the companion string response holds the raw text the candidate entered, before numeric coercion: 3.50 where the float response is 3.5, 101 where the base-2 integer response is 5. An empty field gives NULL.",
+  "covers": [
+    "expr.stringMatch",
+    "match",
+    "responseCondition",
+    "setOutcomeValue",
+    "stmt.responseCondition",
+    "stmt.setOutcomeValue",
+    "stringIdentifier",
+    "stringMatch",
+    "textEntryInteraction"
+  ]
+}

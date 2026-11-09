@@ -1,0 +1,25 @@
+{
+  "id": "textEntry_stringIdentifier_lexical",
+  "cases": [
+    {
+      "name": "typed 3.50 scores the lexical stringMatch and the numeric match",
+      "responses": { "NUM10": "3.50" },
+      "expect": { "outcomes": { "SCORE": 1, "NUMERIC": 1 } }
+    },
+    {
+      "name": "typed 3.5 matches numerically but not lexically",
+      "responses": { "NUM10": "3.5" },
+      "expect": { "outcomes": { "SCORE": 0, "NUMERIC": 1 } }
+    },
+    {
+      "name": "base 2 companion keeps the typed digits",
+      "responses": { "NUM2": "101" },
+      "expect": { "outcomes": { "SCORE2": 1 } }
+    },
+    {
+      "name": "an empty field leaves the companion NULL",
+      "responses": { "NUM10": "" },
+      "expect": { "outcomes": { "SCORE": 0, "NUMERIC": 0 } }
+    }
+  ]
+}

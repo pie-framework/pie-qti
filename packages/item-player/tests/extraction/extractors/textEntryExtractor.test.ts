@@ -105,6 +105,19 @@ describe('standardTextEntryExtractor', () => {
 		expect(extractBase('base="hex"')).toBeUndefined();
 	});
 
+	test('extracts stringIdentifier (QTI stringInteraction companion response)', () => {
+		const extractStringIdentifier = (attributes: string) => {
+			const element = parseQTI(`<textEntryInteraction responseIdentifier="NUM" ${attributes}/>`);
+			return standardTextEntryExtractor.extract(element, createTestContext(element, 'NUM')).stringIdentifier;
+		};
+
+		expect(extractStringIdentifier('stringIdentifier="STR"')).toBe('STR');
+		// Absent or blank, nothing is carried.
+		expect(extractStringIdentifier('')).toBeUndefined();
+		expect(extractStringIdentifier('stringIdentifier=""')).toBeUndefined();
+		expect(extractStringIdentifier('stringIdentifier="  "')).toBeUndefined();
+	});
+
 	describe('canHandle predicate', () => {
 		test('handles textEntryInteraction element', () => {
 			const xml = `<textEntryInteraction responseIdentifier="RESPONSE" />`;

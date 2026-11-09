@@ -17,6 +17,11 @@ export interface TextEntryData {
 	baseType?: string;
 	/** QTI stringInteraction `base`: the number base a numeric response is entered in, when not 10. */
 	base?: number;
+	/**
+	 * QTI stringInteraction `stringIdentifier`: a second response, of base-type string, that
+	 * captures the text the candidate entered before a numeric response reads it.
+	 */
+	stringIdentifier?: string;
 	title?: string;
 }
 
@@ -51,6 +56,7 @@ export const standardTextEntryExtractor: ElementExtractor<TextEntryData> = {
 		// The response's baseType picks the on-screen keyboard (numeric for integer/float).
 		const baseType = context.declarations.get(context.responseId)?.baseType;
 		const base = utils.getNumberAttribute(element, 'base', 10);
+		const stringIdentifier = utils.getAttribute(element, 'stringIdentifier', '').trim() || undefined;
 		const title = utils.getAttribute(element, 'title', '').trim();
 
 		return {
@@ -60,6 +66,7 @@ export const standardTextEntryExtractor: ElementExtractor<TextEntryData> = {
 			...(format ? { format } : {}),
 			...(baseType ? { baseType } : {}),
 			...(Number.isInteger(base) && base >= 2 && base <= 36 && base !== 10 ? { base } : {}),
+			...(stringIdentifier ? { stringIdentifier } : {}),
 			...(title ? { title } : {}),
 			...(interactionClasses.length > 0 ? { interactionClasses } : {}),
 			...(patternMaskMessage ? { patternMaskMessage } : {}),
