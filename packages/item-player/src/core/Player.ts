@@ -1920,16 +1920,18 @@ export class Player {
 			// a default changed by setDefaultValue must come from the snapshot. Later
 			// resets (attempt starts, outcome resets at response-processing start,
 			// templateConstraint restarts) then use the restored default; a new template
-			// instance (newTemplate) starts from the declarations instead. Absent
-			// (older-snapshot) fields keep the value freshly parsed from the item XML.
-			if (v.defaultValue != null) {
+			// instance (newTemplate) starts from the declarations instead. A null
+			// defaultValue means the variable had no default value, so the declaration
+			// keeps the default parsed from the item XML.
+			if (v.defaultValue !== null) {
 				d.defaultValue = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.defaultValue, d.identifier);
 			}
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.value, d.identifier);
 			if ((d as any).__kind === 'response') {
 				// A correctResponse computed by setCorrectResponse is also a fixed
 				// template-rule effect; restoring it keeps a resumed session scoring
-				// identically to the session that was saved.
+				// identically to the session that was saved. A response without a
+				// correct response serializes without the field.
 				if (v.correctResponse != null) {
 					d.correctResponse = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.correctResponse, d.identifier);
 				}
@@ -1987,8 +1989,7 @@ export class Player {
 		// A correctResponse is part of the session state a template rule
 		// (setCorrectResponse, QTI ASI §10.3) can compute, so it must survive a
 		// snapshot for the restored session to score identically. Optional field:
-		// responses that declare no correct response serialize without it, and
-		// snapshots from older builds restore without it.
+		// only a response variable that has a correct response carries it.
 		if ((d as any).__kind === 'response' && d.correctResponse) {
 			variable.correctResponse = this.qtiValueToSerializable(d.correctResponse);
 		}
