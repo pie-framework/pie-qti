@@ -185,6 +185,13 @@ import '@pie-qti/default-components/plugins';
 import '@pie-qti/item-player/element';
 ```
 
+## Loading from a CDN
+
+The package's entries are ES modules that import other `@pie-qti/*` packages by bare name, so a CDN
+serving the raw files cannot run them on their own. Use a bundler, an import map, or jsDelivr's
+`/+esm` endpoint, which rewrites bare imports. For a page without a build step, use
+[`@pie-qti/player-elements`](../player-elements/README.md): its `register` entry is self-contained.
+
 ## Definition plugins
 
 `AssessmentItemDefinitionPlugin` is the primary synchronous extension contract:
