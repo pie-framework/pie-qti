@@ -192,6 +192,50 @@ describe('divide, power, integerDivide and mod give NULL where the result is und
 	});
 });
 
+describe('integerDivide and integerModulus read the operands as they are (QTI ASI §15.3)', () => {
+	it('integerDivide floors the true quotient: 6.9/1.9 is 3 and -6.9/1.9 is -4', () => {
+		// The operator truncates nothing: the operands are divided as they are, and only the
+		// quotient is rounded down to the greatest integer not above it.
+		expect(evaluate(`<integerDivide>${float(6.9)}${float(1.9)}</integerDivide>`)).toEqual(qtiValue('integer', 'single', 3));
+		expect(evaluate(`<integerDivide>${float(-6.9)}${float(1.9)}</integerDivide>`)).toEqual(qtiValue('integer', 'single', -4));
+	});
+
+	it('only an actual zero divisor is NULL: 0.9 divides', () => {
+		expect(evaluate(`<integerDivide>${float(5.5)}${float(0.9)}</integerDivide>`)).toEqual(qtiValue('integer', 'single', 6));
+		expect(evaluate(`<integerModulus>${float(5.5)}${float(0.9)}</integerModulus>`)).toEqual(
+			qtiValue('integer', 'single', 5.5 - 0.9 * Math.floor(5.5 / 0.9)),
+		);
+		expect(isNull(evaluate(`<integerDivide>${float(5.5)}${float(0)}</integerDivide>`))).toBe(true);
+		expect(isNull(evaluate(`<integerModulus>${float(5.5)}${float(0)}</integerModulus>`))).toBe(true);
+	});
+
+	it('keeps integer operands as they were', () => {
+		expect(evaluate(`<integerDivide>${int(7)}${int(2)}</integerDivide>`)).toEqual(qtiValue('integer', 'single', 3));
+		expect(evaluate(`<integerDivide>${int(-7)}${int(2)}</integerDivide>`)).toEqual(qtiValue('integer', 'single', -4));
+		expect(evaluate(`<integerModulus>${int(-7)}${int(2)}</integerModulus>`)).toEqual(qtiValue('integer', 'single', 1));
+	});
+
+	it('keeps the identity x = integerDivide(x,y)*y + integerModulus(x,y)', () => {
+		for (const [x, y] of [
+			[6.9, 1.9],
+			[-6.9, 1.9],
+			[5.5, 0.9],
+			[-5.5, 0.9],
+			[6.9, -1.9],
+			[7, 2],
+			[-7, 2],
+			[5, 5],
+			[0.3, 7.1],
+		]) {
+			const q = evaluate(`<integerDivide>${float(x)}${float(y)}</integerDivide>`);
+			const m = evaluate(`<integerModulus>${float(x)}${float(y)}</integerModulus>`);
+			const quotient = q.kind === 'value' && typeof q.value === 'number' ? q.value : NaN;
+			const modulus = m.kind === 'value' && typeof m.value === 'number' ? m.value : NaN;
+			expect(quotient * y + modulus).toBeCloseTo(x, 10);
+		}
+	});
+});
+
 describe('an empty string is NULL in every numeric operator (QTI ASI §5)', () => {
 	const EMPTY_OPERANDS = ['EMPTY_STRING', 'EMPTY_FLOAT', 'VALUELESS'];
 	const cases: Array<[string, (operand: string) => string]> = [

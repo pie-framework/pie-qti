@@ -2044,7 +2044,10 @@ export class Player {
 		const defaultValue = Number(this.getAttrMapped(mappingEl, 'defaultValue') || 0);
 		const lowerBound = this.getAttrMapped(mappingEl, 'lowerBound') ? Number(this.getAttrMapped(mappingEl, 'lowerBound')) : undefined;
 		const upperBound = this.getAttrMapped(mappingEl, 'upperBound') ? Number(this.getAttrMapped(mappingEl, 'upperBound')) : undefined;
-		const mappingCaseSensitive = this.getAttrMapped(mappingEl, 'caseSensitive') || 'true';
+		// mapEntry@caseSensitive defaults to "false" (QTI 2.2 XSD, optional, default "false"):
+		// string entries match case-insensitively unless authored "true". The mapping element
+		// itself has no such attribute in 2.2 — reading one is accepted as leniency.
+		const mappingCaseSensitive = this.getAttrMapped(mappingEl, 'caseSensitive') || 'false';
 		const entries: Record<string, any> = {};
 
 		const normalizePairKey = (k: string): string => {
@@ -2063,7 +2066,10 @@ export class Player {
 			const mapKey = this.getAttrMapped(e, 'mapKey');
 			const mappedValue = this.getAttrMapped(e, 'mappedValue');
 			if (!mapKey || mappedValue === null) continue;
-			const effectiveCaseSensitive = this.getAttrMapped(e, 'caseSensitive') || mappingCaseSensitive || 'true';
+			// Only string values fold case: identifier and the other base types always match
+			// exactly (QTI ASI §17), whatever the entry or mapping says.
+			const effectiveCaseSensitive =
+				baseType === 'string' ? this.getAttrMapped(e, 'caseSensitive') || mappingCaseSensitive : 'true';
 			const storedKey =
 				baseType === 'pair'
 					? normalizePairKey(mapKey)

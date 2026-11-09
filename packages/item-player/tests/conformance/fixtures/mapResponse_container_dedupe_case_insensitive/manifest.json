@@ -1,0 +1,10 @@
+{
+  "id": "mapResponse_container_dedupe_case_insensitive",
+  "qtiVersion": "2.2",
+  "title": "mapResponse: container deduplication under case-insensitive string matching",
+  "description": "QTI ASI 15.3 counts repeated container values once; under the spec-default case-insensitive string matching, values differing only in case deduplicate to one mapped value.",
+  "source": {
+    "type": "custom",
+    "license": "CC0-1.0"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "id": "mapResponse_mapping_spec_default_case_insensitive",
+  "cases": [
+    { "name": "typed case variation hits the entry (spec default is case-insensitive)", "responses": { "R": "Photosynthesis" }, "expect": { "outcomes": { "SCORE": 2 } } },
+    { "name": "upper case hits the entry", "responses": { "R": "PHOTOSYNTHESIS" }, "expect": { "outcomes": { "SCORE": 2 } } },
+    { "name": "exact spelling hits the entry", "responses": { "R": "photosynthesis" }, "expect": { "outcomes": { "SCORE": 2 } } },
+    { "name": "a different word takes the defaultValue", "responses": { "R": "respiration" }, "expect": { "outcomes": { "SCORE": 7 } } }
+  ]
+}

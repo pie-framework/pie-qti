@@ -1,0 +1,10 @@
+{
+  "id": "mapResponse_identifier_case_sensitive",
+  "qtiVersion": "2.2",
+  "title": "mapResponse: identifier base type stays case-sensitive",
+  "description": "Identifier values are case-sensitive (QTI ASI §17) whatever mapEntry@caseSensitive says; only string matching folds case.",
+  "source": {
+    "type": "custom",
+    "license": "CC0-1.0"
+  }
+}

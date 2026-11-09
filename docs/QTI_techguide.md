@@ -931,8 +931,14 @@ values as NULL: the result is 0, clamped to `lowerBound` and `upperBound`, not t
 container the same way.
 
 Each `mapEntry` matches as its `caseSensitive` attribute says (the mapping's attribute when the entry
-has none): a case-sensitive entry matches only its own spelling, so a response in another case takes
-the `defaultValue`.
+has none, and the spec default is "false" — the QTI 2.2 XSD declares it optional with
+`default="false"` and the QTI 3.0 implementation guide has mapping "by default, NOT case sensitive"),
+so an authored mapping matches case-insensitively unless it says `caseSensitive="true"`: a
+case-sensitive entry matches only its own spelling, so a response in another case takes the
+`defaultValue`. Identifier values never fold case (QTI ASI §17), whatever the entry says — only
+string matching loosens. Mapping a container counts repeated values once (§15.3), and under
+case-insensitive matching the values an entry folds together count once too: {Paris, paris} maps
+Paris once, not twice.
 
 ### map_response_point
 
@@ -1012,8 +1018,10 @@ touched. The operators carry NULL through (§15.3):
   -3. `substring` is NULL for a NULL string, start or length.
 - An undefined result is NULL, not an error: `divide` by 0, `integerDivide` and `integerModulus` by
   0, and a `divide` or `power` result outside the float range. `max`, `min`, `gcd` and `lcm` are
-  NULL for an operand that is not a number. `integerDivide` rounds down: -7 divided by 2 is -4, and
-  `integerModulus` of the two is 1.
+  NULL for an operand that is not a number. `integerDivide` divides the operands as they are and
+  rounds the quotient down: -7 divided by 2 is -4, and `integerModulus` of the two is 1; the
+  operands themselves are not truncated, so `integerDivide(6.9, 1.9)` is 3 and only an actual zero
+  divisor is NULL (0.9 divides).
 - A NULL condition is not true: `responseIf`, `responseElseIf` and their outcome and template
   counterparts pass to the next branch, and a NULL `templateConstraint` restarts template
   processing.
