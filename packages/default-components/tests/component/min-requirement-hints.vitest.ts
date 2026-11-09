@@ -380,18 +380,21 @@ describe('AssociateInteraction minimum (minAssociations)', () => {
 });
 
 describe('OrderInteraction minimum (minChoices)', () => {
+	// minChoices at the choice count is full ordering: every choice is required, so the
+	// unmet-minimum hint reads while the response is ungiven and clears once it is committed.
+	// (A minChoices below the count is subset ordering; its own limits hint is covered by the
+	// order subset tests.)
 	function orderData(overrides: Partial<OrderInteractionData> = {}): OrderInteractionData {
 		return {
 			type: 'orderInteraction',
 			responseId: 'RESPONSE',
 			shuffle: false,
 			minChoices: 2,
-			maxChoices: 3,
+			maxChoices: 2,
 			prompt: '<p>Order the steps.</p>',
 			choices: [
 				{ identifier: 'S1', text: '<p>First</p>' },
 				{ identifier: 'S2', text: '<p>Second</p>' },
-				{ identifier: 'S3', text: '<p>Third</p>' },
 			],
 			...overrides,
 		};
@@ -407,7 +410,7 @@ describe('OrderInteraction minimum (minChoices)', () => {
 		clickButton(q(mounted, 'button[aria-label="Confirm this order as your answer"]'));
 		await settle();
 
-		expect(mounted.instance.response).toEqual(['S1', 'S2', 'S3']);
+		expect(mounted.instance.response).toEqual(['S1', 'S2']);
 		expect(hint(mounted)).toBeNull();
 		expect(describedByHint(mounted, q(mounted, '[role="list"]'))).toBe(false);
 	});
@@ -526,6 +529,10 @@ describe('HotspotInteraction minimum (minChoices)', () => {
 });
 
 describe('GraphicOrderInteraction minimum (minChoices)', () => {
+	// minChoices at the hotspot count is full ordering: every hotspot is required, so the
+	// unmet-minimum hint reads while the response is ungiven and clears once it is committed.
+	// (A minChoices below the count is subset ordering; its own limits hint is covered by the
+	// graphic-order subset tests.)
 	function orderData(overrides: Partial<GraphicOrderInteractionData> = {}): GraphicOrderInteractionData {
 		return {
 			type: 'graphicOrderInteraction',
@@ -535,9 +542,9 @@ describe('GraphicOrderInteraction minimum (minChoices)', () => {
 			hotspotChoices: [
 				{ identifier: 'A', shape: 'rect', coords: '0,0,100,50', label: 'Bedrock' },
 				{ identifier: 'B', shape: 'rect', coords: '0,50,100,100', label: 'Top soil' },
-				{ identifier: 'C', shape: 'rect', coords: '0,100,100,150', label: 'Sediment' },
 			],
 			minChoices: 2,
+			maxChoices: 2,
 			...overrides,
 		};
 	}
@@ -552,7 +559,7 @@ describe('GraphicOrderInteraction minimum (minChoices)', () => {
 		clickButton(q(mounted, 'button[aria-label="Confirm this order as your answer"]'));
 		await settle();
 
-		expect(mounted.instance.response).toEqual(['A', 'B', 'C']);
+		expect(mounted.instance.response).toEqual(['A', 'B']);
 		expect(hint(mounted)).toBeNull();
 	});
 

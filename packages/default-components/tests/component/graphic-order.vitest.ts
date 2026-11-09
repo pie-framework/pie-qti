@@ -4,6 +4,7 @@ import { afterEach, beforeAll, describe, expect, test } from 'vitest';
 import GraphicOrderInteraction from '../../src/plugins/graphic-order/GraphicOrderInteraction.svelte';
 import {
 	accessibleName,
+	cleanupInteraction,
 	mountInteraction,
 	qa,
 	q,
@@ -143,5 +144,160 @@ describe('GraphicOrderInteraction (pie-qti-graphic-order)', () => {
 		// The always-present polite region announces the confirmation.
 		const live = mounted.host.querySelector('.qti-go-confirmation-live');
 		expect(live?.textContent).toContain('Order confirmed');
+	});
+});
+
+/**
+ * Subset ordering (QTI 2.2 ASI §5.42): minChoices below the hotspot count lets the candidate
+ * rank a subset; hotspots outside the order show no position number and wait in the pool.
+ */
+describe('GraphicOrderInteraction subset ordering', () => {
+	function subsetData(overrides: Partial<GraphicOrderInteractionData> = {}): GraphicOrderInteractionData {
+		return orderData({
+			hotspotChoices: [
+				{ identifier: 'H1', shape: 'rect', coords: '0,0,100,50', label: 'Bedrock' },
+				{ identifier: 'H2', shape: 'rect', coords: '0,50,100,100', label: 'Top Soil' },
+				{ identifier: 'H3', shape: 'rect', coords: '0,100,100,150', label: 'Sediment' },
+				{ identifier: 'H4', shape: 'rect', coords: '0,150,100,200', label: 'Clay' },
+				{ identifier: 'H5', shape: 'rect', coords: '0,200,100,250', label: '' },
+			],
+			minChoices: 2,
+			maxChoices: 3,
+			...overrides,
+		});
+	}
+
+	async function addItem(mounted: ReturnType<typeof mountInteraction>, id: string) {
+		q<HTMLButtonElement>(mounted, `button[part="pool-add"][data-id="${id}"]`)!.click();
+		await settle();
+	}
+
+	test('subset mode renders two zones and starts with an empty order', async () => {
+		const mounted = mountInteraction(GraphicOrderInteraction, { interaction: subsetData() });
+		await settle();
+
+		expect(q(mounted, '[data-subset-mode="true"]')).not.toBeNull();
+		expect(q(mounted, '[part="ordered-empty"]')?.textContent).toContain('Nothing is in your order yet.');
+		const pool = qa<HTMLButtonElement>(mounted, 'button[part="pool-add"]');
+		expect(pool.map((b) => b.dataset.id)).toEqual(['H1', 'H2', 'H3', 'H4', 'H5']);
+		// Named by the authored label, or the localized ordinal for an unlabelled hotspot —
+		// never the identifier.
+		expect(pool[4]?.getAttribute('aria-label')).toBe('Add Item 5 to your order');
+		cleanupInteraction(mounted);
+	});
+
+	test('the limits are stated up front and the list describes them', async () => {
+		const mounted = mountInteraction(GraphicOrderInteraction, { interaction: subsetData() });
+		await settle();
+
+		expect(q(mounted, '[part="min-hint"]')?.textContent).toBe('Choose between 2 and 3 items and put them in order.');
+		const hintId = q(mounted, '[part="min-hint"]')?.id;
+		const described = q(mounted, '[role="list"]')?.getAttribute('aria-describedby') ?? '';
+		expect(described.split(/\s+/)).toContain(hintId);
+		cleanupInteraction(mounted);
+	});
+
+	test('adding and removing updates the two zones and the response', async () => {
+		const mounted = mountInteraction(GraphicOrderInteraction, { interaction: subsetData() });
+		await settle();
+
+		await addItem(mounted, 'H4');
+		await addItem(mounted, 'H1');
+
+		expect(mounted.instance.response).toEqual(['H4', 'H1']);
+		expect(qa(mounted, '[part="ordered-zone"] button[part="item"]').map((row) => row.textContent?.trim())).toEqual([
+			'Clay',
+			'Bedrock',
+		]);
+		expect(qa(mounted, 'button[part="pool-add"]').map((b) => b.dataset.id)).toEqual(['H2', 'H3', 'H5']);
+
+		q<HTMLButtonElement>(mounted, 'button[part="order-remove"][data-id="H4"]')!.click();
+		await settle();
+		expect(mounted.instance.response).toEqual(['H1']);
+		expect(qa(mounted, 'button[part="pool-add"]').map((b) => b.dataset.id)).toEqual(['H2', 'H3', 'H4', 'H5']);
+		cleanupInteraction(mounted);
+	});
+
+	test('adding past the cap is refused and announced, with a re-announce toggle', async () => {
+		const mounted = mountInteraction(GraphicOrderInteraction, { interaction: subsetData() });
+		await settle();
+
+		await addItem(mounted, 'H1');
+		await addItem(mounted, 'H2');
+		await addItem(mounted, 'H3');
+		expect(mounted.instance.response).toEqual(['H1', 'H2', 'H3']);
+
+		await addItem(mounted, 'H4');
+		expect(mounted.instance.response).toEqual(['H1', 'H2', 'H3']);
+		const live = mounted.host.querySelector('[data-subset-live]');
+		const firstRefusal = live?.textContent?.length ?? 0;
+		expect(live?.textContent).toContain('Your order can hold up to 3 items. Remove one to add another.');
+
+		await addItem(mounted, 'H4');
+		expect(mounted.host.querySelector('[data-subset-live]')?.textContent?.length).toBeGreaterThan(firstRefusal);
+		cleanupInteraction(mounted);
+	});
+
+	test('add and remove announce through the component live region', async () => {
+		const mounted = mountInteraction(GraphicOrderInteraction, { interaction: subsetData() });
+		await settle();
+
+		await addItem(mounted, 'H2');
+		expect(mounted.host.querySelector('[data-subset-live]')?.textContent).toContain(
+			'Top Soil added to your order at position 1 of 1.',
+		);
+
+		q<HTMLButtonElement>(mounted, 'button[part="order-remove"][data-id="H2"]')!.click();
+		await settle();
+		expect(mounted.host.querySelector('[data-subset-live]')?.textContent).toContain(
+			'Top Soil removed from your order.',
+		);
+		cleanupInteraction(mounted);
+	});
+
+	test('full mode keeps rendering the single full-permutation list', async () => {
+		const mounted = mountInteraction(GraphicOrderInteraction, { interaction: orderData() });
+		await settle();
+
+		expect(q(mounted, '[data-subset-mode="true"]')).toBeNull();
+		expect(qa(mounted, '[draggable="true"]')).toHaveLength(3);
+		cleanupInteraction(mounted);
+	});
+
+	test('hotspots outside the order show no position number', async () => {
+		const mounted = mountInteraction(GraphicOrderInteraction, { interaction: subsetData(), response: ['H3', 'H1'] });
+		await settle();
+
+		const badges = qa(mounted, '[part="ordered-zone"] [part="index"]').map((badge) => badge.getAttribute('data-text'));
+		expect(badges).toEqual(['1', '2']);
+		expect(qa(mounted, '[part="pool-zone"] [part="index"]')).toHaveLength(0);
+		cleanupInteraction(mounted);
+	});
+
+	test('emptying the order is a NULL response, and no confirm step is offered', async () => {
+		const mounted = mountInteraction(GraphicOrderInteraction, { interaction: subsetData(), response: ['H2'] });
+		await settle();
+
+		expect(q(mounted, 'button[part="confirm-button"]')).toBeNull();
+		q<HTMLButtonElement>(mounted, 'button[part="order-remove"][data-id="H2"]')!.click();
+		await settle();
+		expect(mounted.instance.response).toBeNull();
+		expect(mounted.events.at(-1)?.detail).toMatchObject({ value: null });
+		expect(q(mounted, 'button[part="confirm-button"]')).toBeNull();
+		cleanupInteraction(mounted);
+	});
+
+	test('the scorer view lists the authored subset as the correct order', async () => {
+		const mounted = mountInteraction(GraphicOrderInteraction, {
+			interaction: subsetData(),
+			role: 'scorer',
+			disabled: true,
+			correctResponse: ['H2', 'H4'],
+		});
+		await settle();
+
+		expect(qa(mounted, '[part="correct-order"] li').map((li) => li.textContent?.trim())).toEqual(['Top Soil', 'Clay']);
+		expect(qa(mounted, 'button[part="order-remove"]')).toHaveLength(0);
+		cleanupInteraction(mounted);
 	});
 });

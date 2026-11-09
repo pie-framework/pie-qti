@@ -395,6 +395,29 @@ export default {
 				few: 'Pune în ordine cel puțin {count} elemente.',
 				other: 'Pune în ordine cel puțin {count} de elemente.',
 			},
+			yourOrder: 'Ordinea ta',
+			notInOrder: 'În afara ordinii tale',
+			emptyOrder: 'Încă nu ai nimic în ordinea ta.',
+			addItem: 'Adaugă {item} în ordinea ta',
+			removeItem: 'Scoate {item} din ordinea ta',
+			itemAdded: '{item} adăugat în ordinea ta pe poziția {position} din {total}.',
+			itemRemoved: '{item} scos din ordinea ta.',
+			orderLimitReached: {
+				one: 'Ordinea ta poate avea un singur element. Scoate-l ca să adaugi altul.',
+				few: 'Ordinea ta poate avea cel mult {max} elemente. Scoate unul ca să adaugi altul.',
+				other: 'Ordinea ta poate avea cel mult {max} de elemente. Scoate unul ca să adaugi altul.',
+			},
+			correctOrder: 'Ordinea corectă',
+			subsetExactHint: {
+				one: 'Alege un element pentru ordinea ta.',
+				few: 'Alege {count} elemente și pune-le în ordine.',
+				other: 'Alege {count} de elemente și pune-le în ordine.',
+			},
+			subsetRangeHint: {
+				one: 'Alege între {min} și {max} element și pune-le în ordine.',
+				few: 'Alege între {min} și {max} elemente și pune-le în ordine.',
+				other: 'Alege între {min} și {max} de elemente și pune-le în ordine.',
+			},
 		},
 
 		associate: {
@@ -542,6 +565,16 @@ export default {
 				one: 'Pune în ordine cel puțin un element.',
 				few: 'Pune în ordine cel puțin {count} elemente.',
 				other: 'Pune în ordine cel puțin {count} de elemente.',
+			},
+			subsetExactHint: {
+				one: 'Alege un element pentru ordinea ta.',
+				few: 'Alege {count} elemente și pune-le în ordine.',
+				other: 'Alege {count} de elemente și pune-le în ordine.',
+			},
+			subsetRangeHint: {
+				one: 'Alege între {min} și {max} element și pune-le în ordine.',
+				few: 'Alege între {min} și {max} elemente și pune-le în ordine.',
+				other: 'Alege între {min} și {max} de elemente și pune-le în ordine.',
 			},
 		},
 

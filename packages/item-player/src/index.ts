@@ -51,6 +51,13 @@ export { getRoleCapabilities, type RoleCapabilities } from './core/rolePolicy.js
 // The pure matchGroup pairing rule shared by response validation and the renderers,
 // so the delivered UI can never allow a pair validation rejects nor block one it accepts.
 export { isMatchGroupCompatible, type MatchGroupChoice } from './core/matchGroups.js';
+// The pure order-subset rule (minChoices/maxChoices) shared by response validation and the
+// order renderers, for the same reason (QTI 2.2 ASI §5.73, §5.42).
+export {
+	orderChoiceLimits,
+	type OrderChoiceLimits,
+	type OrderSubsetInteraction,
+} from './interactions/order/limits.js';
 // Render-facing interaction contracts. Standard extractors remain implementation details.
 export type * from './interactions/shared/types.js';
 export {

@@ -9,11 +9,13 @@
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import SortableList from '../../shared/components/SortableList.svelte';
+	import OrderSubset from '../../shared/components/OrderSubset.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
-	import { minimumHint } from '../../shared/utils/minimumRequirement';
+	import { minimumHint, subsetOrderHint } from '../../shared/utils/minimumRequirement';
+	import { orderChoiceLimits } from '@pie-qti/item-player';
 	import { escapeHtml, imageAltText } from '../hotspot/graphicRegions';
 
 	interface Props {
@@ -65,6 +67,23 @@
 
 	// Track initial order to detect if user has made changes
 	const initialOrder = $derived(parsedInteraction?.hotspotChoices.map((c) => c.identifier) || []);
+
+	// Subset ordering (QTI 2.2 ASI §5.42): only a minChoices below the hotspot count lets the
+	// candidate pick which hotspots to order; without it, or with minChoices at or above N,
+	// every hotspot is ordered. The same rule the engine's response validation reads.
+	const limits = $derived(
+		orderChoiceLimits({
+			minChoices: parsedInteraction?.minChoices,
+			maxChoices: parsedInteraction?.maxChoices,
+			choiceCount: initialOrder.length,
+		}),
+	);
+	const subsetMode = $derived(limits.subset);
+	// Hotspots outside the subset keep no position: the listed items are ordered in sequence,
+	// the rest wait in the pool. Unknown or repeated identifiers in a restored response are dropped.
+	const subsetOrderedIds = $derived(
+		parsedResponse ? [...new Set(parsedResponse.filter((id) => initialOrder.includes(id)))] : [],
+	);
 
 	/**
 	 * The sortable items: each hotspot's authored label, else a localized
@@ -125,28 +144,60 @@
 		button?.focus();
 	}
 
-	// Minimum requirement (minChoices): stated while the response orders fewer hotspots — until
-	// the candidate moves an item or confirms the order, it orders none — the same minimum
-	// response validation enforces; the author's message wins. It describes the list. Only while
-	// the candidate can still answer.
+	// Minimum requirement: stated while the response orders fewer hotspots than required — the
+	// same minimum response validation enforces; the author's message wins. In subset mode the
+	// statement also names the cap ("Choose between 2 and 3 items and put them in order."), so
+	// the limits are known up front (WCAG 3.3.2). It describes the list. Only while the
+	// candidate can still answer.
 	const minHintId = `${uid}-min-hint`;
-	const orderedCount = $derived(Array.isArray(parsedResponse) ? parsedResponse.filter(Boolean).length : 0);
-	const minHint = $derived(
-		minimumHint({
+	const orderedCount = $derived(
+		subsetMode
+			? (Array.isArray(parsedResponse) ? parsedResponse.filter((id) => initialOrder.includes(id)).length : 0)
+			: (Array.isArray(parsedResponse) ? parsedResponse.filter(Boolean).length : 0),
+	);
+	const minHint = $derived.by(() => {
+		if (subsetMode && !disabled && role === 'candidate') {
+			return subsetOrderHint({
+				i18n,
+				min: limits.minOrdered,
+				max: limits.maxOrdered,
+				count: orderedCount,
+				authored: parsedInteraction?.minSelectionsMessage,
+				namespace: 'interactions.graphicOrder',
+			});
+		}
+		return minimumHint({
 			i18n,
-			minimum: !disabled && role === 'candidate' ? parsedInteraction?.minChoices : 0,
+			minimum: !disabled && role === 'candidate' && !subsetMode ? parsedInteraction?.minChoices : 0,
 			count: orderedCount,
 			authored: parsedInteraction?.minSelectionsMessage,
 			key: 'interactions.graphicOrder.minChoicesHint',
 			fallback: { one: 'Put at least {count} item in order.', other: 'Put at least {count} items in order.' },
-		})
-	);
+		});
+	});
 
 	function handleReorder(newOrder: string[]) {
 		confirmation.autoConfirm(); // Auto-confirm on drag
 		orderedIds = newOrder;
 		response = orderedIds;
 		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: orderedIds, onChange });
+	}
+
+	// Subset ordering has no confirm step, for the same reasons as the order interaction: every
+	// ordered hotspot arrived by an explicit, reversible add, so nothing is presented as an
+	// answer that the candidate could accidentally keep. Each act records the response at once;
+	// ordering nothing is a NULL response.
+	function handleSubsetChange(newOrder: string[]) {
+		const value = newOrder.length > 0 ? newOrder : null;
+		orderedIds = newOrder;
+		response = value;
+		const nullAwareOnChange = onChange as ((value: string[] | null) => void) | undefined;
+		emitInteractionChange<string[] | null>({
+			target: rootElement,
+			responseId: parsedInteraction?.responseId,
+			value,
+			onChange: nullAwareOnChange,
+		});
 	}
 </script>
 
@@ -213,16 +264,29 @@
 				<div class="qti-go-card card bg-base-100 border border-base-300">
 					<div class="qti-go-card-body card-body p-4">
 						<h3 part="panel-title" class="qti-go-title card-title text-sm">{i18n?.t('interactions.graphicOrder.orderHeading') ?? 'Order (drag to reorder)'}</h3>
-						<SortableList
-							items={sortableItems}
-							{orderedIds}
-							correctOrder={isShowingCorrect ? (parsedCorrectResponse || []) : []}
-							orientation="vertical"
-							{disabled}
-							{i18n}
-							describedBy={minHint ? minHintId : undefined}
-							onReorder={handleReorder}
-						/>
+						{#if subsetMode}
+							<OrderSubset
+								items={sortableItems}
+								orderedIds={subsetOrderedIds}
+								maxOrdered={limits.maxOrdered}
+								{disabled}
+								{i18n}
+								correctOrder={isShowingCorrect ? (parsedCorrectResponse || []) : []}
+								describedBy={minHint ? minHintId : undefined}
+								onChange={handleSubsetChange}
+							/>
+						{:else}
+							<SortableList
+								items={sortableItems}
+								{orderedIds}
+								correctOrder={isShowingCorrect ? (parsedCorrectResponse || []) : []}
+								orientation="vertical"
+								{disabled}
+								{i18n}
+								describedBy={minHint ? minHintId : undefined}
+								onReorder={handleReorder}
+							/>
+						{/if}
 						<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(parsedResponse ?? null)} />
 
 						<!-- Confirmation control for WCAG 2.2 SC 3.3.4 compliance. One persistent
@@ -231,7 +295,7 @@
 						     focus that pressed it keeps a home; the always-present polite region
 						     below announces the confirmation. -->
 						<div part="confirm" class="qti-go-confirm mt-4 pt-3 border-t border-base-300">
-							{#if confirmation.needsConfirmation || confirmation.hasConfirmed}
+							{#if !subsetMode && (confirmation.needsConfirmation || confirmation.hasConfirmed)}
 								<button
 									type="button"
 									part={confirmation.hasConfirmed ? 'confirmed' : 'confirm-button'}

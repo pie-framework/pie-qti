@@ -55,6 +55,7 @@ import {
 } from '../extraction/ExtractionRegistry.js';
 import { extractInteractionData } from '../extraction/interactionExtractionPipeline.js';
 import { getStandardInteractionModules } from '../interactions/modules.js';
+import { type OrderChoiceLimits, orderChoiceLimits } from '../interactions/order/limits.js';
 import type {
 	AdaptiveAttemptResult,
 	CompletionStatus,
@@ -1318,6 +1319,16 @@ export class Player {
 				}
 			}
 
+			// orderInteraction / graphicOrderInteraction: an order that has begun is complete once it
+			// holds the minimum its mode sets — every choice when no subset is requested (minChoices
+			// unspecified: "all of the choices must be ordered"), at least minChoices when one is.
+			// An untouched order stays a skip, as before, which allowSkipping governs.
+			const orderLimits = orderInteractionLimits(i);
+			const orderedCount = orderLimits && Array.isArray(value) ? value.filter(isMeaningfulEntry).length : 0;
+			if (orderLimits && orderedCount > 0) {
+				complete = orderedCount >= orderLimits.minOrdered;
+			}
+
 			const errors: string[] = [];
 			const warnings: string[] = [];
 
@@ -1343,6 +1354,11 @@ export class Player {
 				value.filter(isMeaningfulEntry).length > Number(i.maxStrings)
 			) {
 				errors.push(`Response '${responseId}' exceeds maxStrings=${i.maxStrings}`);
+			}
+			// The order-subset cap: when a subset is requested, a restored or programmatic response
+			// may not order more than maxChoices (clamped to the choices); the delivered UI refuses it.
+			if (orderLimits?.subset && orderedCount > orderLimits.maxOrdered) {
+				errors.push(`Response '${responseId}' exceeds maxChoices=${orderLimits.maxOrdered}`);
 			}
 			// graphicGapMatch maxima: the delivered interface does not cap them all, so a response
 			// built or restored over a limit is checked here.
@@ -2528,6 +2544,31 @@ function graphicGapMatchMaximaErrors(
 	checkMatchMax([...(interaction.gapTexts ?? []), ...(interaction.gapImages ?? [])], 0);
 	checkMatchMax(interaction.hotspots ?? [], 1);
 	return errors;
+}
+
+/**
+ * The order-subset limits of an orderInteraction or graphicOrderInteraction (QTI ASI §5.73,
+ * §5.42), read with the same rule the order renderers use; null for any other interaction.
+ */
+function orderInteractionLimits(interaction: {
+	type?: string;
+	minChoices?: number;
+	maxChoices?: number;
+	choices?: readonly unknown[];
+	hotspotChoices?: readonly unknown[];
+}): OrderChoiceLimits | null {
+	const choices =
+		interaction.type === 'orderInteraction'
+			? interaction.choices
+			: interaction.type === 'graphicOrderInteraction'
+				? interaction.hotspotChoices
+				: undefined;
+	if (!choices) return null;
+	return orderChoiceLimits({
+		minChoices: interaction.minChoices,
+		maxChoices: interaction.maxChoices,
+		choiceCount: choices.length,
+	});
 }
 
 function cloneDeclarationMap(declarations: DeclarationMap): DeclarationMap {

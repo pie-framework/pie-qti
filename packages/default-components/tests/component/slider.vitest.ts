@@ -113,6 +113,20 @@ describe('SliderInteraction (pie-qti-slider)', () => {
 		expect(q(mounted, '[part="track"]')?.classList.contains('qti-slider-vertical')).toBe(true);
 	});
 
+	test('a vertical slider exposes its orientation to assistive technology, not only through CSS', async () => {
+		// writing-mode turns the track visually but leaves the slider role at its implicit
+		// horizontal orientation (WCAG 4.1.2), so the input states it.
+		const vertical = mountInteraction(SliderInteraction, {
+			interaction: sliderData({ orientation: 'vertical' }),
+		});
+		const horizontal = mountInteraction(SliderInteraction, { interaction: sliderData() });
+		await settle();
+
+		expect(q<HTMLInputElement>(vertical, 'input[type="range"]')?.getAttribute('aria-orientation')).toBe('vertical');
+		// Horizontal is the slider role's implicit value, so it needs no attribute.
+		expect(q<HTMLInputElement>(horizontal, 'input[type="range"]')?.hasAttribute('aria-orientation')).toBe(false);
+	});
+
 	test('reverse="true" renders a reversed track', async () => {
 		const mounted = mountInteraction(SliderInteraction, {
 			interaction: sliderData({ reverse: true }),

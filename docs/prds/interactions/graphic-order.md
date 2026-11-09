@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: graphicOrderInteraction
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-11-09
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-11-09
 
 ---
 
@@ -59,8 +59,8 @@ The sortable list renders a position badge (1, 2, …) in front of each item, up
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `responseIdentifier` | ✅ Full | Extracted as `responseId` on `BaseInteractionData`; used in `qti-change` event payload |
-| `maxChoices` | ❌ Not extracted | Spec: maximum number of hotspots the candidate may include in their ordered response (0 = all). Not in `GraphicOrderInteractionData`. See Known gaps. |
-| `minChoices` | ❌ Not extracted | Spec: minimum number of hotspots that must appear in the response. Not in `GraphicOrderInteractionData`. See Known gaps. |
+| `maxChoices` | ✅ Full | Extracted as `maxChoices` (omitted when 0). Caps subset ordering (clamped to the hotspot count; 0 = up to all): adding past it is refused and announced, and validation rejects a longer response. Ignored when `minChoices` is unspecified, as the spec requires. |
+| `minChoices` | ✅ Full | Extracted as `minChoices` (omitted when 0). From 1 up to fewer than the hotspots it requests subset ordering: the candidate chooses which hotspots to order ("Your order") and the rest stay in "Not in your order" without a position number. Unspecified, or at or above the hotspot count, every hotspot is ordered. Validation enforces the same minimum, through the `orderChoiceLimits` rule shared with `orderInteraction` (see [order.md](order.md)). |
 
 ### Supported attributes on `hotspotChoice` / `associableHotspot`
 
@@ -102,8 +102,6 @@ Coordinates are in the natural (un-scaled) image pixel space. When the image is 
 
 ### Known gaps
 
-- **`maxChoices` not extracted or enforced:** The spec allows item authors to require the candidate to order only a subset of hotspots (e.g. pick the top 3 of 5 and order them). This is not supported. All hotspots are included in the sortable list and all must appear in the response.
-- **`minChoices` not extracted or enforced:** The spec defines this as a completeness constraint. Not extracted or validated.
 - **`fixed` hotspot position-locking not enforced:** When a `hotspotChoice` has `fixed=true`, its position in the order should be locked and the candidate should not be able to move it. The extractor reads and stores `fixed`, but the sortable list does not enforce it.
 - **No image-level sequence overlays:** The spec says delivery engines should display sequence indicators on the image. The default implementation shows sequence badges in the list panel only. Coordinates are extracted and available for implementers who want to overlay numbers on the image.
 - **`matchGroup` not applicable here:** `matchGroup` is an attribute of `associableHotspot` (used in `graphicAssociateInteraction` and related interactions), not `hotspotChoice`. It is not a gap for this interaction.
@@ -127,6 +125,7 @@ Coordinates are in the natural (un-scaled) image pixel space. When the image is 
 - **FR-13:** When `disabled=true`, all drag handles and the confirm button must be non-interactive. Disabled state must be visually distinct (reduced opacity, `cursor: not-allowed`).
 - **FR-14:** When `role='scorer'` and `correctResponse` is provided, visually distinguish each item that is in its correct position (green highlight, "Correct" badge). Do not reveal correct order to any other role.
 - **FR-15:** Render the `prompt` HTML content above the image when present.
+- **FR-16 (subset mode):** When `minChoices` is at least 1 and below the hotspot count, render the panel as two labelled zones — "Your order" (the sortable list, holding only the ordered hotspots, with position badges) and "Not in your order" (the other hotspots by label, with no position number) — shared with `orderInteraction` (see [order.md](order.md), FR-16 to FR-21). The order starts empty and the response is `null` until the candidate adds a hotspot; an emptied order is `null` again. Adding past the cap is refused and announced; the limits are stated where the unmet-minimum hint goes. There is no confirm control in subset mode, and the scorer view lists the authored subset under "Correct order".
 
 ---
 
@@ -172,7 +171,11 @@ All user-visible strings are injectable via the `I18nProvider`. Default fallback
 | `interactions.graphicOrder.confirmOrderNoChanges` | `'Confirm Order (No Changes)'` |
 | `interactions.graphicOrder.confirmAria` | `'Confirm this order as your answer'` |
 | `interactions.graphicOrder.instruction` | `'Drag to reorder, or click to confirm'` |
+| `interactions.graphicOrder.subsetExactHint` | plural: `'Choose {count} items and put them in order.'` |
+| `interactions.graphicOrder.subsetRangeHint` | plural: `'Choose between {min} and {max} items and put them in order.'` |
 | `common.errorNoData` | `'No interaction data provided'` |
+
+The subset zones' own labels, control names and announcements are the shared `interactions.order.*` keys (see [order.md](order.md)), as the sortable list's are.
 
 ---
 
@@ -236,6 +239,8 @@ interface GraphicOrderInteractionData extends BaseInteractionData {
   prompt: string | null;         // HTML content of <prompt> child, or null
   imageData: ImageData | null;   // background image; null produces a warning
   hotspotChoices: GraphicOrderChoice[];  // ordered by XML document order
+  minChoices?: number;           // omitted when 0; 1..N-1 requests subset ordering
+  maxChoices?: number;           // omitted when 0; caps subset ordering, ignored without minChoices
 }
 
 interface ImageData {
@@ -255,7 +260,6 @@ interface ImageData {
 - `imageData === null` produces a warning, not an error (SVG-only items without an `object` element are unusual but not structurally invalid)
 
 **Invariants not enforced (gaps):**
-- `maxChoices` and `minChoices` are absent from the type
 - `fixed` is extracted but not enforced by the UI
 
 ### Response variable
@@ -459,12 +463,14 @@ AC-E7: Large coordinate values do not break layout
   Then: the image and list render without CSS overflow or layout breakage;
         the coords are stored correctly in the extracted data
 
-AC-E8: Partial ordering when maxChoices is smaller than hotspot count
-  Given: a graphicOrderInteraction with maxChoices=2 and 4 hotspotChoices
-  When: the item renders (noting maxChoices is not currently enforced)
-  Then: all 4 items appear in the list; the response includes all 4 identifiers;
-  Notes: this is a known gap — maxChoices enforcement is not implemented. This AC
-         documents the current (non-enforcing) behaviour as the baseline until the gap is closed.
+AC-E8: Subset ordering when minChoices is below the hotspot count
+  Given: a graphicOrderInteraction with minChoices=1, maxChoices=2 and 4 hotspotChoices
+  When: the item renders
+  Then: "Your order" starts empty and all 4 hotspots wait in "Not in your order" with no
+        position number; the candidate may order 1 or 2 of them, a third add is refused and
+        announced, and the response is the ordered subset (null while empty)
+  Notes: with maxChoices but no minChoices every hotspot is ordered and maxChoices is ignored,
+         as the spec requires; validateResponses rejects a restored response over the cap
 
 AC-E9: Response reflects confirmed drag order on subsequent re-render
   Given: the item with 3 hotspots; the user drags TOPSOIL to position 1 (qti-change fires)
@@ -477,7 +483,7 @@ AC-E9: Response reflects confirmed drag order on subsequent re-render
 ## Open questions
 
 - [ ] Should the default component overlay sequence number badges on the image at the hotspot coordinates (in addition to the list badges)? This requires coordinate-to-CSS-pixel scaling and increases complexity, but would better match the spec intent of "display indicators showing the selection order" on the image itself.
-- [ ] Should `maxChoices` and `minChoices` be extracted and enforced? Currently neither is in `GraphicOrderInteractionData`. Enforcing `maxChoices < N` would require a "pick k of n" UI (candidates select which hotspots to include in their sequence), which is a materially different interaction model from the current "order all of them" approach.
+- [x] Should `maxChoices` and `minChoices` be extracted and enforced? Yes — both are extracted; a `minChoices` below the hotspot count switches the panel to the two-zone "pick k of n" UI shared with `orderInteraction`, and response validation enforces the same limits.
 - [ ] Should `fixed` hotspot position-locking be enforced in the sortable list? A fixed hotspot should not be draggable. This requires `SortableList` to accept a `lockedIds` prop.
 - [ ] Should the image be clickable (click-in-sequence) as an alternative input modality alongside the sortable list? This would require hit-testing and deselection logic.
 
@@ -487,7 +493,7 @@ AC-E9: Response reflects confirmed drag order on subsequent re-render
 
 - QTI spec: `docs/QTI_techguide.md` §3.3.3 graphicOrderInteraction
 - Response processing: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
-- Spec gaps: `docs/SPEC-GAPS-PLAN.md` — no gap items currently assigned to graphicOrderInteraction; the `maxChoices`/`minChoices`/`fixed` gaps documented above are not yet tracked
+- Spec gaps: `docs/SPEC-GAPS-PLAN.md` — no gap items currently assigned to graphicOrderInteraction; the `fixed` gap documented above is not yet tracked
 - Component: `packages/default-components/src/plugins/graphic-order/GraphicOrderInteraction.svelte`
 - Shared component: `packages/default-components/src/shared/components/SortableList.svelte`
 - Extractor: `packages/item-player/src/interactions/graphic-order/extractor.ts`

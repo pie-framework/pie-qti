@@ -132,6 +132,7 @@
 				list={showStepLabels ? tickListId : undefined}
 				aria-labelledby={parsedInteraction.prompt ? promptId : undefined}
 				aria-label={parsedInteraction.prompt ? undefined : fallbackLabel}
+				aria-orientation={isVertical ? 'vertical' : undefined}
 				aria-valuemin={parsedInteraction.lowerBound}
 				aria-valuemax={parsedInteraction.upperBound}
 				aria-valuenow={hasValue || (isShowingCorrect && parsedCorrectResponse !== null) ? displayValue : undefined}

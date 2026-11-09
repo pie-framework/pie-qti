@@ -395,6 +395,29 @@ export default {
 				many: 'Mettez au moins {count} éléments dans l’ordre.',
 				other: 'Mettez au moins {count} éléments dans l’ordre.',
 			},
+			yourOrder: 'Votre classement',
+			notInOrder: 'Hors de votre classement',
+			emptyOrder: 'Votre classement est encore vide.',
+			addItem: 'Ajouter {item} à votre classement',
+			removeItem: 'Retirer {item} de votre classement',
+			itemAdded: '{item} ajouté à votre classement à la position {position} sur {total}.',
+			itemRemoved: '{item} retiré de votre classement.',
+			orderLimitReached: {
+				one: 'Votre classement peut contenir {max} élément. Retirez-le pour en ajouter un autre.',
+				many: 'Votre classement peut contenir jusqu’à {max} éléments. Retirez-en un pour en ajouter un autre.',
+				other: 'Votre classement peut contenir jusqu’à {max} éléments. Retirez-en un pour en ajouter un autre.',
+			},
+			correctOrder: 'Classement correct',
+			subsetExactHint: {
+				one: 'Choisissez {count} élément pour votre classement.',
+				many: 'Choisissez {count} éléments et mettez-les dans l’ordre.',
+				other: 'Choisissez {count} éléments et mettez-les dans l’ordre.',
+			},
+			subsetRangeHint: {
+				one: 'Choisissez entre {min} et {max} élément et mettez-les dans l’ordre.',
+				many: 'Choisissez entre {min} et {max} éléments et mettez-les dans l’ordre.',
+				other: 'Choisissez entre {min} et {max} éléments et mettez-les dans l’ordre.',
+			},
 		},
 
 		associate: {
@@ -542,6 +565,16 @@ export default {
 				one: 'Mettez au moins {count} élément dans l’ordre.',
 				many: 'Mettez au moins {count} éléments dans l’ordre.',
 				other: 'Mettez au moins {count} éléments dans l’ordre.',
+			},
+			subsetExactHint: {
+				one: 'Choisissez {count} élément pour votre classement.',
+				many: 'Choisissez {count} éléments et mettez-les dans l’ordre.',
+				other: 'Choisissez {count} éléments et mettez-les dans l’ordre.',
+			},
+			subsetRangeHint: {
+				one: 'Choisissez entre {min} et {max} élément et mettez-les dans l’ordre.',
+				many: 'Choisissez entre {min} et {max} éléments et mettez-les dans l’ordre.',
+				other: 'Choisissez entre {min} et {max} éléments et mettez-les dans l’ordre.',
 			},
 		},
 

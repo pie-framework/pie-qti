@@ -401,6 +401,26 @@ export default {
 				one: '请至少为 {count} 个项目排序。',
 				other: '请至少为 {count} 个项目排序。',
 			},
+			yourOrder: '你的排序',
+			notInOrder: '不在你的排序中',
+			emptyOrder: '你的排序中还没有项目。',
+			addItem: '将 {item} 添加到你的排序',
+			removeItem: '从你的排序中移除 {item}',
+			itemAdded: '已将 {item} 添加到你的排序,位于位置 {position} / {total}。',
+			itemRemoved: '已从你的排序中移除 {item}。',
+			orderLimitReached: {
+				one: '你的排序最多只能包含 {max} 个项目。请先移除它,再添加其他项目。',
+				other: '你的排序最多可包含 {max} 个项目。请先移除一个,再添加其他项目。',
+			},
+			correctOrder: '正确顺序',
+			subsetExactHint: {
+				one: '请为你的排序选择 {count} 个项目。',
+				other: '请选择 {count} 个项目并按顺序排列。',
+			},
+			subsetRangeHint: {
+				one: '请选择 {min} 至 {max} 个项目并按顺序排列。',
+				other: '请选择 {min} 至 {max} 个项目并按顺序排列。',
+			},
 		},
 
 		associate: {
@@ -541,6 +561,14 @@ export default {
 			minChoicesHint: {
 				one: '请至少为 {count} 个项目排序。',
 				other: '请至少为 {count} 个项目排序。',
+			},
+			subsetExactHint: {
+				one: '请为你的排序选择 {count} 个项目。',
+				other: '请选择 {count} 个项目并按顺序排列。',
+			},
+			subsetRangeHint: {
+				one: '请选择 {min} 至 {max} 个项目并按顺序排列。',
+				other: '请选择 {min} 至 {max} 个项目并按顺序排列。',
 			},
 		},
 
