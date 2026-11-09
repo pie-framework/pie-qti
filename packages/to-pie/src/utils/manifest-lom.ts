@@ -15,7 +15,6 @@ import {
   PIE_LOM_BASE_ID_CATALOG,
   PIE_LOM_CURRICULUM_STANDARD_SOURCE,
   PIE_LOM_EXTENSION_SOURCE,
-  PIE_LOM_LEGACY_EXTENSION_SOURCE,
   PIE_LOM_NONE_APPLIES_SOURCE,
   PIE_LOM_SKILL_LEVEL_SOURCE,
   type SkillLevel,
@@ -104,29 +103,24 @@ function readLom(loms: XmlNode[]): PieResourceLom {
     }
   }
 
-  // A key under the current prefix wins over the same key under the legacy one.
-  const legacy: Record<string, unknown> = {};
-  const current: Record<string, unknown> = {};
+  const extensions: Record<string, unknown> = {};
   for (const classification of loms.flatMap((lom) => children(lom, 'classification'))) {
     const taxonPath = [...children(classification, 'taxonPath'), ...children(classification, 'taxonpath')][0];
     const source = taxonPath ? langStringText(children(taxonPath, 'source')[0]) : undefined;
-    const prefix = [PIE_LOM_EXTENSION_SOURCE, PIE_LOM_LEGACY_EXTENSION_SOURCE].find((p) => source?.startsWith(p));
-    if (!taxonPath || !source || !prefix) continue;
-    const key = source.slice(prefix.length);
+    if (!taxonPath || !source || !source.startsWith(PIE_LOM_EXTENSION_SOURCE)) continue;
+    const key = source.slice(PIE_LOM_EXTENSION_SOURCE.length);
     if (!key) continue;
-    const target = prefix === PIE_LOM_EXTENSION_SOURCE ? current : legacy;
     const typed = decodeJson(langStringText(children(classification, 'description')[0]));
     if (typed.ok) {
-      target[key] = typed.value;
+      extensions[key] = typed.value;
       continue;
     }
     const entries = children(taxonPath, 'taxon')
       .map((taxon) => langStringText(children(taxon, 'entry')[0]))
       .filter((entry): entry is string => entry !== undefined);
-    if (entries.length === 1) target[key] = entries[0];
-    else if (entries.length > 1) target[key] = entries;
+    if (entries.length === 1) extensions[key] = entries[0];
+    else if (entries.length > 1) extensions[key] = entries;
   }
-  const extensions = { ...legacy, ...current };
   if (Object.keys(extensions).length > 0) result.extensions = extensions;
   return result;
 }

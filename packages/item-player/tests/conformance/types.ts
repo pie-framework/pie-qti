@@ -22,6 +22,14 @@ export interface ConformanceCase {
 	useSubmitAttempt?: boolean;
 	/** Passed to the submitAttempt action when `useSubmitAttempt` is true. */
 	countAttempt?: boolean;
+	/**
+	 * Player security options for the case. Plugin-style delivery features — e.g.
+	 * templateDeclaration@paramVariable expansion into `<object><param>` values — only reach the
+	 * delivered body when the host allows object embeds, so a case opts in here.
+	 */
+	security?: {
+		allowObjectEmbeds?: boolean;
+	};
 }
 
 export interface ConformanceExpectations {

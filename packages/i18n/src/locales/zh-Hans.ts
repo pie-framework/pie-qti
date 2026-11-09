@@ -224,7 +224,6 @@ export default {
 		hottext: {
 			selected: '已选择:',
 			selectText: '从文章中选择文本',
-			clearSelection: '清除选择',
 			ariaLabel: '文本选择交互',
 			selectableState: '可选择',
 			selectedState: '已选择',

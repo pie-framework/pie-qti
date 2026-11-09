@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: hottextInteraction
-  Last reviewed: 2026-11-07
+  Last reviewed: 2026-11-09
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-11-07
+**Last reviewed:** 2026-11-09
 
 ---
 
@@ -28,7 +28,7 @@
 - The interaction element wraps the entire passage, not just a list of choices. The extractor must treat the whole element body as content HTML, not enumerate child `<simpleChoice>` elements.
 - The custom `<hottext>` elements are non-standard HTML. They survive the HTML parser as unknown elements and must be discovered via `querySelectorAll('hottext')` after the content is injected into the DOM.
 - Reading order must be preserved exactly as authored. There is no shuffle attribute and no reordering — the text must appear in exactly the authored sequence.
-- Keyboard navigation through clickable spans embedded in paragraph text is harder to make accessible than a discrete list. The Tab order passes through every hottext span in document order, which can be a large number of stops in a long passage.
+- Keyboard navigation through clickable spans embedded in paragraph text is harder to make accessible than a discrete list. With `maxChoices>1` the Tab order passes through every hottext span in document order, which can be a large number of stops in a long passage. With `maxChoices=1` the spans form one radio group: Tab stops once, on the checked span (or the first), and the arrow keys move between the spans.
 
 **Why `maxChoices=1` produces a string response, not a one-element array**: The QTI spec defines the `hottextInteraction` response variable as `single` cardinality when `maxChoices=1` and `multiple` cardinality when `maxChoices>1`. The component encodes this: when `maxChoices=1` it emits a bare identifier string (or `null`); when `maxChoices>1` it emits an `string[]`. This mirrors how `choiceInteraction` handles the radio vs. checkbox distinction. Delivery system code that processes responses must branch on the response type; the extractor's `maxChoices` value is the canonical signal.
 
@@ -40,9 +40,9 @@
 
 **Why content is injected as raw HTML via `{@html}`**: The passage may contain arbitrary HTML — `<em>`, `<strong>`, `<a>`, block elements, MathML, tables — along with `<hottext>` elements that are non-standard. Building a Svelte template that handles all valid QTI content structures is not tractable. Injecting the sanitized HTML string and then post-processing the DOM via `querySelectorAll` is the only practical approach. The security risk is mitigated by the item player's HTML sanitizer, which strips `<script>`, event handlers, iframes, and dangerous URL schemes before the string reaches the component. See the security PRD for the full sanitizer policy.
 
-**Why hottext progressive enhancement happens inside a `$effect`**: The component renders `{@html parsedInteraction.contentHtml}`, which injects the passage including raw `<hottext>` elements. Svelte's reactivity does not understand custom elements inside injected HTML — only DOM APIs can reach them. The `$effect` that runs after `contentElement` is bound does the `querySelectorAll('hottext')` sweep, attaches onclick/onkeydown handlers, and sets `role`, `tabindex`, and `aria-pressed`. This is a one-time setup effect; subsequent selection changes update ARIA state via a separate `updateHottextStyles()` call rather than re-running the full setup.
+**Why hottext progressive enhancement happens inside a `$effect`**: The component renders `{@html parsedInteraction.contentHtml}`, which injects the passage including raw `<hottext>` elements. Svelte's reactivity does not understand custom elements inside injected HTML — only DOM APIs can reach them. The `$effect` that runs after `contentElement` is bound does the `querySelectorAll('hottext')` sweep, attaches onclick/onkeydown handlers, and sets the `role` (`radio` when `maxChoices=1`, `button` otherwise). This is a one-time setup effect; subsequent selection changes update ARIA state (`aria-checked` or `aria-pressed`), the tab order (`tabindex`, roving for the radio group) and `aria-disabled` via a separate `updateHottextStyles()` call rather than re-running the full setup.
 
-**Why the footer count shows selected vs. total hottext count**: K-12 test candidates benefit from knowing how many spans they can still select. Showing `n / total_hottext_count` gives a clear signal: when both numbers are equal the candidate has selected everything; the "Clear Selection" button is the primary affordance for reducing the count. The denominator uses `hottextChoices.length` (total hottext spans), not `maxChoices`, because showing `n / maxChoices` would be confusing when `maxChoices < total spans`.
+**Why the footer count shows selected vs. total hottext count**: K-12 test candidates benefit from knowing how many spans they can still select. Showing `n / total_hottext_count` gives a clear signal: when both numbers are equal the candidate has selected everything; the "Clear answer" button retracts the whole answer in one step. The denominator uses `hottextChoices.length` (total hottext spans), not `maxChoices`, because showing `n / maxChoices` would be confusing when `maxChoices < total spans`.
 
 **Pedagogical note**: `hottextInteraction` is most effective with 2–4 selectable spans embedded in a short passage (2–4 sentences). Longer passages with many selectable spans create cognitive fatigue and make keyboard navigation tedious. Item authors should also avoid spans that are adjacent or overlapping, since touch targets become hard to distinguish. The PRD does not enforce these guidelines programmatically but they inform the acceptance criteria.
 
@@ -58,7 +58,7 @@
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `responseIdentifier` | Full | Extracted as `responseId`; used in `qti-change` event payload |
-| `maxChoices` | Full | Enforced at selection time. With `maxChoices=1` a new selection replaces the current one (radio-like). With `maxChoices>1`, once `selectedIds.length === maxChoices` further selections are refused until a deselection occurs. Default `1` when absent. |
+| `maxChoices` | Full | Enforced at selection time, and it decides the widget. With `maxChoices=1` the spans form a radio group: a new selection replaces the current one, activating the selected span again keeps it (a radio is never unchecked by activating it), and "Clear answer" retracts the answer. With `maxChoices>1` each span is a toggle button: activating a selected span deselects it, and once `selectedIds.length === maxChoices` further selections are refused until a deselection occurs. Default `1` when absent. |
 | `minChoices` | Partial — extracted, not surfaced | Extracted by `standardHottextExtractor` (conditionally included in `HottextData` when `> 0`) and validated structurally. **Not present in `HottextInteractionData`** and not surfaced to the component, so no "minimum required" UI hint is shown. See Known gaps. |
 
 ### Supported attributes on `<hottext>`
@@ -77,7 +77,7 @@
 - **Cardinality:** `single` when `maxChoices=1`; `multiple` when `maxChoices>1`
 - **Value format (single):** a bare identifier string matching one `<hottext>` element, or `null` when nothing is selected
 - **Value format (multiple):** `string[]` of identifier strings in selection order (not sorted by document order), or `[]` when nothing is selected
-- **Clearing:** the "Clear Selection" button resets to `null` (single) or `[]` (multiple) and fires a `qti-change` event
+- **Clearing:** the "Clear answer" button resets to `null` (single) or `[]` (multiple) and fires a `qti-change` event. Under single cardinality it is the only way to retract the answer: activating the selected span again keeps it.
 
 ### Standard response processing templates
 
@@ -96,18 +96,21 @@
 
 ## Functional requirements
 
-- **FR-1:** Render the interaction content HTML inside a `role="group"` container. The `<hottext>` elements within the HTML must be keyboard-focusable and mouse-clickable.
-- **FR-2:** When a candidate clicks or activates (Enter/Space) an unselected hottext span and the selection count is below `maxChoices`, add the span's identifier to the response and visually mark the span as selected. When `maxChoices=1` and another span is already selected, the activated span replaces it (radio-like switching, as in `choiceInteraction`): the previous span is deselected and one `qti-change` fires with the new identifier.
-- **FR-3:** When a candidate clicks or activates a selected hottext span, remove its identifier from the response and visually revert the span to unselected. This holds for every `maxChoices`: each span is an `aria-pressed` toggle button, and removing a selection never exceeds the limit.
+- **FR-1:** Render the interaction content HTML inside a `role="radiogroup"` container when `maxChoices=1` and a `role="group"` container otherwise; both carry the same accessible name. The `<hottext>` elements within the HTML must be keyboard-operable and mouse-clickable, and they stay inline in the running text.
+- **FR-2:** When a candidate clicks or activates (Enter/Space) an unselected hottext span and the selection count is below `maxChoices`, add the span's identifier to the response and visually mark the span as selected. When `maxChoices=1` and another span is already selected, the activated span replaces it (radio group, as in `choiceInteraction`): the previous span is deselected and one `qti-change` fires with the new identifier.
+- **FR-3:** Activating a selected hottext span depends on the cardinality:
+  - `maxChoices=1` (radio group): activating the selected span again — click, tap, Enter or Space — is a no-op. The span stays selected and no `qti-change` fires, as with a native radio button. The candidate changes the answer by selecting another span and retracts it with "Clear answer" (FR-10).
+  - `maxChoices>1` (toggle buttons): activating a selected span removes its identifier from the response and visually reverts the span to unselected, as a checkbox does. Removing a selection never exceeds the limit.
 - **FR-4:** When `maxChoices>1` and the selection count equals `maxChoices`, clicking an unselected span must have no effect (the span is not selected, no event fires). The `selectable` visual cue must be removed from unselected spans in this state, and the refusal is announced: the authored `maxSelectionsMessage` (role="alert") is shown, or a localized default ("You can select up to {max}. Deselect one to choose another.") when none is authored. With `maxChoices=1` nothing is ever refused, so unselected spans keep the `selectable` cue and no default message is shown; an authored `maxSelectionsMessage` is still shown once a span is selected, as in `choiceInteraction`.
 - **FR-5:** When `maxChoices=1`, the response value emitted is a bare identifier string (or `null` on clear). When `maxChoices>1`, the response value emitted is `string[]`.
 - **FR-6:** On each selection change, emit a `qti-change` CustomEvent with `{ responseIdentifier, value }` from the root element. The event must bubble.
 - **FR-7:** Accept a `response` prop and reflect it as the initial selection state without firing a `qti-change` event on mount.
-- **FR-8:** When `disabled=true`, all hottext spans must be non-interactive (`cursor: default`, `tabindex="-1"`). The "Clear Selection" button must also be disabled.
+- **FR-8:** When `disabled=true`, all hottext spans must be non-interactive (`cursor: default`, `tabindex="-1"`, `aria-disabled="true"`), and no "Clear answer" button is offered, as in `choiceInteraction`. The selection and, in the scorer view, the correct-answer marking stay visible.
 - **FR-9:** When `role='scorer'` and `correctResponse` is provided, visually mark correct hottext spans with the `correct` class (green background **and** an underline, so the marker never relies on color alone) and add a hidden "Correct answer" phrase to each correct span's accessible name. Do not reveal correct answers to any other role.
-- **FR-10:** Display a footer showing `selected / total_hottext_count` and a "Clear Selection" button that appears only when at least one span is selected.
+- **FR-10:** Display a footer showing `selected / total_hottext_count` and a "Clear answer" button, for both cardinalities. The button appears only while at least one span is selected and the interaction is enabled. It carries the same label as `choiceInteraction`'s control for the same function (key `interactions.choice.clearAnswer`). Activating it resets the response (FR-5) and moves focus to the first hottext span, so keyboard focus never drops to the document.
 - **FR-11:** Render the optional `<prompt>` HTML above the passage content when present.
 - **FR-12:** When no `interaction` data is provided, render a localized error message instead of an empty div.
+- **FR-13:** When `maxChoices=1`, the spans follow the WAI-ARIA APG radio group keyboard model. A roving `tabindex` makes the group one Tab stop: the checked span, or the first span when none is checked. Arrow keys move focus to the next or previous span in document order and check it, wrapping at either end. Up/Down are fixed, and Left/Right follow the inline direction, so under RTL ArrowLeft moves forward. Arrow keys held with Alt, Ctrl or Meta are left to the browser and assistive technology. Space checks the focused span, and so does Enter. When `maxChoices>1`, every span is its own Tab stop, Space and Enter toggle it, and the arrow keys are not handled.
 
 ---
 
@@ -117,14 +120,14 @@
 
 WCAG 2.2 Level AA is mandatory for all assessment interactions.
 
-- **Keyboard operability (SC 2.1.1):** Every hottext span must receive focus via Tab in document order. Space and Enter must activate the focused span. A user must be able to complete the interaction entirely by keyboard without using a mouse.
+- **Keyboard operability (SC 2.1.1):** A user must be able to complete the interaction entirely by keyboard without using a mouse. With `maxChoices=1` the spans are one radio group with a roving `tabindex` (FR-13). Tab reaches the checked span, or the first span when none is checked, and leaves the group from there. The arrow keys move between the spans and check them, and Space or Enter check the focused span. With `maxChoices>1` every hottext span receives focus via Tab in document order, and Space and Enter toggle the focused span.
 - **Focus visible (SC 2.4.7 / 2.4.11):** Focused hottext spans must have a visible focus indicator that meets contrast and size requirements. The browser's default `:focus` ring is not sufficient for custom elements; the implementation must explicitly style `:focus-visible` or provide a substitute.
-- **Name, role, value (SC 4.1.2):** Each `<hottext>` element receives `role="button"`, `aria-pressed="true/false"`, and an accessible name composed via `aria-labelledby` from the rendered content plus a hidden, localized state word ("Selectable"/"Selected"). The referenced ids are unique per interaction instance, so two hottext interactions in one document never label each other's spans. No flattened `textContent` label and no hardcoded English prefix is used. The `aria-pressed` attribute and the state word are updated on every selection change. The container receives `role="group"` with an `aria-label` identifying it as the selection area.
+- **Name, role, value (SC 4.1.2):** The role and state match what activation does. With `maxChoices=1` each `<hottext>` element receives `role="radio"` and `aria-checked="true/false"` inside a `role="radiogroup"` container. With `maxChoices>1` it receives `role="button"` and `aria-pressed="true/false"` inside a `role="group"` container. The two never mix: a radio is never `aria-pressed`, and a toggle button is never `aria-checked`. A toggle button that activation could not unpress would tell assistive technology that the selected span can be released by activating it again, so single selection does not use one. Each span's accessible name is composed via `aria-labelledby` from the rendered content plus a hidden, localized state word ("Selectable"/"Selected"). The referenced ids are unique per interaction instance, so two hottext interactions in one document never label each other's spans. No flattened `textContent` label and no hardcoded English prefix is used. The state attribute and the state word are updated on every selection change. A disabled span carries `aria-disabled="true"`. Both containers receive an `aria-label` identifying them as the selection area.
 - **Touch targets (SC 2.5.8):** On mobile viewports, hottext spans must meet the 24×24 CSS px minimum target size. The implementation adds `padding: 2px 4px` inline, which may not be sufficient for very short spans (single characters or punctuation). Item authors should avoid single-character hottext spans.
 - **Reading order (SC 1.3.2):** The prose reading order must not be altered by the interaction framework. The content HTML is injected verbatim; no reordering occurs.
 - **User select disabled on spans (CSS `user-select: none`):** To prevent accidental text selection when clicking quickly, hottext spans have `user-select: none`. This is acceptable for the span itself but must not disable text selection in surrounding prose (WCAG SC 1.4.12 requires text reflow support, not selection disablement).
-- **Screen reader announcement:** When a span is toggled, the change in `aria-pressed` causes screen readers to announce the new state. The component does not use `aria-live` regions for this — the `aria-pressed` pattern is sufficient and avoids over-announcement.
-- **"Clear Selection" button:** Must be a native `<button>` element with descriptive text ("Clear Selection"), not an icon-only control. It must receive focus and be activatable by keyboard.
+- **Screen reader announcement:** Screen readers announce a single-select span as a radio button in a radio group, with its checked state and usually its position ("radio button, checked, 2 of 3"). They announce a multi-select span as a toggle button with its pressed state. When the selection changes, the changed `aria-checked` or `aria-pressed` attribute is announced, so the component uses no `aria-live` region for it and avoids over-announcement. Because activating the checked radio changes nothing, nothing is announced, just as with a native radio button. The candidate hears no retraction that did not happen.
+- **"Clear answer" button (SC 3.2.4):** A native `<button>` element with descriptive text, not an icon-only control. It must receive focus and be activatable by keyboard. Its label is the one `choiceInteraction` uses for the same function, retracting the whole answer, and it comes from the same i18n key, so a candidate meets one name for one function across the player in every locale. It is not rendered while there is nothing to clear or while the interaction is disabled. Clearing removes it, so focus moves to the first hottext span instead of dropping to the document; under single selection that span is the radio group's Tab stop once nothing is checked.
 
 ### Performance
 
@@ -146,11 +149,11 @@ WCAG 2.2 Level AA is mandatory for all assessment interactions.
 ### Internationalization
 
 - Footer label: `interactions.hottext.selected` ("Selected:").
-- "Clear Selection" button: `interactions.hottext.clearSelection`.
+- "Clear answer" button: `interactions.choice.clearAnswer`, the key `choiceInteraction` uses for the same control, so the two cannot drift apart in any locale (WCAG 3.2.4). The former `interactions.hottext.clearSelection` ("Clear Selection") key is removed.
 - Container `aria-label`: `interactions.hottext.ariaLabel`.
 - Per-span state words: `interactions.hottext.selectableState` / `interactions.hottext.selectedState`.
 - Refusal message default: `interactions.hottext.maxChoicesReached` ({max} interpolated), shown only when a selection can be refused (`maxChoices>1`); the authored `maxSelectionsMessage` wins when present.
-- RTL support: the component does not set a fixed text direction; it inherits from the host. This should be correct for RTL passages as long as the host sets `dir="rtl"`.
+- RTL support: the component does not set a fixed text direction; it inherits from the host. This should be correct for RTL passages as long as the host sets `dir="rtl"`. In the single-select radio group, ArrowLeft and ArrowRight follow the computed inline direction, as native radio buttons do: under RTL, ArrowLeft moves to the next span.
 
 ---
 
@@ -163,10 +166,24 @@ WCAG 2.2 Level AA is mandatory for all assessment interactions.
 **Alternatives considered:** Parse `contentHtml` into a virtual DOM and render as Svelte components. Rejected: too fragile for arbitrary HTML content.  
 **Consequences:** ARIA attributes and event handlers on hottext spans are set imperatively, not declaratively. This means they are not tracked by Svelte's reactivity — `updateHottextStyles()` must be called explicitly after every state change. A bug in the update path (e.g., a missing `updateHottextStyles()` call) will leave ARIA state stale. The `$effect` that depends on `selectedIds` calls `updateHottextStyles()` on every selection change, which should catch all cases.
 
+### Single-select hottext is a radio group, not a set of toggle buttons
+
+**Decision:** With `maxChoices=1` the passage container is a `role="radiogroup"` and every span is a `role="radio"` with `aria-checked`. Activating another span replaces the selection, and activating the checked span again (click, tap, Enter, Space) changes nothing and emits nothing. "Clear answer" is the explicit way to retract the answer. The keyboard model is the WAI-ARIA APG radio group pattern (FR-13). With `maxChoices>1` the spans stay `aria-pressed` toggle buttons that deselect on re-activation, as checkboxes do.  
+**Rationale:** QTI fixes the response cardinality (`single` for `maxChoices=1`) but does not specify the gesture that deselects a hottext, so this is a UI convention. The player follows the convention candidates already know. A native HTML radio, the APG radio group and this player's own single-choice `choiceInteraction` (native radios plus "Clear answer") all keep the checked option on re-activation. Toggle-off let a double click or a repeated tap retract an answer the candidate meant to keep, a costly slip in a test. The roles have to match that behavior (WCAG 4.1.2). Under toggle-off, single selection was exposed as `aria-pressed` toggle buttons. Keeping that role after removing toggle-off would announce a button the candidate could not unpress. A radio announces exactly what happens: one checked option in a group, which another option replaces. The group is one Tab stop, so a long passage no longer costs a Tab stop per span under single selection.  
+**Alternatives considered:** (a) Keep toggle-off for single selection, the earlier behavior. Rejected: it diverges from native radios and `choiceInteraction` and lets one stray activation retract the answer. (b) Keep `aria-pressed` toggle buttons but ignore re-activation. Rejected: the toggle semantics would no longer match the behavior. (c) Use native `<input type="radio">` elements. Rejected: the spans are authored inline in the running text and are enhanced in place (see "Hottext elements are post-processed"), so wrapping them in form controls would change the layout.  
+**Consequences:** Enter is kept as an activation key from the earlier button model, although native radios ignore it. Nothing else in the interaction uses Enter, so it only adds a gesture. The arrow keys are handled only while a span has focus; held with Alt, Ctrl or Meta they are left to the browser (Alt+Left is Back) and to assistive technology. Each arrow move checks the newly focused span and emits one `qti-change`, as native radios fire one `change` per move. Under RTL, ArrowLeft and ArrowRight are mirrored. The state word in each span's name ("Selectable"/"Selected") is kept, so an empty span still has a name (AC-E8); it now accompanies `aria-checked` instead of `aria-pressed`.
+
+### One "Clear answer" control for both cardinalities
+
+**Decision:** The footer control that retracts the whole answer reads "Clear answer" (`interactions.choice.clearAnswer`) for single and multiple selection alike, replacing "Clear Selection". It follows `choiceInteraction`'s rule: it is shown only while there is an answer and the interaction is enabled, and clearing moves focus to the first hottext span.  
+**Rationale:** WCAG 3.2.4 (Consistent Identification) asks for one name for one function across a set of pages, here every item of a test. "Clear Selection" in hottext and "Clear answer" in `choiceInteraction` both retract the whole answer (`null` or `[]`), so they now share the name and the i18n key, and translations cannot drift apart. Multiple selection keeps the control even though each span can be deselected on its own and `choiceInteraction` offers no clear control for checkboxes. Hottext spans are scattered through prose, so clearing several selections one by one means finding each span again; a one-step reset is worth keeping. WCAG 3.2.4 governs how a control is named, not whether every interaction has one, so the extra control in this interaction is consistent with it. Reusing the `interactions.choice.*` key follows existing practice: associate, match and the sortable list read `interactions.choice.correct`, and the elimination tool reads `interactions.choice.eliminateChoice`.  
+**Alternatives considered:** Keep "Clear Selection" for multiple selection only. Rejected: the same function would carry two names in one interaction type. Drop the control for multiple selection, to match `choiceInteraction`'s checkboxes. Rejected: it would remove a real convenience without improving consistency. Render the control disabled while the interaction is disabled, the earlier behavior. Rejected in favor of `choiceInteraction`'s rule: a control that cannot do anything is only noise in a read-only view.  
+**Consequences:** A disabled or review rendering shows the answer without a clear control. The `interactions.hottext.clearSelection` key was removed from all locales.
+
 ### `canSelectMore` gates click handling at interaction time, not in the DOM
 
 **Decision:** With `maxChoices>1`, when `selectedIds.length === maxChoices`, the click handler for unselected spans returns early without emitting. The `selectable` CSS class is removed from unselected spans. With `maxChoices=1` the handler never refuses: activating an unselected span replaces the selection, so unselected spans keep the `selectable` class.  
-**Rationale:** Single cardinality follows the radio pattern candidates know from `choiceInteraction`: choosing another option switches the answer instead of requiring a deselection first. Real assessments expect this; refusing the second selection forced an extra step and an error message on every change of mind. Deselecting a selected span stays available for every cardinality because each span is exposed as an `aria-pressed` toggle button, whose activation toggles; the "Clear Selection" button remains the visible retraction path. For `maxChoices>1`, disabling `tabindex` on non-selectable spans when the limit is reached would improve accessibility (no focus stops on non-interactive elements) but would require re-sweeping the DOM on every selection change. The current approach keeps non-selected spans keyboard-focusable even when they cannot be selected, with the visual cue of no `selectable` styling. This is a tradeoff: keyboard users can still Tab to spans that cannot be activated, which wastes Tab stops, but preserving focusability avoids the risk of focus being lost or teleported on a selection change.  
+**Rationale:** Single cardinality follows the radio pattern candidates know from `choiceInteraction`: choosing another option switches the answer instead of requiring a deselection first. Real assessments expect this; refusing the second selection forced an extra step and an error message on every change of mind. Only multiple selection can reach a cap that refuses, and there each span is an `aria-pressed` toggle button whose activation deselects it, which frees a place under the cap. Under single selection the checked span is never toggled off; "Clear answer" is the visible retraction path (see "Single-select hottext is a radio group"). For `maxChoices>1`, disabling `tabindex` on non-selectable spans when the limit is reached would improve accessibility (no focus stops on non-interactive elements) but would require re-sweeping the DOM on every selection change. The current approach keeps non-selected spans keyboard-focusable even when they cannot be selected, with the visual cue of no `selectable` styling. This is a tradeoff: keyboard users can still Tab to spans that cannot be activated, which wastes Tab stops, but preserving focusability avoids the risk of focus being lost or teleported on a selection change.  
 **Alternatives considered:** Set `tabindex="-1"` on non-selectable spans when at capacity. Rejected for this implementation; left as a future improvement. Refusing a second selection under `maxChoices=1` (the earlier behavior) was replaced by switching.  
 **Consequences:** A keyboard user at a `maxChoices>1` capacity will Tab to inactive spans. The `aria-pressed="false"` state on those spans is accurate (not selected), but there is no ARIA attribute that communicates "cannot be selected right now". A future improvement could use `aria-disabled="true"` on non-selectable spans at capacity.
 
@@ -181,7 +198,7 @@ WCAG 2.2 Level AA is mandatory for all assessment interactions.
 
 **Decision:** When `maxChoices=1`, the `qti-change` event value and the `response` prop value are a bare string (`identifier | null`), not `[identifier]`.  
 **Rationale:** This mirrors the QTI spec's cardinality distinction: `maxChoices=1` declares `single` cardinality in the `responseDeclaration`, and a `single` cardinality variable holds one value, not an array. Delivery systems and response-processing code that handles `single` cardinality expect a scalar value. Wrapping it in an array would require unwrapping logic everywhere the response is consumed.  
-**Consequences:** Consuming code must branch on `maxChoices` to know the response format. The component handles this in the `handleHottextClick` function and the "Clear Selection" handler. The `$effect` that syncs incoming `response` prop also handles both forms.
+**Consequences:** Consuming code must branch on `maxChoices` to know the response format. The component handles this in the `handleHottextClick` function and the "Clear answer" handler. The `$effect` that syncs incoming `response` prop also handles both forms.
 
 ---
 
@@ -253,8 +270,14 @@ AC-2: Single-select: selecting a second span deselects the first
   When: the candidate clicks H1 ("cat")
   Then: H1 is selected; H2 is deselected; the footer shows "1 / 3";
         qti-change fires with value="H1"; no selection-limit alert appears
-  Notes: radio-like switching, as in choiceInteraction; Enter/Space on H1 switches the same way.
-         Activating the selected span instead deselects it (FR-3), emitting value=null.
+  Notes: a radio group, as in choiceInteraction; Enter/Space or an arrow key onto H1 switches the same way.
+
+AC-2a: Single-select: re-activating the selected span keeps it
+  Given: the item from AC-1 with H2 already selected
+  When: the candidate clicks or taps H2 again, or presses Enter or Space on it
+  Then: H2 stays selected (aria-checked="true"); the footer still shows "1 / 3";
+        no qti-change fires
+  Notes: a radio is never unchecked by activating it (FR-3); "Clear answer" retracts the answer (AC-10a).
 
 AC-3: Single-select correct answer scores 1
   Given: the item from AC-1 with correct answer H2 (MATCH_CORRECT template)
@@ -275,8 +298,9 @@ AC-5: Multi-select: each hottext span can be selected independently
 AC-6: Multi-select: deselecting a span removes it from the response
   Given: the item from AC-5 with H2 and H4 selected
   When: the candidate clicks H4
-  Then: H4 is deselected; the footer shows "1 / 4";
+  Then: H4 is deselected (aria-pressed="false"); the footer shows "1 / 4";
         qti-change fires with value=["H2"]
+  Notes: multi-select spans are toggle buttons, so re-activation deselects, as a checkbox does.
 
 AC-7: maxChoices enforcement blocks over-selection
   Given: the item from AC-5 (maxChoices=3) with 3 spans selected (H1, H2, H4)
@@ -296,12 +320,22 @@ AC-9: Multi-select partial selection scores 0 (exact match)
   Notes: the sample items use a MATCH_CORRECT exact-match template; partial credit
          would require MAP_RESPONSE response processing.
 
-AC-10: Clear Selection button resets the response
+AC-10: Clear answer resets a multi-select response
   Given: the item from AC-5 with H2 and H4 selected (footer shows "2 / 4")
-  When: the candidate clicks "Clear Selection"
+  When: the candidate clicks "Clear answer"
   Then: no spans are selected; the footer shows "0 / 4";
         qti-change fires with value=[] (empty array for multi-select);
-        the "Clear Selection" button disappears
+        the "Clear answer" button disappears and focus moves to the first hottext span
+
+AC-10a: Clear answer resets a single-select response
+  Given: the item from AC-1 with H2 selected
+  When: the candidate clicks "Clear answer"
+  Then: no span is selected; the footer shows "0 / 3";
+        qti-change fires with value=null;
+        the "Clear answer" button disappears and focus moves to the first hottext span,
+        which is now the radio group's Tab stop
+  Notes: the label is the one choiceInteraction shows for the same function, in every locale
+         (interactions.choice.clearAnswer); no button is shown while nothing is selected.
 
 AC-11: Response prop pre-populates selection on mount
   Given: an item with response=["H4"] passed as prop on mount (multi-select)
@@ -315,10 +349,11 @@ AC-12: Prompt is rendered above the passage
   Then: the prompt text appears above the passage content, before any hottext spans
 
 AC-13: disabled=true blocks all interaction
-  Given: an item rendered with disabled=true
-  When: the candidate clicks or presses keys on any hottext span
-  Then: no span becomes selected; no qti-change fires; spans display cursor:default;
-        the "Clear Selection" button is present but has the HTML disabled attribute
+  Given: an item rendered with disabled=true and a selected span
+  When: the candidate clicks or presses keys (Enter, Space, arrows) on any hottext span
+  Then: the selection does not change; no qti-change fires; spans display cursor:default
+        and carry aria-disabled="true"; the selected span still shows as selected;
+        no "Clear answer" button is offered, as in choiceInteraction
 
 AC-14: Scorer role shows correct spans
   Given: an item rendered with role="scorer" and correctResponse=["H2","H4"]
@@ -335,47 +370,70 @@ AC-15: Candidate role does not reveal correct spans
 ### Accessibility
 
 ```
-AC-A1: All hottext spans are reachable by Tab
-  Given: the item at /item-demo/hottext-single
+AC-A1: Single-select: the radio group is one Tab stop
+  Given: the item at /item-demo/hottext-single with no selection
+  When: the user presses Tab from outside the interaction
+  Then: focus lands on the first hottext span (tabindex="0"; every other span has tabindex="-1");
+        the next Tab moves focus out of the group
+  Notes: with a selected span, Tab lands on that span instead (roving tabindex, FR-13)
+
+AC-A1b: Multi-select: every hottext span is reachable by Tab
+  Given: the item at /item-demo/hottext-multiple
   When: the user presses Tab from outside the interaction
   Then: focus lands on the first hottext span;
         successive Tab presses reach each hottext span in document order;
         Tab after the last span moves focus outside the interaction
 
-AC-A2: Space activates a hottext span
+AC-A2: Space checks or toggles a hottext span
   Given: a hottext span has focus
   When: the user presses Space
-  Then: the span is selected (aria-pressed changes from "false" to "true");
-        qti-change fires
+  Then: single-select: the span is checked (aria-checked changes from "false" to "true")
+        and qti-change fires, or nothing happens if it was already checked;
+        multi-select: the span toggles (aria-pressed flips) and qti-change fires;
+        the page does not scroll
 
 AC-A3: Enter activates a hottext span
   Given: a hottext span has focus
   When: the user presses Enter
-  Then: the span is selected; qti-change fires
-  Notes: Enter is handled in addition to Space to match button activation conventions
+  Then: the span is checked (single-select) or toggled (multi-select); qti-change fires
+        unless the single-select span was already checked
+  Notes: Enter is kept from the earlier button model. Native radio buttons ignore Enter, so accepting it
+         only adds a gesture.
 
-AC-A4: aria-pressed reflects selection state
+AC-A4: Role and state reflect the cardinality and the selection
   Given: the item at /item-demo/hottext-single with no selection
   When: a screen reader reads each hottext span
-  Then: each span is announced with role="button" and aria-pressed="false";
-        after selection, the span is announced with aria-pressed="true"
+  Then: each span is announced as a radio button (role="radio", aria-checked="false"), with no
+        aria-pressed; after selection, the span is announced as checked (aria-checked="true")
+  Notes: in /item-demo/hottext-multiple each span is a toggle button (role="button",
+         aria-pressed="false"/"true"), with no aria-checked
 
 AC-A5: Group container has an accessible label
   Given: any hottext item
   When: a screen reader reads the interaction
-  Then: the container div is announced as a group with label "Text selection interaction"
-        (or the i18n-provided equivalent)
+  Then: the container div is announced as a radio group (maxChoices=1) or a group (maxChoices>1)
+        with label "Text selection interaction" (or the i18n-provided equivalent)
 
-AC-A6: Clear Selection button is keyboard-reachable
+AC-A6: Clear answer button is keyboard-reachable
   Given: the item from AC-A1 with one span selected
   When: the user Tabs through the interaction
-  Then: the "Clear Selection" button receives focus and can be activated with Space/Enter
+  Then: the "Clear answer" button receives focus and can be activated with Space/Enter;
+        after activation, focus is on the first hottext span
 
 AC-A7: disabled spans are removed from tab order
   Given: an item rendered with disabled=true
   When: the user presses Tab within the interaction
-  Then: no hottext span receives focus (tabindex="-1");
-        the "Clear Selection" button is disabled and skipped
+  Then: no hottext span receives focus (tabindex="-1", aria-disabled="true");
+        no "Clear answer" button is rendered
+
+AC-A8: Single-select: arrow keys move and check
+  Given: the item at /item-demo/hottext-single with focus on the first hottext span
+  When: the user presses ArrowRight or ArrowDown
+  Then: focus moves to the next span, which becomes checked; qti-change fires with its identifier;
+        ArrowLeft or ArrowUp moves to the previous span; at either end, focus wraps around
+  Notes: under dir="rtl", ArrowLeft moves to the next span and ArrowRight to the previous one;
+         ArrowUp and ArrowDown are unchanged. With Alt, Ctrl or Meta held, the arrow keys do
+         nothing in the interaction. In multi-select, the arrow keys are not handled.
 ```
 
 ### Edge cases
@@ -420,7 +478,8 @@ AC-E6: Passage contains multiple block elements (paragraphs, lists)
   Given: an item whose hottextInteraction body contains two <p> elements each with hottext spans
   When: the item renders
   Then: both paragraphs render with correct spacing; hottext spans in both paragraphs are
-        keyboard-reachable in document order
+        keyboard-reachable in document order (by Tab in multi-select, by the arrow keys within
+        the single-select radio group)
 
 AC-E7: No interaction data provided
   Given: a pie-qti-hottext web component with no interaction attribute
@@ -444,7 +503,7 @@ AC-E9: Response synced to external state change
 ## Open questions
 
 - [ ] **`maxChoices=0` bug**: The `canSelectMore` derived value is `selectedIds.length < parsedInteraction.maxChoices`. When `maxChoices=0` this is always false, blocking all selections. Is `maxChoices=0` a valid value for `hottextInteraction`? The spec says it means unlimited, but the extractor defaults to `1` when absent. If `0` is a valid authored value, the component needs a guard: `maxChoices === 0 || selectedIds.length < maxChoices`.
-- [ ] **`maxChoices=1` does not auto-deselect**: When `maxChoices=1` and a span is already selected, clicking a different span is blocked (not deselected). Should single-select hottext behave like radio buttons (click automatically switches selection)? The current behavior requires the candidate to explicitly deselect before selecting a different span, which is non-obvious — the localized `maxChoicesReached` message now at least explains it.
+- [x] **`maxChoices=1` behavior** (resolved 2026-11-09): single-select hottext is a radio group. Selecting another span replaces the selection, activating the selected span again keeps it, and "Clear answer" retracts the answer, as in `choiceInteraction`. See the decision "Single-select hottext is a radio group, not a set of toggle buttons" above.
 - [ ] **`minChoices` gap**: Should `minChoices` be added to `HottextInteractionData` and surfaced as a "Select at least N" footer hint? This is low-effort to add but requires agreement on the UI pattern.
 - [ ] **Touch target size for short spans**: Single-word hottext spans (especially short words like "a", "or", "in") may not meet the 24×24 px touch target minimum. Should the component enforce a minimum `min-width` / `min-height` on hottext elements?
 
@@ -462,4 +521,5 @@ AC-E9: Response synced to external state change
 - Eval fixtures: `docs/evals/default-components/hottext/evals.yaml`
 - Sample items: `apps/demo/src/lib/sample-items.ts` — `HOTTEXT_INTERACTION_SINGLE`, `HOTTEXT_INTERACTION_MULTIPLE`
 - A11y fixture: `apps/demo/src/lib/a11y/fixtures/HottextInteractionFixture.svelte`
+- Keyboard model: [WAI-ARIA APG radio group pattern](https://www.w3.org/WAI/ARIA/apg/patterns/radio/) (single selection)
 - Adjacent PRDs: [choice.md](choice.md) (similar selection/cardinality mechanics), [hotspot.md](hotspot.md) (similar maxChoices pattern on non-list interactions)

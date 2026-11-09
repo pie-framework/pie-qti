@@ -65,11 +65,13 @@ export function runItemCase(args: {
 	seed?: number;
 	useSubmitAttempt?: boolean;
 	countAttempt?: boolean;
+	security?: { allowObjectEmbeds?: boolean };
 }) {
 	const player = new Player({
 		itemXml: args.itemXml,
 		role: args.role ?? 'candidate',
 		seed: args.seed ?? 42,
+		...(args.security ? { security: args.security } : {}),
 	});
 	player.setResponses(args.responses as any);
 

@@ -76,7 +76,7 @@
 	let liveRegionText = $state('');
 
 	/**
-	 * Parse correct response points (same format as user response)
+	 * Parse response or correct-response points, in the QTI point form: "x y" strings.
 	 */
 	function parsePoints(value: any): Point[] {
 		if (!value) return [];
@@ -93,14 +93,6 @@
 								return { x, y } satisfies Point;
 							}
 						}
-						return null;
-					}
-					if (v && typeof v === 'object' && v.x !== undefined && v.y !== undefined) {
-						const x = Number(v.x);
-						const y = Number(v.y);
-						if (!Number.isNaN(x) && !Number.isNaN(y)) {
-							return { x, y } satisfies Point;
-						}
 					}
 					return null;
 				})
@@ -113,12 +105,6 @@
 				if (!Number.isNaN(x) && !Number.isNaN(y)) {
 					return [{ x, y }];
 				}
-			}
-		} else if (value && typeof value === 'object' && value.x !== undefined && value.y !== undefined) {
-			const x = Number(value.x);
-			const y = Number(value.y);
-			if (!Number.isNaN(x) && !Number.isNaN(y)) {
-				return [{ x, y }];
 			}
 		}
 		return [];
@@ -170,7 +156,6 @@
 			parsedInteraction?.maxChoices === 1
 				? (points[0] ? `${points[0].x} ${points[0].y}` : null)
 				: points.map((p) => `${p.x} ${p.y}`);
-		// Normalize outward response shape to canonical QTI form (even if inbound was legacy/object form).
 		response = canonicalValue;
 		emitInteractionChange({ target: rootElement ?? undefined, responseId: parsedInteraction?.responseId, value: canonicalValue, onChange });
 	}

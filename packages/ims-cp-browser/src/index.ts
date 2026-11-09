@@ -18,7 +18,7 @@ export { SessionStorageBackend, LocalStorageBackend, MemoryStorageBackend } from
 export * from './path-utils.js';
 
 // Image resolution utilities
-export { resolveImagesInXml, tryResolveImagePath } from './image-resolver.js';
+export { resolveImagesInXml } from './image-resolver.js';
 export type { ResolveImagesOptions, LoggerLike } from './image-resolver.js';
 
 /**

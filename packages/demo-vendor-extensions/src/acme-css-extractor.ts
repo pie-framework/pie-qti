@@ -11,7 +11,7 @@
  * - Unknown: Unrecognized classes
  */
 
-import type { CssClassExtractor, VendorClasses } from '@pie-qti/to-pie';
+import type { CssClassExtractor, VendorClasses } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 
 /**

@@ -5,7 +5,7 @@
  * Demonstrates the VendorDetector extension point
  */
 
-import type { VendorDetector, VendorInfo } from '@pie-qti/to-pie';
+import type { VendorDetector, VendorInfo } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 
 /**

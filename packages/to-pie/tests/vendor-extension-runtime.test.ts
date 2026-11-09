@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
+import type { AssetResolver, CssClassExtractor } from '@pie-qti/transform-types';
 import { parse } from 'node-html-parser';
-import type { AssetResolver, CssClassExtractor } from '../src/types/vendor-extensions';
 import {
   extractCssClassesWithHooks,
   resolveAssetWithHooks,

@@ -131,7 +131,7 @@ Vendor metadata extracted by `MetadataExtractor` is attached to the output PIE i
 
 ## Data model / contracts
 
-All five hook interfaces are defined in `packages/to-pie/src/types/vendor-extensions.ts`. Key invariants beyond what the types express:
+All five hook interfaces are defined in `packages/types/src/transform/vendor-extensions.ts` and exported from `@pie-qti/transform-types`. Key invariants beyond what the types express:
 
 **`VendorDetector`**
 - `detect()` must be synchronous. It receives the raw XML string and the already-parsed `HTMLElement` root. It must not re-parse the document.
@@ -296,7 +296,7 @@ AC-E4: Likert extractor validate catches scale too small
 
 ## Related
 
-- Hook type definitions: `packages/to-pie/src/types/vendor-extensions.ts`
+- Hook type definitions: `packages/types/src/transform/vendor-extensions.ts` (exported from `@pie-qti/transform-types`)
 - Demo implementations: `packages/demo-vendor-extensions/src/`
 - Player-side Likert plugin: `packages/acme-likert-plugin/src/`
 - Developer guide: `docs/VENDOR-TRANSFORM-PLUGIN-GUIDE.md`

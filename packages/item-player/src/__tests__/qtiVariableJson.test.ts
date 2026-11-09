@@ -144,12 +144,26 @@ describe('QTI variable JSON: records', () => {
 		});
 	});
 
-	it('still accepts the earlier name-keyed record form on input', () => {
+	it('rejects a record that is not an array of named members', () => {
+		// The name-keyed object form is not the PCI v1.0 Appendix A binding.
 		expect(
 			fromQtiVariableJson({ record: { a: { base: { integer: 1 } }, b: { list: { identifier: ['x', 'y'] } } } }),
+		).toBeNull();
+	});
+
+	it('reads a member whose value is not its base type\u2019s spec form as NULL', () => {
+		expect(
+			fromQtiVariableJson({
+				record: [
+					{ name: 'ok', base: { identifier: 'A' } },
+					{ name: 'pick', base: { pair: 'A B' } },
+					{ name: 'times', list: { duration: [5] } },
+				],
+			}),
 		).toEqual({
-			a: { baseType: 'integer', cardinality: 'single', value: 1 },
-			b: { baseType: 'identifier', cardinality: 'multiple', value: ['x', 'y'] },
+			ok: { baseType: 'identifier', cardinality: 'single', value: 'A' },
+			pick: { baseType: 'pair', cardinality: 'single', value: null },
+			times: { baseType: 'duration', cardinality: 'multiple', value: null },
 		});
 	});
 
@@ -160,11 +174,30 @@ describe('QTI variable JSON: records', () => {
 	});
 });
 
-describe('QTI variable JSON: compatibility and declaration fallback', () => {
-	it('accepts the earlier player shapes for pairs, points and durations', () => {
-		expect(fromQtiVariableJson({ base: { pair: 'A B' } })).toBe('A B');
-		expect(fromQtiVariableJson({ list: { point: ['1 2'] } })).toEqual(['1 2']);
-		expect(fromQtiVariableJson({ base: { duration: 90 } })).toBe(90);
+describe('QTI variable JSON: non-spec input and declaration fallback', () => {
+	it('rejects a pair, directedPair or point that is not an array', () => {
+		expect(fromQtiVariableJson({ base: { pair: 'A B' } })).toBeNull();
+		expect(fromQtiVariableJson({ base: { directedPair: 'S1 T2' } })).toBeNull();
+		expect(fromQtiVariableJson({ base: { point: '1 2' } })).toBeNull();
+		// One non-spec member rejects the whole list: a list is one value.
+		expect(fromQtiVariableJson({ list: { point: ['1 2'] } })).toBeNull();
+		expect(fromQtiVariableJson({ list: { pair: [['A', 'B'], 'C D'] } })).toBeNull();
+		// The spec forms still decode.
+		expect(fromQtiVariableJson({ base: { pair: ['A', 'B'] } })).toBe('A B');
+		expect(fromQtiVariableJson({ list: { point: [[1, 2]] } })).toEqual(['1 2']);
+	});
+
+	it('rejects a duration that is not an ISO 8601 string', () => {
+		expect(fromQtiVariableJson({ base: { duration: 90 } })).toBeNull();
+		expect(fromQtiVariableJson({ base: { duration: '90' } })).toBeNull();
+		expect(fromQtiVariableJson({ base: { duration: 'PXYZ' } })).toBeNull();
+		expect(fromQtiVariableJson({ list: { duration: ['PT1S', 2] } })).toBeNull();
+		// The spec form still decodes to seconds.
+		expect(fromQtiVariableJson({ base: { duration: 'PT1M30S' } })).toBe(90);
+		expect(fromQtiVariableJson({ list: { duration: ['PT1S', 'PT2S'] } })).toEqual([1, 2]);
+	});
+
+	it('passes a value that is not variable JSON through unchanged', () => {
 		expect(fromQtiVariableJson('plain')).toBe('plain');
 	});
 
@@ -283,6 +316,25 @@ describe('Player with a conformant PCI', () => {
 		expect(player.getResponses().RESPONSE).toBe(90);
 		expect(player.processResponses().score).toBe(1);
 		player.destroy();
+	});
+
+	it('stores no response for a pair, duration or record that is not in the spec binding', async () => {
+		const pair = await mountPci(PAIR_ITEM, { base: { pair: 'A B' } });
+		expect(pair.player.getResponses().RESPONSE ?? null).toBeNull();
+		expect(pair.player.processResponses().score).toBe(0);
+		pair.player.destroy();
+
+		const duration = await mountPci(DURATION_ITEM, { base: { duration: 90 } });
+		expect(duration.player.getResponses().RESPONSE ?? null).toBeNull();
+		expect(duration.player.processResponses().score).toBe(0);
+		duration.player.destroy();
+
+		const record = await mountPci(RECORD_ITEM, {
+			record: { choice: { base: { identifier: 'A' } }, link: { base: { pair: ['B', 'C'] } } },
+		});
+		expect(record.player.getResponses().RESPONSE ?? null).toBeNull();
+		expect(record.player.processResponses().score).toBe(0);
+		record.player.destroy();
 	});
 
 	it('seeds a restored pair and duration as spec JSON state', async () => {
