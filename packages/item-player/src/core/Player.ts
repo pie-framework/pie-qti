@@ -1921,22 +1921,25 @@ export class Player {
 			if (!d) continue;
 			// Restore the declaration's default value first: template processing is
 			// skipped on restore (QTI ASI §10.3 fixes its effects for the session), so
-			// a default changed by setDefaultValue must come from the snapshot. Later
-			// resets (attempt starts, outcome resets at response-processing start,
-			// templateConstraint restarts) then use the restored default; a new template
-			// instance (newTemplate) starts from the declarations instead. A null
-			// defaultValue means the variable had no default value, so the declaration
-			// keeps the default parsed from the item XML.
-			if (v.defaultValue !== null) {
-				d.defaultValue = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.defaultValue, d.identifier);
-			}
+			// a default changed by setDefaultValue — including to NULL — must come from
+			// the snapshot. defaultValue is always serialized, so it applies as-is:
+			// null restores the NULL default a setDefaultValue rule set, never the
+			// default parsed from the item XML. Later resets (attempt starts, outcome
+			// resets at response-processing start, templateConstraint restarts) then
+			// use the restored default; a new template instance (newTemplate) starts
+			// from the declarations instead.
+			d.defaultValue = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.defaultValue, d.identifier);
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.value, d.identifier);
 			if ((d as any).__kind === 'response') {
 				// A correctResponse computed by setCorrectResponse is also a fixed
 				// template-rule effect; restoring it keeps a resumed session scoring
-				// identically to the session that was saved. A response without a
-				// correct response serializes without the field.
-				if (v.correctResponse != null) {
+				// identically to the session that was saved. The snapshot writes the
+				// field whenever the variable has or had a correct response, so it
+				// applies as-is: null restores the NULL correct response a
+				// setCorrectResponse rule set. When the field is absent the variable
+				// has no correct response, and the fresh declaration (parsed from the
+				// same item XML) has none either.
+				if (v.correctResponse !== undefined) {
 					d.correctResponse = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.correctResponse, d.identifier);
 				}
 				this.restorePciResponse(d.identifier, this.qtiValueToPci(d.value));
@@ -1992,9 +1995,11 @@ export class Player {
 		};
 		// A correctResponse is part of the session state a template rule
 		// (setCorrectResponse, QTI ASI §10.3) can compute, so it must survive a
-		// snapshot for the restored session to score identically. Optional field:
-		// only a response variable that has a correct response carries it.
-		if ((d as any).__kind === 'response' && d.correctResponse) {
+		// snapshot for the restored session to score identically. Written whenever
+		// the variable has or had a correct response — from the XML or from template
+		// processing — with null for a NULL correct response, so restore can tell
+		// "no correct response" (field absent) from "its correct response is NULL".
+		if ((d as any).__kind === 'response' && d.correctResponse !== undefined) {
 			variable.correctResponse = this.qtiValueToSerializable(d.correctResponse);
 		}
 		return variable;
