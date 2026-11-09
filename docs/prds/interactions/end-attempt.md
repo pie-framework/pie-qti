@@ -17,7 +17,7 @@
 
 ## Summary
 
-`endAttemptInteraction` is a control button embedded inside a QTI `assessmentItem`'s `<itemBody>`. It is not a content interaction — it collects no candidate-provided answer. Instead, clicking it terminates the current attempt and triggers response processing. It is only meaningful in adaptive items (`adaptive="true"`). Common deployments are "I don't know" buttons, "Request a Hint" buttons, and "Submit this attempt" buttons in multi-attempt scaffolded items. The response variable it binds to is a `boolean` (`true` when clicked, `null` otherwise) which response processing can branch on to change scores, set `completionStatus`, or reveal feedback.
+`endAttemptInteraction` is a control button embedded inside a QTI `assessmentItem`'s `<itemBody>`. It is not a content interaction — it collects no candidate-provided answer. Instead, clicking it terminates the current attempt and triggers response processing. It is most useful in adaptive items (`adaptive="true"`), though QTI does not restrict it to them. Common deployments are "I don't know" buttons, "Request a Hint" buttons, and "Submit this attempt" buttons in multi-attempt scaffolded items. The response variable it binds to is a `boolean` (`true` when clicking it ended the attempt, `false` when the attempt ended any other way) which response processing can branch on to change scores, set `completionStatus`, or reveal feedback.
 
 ---
 
@@ -141,13 +141,13 @@ A regular submit button in the player chrome submits all interactions at once, r
 
 - **baseType:** `boolean`
 - **cardinality:** `single`
-- **Value when clicked:** `true`
-- **Value when not clicked (null/default):** `null` (the response declaration has no `defaultValue`; the absence of a click leaves the variable at its initial `null` state)
+- **Value when clicked:** `true` while the response processing the click invokes runs, and after it
+- **Value otherwise:** `false` once response processing runs for any other reason: a different end-attempt interaction, or the default way of ending the attempt. The declared `defaultValue` is ignored (QTI 2.1 endAttemptInteraction; QTI 3.0 §5.45). Before the first attempt ends, the variable holds its initial value (`null` without a `defaultValue`). Rescoring (`scoreAttempt`) replays the last submission and leaves these values as they are.
 - **Standard response processing:** No standard template applies to `endAttemptInteraction` alone; it is always used with custom `responseCondition` branching. The evals use a minimal `responseCondition` that awards `SCORE=1` when `RESPONSE=true`.
 
 ### Adaptive item requirements
 
-The QTI spec states that `endAttemptInteraction` is only meaningful when `adaptive="true"` is set on the parent `assessmentItem`. Placing it in a non-adaptive item is not prohibited by the XML schema, and the engine defines its behavior fully: response processing runs, and with `countAttempt="false"` the attempt is not counted (`numAttempts` unchanged, `completionStatus` not forced to `completed`) so the session stays open and the candidate continues — hint buttons work on plain items, not only adaptive ones. With `countAttempt=true` (default), the counted attempt finalizes the non-adaptive item as before. The implementation does not warn or block when `endAttemptInteraction` appears in a non-adaptive item.
+QTI does not restrict `endAttemptInteraction` to adaptive items: QTI 2.1 and QTI 3.0 (§5.45) describe it as the candidate's control over ending an attempt, typically to request a hint. In a non-adaptive item the engine defines its behavior fully: response processing runs, and with `countAttempt="false"` the attempt is not counted (`numAttempts` unchanged, `completionStatus` not forced to `completed`) so the session stays open and the candidate continues — hint buttons work on plain items, not only adaptive ones. With `countAttempt=true` (default), the counted attempt finalizes the non-adaptive item as before. The implementation does not warn or block when `endAttemptInteraction` appears in a non-adaptive item.
 
 ### Who decides the submission: session ownership
 
@@ -162,10 +162,12 @@ In QTI 3.0, `endAttemptInteraction` maps to `qti-end-attempt-interaction`. The e
 
 ### Known gaps
 
-There are no open spec-gap items in `docs/SPEC-GAPS-PLAN.md` that apply directly to `endAttemptInteraction`. The following are implementation limitations rather than spec gaps:
+There are no open spec gaps for `endAttemptInteraction`.
 
-- **No warning for non-adaptive usage:** The extractor does not warn when `endAttemptInteraction` appears in an item where `adaptive="false"`. Item authors placing it in a non-adaptive item would get silent incorrect behaviour.
-- **Response reset between attempts:** The QTI spec requires that `endAttemptInteraction` response variables are reset to `null` between attempts so the previous-click state does not contaminate the next scoring pass. The current `hasEnded` state in the component is synchronised from the `response` prop, but the player must ensure the boolean is reset to `null` (not `false`) before re-enabling the session for a second attempt.
+Resolved:
+
+- **Response values during response processing (fixed 2026-11-09).** The QTI rule is: "If the candidate invokes response processing using an end-attempt interaction then the associated response variable is set to true. If response processing is invoked in any other way, either through a different end-attempt interaction or through the default method for the delivery engine, then the associated response variable is set to false. The default value of the response variable is always ignored" (QTI 2.1 endAttemptInteraction; QTI 3.0 §5.45). The player applies this rule on every candidate attempt (`settleEndAttemptResponses` in `Player`). An interaction invokes processing when the candidate turned its response true since the attempt last ended; a value restored with a session invokes nothing. Earlier, a hint pressed in one attempt still read `true` in later attempts, and an interaction never pressed read `null` or its default.
+- **Non-adaptive items (no longer a gap).** QTI permits the interaction in non-adaptive items, and the engine defines its behavior there (see [Adaptive item requirements](#adaptive-item-requirements)), so no warning is needed.
 
 ---
 

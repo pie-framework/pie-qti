@@ -198,6 +198,11 @@ export class Player {
 	private _pnpChangeListeners = new Set<(pnp: PnpProfile | undefined) => void>();
 	private sessionGuid: string;
 	private lifecycleStatus: ItemLifecycleStatus = 'initial';
+	/**
+	 * End-attempt responses the candidate turned true since the attempt last ended: the
+	 * interactions that invoke the next response processing (see settleEndAttemptResponses).
+	 */
+	private readonly endAttemptActivations = new Set<string>();
 	private diagnostics: readonly QtiItemDiagnostic[] = [];
 	/** matchGroup constraints of the item's pairing interactions, by response identifier. */
 	private matchGroupConstraints: ReadonlyMap<string, MatchGroupConstraints> = new Map();
@@ -593,7 +598,13 @@ export class Player {
 	 * in-progress module state.
 	 */
 	public setResponses(responses: Record<string, unknown>): void {
+		const endAttemptIds = this.getEndAttemptResponseIdentifiers().filter((id) => id in responses);
+		const wasTrue = new Set(endAttemptIds.filter((id) => this.isResponseTrue(id)));
 		this.applyResponses(responses, (id, value) => this.offerPciResponse(id, value));
+		for (const id of endAttemptIds) {
+			if (!this.isResponseTrue(id)) this.endAttemptActivations.delete(id);
+			else if (!wasTrue.has(id)) this.endAttemptActivations.add(id);
+		}
 	}
 
 	/**
@@ -602,6 +613,8 @@ export class Player {
 	 */
 	public restoreResponses(responses: Record<string, unknown>): void {
 		this.applyResponses(responses, (id, value) => this.restorePciResponse(id, value));
+		// A replaced value is the state as it stands, not the candidate activating an interaction.
+		for (const id of Object.keys(responses)) this.endAttemptActivations.delete(id);
 	}
 
 	private applyResponses(
@@ -661,6 +674,7 @@ export class Player {
 	public restoreItemSession(state: SerializedItemSessionState): void {
 		this.sessionGuid = state.sessionGuid;
 		this.interactionDataCache = null;
+		this.endAttemptActivations.clear();
 		this.lifecycleStatus = state.lifecycleStatus;
 		this.accumulatedDurationMs = Math.max(0, Number(state.duration) || 0);
 		this.sessionStartedAt = Date.now();
@@ -730,6 +744,8 @@ export class Player {
 		// feedback compute, but the attempt is not counted and the session stays open for the
 		// candidate to continue — only a counted attempt finalizes a non-adaptive item.
 		const countAttempt = options.countAttempt ?? true;
+		// The adaptive path settles the end-attempt responses in runAdaptiveSubmitAttempt.
+		if (!this.isAdaptive()) this.settleEndAttemptResponses();
 		const scoring = this.isAdaptive()
 			? this.runAdaptiveSubmitAttempt(countAttempt)
 			: this.runResponseProcessing({
@@ -889,6 +905,7 @@ export class Player {
 	}
 
 	private resetResponsesToDefault(): void {
+		this.endAttemptActivations.clear();
 		for (const d of Object.values(this.decls)) {
 			if ((d as any).__kind !== 'response') continue;
 			this.ctx.resetToDefault(d.identifier);
@@ -1119,6 +1136,34 @@ export class Player {
 			.map((i: any) => i.responseIdentifier);
 	}
 
+	private getEndAttemptResponseIdentifiers(): string[] {
+		return this.getInteractions()
+			.filter((i) => i.type === 'endAttemptInteraction')
+			.map((i) => i.responseIdentifier);
+	}
+
+	private isResponseTrue(responseIdentifier: string): boolean {
+		return toBoolean(this.ctx.getValue(responseIdentifier));
+	}
+
+	/**
+	 * QTI endAttemptInteraction (QTI 3.0 §5.45): "If the candidate invokes response processing
+	 * using an end-attempt interaction then the associated response variable is set to true. If
+	 * response processing is invoked in any other way […] then the associated response variable
+	 * is set to false. The default value of the response variable is always ignored." The
+	 * interactions that invoke this attempt's processing are the ones the candidate turned true
+	 * since the attempt last ended; a value restored with the session invokes nothing. Rescoring
+	 * (scoreAttempt) replays the last submission and leaves these responses as they are.
+	 */
+	private settleEndAttemptResponses(): void {
+		for (const id of this.getEndAttemptResponseIdentifiers()) {
+			const d = this.decls[id];
+			if (!d) continue;
+			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, this.endAttemptActivations.has(id), d.identifier);
+		}
+		this.endAttemptActivations.clear();
+	}
+
 	public getResponseIdentifiers(): string[] {
 		return this.getResponseInteractions().map((i) => i.responseIdentifier);
 	}
@@ -1144,6 +1189,7 @@ export class Player {
 		if (this.isCompleted()) {
 			throw new Error('Cannot submit: item is already completed');
 		}
+		this.settleEndAttemptResponses();
 
 		// QTI adaptive semantics: numAttempts should reflect the attempt being processed.
 		if (this.isAdaptive() && countAttempt) {
