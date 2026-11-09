@@ -61,7 +61,7 @@ describe('readPieResourceLom', () => {
     });
   });
 
-  test('reads the legacy source prefix, the current one winning per key', () => {
+  test('ignores classifications under the pre-rename source prefix', () => {
     const lom = readPieResourceLom(
       manifest(
         [
@@ -72,7 +72,7 @@ describe('readPieResourceLom', () => {
       )
     );
 
-    expect(lom.get('item1')?.extensions).toEqual({ subject: 'Math', dok: 3 });
+    expect(lom.get('item1')?.extensions).toEqual({ subject: 'Math' });
   });
 
   test('ignores classifications from other taxonomies', () => {

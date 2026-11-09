@@ -272,7 +272,6 @@ export default {
 		hottext: {
 			selected: 'محدد:',
 			selectText: 'اختر نصًا من الفقرة',
-			clearSelection: 'مسح التحديد',
 			ariaLabel: 'تفاعل تحديد النص',
 			selectableState: 'قابل للاختيار',
 			selectedState: 'مُختار',

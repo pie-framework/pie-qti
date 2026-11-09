@@ -214,7 +214,6 @@ export default {
 		hottext: {
 			selected: 'เลือกแล้ว:',
 			selectText: 'เลือกข้อความจากข้อความ',
-			clearSelection: 'ล้างการเลือก',
 			ariaLabel: 'การโต้ตอบการเลือกข้อความ',
 			selectableState: 'เลือกได้',
 			selectedState: 'เลือกแล้ว',

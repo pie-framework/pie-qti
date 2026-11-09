@@ -512,12 +512,6 @@ export type StandardInteractionData =
 	| EndAttemptInteractionData;
 
 /**
- * QTI interaction type identifier
- * Extensible string type allows custom interaction types
- */
-export type InteractionType = string;
-
-/**
  * Map interaction types to their data structures
  * TypeScript will ensure registrations use the correct data type
  */

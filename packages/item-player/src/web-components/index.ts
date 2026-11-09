@@ -9,12 +9,7 @@ export {
 	QTIChangeEvent,
 	type InteractionResponseValue,
 	type QTIChangeEventDetail,
-	QTIErrorEvent,
-	type QTIErrorEventDetail,
 	type QTIInteractionElement,
-	QTIReadyEvent,
-	QTISelectionChangeEvent,
-	type QTISelectionChangeEventDetail,
 } from './QTIInteractionElement.js';
 
 // Note: Web component implementations are provided by separate packages

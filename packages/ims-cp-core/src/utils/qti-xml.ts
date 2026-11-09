@@ -134,8 +134,7 @@ export function extractExtensionsFromQtiXml(xmlContent: string): Record<string, 
 	if (pieExtensionMatch && pieExtensionMatch[1]) {
 		try {
 			const sourceModel = JSON.parse(pieExtensionMatch[1].trim());
-			// `searchMetaData` is the bag's name in PIE items written before `extensions`
-			const extensions = sourceModel.extensions ?? sourceModel.searchMetaData;
+			const extensions = sourceModel.extensions;
 			if (extensions) {
 				return extensions;
 			}

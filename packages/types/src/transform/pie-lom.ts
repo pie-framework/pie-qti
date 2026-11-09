@@ -10,8 +10,6 @@
  *   {@link PIE_LOM_EXTENSION_SOURCE} followed by the key, with one taxon entry per value (per element
  *   for an array). A value other than a string also carries its JSON in the classification's `description`, so
  *   the read-back keeps its type. The classification has no `purpose`.
- * - Import also reads {@link PIE_LOM_LEGACY_EXTENSION_SOURCE}, which packages exported before the
- *   bag was named `extensions` carry.
  */
 
 /** LOM `general/identifier/catalog` of a PIE item's `baseId`. */
@@ -19,9 +17,6 @@ export const PIE_LOM_BASE_ID_CATALOG = 'pie:baseId';
 
 /** Prefix of the LOM `classification/taxonPath/source` of a PIE `extensions` key. */
 export const PIE_LOM_EXTENSION_SOURCE = 'pie:extension:';
-
-/** Earlier prefix of {@link PIE_LOM_EXTENSION_SOURCE}; read on import, never written. */
-export const PIE_LOM_LEGACY_EXTENSION_SOURCE = 'pie:searchMetaData:';
 
 /**
  * `curriculumStandards` and `skillLevels` travel on the item's `<resource>` in a QTI 3 package:

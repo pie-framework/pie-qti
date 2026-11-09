@@ -83,7 +83,7 @@
 ### Known gaps
 
 - **G-09 (PNP elimination tool):** Implemented for `choiceInteraction`; when `pnp.cognitive.eliminationTool` is enabled, each choice can be visually eliminated without removing it from the response pool. Each toggle is named from its localized action ("Eliminate"/"Restore") plus the rendered choice text via `aria-labelledby`, and is a 44×44 px target.
-- **G-13 (PNP structural labels):** Done. The choice set is announced as one `role="group"` associated with the prompt via `aria-labelledby` by default (no longer gated on `pnp.display.structuredLabelSupport`; the prop is kept for API compatibility). Without a prompt the group gets a localized generic name; an authored accessibility name still wins. Markup contract and NVDA checklist in `packages/item-player/docs/PNP.md`; tracked as Done in `docs/SPEC-GAPS-PLAN.md`.
+- **G-13 (PNP structural labels):** Done. The choice set is always announced as one `role="group"` associated with the prompt via `aria-labelledby`; `pnp.display.structuredLabelSupport` does not change choice rendering (it switches only the match interaction's group and column labels). Without a prompt the group gets a localized generic name; an authored accessibility name still wins. Markup contract and NVDA checklist in `packages/item-player/docs/PNP.md`; tracked as Done in `docs/SPEC-GAPS-PLAN.md`.
 - **`minChoices` not enforced:** The spec requires the player to treat the response as incomplete if fewer than `minChoices` identifiers are selected. Not extracted or validated.
 
 ---

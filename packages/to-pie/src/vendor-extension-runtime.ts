@@ -5,7 +5,7 @@ import type {
   ResolvedAsset,
   VendorClasses,
   VendorInfo,
-} from './types/vendor-extensions.js';
+} from '@pie-qti/transform-types';
 
 export interface ResolveAssetWithHooksInput {
   resolvers: readonly AssetResolver[];

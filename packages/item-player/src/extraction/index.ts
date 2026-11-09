@@ -60,6 +60,6 @@ export type {
 	ValidationResult,
 	ExtractionVariableDeclaration,
 } from './types.js';
-export { ExtractionError, isErrorResult, isSuccessResult } from './types.js';
+export { ExtractionError } from './types.js';
 // Utilities
 export { createExtractionUtils } from './utils.js';

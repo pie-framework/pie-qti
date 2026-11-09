@@ -154,10 +154,9 @@ describe('ChoiceInteraction (pie-qti-choice)', () => {
 		expect(q(mounted, 'label[part="label"] .badge')?.textContent).toContain('Correct');
 	});
 
-	test('structured labels: the answer set is one group named by the prompt', async () => {
+	test('the answer set is always one group named by the prompt', async () => {
 		const mounted = mountInteraction(ChoiceInteraction, {
 			interaction: choiceData(),
-			structuredLabelSupport: true,
 		});
 		await settle();
 
@@ -169,22 +168,11 @@ describe('ChoiceInteraction (pie-qti-choice)', () => {
 		// Without a prompt the group falls back to a localized generic name.
 		const unnamed = mountInteraction(ChoiceInteraction, {
 			interaction: choiceData({ prompt: null }),
-			structuredLabelSupport: true,
 		});
 		await settle();
 		const unnamedRoot = q(unnamed, '[part="root"]');
 		expect(unnamedRoot?.getAttribute('role')).toBe('group');
 		expect(unnamedRoot?.getAttribute('aria-label')).toBe('Answer choices');
-	});
-
-	test('the group is always associated with the prompt, even without the structured-label PNP', async () => {
-		const mounted = mountInteraction(ChoiceInteraction, { interaction: choiceData() });
-		await settle();
-
-		const root = q(mounted, '[part="root"]');
-		const prompt = q(mounted, '[part="prompt"]');
-		expect(root?.getAttribute('role')).toBe('group');
-		expect(root?.getAttribute('aria-labelledby')).toBe(prompt?.id);
 	});
 
 	test('an authored accessible name still beats the prompt', async () => {

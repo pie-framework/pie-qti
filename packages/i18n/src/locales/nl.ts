@@ -213,7 +213,6 @@ export default {
 		hottext: {
 			selected: 'Geselecteerd:',
 			selectText: 'Selecteer tekst uit de passage',
-			clearSelection: 'Selectie wissen',
 			ariaLabel: 'Tekstselectie-interactie',
 			selectableState: 'Selecteerbaar',
 			selectedState: 'Geselecteerd',

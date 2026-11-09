@@ -78,15 +78,6 @@ export interface ResponseDeclaration extends VariableDeclaration {
 	correctResponse?: any;
 }
 
-export interface OutcomeDeclaration extends VariableDeclaration {
-	interpretation?: string;
-	longInterpretation?: string;
-	normalMaximum?: number;
-	normalMinimum?: number;
-	masteryValue?: number;
-	views?: string[];
-}
-
 /** @internal Private engine snapshot shape; use SerializedItemSessionState. */
 export interface ItemSessionState {
 	[variableId: string]: any;
@@ -157,11 +148,6 @@ export interface ItemSessionActionResult {
 	sessionState: SerializedItemSessionState;
 	validation?: ResponseValidationResult;
 	scoring?: ScoringResult;
-}
-
-/** @internal Private engine response map. */
-export interface InteractionResponse {
-	[responseId: string]: any;
 }
 
 /**
@@ -463,14 +449,6 @@ export interface ParsingLimitsConfig {
 	 * Maximum element depth sanitized per HTML input. Enforced when enabled.
 	 */
 	maxHtmlDepth?: number;
-}
-
-export interface InteractionContext {
-	responseIdentifier: string;
-	maxChoices?: number;
-	minChoices?: number;
-	shuffle?: boolean;
-	orientation?: 'horizontal' | 'vertical';
 }
 
 export * from './responseValidation.js';

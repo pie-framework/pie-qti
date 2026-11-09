@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="param-variable-object"
+  title="templateDeclaration paramVariable object param"
+  adaptive="false"
+  timeDependent="false">
+
+  <templateDeclaration identifier="LEVEL" cardinality="single" baseType="integer" paramVariable="true">
+    <defaultValue><value>0</value></defaultValue>
+  </templateDeclaration>
+
+  <templateDeclaration identifier="PLAIN" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </templateDeclaration>
+
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="integer"/>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0.0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <templateProcessing>
+    <setTemplateValue identifier="LEVEL">
+      <randomInteger min="4" max="4"/>
+    </setTemplateValue>
+    <setTemplateValue identifier="PLAIN">
+      <randomInteger min="7" max="7"/>
+    </setTemplateValue>
+  </templateProcessing>
+
+  <itemBody>
+    <p>Load the widget with the computed level.</p>
+    <object data="widget.swf" type="application/x-plugin" width="320" height="240">
+      <param name="level" value="LEVEL" valuetype="DATA"/>
+      <param name="plain" value="PLAIN" valuetype="DATA"/>
+      <param name="ghost" value="UNDECLARED" valuetype="DATA"/>
+    </object>
+    <textEntryInteraction responseIdentifier="RESPONSE" expectedLength="5"/>
+  </itemBody>
+
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="RESPONSE"/>
+          <variable identifier="LEVEL"/>
+        </match>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="float">1</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>
