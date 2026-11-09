@@ -92,14 +92,19 @@ export interface SerializedItemSessionVariable {
 	value: any;
 	/**
 	 * The variable's default value for this session, which a setDefaultValue
-	 * template rule can change; null when the variable has no default value.
+	 * template rule can change (QTI 2.1 ASI §8 / QTI 3.0 ASI §10: template-rule
+	 * effects are fixed for the session); null when the variable has no default
+	 * value. Restore applies it as-is, so null restores a NULL default rather
+	 * than the default parsed from the item XML.
 	 */
 	defaultValue: any;
 	/**
 	 * The response declaration's correct response for this session, including one
-	 * computed by a setCorrectResponse template rule (QTI ASI §10.3: templateRule
-	 * effects are fixed for the session). Present only on response variables that
-	 * have a correct response.
+	 * computed by a setCorrectResponse template rule (QTI 2.1 ASI §8 / QTI 3.0 ASI
+	 * §10: template-rule effects are fixed for the session). Present on every
+	 * response variable that has or had a correct response, with null meaning the
+	 * correct response is NULL; absent when the variable has no correct response.
+	 * Restore applies it as-is when present.
 	 */
 	correctResponse?: any;
 }

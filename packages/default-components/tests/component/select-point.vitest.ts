@@ -243,3 +243,45 @@ describe('SelectPointInteraction (pie-qti-select-point)', () => {
 		}
 	});
 });
+
+// createInteractionShell's rule: correct-answer mode is the scorer's view of an item that has a
+// correct response. Hosts pass null when the item declares none; a scorer then sees the
+// interaction as a candidate does. Only `disabled` stops interaction.
+describe('SelectPointInteraction correct-answer mode: role × correct response', () => {
+	test.each([
+		['candidate', ['100 100'], false],
+		['candidate', null, false],
+		['scorer', ['100 100'], true],
+		['scorer', null, false],
+	] as const)('%s, correct response %j: correct-answer mode is %s, and placing emits', async (role, correctResponse, correctMode) => {
+		const mounted = mountInteraction(SelectPointInteraction, { interaction: selectPointData(), role, correctResponse });
+		await settle();
+
+		expect(q(mounted, '[part="correct-points"]') !== null).toBe(correctMode);
+		expect(qa(mounted, '[part="correct-point"]')).toHaveLength(correctMode ? 1 : 0);
+
+		const area = surface(mounted);
+		area.focus();
+		await settle();
+		pressKey(area, 'Enter');
+		await settle();
+		// The crosshair starts at the centre: 50% of 500 and of 300, in natural image pixels.
+		expect(mounted.events.at(-1)?.detail).toMatchObject({ responseId: 'RESPONSE', value: '250 150' });
+		cleanupInteraction(mounted);
+	});
+
+	test('disabled stops placement for a scorer without a correct response too', async () => {
+		const mounted = mountInteraction(SelectPointInteraction, {
+			interaction: selectPointData(),
+			role: 'scorer',
+			correctResponse: null,
+			disabled: true,
+		});
+		await settle();
+
+		pressKey(surface(mounted), 'Enter');
+		await settle();
+		expect(mounted.events).toHaveLength(0);
+		cleanupInteraction(mounted);
+	});
+});

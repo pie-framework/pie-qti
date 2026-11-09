@@ -483,3 +483,45 @@ describe('PositionObjectInteraction (pie-qti-position-object)', () => {
 		cleanupInteraction(mounted);
 	});
 });
+
+// createInteractionShell's rule: correct-answer mode is the scorer's view of an item that has a
+// correct response. Hosts pass null when the item declares none; a scorer then sees the
+// interaction as a candidate does. Only `disabled` stops interaction.
+describe('PositionObjectInteraction correct-answer mode: role × correct response', () => {
+	test.each([
+		['candidate', ['100 100'], false],
+		['candidate', null, false],
+		['scorer', ['100 100'], true],
+		['scorer', null, false],
+	] as const)('%s, correct response %j: correct-answer mode is %s, and placing emits', async (role, correctResponse, correctMode) => {
+		const mounted = mountInteraction(PositionObjectInteraction, { interaction: positionData(), role, correctResponse });
+		await settle();
+
+		expect(qa(mounted, '[part="correct-placed"]')).toHaveLength(correctMode ? 1 : 0);
+
+		pressKey(paletteItem(mounted), 'Enter');
+		await settle();
+		pressKey(canvas(mounted), 'Enter');
+		await settle();
+		// The crosshair starts at the centre: 50% of 600 and of 400, in natural image pixels.
+		expect(mounted.events.at(-1)?.detail).toMatchObject({ value: ['300 200'] });
+		cleanupInteraction(mounted);
+	});
+
+	test('disabled stops placement for a scorer without a correct response too', async () => {
+		const mounted = mountInteraction(PositionObjectInteraction, {
+			interaction: positionData(),
+			role: 'scorer',
+			correctResponse: null,
+			disabled: true,
+		});
+		await settle();
+
+		pressKey(paletteItem(mounted), 'Enter');
+		await settle();
+		pressKey(canvas(mounted), 'Enter');
+		await settle();
+		expect(mounted.events).toHaveLength(0);
+		cleanupInteraction(mounted);
+	});
+});

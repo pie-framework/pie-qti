@@ -183,6 +183,7 @@ export default {
 				other: 'เขียนอย่างน้อย {count} คำตอบ',
 			},
 			minStringsRemoveRefused: 'ไม่ได้ลบคำตอบ: ต้องมีอย่างน้อย {count} คำตอบ',
+			patternMismatch: 'คำตอบนี้ไม่อยู่ในรูปแบบที่กำหนด',
 		},
 
 		mathInput: {
@@ -321,6 +322,7 @@ export default {
 			minPlacementsHint: 'ยังต้องวางในช่องว่าง: {words}',
 			notCompatibleSentence: 'ไม่เข้ากันกับคำที่เลือก',
 			wordRemovedFromBlanks: 'ลบ {word} ออกจากช่องว่างแล้ว',
+			requiredBlanksLegend: 'ช่องว่างที่มีเครื่องหมาย * จำเป็นต้องเติม',
 		},
 
 		graphicGapMatch: {

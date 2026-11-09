@@ -13,7 +13,7 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import SortableList, { type SortableIndexLabels } from '../../shared/components/SortableList.svelte';
 	import OrderSubset from '../../shared/components/OrderSubset.svelte';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
@@ -35,11 +35,15 @@
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), typeset, onChange, eliminationTool = false }: Props = $props();
 
-	// Parse props that may be JSON strings (web component usage)
-	const parsedInteraction = $derived(parseJsonProp<OrderInteractionData>(interaction));
-	const parsedResponse = $derived(parseJsonProp<string[]>(response));
-	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
-	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+	// Parse props that may be JSON strings (web component usage). Correct-answer mode is the
+	// scorer's view of an item that has a correct response (the shared shell's rule).
+	const shell = $derived(
+		createInteractionShell<OrderInteractionData, string[], string[]>({ interaction, response, correctResponse, role }),
+	);
+	const parsedInteraction = $derived(shell.interaction);
+	const parsedResponse = $derived(shell.response);
+	const parsedCorrectResponse = $derived(shell.correctResponse);
+	const isShowingCorrect = $derived(shell.isShowingCorrect);
 	const classes = $derived(parsedInteraction?.interactionClasses ?? []);
 	const orientation = $derived(
 		classes.includes('qti-orientation-horizontal') ||

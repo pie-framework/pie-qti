@@ -182,6 +182,7 @@ export default {
 				other: 'Schrijf ten minste {count} antwoorden.',
 			},
 			minStringsRemoveRefused: 'Antwoord niet verwijderd: er zijn ten minste {count} antwoorden nodig.',
+			patternMismatch: 'Dit antwoord heeft niet de verwachte notatie.',
 		},
 
 		mathInput: {
@@ -320,6 +321,7 @@ export default {
 			minPlacementsHint: 'Nog te plaatsen in de lege plekken: {words}.',
 			notCompatibleSentence: 'Niet compatibel met het geselecteerde woord.',
 			wordRemovedFromBlanks: '{word} verwijderd uit de gaten.',
+			requiredBlanksLegend: 'Lege plekken met een * zijn verplicht.',
 		},
 
 		graphicGapMatch: {
