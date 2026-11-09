@@ -42,7 +42,7 @@ export type {
 } from './sandbox/protocol.js';
 export type { PciLoadContext, PciModuleSession } from './moduleSession.js';
 export { fromQtiVariableJson, toQtiVariableJson } from './qtiVariableJson.js';
-export type { QtiRecordField, QtiVariableJsonDeclaration } from './qtiVariableJson.js';
+export type { QtiRecordField } from './qtiVariableJson.js';
 export type {
 	ExtractedPci,
 	PciConfiguration,
