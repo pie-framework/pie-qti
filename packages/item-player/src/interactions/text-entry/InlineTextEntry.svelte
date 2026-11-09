@@ -3,6 +3,7 @@
 	import { xsdPatternSource } from '@pie-qti/qti-processing';
 	import type { InlineInteractionPosition } from '../../presentation/itemPresentationPlan.js';
 	import { inlineInteractionLabel, textEntryPatternMessage } from '../inline/accessibleName.js';
+	import { textEntryInputStyle } from './inlineInputStyle.js';
 	import { textEntryInputMode } from './inputMode.js';
 	import type { TextEntryInteractionData } from '../shared/types.js';
 
@@ -54,6 +55,7 @@
 	const inputMode = $derived(textEntryInputMode(interaction));
 	const inputWidthClass = $derived((interaction.interactionClasses ?? []).find((className) => className.startsWith('qti-input-width-')));
 	const extraClasses = $derived((interaction.interactionClasses ?? []).filter((className) => !className.startsWith('qti-input-width-')).join(' '));
+	const inputStyle = $derived(textEntryInputStyle(interaction, inputWidthClass ? { widthClass: inputWidthClass } : undefined));
 	const describedBy = $derived(
 		[interaction.accessibility?.description ? descriptionId : '', contextId ?? '', validationError ? errorId : '']
 			.filter(Boolean)
@@ -87,7 +89,7 @@
 <input
 	type="text"
 	class={['qti-inline-input', correctAnswer !== null ? 'qti-inline-input-correct' : '', inputWidthClass ?? '', extraClasses].filter(Boolean).join(' ')}
-	style={inputWidthClass ? 'min-width: 100px; display: inline-block; margin: 0 4px;' : `width: ${interaction.expectedLength * 8}px; min-width: 100px; display: inline-block; margin: 0 4px;`}
+	style={inputStyle}
 	placeholder={interaction.placeholderText || translate(i18n, 'interactions.inline.placeholder', '...')}
 	pattern={interaction.patternMask ? xsdPatternSource(interaction.patternMask) : undefined}
 	data-format={interaction.format || undefined}
