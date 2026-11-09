@@ -59,7 +59,9 @@ The section tool bar composes external tool packages from the sibling
 
 - `@pie-players/pie-assessment-toolkit` — generic tool framework (coordinator, registry),
 - `@pie-players/pie-default-tool-loaders` — dynamic loaders for the bundled tools,
-- `@pie-players/pie-tool-calculator-desmos` and `@pie-players/pie-tool-tts-inline` — the tools.
+- `@pie-players/pie-tool-calculator-desmos` and `@pie-players/pie-tool-tts-inline` — the tools,
+- `@pie-players/pie-players-shared` and `@pie-players/pie-i18n-generated` — the toolkit's interface
+  catalogs.
 
 These packages are pinned to **exact matching versions** because they inter-depend internally with
 exact pins; upgrading requires bumping all of them in lockstep (toolkit registry classes must not
@@ -67,15 +69,35 @@ be loaded twice under different version strings). `pie-calculator-desmos` and `t
 are declared directly as well: the tool bar's Svelte sources, compiled into
 `@pie-qti/player-elements`, reach them.
 
-The tool bar gives the toolkit the section's interface locale through its `locale` attribute. The
-toolkit stamps that locale's `lang` and `dir` and renders its own chrome (tool names, read-aloud
-controls, tool panel controls) from its own catalogs, not from the section's `I18nProvider`. The
-packages stay on `1.0.0-beta.7` for that reason: from `1.0.0-beta.9`,
-`@pie-players/pie-players-shared` bundles only the English catalog and moves every other locale
-to the optional `@pie-players/pie-i18n-generated` package, so a newer toolkit renders a Dutch (or
-any non-English) interface in English. Upgrading means adding that package and passing the
-toolkit an `i18n` provider whose catalog loader falls back to it;
-`apps/demo/tests/playwright/section-toolkit-locale.pw.ts` fails until then.
+### Tool bar interface locale
+
+The toolkit renders its own chrome (tool names, read-aloud controls, tool panel controls) from its
+own catalogs, not from the section's `I18nProvider`. The tool bar gives it the section's interface
+locale through its `locale` attribute, plus a provider over those catalogs through its `i18n`
+property. The provider is composed as pie-players documents for its two catalog tiers:
+`loadBundledCatalog(locale).catch(() => loadGeneratedCatalog(locale))`
+(`src/tools/toolkit-i18n.ts`).
+
+- **English** is the bundled tier, `@pie-players/pie-players-shared`. It is statically resident,
+  so an English tool bar fetches nothing.
+- **Every other locale** comes from `@pie-players/pie-i18n-generated`: Dutch, Arabic, Spanish,
+  French, Romanian, Thai, Chinese and the rest that package ships. The section player imports it
+  only dynamically, the first time a tool bar needs a non-English locale. Each locale's catalog is
+  a lazy chunk of its own, fetched only for a tool bar in that locale and shared by every tool bar
+  on the page. Keep the import dynamic: a static import would put the tier's loader map in every
+  bundle. `tests/tools/toolkit-i18n.test.ts` fails on a static one.
+- **Regional tags** reach their language (`es-MX` → `es`, `nl-BE` → `nl-NL`). The toolkit stamps
+  the `lang` of the catalog it renders, and the matching `dir`.
+- **A locale neither tier ships** renders English under its own tag. So does the pseudo-locale
+  `ar-XB`, which stays right-to-left instead of resolving to the Arabic catalog. The pseudo-locales
+  never fetch a catalog.
+
+The catalog loads before the toolkit renders, so a non-English tool bar does not appear in English
+first. If the generated package cannot load, the tool bars render in English and the section player
+warns once. `apps/demo/tests/playwright/section-toolkit-locale.pw.ts` covers English, Dutch, Arabic
+and regional Spanish, and checks that an English page fetches no generated catalog.
+
+### Packaged tools
 
 The tool bars register four packaged tools: `textToSpeech`, `calculator`, `ruler` and
 `protractor`. The ruler and protractor load through the loaders package's lazy module loaders when
