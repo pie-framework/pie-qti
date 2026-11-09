@@ -17,7 +17,7 @@
 	import { AssessmentPlayer } from '../core/AssessmentPlayer.js';
 	import type { AutosaveState } from '../core/AutosaveManager.js';
 	import { assessmentErrorDisplay, isAssessmentPlayerError, isSubmissionBlockedError } from '../core/errors.js';
-	import { TimeManager } from '../core/TimeManager.js';
+	import { formatTime } from '../core/formatTime.js';
 	import type { ReviewGroup } from './ReviewScreen.svelte';
 	import type { BackendAdapter, InitSessionRequest } from '../integration/api-contract.js';
 	import { toSectionComposition } from '../integration/toSectionComposition.js';
@@ -361,7 +361,7 @@
 				? i18n.t('assessment.start.timeMinutesOne', 'You have 1 minute.')
 				: i18n.t('assessment.start.timeMinutes', 'You have {count} minutes.', { count: minutes });
 		}
-		return i18n.t('assessment.start.timeExact', 'You have {time}.', { time: TimeManager.formatTime(seconds, (value, opts) => format(value, opts)) });
+		return i18n.t('assessment.start.timeExact', 'You have {time}.', { time: formatTime(seconds, (value, opts) => format(value, opts)) });
 	});
 
 	// Review data: recomputed when the item, its responses or flags change. The core
