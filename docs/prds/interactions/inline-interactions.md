@@ -89,7 +89,8 @@ The extractor reads and exposes `patternMask` as a string on `TextEntryInteracti
 | `patternMask` | ✅ Extracted, ❌ not enforced | Stored in `TextEntryInteractionData.patternMask`; not wired to `<input pattern>` (G-04) |
 | `placeholderText` | ✅ Full | Extracted and rendered as the `placeholder` attribute on the `<input>` |
 | `format` | ❌ Not extracted | QTI 2.2 display-format hint; not in `TextEntryData` (G-03) |
-| `base` | ❌ Not extracted | Numeric base hint for integer responses; not extracted or used |
+| `base` | ✅ Full | Extracted when it is 2–36 and not 10; the player reads typed text for an `integer` or `float` response in that base (`101` in base 2 is 5) |
+| `stringIdentifier` | ✅ Full | Extracted as `stringIdentifier`. Every change also sets the string response it names to the text as entered, before the numeric response reads it (`3.50` where a float response is 3.5, `101` where a base-2 integer response is 5), or NULL when the field is empty; a restored session shows that text in the field. Ignored when it repeats `responseIdentifier` or names no declared response |
 
 #### Known gaps
 
@@ -147,6 +148,7 @@ The extractor reads and exposes `patternMask` as a string on `TextEntryInteracti
 - **FR-T4:** The response value stored must be the raw string typed by the candidate. No trimming, normalisation, or type coercion is applied by the renderer; coercion is the scoring layer's responsibility.
 - **FR-T5:** When `patternMask` is present in the extracted data, it must (once G-04 is resolved) be wired to the `pattern` attribute of the `<input>` and must trigger an accessible validation message when violated.
 - **FR-T6:** A numeric response (`baseType` `integer` or `float`) requests a numeric on-screen keyboard (`inputmode="numeric"` or `"decimal"`) only when its `patternMask` provably excludes `-` (for example `^[0-9]+$`): phone number pads offer no minus key, so a negative answer must stay typable. Every other response keeps the default text keyboard.
+- **FR-T7:** When `stringIdentifier` names a declared response other than the interaction's own, every change to the field sets that response to the text as entered, before the numeric response reads it (`3.50` where a float response is 3.5), or NULL when the field is empty. The field shows the companion's text while it is present, so a restored session reads "3.50" as typed rather than as 3.5. It keys no completion or validation: those read the main response only.
 
 ### `inlineChoiceInteraction`
 

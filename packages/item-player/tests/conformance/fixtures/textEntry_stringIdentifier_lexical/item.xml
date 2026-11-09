@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="textEntry_stringIdentifier_lexical" title="textEntryInteraction stringIdentifier lexical companion" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="NUM10" cardinality="single" baseType="float">
+    <correctResponse><value>3.5</value></correctResponse>
+  </responseDeclaration>
+  <responseDeclaration identifier="STR10" cardinality="single" baseType="string"/>
+  <responseDeclaration identifier="NUM2" cardinality="single" baseType="integer"/>
+  <responseDeclaration identifier="STR2" cardinality="single" baseType="string"/>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="NUMERIC" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="SCORE2" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Write three and a half to two decimal places: <textEntryInteraction responseIdentifier="NUM10" stringIdentifier="STR10" expectedLength="6"/></p>
+    <p>Write five in binary: <textEntryInteraction responseIdentifier="NUM2" stringIdentifier="STR2" base="2" expectedLength="6"/></p>
+  </itemBody>
+
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <stringMatch caseSensitive="true" substring="false">
+          <variable identifier="STR10"/>
+          <baseValue baseType="string">3.50</baseValue>
+        </stringMatch>
+        <setOutcomeValue identifier="SCORE"><baseValue baseType="float">1</baseValue></setOutcomeValue>
+      </responseIf>
+      <responseElse>
+        <setOutcomeValue identifier="SCORE"><baseValue baseType="float">0</baseValue></setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="NUM10"/>
+          <correct identifier="NUM10"/>
+        </match>
+        <setOutcomeValue identifier="NUMERIC"><baseValue baseType="float">1</baseValue></setOutcomeValue>
+      </responseIf>
+      <responseElse>
+        <setOutcomeValue identifier="NUMERIC"><baseValue baseType="float">0</baseValue></setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+    <responseCondition>
+      <responseIf>
+        <stringMatch caseSensitive="true" substring="false">
+          <variable identifier="STR2"/>
+          <baseValue baseType="string">101</baseValue>
+        </stringMatch>
+        <setOutcomeValue identifier="SCORE2"><baseValue baseType="float">1</baseValue></setOutcomeValue>
+      </responseIf>
+      <responseElse>
+        <setOutcomeValue identifier="SCORE2"><baseValue baseType="float">0</baseValue></setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>

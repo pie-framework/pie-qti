@@ -87,6 +87,52 @@ describe('createItemPresentation', () => {
 		});
 	});
 
+	it('passes a text-entry stringIdentifier response back as its lexical companion', () => {
+		const source = presentationSource({
+			interactions: [{
+				type: 'textEntryInteraction',
+				responseId: 'NUM',
+				expectedLength: 8,
+				patternMask: null,
+				placeholderText: '',
+				baseType: 'float',
+				stringIdentifier: 'STR',
+			}],
+		});
+
+		const presentation = createItemPresentation({
+			source,
+			responses: { NUM: 3.5, STR: '3.50' },
+		});
+
+		const inline = presentation.flow.find(
+			(node) => node.kind === 'interaction' && node.mount.renderer === 'text-entry'
+		);
+		expect(inline && inline.kind === 'interaction' ? inline.mount : null).toMatchObject({
+			interaction: { stringIdentifier: 'STR' },
+			stringResponse: '3.50',
+		});
+	});
+
+	it('binds no lexical companion to a text entry without a stringIdentifier', () => {
+		const source = presentationSource({
+			interactions: [{
+				type: 'textEntryInteraction',
+				responseId: 'NUM',
+				expectedLength: 8,
+				patternMask: null,
+				placeholderText: '',
+			}],
+		});
+
+		const presentation = createItemPresentation({ source, responses: { NUM: 'x', STR: 'y' } });
+
+		const inline = presentation.flow.find(
+			(node) => node.kind === 'interaction' && node.mount.renderer === 'text-entry'
+		);
+		expect(inline && inline.kind === 'interaction' ? 'stringResponse' in inline.mount : null).toBe(false);
+	});
+
 	it('injects delivery-context styles and stimulus content before rendering inline segments', () => {
 		const deliveryContext: ResolvedItemDeliveryContext = {
 			itemHref: 'items/item.xml',

@@ -72,6 +72,11 @@ export interface TextEntryInteractionData extends BaseInteractionData<'textEntry
 	baseType?: string;
 	/** QTI stringInteraction `base`: the number base a numeric response is entered in, when not 10 */
 	base?: number;
+	/**
+	 * QTI stringInteraction `stringIdentifier`: the response, of base-type string, that holds the
+	 * text the candidate entered — "3.50" where the numeric response is 3.5 — or NULL when empty
+	 */
+	stringIdentifier?: string;
 	/** The authored `title`, an accessible name when no aria label is authored */
 	title?: string;
 	/** CSS classes from the textEntryInteraction element (e.g. qti-input-width-N) */

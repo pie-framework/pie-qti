@@ -3,6 +3,7 @@
 	import { xsdPatternSource } from '@pie-qti/qti-processing';
 	import type { InlineInteractionPosition } from '../../presentation/itemPresentationPlan.js';
 	import { inlineInteractionLabel, textEntryPatternMessage } from '../inline/accessibleName.js';
+	import { textEntryInputStyle } from './inlineInputStyle.js';
 	import { textEntryInputMode } from './inputMode.js';
 	import type { TextEntryInteractionData } from '../shared/types.js';
 
@@ -13,6 +14,11 @@
 		/** The id of the sentence or paragraph the blank sits in, which describes it. */
 		contextId?: string;
 		response?: string;
+		/**
+		 * The text the candidate entered, held by the response the interaction's stringIdentifier
+		 * names. Shown while present, so a restored "3.50" reads as typed, not as the numeric 3.5.
+		 */
+		stringResponse?: unknown;
 		correctAnswer?: string | null;
 		disabled?: boolean;
 		i18n?: I18nProvider;
@@ -24,6 +30,7 @@
 		position,
 		contextId,
 		response = '',
+		stringResponse = null,
 		correctAnswer = null,
 		disabled = false,
 		i18n,
@@ -37,11 +44,18 @@
 
 	let invalid = $state(false);
 	const validationError = $derived(invalid ? textEntryPatternMessage(i18n, interaction) : null);
-	const displayValue = $derived(correctAnswer !== null ? correctAnswer : response);
+	// stringIdentifier: the captured text is what the candidate typed; else the response itself.
+	const enteredText = $derived(
+		interaction.stringIdentifier && typeof stringResponse === 'string' && stringResponse.length > 0
+			? stringResponse
+			: response,
+	);
+	const displayValue = $derived(correctAnswer !== null ? correctAnswer : enteredText);
 	const label = $derived(inlineInteractionLabel(i18n, interaction, position));
 	const inputMode = $derived(textEntryInputMode(interaction));
 	const inputWidthClass = $derived((interaction.interactionClasses ?? []).find((className) => className.startsWith('qti-input-width-')));
 	const extraClasses = $derived((interaction.interactionClasses ?? []).filter((className) => !className.startsWith('qti-input-width-')).join(' '));
+	const inputStyle = $derived(textEntryInputStyle(interaction, inputWidthClass ? { widthClass: inputWidthClass } : undefined));
 	const describedBy = $derived(
 		[interaction.accessibility?.description ? descriptionId : '', contextId ?? '', validationError ? errorId : '']
 			.filter(Boolean)
@@ -75,7 +89,7 @@
 <input
 	type="text"
 	class={['qti-inline-input', correctAnswer !== null ? 'qti-inline-input-correct' : '', inputWidthClass ?? '', extraClasses].filter(Boolean).join(' ')}
-	style={inputWidthClass ? 'min-width: 100px; display: inline-block; margin: 0 4px;' : `width: ${interaction.expectedLength * 8}px; min-width: 100px; display: inline-block; margin: 0 4px;`}
+	style={inputStyle}
 	placeholder={interaction.placeholderText || translate(i18n, 'interactions.inline.placeholder', '...')}
 	pattern={interaction.patternMask ? xsdPatternSource(interaction.patternMask) : undefined}
 	data-format={interaction.format || undefined}
