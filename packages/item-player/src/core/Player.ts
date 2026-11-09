@@ -1318,9 +1318,14 @@ export class Player {
 				Number(i.minStrings ?? 0),
 				Number(i.minPlays ?? 0),
 			);
+			// gap `required` (QTI 2.1 gap; QTI 3.0 §5.55.5): "this gap must be filled by the candidate
+			// in order to form a valid response to the interaction".
+			const requiredGaps: string[] = Array.isArray(i.requiredGaps) ? i.requiredGaps : [];
 			const required =
 				i.type !== 'endAttemptInteraction' &&
-				(minimum > 0 || constrainedChoices.some((choice) => Number(choice.matchMin ?? 0) > 0));
+				(minimum > 0 ||
+					requiredGaps.length > 0 ||
+					constrainedChoices.some((choice) => Number(choice.matchMin ?? 0) > 0));
 
 			let complete = !required;
 			if (i.type === 'mediaInteraction' && required) {
@@ -1363,6 +1368,14 @@ export class Player {
 				} else {
 					complete = isMeaningfulEntry(value);
 				}
+			}
+
+			// A gap-match response pairs "gapText gap": each required gap must be the target of a pair.
+			if (requiredGaps.length > 0) {
+				const filled = new Set(
+					(Array.isArray(value) ? value.filter(isMeaningfulEntry) : []).map((pair) => String(pair).split(' ')[1]),
+				);
+				if (requiredGaps.some((gap) => !filled.has(gap))) complete = false;
 			}
 
 			// orderInteraction / graphicOrderInteraction: an order that has begun is complete once it

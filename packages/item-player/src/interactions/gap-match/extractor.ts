@@ -70,6 +70,8 @@ export interface GapMatchData {
 	gaps: string[];
 	/** Authored `matchGroup` tokens per gap identifier; present only when a gap authors one. */
 	gapMatchGroups?: Record<string, string[]>;
+	/** Gaps authored `required`, which a valid response must fill; present only when one is. */
+	requiredGaps?: string[];
 	shuffle: boolean;
 	prompt: string | null;
 	promptText: string;
@@ -253,8 +255,11 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 
 		// Each gap's authored matchGroup (QTI 2.2/3.0: the identifiers of the choices that may be
 		// matched with it), read from the parsed source wherever the gap sits, with
-		// version-aware attribute names (matchGroup / match-group).
+		// version-aware attribute names (matchGroup / match-group). A gap authored `required`
+		// "must be filled by the candidate in order to form a valid response" (QTI 2.1 gap;
+		// QTI 3.0 §5.55.5).
 		const gapMatchGroups: Record<string, string[]> = {};
+		const requiredGaps: string[] = [];
 		const visitGaps = (node: QTIElement): void => {
 			for (const child of node.childNodes ?? []) {
 				const candidate = child as QTIElement;
@@ -263,6 +268,7 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 					const identifier = utils.getAttribute(candidate, 'identifier', '');
 					const tokens = utils.getAttribute(candidate, 'matchGroup', '').split(/\s+/).filter(Boolean);
 					if (identifier && tokens.length > 0) gapMatchGroups[identifier] = tokens;
+					if (identifier && utils.getBooleanAttribute(candidate, 'required', false)) requiredGaps.push(identifier);
 				}
 				visitGaps(candidate);
 			}
@@ -282,6 +288,7 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 			gapImages,
 			gaps,
 			...(Object.keys(gapMatchGroups).length > 0 ? { gapMatchGroups } : {}),
+			...(requiredGaps.length > 0 ? { requiredGaps } : {}),
 			shuffle,
 			prompt,
 			promptText,

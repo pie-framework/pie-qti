@@ -16,3 +16,5 @@
 Patterns that use none of these constructs match as before.
 
 End-attempt buttons such as "Show a hint" now give response processing the values QTI specifies. When the candidate ends the attempt with one of these buttons, its response is `true` and every other end-attempt response is `false`. When the attempt ends any other way, for example by submitting, every end-attempt response is `false`. Before this change, a hint pressed in an earlier attempt still read as `true` in later attempts, so its feedback could show again. An end-attempt response that was never pressed read as `NULL` or as its declared default, which QTI says to ignore.
+
+A `gapMatchInteraction` gap marked `required="true"` must now be filled before the response counts as complete, as QTI specifies. The interaction data lists these gaps as `requiredGaps`. Response validation (`canSubmit` and the assessment player's `validateResponses` check) reports the response incomplete while a required gap is empty.

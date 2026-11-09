@@ -208,6 +208,11 @@ export interface GapMatchInteractionData extends BaseInteractionData<'gapMatchIn
 	 * choices that may be matched with this gap). Present only when a gap authors one.
 	 */
 	gapMatchGroups?: Record<string, string[]>;
+	/**
+	 * Identifiers of the gaps authored `required`: a valid response fills each of them (QTI 2.1
+	 * gap; QTI 3.0 §5.55.5). Present only when a gap is required.
+	 */
+	requiredGaps?: string[];
 	/** Finalized HTML template containing `[GAP:identifier]` text markers. */
 	promptText: HtmlContent;
 	/** CSS classes from the gapMatchInteraction element (e.g. qti-choices-top, qti-choices-bottom) */

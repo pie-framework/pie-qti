@@ -87,9 +87,11 @@ This is distinct from `matchInteraction` (a grid of row-column pairings) and `as
 
 ### Known gaps
 
-- **`gap required` not extracted:** The `required` attribute on individual `<gap>` elements (spec: the gap must be filled) is not extracted or enforced. All gaps are treated as optional at submission time.
+None against the specification.
 
 ### Resolved gaps
+
+- **`gap required` (fixed 2026-11-09):** QTI defines `required` on `<gap>`: "If true then this gap must be filled by the candidate in order to form a valid response to the interaction" (QTI 2.1 gap; QTI 3.0 §5.55.5, default false). The extractor delivers the required gaps as `requiredGaps`, and `Player.validateResponses()` reports the response incomplete while a required gap is not the target of a pair. The default component does not mark required gaps yet; authors state the requirement in the prompt.
 
 - **G-01 (`matchGroup`, Done):** QTI 2.2 and 3.0 define `matchGroup` on `gapText`, `gapImg` and `gap` as "a list of the identifiers for the objects that can be matched with" it (QTI 2.2.4 ASI Information Model, Tables 5.39.4, 5.37.4, 5.36.4; QTI 3.0, Tables 5.58.4, 5.56.4, 5.55.4). The component decides every placement with `isMatchGroupCompatible` from `@pie-qti/item-player`, the rule `Player.validateResponses()` applies: while a label is held or dragged, the gaps that refuse it are `aria-disabled`, say so in their name, do not accept a drag, and refuse the placement (a held label stays held and the refusal is announced). The rule accepts a pairing when either reading allows it: the specification's (the label and the gap name each other) or the shared-group-label reading some content uses (shared token; a side without `matchGroup` is unrestricted). `matchGroup` no longer makes other labels unavailable once one is placed: it constrains label–gap pairs only.
 - **G-06 (`matchMin`, Done):** `Player.validateResponses()` counts each label's appearances and reports the response incomplete while any label is below its `matchMin`.
@@ -243,7 +245,7 @@ interface GapMatchInteractionData extends BaseInteractionData {
 
 **Invariants NOT enforced:**
 - The number of gaps vs. the number of labels (no warning when `gaps.length >= gapTexts.length`).
-- `gap.required` — not extracted, not checked (see Known gaps).
+- `gap.required` is enforced by response validation, not by the component: a response that leaves a required gap empty is incomplete (see Resolved gaps).
 
 ### Response value format
 
