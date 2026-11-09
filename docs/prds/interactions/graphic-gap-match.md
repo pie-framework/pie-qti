@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: graphicGapMatchInteraction
-  Last reviewed: 2026-11-07
+  Last reviewed: 2026-11-09
 -->
 
 **Status:** draft
 **Type:** interaction
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)
-**Last reviewed:** 2026-11-07
+**Last reviewed:** 2026-11-09
 
 ---
 
@@ -73,7 +73,8 @@ When `role="scorer"` and `correctResponse` is provided, the label pool (the `gap
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `responseIdentifier` | ✅ Full | Extracted as `responseId`; used in `qti-change` event payload |
-| `maxAssociations` | ❌ Not extracted | Spec: maximum total pairs that can be formed; `0` = unlimited; not in `GraphicGapMatchInteractionData`; not enforced at UI level |
+| `maxAssociations` | ✅ Full | Extracted into `GraphicGapMatchInteractionData.maxAssociations` (0 = unlimited; absent attribute = 0 in this repo — see the default note under Known gaps). **Enforced by the UI**: a placement that would exceed the cap is refused and announced (author's `data-max-selections-message` wins). Engine response validation rejects over-limit responses at submit. |
+| `data-max-selections-message` | ✅ Full | Author's message for a refused placement past `maxAssociations`; delivered as `maxSelectionsMessage` and announced verbatim. |
 | `minAssociations` | ❌ Not extracted | Spec: minimum total pairs required; not extracted; not enforced |
 
 ### Supported attributes on `gapText`
@@ -122,8 +123,10 @@ When `role="scorer"` and `correctResponse` is provided, the label pool (the `gap
 
 ### Known gaps
 
-**`maxAssociations` not extracted**
-The interaction-level `maxAssociations` attribute is not read by the extractor and is absent from `GraphicGapMatchInteractionData`. The UI does not enforce an upper bound on total pairs formed. For items where the number of labels equals the number of hotspots (the common case), this is not observable: all labels can be placed exactly once by default. It becomes an issue only when the label pool is deliberately larger than the hotspot count and the author intends to limit total placements.
+**`maxAssociations` default is a deliberate divergence from the spec**
+The interaction-level `maxAssociations` attribute is extracted and the component refuses and announces placements past it (the author's `data-max-selections-message` wins), so an over-limit response can no longer be built through the UI only to be rejected at submit. The **default for an absent attribute**, however, diverges from the specification on purpose: QTI 2.2 (ASI Information Model Table 5.41.2) and QTI 3.0 (Table 5.60.2) define `max-associations` as optional with `Default = "1"` (0 = no restriction), and the attribute does not exist at all on `graphicGapMatchInteraction` in the QTI 2.1 XSD (it was added in 2.2). This repo's extractor keeps `0` (= unlimited) for items that omit the attribute, so delivered content authored without it — including the demo sample items and the clean-room certification fixtures — keeps its historical, unrestricted behaviour instead of suddenly being capped at one placement. **Conformance risk:** an item relying on the missing attribute is more permissive than the 2.2/3.0 default; for strict conformance, authors (and item banks) should always author `max-associations` explicitly. A spec-exact default of `1` would require a coordinated content migration (demo items, certification fixtures) together with the extractor change.
+
+Per-label and per-hotspot `matchMax` need no separate UI guard: the placement model holds one pair per label and one pair per hotspot, so a placement never raises either side's count above 1 — never past any authored `matchMax ≥ 1`. The engine (`graphicGapMatchMaximaErrors` in `Player.validateResponses`) additionally checks all three maxima against restored or programmatic responses.
 
 **`poly` and `ellipse` shape rendering incomplete**
 `poly` hotspots are rendered as a 40×40 bounding box anchored at the first coordinate pair. `ellipse` is not explicitly handled. Both are documented and expected to be fixed when real content requiring those shapes is needed.
@@ -137,6 +140,7 @@ The interaction-level `maxAssociations` attribute is not read by the extractor a
 - **FR-3:** When a candidate drags a label onto a hotspot and drops it, create the pair `"gapTextId hotspotId"` and add it to the response array. If the hotspot was already occupied, replace the existing pair (displace the previous label, which returns to an available state in the pool). Emit a `qti-change` event.
 - **FR-4:** When a candidate clicks the ✕ button adjacent to a placed label in the pool, remove that label's pair from the response array and return the label to an available state. Emit `qti-change`.
 - **FR-5:** Enforce `matchMax` on each label: when a label has been placed `matchMax` times (default 1), it is shown in "placed" state and cannot be dragged or keyboard-selected. The button remains visible in the pool so the candidate knows the label exists.
+- **FR-5a:** Enforce the interaction's `maxAssociations`: a placement (drag or keyboard) whose response would hold more pairs than `maxAssociations` (0 = unlimited) is refused and announced through the polite live region — the author's `data-max-selections-message` when authored, else the localized "Association not possible: the limit of {max} is reached." A keyboard label stays held on refusal; replacing a placed label within the cap is still allowed.
 - **FR-6:** Support touch drag-and-drop via the `touchDrag` Svelte action applied to each label button.
 - **FR-7:** Support a two-step keyboard alternative: press Space/Enter on a label button to select it (toggle); Tab to a hotspot SVG element; press Space/Enter to place; press Escape to cancel. Hotspot elements must receive `tabindex=0` only when a label is actively selected (otherwise `tabindex=-1`).
 - **FR-8:** On each response change, emit a `qti-change` CustomEvent from the root element with `{ responseIdentifier, value: string[] }` where `value` is the full current pairs array.
@@ -192,6 +196,7 @@ The following string keys must be provided via the `i18n` prop or fall back to t
 | `interactions.graphicGapMatch.availableLabel` | `"Available labels to place"` |
 | `interactions.graphicGapMatch.availableHeading` | `"Available Labels:"` |
 | `interactions.graphicGapMatch.removeLabel` | `"Remove label"` |
+| `interactions.graphicGapMatch.associationLimitReached` | `"Association not possible: the limit of {max} is reached."` |
 
 ---
 
@@ -279,7 +284,7 @@ interface GraphicGapMatchInteractionData extends BaseInteractionData {
 - `imageData` absence produces a warning (not an error)
 
 **Invariants not enforced (gaps):**
-- `maxAssociations` on interaction not in type; not enforced
+- `maxAssociations` defaults to 0 (= unlimited) for an absent attribute — a deliberate divergence from the 2.2/3.0 spec default of 1 (see Known gaps); an authored value is enforced by the UI and validated by the engine
 - `matchMin` per gapText extracted into extractor-local shape but discarded before returning from `extract()` (not in `GraphicGapMatchInteractionData`)
 
 ### Response format
@@ -559,13 +564,41 @@ AC-E10: Rapid successive drops on same hotspot
          onto hotspot 1 before the first event has settled
   Then: the final response contains only one pair for hotspot 1 ("B 1"); no duplicate or
         inconsistent state results from the rapid replacement
+
+AC-E11: maxAssociations refusal (pointer drop)
+  Given: maxAssociations=1 and "RAIN LAKE" already placed
+  When: the candidate drags "Sun" onto the free hotspot
+  Then: the placement is refused; the response stays ["RAIN LAKE"]; the aria-live region
+        announces "Association not possible: the limit of 1 is reached."
+
+AC-E12: maxAssociations refusal (keyboard placement keeps the label held)
+  Given: maxAssociations=1 and "RAIN LAKE" already placed
+  When: the candidate picks up "Sun" and presses Enter on a hotspot
+  Then: the placement is refused and announced; Sun stays held (aria-pressed=true) so it can
+        be placed elsewhere or cancelled with Escape
+
+AC-E13: replacement within the cap is allowed
+  Given: maxAssociations=1 and "RAIN LAKE" placed
+  When: the candidate drags "Sun" onto the lake
+  Then: "RAIN LAKE" is replaced by "SUN LAKE" — the response still holds one pair
+
+AC-E14: the author's data-max-selections-message wins
+  Given: maxAssociations=1 and data-max-selections-message="No more than one label may be placed."
+  When: a placement past the cap is refused
+  Then: the aria-live region announces the author's message verbatim
+
+AC-E15: maxAssociations=0 means unlimited
+  Given: maxAssociations=0 (or the attribute absent, the repo default) with two labels and
+         two hotspots
+  When: the candidate places both labels
+  Then: both placements are accepted; no refusal is announced
 ```
 
 ---
 
 ## Open questions
 
-- [ ] Should `maxAssociations` be extracted and enforced? For items where the label pool is larger than the hotspot count (distractor items), `maxAssociations` limits how many total placements the candidate can make. Without it, the candidate can freely place all available labels. This is not blocking for current content but is a spec compliance issue.
+- [x] Should `maxAssociations` be extracted and enforced? (resolved 2026-11-09) Yes: it is delivered in `GraphicGapMatchInteractionData`, the component refuses and announces placements past it (author's `data-max-selections-message` wins), and the engine validates it for restored responses. The default for an absent attribute stays 0 (= unlimited) as a documented divergence from the 2.2/3.0 spec default of 1 — see Known gaps.
 - [ ] Should the background image carry an accessible name (alt text)? The `<object>` element in QTI XML supports child text fallback content and an `aria-label`. The extractor currently discards anything other than the image data. Adding an `altText` field to `ImageData` and passing it to the SVG container would address this.
 - [ ] For `gapImg` image labels placed on a hotspot: should the image be rendered as an SVG `<image>` element on the hotspot, or should a thumbnail badge overlay the hotspot in HTML? SVG `<image>` is simpler; HTML overlay has richer accessibility options.
 - [ ] Should `poly` hotspot rendering be prioritized? It is needed for items with irregular (non-rectangular, non-circular) regions such as country shapes on maps.

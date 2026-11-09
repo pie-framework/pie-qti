@@ -1,7 +1,7 @@
 import type { GraphicGapMatchInteractionData } from '@pie-qti/item-player';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import GraphicGapMatchInteraction from '../../src/plugins/graphic-gap-match/GraphicGapMatchInteraction.svelte';
-import { mountInteraction, pressKey, q, qa, settle } from './helpers';
+import { cleanupInteraction, mountInteraction, pressKey, q, qa, settle } from './helpers';
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -300,5 +300,115 @@ describe('GraphicGapMatchInteraction (pie-qti-graphic-gap-match)', () => {
 		expect(q(mounted, '[part="label-remove"]')).toBeNull();
 		expect(document.activeElement).toBe(rain);
 		expect(rain.disabled).toBe(false);
+	});
+
+	describe('maxAssociations cap', () => {
+		function labelButton(mounted: { host: HTMLElement }, text: string): HTMLButtonElement {
+			return qa<HTMLButtonElement>(mounted, '[part="labels"] button').find((b) => b.textContent?.trim() === text)!;
+		}
+
+		test('a pointer drop that would exceed the cap is refused and announced', async () => {
+			const mounted = mountInteraction(GraphicGapMatchInteraction, { interaction: ggmData({ maxAssociations: 1 }) });
+			await settle();
+
+			// Setup: Rain goes to the lake (one pair = the whole cap).
+			pressKey(labelButton(mounted, 'Rain'), 'Enter');
+			await settle();
+			pressKey(hotspotTargets(mounted)[1]!, 'Enter');
+			await settle();
+			expect(mounted.instance.response).toEqual(['RAIN LAKE']);
+
+			// Sun onto the free hotspot would make two pairs: refused.
+			labelButton(mounted, 'Sun').dispatchEvent(new Event('dragstart', { bubbles: true }));
+			await settle();
+			hotspotTargets(mounted)[0]!.dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+			await settle();
+
+			expect(mounted.instance.response).toEqual(['RAIN LAKE']);
+			expect(q(mounted, '[aria-live="polite"]')?.textContent?.trim()).toBe(
+				'Association not possible: the limit of 1 is reached.',
+			);
+			expect(hotspotTargets(mounted)[0]!.getAttribute('aria-label')).toBe('Hotspot 1. Empty.');
+			cleanupInteraction(mounted);
+		});
+
+		test('a keyboard placement at the cap is refused and the label stays held', async () => {
+			const mounted = mountInteraction(GraphicGapMatchInteraction, { interaction: ggmData({ maxAssociations: 1 }) });
+			await settle();
+
+			pressKey(labelButton(mounted, 'Rain'), 'Enter');
+			await settle();
+			pressKey(hotspotTargets(mounted)[1]!, 'Enter');
+			await settle();
+
+			const sun = labelButton(mounted, 'Sun');
+			pressKey(sun, 'Enter');
+			await settle();
+			pressKey(hotspotTargets(mounted)[0]!, 'Enter');
+			await settle();
+
+			expect(mounted.instance.response).toEqual(['RAIN LAKE']);
+			expect(sun.getAttribute('aria-pressed')).toBe('true');
+			expect(q(mounted, '[aria-live="polite"]')?.textContent?.trim()).toBe(
+				'Association not possible: the limit of 1 is reached.',
+			);
+			cleanupInteraction(mounted);
+		});
+
+		test('replacing a placement within the cap is allowed', async () => {
+			const mounted = mountInteraction(GraphicGapMatchInteraction, { interaction: ggmData({ maxAssociations: 1 }) });
+			await settle();
+
+			pressKey(labelButton(mounted, 'Rain'), 'Enter');
+			await settle();
+			pressKey(hotspotTargets(mounted)[1]!, 'Enter');
+			await settle();
+
+			// Sun replaces Rain on the lake: the response never exceeds one pair.
+			labelButton(mounted, 'Sun').dispatchEvent(new Event('dragstart', { bubbles: true }));
+			await settle();
+			hotspotTargets(mounted)[1]!.dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+			await settle();
+
+			expect(mounted.instance.response).toEqual(['SUN LAKE']);
+			cleanupInteraction(mounted);
+		});
+
+		test('the author’s data-max-selections-message wins over the localized refusal', async () => {
+			const mounted = mountInteraction(GraphicGapMatchInteraction, {
+				interaction: ggmData({ maxAssociations: 1, maxSelectionsMessage: 'No more than one label may be placed.' }),
+			});
+			await settle();
+
+			pressKey(labelButton(mounted, 'Rain'), 'Enter');
+			await settle();
+			pressKey(hotspotTargets(mounted)[1]!, 'Enter');
+			await settle();
+			labelButton(mounted, 'Sun').dispatchEvent(new Event('dragstart', { bubbles: true }));
+			await settle();
+			hotspotTargets(mounted)[0]!.dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+			await settle();
+
+			expect(mounted.instance.response).toEqual(['RAIN LAKE']);
+			expect(q(mounted, '[aria-live="polite"]')?.textContent?.trim()).toBe('No more than one label may be placed.');
+			cleanupInteraction(mounted);
+		});
+
+		test('maxAssociations=0 means unlimited: both labels place', async () => {
+			const mounted = mountInteraction(GraphicGapMatchInteraction, { interaction: ggmData({ maxAssociations: 0 }) });
+			await settle();
+
+			pressKey(labelButton(mounted, 'Rain'), 'Enter');
+			await settle();
+			pressKey(hotspotTargets(mounted)[1]!, 'Enter');
+			await settle();
+			pressKey(labelButton(mounted, 'Sun'), 'Enter');
+			await settle();
+			pressKey(hotspotTargets(mounted)[0]!, 'Enter');
+			await settle();
+
+			expect(mounted.instance.response).toEqual(['RAIN LAKE', 'SUN TOP_RIGHT_ANSWER']);
+			cleanupInteraction(mounted);
+		});
 	});
 });

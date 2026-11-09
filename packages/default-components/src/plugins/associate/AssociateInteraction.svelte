@@ -4,12 +4,12 @@
 	import type { AssociateInteractionData, HtmlContent } from '@pie-qti/item-player';
 	import { tick } from 'svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
-	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
+	import { formatList, joinSentences, translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { accessibleTextFromHtml } from '../../shared/utils/accessibleText.js';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
-	import { pairIncludesId } from '../../shared/utils/pairHelpers';
+	import { countPairsWithId, pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
@@ -55,16 +55,17 @@
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
 
-	// Polite announcements of pair removals, for the screen-reader live region below.
-	let removalAnnouncement = $state('');
+	// Polite announcements of pair removals and refused pairings, for the screen-reader
+	// live region below.
+	let statusAnnouncement = $state('');
 
 	/**
-	 * Put `message` in the live region. Removing the same pair again would leave the text
-	 * unchanged, which assistive technology does not announce, so a repeated message toggles a
-	 * trailing zero-width space (silent to screen readers) to make it a change again.
+	 * Put `message` in the live region. Announcing the same message again would leave the
+	 * text unchanged, which assistive technology does not announce, so a repeated message
+	 * toggles a trailing zero-width space (silent to screen readers) to make it a change.
 	 */
-	function announceRemoval(message: string) {
-		removalAnnouncement = removalAnnouncement === message ? `${message}\u200b` : message;
+	function announce(message: string) {
+		statusAnnouncement = statusAnnouncement === message ? `${message}\u200b` : message;
 	}
 
 	// Use external selection state if provided, otherwise use internal state
@@ -131,25 +132,86 @@
 		);
 	});
 
+	// The interaction's association cap (QTI maxAssociations): 0 means unlimited, as every
+	// spec version that defines the attribute reads it.
+	const maxAssociations = $derived(parsedInteraction ? Math.max(0, Math.trunc(Number(parsedInteraction.maxAssociations) || 0)) : 0);
+	const associationCapReached = $derived(maxAssociations > 0 && pairs.length >= maxAssociations);
+
+	function usesOf(choiceId: string): number {
+		return countPairsWithId(pairs, choiceId);
+	}
+
+	/**
+	 * True when the choice cannot join a further association: its own matchMax is used up,
+	 * or the interaction's maxAssociations cap is reached (then no choice can).
+	 */
+	function isChoiceMaxed(choice: { identifier: string; matchMax: number }): boolean {
+		return (choice.matchMax > 0 && usesOf(choice.identifier) >= choice.matchMax) || associationCapReached;
+	}
+
+	function announceAssociationLimit() {
+		announce(
+			translate(i18n, 'interactions.associate.associationLimitReached', 'Association not possible: the limit of {max} is reached.', {
+				max: maxAssociations,
+			}),
+		);
+	}
+
+	function announceChoiceLimit(choice: { identifier: string; text: HtmlContent }) {
+		announce(
+			translate(i18n, 'interactions.associate.choiceLimitReached', 'Not possible: {label} cannot be in more associations.', {
+				label: getChoiceLabel(choice),
+			}),
+		);
+	}
+
 	function handleChoiceClick(choiceId: string) {
-		if (disabled) return;
+		if (disabled || !parsedInteraction) return;
+		const clicked = parsedInteraction.choices.find((c) => c.identifier === choiceId);
+
+		// If same item clicked again, deselect — still allowed once a cap is reached.
+		if (selectedForPairing === choiceId) {
+			setSelectedForPairing(null);
+			return;
+		}
+
+		// Capacity refusals (QTI matchMax per choice and maxAssociations per interaction),
+		// announced: the same maxima response validation enforces, refused here so an
+		// over-limit response never reaches the submit that would reject it.
+		if (clicked && clicked.matchMax > 0 && usesOf(choiceId) >= clicked.matchMax) {
+			announceChoiceLimit(clicked);
+			return;
+		}
+		if (associationCapReached) {
+			announceAssociationLimit();
+			return;
+		}
 
 		// If no item selected yet, select this one
 		if (selectedForPairing === null) {
 			setSelectedForPairing(choiceId);
+			return;
 		}
-		// If same item clicked again, deselect
-		else if (selectedForPairing === choiceId) {
-			setSelectedForPairing(null);
+
+		// If a different item is clicked, check matchGroup compatibility then create a pair.
+		// Both caps are re-checked against the would-be response, so every path that
+		// completes a pair refuses alike (the same rule MatchDragDrop applies per match).
+		if (blockedChoices.has(choiceId)) return;
+		const newPair = `${selectedForPairing} ${choiceId}`;
+		const newPairs = [...pairs, newPair];
+		if (maxAssociations > 0 && newPairs.length > maxAssociations) {
+			announceAssociationLimit();
+			return;
 		}
-		// If different item clicked, check matchGroup compatibility then create a pair
-		else {
-			if (blockedChoices.has(choiceId)) return;
-			const newPair = `${selectedForPairing} ${choiceId}`;
-			const newPairs = [...pairs, newPair];
-			emitChange(newPairs);
-			setSelectedForPairing(null);
+		const pending = parsedInteraction.choices.find((c) => c.identifier === selectedForPairing);
+		for (const choice of [pending, clicked]) {
+			if (choice && choice.matchMax > 0 && countPairsWithId(newPairs, choice.identifier) > choice.matchMax) {
+				announceChoiceLimit(choice);
+				return;
+			}
 		}
+		emitChange(newPairs);
+		setSelectedForPairing(null);
 	}
 
 	function removePair(index: number) {
@@ -161,7 +223,7 @@
 			const [id1, id2] = removed.split(' ');
 			const choice1 = parsedInteraction?.choices.find((c) => c.identifier === id1);
 			const choice2 = parsedInteraction?.choices.find((c) => c.identifier === id2);
-			announceRemoval(
+			announce(
 				translate(i18n, 'interactions.associate.removedAssociationBetween', 'Removed association between {first} and {second}.', {
 					first: choice1 ? getChoiceLabel(choice1) : id1,
 					second: choice2 ? getChoiceLabel(choice2) : id2,
@@ -225,8 +287,8 @@
 
 <div bind:this={rootElement} {...interactionAria(parsedInteraction)} part="root" class="qti-associate-interaction space-y-3">
 	<InteractionDescription interaction={parsedInteraction} />
-	<!-- Polite announcements (pair removal) that survive the changed/focused controls themselves. -->
-	<div aria-live="polite" aria-atomic="true" class="qti-associate-live-region">{removalAnnouncement}</div>
+	<!-- Polite announcements (pair removal, refused pairing) that survive the changed/focused controls themselves. -->
+	<div aria-live="polite" aria-atomic="true" class="qti-associate-live-region">{statusAnnouncement}</div>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -243,18 +305,23 @@
 			{@const inPair = isInPair(choice.identifier)}
 			{@const isCorrect = isCorrectPair(choice.identifier)}
 			{@const isBlocked = blockedChoices.has(choice.identifier)}
+			{@const isMaxed = isChoiceMaxed(choice)}
+			{@const isUnavailable = isBlocked || isMaxed}
 			{@const choiceTextId = `${uid}-choice-${choice.identifier}-text`}
 			{@const choiceStateId = `${uid}-choice-${choice.identifier}-state`}
+			<!-- A maxed choice stays focusable: the disabled property would remove the very
+			     control the candidate just activated from under their focus; aria-disabled
+			     plus the handler's refusal guard instead. -->
 			<button
 				part="choice"
 				class="btn btn-outline {isSelected ? 'btn-accent' : inPair ? 'btn-primary' : isCorrect ? 'btn-success' : 'btn-neutral'}"
-				class:opacity-40={isBlocked}
-				class:cursor-not-allowed={isBlocked}
+				class:opacity-40={isUnavailable}
+				class:cursor-not-allowed={isUnavailable}
 				type="button"
 				aria-labelledby={choiceTextId}
 				aria-describedby={describedByIds(!isShowingCorrect && helperId, choiceStateId, minHint && minHintId)}
 				aria-pressed={isSelected}
-				aria-disabled={isBlocked ? 'true' : undefined}
+				aria-disabled={isUnavailable ? 'true' : undefined}
 				onclick={() => handleChoiceClick(choice.identifier)}
 				{disabled}
 			>
@@ -349,13 +416,22 @@
 		{#if !isShowingCorrect}
 			<div id={helperId} part="helper" class="qti-associate-helper alert alert-info" role="status" aria-live="polite">
 				<span class="text-sm">
-					{#if selectedForPairing}
-						{i18n?.t('interactions.associate.clickAnotherOrDeselect') ??
-							'Select another item to create an association, or select this item again to deselect it.'}
-					{:else}
-						{i18n?.t('interactions.associate.clickToAssociate') ??
-							'Select two items to create an association between them. Keyboard users can tab to each item and press Enter or Space.'}
-					{/if}
+					{joinSentences(
+						selectedForPairing
+							? (i18n?.t('interactions.associate.clickAnotherOrDeselect') ??
+								'Select another item to create an association, or select this item again to deselect it.')
+							: (i18n?.t('interactions.associate.clickToAssociate') ??
+								'Select two items to create an association between them. Keyboard users can tab to each item and press Enter or Space.'),
+						// The interaction's cap, named up front (WCAG 3.3.2) so the limit is known
+						// before the first refusal announces it.
+						maxAssociations > 0 &&
+							translatePlural(
+								i18n,
+								'interactions.associate.maxAssociationsHint',
+								{ one: 'You can make up to {count} association.', other: 'You can make up to {count} associations.' },
+								maxAssociations,
+							),
+					)}
 				</span>
 			</div>
 		{/if}

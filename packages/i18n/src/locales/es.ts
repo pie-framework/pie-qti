@@ -366,6 +366,7 @@ export default {
 			imageLoadError: 'No se pudo cargar la imagen.',
 			unknownImageDimensions: 'No se pueden mostrar las zonas activas: se desconoce el tamaño de la imagen. Añade ancho y alto a la imagen.',
 			minPlacementsHint: 'Falta por colocar en las zonas: {labels}.',
+			associationLimitReached: 'No se puede asociar: se alcanzó el límite de {max}.',
 		},
 
 		order: {
@@ -424,6 +425,13 @@ export default {
 				other: 'Crea al menos {count} asociaciones.',
 			},
 			minChoiceUsesHint: 'Necesita más asociaciones: {items}.',
+			maxAssociationsHint: {
+				one: 'Puedes crear como máximo {count} asociación.',
+				many: 'Puedes crear como máximo {count} asociaciones.',
+				other: 'Puedes crear como máximo {count} asociaciones.',
+			},
+			choiceLimitReached: 'No es posible: {label} no puede estar en más asociaciones.',
+			associationLimitReached: 'No se puede asociar: se alcanzó el límite de {max}.',
 		},
 
 		positionObject: {

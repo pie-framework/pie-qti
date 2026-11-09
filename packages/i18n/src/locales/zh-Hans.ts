@@ -372,6 +372,7 @@ export default {
 			imageLoadError: '无法加载图像。',
 			unknownImageDimensions: '无法显示热点：图像尺寸未知。请为图像添加宽度和高度。',
 			minPlacementsHint: '仍需放置到区域：{labels}。',
+			associationLimitReached: '无法创建关联：已达到 {max} 个的上限。',
 		},
 
 		order: {
@@ -428,6 +429,12 @@ export default {
 				other: '请至少建立 {count} 个关联。',
 			},
 			minChoiceUsesHint: '还需要更多关联：{items}。',
+			maxAssociationsHint: {
+				one: '最多可建立 {count} 个关联。',
+				other: '最多可建立 {count} 个关联。',
+			},
+			choiceLimitReached: '无法操作：{label} 不能参与更多关联。',
+			associationLimitReached: '无法创建关联：已达到 {max} 个的上限。',
 		},
 
 		positionObject: {

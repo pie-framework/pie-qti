@@ -323,6 +323,44 @@ describe('standardGraphicGapMatchExtractor', () => {
 		});
 	});
 
+	describe('maxAssociations extraction', () => {
+		test('absent maxAssociations extracts as 0 (unlimited): deliberate divergence from the 2.2/3.0 default of 1', () => {
+			// QTI 2.2 Table 5.41.2 and QTI 3.0 Table 5.60.2 default max-associations to "1"
+			// (and the attribute does not exist on graphicGapMatchInteraction in QTI 2.1).
+			// This extractor keeps 0 so items authored without it keep their delivered,
+			// unrestricted behaviour; see docs/prds/interactions/graphic-gap-match.md.
+			const xml = `
+				<graphicGapMatchInteraction responseIdentifier="RESPONSE">
+					<object type="image/png" data="diagram.png" />
+					<gapText identifier="T1" matchMax="1">Label</gapText>
+					<associableHotspot identifier="H1" shape="rect" coords="0,0,100,100" matchMax="1" />
+				</graphicGapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGraphicGapMatchExtractor.extract(element, context);
+
+			expect(result.maxAssociations).toBe(0);
+		});
+
+		test('authored maxAssociations is extracted as-is', () => {
+			const xml = `
+				<graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="3">
+					<object type="image/png" data="diagram.png" />
+					<gapText identifier="T1" matchMax="1">Label</gapText>
+					<associableHotspot identifier="H1" shape="rect" coords="0,0,100,100" matchMax="1" />
+				</graphicGapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGraphicGapMatchExtractor.extract(element, context);
+
+			expect(result.maxAssociations).toBe(3);
+		});
+	});
+
 	describe('canHandle predicate', () => {
 		test('handles graphicGapMatchInteraction element', () => {
 			const xml = `

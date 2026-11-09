@@ -360,6 +360,7 @@ export default {
 			imageLoadError: 'ไม่สามารถโหลดรูปภาพได้',
 			unknownImageDimensions: 'ไม่สามารถแสดงฮอตสปอตได้: ไม่ทราบขนาดของรูปภาพ โปรดเพิ่มความกว้างและความสูงให้กับรูปภาพ',
 			minPlacementsHint: 'ยังต้องวางบนพื้นที่: {labels}',
+			associationLimitReached: 'สร้างความเชื่อมโยงไม่ได้: ถึงขีดจำกัด {max} แล้ว',
 		},
 
 		order: {
@@ -416,6 +417,12 @@ export default {
 				other: 'สร้างความสัมพันธ์อย่างน้อย {count} รายการ',
 			},
 			minChoiceUsesHint: 'ต้องเชื่อมโยงเพิ่มเติม: {items}',
+			maxAssociationsHint: {
+				one: 'คุณสร้างความสัมพันธ์ได้สูงสุด {count} รายการ',
+				other: 'คุณสร้างความสัมพันธ์ได้สูงสุด {count} รายการ',
+			},
+			choiceLimitReached: 'ไม่สามารถทำได้: {label} ไม่สามารถอยู่ในความสัมพันธ์เพิ่มเติมได้',
+			associationLimitReached: 'สร้างความสัมพันธ์ไม่ได้: ถึงขีดจำกัด {max} แล้ว',
 		},
 
 		positionObject: {

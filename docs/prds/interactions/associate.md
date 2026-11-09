@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: associateInteraction
-  Last reviewed: 2026-11-07
+  Last reviewed: 2026-11-09
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-11-07
+**Last reviewed:** 2026-11-09
 
 ---
 
@@ -35,7 +35,7 @@ Confusing the two at item-authoring time produces silent correctness bugs: if an
 
 ### maxAssociations=0 is unlimited, not zero
 
-The QTI spec defines `maxAssociations=0` as "no upper bound". This is the same footgun as `maxChoices=0` in `choiceInteraction`. The default value is `1` (one pair), so leaving the attribute absent gives a one-pair interaction. Authors who want to allow unlimited pairs must explicitly write `maxAssociations="0"`. Authors who accidentally omit the attribute when they intended to allow many pairs will get a one-pair interaction — a subtle authoring error that produces confusing behavior for students. The extractor surfaces `maxAssociations` as-is; the UI enforces the limit by refusing additional clicks once the limit is reached.
+The QTI spec defines `maxAssociations=0` as "no upper bound". This is the same footgun as `maxChoices=0` in `choiceInteraction`. The default value is `1` (one pair) — optional with `Default = "1"` in the QTI 2.1 XSD, QTI 2.2 ASI Information Model Table 5.6.2 and QTI 3.0 Table 5.8.2 — so leaving the attribute absent gives a one-pair interaction, and the extractor applies that default. Authors who want to allow unlimited pairs must explicitly write `maxAssociations="0"`. Authors who accidentally omit the attribute when they intended to allow many pairs will get a one-pair interaction — a subtle authoring error that produces confusing behavior for students. The UI enforces the limit by refusing additional pairings once the limit is reached (see the caps decision below).
 
 ### Two-step click interaction model
 
@@ -74,7 +74,7 @@ The response array stored in `player.declarations` is NOT canonicalized when the
 | Attribute | Default | Behavior |
 |-----------|---------|----------|
 | `identifier` | — | Required. Used as both the response token and the lookup key in `mapEntry`. |
-| `matchMax` | — | Required per spec. Maximum times this choice may appear in the response (across all pairs). `0` means unlimited. Extracted and present in `AssociateData.choices[].matchMax`. **Not enforced by the UI** — see design decisions. |
+| `matchMax` | — | Required per spec. Maximum times this choice may appear in the response (across all pairs). `0` means unlimited. Extracted and present in `AssociateData.choices[].matchMax`. **Enforced by the UI** — a choice at its `matchMax` is `aria-disabled`, refused with a polite announcement, and cannot start or complete further pairs (see the caps decision below). |
 | `matchMin` | `0` | Minimum times this choice must appear. Extracted when > 0. `Player.validateResponses()` marks the response incomplete while any choice appears in fewer pairs (G-06). |
 | `class` | — | Optional space-separated CSS class names. Extracted into `choices[].classes`. |
 
@@ -92,7 +92,7 @@ The response array stored in `player.declarations` is NOT canonicalized when the
 - **FR-2:** Clicking an unselected, unpaired choice marks it as "pending" (first click of a pair). Visual state: `btn-accent` styling plus a `◉` indicator.
 - **FR-3:** Clicking the pending choice again deselects it without creating a pair.
 - **FR-4:** Clicking a different choice while one is pending creates a pair, adds it to the response array, clears the pending state, and emits a `qti-change` event with the full response array.
-- **FR-5:** When `maxAssociations > 0` and the current pair count equals `maxAssociations`, clicks on unpaired choices must not create additional pairs. The UI must make the enforcement mechanism visually clear (e.g., disable further pairing or show a limit-reached message).
+- **FR-5:** When `maxAssociations > 0` and the pair count has reached `maxAssociations`, no further pair is created: choices are marked `aria-disabled` (still focusable), a click is refused with a polite live-region announcement naming the limit, and the helper text names the cap ("You can make up to {count} associations."). The same refusal applies to a choice at its `matchMax`, naming the choice.
 - **FR-6:** Formed pairs are displayed in a "Current Associations" list showing both choice labels and a remove button (`✕`) per pair.
 - **FR-7:** Clicking the remove button on a pair removes it from the response array and emits `qti-change`.
 - **FR-8:** When `disabled=true`, all click handlers are no-ops (including pairing and removal). All interactive elements carry the `disabled` attribute.
@@ -112,7 +112,7 @@ The response array stored in `player.declarations` is NOT canonicalized when the
 
 **Focus management:** After a pair is created, focus must remain on a logically appropriate element (the grid of choices) so that keyboard users can continue forming pairs without re-navigating. After a pair is removed, focus must remain in the pair list — on the remove button of the pair that moved into the removed row, or, when no pairs remain, back on the first choice.
 
-**ARIA roles and labels:** Each choice button must have a discernible accessible name (the choice text). The pending state must be communicated to assistive technology — at minimum via `aria-pressed="true"` or `aria-selected="true"` on the pending button, and an `aria-live` region that announces pair creation and removal. Pair removal is announced through a dedicated polite live region: the focused remove button vanishes with the pair, so the region is what tells assistive technology what happened; removing the same pair again re-announces. The helper message area should use `role="status"` or `aria-live="polite"`.
+**ARIA roles and labels:** Each choice button must have a discernible accessible name (the choice text). The pending state must be communicated to assistive technology — at minimum via `aria-pressed="true"` or `aria-selected="true"` on the pending button, and an `aria-live` region that announces pair creation and removal. Pair removal is announced through a dedicated polite live region: the focused remove button vanishes with the pair, so the region is what tells assistive technology what happened; removing the same pair again re-announces. The same region announces refused pairings: a choice at its `matchMax` or an interaction at its `maxAssociations` is refused by name/limit and never creates a pair (WCAG 3.3.1). Maxed choices carry `aria-disabled="true"` and stay focusable — never the `disabled` property, which would drop focus off the control the candidate just activated. The helper message area should use `role="status"` or `aria-live="polite"`.
 
 **Remove buttons:** Each pair's remove button (`✕`) must have an accessible label beyond the symbol: `aria-label="Remove association: [choice1 text] and [choice2 text]"`.
 
@@ -142,6 +142,9 @@ Three strings are externalized to the `@pie-qti/i18n` provider:
 | `interactions.associate.currentAssociations` | `Current Associations` |
 | `interactions.associate.clickToAssociate` | `Click two items to create an association between them` |
 | `interactions.associate.clickAnotherOrDeselect` | `Click another item to create an association (or click again to deselect)` |
+| `interactions.associate.maxAssociationsHint` | `You can make up to {count} association(s).` |
+| `interactions.associate.choiceLimitReached` | `Not possible: {label} cannot be in more associations.` |
+| `interactions.associate.associationLimitReached` | `Association not possible: the limit of {max} is reached.` |
 | `interactions.choice.correct` | `Correct` |
 
 RTL layout is inherited from the page/shadow root's `dir` attribute; no special RTL logic is required in the component.
@@ -164,12 +167,12 @@ RTL layout is inherited from the page/shadow root's `dir` attribute; no special 
 **Alternatives considered:** Canonical sort at storage time — simpler scoring logic, but loses interaction fidelity and creates a confusing discrepancy between what the student sees and what the response contains.  
 **Consequences:** Callers who inspect `player.getResponses()` directly must not assume canonical sort order. The scoring engine handles this transparently; host applications that render stored responses without going through the engine must normalize pairs before comparison.
 
-### Decision: matchMax not enforced by the UI
+### Decision: the caps (maxAssociations and per-choice matchMax) are enforced and announced in the UI
 
-**Decision:** The UI does not enforce `matchMax` per choice (the maximum number of times a single choice may appear across pairs).  
-**Rationale:** Enforcing `matchMax` in the UI requires tracking per-choice appearance counts and disabling choices that have reached their limit — significant added complexity for a constraint that, in practice, is almost always `matchMax=1` (one-to-one matching) or `matchMax=0` (unlimited). Spec-correct behavior is that over-limit responses are handled by response processing, not blocked at the UI level. The QTI spec says the delivery engine "should" enforce `matchMax` but does not require it to block interaction; the spec's validation rules apply at response processing time.  
-**Alternatives considered:** Enforcing `matchMax` in the UI — would require counting per-choice usage and updating button enabled state after every pair change; adds complexity and a new class of UI state bug.  
-**Consequences:** A student can technically create more pairs than `matchMax` allows for a given choice. Response processing will still score correctly (or zero) because the engine evaluates the mapping against the actual response. This is a known limitation documented as out-of-scope until a compelling real-world item requires it.
+**Decision:** The component enforces both QTI maxima while the candidate works: a pair is never created that would push the response past the interaction's `maxAssociations` or past either choice's `matchMax`. A choice at a cap is marked `aria-disabled` (it stays focusable — the `disabled` property would remove the control from under the candidate's focus) and every refusal is announced through the component's always-present polite live region: the interaction cap names the limit ("Association not possible: the limit of {max} is reached."), the per-choice cap names the choice ("Not possible: {label} cannot be in more associations."). The helper text states the interaction cap up front ("You can make up to {count} associations."), so the limit is known before the first refusal (WCAG 3.3.2), and a deselect of the pending choice stays possible at a cap. Both caps are re-checked when a pair is completed, so a selection that arrived through the `selectedForPairing` prop is subject to the same rules — the same rule MatchDragDrop applies per input method.  
+**Rationale:** Engine response validation rejects over-limit responses at submit, which leaves the candidate with a blocked submission and no on-screen reason (WCAG 3.3.1). Every peer pairing surface enforces and announces: MatchDragDrop refuses in `createMatch`, graphic-associate refuses per hotspot and per interaction with the same two messages, and graphic-gap-match refuses in its drop handling. Enforcing at the source of pair creation keeps the UI and validation in agreement, and `aria-disabled` plus the handler guard keeps maxed choices focusable and explainable.  
+**Alternatives considered:** HTML `disabled` on maxed choices — rejected: it removes focus and cannot explain the refusal; silent refusal without an announcement — rejected (WCAG 3.3.1/4.1.3).  
+**Consequences:** The response the component emits never exceeds either maximum, matching what response validation accepts. Items whose correct response exceeds the authored maxima are authored wrong; they surface as refusals to the candidate rather than as a blocked submit.
 
 ### Decision: selectedForPairing state lives in the component
 
@@ -269,11 +272,13 @@ AC-4: Pair removal
   Then: The pair is removed from the list
         A qti-change event fires with value that no longer includes any "A B" or "B A" string
 
-AC-5: maxAssociations limit enforced
+AC-5: maxAssociations limit enforced and announced
   Given: An associateInteraction with maxAssociations=2 and 2 pairs already formed
   When: The candidate clicks a choice button
-  Then: No new pending state is set (or the UI otherwise prevents a third pair from forming)
-  Notes: Exact enforcement UX (disable buttons vs. show message) is an implementation detail; what matters is that the response never exceeds maxAssociations pairs.
+  Then: No new pending state is set; every choice carries aria-disabled="true" (and remains
+        focusable); the live region announces "Association not possible: the limit of 2 is
+        reached."; the response never exceeds maxAssociations pairs
+  Notes: The helper text names the cap while it applies ("You can make up to 2 associations.").
 
 AC-6: maxAssociations=0 allows unlimited pairs
   Given: An associateInteraction with maxAssociations=0 and choices A, B, C, D
@@ -427,9 +432,24 @@ AC-E5: G-06 — matchMin enforced at submission
   Then: The response is reported incomplete
 
 AC-E6: maxAssociations=1 (default) limits to one pair
-  Given: An associateInteraction with no maxAssociations attribute (default=1)
+  Given: An associateInteraction with no maxAssociations attribute (the extractor default is 1,
+         per QTI 2.1 XSD, 2.2 Table 5.6.2 and 3.0 Table 5.8.2)
   When: A pair has been formed and the candidate tries to create a second pair
-  Then: The second pair is not created
+  Then: The second pair is not created; the cap is announced like any authored cap
+
+AC-E8: matchMax refusal names the choice
+  Given: Choice Paris with matchMax=1 already used in one pair
+  When: The candidate clicks Paris (and, when a pending selection arrives externally, any
+        partner for it)
+  Then: Paris is aria-disabled but focusable; the live region announces
+        "Not possible: Paris cannot be in more associations."; no pair involving a second
+        Paris use is created
+
+AC-E10: deselect at a cap still works
+  Given: The interaction cap (or a choice's matchMax) is reached while a choice is pending
+         (e.g. the pending state arrived through the selectedForPairing prop)
+  When: The candidate clicks the pending choice
+  Then: The pending state is cleared; no refusal announcement and no pair
 
 AC-E7: HTML content in choice text
   Given: A simpleAssociableChoice with text "<em>H<sub>2</sub>O</em>"
@@ -441,7 +461,7 @@ AC-E7: HTML content in choice text
 
 ## Open questions
 
-- [ ] **matchMax enforcement**: Should the UI disable choice buttons that have reached their `matchMax` usage count, or silently allow over-limit pairings and let response processing handle it? The current stance (no enforcement) is documented above, but a product decision on the UX trade-off may change this.
+- [x] **matchMax enforcement** (resolved 2026-11-09): the UI refuses pairings past a choice's `matchMax` and the interaction's `maxAssociations`, with `aria-disabled` on maxed choices and polite refusal announcements — see the caps decision above.
 - [ ] **Duplicate pairs**: Does the component allow a candidate to form the same pair twice (when `matchMax > 1`)? The current code does not prevent it. Is this spec-correct behavior worth documenting with a test?
 - [ ] **Self-pairing**: The spec does not explicitly forbid `"A A"`. Is there a valid assessment use case? Currently prevented by the component's deselect-on-same-click logic.
 

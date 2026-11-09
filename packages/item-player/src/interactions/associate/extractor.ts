@@ -68,9 +68,12 @@ export const standardAssociateExtractor: ElementExtractor<AssociateData> = {
 			};
 		});
 
-		// Extract attributes with proper defaults
+		// Extract attributes with proper defaults. maxAssociations is optional with default 1
+		// in every spec that defines it: QTI 2.1 XSD (`use="optional" default="1"`),
+		// QTI 2.2 ASI Information Model Table 5.6.2 and QTI 3.0 Table 5.8.2
+		// (`Default = "1"`); 0 means no restriction.
 		const shuffle = utils.getBooleanAttribute(element, 'shuffle');
-		const maxAssociations = utils.getNumberAttribute(element, 'maxAssociations', 0);
+		const maxAssociations = utils.getNumberAttribute(element, 'maxAssociations', 1);
 		const minAssociations = utils.getNumberAttribute(element, 'minAssociations', 0);
 		const minSelectionsMessage = utils.getAttribute(element, 'data-min-selections-message', '') || null;
 

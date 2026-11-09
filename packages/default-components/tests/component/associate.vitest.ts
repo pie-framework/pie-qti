@@ -303,4 +303,175 @@ describe('AssociateInteraction (pie-qti-associate)', () => {
 			cleanupInteraction(mounted);
 		});
 	});
+
+	describe('association caps (QTI maxAssociations and per-choice matchMax)', () => {
+		test('interaction cap reached: pairing is refused, announced, and choices are aria-disabled but focusable', async () => {
+			const mounted = mountInteraction(AssociateInteraction, {
+				interaction: associateData({
+					maxAssociations: 2,
+					choices: [
+						{ identifier: 'A_cap', text: '<p>Paris</p>', matchMax: 0 },
+						{ identifier: 'A_country', text: '<p>France</p>', matchMax: 0 },
+						{ identifier: 'B_cap', text: '<p>Rome</p>', matchMax: 0 },
+						{ identifier: 'B_country', text: '<p>Italy</p>', matchMax: 0 },
+					],
+				}),
+				response: ['A_cap A_country', 'B_cap B_country'],
+			});
+			await settle();
+
+			// Every choice is maxed while the interaction cap holds, but none is disabled:
+			// the refusal happens in the handler so focus never falls off the control.
+			for (const button of choiceButtons(mounted)) {
+				expect(button.getAttribute('aria-disabled')).toBe('true');
+				expect(button.disabled).toBe(false);
+			}
+
+			const live = q(mounted, '.qti-associate-live-region');
+			expect(live?.textContent?.trim()).toBe('');
+
+			const [paris] = choiceButtons(mounted);
+			paris!.click();
+			await settle();
+			expect(mounted.events).toHaveLength(0);
+			expect(mounted.instance.response).toEqual(['A_cap A_country', 'B_cap B_country']);
+			expect(paris!.getAttribute('aria-pressed')).toBe('false');
+			expect(live?.textContent?.trim()).toBe('Association not possible: the limit of 2 is reached.');
+			cleanupInteraction(mounted);
+		});
+
+		test('below the cap nothing extra is refused or disabled', async () => {
+			const mounted = mountInteraction(AssociateInteraction, {
+				interaction: associateData({ maxAssociations: 3 }),
+				response: ['A_cap A_country'],
+			});
+			await settle();
+
+			// Paris and France are each maxed (matchMax 1, both already used); Rome and Italy are not.
+			const [paris, france, rome, italy] = choiceButtons(mounted);
+			expect(paris!.getAttribute('aria-disabled')).toBe('true');
+			expect(france!.getAttribute('aria-disabled')).toBe('true');
+			expect(rome!.getAttribute('aria-disabled')).toBeNull();
+			expect(italy!.getAttribute('aria-disabled')).toBeNull();
+
+			rome!.click();
+			await settle();
+			italy!.click();
+			await settle();
+			expect(mounted.instance.response).toEqual(['A_cap A_country', 'B_cap B_country']);
+			cleanupInteraction(mounted);
+		});
+
+		test('per-choice matchMax: a maxed choice is refused by name and aria-disabled', async () => {
+			// Paris may be used once and already is; France may be used twice.
+			const mounted = mountInteraction(AssociateInteraction, {
+				interaction: associateData({
+					maxAssociations: 0,
+					choices: [
+						{ identifier: 'A_cap', text: '<p>Paris</p>', matchMax: 1 },
+						{ identifier: 'A_country', text: '<p>France</p>', matchMax: 2 },
+						{ identifier: 'B_cap', text: '<p>Rome</p>', matchMax: 0 },
+						{ identifier: 'B_country', text: '<p>Italy</p>', matchMax: 0 },
+					],
+				}),
+				response: ['A_cap A_country'],
+			});
+			await settle();
+
+			const [paris, france, rome, italy] = choiceButtons(mounted);
+			expect(paris!.getAttribute('aria-disabled')).toBe('true');
+			expect(france!.getAttribute('aria-disabled')).toBeNull();
+			expect(rome!.getAttribute('aria-disabled')).toBeNull();
+
+			const live = q(mounted, '.qti-associate-live-region');
+			paris!.click();
+			await settle();
+			expect(mounted.events).toHaveLength(0);
+			expect(live?.textContent?.trim()).toBe('Not possible: Paris cannot be in more associations.');
+
+			// An unmaxed choice still pairs.
+			rome!.click();
+			await settle();
+			italy!.click();
+			await settle();
+			expect(mounted.instance.response).toEqual(['A_cap A_country', 'B_cap B_country']);
+			cleanupInteraction(mounted);
+		});
+
+		test('completing a pair is refused when the pending choice would exceed its matchMax', async () => {
+			// The pending selection arrived externally (selectedForPairing prop), so the
+			// selection-time guard never ran: the pair-completion guard must refuse instead —
+			// the same rule MatchDragDrop applies per input method. France may be used once
+			// and already is.
+			const mounted = mountInteraction(AssociateInteraction, {
+				interaction: associateData({
+					maxAssociations: 0,
+					choices: [
+						{ identifier: 'A_cap', text: '<p>Paris</p>', matchMax: 0 },
+						{ identifier: 'A_country', text: '<p>France</p>', matchMax: 1 },
+						{ identifier: 'B_cap', text: '<p>Rome</p>', matchMax: 0 },
+						{ identifier: 'B_country', text: '<p>Italy</p>', matchMax: 0 },
+					],
+				}),
+				response: ['A_cap A_country'],
+				selectedForPairing: 'A_country',
+			});
+			await settle();
+
+			const live = q(mounted, '.qti-associate-live-region');
+			const [, , rome, italy] = choiceButtons(mounted);
+			rome!.click();
+			await settle();
+			expect(mounted.events).toHaveLength(0);
+			expect(mounted.instance.response).toEqual(['A_cap A_country']);
+			expect(live?.textContent?.trim()).toBe('Not possible: France cannot be in more associations.');
+
+			// France stays pending: no partner can take it past its matchMax, so every
+			// pairing attempt is refused until the selection changes.
+			italy!.click();
+			await settle();
+			expect(mounted.events).toHaveLength(0);
+			expect(mounted.instance.response).toEqual(['A_cap A_country']);
+			cleanupInteraction(mounted);
+		});
+
+		test('a choice held as pending when the cap arrives can still be deselected', async () => {
+			const mounted = mountInteraction(AssociateInteraction, {
+				interaction: associateData({ maxAssociations: 1 }),
+			});
+			await settle();
+			const [paris] = choiceButtons(mounted);
+			paris!.click();
+			await settle();
+			expect(paris!.getAttribute('aria-pressed')).toBe('true');
+
+			// A synced response (host restore) reaches the cap while Paris is pending.
+			mounted.instance.response = ['A_cap A_country'];
+			await settle();
+			expect(paris!.getAttribute('aria-disabled')).toBe('true');
+
+			paris!.click();
+			await settle();
+			expect(mounted.events).toHaveLength(0);
+			expect(paris!.getAttribute('aria-pressed')).toBe('false');
+			cleanupInteraction(mounted);
+		});
+
+		test('the helper names the cap while it applies', async () => {
+			const mounted = mountInteraction(AssociateInteraction, {
+				interaction: associateData({ maxAssociations: 2 }),
+			});
+			await settle();
+
+			const helper = q(mounted, '[part="helper"]');
+			expect(helper?.textContent).toContain('You can make up to 2 associations.');
+
+			const unlimited = mountInteraction(AssociateInteraction, {
+				interaction: associateData({ maxAssociations: 0 }),
+			});
+			await settle();
+			expect(q(unlimited, '[part="helper"]')?.textContent).not.toContain('You can make up to');
+			cleanupInteraction(mounted, unlimited);
+		});
+	});
 });

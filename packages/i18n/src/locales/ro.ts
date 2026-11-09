@@ -365,6 +365,7 @@ export default {
 			imageLoadError: 'Imaginea nu a putut fi încărcată.',
 			unknownImageDimensions: 'Hotspot-urile nu pot fi afișate: dimensiunea imaginii este necunoscută. Adăugați lățime și înălțime imaginii.',
 			minPlacementsHint: 'Încă de plasat pe zone: {labels}.',
+			associationLimitReached: 'Asociere imposibilă: s-a atins limita de {max}.',
 		},
 
 		order: {
@@ -423,6 +424,13 @@ export default {
 				other: 'Creează cel puțin {count} de asocieri.',
 			},
 			minChoiceUsesHint: 'Mai are nevoie de asocieri: {items}.',
+			maxAssociationsHint: {
+				one: 'Poți crea cel mult o asociere.',
+				few: 'Poți crea cel mult {count} asocieri.',
+				other: 'Poți crea cel mult {count} de asocieri.',
+			},
+			choiceLimitReached: 'Imposibil: {label} nu poate face parte din mai multe asocieri.',
+			associationLimitReached: 'Asociere imposibilă: s-a atins limita de {max}.',
 		},
 
 		positionObject: {

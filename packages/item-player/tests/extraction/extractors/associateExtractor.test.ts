@@ -71,8 +71,24 @@ describe('standardAssociateExtractor', () => {
 		const result = standardAssociateExtractor.extract(element, context);
 
 		expect(result.shuffle).toBe(false);
-		expect(result.maxAssociations).toBe(0);
+		// maxAssociations is optional with default 1 in QTI 2.1 (XSD), 2.2 (Table 5.6.2)
+		// and 3.0 (Table 5.8.2); 0 means no restriction.
+		expect(result.maxAssociations).toBe(1);
 		expect(result.choices[0].matchMax).toBe(1);
+	});
+
+	test('authored maxAssociations=0 stays 0 (no restriction)', () => {
+		const xml = `
+			<associateInteraction responseIdentifier="RESPONSE" maxAssociations="0">
+				<simpleAssociableChoice identifier="A">Item A</simpleAssociableChoice>
+			</associateInteraction>
+		`;
+		const element = parseQTI(xml);
+		const context = createTestContext(element, 'RESPONSE');
+
+		const result = standardAssociateExtractor.extract(element, context);
+
+		expect(result.maxAssociations).toBe(0);
 	});
 
 	test('handles choices with HTML content', () => {
