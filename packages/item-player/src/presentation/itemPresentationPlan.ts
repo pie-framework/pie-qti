@@ -11,6 +11,7 @@ import { htmlToString, toTrustedHtml } from '../core/trustedTypes.js';
 import type { PnpProfile } from '../pnp/types.js';
 import { getRoleCapabilities, type RoleCapabilities } from '../core/rolePolicy.js';
 import { escapeHtmlAttribute } from '../security/escapeHtml.js';
+import { deepFreezeInPlace } from '../utils/cloneFreeze.js';
 import type {
 	HtmlContent,
 	PlayerSecurityConfig,
@@ -222,7 +223,7 @@ export function createItemPresentation({
 		onComponentError,
 	});
 
-	return freezePresentation({
+	return deepFreezeInPlace({
 		capabilities: roleCapabilities,
 		disabled: effectiveDisabled,
 		...(source.contentLanguage ? { contentLanguage: source.contentLanguage } : {}),
@@ -235,17 +236,6 @@ export function createItemPresentation({
 		scopedCss,
 		shownFeedback,
 	});
-}
-
-function freezePresentation<T>(value: T): T {
-	if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
-	const prototype = Object.getPrototypeOf(value);
-	if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) return value;
-	Object.freeze(value);
-	for (const child of Object.values(value as Record<string, unknown>)) {
-		freezePresentation(child);
-	}
-	return value;
 }
 
 function buildItemBodyPresentation({

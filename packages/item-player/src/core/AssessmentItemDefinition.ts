@@ -19,6 +19,7 @@ import {
 import { getStandardInteractionModules } from '../interactions/modules.js';
 import type { PciConfiguration } from '../pci/types.js';
 import type { PnpProfile } from '../pnp/types.js';
+import { frozenSnapshot } from '../utils/cloneFreeze.js';
 import type {
 	ItemSessionEngineConfig,
 	PlayerSecurityConfig,
@@ -226,10 +227,10 @@ function snapshotDefinitionConfig(input: AssessmentItemDefinitionConfig): Readon
 		...(input.stringComparison
 			? { stringComparison: Object.freeze({ ...input.stringComparison }) }
 			: {}),
-		...(input.security ? { security: freezePlainSnapshot(input.security) } : {}),
-		...(input.pnp ? { pnp: freezePlainSnapshot(input.pnp) } : {}),
+		...(input.security ? { security: frozenSnapshot(input.security) } : {}),
+		...(input.pnp ? { pnp: frozenSnapshot(input.pnp) } : {}),
 		...(input.deliveryContext
-			? { deliveryContext: freezePlainSnapshot(input.deliveryContext) }
+			? { deliveryContext: frozenSnapshot(input.deliveryContext) }
 			: {}),
 	};
 	if (!config.resolveProcessingFragment && config.deliveryContext) {
@@ -341,20 +342,4 @@ function createSessionPlayerConfig(
 		// Give each session a private top-level object while the compiled definition
 		// and its sealed extension registries remain shared and immutable.
 	};
-}
-
-function freezePlainSnapshot<T>(value: T): T {
-	if (Array.isArray(value)) {
-		return Object.freeze(value.map((entry) => freezePlainSnapshot(entry))) as T;
-	}
-	if (!value || typeof value !== 'object') return value;
-	if (Object.getPrototypeOf(value) !== Object.prototype) return value;
-
-	const snapshot = Object.fromEntries(
-		Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
-			key,
-			freezePlainSnapshot(entry),
-		])
-	);
-	return Object.freeze(snapshot) as T;
 }

@@ -103,6 +103,7 @@ import type { CatalogIndex } from '../catalog/types.js';
 import { extractCatalog, extractCatalogFromItemXml, mergeCatalogs } from '../catalog/catalogExtractor.js';
 import { getCatalogEntryWithAliases } from '../catalog/catalogLookup.js';
 import { PciHost } from '../pci/PciHost.js';
+import { cloneValue } from '../utils/cloneFreeze.js';
 import type { ExtractedPci, PciInteractionStatus } from '../pci/types.js';
 import {
 	createExtendedTextNumericRecord,
@@ -266,7 +267,7 @@ export class Player {
 
 		if (prepared) {
 			this.itemDocument = prepared.itemDocument;
-			this.decls = cloneDeclarationMap(prepared.declarations);
+			this.decls = cloneValue(prepared.declarations);
 		} else {
 			// Read-aloud markup: suppression restated as the attribute the PIE tools read, and SSML
 			// docked as catalog idrefs and unwrapped from the visible body. The section player derives
@@ -284,7 +285,7 @@ export class Player {
 		}
 		this.applyContextVariables(config.contextVariables);
 		this.applyTemplateDefaults(config.templateDefaults);
-		this.sourceDeclarations = cloneDeclarationMap(this.decls);
+		this.sourceDeclarations = cloneValue(this.decls);
 		this.ctx = new DeclarationContext(this.decls);
 		this.ops = new OperatorRegistry();
 
@@ -420,7 +421,7 @@ export class Player {
 			mapper: this.mapper,
 			attributeMapper: this.config.attributeNameMapper as AttributeNameMapper,
 			itemDocument: this.itemDocument,
-			declarations: cloneDeclarationMap(this.sourceDeclarations),
+			declarations: cloneValue(this.sourceDeclarations),
 			responseProcessing: this.responseProcessing,
 			responseProcessingProgram: this.responseProcessingProgram,
 			templateProcessingProgram: this.templateProcessingProgram,
@@ -932,10 +933,10 @@ export class Player {
 			const declared = this.sourceDeclarations[d.identifier];
 			if (!declared) continue;
 			const fields = d as { defaultValue?: QtiValue; correctResponse?: QtiValue };
-			if (declared.defaultValue) fields.defaultValue = cloneRuntimeValue(declared.defaultValue);
+			if (declared.defaultValue) fields.defaultValue = cloneValue(declared.defaultValue);
 			else delete fields.defaultValue;
 			if (kind !== 'response') continue;
-			if (declared.correctResponse) fields.correctResponse = cloneRuntimeValue(declared.correctResponse);
+			if (declared.correctResponse) fields.correctResponse = cloneValue(declared.correctResponse);
 			else delete fields.correctResponse;
 		}
 	}
@@ -2007,7 +2008,7 @@ export class Player {
 
 	private qtiValueToSerializable(value: QtiValue | undefined): any {
 		if (!value || value.kind !== 'value') return null;
-		if (value.cardinality !== 'record') return cloneRuntimeValue(value.value);
+		if (value.cardinality !== 'record') return cloneValue(value.value);
 
 		const serialized: Record<string, unknown> = {};
 		for (const [fieldIdentifier, fieldValue] of Object.entries(value.value as Record<string, QtiValue>)) {
@@ -2033,7 +2034,7 @@ export class Player {
 
 	private qtiValueToPublic(value: QtiValue | undefined): any {
 		if (!value || value.kind !== 'value') return null;
-		if (value.cardinality !== 'record') return cloneRuntimeValue(value.value);
+		if (value.cardinality !== 'record') return cloneValue(value.value);
 
 		const record: Record<string, unknown> = {};
 		for (const [fieldIdentifier, fieldValue] of Object.entries(value.value as Record<string, QtiValue>)) {
@@ -2223,7 +2224,7 @@ export class Player {
 
 		// Allow callers to pass fully-formed QtiValue (e.g. session restore).
 		if (typeof raw === 'object' && raw && 'kind' in raw) {
-			return cloneRuntimeValue(raw as QtiValue);
+			return cloneValue(raw as QtiValue);
 		}
 
 		const inputBase = identifier ? this.getNumericInputBase(identifier) : undefined;
@@ -2240,10 +2241,10 @@ export class Player {
 				return qtiValue(
 					baseType,
 					cardinality,
-					cloneRuntimeValue(arr.filter((v) => v !== null && v !== undefined)),
+					cloneValue(arr.filter((v) => v !== null && v !== undefined)),
 				);
 			}
-			return qtiValue(baseType, cardinality, cloneRuntimeValue(raw));
+			return qtiValue(baseType, cardinality, cloneValue(raw));
 		}
 
 		if (cardinality === 'multiple' || cardinality === 'ordered') {
@@ -2677,16 +2678,6 @@ function orderInteractionLimits(interaction: {
 		maxChoices: interaction.maxChoices,
 		choiceCount: choices.length,
 	});
-}
-
-function cloneDeclarationMap(declarations: DeclarationMap): DeclarationMap {
-	return structuredClone(declarations);
-}
-
-/** Detach serializable runtime values from caller- and declaration-owned references. */
-function cloneRuntimeValue<T>(value: T): T {
-	if (!value || typeof value !== 'object') return value;
-	return structuredClone(value);
 }
 
 function looksLikeCatalogUrl(value: string): boolean {

@@ -1,6 +1,7 @@
 import { sanitizeHtml } from '../core/sanitizer.js';
 import { toTrustedHtml } from '../core/trustedTypes.js';
 import { sanitizeResourceUrl, type UrlKind } from '../core/urlPolicy.js';
+import { cloneValue, deepFreezeInPlace as deepFreeze } from '../utils/cloneFreeze.js';
 import type { BaseInteractionData } from '../interactions/shared/types.js';
 import type { PlayerSecurityConfig } from '../types/index.js';
 import type {
@@ -116,32 +117,4 @@ function setChild(
 		return;
 	}
 	(parent as MutableRecord)[String(key)] = value;
-}
-
-function cloneValue<T>(value: T): T {
-	if (Array.isArray(value)) return value.map((entry) => cloneValue(entry)) as T;
-	if (value && typeof value === 'object') {
-		// TrustedHTML and other host values are terminal leaves. Standard extractor
-		// output is plain data; retaining a non-plain value avoids destroying a host
-		// object's identity when a plugin supplies one deliberately.
-		const prototype = Object.getPrototypeOf(value);
-		if (prototype !== Object.prototype && prototype !== null) return value;
-		return Object.fromEntries(
-			Object.entries(value).map(([key, entry]) => [key, cloneValue(entry)])
-		) as T;
-	}
-	return value;
-}
-
-function deepFreeze<T>(value: T): T {
-	if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
-	const prototype = Object.getPrototypeOf(value);
-	if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) {
-		// TrustedHTML and other host objects are opaque terminal values. Freezing a
-		// browser-owned object can throw and adds no protection to our data graph.
-		return value;
-	}
-	Object.freeze(value);
-	for (const child of Object.values(value as MutableRecord)) deepFreeze(child);
-	return value;
 }
