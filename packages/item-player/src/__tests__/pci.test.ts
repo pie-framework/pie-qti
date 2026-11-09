@@ -672,7 +672,8 @@ describe('qtiVariableJson', () => {
 			b: { baseType: 'string', cardinality: 'single', value: 'x' },
 		});
 		expect(fromQtiVariableJson(null)).toBeNull();
-		expect(fromQtiVariableJson('plain')).toBe('plain');
+		// Anything outside the binding is NULL, not a passthrough value.
+		expect(fromQtiVariableJson('plain')).toBeNull();
 
 		const value = ['A', 'B'];
 		expect(fromQtiVariableJson(toQtiVariableJson(value, 'identifier', 'multiple'))).toEqual(value);

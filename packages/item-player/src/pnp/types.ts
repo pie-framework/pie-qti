@@ -26,8 +26,9 @@ export interface PnpProfile {
 			| 'whitenav'
 			| 'medgray';
 		/**
-		 * CSS zoom factor (1.0 = 100%). Deferred — set by browser zoom or host stylesheet.
-		 * Stored here for forward-compatibility but not yet applied by the player.
+		 * AfA `magnification`: CSS zoom factor (1.0 = 100%). Set on the player root as
+		 * `data-qti-magnification` and `--qti-magnification` for host stylesheets; the default
+		 * stylesheet does not render it, leaving zoom to the browser or operating system.
 		 */
 		magnification?: number;
 		/** AfA `language-of-interface`: the language the host renders the player's own text in. */

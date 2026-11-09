@@ -1,15 +1,17 @@
 <svelte:options customElement="pie-qti-position-object" />
 
 <!--
-	QTI 2.2 Position Object Interaction Component
+	QTI Position Object Interaction Component (QTI 2.x positionObjectInteraction, QTI 3.0
+	qti-position-object-interaction)
 
 	⚠️ IMPORTANT LIMITATIONS ⚠️
 
-	This interaction type has severe limitations in the QTI 2.2 specification that make it
+	This interaction type has severe limitations in the QTI specification that make it
 	impractical for most educational use cases. After extensive research, we found:
 
 	1. NO real-world implementations beyond the official spec example
-	2. NOT included in QTI 3.0 shared vocabulary/styling guide (likely deprecated)
+	2. Defined in QTI 3.0 (qti-position-object-interaction inside qti-position-object-stage),
+	   but absent from the QTI 3.0 shared vocabulary/styling guide
 	3. Major QTI platforms (TAO, Citolab) show no prominent support
 	4. Only suitable for very narrow use cases
 
@@ -43,7 +45,8 @@
 	For labeled-object placement scenarios, use graphicGapMatchInteraction instead,
 	which uses baseType="directedPair" to properly track object+location pairs.
 
-	This implementation exists for QTI 2.2 compatibility but has limited practical utility.
+	This implementation covers the interaction as QTI 2.x and 3.0 define it, but has limited
+	practical utility.
 -->
 
 <script lang="ts">
