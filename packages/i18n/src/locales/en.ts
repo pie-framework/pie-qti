@@ -883,7 +883,6 @@ export default {
 				itemTimeExpired: 'The time limit for this question has expired.',
 				reviewNotAllowed: 'You cannot return to this question.',
 				responseRequired: 'You must answer this question before continuing.',
-				responseInvalid: 'Please provide a valid answer before continuing.',
 				finalizeResponseRequired: 'Some questions still need an answer before you can submit: {items}.',
 				finalizeResponseInvalid: 'Some answers are not complete yet. Check these questions before you submit: {items}.',
 				leavePartResponseRequired: 'Some questions in this part still need an answer before you can continue: {items}.',

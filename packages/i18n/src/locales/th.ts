@@ -866,7 +866,6 @@ export default {
 				itemTimeExpired: 'หมดเวลาสำหรับคำถามนี้แล้ว',
 				reviewNotAllowed: 'คุณกลับมาที่คำถามนี้ไม่ได้',
 				responseRequired: 'คุณต้องตอบคำถามนี้ก่อนจึงจะไปต่อได้',
-				responseInvalid: 'กรุณากรอกคำตอบที่สมบูรณ์ก่อนไปต่อ',
 				finalizeResponseRequired: 'ยังมีบางข้อที่ต้องตอบก่อนจึงจะส่งได้: {items}',
 				finalizeResponseInvalid: 'คำตอบบางข้อยังไม่สมบูรณ์ ตรวจสอบข้อเหล่านี้ก่อนส่ง: {items}',
 				leavePartResponseRequired: 'คำถามในส่วนนี้บางข้อยังต้องตอบก่อนไปต่อ: {items}',

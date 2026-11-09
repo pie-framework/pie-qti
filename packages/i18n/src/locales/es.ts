@@ -886,7 +886,6 @@ export default {
 				itemTimeExpired: 'El tiempo límite para esta pregunta ha expirado.',
 				reviewNotAllowed: 'No puedes volver a esta pregunta.',
 				responseRequired: 'Debes responder esta pregunta antes de continuar.',
-				responseInvalid: 'Proporciona una respuesta válida antes de continuar.',
 				finalizeResponseRequired: 'Algunas preguntas aún necesitan respuesta antes de que puedas entregar: {items}.',
 				finalizeResponseInvalid: 'Algunas respuestas aún no están completas. Revisa estas preguntas antes de entregar: {items}.',
 				leavePartResponseRequired: 'Algunas preguntas de esta parte aún necesitan respuesta antes de continuar: {items}.',

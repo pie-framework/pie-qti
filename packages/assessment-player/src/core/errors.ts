@@ -27,8 +27,6 @@ export type AssessmentPlayerErrorCode =
 	| 'reviewNotAllowed'
 	/** The item must be answered before navigation away is allowed. */
 	| 'responseRequired'
-	/** The item's responses fail validation and navigation away is blocked. */
-	| 'responseInvalid'
 	/**
 	 * Ending the test was refused: items in individual parts that do not allow skipping
 	 * still have no response (`params.items` lists their numbers).

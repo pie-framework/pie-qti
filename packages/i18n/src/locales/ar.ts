@@ -990,7 +990,6 @@ export default {
 				itemTimeExpired: 'انتهى الوقت المحدد لهذا السؤال.',
 				reviewNotAllowed: 'لا يمكنك العودة إلى هذا السؤال.',
 				responseRequired: 'يجب الإجابة على هذا السؤال قبل المتابعة.',
-				responseInvalid: 'يرجى تقديم إجابة صالحة قبل المتابعة.',
 				finalizeResponseRequired: 'لا تزال بعض الأسئلة بحاجة إلى إجابة قبل أن تتمكن من التسجيل: {items}.',
 				finalizeResponseInvalid: 'بعض الإجابات غير مكتملة بعد. راجع هذه الأسئلة قبل التسجيل: {items}.',
 				leavePartResponseRequired: 'بعض الأسئلة في هذا الجزء ما زالت تحتاج إلى إجابة قبل المتابعة: {items}.',
