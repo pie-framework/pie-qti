@@ -35,10 +35,6 @@ import { prepareContentMarkup } from '@pie-qti/qti-common/accessibility';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 import { DefaultI18nProvider, type I18nProvider } from '@pie-qti/i18n';
 import {
-	Qti2xElementNameMapper,
-	Qti2xAttributeNameMapper,
-	Qti3ElementNameMapper,
-	Qti3AttributeNameMapper,
 	detectQtiVersion,
 	detectQtiVersionDetailed,
 	isShownByIdentifier,
@@ -104,6 +100,7 @@ import { extractCatalog, extractCatalogFromItemXml, mergeCatalogs } from '../cat
 import { getCatalogEntryWithAliases } from '../catalog/catalogLookup.js';
 import { PciHost } from '../pci/PciHost.js';
 import { cloneValue } from '../utils/cloneFreeze.js';
+import { attributeNameMapperForVersion, elementNameMapperForVersion } from './nameMappers.js';
 import type { ExtractedPci, PciInteractionStatus } from '../pci/types.js';
 import {
 	createExtendedTextNumericRecord,
@@ -242,22 +239,14 @@ export class Player {
 		// The detected version also drives per-version spec defaults during extraction
 		// (e.g. graphicGapMatchInteraction maxAssociations); detect it once, here.
 		this.qtiVersion = config.qtiVersion ?? detectQtiVersion(this.itemXml);
-		if (prepared) {
-			this.mapper = prepared.mapper;
-		} else if (!config.elementNameMapper) {
-			if (this.qtiVersion === '3.0') {
-				this.mapper = new Qti3ElementNameMapper();
-			} else {
-				this.mapper = new Qti2xElementNameMapper();
-			}
-		} else {
-			this.mapper = config.elementNameMapper as ElementNameMapper;
-		}
-		const attributeMapper = prepared?.attributeMapper ??
+		this.mapper =
+			prepared?.mapper ??
+			config.elementNameMapper ??
+			elementNameMapperForVersion(this.qtiVersion);
+		const attributeMapper =
+			prepared?.attributeMapper ??
 			config.attributeNameMapper ??
-			(this.mapper.version === '3.0'
-				? new Qti3AttributeNameMapper()
-				: new Qti2xAttributeNameMapper());
+			attributeNameMapperForVersion(this.mapper.version);
 		this.config = {
 			...config,
 			elementNameMapper: this.mapper,

@@ -1,11 +1,6 @@
 import {
 	type AttributeNameMapper,
 	type ElementNameMapper,
-	Qti2xAttributeNameMapper,
-	Qti2xElementNameMapper,
-	Qti3AttributeNameMapper,
-	Qti3ElementNameMapper,
-	detectQtiVersion,
 } from '@pie-qti/qti-common';
 import type { I18nProvider } from '@pie-qti/i18n';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
@@ -20,6 +15,7 @@ import { getStandardInteractionModules } from '../interactions/modules.js';
 import type { PciConfiguration } from '../pci/types.js';
 import type { PnpProfile } from '../pnp/types.js';
 import { frozenSnapshot } from '../utils/cloneFreeze.js';
+import { resolveNameMappers } from './nameMappers.js';
 import type {
 	ItemSessionEngineConfig,
 	PlayerSecurityConfig,
@@ -190,24 +186,6 @@ function readPreparedDiagnostics(prepared: unknown): readonly QtiItemDiagnostic[
 	const diagnostics =
 		prepared && typeof prepared === 'object' && 'diagnostics' in prepared ? prepared.diagnostics : undefined;
 	return Array.isArray(diagnostics) ? (diagnostics as readonly QtiItemDiagnostic[]) : Object.freeze([]);
-}
-
-function resolveNameMappers(config: Readonly<ItemSessionEngineConfig>) {
-	if (config.elementNameMapper && config.attributeNameMapper) {
-		return {
-			elementNameMapper: config.elementNameMapper,
-			attributeNameMapper: config.attributeNameMapper,
-		};
-	}
-
-	const qti3 = detectQtiVersion(config.itemXml ?? '') === '3.0';
-	return {
-		elementNameMapper:
-			config.elementNameMapper ?? (qti3 ? new Qti3ElementNameMapper() : new Qti2xElementNameMapper()),
-		attributeNameMapper:
-			config.attributeNameMapper ??
-			(qti3 ? new Qti3AttributeNameMapper() : new Qti2xAttributeNameMapper()),
-	};
 }
 
 function snapshotDefinitionConfig(input: AssessmentItemDefinitionConfig): Readonly<ItemSessionEngineConfig> {
