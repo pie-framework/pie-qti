@@ -94,6 +94,27 @@ describe('CustomInteraction fallback (pie-qti-custom)', () => {
 		expect(q<HTMLTextAreaElement>(mounted, 'textarea')?.value).toBe('kept-answer');
 	});
 
+	// The manual entry is free text: an answer that reads as JSON is still the text the candidate
+	// typed, so the player setting it back must not rewrite it.
+	test.each(['"H2O"', '1.50', 'null', '[1]'])('a stored answer of %s is shown exactly as typed', async (answer) => {
+		const mounted = mountInteraction(CustomInteraction, { interaction: customData(), i18n });
+		await settle();
+
+		const textarea = q<HTMLTextAreaElement>(mounted, 'textarea')!;
+		type(textarea, answer);
+		await settle();
+		expect(mounted.events.at(-1)!.detail.value).toBe(answer);
+
+		// The item player sets the response it stored back on the element.
+		mounted.instance.response = answer;
+		await settle();
+		expect(textarea.value).toBe(answer);
+
+		const restored = mountInteraction(CustomInteraction, { interaction: customData(), response: answer, i18n });
+		await settle();
+		expect(q<HTMLTextAreaElement>(restored, 'textarea')?.value).toBe(answer);
+	});
+
 	test('disabled: the manual entry is disabled and cannot be operated', async () => {
 		const mounted = mountInteraction(CustomInteraction, {
 			interaction: customData(),

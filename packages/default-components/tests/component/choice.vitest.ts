@@ -154,6 +154,36 @@ describe('ChoiceInteraction (pie-qti-choice)', () => {
 		expect(q(mounted, 'label[part="label"] .badge')?.textContent).toContain('Correct');
 	});
 
+	// Identifiers are NCNames, so "true", "false" and "null" are valid choice identifiers. The
+	// response names the choice; it is never read as a JSON literal.
+	const literalChoices = choiceData({
+		choices: [
+			{ identifier: 'true', text: '<p>True</p>' },
+			{ identifier: 'false', text: '<p>False</p>' },
+			{ identifier: 'null', text: '<p>Neither</p>' },
+		],
+	});
+
+	test.each(['true', 'false', 'null'])('a stored answer naming the choice "%s" keeps it selected', async (identifier) => {
+		const mounted = mountInteraction(ChoiceInteraction, { interaction: literalChoices, response: identifier });
+		await settle();
+
+		const checked = qa<HTMLInputElement>(mounted, 'input[type="radio"]').map((input) => input.checked);
+		expect(checked).toEqual(['true', 'false', 'null'].map((id) => id === identifier));
+	});
+
+	test('scorer role highlights a correct choice whose identifier reads as a JSON literal', async () => {
+		const mounted = mountInteraction(ChoiceInteraction, {
+			interaction: literalChoices,
+			role: 'scorer',
+			correctResponse: 'false',
+		});
+		await settle();
+
+		const correct = qa(mounted, 'label[part="label"]').map((label) => label.classList.contains('qti-choice-correct'));
+		expect(correct).toEqual([false, true, false]);
+	});
+
 	test('the answer set is always one group named by the prompt', async () => {
 		const mounted = mountInteraction(ChoiceInteraction, {
 			interaction: choiceData(),

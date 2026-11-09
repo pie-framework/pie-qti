@@ -28,6 +28,11 @@ describe('createTextEntryStringResponse', () => {
 		expect(createTextEntryStringResponse(255, { base: 16 })).toBe('ff');
 		expect(createTextEntryStringResponse(3.5, {})).toBe('3.5');
 	});
+
+	test('with a base no number can be written in, a number is spelled in base 10', () => {
+		expect(createTextEntryStringResponse(255, { base: 0 })).toBe('255');
+		expect(createTextEntryStringResponse(255, { base: 37 })).toBe('255');
+	});
 });
 
 describe('textEntryStringIdentifier', () => {
