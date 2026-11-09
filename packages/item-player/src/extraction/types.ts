@@ -279,21 +279,3 @@ export type ExtractionDispatchResult<TData extends object> =
 			warnings?: string[];
 	  }
 	| { success: false; error: ExtractionError };
-
-/**
- * Type guard for successful extraction result
- */
-export function isSuccessResult<TData>(
-	result: ExtractionResult<TData>
-): result is { success: true; data: TData; warnings?: string[] } {
-	return result.success === true;
-}
-
-/**
- * Type guard for failed extraction result
- */
-export function isErrorResult<TData>(
-	result: ExtractionResult<TData>
-): result is { success: false; error: ExtractionError } {
-	return result.success === false;
-}

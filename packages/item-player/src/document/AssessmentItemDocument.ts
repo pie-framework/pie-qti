@@ -87,22 +87,6 @@ export class AssessmentItemDocument {
 		this.extractionSource = this.serializeItemBodyForExtraction();
 	}
 
-	detectVersion(): '2.0' | '2.1' | '2.2' | '3.0' | 'unknown' {
-		const namespace = this.assessmentItem.namespaceURI;
-		if (namespace?.includes('v3p0') || namespace?.includes('imsqtiasi_v3p0')) return '3.0';
-		if (namespace?.includes('v2p2') || namespace?.includes('imsqti_v2p2')) return '2.2';
-		if (namespace?.includes('v2p1') || namespace?.includes('imsqti_v2p1')) return '2.1';
-		if (namespace?.includes('v2p0') || namespace?.includes('imsqti_v2p0')) return '2.0';
-
-		const localName = this.assessmentItem.localName || this.assessmentItem.tagName;
-		if (localName === 'qti-assessment-item' || localName === 'qti-assessment-test') return '3.0';
-
-		const version = this.assessmentItem.getAttribute('version');
-		if (version?.startsWith('3.')) return '3.0';
-		if (version === '2.2' || version === '2.1' || version === '2.0') return version;
-		return 'unknown';
-	}
-
 	getProcessingElement(kind: ProcessingKind): Element | null {
 		const tagName =
 			kind === 'template'
