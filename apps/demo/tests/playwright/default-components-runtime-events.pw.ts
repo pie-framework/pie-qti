@@ -1,4 +1,7 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from './fixtures';
+
+import { WCAG_AA_TAGS } from './a11y-utils';
 
 type RecordedQtiChangeEvent = {
 	responseId: string;
@@ -68,6 +71,87 @@ test.describe('default component runtime response events', () => {
 				composed: true,
 			},
 		]);
+	});
+});
+
+/**
+ * A single-select hottext (maxChoices=1) is a radio group: what jsdom cannot show — the real
+ * Tab order through the shadow root, the inline direction inherited into it, the focus ring —
+ * checked in the browser against the sample "The cat jumps over the fence" (H1, H2, H3).
+ */
+test.describe('single-select hottext radio group in the real custom element', () => {
+	test('one Tab stop, arrow keys that move and check, no toggle-off, and Clear answer', async ({ page }) => {
+		await openItemDemo(page, 'hottext-single');
+		const host = page.locator('pie-qti-hottext');
+		const group = host.getByRole('radiogroup', { name: 'Text selection interaction' });
+		const [cat, jumps, fence] = ['cat', 'jumps', 'fence'].map((word) =>
+			group.getByRole('radio', { name: new RegExp(`^${word}\\b`) }),
+		);
+		await expect(group.getByRole('radio')).toHaveCount(3);
+		await expect(host.locator('[aria-pressed]')).toHaveCount(0);
+		await startRecordingQtiChangeEvents(page);
+
+		// The group is one Tab stop: Tab leaves it from the first radio, Shift+Tab comes back to it.
+		await cat.focus();
+		await page.keyboard.press('Tab');
+		await expect(jumps).not.toBeFocused();
+		await expect(fence).not.toBeFocused();
+		await page.keyboard.press('Shift+Tab');
+		await expect(cat).toBeFocused();
+
+		// An arrow key moves focus and checks; the focus ring stays visible.
+		await page.keyboard.press('ArrowRight');
+		await expect(jumps).toBeFocused();
+		await expect(jumps).toHaveAttribute('aria-checked', 'true');
+		await expect(jumps).toHaveCSS('outline-style', 'solid');
+		// The checked radio group is valid ARIA (radio roles, aria-checked, no stray aria-pressed).
+		const scan = await new AxeBuilder({ page }).include('pie-qti-hottext').withTags(WCAG_AA_TAGS).analyze();
+		expect(scan.violations).toEqual([]);
+
+		// Re-activating the checked radio changes nothing and emits nothing.
+		await page.keyboard.press('Space');
+		await page.keyboard.press('Enter');
+		await jumps.click();
+		await expect(jumps).toHaveAttribute('aria-checked', 'true');
+
+		await page.keyboard.press('ArrowLeft');
+		await expect(cat).toBeFocused();
+
+		// Left/Right follow the inline direction the host inherits: under RTL, ArrowLeft moves forward.
+		await host.evaluate((element) => element.setAttribute('dir', 'rtl'));
+		await page.keyboard.press('ArrowLeft');
+		await expect(jumps).toBeFocused();
+		await expect(jumps).toHaveAttribute('aria-checked', 'true');
+
+		// Clear answer retracts the answer, goes away with it and returns focus to the first radio.
+		await host.getByRole('button', { name: 'Clear answer' }).click();
+		await expect(cat).toBeFocused();
+		await expect(cat).toHaveAttribute('tabindex', '0');
+		await expect(host.getByRole('button', { name: 'Clear answer' })).toHaveCount(0);
+
+		await expect
+			.poll(async () => (await takeQtiChangeEvents(page)).map((event) => event.value))
+			.toEqual(['H2', 'H1', 'H2', null]);
+	});
+
+	test.describe('on a touch screen', () => {
+		test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+
+		test('tapping the selected word again keeps the answer', async ({ page }) => {
+			await openItemDemo(page, 'hottext-single');
+			const host = page.locator('pie-qti-hottext');
+			const jumps = host.getByRole('radio', { name: /^jumps\b/ });
+			await startRecordingQtiChangeEvents(page);
+
+			await jumps.tap();
+			await expect(jumps).toHaveAttribute('aria-checked', 'true');
+			await jumps.tap();
+			await expect(jumps).toHaveAttribute('aria-checked', 'true');
+
+			await expect
+				.poll(async () => (await takeQtiChangeEvents(page)).map((event) => event.value))
+				.toEqual(['H2']);
+		});
 	});
 });
 
