@@ -173,8 +173,12 @@ XML, own authoritative scoring state, and validate every client submission. See
 - In `individual` mode, `next()` submits the current item before navigating and honors the backend's
   `nextItemIdentifier` branch decision. A practice check (`checkCurrentItem()`) stays on the item and
   keeps that decision: moving on with the response unchanged follows it without submitting again.
-  A move with no backend decision (a jump into the next test part, a move on from a simultaneous
-  part, a resumed session) applies the test's branch rules and preconditions with the reference
+  Any later counted submission voids the kept decision, so the delivery rules re-evaluate on the
+  moved outcomes, and the decision is part of the saved session state — a resumed session lands
+  exactly where the live one would. Leaving a simultaneous part on Next submits the part's pending
+  responses first and then follows the decision returned for the part's last item.
+  A move with no backend decision (a jump into the next test part, or a simultaneous-part crossing
+  whose decision led nowhere) applies the test's branch rules and preconditions with the reference
   rules, so a test part whose precondition fails is never entered. The end of the test never
   navigates: `submit()` (and a time expiry's or a proctor's end) collects where the candidate stands
   and keeps a branch decision its own submission returns on record instead of following it.
