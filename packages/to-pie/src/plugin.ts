@@ -6,7 +6,10 @@
 
 import type { AnalyzedContentPackage } from '@pie-qti/ims-cp-core';
 import type {
+  AssetResolver,
   ConversionTrace,
+  CssClassExtractor,
+  MetadataExtractor,
   PieItem,
   PieModel,
   QtiSourceProfile,
@@ -17,20 +20,15 @@ import type {
   TransformPlugin,
   TransformWarning,
   ValidationResult,
+  VendorDetector,
   VendorExtensionConfig,
+  VendorExtensionHooks,
+  VendorInfo,
+  VendorTransformer,
 } from '@pie-qti/transform-types';
 import { sourceDigest } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
-import type {
-  AssetResolver,
-  CssClassExtractor,
-  MetadataExtractor,
-  VendorDetector,
-  VendorExtensionHooks,
-  VendorInfo,
-  VendorTransformer,
-} from './types/vendor-extensions.js';
 import { prepareQtiAccessibility, withQtiAccessibility } from './utils/accessibility-catalogs.js';
 import { detectQtiVersion, type QtiVersion } from './utils/qti-version.js';
 import { withAccessibilityAudit } from './utils/accessibility-inventory.js';

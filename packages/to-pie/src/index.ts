@@ -113,19 +113,6 @@ export {
 } from './transformers/select-point.js';
 export type { SelectTextOptions } from './transformers/select-text.js';
 export { transformSelectText } from './transformers/select-text.js';
-// Vendor extension system for customization
-export type {
-  AssetResolver,
-  CssClassExtractor,
-  CustomAttributes,
-  MetadataExtractor,
-  ResolvedAsset,
-  VendorClasses,
-  VendorDetector,
-  VendorExtensionHooks,
-  VendorInfo,
-  VendorTransformer,
-} from './types/vendor-extensions.js';
 // QTI and APIP accessibility catalogs, in the card shape PIE players resolve
 export type {
   AccessibilityCatalog,

@@ -235,7 +235,7 @@ applyBehavioralClasses(pieModel, classes.behavioral);
 
 ## Complete Documentation
 
-- **[Type Definitions](./src/types/vendor-extensions.ts)** - Full TypeScript interfaces
+- **[Type Definitions](../../types/src/transform/vendor-extensions.ts)** - Full TypeScript interfaces (`@pie-qti/transform-types`)
 
 ## Supported QTI Versions
 
