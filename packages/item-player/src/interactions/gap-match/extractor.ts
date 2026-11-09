@@ -71,8 +71,12 @@ export interface GapMatchData {
 	gaps: string[];
 	/** QTI `maxAssociations`, with the per-version default for an absent attribute; 0 = no cap. */
 	maxAssociations: number;
+	/** QTI `minAssociations`, the associations a valid response makes; omitted when 0. */
+	minAssociations?: number;
 	/** Authored `matchGroup` tokens per gap identifier; present only when a gap authors one. */
 	gapMatchGroups?: Record<string, string[]>;
+	/** Gaps authored `required`, which a valid response must fill; present only when one is. */
+	requiredGaps?: string[];
 	shuffle: boolean;
 	prompt: string | null;
 	promptText: string;
@@ -194,6 +198,9 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 		// 0 = no restriction. QTI 2.2 added the attribute, so QTI 2.1 content sets no
 		// interaction cap. An explicit value is honoured in every version as leniency.
 		const maxAssociations = utils.getNumberAttribute(element, 'maxAssociations', predatesQti22(context) ? 0 : 1);
+		// minAssociations (QTI 2.2; QTI 3.0 §5.57.2): "the minimum number of associations that the
+		// candidate is required to make to form a valid response"; 0 requires none.
+		const minAssociations = utils.getNumberAttribute(element, 'minAssociations', 0);
 
 		// Shuffle the combined choice pool so words and images interleave, then
 		// restore the split view the renderer consumes.
@@ -260,8 +267,11 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 
 		// Each gap's authored matchGroup (QTI 2.2/3.0: the identifiers of the choices that may be
 		// matched with it), read from the parsed source wherever the gap sits, with
-		// version-aware attribute names (matchGroup / match-group).
+		// version-aware attribute names (matchGroup / match-group). A gap authored `required`
+		// "must be filled by the candidate in order to form a valid response" (QTI 2.1 gap;
+		// QTI 3.0 §5.55.5).
 		const gapMatchGroups: Record<string, string[]> = {};
+		const requiredGaps: string[] = [];
 		const visitGaps = (node: QTIElement): void => {
 			for (const child of node.childNodes ?? []) {
 				const candidate = child as QTIElement;
@@ -270,6 +280,7 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 					const identifier = utils.getAttribute(candidate, 'identifier', '');
 					const tokens = utils.getAttribute(candidate, 'matchGroup', '').split(/\s+/).filter(Boolean);
 					if (identifier && tokens.length > 0) gapMatchGroups[identifier] = tokens;
+					if (identifier && utils.getBooleanAttribute(candidate, 'required', false)) requiredGaps.push(identifier);
 				}
 				visitGaps(candidate);
 			}
@@ -289,7 +300,9 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 			gapImages,
 			gaps,
 			maxAssociations,
+			...(minAssociations > 0 ? { minAssociations } : {}),
 			...(Object.keys(gapMatchGroups).length > 0 ? { gapMatchGroups } : {}),
+			...(requiredGaps.length > 0 ? { requiredGaps } : {}),
 			shuffle,
 			prompt,
 			promptText,

@@ -138,16 +138,20 @@ The QTI processing model is inherently stateful: `setOutcomeValue` and `setTempl
 **Extension**  
 `customOperator` (dispatches to `EvalEnv.customOperators` registry)
 
+### External processing fragments (`xi:include`)
+
+`xi:include` in `<responseProcessing>`, `<templateProcessing>` or `<outcomeProcessing>` is resolved (G-24). The builder recognizes `include` and `fallback` only in the XInclude namespace. It resolves each include through the host-owned `resolveProcessingFragment` callback; assessment delivery derives a package-contained resolver from the item's packaged fragments. An authored `xi:fallback` runs when a fragment cannot be resolved. A missing resolver without a fallback, a fragment of the wrong mode, a cycle, and excessive depth or size are parse errors.
+
 ### Deliberately omitted
 
-- `xi:include` in processing XML: `xi:include` references in `<responseProcessing>` or `<outcomeProcessing>` throw a parse-time error with a message explaining why (the engine does not resolve external resources for item-only processing). Content authors must inline the rules.
 - `preCondition` / `branchRule` at the test level: these are `testPart`- and `assessmentSection`-level QTI constructs controlled by the assessment player, not by the processing engine.
 
 ### Known divergences from spec
 
+None. The notes below record architecture choices the specification leaves to the delivery system.
+
 - **`outcomeProcessing` inputs are the backend's (G-11):** the test-level expressions evaluate over whatever `TestItemState` the backend supplies. `ReferenceBackendAdapter` supplies one per delivered item, submitted or not, with typed variables, section path, categories, weights, declared normal bounds and the presented/responded/correct/incorrect/selected flags; a production backend must build the same from its authoritative session state. `outcomeMinimum` and `outcomeMaximum` read the declared `normalMinimum`/`normalMaximum`.
-- **Built-in scope durations (G-22):** test-level outcome processing can read the QTI built-in `duration` of the test, each testPart (`TESTPART_ID.duration`) and each section (`SECTION_ID.duration`), plus each item's own `duration` as `ITEM_ID.duration`. All are `duration` baseType in **seconds** (QTI), declared by the assessment layer from the persisted timing clocks — those clocks themselves stay in milliseconds. Authored identifiers are never replaced: a test that declares its own `duration` outcome wins.
-- **`xi:include` is a parse error, not a no-op:** The spec implies `xi:include` should be resolved. The engine throws instead of silently ignoring it, to surface content authoring errors early.
+- **Built-in scope durations (G-22, supported as QTI defines them):** test-level outcome processing can read the QTI built-in `duration` of the test, each testPart (`TESTPART_ID.duration`) and each section (`SECTION_ID.duration`), plus each item's own `duration` as `ITEM_ID.duration`. All are `duration` baseType in **seconds** (QTI), declared by the assessment layer from the persisted timing clocks — those clocks themselves stay in milliseconds. Authored identifiers are never replaced: a test that declares its own `duration` outcome wins.
 
 ---
 
@@ -163,7 +167,7 @@ The QTI processing model is inherently stateful: `setOutcomeValue` and `setTempl
 - **FR-8:** `DeclarationContext.resetToDefault(id)` must restore the variable's value to a clone of its `defaultValue`, not to the same object reference.
 - **FR-9:** `round` and `equalRounded` operators must use `ROUND_HALF_UP` semantics via `decimal.js`, not native `Math.round`.
 - **FR-10:** `mapResponse` must apply `lowerBound` and `upperBound` from the response declaration's mapping, clamping the result.
-- **FR-11:** `patternMatch` must compare the response value against the pattern using ECMAScript `RegExp` (not XSD regex). Differences between XSD and ECMAScript regex syntax may cause content-specific divergences; this is a known limitation.
+- **FR-11:** `patternMatch` must match the whole response against the pattern as an XML Schema regular expression (XML Schema Part 2, appendix F, which QTI cites for `patternMatch` and `patternMask`). `xsdPatternToRegExp` (`runtime/xsd-pattern.ts`) translates the constructs ECMAScript reads differently before it compiles the pattern: `^` and `$` are ordinary characters; `.`, `\s`, `\d`, `\w`, `\i`, `\c` and their complements keep their XSD character sets (`\i` and `\c` from the XML 1.0 letter tables XSD 1.0 cites); `\p{IsX}` is a block of the XSD 1.0 block table, and an unrecognized block name denotes every character (XSD 1.1 §G.4.2.4); `[G-[C]]` subtracts class `C` from group `G`. A pattern that does not compile after translation is not valid XSD: it compiles as written without the `u` flag, and one that does not compile at all never matches.
 - **FR-12:** Unknown processing statement tags must throw a parse-time error with the tag name and mode, rather than silently skipping, to surface coverage gaps.
 
 ---
@@ -396,8 +400,8 @@ AC-E6: buildOutcomeProcessingAst with scope 'test' allows outcomeCondition
 
 ## Open questions
 
-- [ ] **G-11 wiring**: The infrastructure for `buildOutcomeProcessingAst` and `TestEvalContext` is complete. The remaining work is in `@pie-qti/assessment-player`: parse `<outcomeProcessing>` from the assessmentTest XML, build a `TestEvalContext` from current item scores/attempts, and call `execProgram`. What is the blocking dependency — is there a concrete content-bank item that requires this?
-- [ ] **`patternMatch` XSD vs ECMAScript regex divergence**: QTI uses XSD 1.1 regular expressions; JavaScript uses ECMAScript regex. Known differences include character class syntax and anchoring behaviour. Should we add a thin compatibility layer, or document the divergence and leave content authors responsible for using a compatible subset?
+- [x] **G-11 wiring** (resolved; `docs/SPEC-GAPS-PLAN.md` §G-11 is Done): the assessment layer parses `<outcomeProcessing>` from the assessmentTest XML, builds a `TestEvalContext` from the delivered items, and executes it; the reference backend adapter runs it, and a production backend stays authoritative.
+- [x] **`patternMatch` XSD vs ECMAScript regex divergence** (resolved 2026-11-09): a compatibility layer, not a documented divergence, because QTI is clear that the pattern is an XSD regular expression. `runtime/xsd-pattern.ts` translates every appendix F construct ECMAScript reads differently (FR-11), and the same translation gives the HTML `pattern` attribute its source for `patternMask`.
 - [ ] **`customOperator` error handling**: If a registered custom operator throws, `evalExpr` will propagate the exception. Should it be caught and returned as `kind: 'invalid'` instead? This would make the behaviour consistent with built-in type errors but would also hide bugs in custom operator implementations.
 
 ---

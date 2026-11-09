@@ -28,6 +28,7 @@ import {
 	toBoolean,
 	toNumber,
 	toStringValue,
+	xsdPatternToRegExp,
 } from '@pie-qti/qti-processing';
 import type { ElementNameMapper, AttributeNameMapper, QtiVersion } from '@pie-qti/qti-common';
 import { prepareContentMarkup } from '@pie-qti/qti-common/accessibility';
@@ -204,6 +205,11 @@ export class Player {
 	private _pnpChangeListeners = new Set<(pnp: PnpProfile | undefined) => void>();
 	private sessionGuid: string;
 	private lifecycleStatus: ItemLifecycleStatus = 'initial';
+	/**
+	 * End-attempt responses the candidate turned true since the attempt last ended: the
+	 * interactions that invoke the next response processing (see settleEndAttemptResponses).
+	 */
+	private readonly endAttemptActivations = new Set<string>();
 	private diagnostics: readonly QtiItemDiagnostic[] = [];
 	/** matchGroup constraints of the item's pairing interactions, by response identifier. */
 	private matchGroupConstraints: ReadonlyMap<string, MatchGroupConstraints> = new Map();
@@ -591,7 +597,13 @@ export class Player {
 	 * in-progress module state.
 	 */
 	public setResponses(responses: Record<string, unknown>): void {
+		const endAttemptIds = this.getEndAttemptResponseIdentifiers().filter((id) => id in responses);
+		const wasTrue = new Set(endAttemptIds.filter((id) => this.isResponseTrue(id)));
 		this.applyResponses(responses, (id, value) => this.offerPciResponse(id, value));
+		for (const id of endAttemptIds) {
+			if (!this.isResponseTrue(id)) this.endAttemptActivations.delete(id);
+			else if (!wasTrue.has(id)) this.endAttemptActivations.add(id);
+		}
 	}
 
 	/**
@@ -600,6 +612,8 @@ export class Player {
 	 */
 	public restoreResponses(responses: Record<string, unknown>): void {
 		this.applyResponses(responses, (id, value) => this.restorePciResponse(id, value));
+		// A replaced value is the state as it stands, not the candidate activating an interaction.
+		for (const id of Object.keys(responses)) this.endAttemptActivations.delete(id);
 	}
 
 	private applyResponses(
@@ -659,6 +673,7 @@ export class Player {
 	public restoreItemSession(state: SerializedItemSessionState): void {
 		this.sessionGuid = state.sessionGuid;
 		this.interactionDataCache = null;
+		this.endAttemptActivations.clear();
 		this.lifecycleStatus = state.lifecycleStatus;
 		this.accumulatedDurationMs = Math.max(0, Number(state.duration) || 0);
 		this.sessionStartedAt = Date.now();
@@ -728,6 +743,8 @@ export class Player {
 		// feedback compute, but the attempt is not counted and the session stays open for the
 		// candidate to continue — only a counted attempt finalizes a non-adaptive item.
 		const countAttempt = options.countAttempt ?? true;
+		// The adaptive path settles the end-attempt responses in runAdaptiveSubmitAttempt.
+		if (!this.isAdaptive()) this.settleEndAttemptResponses();
 		const scoring = this.isAdaptive()
 			? this.runAdaptiveSubmitAttempt(countAttempt)
 			: this.runResponseProcessing({
@@ -883,6 +900,7 @@ export class Player {
 	}
 
 	private resetResponsesToDefault(): void {
+		this.endAttemptActivations.clear();
 		for (const d of Object.values(this.decls)) {
 			if ((d as any).__kind !== 'response') continue;
 			this.ctx.resetToDefault(d.identifier);
@@ -1109,6 +1127,34 @@ export class Player {
 			.map((i: any) => i.responseIdentifier);
 	}
 
+	private getEndAttemptResponseIdentifiers(): string[] {
+		return this.getInteractions()
+			.filter((i) => i.type === 'endAttemptInteraction')
+			.map((i) => i.responseIdentifier);
+	}
+
+	private isResponseTrue(responseIdentifier: string): boolean {
+		return toBoolean(this.ctx.getValue(responseIdentifier));
+	}
+
+	/**
+	 * QTI endAttemptInteraction (QTI 3.0 §5.45): "If the candidate invokes response processing
+	 * using an end-attempt interaction then the associated response variable is set to true. If
+	 * response processing is invoked in any other way […] then the associated response variable
+	 * is set to false. The default value of the response variable is always ignored." The
+	 * interactions that invoke this attempt's processing are the ones the candidate turned true
+	 * since the attempt last ended; a value restored with the session invokes nothing. Rescoring
+	 * (scoreAttempt) replays the last submission and leaves these responses as they are.
+	 */
+	private settleEndAttemptResponses(): void {
+		for (const id of this.getEndAttemptResponseIdentifiers()) {
+			const d = this.decls[id];
+			if (!d) continue;
+			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, this.endAttemptActivations.has(id), d.identifier);
+		}
+		this.endAttemptActivations.clear();
+	}
+
 	public getResponseIdentifiers(): string[] {
 		return this.getResponseInteractions().map((i) => i.responseIdentifier);
 	}
@@ -1134,6 +1180,7 @@ export class Player {
 		if (this.isCompleted()) {
 			throw new Error('Cannot submit: item is already completed');
 		}
+		this.settleEndAttemptResponses();
 
 		// QTI adaptive semantics: numAttempts should reflect the attempt being processed.
 		if (this.isAdaptive() && countAttempt) {
@@ -1262,9 +1309,14 @@ export class Player {
 				Number(i.minStrings ?? 0),
 				Number(i.minPlays ?? 0),
 			);
+			// gap `required` (QTI 2.1 gap; QTI 3.0 §5.55.5): "this gap must be filled by the candidate
+			// in order to form a valid response to the interaction".
+			const requiredGaps: string[] = Array.isArray(i.requiredGaps) ? i.requiredGaps : [];
 			const required =
 				i.type !== 'endAttemptInteraction' &&
-				(minimum > 0 || constrainedChoices.some((choice) => Number(choice.matchMin ?? 0) > 0));
+				(minimum > 0 ||
+					requiredGaps.length > 0 ||
+					constrainedChoices.some((choice) => Number(choice.matchMin ?? 0) > 0));
 
 			let complete = !required;
 			if (i.type === 'mediaInteraction' && required) {
@@ -1309,6 +1361,14 @@ export class Player {
 				}
 			}
 
+			// A gap-match response pairs "gapText gap": each required gap must be the target of a pair.
+			if (requiredGaps.length > 0) {
+				const filled = new Set(
+					(Array.isArray(value) ? value.filter(isMeaningfulEntry) : []).map((pair) => String(pair).split(' ')[1]),
+				);
+				if (requiredGaps.some((gap) => !filled.has(gap))) complete = false;
+			}
+
 			// orderInteraction / graphicOrderInteraction: an order that has begun is complete once it
 			// holds the minimum its mode sets — every choice when no subset is requested (minChoices
 			// unspecified: "all of the choices must be ordered"), at least minChoices when one is.
@@ -1344,6 +1404,18 @@ export class Player {
 				value.filter(isMeaningfulEntry).length > Number(i.maxStrings)
 			) {
 				errors.push(`Response '${responseId}' exceeds maxStrings=${i.maxStrings}`);
+			}
+			// patternMask (QTI 2.1; QTI 3.0 §5.48.4, §5.162.5): "a regular expression that the
+			// candidate's response must match in order to be considered valid", in XSD syntax. A string
+			// response holds the text as entered; a numeric one does not, and its input checks the text.
+			const patternMask = typeof i.patternMask === 'string' ? xsdPatternToRegExp(i.patternMask) : null;
+			if (patternMask && decl?.baseType === 'string') {
+				const entered = (Array.isArray(value) ? value : [value]).filter(
+					(text): text is string => typeof text === 'string' && text !== '',
+				);
+				if (entered.some((text) => !patternMask.test(text))) {
+					errors.push(`Response '${responseId}' does not match its patternMask`);
+				}
 			}
 			// The order-subset cap: when a subset is requested, a restored or programmatic response
 			// may not order more than maxChoices (clamped to the choices); the delivered UI refuses it.
