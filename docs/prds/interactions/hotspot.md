@@ -217,8 +217,8 @@ Resolved since the previous review, and no longer gaps:
 
 ### Interaction data accepts an object or its JSON; responses are values
 
-**Decision:** `interaction` is parsed by `createInteractionShell` (`parseJsonProp`) before use; `response` and `correctResponse` pass through it as values, never parsed. The shell also gives correct-answer mode: the `scorer` role with a correct response.  
-**Rationale:** Identical to the pattern in `choiceInteraction` and all other default components. An HTML attribute carries the interaction data as JSON text; inside the item player it arrives as an object, and `parseJsonProp` handles both. A response is a region identifier (or a list of them), and identifiers such as `true` or `null` are valid: read as JSON they would lose the selection. The item player sets responses as JavaScript properties.  
+**Decision:** `interaction` is parsed by `createInteractionShell` (`parseJsonProp`) before use; `response` and `correctResponse` pass through it as values. A string response stays as given — identifiers such as `true` or `null` are never read as JSON — except that a string reading as a JSON array is read as that list, which is how an HTML attribute carries a multiple-selection answer. The shell also gives correct-answer mode: the `scorer` role with a correct response.  
+**Rationale:** Identical to the pattern in `choiceInteraction` and all other default components. An HTML attribute carries the interaction data as JSON text; inside the item player it arrives as an object, and `parseJsonProp` handles both. A response is a region identifier (or a list of them): read as JSON, a single identifier such as `true` would lose the selection, so only list text is parsed. The item player sets responses as JavaScript properties.  
 **Consequences:** Small runtime JSON.parse overhead on the interaction data for the web component case. Negligible for typical hotspot item sizes.
 
 ---

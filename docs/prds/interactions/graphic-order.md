@@ -209,8 +209,8 @@ The subset zones' own labels, control names and announcements are the shared `in
 
 ### Interaction data accepts an object or its JSON; responses are values
 
-**Decision:** `interaction` is processed by `createInteractionShell` (`parseJsonProp`) before use; `response` and `correctResponse` pass through it as values, never parsed. The shell also gives correct-answer mode: the `scorer` role with a correct response.  
-**Rationale:** An HTML attribute carries the interaction data as JSON text; inside the item player it arrives as an object, and `parseJsonProp` handles both cases. Without this, the web component usage would require a separate wrapper. Responses are values the item player sets as JavaScript properties; a string in a response is never re-read as JSON.  
+**Decision:** `interaction` is processed by `createInteractionShell` (`parseJsonProp`) before use; `response` and `correctResponse` pass through it as values. Their lists arrive as JavaScript properties, or as the JSON text an HTML attribute carries: a string reading as a JSON array is read as that list, any other string stays as given. The shell also gives correct-answer mode: the `scorer` role with a correct response.  
+**Rationale:** An HTML attribute carries the interaction data as JSON text; inside the item player it arrives as an object, and `parseJsonProp` handles both cases. Without this, the web component usage would require a separate wrapper. Responses are values the item player sets as JavaScript properties; a string in a response is never re-read as arbitrary JSON — only list text is read as a list.  
 **Consequences:** Small runtime cost of attempting `JSON.parse` on the interaction data for the web component case. Negligible for the number of hotspots typical in K-12 items (2–8).
 
 ### `qti-change` events dispatched from the root element inside shadow DOM

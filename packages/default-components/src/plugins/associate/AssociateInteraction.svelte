@@ -46,6 +46,7 @@
 			response,
 			correctResponse,
 			role,
+			listResponse: true,
 		})
 	);
 	const parsedInteraction = $derived(shell.interaction);

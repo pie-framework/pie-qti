@@ -41,6 +41,25 @@ export function responseProp<T>(prop: T | null | undefined): T | undefined {
 	return prop ?? undefined;
 }
 
+/**
+ * A list response (the `response`/`correctResponse` of the identifier-list interactions: order,
+ * match, associate, gap match and the graphic interactions, and a multiple-selection hotspot) as
+ * the host set it. Hosts set lists as JavaScript properties; an HTML attribute carries a list as
+ * its JSON text, so a string that reads as a JSON array is read as that list. Any other string
+ * stays as given: identifiers such as "true" or "null" are never JSON, and a list response is
+ * never a bare string value.
+ */
+export function parseListResponseProp<T>(prop: T | string | null | undefined): T | undefined {
+	if (typeof prop !== 'string') return responseProp(prop);
+	if (!prop.trimStart().startsWith('[')) return prop as unknown as T;
+	try {
+		const value: unknown = JSON.parse(prop);
+		return Array.isArray(value) ? (value as T) : (prop as unknown as T);
+	} catch {
+		return prop as unknown as T;
+	}
+}
+
 export interface InteractionShellProps<TInteraction, TResponse, TCorrectResponse = TResponse> {
 	/** The interaction data, or its JSON text (an HTML attribute). */
 	interaction?: TInteraction | string;
@@ -49,6 +68,12 @@ export interface InteractionShellProps<TInteraction, TResponse, TCorrectResponse
 	/** The correct response itself, never JSON text. */
 	correctResponse?: TCorrectResponse | null;
 	role?: string;
+	/**
+	 * The response and correct response are lists of identifiers. Set this so a string that reads
+	 * as a JSON array — how an HTML attribute carries a list — is read as that list; every other
+	 * string stays as given, so identifiers are never read as JSON.
+	 */
+	listResponse?: boolean;
 }
 
 export interface InteractionShell<TInteraction, TResponse, TCorrectResponse = TResponse> {
@@ -68,14 +93,17 @@ export function createInteractionShell<
 	response,
 	correctResponse,
 	role = 'candidate',
+	listResponse = false,
 }: InteractionShellProps<TInteraction, TResponse, TCorrectResponse>): InteractionShell<
 	TInteraction,
 	TResponse,
 	TCorrectResponse
 > {
 	const parsedInteraction = parseJsonProp<TInteraction>(interaction);
-	const parsedResponse = responseProp(response);
-	const parsedCorrectResponse = responseProp(correctResponse);
+	const parsedResponse = listResponse ? parseListResponseProp(response) : responseProp(response);
+	const parsedCorrectResponse = listResponse
+		? parseListResponseProp(correctResponse)
+		: responseProp(correctResponse);
 
 	return {
 		interaction: parsedInteraction,

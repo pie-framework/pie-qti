@@ -79,7 +79,7 @@ Svelte does not JSON-parse these attribute strings: no component declares an att
 
 `parseJsonProp` also handles the string `"null"` (which HTML attributes can't represent as `null`) and non-JSON strings (which are returned as-is).
 
-`response` and `correctResponse` are never parsed: they go through `responseProp`, which keeps the value as given and reads only `null` as no response. A string response is the candidate's text or a choice identifier, and nothing in a string says whether it was meant as JSON. Reading responses as JSON rewrote a typed `1.50` as `1.5` and `1e5` as `100000` under the candidate's cursor, dropped the quotes of `"quoted"`, and lost the answer `null` and the choices identified `true`, `false` or `null`. The item player, and every host in this repository, sets responses as JavaScript properties.
+`response` and `correctResponse` are never parsed as arbitrary JSON: they go through `responseProp`, which keeps the value as given and reads only `null` as no response. A string response is the candidate's text or a choice identifier, and nothing in a string says whether it was meant as JSON. Reading responses as JSON rewrote a typed `1.50` as `1.5` and `1e5` as `100000` under the candidate's cursor, dropped the quotes of `"quoted"`, and lost the answer `null` and the choices identified `true`, `false` or `null`. The one exception is the identifier-list interactions (order, match, associate, gap match, the graphic interactions, a multiple-selection hotspot): their `listResponse` opt-in reads a string that reads as a JSON array as that list, because a list is never a bare string value and an HTML attribute carries a list as its JSON text. The item player, and every host in this repository, sets responses as JavaScript properties.
 
 ### Why `qti-change` fires from the root `<div>` rather than the input element
 
@@ -140,7 +140,7 @@ The component is included via `<ShadowBaseStyles />` at the top of each interact
 - **FR-14:** Interaction components in `disabled` state SHALL render non-interactive (native input elements with `disabled`, no `qti-change` events).
 - **FR-15:** `QtiItemPlayerElement.session` SHALL be a JavaScript-property-only injection point for a live item session created by `@pie-qti/item-player`. It SHALL NOT be reflected to or parsed from an HTML attribute, because live object identity is not serializable.
 - **FR-16:** When `session` is supplied, the item element SHALL render and dispatch commands through that exact object, ignore `responses` as a synchronization source, and leave disposal to the owner. When no session is supplied, the standalone path SHALL create and dispose its own definition/session from `itemXml`.
-- **FR-17:** Every interaction component SHALL take `response` and `correctResponse` as values, set as JavaScript properties, and SHALL NOT parse a string response as JSON: a string response is kept exactly as given.
+- **FR-17:** Every interaction component SHALL take `response` and `correctResponse` as values, set as JavaScript properties. A string response SHALL be kept exactly as given, except that an interaction whose response is a list of identifiers SHALL read a string that reads as a JSON array as that list (the form an HTML attribute carries).
 
 ---
 
@@ -172,7 +172,7 @@ The component is included via `<ShadowBaseStyles />` at the top of each interact
 
 ### `parseJsonProp` as explicit call, not an automatic Svelte transform
 
-**Decision:** Each component explicitly calls `parseJsonProp<T>` in `$derived()` for every prop whose value is always an object (`interaction`, `pnp`), directly or through `createInteractionShell`. `response` and `correctResponse` go through `responseProp` instead, which keeps the value as given.
+**Decision:** Each component explicitly calls `parseJsonProp<T>` in `$derived()` for every prop whose value is always an object (`interaction`, `pnp`), directly or through `createInteractionShell`. `response` and `correctResponse` go through `responseProp` instead, which keeps the value as given; the identifier-list interactions opt into reading attribute-carried list text (`listResponse`).
 **Rationale:** Making it explicit makes the dual-mode contract visible at the call site. An automatic transform (e.g., a preprocessor that wraps every prop) would be invisible and harder to debug, and would also parse responses, whose strings are values.
 **Alternatives considered:** Svelte preprocessor; custom store; property decorator.
 **Consequences:** New interaction components must remember to call `parseJsonProp` for object props. Omitting it is a silent bug that only manifests when the component is used as an HTML custom element rather than a Svelte component. Calling it on a response is a data-corruption bug: a string answer that reads as JSON is rewritten.
