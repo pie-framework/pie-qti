@@ -91,7 +91,8 @@ export interface PciSandboxInitPayload {
 	/**
 	 * The language tag the runner frame's document is written in (the item's content
 	 * language), so the frame states its language instead of assuming one (WCAG 3.1.1).
-	 * Optional for protocol compatibility: absent leaves the runner's static language.
+	 * Absent when the item declares no content language: the frame then keeps the runner
+	 * page's static language.
 	 */
 	language?: string;
 	/** The directionality of the frame's content, set on the frame document with `language`. */
