@@ -943,6 +943,7 @@ export default {
 		answerRecorded: 'Réponse enregistrée',
 		resizer: 'Redimensionner les panneaux de passage et de question',
 		sentence: '{text}.',
+		choiceFallback: 'Choix {index}',
 		correctAnswer: 'Bonne réponse.',
 		correctAnswerIs: 'Bonne réponse : {answer}.',
 		correctPosition: 'Position correcte.',

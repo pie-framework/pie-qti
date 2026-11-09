@@ -923,6 +923,7 @@ export default {
 		answerRecorded: 'บันทึกคำตอบแล้ว',
 		resizer: 'ปรับขนาดแผงข้อความและคำถาม',
 		sentence: '{text}',
+		choiceFallback: 'ตัวเลือก {index}',
 		correctAnswer: 'คำตอบที่ถูกต้อง',
 		correctAnswerIs: 'คำตอบที่ถูกต้อง: {answer}',
 		correctPosition: 'ตำแหน่งที่ถูกต้อง',

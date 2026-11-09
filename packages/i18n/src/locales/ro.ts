@@ -942,6 +942,7 @@ export default {
 		answerRecorded: 'Răspuns înregistrat',
 		resizer: 'Redimensionează panourile de pasaj și întrebare',
 		sentence: '{text}.',
+		choiceFallback: 'Opțiunea {index}',
 		correctAnswer: 'Răspuns corect.',
 		correctAnswerIs: 'Răspuns corect: {answer}.',
 		correctPosition: 'Poziție corectă.',

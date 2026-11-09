@@ -1047,6 +1047,7 @@ export default {
 		answerRecorded: 'تم تسجيل الإجابة',
 		resizer: 'تغيير حجم لوحات الفقرة والسؤال',
 		sentence: '{text}.',
+		choiceFallback: 'الخيار {index}',
 		correctAnswer: 'إجابة صحيحة.',
 		correctAnswerIs: 'الإجابة الصحيحة: {answer}.',
 		correctPosition: 'موضع صحيح.',
