@@ -931,8 +931,14 @@ values as NULL: the result is 0, clamped to `lowerBound` and `upperBound`, not t
 container the same way.
 
 Each `mapEntry` matches as its `caseSensitive` attribute says (the mapping's attribute when the entry
-has none): a case-sensitive entry matches only its own spelling, so a response in another case takes
-the `defaultValue`.
+has none, and the spec default is "false" — the QTI 2.2 XSD declares it optional with
+`default="false"` and the QTI 3.0 implementation guide has mapping "by default, NOT case sensitive"),
+so an authored mapping matches case-insensitively unless it says `caseSensitive="true"`: a
+case-sensitive entry matches only its own spelling, so a response in another case takes the
+`defaultValue`. Identifier values never fold case (QTI ASI §17), whatever the entry says — only
+string matching loosens. Mapping a container counts repeated values once (§15.3), and under
+case-insensitive matching the values an entry folds together count once too: {Paris, paris} maps
+Paris once, not twice.
 
 ### map_response_point
 

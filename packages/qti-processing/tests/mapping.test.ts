@@ -462,6 +462,92 @@ describe('mapEntry case sensitivity', () => {
 });
 
 /**
+ * The spec default for mapEntry@caseSensitive is "false" (QTI 2.2 XSD declares it optional with
+ * default "false"; the 2.1 Best Practice: "The default is false"; the QTI 3.0 implementation
+ * guide: string mapping is "by default, NOT case sensitive"), so a mapping that names no
+ * caseSensitive matches case-insensitively. Identifier values never fold case (QTI ASI §17),
+ * whatever the mapping says. Container deduplication counts once what the mapping matches as the
+ * same value (§15.3), so {Paris, paris} counts once under case-insensitive matching.
+ */
+describe('mapEntry case sensitivity defaults to case-insensitive', () => {
+	const OUT = { identifier: 'OUT', baseType: 'float' as const, cardinality: 'single' as const, value: qtiValue('float', 'single', 0) };
+
+	function mapped(
+		response: unknown,
+		mapping: NonNullable<DeclarationMap['RESPONSE']['mapping']>,
+		baseType: 'identifier' | 'string',
+		cardinality: DeclarationMap['RESPONSE']['cardinality'] = 'single',
+	): QtiValue {
+		return run(
+			{ OUT, RESPONSE: responseDecl(response, mapping, baseType, cardinality) },
+			`<setOutcomeValue identifier="OUT"><mapResponse identifier="RESPONSE"/></setOutcomeValue>`,
+		).getValue('OUT');
+	}
+
+	const specDefault = {
+		defaultValue: 7,
+		entries: { photosynthesis: { mapKey: 'photosynthesis', mappedValue: 2 } },
+	};
+
+	it('matches a spec-default string mapping case-insensitively', () => {
+		expect(mapped('photosynthesis', specDefault, 'string')).toEqual(qtiValue('float', 'single', 2));
+		expect(mapped('Photosynthesis', specDefault, 'string')).toEqual(qtiValue('float', 'single', 2));
+		expect(mapped('PHOTOSYNTHESIS', specDefault, 'string')).toEqual(qtiValue('float', 'single', 2));
+		expect(mapped('respiration', specDefault, 'string')).toEqual(qtiValue('float', 'single', 7));
+	});
+
+	it('keeps an explicit caseSensitive="true" string mapping exact', () => {
+		const exact = {
+			defaultValue: 7,
+			caseSensitive: 'true',
+			entries: { photosynthesis: { mapKey: 'photosynthesis', mappedValue: 2, caseSensitive: 'true' } },
+		};
+		expect(mapped('photosynthesis', exact, 'string')).toEqual(qtiValue('float', 'single', 2));
+		expect(mapped('Photosynthesis', exact, 'string')).toEqual(qtiValue('float', 'single', 7));
+	});
+
+	it('inherits an explicit caseSensitive="false" from the mapping element', () => {
+		const lenient = {
+			defaultValue: 0,
+			caseSensitive: 'false',
+			entries: { Paris: { mapKey: 'Paris', mappedValue: 1 } },
+		};
+		expect(mapped('PARIS', lenient, 'string')).toEqual(qtiValue('float', 'single', 1));
+	});
+
+	it('counts {Paris, paris} of a spec-default string mapping once', () => {
+		// §15.3: repeated container values count once — under case-insensitive
+		// matching Paris and paris are the same value, and both find the Paris entry.
+		const cities = { defaultValue: 0.5, entries: { Paris: { mapKey: 'Paris', mappedValue: 1 } } };
+		expect(mapped(['Paris', 'paris'], cities, 'string', 'multiple')).toEqual(qtiValue('float', 'single', 1));
+		expect(mapped(['PARIS', 'Paris', 'paris'], cities, 'string', 'multiple')).toEqual(qtiValue('float', 'single', 1));
+		expect(mapped(['Paris', 'London'], cities, 'string', 'multiple')).toEqual(qtiValue('float', 'single', 1.5));
+	});
+
+	it('keeps case-distinct string values distinct under an explicit caseSensitive="true" mapping', () => {
+		const exact = {
+			defaultValue: 0.5,
+			caseSensitive: 'true',
+			entries: { Paris: { mapKey: 'Paris', mappedValue: 1, caseSensitive: 'true' } },
+		};
+		expect(mapped(['Paris', 'paris'], exact, 'string', 'multiple')).toEqual(qtiValue('float', 'single', 1.5));
+	});
+
+	it('matches identifier values exactly whatever the caseSensitive says', () => {
+		// QTI ASI §17: identifier values are case-sensitive; mapEntry@caseSensitive
+		// loosens string matching only.
+		const idMapping = {
+			defaultValue: 0.5,
+			caseSensitive: 'false',
+			entries: { Paris: { mapKey: 'Paris', mappedValue: 1, caseSensitive: 'false' } },
+		};
+		expect(mapped('Paris', idMapping, 'identifier')).toEqual(qtiValue('float', 'single', 1));
+		expect(mapped('paris', idMapping, 'identifier')).toEqual(qtiValue('float', 'single', 0.5));
+		expect(mapped(['Paris', 'paris'], idMapping, 'identifier', 'multiple')).toEqual(qtiValue('float', 'single', 1.5));
+	});
+});
+
+/**
  * QTI ASI: a container with no values is treated as NULL, and a mapping's lowerBound and
  * upperBound bound the result of mapping a container. A NULL container is therefore the empty
  * container: its values sum to 0, which the bounds then clamp — it does not take the mapping's

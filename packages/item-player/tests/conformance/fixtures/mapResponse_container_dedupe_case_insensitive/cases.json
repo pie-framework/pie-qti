@@ -1,0 +1,9 @@
+{
+  "id": "mapResponse_container_dedupe_case_insensitive",
+  "cases": [
+    { "name": "Paris and paris count once under the case-insensitive default", "responses": { "R": ["Paris", "paris"] }, "expect": { "outcomes": { "SCORE": 1 } } },
+    { "name": "PARIS and Paris count once", "responses": { "R": ["PARIS", "Paris"] }, "expect": { "outcomes": { "SCORE": 1 } } },
+    { "name": "an unmapped city takes the defaultValue on top", "responses": { "R": ["Paris", "London"] }, "expect": { "outcomes": { "SCORE": 1.5 } } },
+    { "name": "London twice still counts once", "responses": { "R": ["London", "London"] }, "expect": { "outcomes": { "SCORE": 0.5 } } }
+  ]
+}

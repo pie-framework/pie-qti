@@ -1,0 +1,10 @@
+{
+  "id": "mapResponse_mapping_spec_default_case_insensitive",
+  "qtiVersion": "2.2",
+  "title": "mapResponse: mapping with no caseSensitive matches case-insensitively",
+  "description": "QTI 2.2 XSD defaults mapEntry@caseSensitive to false, so a mapping that names no caseSensitive matches string responses case-insensitively; misses take the defaultValue.",
+  "source": {
+    "type": "custom",
+    "license": "CC0-1.0"
+  }
+}
