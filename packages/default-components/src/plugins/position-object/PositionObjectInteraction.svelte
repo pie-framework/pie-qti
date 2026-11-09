@@ -61,7 +61,7 @@
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
-	import { imageAltText } from '../hotspot/graphicRegions';
+	import { imageAltText } from '../../shared/utils/graphicRegions';
 
 	interface Position {
 		stageId: string;

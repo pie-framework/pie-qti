@@ -17,7 +17,7 @@
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { minimumHint, subsetOrderHint } from '../../shared/utils/minimumRequirement';
 	import { orderChoiceLimits } from '@pie-qti/item-player';
-	import { escapeHtml, imageAltText, observeWidth, regionMarkerPoint } from '../hotspot/graphicRegions';
+	import { escapeHtml, imageAltText, observeWidth, regionMarkerPoint } from '../../shared/utils/graphicRegions';
 
 	interface Props {
 		interaction?: GraphicOrderInteractionData | string;

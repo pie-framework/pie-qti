@@ -13,7 +13,7 @@
 	import HotspotShape from '../../shared/components/HotspotShape.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { minimumHint } from '../../shared/utils/minimumRequirement';
-	import { hitStrokeWidth, imageAltText, observeWidth, regionMarkerPoint, type Point } from './graphicRegions';
+	import { hitStrokeWidth, imageAltText, observeWidth, regionMarkerPoint, type Point } from '../../shared/utils/graphicRegions';
 
 	interface Props {
 		interaction?: HotspotInteractionData | string;

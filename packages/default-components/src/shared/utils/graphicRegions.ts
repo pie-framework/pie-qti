@@ -23,13 +23,13 @@ export interface Point {
 	y: number;
 }
 
-/** Parse QTI `coords` ("a,b,c") into numbers; non-numeric parts become NaN. */
-function parseCoords(coords: string): number[] {
-	return coords.split(',').map((part) => Number(part.trim()));
+/** Parse QTI `coords` ("a,b,c") into numbers; a missing or non-numeric part becomes NaN. */
+function parseCoords(coords: string | undefined): number[] {
+	return (coords ?? '').split(',').map((part) => Number(part.trim()));
 }
 
 /** Bounding box of a QTI shape (circle, ellipse, rect, poly) in image coordinates. */
-export function shapeBounds(shape: string, coords: string): Bounds | null {
+export function shapeBounds(shape: string, coords: string | undefined): Bounds | null {
 	const n = parseCoords(coords);
 	if (n.some((value) => !Number.isFinite(value))) return null;
 	switch (shape) {
@@ -62,13 +62,13 @@ export function shapeBounds(shape: string, coords: string): Bounds | null {
 }
 
 /** Centre of a QTI shape in image coordinates (polygon: vertex average). */
-export function shapeCenter(shape: string, coords: string): Point {
+export function shapeCenter(shape: string, coords: string | undefined): Point {
 	const n = parseCoords(coords);
 	if (shape === 'circle' || shape === 'ellipse') return { x: n[0] || 0, y: n[1] || 0 };
 	if (shape === 'poly') {
 		const xs = n.filter((_, i) => i % 2 === 0);
 		const ys = n.filter((_, i) => i % 2 === 1);
-		if (xs.length === 0) return { x: 0, y: 0 };
+		if (xs.length === 0 || ys.length === 0) return { x: 0, y: 0 };
 		return {
 			x: xs.reduce((a, b) => a + b, 0) / xs.length,
 			y: ys.reduce((a, b) => a + b, 0) / ys.length,
@@ -82,14 +82,16 @@ export function shapeCenter(shape: string, coords: string): Point {
  * Where a marker (a check, a position badge) for a QTI region sits, in image coordinates: the
  * centre of its shape, or for the `default` shape — the whole image (QTI 3.0 §8.29) — `insetPx`
  * CSS px in from the image's top-left corner at the rendered `renderScale`, clear of the other
- * regions' markers at their centres.
+ * regions' markers at their centres. A shape whose `coords` are missing or unreadable marks at
+ * the image origin.
  */
-export function regionMarkerPoint(shape: string, coords: string, renderScale: number, insetPx: number): Point {
+export function regionMarkerPoint(shape: string, coords: string | undefined, renderScale: number, insetPx: number): Point {
 	if (shape === 'default') {
 		const inset = insetPx / (renderScale > 0 ? renderScale : 1);
 		return { x: inset, y: inset };
 	}
-	return shapeCenter(shape, coords);
+	const at = shapeCenter(shape, coords);
+	return Number.isFinite(at.x) && Number.isFinite(at.y) ? at : { x: 0, y: 0 };
 }
 
 /**
@@ -99,7 +101,7 @@ export function regionMarkerPoint(shape: string, coords: string, renderScale: nu
  * `rendered size + stroke`. Zero for shapes that are already large enough.
  * Scoring geometry is untouched: only the hit area grows.
  */
-export function hitStrokeWidth(shape: string, coords: string, renderScale: number): number {
+export function hitStrokeWidth(shape: string, coords: string | undefined, renderScale: number): number {
 	const bounds = shapeBounds(shape, coords);
 	if (!bounds) return 0;
 	const smallest = Math.min(bounds.width, bounds.height) * (renderScale > 0 ? renderScale : 1);

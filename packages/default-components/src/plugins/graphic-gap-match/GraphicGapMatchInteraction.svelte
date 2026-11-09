@@ -20,7 +20,7 @@ import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { choicesShortOfMatchMin } from '../../shared/utils/minimumRequirement';
-import { hitStrokeWidth, imageAltText, observeWidth, shapeCenter } from '../hotspot/graphicRegions';
+import { hitStrokeWidth, imageAltText, observeWidth, shapeCenter } from '../../shared/utils/graphicRegions';
 
 import '../../shared/styles/shared.css';
 import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
