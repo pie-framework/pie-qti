@@ -252,8 +252,8 @@ interface ImageData {
   type: 'image' | 'svg';
   src?: string;           // for type='image': URL of the raster image
   content?: string;       // for type='svg': full SVG markup including <svg> root element
-  width?: string;         // natural width in pixels (string); default '500'
-  height?: string;        // natural height in pixels (string); default '300'
+  width?: string;         // natural width in pixels (string); absent when the item declares none
+  height?: string;        // natural height in pixels (string); absent when the item declares none
 }
 ```
 

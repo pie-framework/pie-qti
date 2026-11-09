@@ -186,6 +186,7 @@ Free drag-and-drop has no native keyboard equivalent. WCAG 2.2 Success Criterion
 
 - Desktop pointers drag with the HTML5 Drag and Drop API. Touch drags use the shared `touchDrag` helper from `@pie-qti/qti-common`, which maps a touch drag onto the same drop handling, and tap-to-select then tap-to-place works without any drag.
 - The canvas scales fluidly (`width: 100%` with `aspect-ratio` CSS) up to the image's natural size, so the background image always fits the viewport.
+- The stage's pixel space is the stage image's declared `width`/`height`, else a raster image's natural size once loaded. When the size is neither declared nor knowable, nothing can be placed and an authoring diagnostic says so — a default stage size is never invented, because the response points and the scoring `areaMapping` live in the stage image's own pixel space. The draggable object keeps its 50×50 fallback box (it sizes a placement, not a scoring space).
 
 ### i18n
 
