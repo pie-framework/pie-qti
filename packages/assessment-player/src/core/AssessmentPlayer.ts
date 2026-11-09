@@ -86,6 +86,7 @@ import {
 	responseValuesEqual,
 	valuesFromItemSession,
 } from './sessionRecords.js';
+import { TypedEventEmitter, type AssessmentPlayerEventMap } from './playerEvents.js';
 import {
 	interactionRequirementFromXml,
 	interactionResponseIdentifiers,
@@ -499,20 +500,8 @@ export class AssessmentPlayer {
 	/** A restored whole-test expiry's automatic finalize is scheduled (or ran). */
 	private restoredExpiryFinalizeScheduled = false;
 
-	// Event listeners
-	private itemChangeListeners = new Set<(index: number, total: number) => void>();
-	private sectionChangeListeners = new Set<(index: number, total: number) => void>();
-	private responseChangeListeners = new Set<(responses: Record<string, unknown>) => void>();
-	private completeListeners = new Set<(results: AssessmentResults) => void>();
-	private busyChangeListeners = new Set<(busy: boolean) => void>();
-	private testFeedbackChangeListeners = new Set<() => void>();
-	private timeWarningListeners = new Set<(remainingSeconds: number) => void>();
-	private timeExpiredListeners = new Set<(event: AssessmentTimeExpiryEvent) => void>();
-	private scopeTimeExpiredListeners = new Set<(event: ScopeTimeExpiryEvent) => void>();
-	private pauseChangeListeners = new Set<(paused: boolean, reason?: string) => void>();
-	private timeTickListeners = new Set<(remainingSeconds: number, elapsedSeconds: number) => void>();
-	private flagChangeListeners = new Set<(itemIdentifier: string, flagged: boolean) => void>();
-	private autosaveChangeListeners = new Set<(state: AutosaveState) => void>();
+	// Event listeners (typed emitter; the host-config callbacks stay in the notify helpers)
+	private readonly events = new TypedEventEmitter<AssessmentPlayerEventMap>();
 	/** Item XML–derived review facts (interaction response ids, item title) per item identifier. */
 	private readonly reviewInfoCache = new Map<string, { responseIds: string[]; title?: string }>();
 	/** Declared response default values per item (QTI: a response equal to its default is no response). */
@@ -877,12 +866,11 @@ export class AssessmentPlayer {
 
 	/** Fires on every save-indicator state change. */
 	public onAutosaveChange(listener: (state: AutosaveState) => void): () => void {
-		this.autosaveChangeListeners.add(listener);
-		return () => this.autosaveChangeListeners.delete(listener);
+		return this.events.on('autosaveChange', listener);
 	}
 
 	private notifyAutosaveChange(state: AutosaveState): void {
-		for (const listener of this.autosaveChangeListeners) listener(state);
+		this.events.emit('autosaveChange', state);
 		this.config.onAutosaveChange?.(state);
 	}
 
@@ -1676,7 +1664,7 @@ export class AssessmentPlayer {
 		const id = itemIdentifier ?? this.items[this.currentItemIndex]?.identifier;
 		if (!id) return;
 		this.sessionCoordinator.setItemFlag(id, flagged);
-		for (const listener of this.flagChangeListeners) listener(id, flagged);
+		this.events.emit('flagChange', id, flagged);
 		// Flags are part of the persisted draft.
 		this.notifyAutosaveActivity();
 	}
@@ -1702,8 +1690,7 @@ export class AssessmentPlayer {
 
 	/** Fires when an item's flag-for-review state changes. */
 	public onFlagChange(listener: (itemIdentifier: string, flagged: boolean) => void): () => void {
-		this.flagChangeListeners.add(listener);
-		return () => this.flagChangeListeners.delete(listener);
+		return this.events.on('flagChange', listener);
 	}
 
 	public getNavigationState(): NavigationState {
@@ -4038,18 +4025,15 @@ export class AssessmentPlayer {
 	// ---------------------------------------------------------------------------
 
 	public onItemChange(listener: (index: number, total: number) => void): () => void {
-		this.itemChangeListeners.add(listener);
-		return () => this.itemChangeListeners.delete(listener);
+		return this.events.on('itemChange', listener);
 	}
 
 	public onSectionChange(listener: (index: number, total: number) => void): () => void {
-		this.sectionChangeListeners.add(listener);
-		return () => this.sectionChangeListeners.delete(listener);
+		return this.events.on('sectionChange', listener);
 	}
 
 	public onResponseChange(listener: (responses: Record<string, unknown>) => void): () => void {
-		this.responseChangeListeners.add(listener);
-		return () => this.responseChangeListeners.delete(listener);
+		return this.events.on('responseChange', listener);
 	}
 
 	/**
@@ -4057,25 +4041,21 @@ export class AssessmentPlayer {
 	 * force-submit, a QTI EXIT_TEST branch, a whole-test expiry — with its results.
 	 */
 	public onComplete(listener: (results: AssessmentResults) => void): () => void {
-		this.completeListeners.add(listener);
-		return () => this.completeListeners.delete(listener);
+		return this.events.on('complete', listener);
 	}
 
 	/** Fires when a navigation/submission transition starts or ends (`getNavigationState().isLoading` mirrors this). */
 	public onBusyChange(listener: (busy: boolean) => void): () => void {
-		this.busyChangeListeners.add(listener);
-		return () => this.busyChangeListeners.delete(listener);
+		return this.events.on('busyChange', listener);
 	}
 
 	/** Called when `getVisibleFeedback()` may have changed: new outcomes, a new test part, or the end. */
 	public onTestFeedbackChange(listener: () => void): () => void {
-		this.testFeedbackChangeListeners.add(listener);
-		return () => this.testFeedbackChangeListeners.delete(listener);
+		return this.events.on('testFeedbackChange', listener);
 	}
 
 	public onTimeWarning(listener: (remainingSeconds: number) => void): () => void {
-		this.timeWarningListeners.add(listener);
-		return () => this.timeWarningListeners.delete(listener);
+		return this.events.on('timeWarning', listener);
 	}
 
 	/**
@@ -4085,25 +4065,21 @@ export class AssessmentPlayer {
 	 * unlocked (`submissionRequired`: the candidate must submit now).
 	 */
 	public onTimeExpired(listener: (event: AssessmentTimeExpiryEvent) => void): () => void {
-		this.timeExpiredListeners.add(listener);
-		return () => this.timeExpiredListeners.delete(listener);
+		return this.events.on('timeExpired', listener);
 	}
 
 	/** A test part, section or item limit expired: its items closed, delivery moved on if it could. */
 	public onScopeTimeExpired(listener: (event: ScopeTimeExpiryEvent) => void): () => void {
-		this.scopeTimeExpiredListeners.add(listener);
-		return () => this.scopeTimeExpiredListeners.delete(listener);
+		return this.events.on('scopeTimeExpired', listener);
 	}
 
 	/** Fires when a proctor pause starts (with its reason) or ends. */
 	public onPauseChange(listener: (paused: boolean, reason?: string) => void): () => void {
-		this.pauseChangeListeners.add(listener);
-		return () => this.pauseChangeListeners.delete(listener);
+		return this.events.on('pauseChange', listener);
 	}
 
 	public onTimeTick(listener: (remainingSeconds: number, elapsedSeconds: number) => void): () => void {
-		this.timeTickListeners.add(listener);
-		return () => this.timeTickListeners.delete(listener);
+		return this.events.on('timeTick', listener);
 	}
 
 	public destroy(): void {
@@ -4119,19 +4095,7 @@ export class AssessmentPlayer {
 		this.lastItemFeedback = null;
 		this.clearKeptBranchDecisions();
 		this.itemDefinitions.clear();
-		this.itemChangeListeners.clear();
-		this.sectionChangeListeners.clear();
-		this.responseChangeListeners.clear();
-		this.completeListeners.clear();
-		this.busyChangeListeners.clear();
-		this.testFeedbackChangeListeners.clear();
-		this.timeWarningListeners.clear();
-		this.timeExpiredListeners.clear();
-		this.scopeTimeExpiredListeners.clear();
-		this.pauseChangeListeners.clear();
-		this.timeTickListeners.clear();
-		this.flagChangeListeners.clear();
-		this.autosaveChangeListeners.clear();
+		this.events.clear();
 		this.reviewInfoCache.clear();
 	}
 
@@ -4140,7 +4104,7 @@ export class AssessmentPlayer {
 	// ---------------------------------------------------------------------------
 
 	private notifyItemChange(): void {
-		for (const l of this.itemChangeListeners) l(this.currentItemIndex, this.items.length);
+		this.events.emit('itemChange', this.currentItemIndex, this.items.length);
 		this.config.onItemChange?.(this.currentItemIndex, this.items.length);
 		// A navigation settles into a new draft worth persisting.
 		this.notifyAutosaveActivity();
@@ -4150,37 +4114,37 @@ export class AssessmentPlayer {
 		const q = this.items[this.currentItemIndex];
 		const sectionIndex = q?.sectionIndex ?? -1;
 		const totalSections = this.presentedSectionList().length;
-		for (const l of this.sectionChangeListeners) l(sectionIndex, totalSections);
+		this.events.emit('sectionChange', sectionIndex, totalSections);
 		this.config.onSectionChange?.(sectionIndex, totalSections);
 	}
 
 	private notifyResponseChange(): void {
 		const responses = this.sessionCoordinator.getActiveResponses();
-		for (const l of this.responseChangeListeners) l(responses);
+		this.events.emit('responseChange', responses);
 		this.config.onResponseChange?.(responses);
 		// Candidate input happened: restart the autosave debounce.
 		this.notifyAutosaveActivity();
 	}
 
 	private notifyComplete(results: AssessmentResults): void {
-		for (const l of this.completeListeners) l(results);
+		this.events.emit('complete', results);
 	}
 
 	private notifyBusyChange(busy: boolean): void {
-		for (const l of this.busyChangeListeners) l(busy);
+		this.events.emit('busyChange', busy);
 	}
 
 	private notifyTestFeedbackChange(): void {
-		for (const l of this.testFeedbackChangeListeners) l();
+		this.events.emit('testFeedbackChange');
 	}
 
 	private notifyTimeWarning(remainingSeconds: number): void {
-		for (const l of this.timeWarningListeners) l(remainingSeconds);
+		this.events.emit('timeWarning', remainingSeconds);
 	}
 
 	private notifyPauseChange(): void {
 		const reason = this.pauseReason;
-		for (const l of this.pauseChangeListeners) l(this.paused, reason);
+		this.events.emit('pauseChange', this.paused, reason);
 		this.config.onPauseChange?.(this.paused, reason);
 		// The pause rides the snapshot (`timing.isPaused`), so persist it too.
 		this.notifyAutosaveActivity();
@@ -4420,7 +4384,7 @@ export class AssessmentPlayer {
 	}
 
 	private notifyTimeExpired(event: AssessmentTimeExpiryEvent): void {
-		for (const l of this.timeExpiredListeners) l(event);
+		this.events.emit('timeExpired', event);
 		this.config.onTimeExpired?.(event);
 	}
 
@@ -4436,12 +4400,12 @@ export class AssessmentPlayer {
 			deliveryContinues,
 			...(nextIndex === undefined ? {} : { nextIndex }),
 		};
-		for (const l of this.scopeTimeExpiredListeners) l(event);
+		this.events.emit('scopeTimeExpired', event);
 		this.config.onScopeTimeExpired?.(event);
 	}
 
 	private notifyTimeTick(remainingSeconds: number, elapsedSeconds: number): void {
-		for (const l of this.timeTickListeners) l(remainingSeconds, elapsedSeconds);
+		this.events.emit('timeTick', remainingSeconds, elapsedSeconds);
 	}
 
 	/**
