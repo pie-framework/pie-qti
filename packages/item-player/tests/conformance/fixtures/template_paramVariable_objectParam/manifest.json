@@ -1,0 +1,13 @@
+{
+  "source": "internal",
+  "license": "MIT",
+  "notes": "templateDeclaration@paramVariable (QTI 2.2; QTI 3.0 param-variable): a param inside an object whose value names a paramVariable template variable is delivered with the variable's current value; a template without the flag and an undeclared name deliver literally. The security.allowObjectEmbeds case option opts into plugin-style object delivery.",
+  "covers": [
+    "paramVariable",
+    "param",
+    "object",
+    "randomInteger",
+    "setTemplateValue",
+    "templateProcessing"
+  ]
+}

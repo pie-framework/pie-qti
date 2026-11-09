@@ -16,7 +16,9 @@ import {
 	findDescendants,
 	findFirstDescendant,
 	getAttr,
+	isElement,
 	isNullValue,
+	localName,
 	OperatorRegistry,
 	parseXml,
 	type ProcessingProgram,
@@ -181,6 +183,8 @@ export class Player {
 	private interactionDataCache: readonly BaseInteractionData[] | null = null;
 	/** Template variables declared with `mathVariable`, substituted into MathML. */
 	private mathVariableIds: ReadonlySet<string> | null = null;
+	/** Template variables declared with `paramVariable`, substituted into `<param>` values. */
+	private paramVariableIds: ReadonlySet<string> | null = null;
 	private componentRegistry: ComponentRegistry;
 	private i18nProvider: I18nProvider;
 	private mapper: ElementNameMapper;
@@ -2315,6 +2319,7 @@ export class Player {
 			['contentbody', (element) => Array.from(element.childNodes)],
 			['templateinline', conditional('templateIdentifier')],
 			['templateblock', conditional('templateIdentifier')],
+			['param', (element) => this.expandParamVariable(element)],
 		]);
 		for (const choice of TEMPLATE_CHOICES) {
 			handlers.set(choice, (element) =>
@@ -2355,6 +2360,52 @@ export class Player {
 				.map((el) => (getAttr(el, 'identifier') || '').trim()),
 		);
 		return this.mathVariableIds;
+	}
+
+	private paramVariables(): ReadonlySet<string> {
+		this.paramVariableIds ??= new Set(
+			this.itemDocument
+				.findDeclarationElements('template')
+				.filter((el) => getAttr(el, 'paramVariable')?.trim() === 'true')
+				.map((el) => (getAttr(el, 'identifier') || '').trim()),
+		);
+		return this.paramVariableIds;
+	}
+
+	/**
+	 * templateDeclaration@paramVariable (QTI 2.2 ASI TemplateDeclaration, `paramVariable`
+	 * characteristic; QTI 3.0 `param-variable`): a `<param>` inside an `<object>` whose `value`
+	 * names such a template variable is delivered with the variable's current value in place of
+	 * the variable's name, so a plugin-style object receives its computed parameter instead of a
+	 * literal.
+	 *
+	 * This resolves in the content pass — not in `prepareContentMarkup` (which runs once on the
+	 * raw XML, before template variables exist) and not on a stored copy — because template
+	 * variables change during the session (`setTemplateVariables`, `newTemplate`, restore).
+	 * Resolving with the pass means every (re)render, like printedVariable, delivers the value
+	 * the session holds at that moment.
+	 *
+	 * The spec defines substitution for a param value naming a declared `paramVariable`
+	 * variable. It is silent on a value naming an undeclared variable or one without the flag:
+	 * those, and NULL or container (multiple/ordered/record) values — a param carries one
+	 * opaque string, and joining container values would be invented semantics — deliver the
+	 * authored value unchanged, which is also the safe reading.
+	 */
+	private expandParamVariable(element: Element): undefined {
+		const value = getAttr(element, 'value')?.trim();
+		if (!value || !this.paramVariables().has(value)) return undefined;
+		const parent = element.parentNode;
+		if (
+			!isElement(parent) ||
+			this.mapper.toCanonical(localName(parent) ?? '') !== 'object'
+		) {
+			return undefined;
+		}
+		const current = this.ctx.getValue(value);
+		if (current.kind !== 'value' || current.cardinality !== 'single') return undefined;
+		// The pass resolves a clone, so this rewrite cannot touch the parsed source.
+		element.setAttribute('value', String(current.value));
+		return undefined;
 	}
 
 	/**

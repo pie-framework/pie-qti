@@ -57,6 +57,7 @@ describe('conformance fixtures', async () => {
 							seed: fixture.caseFile.seed,
 							useSubmitAttempt: c.useSubmitAttempt,
 							countAttempt: c.countAttempt,
+							security: c.security,
 						});
 
 						if (c.expect.score !== undefined) {
