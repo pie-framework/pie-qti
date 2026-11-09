@@ -356,7 +356,6 @@ export default {
 			unavailableSentence: 'Not available due to a match group restriction.',
 			heldHint: 'Tab to a hotspot and press Enter to place it.',
 			pickUpHint: 'Press Space or Enter to pick up.',
-			selectedHint: 'Selected for placement.',
 			selectHint: 'Press Space to select.',
 			hotspotContains: 'Hotspot {number}. Contains {label}.',
 			hotspotCorrectAnswer: 'Hotspot {number}. Correct answer: {label}.',

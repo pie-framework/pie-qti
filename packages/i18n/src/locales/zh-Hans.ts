@@ -356,7 +356,6 @@ export default {
 			unavailableSentence: '因匹配组限制而不可用。',
 			heldHint: '按 Tab 键移到热点，然后按 Enter 键放置。',
 			pickUpHint: '按空格键或 Enter 键拿起。',
-			selectedHint: '已选择以进行放置。',
 			selectHint: '按空格键选择。',
 			hotspotContains: '热点 {number}。包含 {label}。',
 			hotspotCorrectAnswer: '热点 {number}。正确答案：{label}。',

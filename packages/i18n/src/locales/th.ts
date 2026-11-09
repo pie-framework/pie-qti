@@ -344,7 +344,6 @@ export default {
 			unavailableSentence: 'ไม่พร้อมใช้งานเนื่องจากข้อจำกัดของกลุ่มการจับคู่',
 			heldHint: 'กด Tab ไปยังฮอตสปอตแล้วกด Enter เพื่อวาง',
 			pickUpHint: 'กด Space หรือ Enter เพื่อหยิบ',
-			selectedHint: 'เลือกเพื่อวางแล้ว',
 			selectHint: 'กด Space เพื่อเลือก',
 			hotspotContains: 'ฮอตสปอต {number} มี {label}',
 			hotspotCorrectAnswer: 'ฮอตสปอต {number} คำตอบที่ถูกต้อง: {label}',

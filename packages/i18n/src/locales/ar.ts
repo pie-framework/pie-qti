@@ -412,7 +412,6 @@ export default {
 			unavailableSentence: 'غير متاح بسبب قيد مجموعة المطابقة.',
 			heldHint: 'انتقل بمفتاح Tab إلى نقطة ساخنة واضغط Enter لوضعها.',
 			pickUpHint: 'اضغط على مفتاح المسافة أو Enter للإمساك.',
-			selectedHint: 'محددة للوضع.',
 			selectHint: 'اضغط على مفتاح المسافة للتحديد.',
 			hotspotContains: 'النقطة الساخنة {number}. تحتوي على {label}.',
 			hotspotCorrectAnswer: 'النقطة الساخنة {number}. الإجابة الصحيحة: {label}.',

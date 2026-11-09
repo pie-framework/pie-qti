@@ -349,7 +349,6 @@ export default {
 			unavailableSentence: 'Indisponible en raison d\'une restriction de groupe d\'association.',
 			heldHint: 'Allez avec Tab sur une zone sensible et appuyez sur Entrée pour le placer.',
 			pickUpHint: 'Appuyez sur Espace ou Entrée pour saisir.',
-			selectedHint: 'Sélectionné pour placement.',
 			selectHint: 'Appuyez sur Espace pour sélectionner.',
 			hotspotContains: 'Zone sensible {number}. Contient {label}.',
 			hotspotCorrectAnswer: 'Zone sensible {number}. Bonne réponse : {label}.',

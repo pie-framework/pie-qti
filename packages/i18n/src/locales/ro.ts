@@ -349,7 +349,6 @@ export default {
 			unavailableSentence: 'Indisponibil din cauza unei restricții de grup de potrivire.',
 			heldHint: 'Mergi cu Tab la un hotspot și apasă Enter pentru a-l plasa.',
 			pickUpHint: 'Apasă Spațiu sau Enter pentru a apuca.',
-			selectedHint: 'Selectat pentru plasare.',
 			selectHint: 'Apasă Spațiu pentru a selecta.',
 			hotspotContains: 'Hotspot {number}. Conține {label}.',
 			hotspotCorrectAnswer: 'Hotspot {number}. Răspuns corect: {label}.',

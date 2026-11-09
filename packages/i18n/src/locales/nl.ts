@@ -343,7 +343,6 @@ export default {
 			unavailableSentence: 'Niet beschikbaar door een beperking van de koppelgroep.',
 			heldHint: 'Ga met Tab naar een hotspot en druk op Enter om het te plaatsen.',
 			pickUpHint: 'Druk op Spatie of Enter om op te pakken.',
-			selectedHint: 'Geselecteerd voor plaatsing.',
 			selectHint: 'Druk op Spatie om te selecteren.',
 			hotspotContains: 'Hotspot {number}. Bevat {label}.',
 			hotspotCorrectAnswer: 'Hotspot {number}. Juist antwoord: {label}.',

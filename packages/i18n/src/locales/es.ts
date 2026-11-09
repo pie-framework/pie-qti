@@ -350,7 +350,6 @@ export default {
 			unavailableSentence: 'No disponible por una restricción del grupo de emparejamiento.',
 			heldHint: 'Ve con Tab a un punto activo y presiona Intro para colocarlo.',
 			pickUpHint: 'Presiona Espacio o Intro para agarrar.',
-			selectedHint: 'Seleccionado para colocación.',
 			selectHint: 'Presiona Espacio para seleccionar.',
 			hotspotContains: 'Punto activo {number}. Contiene {label}.',
 			hotspotCorrectAnswer: 'Punto activo {number}. Respuesta correcta: {label}.',
