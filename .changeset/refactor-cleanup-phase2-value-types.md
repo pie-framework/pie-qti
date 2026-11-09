@@ -13,7 +13,7 @@ Response value types, serialized session state and parsing-limit cleanups (clean
 | `associateInteraction`, `graphicAssociateInteraction` | `Array<[string, string]>` | `string[]` of `"A B"` pairs |
 | `positionObjectInteraction` | `Record<string, { x: number; y: number }>` | `string[]` of `"x y"` points |
 | `selectPointInteraction` | `Array<{ x: number; y: number }>` | `string \| string[] \| null`: `"x y"` points, null once cleared |
-| `hotspotInteraction` | `string[]` | `string`: the selected hotspot |
+| `hotspotInteraction` | `string[]` | `string \| null`: the selected hotspot, null once cleared |
 | `hottextInteraction` | `string[]` | `string \| string[] \| null` |
 | `choiceInteraction` | `string \| string[]` | `string \| string[] \| null` |
 | `orderInteraction`, `graphicOrderInteraction` | `string[]` | `string[] \| null`: null for an empty subset order |

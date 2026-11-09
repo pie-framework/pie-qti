@@ -113,8 +113,9 @@ describe('InteractionValueMap matches each component emission', () => {
 		emit('sliderInteraction', '73');
 	});
 
-	test('hotspot: handleClick emits the one selected identifier', () => {
+	test('hotspot: select emits the selected identifier, clearAnswer null', () => {
 		expect(emit('hotspotInteraction', 'H1' as string)).toBe('H1');
+		expect(emit('hotspotInteraction', null)).toBeNull();
 		// @ts-expect-error the earlier string[] shape is not emitted (multi-select is not implemented)
 		emit('hotspotInteraction', ['H1']);
 	});
