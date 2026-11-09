@@ -68,6 +68,7 @@ export class AssessmentSessionCoordinator {
 			itemSessionStates: this.#itemSessionStateSnapshot(),
 			itemComments: this.#state.itemComments ? { ...this.#state.itemComments } : undefined,
 			itemFlags: this.#state.itemFlags ? { ...this.#state.itemFlags } : undefined,
+			branchDecisions: this.#state.branchDecisions ? { ...this.#state.branchDecisions } : undefined,
 			timing: {
 				...this.#state.timing,
 				itemTimes: { ...this.#state.timing.itemTimes },

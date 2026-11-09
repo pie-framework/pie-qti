@@ -506,6 +506,16 @@ export interface AssessmentSessionState {
 	itemComments?: Record<string, string>;
 	/** Items the candidate flagged for review, keyed by item identifier. */
 	itemFlags?: Record<string, boolean>;
+	/**
+	 * The backend's branch decision (`nextItemIdentifier`) kept per item with its
+	 * last-submission record: item identifier → target (an item, section or test part
+	 * identifier, or EXIT_TEST). Only the freshest counted submission's decision is kept —
+	 * any later counted submission replaces it — and delivery follows it on the next
+	 * forward step from that item that submits nothing, so a restored session lands
+	 * identically to the live one. (Session format addition; backends that never store it
+	 * just lose the kept decision across a resume.)
+	 */
+	branchDecisions?: Record<string, string>;
 	/** Whether the candidate chose to hide the countdown timer (a persisted shell preference). */
 	timerHidden?: boolean;
 	/** Time tracking */
