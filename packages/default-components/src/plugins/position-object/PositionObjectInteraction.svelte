@@ -58,6 +58,7 @@
 	import { joinSentences, translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import ImageStage from '../../shared/components/ImageStage.svelte';
+	import { createKeyboardCrosshair } from '../../shared/components/keyboardCrosshair.svelte';
 	import DragHandle from '../../shared/components/DragHandle.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
@@ -156,12 +157,12 @@
 	let draggedPositionIndex: number | null = $state(null);
 	let imageContainer: HTMLElement | null = $state(null);
 
-	// Keyboard accessibility state (K-04)
-	let selectedStageId: string | null = $state(null); // stage currently being keyboard-positioned
-	let crosshairX = $state(0.5); // normalized [0,1] x position on background image
-	let crosshairY = $state(0.5); // normalized [0,1] y position on background image
-	let crosshairActive = $state(false); // whether the crosshair is visible/active
-	let liveMessage = $state(''); // message for aria-live region
+	// Keyboard accessibility state (K-04): the object being keyboard-positioned, the
+	// shared crosshair's normalized position on the background image, and the live
+	// region that reports selection, movement, placement and refusals.
+	let selectedStageId: string | null = $state(null);
+	const crosshair = createKeyboardCrosshair();
+	let liveMessage = $state('');
 
 	const canInteract = $derived(!disabled);
 	const canAddMore = $derived(
@@ -461,16 +462,14 @@
 		if (!stage || !canDragStage(stageId)) return;
 
 		selectedStageId = stageId;
-		crosshairActive = true;
+		crosshair.activate();
 
 		// Initialise crosshair to the stage's last placed position, or centre
 		const existing = [...positions].reverse().find((p: Position) => p.stageId === stageId);
 		if (existing) {
-			crosshairX = Math.max(0, Math.min(1, existing.x / imageWidth));
-			crosshairY = Math.max(0, Math.min(1, existing.y / imageHeight));
+			crosshair.jumpTo(existing.x / imageWidth, existing.y / imageHeight);
 		} else {
-			crosshairX = 0.5;
-			crosshairY = 0.5;
+			crosshair.centre();
 		}
 
 		liveMessage = translate(
@@ -510,7 +509,7 @@
 			y: percent(y, imageHeight),
 		});
 		selectedStageId = null;
-		crosshairActive = false;
+		crosshair.deactivate();
 	}
 
 	/**
@@ -518,7 +517,8 @@
 	 */
 	function placeAtCrosshair() {
 		if (!selectedStageId || !parsedInteraction?.imageData) return;
-		finishPlacement(selectedStageId, crosshairX * imageWidth, crosshairY * imageHeight);
+		// Unrounded here: the emission step rounds (see emitPositions).
+		finishPlacement(selectedStageId, crosshair.x * imageWidth, crosshair.y * imageHeight);
 	}
 
 	/** Single-pointer alternative to dragging (WCAG 2.5.7): click/tap the canvas to place the selected object. */
@@ -532,26 +532,15 @@
 	 * Handle keydown on the canvas when in keyboard placement mode.
 	 */
 	function handleCanvasKeydown(event: KeyboardEvent) {
-		if (!crosshairActive || !selectedStageId) return;
-
-		const step = event.shiftKey ? 0.01 : 0.05;
+		if (!crosshair.active || !selectedStageId) return;
 
 		switch (event.key) {
 			case 'ArrowLeft':
-				event.preventDefault();
-				crosshairX = Math.max(0, crosshairX - step);
-				break;
 			case 'ArrowRight':
-				event.preventDefault();
-				crosshairX = Math.min(1, crosshairX + step);
-				break;
 			case 'ArrowUp':
-				event.preventDefault();
-				crosshairY = Math.max(0, crosshairY - step);
-				break;
 			case 'ArrowDown':
 				event.preventDefault();
-				crosshairY = Math.min(1, crosshairY + step);
+				if (!crosshair.move(event.key, event.shiftKey)) return;
 				break;
 			case 'Enter':
 			case ' ':
@@ -561,7 +550,7 @@
 			case 'Escape':
 				event.preventDefault();
 				selectedStageId = null;
-				crosshairActive = false;
+				crosshair.deactivate();
 				liveMessage = translate(i18n, 'interactions.positionObject.placementCancelled', 'Placement cancelled.');
 				return;
 			default:
@@ -570,8 +559,8 @@
 
 		// Announce updated position after arrow movement
 		liveMessage = translate(i18n, 'accessibility.positionPercent', 'Position: {x}%, {y}%.', {
-			x: Math.round(crosshairX * 100),
-			y: Math.round(crosshairY * 100),
+			x: Math.round(crosshair.x * 100),
+			y: Math.round(crosshair.y * 100),
 		});
 	}
 </script>
@@ -609,7 +598,7 @@
 						alt={imageAlt}
 						description={imageDescription}
 						descriptionId={imageDescriptionId}
-						containerClass="qti-po-canvas {crosshairActive ? 'qti-po-canvas-active' : ''} {selectedStageId ? 'qti-po-canvas-placing' : ''}"
+						containerClass="qti-po-canvas {crosshair.active ? 'qti-po-canvas-active' : ''} {selectedStageId ? 'qti-po-canvas-placing' : ''}"
 						containerPart="canvas"
 						capContainerWidth={false}
 						containerProps={{
@@ -617,9 +606,9 @@
 							ondragover: handleDragOver,
 							onkeydown: handleCanvasKeydown,
 							onclick: handleCanvasClick,
-							role: crosshairActive ? 'application' : undefined,
-							tabindex: crosshairActive ? 0 : -1,
-							'aria-label': crosshairActive
+							role: crosshair.active ? 'application' : undefined,
+							tabindex: crosshair.active ? 0 : -1,
+							'aria-label': crosshair.active
 								? translate(i18n, 'interactions.positionObject.canvasActiveLabel', 'Positioning canvas: use the arrow keys to move the crosshair, Enter to place, Escape to cancel')
 								: undefined,
 						}}
@@ -760,17 +749,17 @@
 						{/if}
 
 						<!-- Keyboard crosshair overlay (K-04) -->
-						{#if crosshairActive}
+						{#if crosshair.active}
 							<svg
 								class="qti-po-crosshair-overlay"
 								aria-hidden="true"
 								xmlns="http://www.w3.org/2000/svg"
 							>
-								<line x1="{crosshairX * 100}%" y1="0" x2="{crosshairX * 100}%" y2="100%" class="qti-po-crosshair-halo" />
-								<line x1="0" y1="{crosshairY * 100}%" x2="100%" y2="{crosshairY * 100}%" class="qti-po-crosshair-halo" />
-								<line x1="{crosshairX * 100}%" y1="0" x2="{crosshairX * 100}%" y2="100%" class="qti-po-crosshair-line" />
-								<line x1="0" y1="{crosshairY * 100}%" x2="100%" y2="{crosshairY * 100}%" class="qti-po-crosshair-line" />
-								<circle cx="{crosshairX * 100}%" cy="{crosshairY * 100}%" r="6" class="qti-po-crosshair-dot" />
+								<line x1="{crosshair.x * 100}%" y1="0" x2="{crosshair.x * 100}%" y2="100%" class="qti-po-crosshair-halo" />
+								<line x1="0" y1="{crosshair.y * 100}%" x2="100%" y2="{crosshair.y * 100}%" class="qti-po-crosshair-halo" />
+								<line x1="{crosshair.x * 100}%" y1="0" x2="{crosshair.x * 100}%" y2="100%" class="qti-po-crosshair-line" />
+								<line x1="0" y1="{crosshair.y * 100}%" x2="100%" y2="{crosshair.y * 100}%" class="qti-po-crosshair-line" />
+								<circle cx="{crosshair.x * 100}%" cy="{crosshair.y * 100}%" r="6" class="qti-po-crosshair-dot" />
 							</svg>
 						{/if}
 					</ImageStage>

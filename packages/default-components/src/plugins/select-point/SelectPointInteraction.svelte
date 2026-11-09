@@ -7,6 +7,7 @@
 		import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import ImageStage from '../../shared/components/ImageStage.svelte';
+	import { createKeyboardCrosshair } from '../../shared/components/keyboardCrosshair.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
@@ -65,10 +66,9 @@
 	let surfaceElement: HTMLDivElement | null = $state(null);
 	let pointsList: HTMLUListElement | null = $state(null);
 
-	// Keyboard crosshair state (K-01)
-	let crosshairActive = $state(false);
-	let crosshairX = $state(0.5); // normalized 0-1
-	let crosshairY = $state(0.5); // normalized 0-1
+	// Keyboard crosshair state (K-01): the shared crosshair's normalized position
+	// and the live region that reports it.
+	const crosshair = createKeyboardCrosshair();
 	let liveRegionText = $state('');
 
 	/**
@@ -213,7 +213,8 @@
 	 * Converts normalized crosshair coords to natural pixel coords.
 	 */
 	function placePointAtCrosshair() {
-		addPoint({ x: Math.round(crosshairX * imageWidth), y: Math.round(crosshairY * imageHeight) });
+		// select point rounds at placement: the emitted point is whole image pixels.
+		addPoint({ x: Math.round(crosshair.x * imageWidth), y: Math.round(crosshair.y * imageHeight) });
 	}
 
 	/**
@@ -223,25 +224,17 @@
 	function handleKeydown(e: KeyboardEvent) {
 		if (disabled) return;
 
-		const LARGE_STEP = 0.05; // 5% per arrow key press
-		const SMALL_STEP = 0.01; // 1% with Shift for fine control
-
 		switch (e.key) {
 			case 'ArrowLeft':
 			case 'ArrowRight':
 			case 'ArrowUp':
 			case 'ArrowDown': {
 				e.preventDefault();
-				crosshairActive = true;
-				const step = e.shiftKey ? SMALL_STEP : LARGE_STEP;
-				if (e.key === 'ArrowLeft')  crosshairX = Math.max(0, crosshairX - step);
-				if (e.key === 'ArrowRight') crosshairX = Math.min(1, crosshairX + step);
-				if (e.key === 'ArrowUp')    crosshairY = Math.max(0, crosshairY - step);
-				if (e.key === 'ArrowDown')  crosshairY = Math.min(1, crosshairY + step);
-
+				crosshair.activate();
+				if (!crosshair.move(e.key, e.shiftKey)) return;
 				liveRegionText = translate(i18n, 'accessibility.positionPercent', 'Position: {x}%, {y}%.', {
-					x: Math.round(crosshairX * 100),
-					y: Math.round(crosshairY * 100),
+					x: Math.round(crosshair.x * 100),
+					y: Math.round(crosshair.y * 100),
 				});
 				break;
 			}
@@ -254,8 +247,7 @@
 	}
 
 	function handleFocus() {
-		crosshairX = 0.5;
-		crosshairY = 0.5;
+		crosshair.centre();
 		// Show the crosshair for keyboard focus only; a pointer click places its point directly.
 		let keyboardFocus = true;
 		try {
@@ -263,12 +255,13 @@
 		} catch {
 			keyboardFocus = true;
 		}
-		crosshairActive = keyboardFocus;
+		if (keyboardFocus) crosshair.activate();
+		else crosshair.deactivate();
 		liveRegionText = translate(i18n, 'accessibility.positionPercent', 'Position: {x}%, {y}%.', { x: 50, y: 50 });
 	}
 
 	function handleBlur() {
-		crosshairActive = false;
+		crosshair.deactivate();
 	}
 </script>
 
@@ -368,9 +361,9 @@
 						onfocus={handleFocus}
 						onblur={handleBlur}
 					>
-						{#if crosshairActive && !disabled}
-							{@const cx = crosshairX * imageWidth}
-							{@const cy = crosshairY * imageHeight}
+						{#if crosshair.active && !disabled}
+							{@const cx = crosshair.x * imageWidth}
+							{@const cy = crosshair.y * imageHeight}
 							<svg
 								aria-hidden="true"
 								class="crosshair-overlay"
@@ -383,7 +376,7 @@
 								<line x1="0" y1={cy} x2={imageWidth} y2={cy} class="crosshair-line" />
 								<line x1={cx} y1="0" x2={cx} y2={imageHeight} class="crosshair-line" />
 							</svg>
-							<span class="crosshair-dot" style="left: {crosshairX * 100}%; top: {crosshairY * 100}%;"></span>
+							<span class="crosshair-dot" style="left: {crosshair.x * 100}%; top: {crosshair.y * 100}%;"></span>
 						{/if}
 					</div>
 				</ImageStage>
