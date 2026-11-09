@@ -37,6 +37,7 @@ import {
 	serializeXml,
 	type QtiValue,
 	qtiValue,
+	type StringComparisonOptions,
 	type TestItemState,
 } from '@pie-qti/qti-processing';
 import {
@@ -128,6 +129,12 @@ const STORAGE_PREFIX = 'qti_session_';
 export interface ReferenceBackendAdapterOptions {
 	/** RNG for the session-start draw of selection and ordering. Defaults to Math.random. */
 	rng?: () => number;
+	/**
+	 * String comparison folds the scorer applies beyond QTI's equality, as the delivery's input
+	 * needs them (see the item player's `AssessmentItemDefinitionConfig.stringComparison`). Set
+	 * the same value as the player's `stringComparison`. Exact when absent.
+	 */
+	stringComparison?: StringComparisonOptions;
 }
 
 export class ReferenceBackendAdapter implements BackendAdapter {
@@ -147,9 +154,11 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 	readonly requiresItemSession = true;
 	private registeredAssessments: Map<string, SecureAssessment> = new Map();
 	private readonly rng: () => number;
+	private readonly stringComparison: StringComparisonOptions | undefined;
 
 	constructor(options: ReferenceBackendAdapterOptions = {}) {
 		this.rng = options.rng ?? Math.random;
+		this.stringComparison = options.stringComparison ? Object.freeze({ ...options.stringComparison }) : undefined;
 	}
 
 	/**
@@ -348,6 +357,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 				responses: request.responses,
 				itemSession: request.itemSession,
 				requireItemSession: (current.item.templateDefaults?.length ?? 0) > 0,
+				...(this.stringComparison ? { stringComparison: this.stringComparison } : {}),
 			});
 		} catch (error) {
 			if (error instanceof AssessmentItemScoringError) {
