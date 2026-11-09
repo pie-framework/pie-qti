@@ -56,6 +56,15 @@ export interface GraphicGapMatchData {
 }
 
 /**
+ * Whether the item's QTI version defines an interaction-level `maxAssociations` on
+ * graphicGapMatchInteraction: QTI 2.2 and 3.0 do (each with default "1"); QTI 2.0/2.1
+ * and unknown versions do not, so an absent attribute cannot mean the spec default.
+ */
+function isInteractionCapDefined(qtiVersion: string | undefined): boolean {
+	return qtiVersion === '2.2' || qtiVersion === '3.0' || qtiVersion === undefined || qtiVersion === 'unknown';
+}
+
+/**
  * Standard QTI graphic gap match interaction extractor
  * Handles graphicGapMatchInteraction elements (drag text/images into gaps on an image)
  */
@@ -136,15 +145,19 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 			};
 		}
 
-		// Extract interaction-level attributes. Deliberate divergence from the spec default:
-		// QTI 2.2 (Table 5.41.2) and QTI 3.0 (Table 5.60.2) give max-associations the default
-		// "1" (and the attribute does not exist at all on graphicGapMatchInteraction in the
-		// QTI 2.1 XSD), but this extractor keeps 0 = unlimited for items that omit it, so
-		// delivered content authored without the attribute keeps its historical behaviour.
-		// Conformance risk: an item relying on the missing attribute is more permissive than
-		// the 2.2/3.0 default; conformant items author the attribute explicitly. See
-		// docs/prds/interactions/graphic-gap-match.md ("maxAssociations default").
-		const maxAssociations = utils.getNumberAttribute(element, 'maxAssociations', 0);
+		// Extract interaction-level attributes with the per-version spec default for an
+		// absent maxAssociations: QTI 2.2 (Table 5.41.2) and QTI 3.0 (Table 5.60.2) give
+		// it the default "1" (0 = no restriction), while the attribute does not exist on
+		// graphicGapMatchInteraction in the QTI 2.1 XSD, so absent means no interaction
+		// cap there (the only 2.1 limits are the per-choice matchMax values). An explicit
+		// value is honoured in every version as leniency, with "0" meaning unlimited.
+		// Without a detected version the extractor follows the QTI 2.2 assumption
+		// detectQtiVersion makes for unversioned items.
+		const maxAssociations = utils.getNumberAttribute(
+			element,
+			'maxAssociations',
+			isInteractionCapDefined(context.config.qtiVersion) ? 1 : 0,
+		);
 
 		// Extract gapText children (draggable text labels)
 		const gapTextElements = utils.getChildrenByTag(element, 'gapText');

@@ -27,7 +27,7 @@ import {
 	toNumber,
 	toStringValue,
 } from '@pie-qti/qti-processing';
-import type { ElementNameMapper, AttributeNameMapper } from '@pie-qti/qti-common';
+import type { ElementNameMapper, AttributeNameMapper, QtiVersion } from '@pie-qti/qti-common';
 import { prepareContentMarkup } from '@pie-qti/qti-common/accessibility';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 import { DefaultI18nProvider, type I18nProvider } from '@pie-qti/i18n';
@@ -184,6 +184,8 @@ export class Player {
 	private componentRegistry: ComponentRegistry;
 	private i18nProvider: I18nProvider;
 	private mapper: ElementNameMapper;
+	/** The item's detected QTI version ('unknown' when nothing identified it). */
+	private qtiVersion: QtiVersion;
 
 	private warnedImpliedZeroMaxScore = false;
 	private responseProcessingProgram: ProcessingProgram | null = null;
@@ -226,11 +228,13 @@ export class Player {
 		this.rng = config.rng ?? (typeof config.seed === 'number' ? createSeededRng(config.seed) : Math.random);
 
 		// Resolve QTI-version mappers without mutating caller-owned configuration.
+		// The detected version also drives per-version spec defaults during extraction
+		// (e.g. graphicGapMatchInteraction maxAssociations); detect it once, here.
+		this.qtiVersion = config.qtiVersion ?? detectQtiVersion(this.itemXml);
 		if (prepared) {
 			this.mapper = prepared.mapper;
 		} else if (!config.elementNameMapper) {
-			const version = detectQtiVersion(this.itemXml);
-			if (version === '3.0') {
+			if (this.qtiVersion === '3.0') {
 				this.mapper = new Qti3ElementNameMapper();
 			} else {
 				this.mapper = new Qti2xElementNameMapper();
@@ -247,6 +251,7 @@ export class Player {
 			...config,
 			elementNameMapper: this.mapper,
 			attributeNameMapper: attributeMapper,
+			qtiVersion: this.qtiVersion,
 		};
 
 		if (prepared) {
