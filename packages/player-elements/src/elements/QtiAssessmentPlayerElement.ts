@@ -11,7 +11,7 @@ import type {
 import { isAssessmentPlayerError, ReferenceBackendAdapter } from '@pie-qti/assessment-player';
 import type { PciConfiguration, PlayerSecurityConfig } from '@pie-qti/item-player';
 import { enforceItemXmlLimits, normalizeParsingLimits } from '@pie-qti/item-player/security';
-import AssessmentShell from '../../../assessment-player/src/components/AssessmentShell.svelte';
+import AssessmentShell from '@pie-qti/assessment-player/components/AssessmentShell.svelte';
 import { QTI_ASSESSMENT_PLAYER_TAG } from '../constants.js';
 import { parseAssessmentTestXml } from '../qti/parseAssessmentTest.js';
 import {

@@ -1,4 +1,4 @@
-import SectionPlayerVertical from '../../../section-player/src/components/SectionPlayerVertical.svelte';
+import SectionPlayerVertical from '@pie-qti/section-player/components/SectionPlayerVertical.svelte';
 import { QTI_SECTION_PLAYER_VERTICAL_TAG } from '../constants.js';
 import { QtiSectionPlayerElementBase } from './QtiSectionPlayerSplitPaneElement.js';
 

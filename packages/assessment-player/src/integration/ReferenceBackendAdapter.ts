@@ -107,11 +107,6 @@ import {
 } from './assessment-item-scorer.js';
 
 /**
- * Storage key prefix for localStorage
- */
-const STORAGE_PREFIX = 'qti_session_';
-
-/**
  * Reference Backend Adapter using localStorage
  *
  * @example
