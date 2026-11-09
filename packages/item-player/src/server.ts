@@ -195,6 +195,11 @@ export interface ServerAssessmentItemDefinitionConfig {
 			(args: ServerQtiValue[], meta: { class?: string; definition?: string }) => ServerQtiValue
 		>
 	>;
+	/** String comparison folds beyond QTI's equality; see `AssessmentItemDefinitionConfig.stringComparison`. */
+	readonly stringComparison?: Readonly<{
+		foldScriptInput?: boolean;
+		foldLetterVariants?: boolean;
+	}>;
 	readonly resolveProcessingFragment?: (
 		request: ServerProcessingFragmentRequest,
 	) => string | null | undefined;

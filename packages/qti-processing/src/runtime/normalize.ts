@@ -1,34 +1,55 @@
 /**
- * Response normalisation for comparison.
+ * Response normalisation for comparison and number reading.
  *
- * Folds a typed response and an authored answer to one comparable form, so that
- * the same answer typed with other digits, Arabic separators or a different
- * Unicode encoding compares equal. Response processing applies it inside the
- * comparison and stores the response as entered.
+ * QTI compares `string` values for equality: `match` is true "if the two expressions represent
+ * the same value" (QTI 3.0 §6.9.21; `member` §6.9.33, `contains` §6.9.25 and the mapping lookup
+ * of `mapResponse` §6.9.47 compare the same way), and case folds only where the content says so
+ * (`stringMatch` case-sensitive §5.138.1, `mapEntry` case-sensitive §7.21.3). The comparable form
+ * of a string is therefore the string itself, composed to NFC: QTI is silent on Unicode
+ * normalization, and Unicode conformance clause C6 says canonically equivalent sequences must not
+ * be treated as distinct, so `é` typed as `e` and a combining accent is the same value as `é`.
  *
- * Nothing in an ASCII string is altered unless case folding is asked for, so
- * a response that compared equal or unequal before still does.
+ * Folding more than that changes the score of conforming content, so it is a delivery option
+ * the host sets (`StringComparisonOptions`), off by default. It exists for input methods that add
+ * invisible marks or presentation forms to right-to-left text, and for deployments that accept
+ * other scripts' digits in string answers. Response processing applies the comparable form
+ * inside the comparison and stores the response as entered.
  *
- * Mirrors `normalizeResponse` in pie-elements-ng
- * (`packages/shared/controller-utils/src/response-normalizer.ts`); the parity
- * test runs that file's cases, so the two stay converged.
+ * Reading typed text into an integer or float (`parseResponseNumber`) always folds script input:
+ * that reading is the delivery system's part, which QTI leaves to it.
+ *
+ * With `foldScriptInput` this is `normalizeResponse` in pie-elements-ng
+ * (`packages/shared/controller-utils/src/response-normalizer.ts`), whose default it is; the
+ * parity test runs that file's cases with it, so the two stay converged.
  */
 
-export interface NormalizeOptions {
+/**
+ * Folds a string comparison applies beyond QTI's equality, set by the host for the input its
+ * candidates use. The default, `{}`, compares as QTI defines: exactly, up to canonical equivalence.
+ */
+export interface StringComparisonOptions {
 	/**
-	 * BCP 47 tag of the content language. Selects the decimal and group marks
-	 * that the Arabic separators fold to, and the case fold. Without one, the
-	 * marks are `.` and `,`.
+	 * Fold what script input adds or varies without changing the text: remove bidirectional
+	 * controls (ALM, LRM, RLM, the embeddings, overrides and isolates) and tatweel, fold Arabic
+	 * presentation forms to their base letters, every Unicode decimal digit to 0–9, and the
+	 * Arabic decimal and thousands separators to the content language's marks.
+	 */
+	readonly foldScriptInput?: boolean;
+	/**
+	 * Fold Arabic spelling variants: hamza and madda alef forms to bare alef, tashkeel removed,
+	 * ة to ه and ى to ي. This changes what counts as a correct spelling.
+	 */
+	readonly foldLetterVariants?: boolean;
+}
+
+export interface NormalizeOptions extends StringComparisonOptions {
+	/**
+	 * BCP 47 tag of the content language. Selects the case fold, and the decimal and group marks
+	 * that the Arabic separators fold to. Without one, the marks are `.` and `,`.
 	 */
 	language?: string;
 	/** Fold case, with the Turkish and Azerbaijani i when the language is one of them. */
 	ignoreCase?: boolean;
-	/**
-	 * Fold Arabic spelling variants: hamza and madda alef forms to bare alef,
-	 * tashkeel removed, ة to ه and ى to ي. An authoring choice per response,
-	 * because it changes what counts as correct spelling.
-	 */
-	foldLetterVariants?: boolean;
 }
 
 // U+061C ALM, LRM, RLM, the embeddings and overrides U+202A–U+202E, the
@@ -121,34 +142,42 @@ export const foldCase = (value: string, language?: string): string => {
 };
 
 /**
- * The comparable form of a typed response or authored answer: case folded
- * when the options ask for it; bidi controls and tatweel removed; Arabic
- * presentation forms folded to base letters; NFC; every decimal digit folded
- * to 0–9; `٫` and `٬` replaced by the content language's decimal and group
- * marks. Arabic letter variants fold only when the options ask for it.
+ * Script input folded: bidi controls and tatweel removed; Arabic presentation forms folded to base
+ * letters; NFC; every decimal digit folded to 0–9; `٫` and `٬` replaced by the content language's
+ * decimal and group marks. NFC follows the removals, because removing a control or tatweel can
+ * bring a letter and its combining mark together.
  */
-export const normalizeResponse = (value: string, options: NormalizeOptions = {}): string => {
-	const marks = numberMarks(options.language);
-	// Case folds first, on the text as typed: lower-casing can leave combining
-	// marks out of canonical order, and a separator folded to `.` changes where
-	// a Greek sigma counts as final, so folding later could part two strings
-	// that `toLowerCase()` treats as equal. NFC follows the removals, because
-	// removing a control or tatweel can bring a letter and its combining mark
-	// together.
-	let result = (options.ignoreCase ? foldCase(value, options.language) : value)
-		.replace(BIDI_CONTROLS_AND_TATWEEL, '')
-		.replace(PRESENTATION_FORMS, (forms) => forms.normalize('NFKC'))
-		.normalize('NFC');
-	result = foldDigits(result)
+const scriptInputFolded = (value: string, language: string | undefined): string => {
+	const marks = numberMarks(language);
+	return foldDigits(
+		value
+			.replace(BIDI_CONTROLS_AND_TATWEEL, '')
+			.replace(PRESENTATION_FORMS, (forms) => forms.normalize('NFKC'))
+			.normalize('NFC'),
+	)
 		.replace(ARABIC_DECIMAL_SEPARATOR, marks.decimal)
 		.replace(ARABIC_THOUSANDS_SEPARATOR, marks.group);
-	if (options.foldLetterVariants) {
-		result = result
-			.replace(TASHKEEL, '')
-			.replace(ALEF_FORMS, '\u0627')
-			.replace(/\u0629/g, '\u0647')
-			.replace(/\u0649/g, '\u064A');
-	}
+};
+
+const letterVariantsFolded = (value: string): string =>
+	value
+		.replace(TASHKEEL, '')
+		.replace(ALEF_FORMS, '\u0627')
+		.replace(/\u0629/g, '\u0647')
+		.replace(/\u0649/g, '\u064A');
+
+/**
+ * The comparable form of a typed response or authored answer: NFC, case folded when the options
+ * ask for it, and folded further only by the string comparison options the host set — script
+ * input (`foldScriptInput`) and Arabic letter variants (`foldLetterVariants`).
+ */
+export const normalizeResponse = (value: string, options: NormalizeOptions = {}): string => {
+	// Case folds first, on the text as typed: lower-casing can leave combining marks out of
+	// canonical order, and a separator folded to `.` changes where a Greek sigma counts as final,
+	// so folding later could part two strings that `toLowerCase()` treats as equal.
+	let result = (options.ignoreCase ? foldCase(value, options.language) : value).normalize('NFC');
+	if (options.foldScriptInput) result = scriptInputFolded(result, options.language);
+	if (options.foldLetterVariants) result = letterVariantsFolded(result);
 	return result;
 };
 
@@ -162,10 +191,12 @@ const SPACE_MARK = /^\s$/u;
  * Arabic separators, and the language's own decimal and group marks. Text
  * that `Number()` already reads keeps that reading, so `3.5` stays 3.5 in
  * every language; group marks count only in groups of three. Anything
- * else is NaN.
+ * else is NaN. Script input is always folded here, whatever the host's
+ * string comparison options: QTI leaves reading typed text into a number to
+ * the delivery system.
  */
 export const parseResponseNumber = (text: string, language?: string): number => {
-	const folded = normalizeResponse(text, { language }).trim();
+	const folded = normalizeResponse(text, { language, foldScriptInput: true }).trim();
 	const direct = Number(folded);
 	if (Number.isFinite(direct)) return direct;
 	const { decimal, group } = numberMarks(language);

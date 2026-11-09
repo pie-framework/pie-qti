@@ -1554,13 +1554,17 @@ export class Player {
 	// Execution
 	// ----------------------------------------------------------------------------
 
-	/** The evaluator's environment, which reads responses in the item's content language. */
+	/**
+	 * The evaluator's environment, which reads responses in the item's content language and
+	 * compares strings with the host's string comparison folds.
+	 */
 	private processingEnv() {
 		return {
 			ctx: this.ctx,
 			ops: this.ops,
 			rng: this.rng,
 			language: this.getContentLanguage(),
+			stringComparison: this.config.stringComparison,
 			customOperators: this.config.customOperators,
 		};
 	}

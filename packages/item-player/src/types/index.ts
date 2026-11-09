@@ -8,6 +8,7 @@ import type {
 	Cardinality as ProcessingCardinality,
 	ProcessingFragmentResolver,
 	QtiValue,
+	StringComparisonOptions,
 } from '@pie-qti/qti-processing';
 import type {
 	AttributeNameMapper,
@@ -335,6 +336,8 @@ export interface ItemSessionEngineConfig {
 	 * Keyed by operator `class` (preferred) or `definition` URI.
 	 */
 	customOperators?: Record<string, (args: QtiValue[], meta: { class?: string; definition?: string }) => QtiValue>;
+	/** String comparison folds beyond QTI's equality; see `AssessmentItemDefinitionConfig.stringComparison`. */
+	stringComparison?: StringComparisonOptions;
 	/**
 	 * Host-controlled resolver for xi:include processing fragments.
 	 * The player never fetches an authored href directly; package hosts must resolve
