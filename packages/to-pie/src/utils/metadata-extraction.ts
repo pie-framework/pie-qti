@@ -31,8 +31,7 @@ export function extractExtensions(qtiXml: string | HTMLElement): Record<string, 
     try {
       const sourceModelText = pieExtension.textContent || pieExtension.innerHTML;
       const sourceModel = JSON.parse(sourceModelText);
-      // `searchMetaData` is the bag's name in PIE items written before `extensions`
-      const extensions = sourceModel.extensions ?? sourceModel.searchMetaData;
+      const extensions = sourceModel.extensions;
       if (extensions) {
         return extensions;
       }
