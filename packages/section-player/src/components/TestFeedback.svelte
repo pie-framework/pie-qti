@@ -2,6 +2,7 @@
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import type { PlayerSecurityConfig } from '@pie-qti/item-player';
 	import type { QtiSectionRole, QtiSectionRuntimeHostContract, QtiSharedHtmlBlock } from '../contracts/index.js';
+	import { interfaceText } from '../i18n/interface-text.js';
 	import { prepareReadableBlock } from '../tts/spoken-catalogs.js';
 	import { isQtiViewVisibleForRole } from '../visibility/role-view.js';
 	import SanitizedHtml from './SanitizedHtml.svelte';
@@ -33,7 +34,11 @@
 </script>
 
 {#if visibleFeedback.length > 0}
-	<section class="test-feedback" aria-live="polite" aria-label={i18n?.t('feedback.testFeedback') ?? 'Test feedback'}>
+	<section
+		class="test-feedback"
+		aria-live="polite"
+		aria-label={interfaceText(i18n, 'feedback.testFeedback', 'Test feedback')}
+	>
 		{#each visibleFeedback as item (item.identifier)}
 			<!-- The section's name is interface text; each block reads in its content language. -->
 			<SanitizedHtml

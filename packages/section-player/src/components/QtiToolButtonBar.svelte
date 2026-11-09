@@ -14,6 +14,7 @@
 	import { interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
 	import type { PnpProfile } from '@pie-qti/item-player';
 	import type { QtiSectionToolConfig } from '../contracts/index.js';
+	import { interfaceText } from '../i18n/interface-text.js';
 	import type { QtiDisplaySettingsControls } from '../tools/display-settings.js';
 	import type { SpokenCatalog } from '../tts/spoken-catalogs.js';
 	import { companionMaterialsOf, companionToolIds } from '../tools/pnp-tool-supports.js';
@@ -71,9 +72,7 @@
 	const rulerTool = $derived(visibleTools.find((tool) => tool.toolId === 'ruler'));
 	const protractorTool = $derived(visibleTools.find((tool) => tool.toolId === 'protractor'));
 	const hasToolkitTools = $derived(visibleTools.length > 0);
-	const displaySettingsLabel = $derived(
-		i18n?.t('sectionPlayer.displaySettings.title', 'Display settings') ?? 'Display settings',
-	);
+	const displaySettingsLabel = $derived(interfaceText(i18n, 'sectionPlayer.displaySettings.title', 'Display settings'));
 	const toolbarTools = $derived(
 		[
 			hasTts ? 'textToSpeech' : '',

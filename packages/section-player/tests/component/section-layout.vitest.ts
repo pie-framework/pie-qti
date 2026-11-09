@@ -236,6 +236,24 @@ describe('RubricDisplay passage headings', () => {
 		expect(single.host.querySelector('.passage-toggle')?.getAttribute('aria-label')).toBe('Passage — Collapse passage');
 	});
 
+	test('a provider that answers a missing key with the key never leaks it into a name', async () => {
+		// Hosts hand the section its provider; one that only holds a narrow catalog
+		// answers a lookup it cannot serve with the key itself. The toggle's name
+		// composes heading plus verb, so a raw key there would read as the verb.
+		const keyEchoing = {
+			getLocale: () => 'nl-NL',
+			setLocale: () => {},
+			t: (key: string) => key,
+		};
+		const m = mountInto(RubricDisplay, { passages: [passage('p1')], i18n: keyEchoing });
+		mounted.push(m);
+		await settle();
+
+		const toggle = m.host.querySelector('.passage-toggle')!;
+		expect(toggle.getAttribute('aria-label')).toBe('Passage — Collapse passage');
+		expect(m.host.textContent).not.toContain('assessment.collapsePassage');
+	});
+
 	test('passage and rubric content carry the normalized content base', async () => {
 		const m = mountInto(RubricDisplay, {
 			passages: [passage('p1')],

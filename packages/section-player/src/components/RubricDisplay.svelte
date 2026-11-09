@@ -7,6 +7,7 @@
 		QtiSharedHtmlBlock,
 		QtiSharedHtmlSanitizeContext,
 	} from '../contracts/index.js';
+	import { interfaceText } from '../i18n/interface-text.js';
 	import { prepareReadableBlock } from '../tts/spoken-catalogs.js';
 	import { isQtiViewVisibleForRole } from '../visibility/role-view.js';
 	import QtiToolButtonBar from './QtiToolButtonBar.svelte';
@@ -100,21 +101,21 @@
 		const authored = passage.title?.trim();
 		if (authored) return authored;
 		if (visiblePassages.length > 1) {
-			return (
-				i18n?.t('sectionPlayer.passageNumbered', 'Passage {number}', { number: index + 1 }) ?? `Passage ${index + 1}`
-			);
+			return interfaceText(i18n, 'sectionPlayer.passageNumbered', 'Passage {number}', { number: index + 1 });
 		}
-		return i18n?.t('sectionPlayer.passage', 'Passage') ?? 'Passage';
+		return interfaceText(i18n, 'sectionPlayer.passage', 'Passage');
 	}
 
 	/**
 	 * The toggle's accessible name: the passage's heading plus the translated action verb, so
 	 * each collapse control is distinguishable when several passages share the section.
+	 * `interfaceText` holds the English verb: a provider that answers a missing key with the
+	 * key itself must never read as the verb.
 	 */
 	function toggleName(passage: QtiSharedHtmlBlock, index: number, collapsed: boolean): string {
 		const verb = collapsed
-			? (i18n?.t('assessment.expandPassage') ?? 'Expand passage')
-			: (i18n?.t('assessment.collapsePassage') ?? 'Collapse passage');
+			? interfaceText(i18n, 'assessment.expandPassage', 'Expand passage')
+			: interfaceText(i18n, 'assessment.collapsePassage', 'Collapse passage');
 		return `${passageTitle(passage, index)} — ${verb}`;
 	}
 
@@ -137,7 +138,7 @@
 {#if visiblePassages.length > 0 || visibleRubricBlocks.length > 0}
 	<div class="rubric-container">
 		{#if visiblePassages.length > 0}
-			<section class="passage-section" aria-label={i18n?.t('sectionPlayer.passages', 'Passages') ?? 'Passages'}>
+			<section class="passage-section" aria-label={interfaceText(i18n, 'sectionPlayer.passages', 'Passages')}>
 				{#each visiblePassages as passage, index (passage.identifier)}
 					{@const headingId = `${uid}-passage-${index}`}
 					{@const passageCollapsed = isPassageCollapsed(passage.identifier)}
@@ -203,7 +204,7 @@
 		{/if}
 
 		{#if visibleInstructions.length > 0}
-			<section class="instructions-section" aria-label={i18n?.t('assessment.instructions') ?? 'Instructions'}>
+			<section class="instructions-section" aria-label={interfaceText(i18n, 'assessment.instructions', 'Instructions')}>
 				{#each visibleInstructions as instruction (instruction.identifier)}
 					<div class="instructions-block">
 						<svg
@@ -234,7 +235,7 @@
 		{/if}
 
 		{#if visibleRubrics.length > 0}
-			<section class="rubric-section" aria-label={i18n?.t('assessment.rubrics') ?? 'Rubrics'}>
+			<section class="rubric-section" aria-label={interfaceText(i18n, 'assessment.rubrics', 'Rubrics')}>
 				{#each visibleRubrics as rubric (rubric.identifier)}
 					<SanitizedHtml
 						rawHtml={readableRubricHtml.get(rubric.identifier) ?? rubric.rawHtml}

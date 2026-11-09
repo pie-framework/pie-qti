@@ -63,9 +63,19 @@ The section tool bar composes external tool packages from the sibling
 
 These packages are pinned to **exact matching versions** because they inter-depend internally with
 exact pins; upgrading requires bumping all of them in lockstep (toolkit registry classes must not
-be loaded twice under different version strings). Two of the toolkit's transitive tools
-(`pie-calculator-desmos`, `tts-client-server`) resolve transitively and are intentionally not
-declared directly.
+be loaded twice under different version strings). `pie-calculator-desmos` and `tts-client-server`
+are declared directly as well: the tool bar's Svelte sources, compiled into
+`@pie-qti/player-elements`, reach them.
+
+The tool bar gives the toolkit the section's interface locale through its `locale` attribute. The
+toolkit stamps that locale's `lang` and `dir` and renders its own chrome (tool names, read-aloud
+controls, tool panel controls) from its own catalogs, not from the section's `I18nProvider`. The
+packages stay on `1.0.0-beta.7` for that reason: from `1.0.0-beta.9`,
+`@pie-players/pie-players-shared` bundles only the English catalog and moves every other locale
+to the optional `@pie-players/pie-i18n-generated` package, so a newer toolkit renders a Dutch (or
+any non-English) interface in English. Upgrading means adding that package and passing the
+toolkit an `i18n` provider whose catalog loader falls back to it;
+`apps/demo/tests/playwright/section-toolkit-locale.pw.ts` fails until then.
 
 The tool bars register four packaged tools: `textToSpeech`, `calculator`, `ruler` and
 `protractor`. The ruler and protractor load through the loaders package's lazy module loaders when

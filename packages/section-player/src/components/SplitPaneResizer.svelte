@@ -2,6 +2,7 @@
 	import { onMount, tick, untrack, type Snippet } from 'svelte';
 	import { interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
 	import type { PnpProfile } from '@pie-qti/item-player';
+	import { interfaceText } from '../i18n/interface-text.js';
 	import { pnpSurface } from '../pnp/section-surface.js';
 
 	type Pane = 'context' | 'item';
@@ -67,11 +68,9 @@
 	let selectedPane = $state<Pane>('context');
 	let lastActiveItemKey: string | undefined;
 
-	const passageLabel = $derived(i18n?.t('sectionPlayer.passage', 'Passage') ?? 'Passage');
-	const questionLabel = $derived(i18n?.t('sectionPlayer.question', 'Question') ?? 'Question');
-	const tablistLabel = $derived(
-		i18n?.t('sectionPlayer.passageAndQuestion', 'Passage and question') ?? 'Passage and question',
-	);
+	const passageLabel = $derived(interfaceText(i18n, 'sectionPlayer.passage', 'Passage'));
+	const questionLabel = $derived(interfaceText(i18n, 'sectionPlayer.question', 'Question'));
+	const tablistLabel = $derived(interfaceText(i18n, 'sectionPlayer.passageAndQuestion', 'Passage and question'));
 	/** The profile's single-column need: the panes stack behind their tabs at any width. */
 	const singleColumn = $derived(pnp?.display?.singleColumn === true);
 
@@ -361,7 +360,7 @@
 			class="splitter"
 			role="separator"
 			aria-orientation="vertical"
-			aria-label={i18n?.t('accessibility.resizer', 'Resize passage and question panels')}
+			aria-label={interfaceText(i18n, 'accessibility.resizer', 'Resize passage and question panels')}
 			aria-controls={`${contextPaneId} ${itemPaneId}`}
 			aria-valuemin={minLeftPct}
 			aria-valuemax={maxLeftPct}
