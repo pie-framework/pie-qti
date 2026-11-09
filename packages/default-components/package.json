@@ -107,7 +107,5 @@
   },
   "files": [
     "dist"
-  ],
-  "unpkg": "./dist/plugins.js",
-  "jsdelivr": "./dist/plugins.js"
+  ]
 }

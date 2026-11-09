@@ -101,7 +101,5 @@
   },
   "files": [
     "dist"
-  ],
-  "unpkg": "./dist/element.js",
-  "jsdelivr": "./dist/element.js"
+  ]
 }
