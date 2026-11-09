@@ -13,7 +13,7 @@
 	import HotspotShape from '../../shared/components/HotspotShape.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { minimumHint } from '../../shared/utils/minimumRequirement';
-	import { hitStrokeWidth, imageAltText, observeWidth, shapeCenter, type Point } from './graphicRegions';
+	import { hitStrokeWidth, imageAltText, observeWidth, regionMarkerPoint, type Point } from './graphicRegions';
 
 	interface Props {
 		interaction?: HotspotInteractionData | string;
@@ -128,12 +128,10 @@
 
 	/**
 	 * Where a region's check marker sits, in image coordinates: the centre of its shape, or for a
-	 * default-shape region — the whole image — 14 CSS px in from the top-left corner, clear of
-	 * the other regions' markers at their centres.
+	 * default-shape region — the whole image — 14 CSS px in from the top-left corner.
 	 */
 	function markerPoint(choice: HotspotChoice): Point {
-		if (choice.shape === 'default') return { x: 14 / renderScale, y: 14 / renderScale };
-		return shapeCenter(choice.shape, choice.coords);
+		return regionMarkerPoint(choice.shape, choice.coords, renderScale, 14);
 	}
 
 	const imageAlt = $derived(

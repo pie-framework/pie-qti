@@ -166,3 +166,50 @@ test.describe('hotspot default shape', () => {
 	});
 });
 
+
+/**
+ * Graphic order (QTI 3.0 §5.61: "The delivery engine must clearly indicate all defined area(s)
+ * of the image"): every area outlined on the image, with its place in the order.
+ */
+test.describe('graphic order shows its areas on the image', () => {
+	function areaBadges(host: Locator) {
+		return host.locator('svg[part="overlay"] .qti-go-area').evaluateAll((areas) =>
+			areas.map((area) => area.querySelector('.qti-go-badge')?.textContent?.trim() ?? ''),
+		);
+	}
+
+	test('each area carries its place in the order, following the list', async ({ page }) => {
+		const root = await openFixture(page, 'graphic-order-areas');
+		const host = root.locator('pie-qti-graphic-order');
+		await expect(host.locator('svg[part="overlay"] .qti-go-area')).toHaveCount(3);
+		// Areas in hotspotChoice order (Granite, Sandstone, Shale), numbered as the list orders them.
+		expect(await areaBadges(host)).toEqual(['1', '2', '3']);
+
+		await host.getByRole('button', { name: 'Move Sandstone earlier', exact: true }).click();
+		await expect.poll(() => areaBadges(host)).toEqual(['2', '1', '3']);
+		expect((await scan(page, 'pie-qti-graphic-order')).violations).toEqual([]);
+	});
+
+	test.describe('on a small touch screen', () => {
+		test.use({ hasTouch: true, viewport: { width: 320, height: 720 } });
+
+		test('the overlay scales with the image and leaves the ordering controls their taps', async ({ page }) => {
+			const root = await openFixture(page, 'graphic-order-areas');
+			const host = root.locator('pie-qti-graphic-order');
+			const image = host.locator('[part="image"]');
+			const overlay = host.locator('svg[part="overlay"]');
+			const [imageBox, overlayBox] = await Promise.all([image.boundingBox(), overlay.boundingBox()]);
+			expect(imageBox && overlayBox).toBeTruthy();
+			// The image is scaled down from its 400 px, and the overlay covers exactly the image.
+			expect(imageBox!.width).toBeLessThan(400);
+			for (const key of ['x', 'y', 'width', 'height'] as const) {
+				expect(Math.abs(overlayBox![key] - imageBox![key])).toBeLessThanOrEqual(1);
+			}
+			await expect(overlay).toHaveCSS('pointer-events', 'none');
+
+			await host.getByRole('button', { name: 'Move Shale earlier', exact: true }).tap();
+			await expect.poll(() => areaBadges(host)).toEqual(['1', '3', '2']);
+		});
+	});
+});
+

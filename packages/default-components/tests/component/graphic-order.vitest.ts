@@ -148,6 +148,105 @@ describe('GraphicOrderInteraction (pie-qti-graphic-order)', () => {
 });
 
 /**
+ * QTI 3.0 §5.61 GraphicOrderInteraction: "The delivery engine must clearly indicate all defined
+ * area(s) of the image." Every area is outlined over the image, each placed one with its
+ * position in the order; the ordering list stays the control.
+ */
+describe('GraphicOrderInteraction shows its areas on the image', () => {
+	/** Each area's badge text, in hotspotChoice order ('' for an area without a position). */
+	function areaBadges(mounted: ReturnType<typeof mountInteraction>): string[] {
+		return qa(mounted, 'svg[part="overlay"] .qti-go-area').map(
+			(area) => area.querySelector('.qti-go-badge')?.textContent?.trim() ?? '',
+		);
+	}
+
+	test('every defined area is outlined in an overlay in the image pixel space', async () => {
+		const mounted = mountInteraction(GraphicOrderInteraction, { interaction: orderData() });
+		await settle();
+
+		const overlay = q<SVGSVGElement>(mounted, 'svg[part="overlay"]')!;
+		expect(overlay).not.toBeNull();
+		expect(overlay.getAttribute('viewBox')).toBe('0 0 600 350');
+		// It lies over the image, in the same box that scales with it.
+		expect(overlay.parentElement).toBe(q(mounted, 'img[part="image"]')!.parentElement);
+
+		const areas = qa(mounted, 'svg[part="overlay"] .qti-go-area');
+		expect(areas).toHaveLength(3);
+		for (const [index, area] of areas.entries()) {
+			const outline = area.querySelector('.qti-go-area-outline')!;
+			expect(outline.tagName).toBe('rect');
+			expect([outline.getAttribute('x'), outline.getAttribute('y')]).toEqual(['0', String(index * 50)]);
+			expect([outline.getAttribute('width'), outline.getAttribute('height')]).toEqual(['100', '50']);
+		}
+	});
+
+	test('the overlay is visual only: hidden from assistive technology, no focus, no pointer input', async () => {
+		const mounted = mountInteraction(GraphicOrderInteraction, { interaction: orderData() });
+		await settle();
+
+		const overlay = q(mounted, 'svg[part="overlay"]')!;
+		expect(overlay.getAttribute('aria-hidden')).toBe('true');
+		expect(overlay.getAttribute('pointer-events')).toBe('none');
+		expect(overlay.querySelectorAll('[tabindex], [role]')).toHaveLength(0);
+		// Positions only, never identifiers.
+		expect(overlay.innerHTML).not.toContain('BEDROCK_CORRECT_LAST');
+	});
+
+	test('each area carries its position in the order the list shows, and follows a reorder', async () => {
+		const mounted = mountInteraction(GraphicOrderInteraction, { interaction: orderData() });
+		await settle();
+		// Before any answer the list shows the authored order.
+		expect(areaBadges(mounted)).toEqual(['1', '2', '3']);
+
+		q<HTMLButtonElement>(mounted, 'button[aria-label="Move Top Soil earlier"]')!.click();
+		await settle();
+		expect(mounted.instance.response).toEqual(['TOPSOIL_CORRECT_FIRST', 'BEDROCK_CORRECT_LAST', 'SEDIMENT']);
+		expect(areaBadges(mounted)).toEqual(['2', '1', '3']);
+	});
+
+	test('a restored order numbers the areas by it', async () => {
+		const mounted = mountInteraction(GraphicOrderInteraction, {
+			interaction: orderData(),
+			response: ['SEDIMENT', 'BEDROCK_CORRECT_LAST', 'TOPSOIL_CORRECT_FIRST'],
+		});
+		await settle();
+
+		expect(areaBadges(mounted)).toEqual(['2', '3', '1']);
+	});
+
+	test('subset ordering: only the ordered areas carry a position', async () => {
+		const mounted = mountInteraction(GraphicOrderInteraction, {
+			interaction: orderData({
+				hotspotChoices: [
+					{ identifier: 'H1', shape: 'rect', coords: '0,0,100,50', label: 'Bedrock' },
+					{ identifier: 'H2', shape: 'circle', coords: '150,75,25', label: 'Top Soil' },
+					{ identifier: 'H3', shape: 'poly', coords: '0,100,100,100,50,150', label: 'Sediment' },
+				],
+				minChoices: 1,
+				maxChoices: 2,
+			}),
+			response: ['H3', 'H1'],
+		});
+		await settle();
+
+		expect(areaBadges(mounted)).toEqual(['2', '', '1']);
+		const areas = qa(mounted, 'svg[part="overlay"] .qti-go-area');
+		expect(areas.map((area) => area.hasAttribute('data-placed'))).toEqual([true, false, true]);
+		// Every area is outlined all the same, placed or not, in its own shape.
+		expect(areas.map((area) => area.querySelector('.qti-go-area-outline')?.tagName)).toEqual(['rect', 'circle', 'polygon']);
+	});
+
+	test('no overlay over an image that failed to load', async () => {
+		const mounted = mountInteraction(GraphicOrderInteraction, { interaction: orderData() });
+		await settle();
+
+		q<HTMLImageElement>(mounted, 'img[part="image"]')!.dispatchEvent(new Event('error'));
+		await settle();
+		expect(q(mounted, 'svg[part="overlay"]')).toBeNull();
+	});
+});
+
+/**
  * Subset ordering (QTI 2.2 ASI §5.42): minChoices below the hotspot count lets the candidate
  * rank a subset; hotspots outside the order show no position number and wait in the pool.
  */
