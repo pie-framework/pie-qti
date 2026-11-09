@@ -547,17 +547,6 @@ export class Player {
 	}
 
 	/**
-	 * Disable/enable all PCI hosts based on role.
-	 * 'candidate' = enabled; any other role = disabled.
-	 */
-	public syncPciDisabledState(): void {
-		const disabled = this.role !== 'candidate';
-		for (const host of this._pciHosts.values()) {
-			if (disabled) host.disable(); else host.enable();
-		}
-	}
-
-	/**
 	 * The QTI 3.0 §6.1 interaction status a PCI instantiates with: 'solution' when
 	 * correct responses are exposed, 'review' for non-candidate roles otherwise,
 	 * 'closed' once the attempt finished, 'interacting' while the candidate works.
@@ -803,10 +792,6 @@ export class Player {
 
 	public getSecurityConfig(): PlayerSecurityConfig | undefined {
 		return this.config.security;
-	}
-
-	public getTrustedTypesPolicyName(): string | undefined {
-		return this.config.security?.trustedTypesPolicyName;
 	}
 
 	/**
@@ -1068,10 +1053,6 @@ export class Player {
 
 	public getComponentRegistry(): ComponentRegistry {
 		return this.componentRegistry;
-	}
-
-	public getExtractionRegistry(): ExtractionRegistry {
-		return this.extractionRegistry;
 	}
 
 	/**
@@ -1840,21 +1821,6 @@ export class Player {
 				// @ts-expect-error internal marker
 				__kind: 'outcome',
 			};
-		}
-	}
-
-	private applySessionState(state: ItemSessionState): void {
-		for (const [id, raw] of Object.entries(state)) {
-			const d = this.decls[id];
-			if (!d) continue;
-			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
-		}
-		// `duration` here is the QTI variable's public value, which is in seconds.
-		const restoredSeconds = Number(state.duration);
-		if (Number.isFinite(restoredSeconds) && restoredSeconds >= 0) {
-			this.accumulatedDurationMs = restoredSeconds * 1000;
-			this.sessionStartedAt = Date.now();
-			this.updateDuration();
 		}
 	}
 

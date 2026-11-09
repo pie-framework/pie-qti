@@ -9,7 +9,7 @@
  */
 
 /** Minimum pointer target edge in CSS px: WCAG 2.2 SC 2.5.8 Target Size (Minimum), level AA. */
-export const MIN_TARGET_PX = 24;
+const MIN_TARGET_PX = 24;
 
 export interface Bounds {
 	x: number;
@@ -24,7 +24,7 @@ export interface Point {
 }
 
 /** Parse QTI `coords` ("a,b,c") into numbers; non-numeric parts become NaN. */
-export function parseCoords(coords: string): number[] {
+function parseCoords(coords: string): number[] {
 	return coords.split(',').map((part) => Number(part.trim()));
 }
 
