@@ -21,11 +21,7 @@ export {
 	type AssessmentPlayerErrorCode,
 	type AssessmentPlayerErrorParams,
 } from './errors.js';
-export type {
-	ItemSessionControlSettings,
-	ItemSessionState,
-	ItemNavigationBlockReason,
-} from './ItemSessionController.js';
+export type { ItemSessionControlSettings, ItemSessionState } from './ItemSessionController.js';
 export { ItemSessionController } from './ItemSessionController.js';
 export type { NavigationMode } from './NavigationManager.js';
 export { NavigationManager } from './NavigationManager.js';
