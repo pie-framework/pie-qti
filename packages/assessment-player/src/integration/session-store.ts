@@ -94,12 +94,3 @@ export function findLatestSession(
 	}
 	return latest;
 }
-
-/** Remove a stored session (reference "start over" clears its draft through `saveState`). */
-export function removeSession(sessionId: SessionId): void {
-	try {
-		localStorage.removeItem(STORAGE_PREFIX + sessionId);
-	} catch {
-		// Storage unavailable: nothing to remove.
-	}
-}

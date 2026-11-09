@@ -7,6 +7,7 @@
 import type { ChoiceInteractionData } from '../shared/types.js';
 import type { ElementExtractor, ExtractionContext } from '../../extraction/types.js';
 import { maybeShuffle } from '../../core/shuffle.js';
+import { predatesQti22, unrestrictedLimitDefault } from '../shared/specDefaults.js';
 
 /**
  * Choice data extracted from simpleChoice elements
@@ -57,7 +58,13 @@ export const standardChoiceExtractor: ElementExtractor<ChoiceData> = {
 
 		// Extract attributes
 		const shuffle = utils.getBooleanAttribute(element, 'shuffle');
-		const maxChoices = utils.getNumberAttribute(element, 'maxChoices', 1);
+		// Absent maxChoices: "1" in QTI 2.2 and 3.0; "0" (no restriction) in QTI 2.1, whose
+		// information model and XSD both give `maxChoices [0..1] = 0`.
+		const maxChoices = utils.getNumberAttribute(
+			element,
+			'maxChoices',
+			predatesQti22(context) ? unrestrictedLimitDefault(context) : 1,
+		);
 		const minChoices = utils.getNumberAttribute(element, 'minChoices', 0);
 		const interactionClasses = utils.getClasses(element);
 		const maxSelectionsMessage = utils.getAttribute(element, 'data-max-selections-message', '') || null;

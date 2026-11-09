@@ -5,7 +5,11 @@
 import { describe, expect, test } from 'bun:test';
 import { Player } from '../../../src/core/Player.js';
 import type { GraphicGapMatchInteractionData } from '../../../src/interactions/shared/types.js';
-import { standardGraphicGapMatchExtractor } from '../../../src/interactions/graphic-gap-match/extractor.js';
+import {
+	type GraphicGapMatchData,
+	standardGraphicGapMatchExtractor,
+} from '../../../src/interactions/graphic-gap-match/extractor.js';
+import type { ItemSessionEngineConfig } from '../../../src/types/index.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardGraphicGapMatchExtractor', () => {
@@ -324,11 +328,63 @@ describe('standardGraphicGapMatchExtractor', () => {
 	});
 
 	describe('maxAssociations extraction', () => {
-		test('absent maxAssociations extracts as 0 (unlimited): deliberate divergence from the 2.2/3.0 default of 1', () => {
-			// QTI 2.2 Table 5.41.2 and QTI 3.0 Table 5.60.2 default max-associations to "1"
-			// (and the attribute does not exist on graphicGapMatchInteraction in QTI 2.1).
-			// This extractor keeps 0 so items authored without it keep their delivered,
-			// unrestricted behaviour; see docs/prds/interactions/graphic-gap-match.md.
+		test('absent maxAssociations means 1 for QTI 2.2 content (spec default, Table 5.41.2)', () => {
+			const xml = `
+				<graphicGapMatchInteraction responseIdentifier="RESPONSE">
+					<object type="image/png" data="diagram.png" />
+					<gapText identifier="T1" matchMax="1">Label</gapText>
+					<associableHotspot identifier="H1" shape="rect" coords="0,0,100,100" matchMax="1" />
+				</graphicGapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE', element, new Map(), {
+				qtiVersion: '2.2',
+			} as ItemSessionEngineConfig);
+
+			const result = standardGraphicGapMatchExtractor.extract(element, context);
+
+			expect(result.maxAssociations).toBe(1);
+		});
+
+		test('absent maxAssociations means 1 for QTI 3.0 content (spec default, Table 5.60.2)', () => {
+			const xml = `
+				<graphicGapMatchInteraction responseIdentifier="RESPONSE">
+					<object type="image/png" data="diagram.png" />
+					<gapText identifier="T1" matchMax="1">Label</gapText>
+					<associableHotspot identifier="H1" shape="rect" coords="0,0,100,100" matchMax="1" />
+				</graphicGapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE', element, new Map(), {
+				qtiVersion: '3.0',
+			} as ItemSessionEngineConfig);
+
+			const result = standardGraphicGapMatchExtractor.extract(element, context);
+
+			expect(result.maxAssociations).toBe(1);
+		});
+
+		test('absent maxAssociations means 0 (unlimited) for QTI 2.1 content: the attribute does not exist in the 2.1 XSD', () => {
+			const xml = `
+				<graphicGapMatchInteraction responseIdentifier="RESPONSE">
+					<object type="image/png" data="diagram.png" />
+					<gapText identifier="T1" matchMax="1">Label</gapText>
+					<associableHotspot identifier="H1" shape="rect" coords="0,0,100,100" matchMax="1" />
+				</graphicGapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE', element, new Map(), {
+				qtiVersion: '2.1',
+			} as ItemSessionEngineConfig);
+
+			const result = standardGraphicGapMatchExtractor.extract(element, context);
+
+			expect(result.maxAssociations).toBe(0);
+		});
+
+		test('absent maxAssociations with no detected version follows the 2.2 assumption (1)', () => {
+			// detectQtiVersion assumes QTI 2.2 for an unversioned camelCase item, so a
+			// context without a version behaves like 2.2 content.
 			const xml = `
 				<graphicGapMatchInteraction responseIdentifier="RESPONSE">
 					<object type="image/png" data="diagram.png" />
@@ -341,10 +397,10 @@ describe('standardGraphicGapMatchExtractor', () => {
 
 			const result = standardGraphicGapMatchExtractor.extract(element, context);
 
-			expect(result.maxAssociations).toBe(0);
+			expect(result.maxAssociations).toBe(1);
 		});
 
-		test('authored maxAssociations is extracted as-is', () => {
+		test('authored maxAssociations is extracted as-is in QTI 2.1 content (leniency)', () => {
 			const xml = `
 				<graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="3">
 					<object type="image/png" data="diagram.png" />
@@ -353,11 +409,90 @@ describe('standardGraphicGapMatchExtractor', () => {
 				</graphicGapMatchInteraction>
 			`;
 			const element = parseQTI(xml);
-			const context = createTestContext(element, 'RESPONSE');
+			const context = createTestContext(element, 'RESPONSE', element, new Map(), {
+				qtiVersion: '2.1',
+			} as ItemSessionEngineConfig);
 
 			const result = standardGraphicGapMatchExtractor.extract(element, context);
 
 			expect(result.maxAssociations).toBe(3);
+		});
+
+		test('authored maxAssociations="0" still means unlimited in QTI 3.0 content', () => {
+			const xml = `
+				<graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="0">
+					<object type="image/png" data="diagram.png" />
+					<gapText identifier="T1" matchMax="1">Label</gapText>
+					<associableHotspot identifier="H1" shape="rect" coords="0,0,100,100" matchMax="1" />
+				</graphicGapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE', element, new Map(), {
+				qtiVersion: '3.0',
+			} as ItemSessionEngineConfig);
+
+			const result = standardGraphicGapMatchExtractor.extract(element, context);
+
+			expect(result.maxAssociations).toBe(0);
+		});
+	});
+
+	describe('maxAssociations per-version defaults through the Player', () => {
+		test('QTI 3.0 item without max-associations gets the spec default of 1', () => {
+			const itemXml = `<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="ggm3-default">
+				<qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="directedPair"/>
+				<qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+				<qti-item-body>
+					<qti-graphic-gap-match-interaction response-identifier="RESPONSE">
+						<object type="image/png" data="map.png" width="100" height="100"></object>
+						<qti-gap-text identifier="T1" match-max="1">Label</qti-gap-text>
+						<qti-associable-hotspot identifier="H1" shape="circle" coords="10,10,5" match-max="1"/>
+						<qti-associable-hotspot identifier="H2" shape="circle" coords="50,50,5" match-max="1"/>
+					</qti-graphic-gap-match-interaction>
+				</qti-item-body>
+			</qti-assessment-item>`;
+
+			const [interaction] = new Player({ itemXml }).getInteractionData() as GraphicGapMatchInteractionData[];
+
+			expect(interaction?.maxAssociations).toBe(1);
+		});
+
+		test('QTI 2.2 item without maxAssociations gets the spec default of 1', () => {
+			const itemXml = `<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="ggm22-default">
+				<responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair"/>
+				<outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+				<itemBody>
+					<graphicGapMatchInteraction responseIdentifier="RESPONSE">
+						<object type="image/png" data="map.png" width="100" height="100"></object>
+						<gapText identifier="T1" matchMax="1">Label</gapText>
+						<associableHotspot identifier="H1" shape="circle" coords="10,10,5" matchMax="1"/>
+						<associableHotspot identifier="H2" shape="circle" coords="50,50,5" matchMax="1"/>
+					</graphicGapMatchInteraction>
+				</itemBody>
+			</assessmentItem>`;
+
+			const [interaction] = new Player({ itemXml }).getInteractionData() as GraphicGapMatchInteractionData[];
+
+			expect(interaction?.maxAssociations).toBe(1);
+		});
+
+		test('QTI 2.1 item without maxAssociations keeps 0 (no interaction cap in 2.1)', () => {
+			const itemXml = `<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" identifier="ggm21-default">
+				<responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair"/>
+				<outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+				<itemBody>
+					<graphicGapMatchInteraction responseIdentifier="RESPONSE">
+						<object type="image/png" data="map.png" width="100" height="100"></object>
+						<gapText identifier="T1" matchMax="1">Label</gapText>
+						<associableHotspot identifier="H1" shape="circle" coords="10,10,5" matchMax="1"/>
+						<associableHotspot identifier="H2" shape="circle" coords="50,50,5" matchMax="1"/>
+					</graphicGapMatchInteraction>
+				</itemBody>
+			</assessmentItem>`;
+
+			const [interaction] = new Player({ itemXml }).getInteractionData() as GraphicGapMatchInteractionData[];
+
+			expect(interaction?.maxAssociations).toBe(0);
 		});
 	});
 
@@ -386,7 +521,7 @@ describe('standardGraphicGapMatchExtractor', () => {
 
 	describe('validation', () => {
 		test('validates correct graphicGapMatch data', () => {
-			const data = {
+			const data: GraphicGapMatchData = {
 				gapTexts: [
 					{ identifier: 'T1', text: 'Label 1', matchMax: 1 },
 					{ identifier: 'T2', text: 'Label 2', matchMax: 1 },
@@ -395,7 +530,9 @@ describe('standardGraphicGapMatchExtractor', () => {
 					{ identifier: 'H1', shape: 'rect', coords: '0,0,100,100', matchMax: 1 },
 					{ identifier: 'H2', shape: 'circle', coords: '200,200,50', matchMax: 1 },
 				],
-				imageData: { type: 'image', src: 'test.png', width: '500', height: '400' },
+				imageData: { type: 'image', src: 'test.png', width: 500, height: 400 },
+				gapImages: [],
+				maxAssociations: 1,
 				prompt: null,
 			};
 
@@ -406,10 +543,12 @@ describe('standardGraphicGapMatchExtractor', () => {
 		});
 
 		test('reports error for empty gapTexts', () => {
-			const data = {
+			const data: GraphicGapMatchData = {
 				gapTexts: [],
 				hotspots: [{ identifier: 'H1', shape: 'rect', coords: '0,0,100,100', matchMax: 1 }],
-				imageData: { type: 'image', src: 'test.png', width: '500', height: '400' },
+				imageData: { type: 'image', src: 'test.png', width: 500, height: 400 },
+				gapImages: [],
+				maxAssociations: 1,
 				prompt: null,
 			};
 
@@ -420,10 +559,12 @@ describe('standardGraphicGapMatchExtractor', () => {
 		});
 
 		test('reports error for empty hotspots', () => {
-			const data = {
+			const data: GraphicGapMatchData = {
 				gapTexts: [{ identifier: 'T1', text: 'Label', matchMax: 1 }],
 				hotspots: [],
-				imageData: { type: 'image', src: 'test.png', width: '500', height: '400' },
+				imageData: { type: 'image', src: 'test.png', width: 500, height: 400 },
+				gapImages: [],
+				maxAssociations: 1,
 				prompt: null,
 			};
 
@@ -434,13 +575,15 @@ describe('standardGraphicGapMatchExtractor', () => {
 		});
 
 		test('reports error for duplicate gapText identifiers', () => {
-			const data = {
+			const data: GraphicGapMatchData = {
 				gapTexts: [
 					{ identifier: 'T1', text: 'Label 1', matchMax: 1 },
 					{ identifier: 'T1', text: 'Label 2', matchMax: 1 },
 				],
 				hotspots: [{ identifier: 'H1', shape: 'rect', coords: '0,0,100,100', matchMax: 1 }],
-				imageData: { type: 'image', src: 'test.png', width: '500', height: '400' },
+				imageData: { type: 'image', src: 'test.png', width: 500, height: 400 },
+				gapImages: [],
+				maxAssociations: 1,
 				prompt: null,
 			};
 
@@ -451,13 +594,15 @@ describe('standardGraphicGapMatchExtractor', () => {
 		});
 
 		test('reports error for duplicate hotspot identifiers', () => {
-			const data = {
+			const data: GraphicGapMatchData = {
 				gapTexts: [{ identifier: 'T1', text: 'Label', matchMax: 1 }],
 				hotspots: [
 					{ identifier: 'H1', shape: 'rect', coords: '0,0,100,100', matchMax: 1 },
 					{ identifier: 'H1', shape: 'circle', coords: '200,200,50', matchMax: 1 },
 				],
-				imageData: { type: 'image', src: 'test.png', width: '500', height: '400' },
+				imageData: { type: 'image', src: 'test.png', width: 500, height: 400 },
+				gapImages: [],
+				maxAssociations: 1,
 				prompt: null,
 			};
 

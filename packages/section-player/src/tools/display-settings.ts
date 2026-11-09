@@ -94,15 +94,6 @@ export function withDisplaySettings(
   };
 }
 
-/** Whether any setting differs from the default, so a change event is worth sending. */
-export function hasDisplaySettingsChanged(settings: QtiCandidateDisplaySettings): boolean {
-  return (
-    stepOf(settings) !== DEFAULT_DISPLAY_SETTINGS.textSize ||
-    settings.highContrast === true ||
-    settings.textSpacing === true
-  );
-}
-
 /**
  * The candidate's settings for this page session, by assessment. A shell that
  * swaps layouts between items (split pane for an item with a passage, vertical

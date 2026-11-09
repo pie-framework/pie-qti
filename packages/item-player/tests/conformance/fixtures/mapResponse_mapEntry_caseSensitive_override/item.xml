@@ -5,11 +5,11 @@
   adaptive="false"
   timeDependent="false">
   <responseDeclaration identifier="R" cardinality="single" baseType="string">
-    <mapping defaultValue="0" caseSensitive="false">
+    <mapping defaultValue="0">
       <!-- This entry forces a case-sensitive match only -->
       <mapEntry mapKey="Hello" mappedValue="2" caseSensitive="true"/>
-      <!-- This entry inherits mapping@caseSensitive=false -->
-      <mapEntry mapKey="world" mappedValue="1"/>
+      <!-- This entry keeps the mapEntry@caseSensitive default of "false" -->
+      <mapEntry mapKey="world" mappedValue="1" caseSensitive="false"/>
     </mapping>
   </responseDeclaration>
 

@@ -29,7 +29,7 @@
 
 **Why `maxChoices=0` means unlimited (not zero)**: The QTI spec explicitly defines `0` as meaning "no upper bound on the number of selections". This is an authoring footgun — item authors who intend "no limit" write `0`, but authors who have not read the spec carefully may write `0` when they mean to write the pool size. The extractor emits a warning when `maxChoices=0` is encountered; the validator also warns when `maxChoices > choices.length`, since both conditions suggest authoring errors. The component renders checkboxes for `maxChoices=0` without enforcing any upper bound, which is spec-correct.
 
-**Why `minChoices` is not extracted or enforced**: The QTI spec defines `minChoices` as a validation hint — the number of choices the candidate must select before the response is considered complete. This attribute is present in the spec but is absent from `ChoiceInteractionData` and not extracted by the choice extractor. This is an unimplemented gap, not an intentional omission. See [Known gaps](#known-gaps). Other interactions (e.g. `selectPointInteraction`) do extract and surface `minChoices`.
+**How `minChoices` is enforced**: QTI defines `minChoices` as the number of choices the candidate must select to form a valid response. The extractor delivers it in `ChoiceInteractionData`, and `Player.validateResponses()` reports a response with fewer selections incomplete. The component states the minimum ("Select at least N answers") while the response is short of it. With `minChoices=1` it shows only an authored message, since a radio group already says "pick one".
 
 **Why `shuffle` does not re-randomize on each render**: The QTI spec requires `shuffle` to produce a consistent random order for a given item session — not a new random order each time the item is rendered. Shuffling happens at extraction time using a PRNG seeded from the item session GUID (`packages/item-player/src/core/shuffle.ts`). Because `Player` persists that GUID in its saved state and restores it, the order is reproduced for the whole session — including after a reload — while a different candidate or a new attempt gets a different order. No separate shuffle state has to be serialised: the order is a pure function of the session GUID and the `responseIdentifier`.
 
@@ -52,8 +52,8 @@
 |-----------|---------|-----------|
 | `responseIdentifier` | ✅ Full | Extracted as `responseId`; used in the `qti-change` event payload. The radio group `name` is unique per rendered instance instead, so two renderings of the same item never share a radio group |
 | `shuffle` | ✅ Full | Shuffles choice order at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads |
-| `maxChoices` | ✅ Full | `1` → radio buttons; `>1` or `0` → checkboxes; `0` triggers a validator warning |
-| `minChoices` | ❌ Not extracted | Spec defines this as a completeness constraint. Not in `ChoiceInteractionData`; not enforced. See Known gaps. |
+| `maxChoices` | ✅ Full | `1` → radio buttons; `>1` or `0` → checkboxes; `0` triggers a validator warning. An absent attribute takes the per-version spec default: 1 in QTI 2.2/3.0, 0 (no restriction) in QTI 2.1 — or 1 when the response is single cardinality, which holds one choice |
+| `minChoices` | ✅ Full | Delivered in `ChoiceInteractionData`. Response validation reports fewer selections incomplete, and the component states the minimum while the response is short of it. |
 | `orientation` | ❌ Not extracted | Visual hint (`horizontal`/`vertical`). Not in `ChoiceInteractionData`. The component always renders vertically. Low priority since most K-12 content doesn't use it. |
 
 ### Supported attributes on `simpleChoice`
@@ -84,7 +84,7 @@
 
 - **G-09 (PNP elimination tool):** Implemented for `choiceInteraction`; when `pnp.cognitive.eliminationTool` is enabled, each choice can be visually eliminated without removing it from the response pool. Each toggle is named from its localized action ("Eliminate"/"Restore") plus the rendered choice text via `aria-labelledby`, and is a 44×44 px target.
 - **G-13 (PNP structural labels):** Done. The choice set is always announced as one `role="group"` associated with the prompt via `aria-labelledby`; `pnp.display.structuredLabelSupport` does not change choice rendering (it switches only the match interaction's group and column labels). Without a prompt the group gets a localized generic name; an authored accessibility name still wins. Markup contract and NVDA checklist in `packages/item-player/docs/PNP.md`; tracked as Done in `docs/SPEC-GAPS-PLAN.md`.
-- **`minChoices` not enforced:** The spec requires the player to treat the response as incomplete if fewer than `minChoices` identifiers are selected. Not extracted or validated.
+- **`minChoices`** (resolved): extracted, stated by the component, and enforced by response validation.
 
 ---
 
@@ -148,7 +148,7 @@ interface ChoiceInteractionData extends BaseInteractionData {
   type: 'choiceInteraction';
   responseId: string;           // from responseIdentifier attribute
   shuffle: boolean;             // shuffled order applied at extraction time
-  maxChoices: number;           // 1 = single (radio), >1 or 0 = multiple (checkbox)
+  maxChoices: number;           // 1 = single (radio), >1 or 0 = multiple (checkbox); absent: 1 (QTI 2.2/3.0), 0 (QTI 2.1)
   prompt: string | null;        // HTML content of <prompt> child, or null
   choices: Array<{
     identifier: string;         // from simpleChoice identifier attribute
@@ -165,8 +165,6 @@ interface ChoiceInteractionData extends BaseInteractionData {
 - `maxChoices >= 0` (error if negative)
 
 **Invariants that are NOT enforced (gaps):**
-- `minChoices` is not in the type and not checked
-- `fixed` per choice is not in the type
 - The number of selected choices vs `maxChoices` is not validated at response-collection time
 
 ---
@@ -325,8 +323,8 @@ AC-E6: Candidate role does not reveal correct answers
 
 ## Open questions
 
-- [ ] Should `minChoices` be extracted and surfaced as a validation hint in the component (e.g. "Select at least N options")? Currently not implemented. The spec intends this as a completeness constraint that delivery engines should surface.
-- [ ] Should `fixed` on `simpleChoice` be extracted? Deferred because most K-12 content doesn't use it, but "None of the above" items authored with `fixed=true` will be shuffled incorrectly if `shuffle=true`.
+- [x] Should `minChoices` be extracted and surfaced as a validation hint in the component (e.g. "Select at least N options")? (resolved) Yes: it is delivered, stated by the component and enforced by response validation.
+- [x] Should `fixed` on `simpleChoice` be extracted? (resolved) Yes: `fixed=true` choices keep their authored index when `shuffle=true`.
 - [ ] Should `orientation=horizontal` be honoured with a CSS grid or flex layout? Deferred; most items are vertical.
 
 ---

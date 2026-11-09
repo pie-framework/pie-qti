@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardDrawingExtractor } from '../../../src/interactions/drawing/extractor.js';
+import { type DrawingData, standardDrawingExtractor } from '../../../src/interactions/drawing/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardDrawingExtractor', () => {
@@ -64,7 +64,7 @@ describe('standardDrawingExtractor', () => {
 
 	describe('validation', () => {
 		test('validates correct drawing data', () => {
-			const data = {
+			const data: DrawingData = {
 				imageData: { type: 'svg', content: '<svg></svg>', width: '300', height: '200' },
 				rawAttributes: { responseIdentifier: 'DRAW' },
 				prompt: null,
@@ -77,7 +77,7 @@ describe('standardDrawingExtractor', () => {
 		});
 
 		test('reports warning for missing image data', () => {
-			const data = {
+			const data: DrawingData = {
 				imageData: null,
 				rawAttributes: { responseIdentifier: 'DRAW' },
 				prompt: null,

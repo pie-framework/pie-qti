@@ -288,16 +288,6 @@ function buildStatements(
 				});
 				break;
 			}
-			case 'console': {
-				if (mode !== 'response') {
-					throw new Error(`Unknown processing statement tag: <${tag}> (mode=${mode})`);
-				}
-				if (childElements(el).length > 0) {
-					throw new Error('Unsupported processing statement tag: <console> with child elements');
-				}
-				// Diagnostic/vendor trace marker found in legacy fixtures; it has no QTI processing effect.
-				break;
-			}
 			default:
 				// Unknown statement tags in processing are almost always a correctness bug.
 				// Fail loudly so we surface missing QTI coverage via fixtures/tests.
@@ -691,29 +681,22 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			};
 		}
 		case 'equalrounded': {
-			// QTI 2.2.2: roundingMode is optional (default="significantFigures").
-			// For compatibility with QTI 2.1 and real-world content, accept singular forms and normalize.
+			// The XSDs (2.1 line 1268, 2.2 line 7505, 3.0 EqualRoundedDType) enumerate exactly
+			// decimalPlaces and significantFigures, defaulting to significantFigures. Singular or
+			// differently-cased spellings are invalid content: they are a compile error, like
+			// roundTo's roundingMode — the same attribute read strictly right below.
 			const roundingModeRaw = (getAttr(el, 'roundingMode') || 'significantFigures').trim();
 			const figures = getAttr(el, 'figures') || '';
 			if (!figures) throw new Error('<equalRounded> requires figures');
-			const rm = roundingModeRaw.toLowerCase();
-			const roundingMode =
-				rm === 'decimalplace' || rm === 'decimalplaces'
-					? 'decimalPlaces'
-					: rm === 'significantfigure' || rm === 'significantfigures'
-						? 'significantFigures'
-						: null;
-			if (!roundingMode) {
-				throw new Error(
-					'<equalRounded> roundingMode must be "decimalPlaces"|"significantFigures"',
-				);
+			if (roundingModeRaw !== 'decimalPlaces' && roundingModeRaw !== 'significantFigures') {
+				throw new Error('<equalRounded> roundingMode must be "decimalPlaces"|"significantFigures"');
 			}
 			return {
 				kind: 'expr.equalRounded',
 				id,
 				a: buildExpression(kids[0]!, options),
 				b: buildExpression(kids[1]!, options),
-				roundingMode,
+				roundingMode: roundingModeRaw as 'decimalPlaces' | 'significantFigures',
 				figures,
 			};
 		}
@@ -1037,33 +1020,35 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			return { kind: 'expr.mapResponsePoint', id, identifier: getAttr(el, 'identifier') || '' };
 		}
 		case 'randominteger': {
-			// QTI 2.2.2: randomInteger is an empty element with min/max/step attributes.
-			// For compatibility with older/variant content, also accept the legacy child-expression form.
-			const minAttr = attrAsExpr('min', 'integer');
-			const maxAttr = attrAsExpr('max', 'integer');
-			const stepAttr = attrAsExpr('step', 'integer');
-			if (minAttr && maxAttr) {
-				return { kind: 'expr.randomInteger', id, min: minAttr, max: maxAttr, step: stepAttr };
-			}
-			if (!kids[0] || !kids[1]) throw new Error('<randomInteger> requires min/max attributes or 2 child expressions');
-			return {
-				kind: 'expr.randomInteger',
-				id,
-				min: buildExpression(kids[0]),
-				max: buildExpression(kids[1]),
-				step: kids[2] ? buildExpression(kids[2]) : undefined,
+			// Every QTI version defines randomInteger as an empty element (2.1 RandomInteger.Type
+			// extends EmptyPrimitiveType, line 9317; 2.2 line 16462; 3.0 RandomIntegerDType line
+			// 8487): its attributes are its only input, and a child-expression form is invalid. Only
+			// max is required. min is optional with default "0" (2.1 line 3364, 2.2 line 8515, 3.0
+			// line 8490), so an absent min reads as that literal, in the shape attrAsExpr gives a
+			// numeric attribute. step is optional with default "1" (2.1 line 3394, 2.2 line 8530, 3.0
+			// line 8514); the evaluator applies it when the node has no step.
+			const max = attrAsExpr('max', 'integer');
+			if (!max) throw new Error('<randomInteger> requires a max attribute');
+			const min: ExpressionNode = attrAsExpr('min', 'integer') ?? {
+				kind: 'expr.baseValue',
+				id: newAstId('expr'),
+				baseType: 'integer',
+				text: '0',
 			};
+			return { kind: 'expr.randomInteger', id, min, max, step: attrAsExpr('step', 'integer') };
 		}
 		case 'randomfloat': {
-			// QTI 2.2.2: empty element with min/max attributes.
-			// For compatibility with older/variant content, also accept the legacy child-expression form.
-			const minAttr = attrAsExpr('min', 'float');
-			const maxAttr = attrAsExpr('max', 'float');
-			if (minAttr && maxAttr) {
-				return { kind: 'expr.randomFloat', id, min: minAttr, max: maxAttr };
-			}
-			if (!kids[0] || !kids[1]) throw new Error('<randomFloat> requires min/max attributes or 2 child expressions');
-			return { kind: 'expr.randomFloat', id, min: buildExpression(kids[0]), max: buildExpression(kids[1]) };
+			// Like randomInteger, an empty element: max is required, and min is optional with default
+			// "0" (2.1 line 3409, 2.2 line 8485, 3.0 line 8459), read as that literal when absent.
+			const max = attrAsExpr('max', 'float');
+			if (!max) throw new Error('<randomFloat> requires a max attribute');
+			const min: ExpressionNode = attrAsExpr('min', 'float') ?? {
+				kind: 'expr.baseValue',
+				id: newAstId('expr'),
+				baseType: 'float',
+				text: '0',
+			};
+			return { kind: 'expr.randomFloat', id, min, max };
 		}
 		case 'mathconstant': {
 			const name = (getAttr(el, 'name') || '').trim().toLowerCase();

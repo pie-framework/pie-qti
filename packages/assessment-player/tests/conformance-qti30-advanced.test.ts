@@ -434,7 +434,7 @@ describe('QTI 3.0 Advanced — Submission mode item sessions', () => {
 		const acceptedLiveSession = player.getCurrentItemSession();
 		expect(acceptedLiveSession?.state().lifecycleStatus).toBe('closed');
 		expect(acceptedLiveSession?.state().numAttempts).toBe(1);
-		expect(toSectionComposition(player).activeItem.session).toBe(acceptedLiveSession);
+		expect(toSectionComposition(player).activeItem.session).toBe(acceptedLiveSession!);
 		expect(() => player.updateResponse('RESPONSE', 'wrong')).toThrow(
 			'Cannot update responses while item session is closed',
 		);
@@ -469,7 +469,7 @@ describe('QTI 3.0 Advanced — Submission mode item sessions', () => {
 		expect(restoredSession?.state().lifecycleStatus).toBe(before?.lifecycleStatus);
 		expect(restoredSession?.state().numAttempts).toBe(0);
 		expect(restoredSession?.state().responses.RESPONSE).toBe('correct');
-		expect(toSectionComposition(player).activeItem.session).toBe(restoredSession);
+		expect(toSectionComposition(player).activeItem.session).toBe(restoredSession!);
 		const partialState = player.getState({ includeItemSessions: true });
 		expect(partialState.itemScores?.['session-item-1']?.score).toBe(1);
 		expect(partialState.itemSessions?.['session-item-1']?.lifecycleStatus).toBe('closed');
@@ -588,7 +588,7 @@ describe('QTI 3.0 Advanced — Submission mode item sessions', () => {
 		expect(restoredSession?.state().lifecycleStatus).toBe(before?.lifecycleStatus);
 		expect(restoredSession?.state().numAttempts).toBe(0);
 		expect(restoredSession?.state().responses.RESPONSE).toBe('correct');
-		expect(toSectionComposition(player).activeItem.session).toBe(restoredSession);
+		expect(toSectionComposition(player).activeItem.session).toBe(restoredSession!);
 
 		await player.submitCurrentItem();
 		expect(submitCalls).toBe(2);

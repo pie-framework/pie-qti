@@ -4,7 +4,6 @@ export { resolveQtiSectionComposition } from './composition/resolveQtiSectionCom
 export {
 	DEFAULT_DISPLAY_SETTINGS,
 	displaySettingsOf,
-	hasDisplaySettingsChanged,
 	type QtiCandidateDisplaySettings,
 	readSessionDisplaySettings,
 	TEXT_SIZE_STEPS,

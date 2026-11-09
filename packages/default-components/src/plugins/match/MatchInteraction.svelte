@@ -12,6 +12,7 @@
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { accessibleTextFromHtml } from '../../shared/utils/accessibleText.js';
+	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import { choicesShortOfMatchMin, minimumHint } from '../../shared/utils/minimumRequirement';
 
 	interface Props {
@@ -59,6 +60,14 @@
 	// falls short of either, the same minimums response validation enforces; the author's message
 	// wins. It describes the matching region. Only while the candidate can still answer.
 	const minHintId = `${uid}-min-hint`;
+	// 1-based position of each choice in its column as presented to the candidate (after
+	// shuffle): the localized-ordinal name of a choice whose content carries no text.
+	const choicePositions = $derived.by(() => {
+		const positions = new Map<object, number>();
+		parsedInteraction?.sourceSet.forEach((choice, index) => positions.set(choice, index + 1));
+		parsedInteraction?.targetSet.forEach((choice, index) => positions.set(choice, index + 1));
+		return positions;
+	});
 	const minHint = $derived.by(() => {
 		if (disabled || role !== 'candidate' || !parsedInteraction) return '';
 		const fewerMatches = minimumHint({
@@ -79,10 +88,17 @@
 				fewerMatches,
 				shortChoices.length > 0 &&
 					translate(i18n, 'interactions.match.minChoiceUsesHint', 'Needs more matches: {items}.', {
-						// Readable names (image alt, MathML alttext); the identifier only for content-less choices.
+						// Readable names (image alt, MathML alttext); a localized ordinal for
+						// content-less choices — never the identifier.
 						items: formatList(
 							i18n,
-							shortChoices.map((choice) => accessibleTextFromHtml(choice.text) || choice.identifier),
+							shortChoices.map((choice) =>
+								choiceAccessibleName({
+									i18n,
+									label: accessibleTextFromHtml(choice.text),
+									position: choicePositions.get(choice) ?? 0,
+								}),
+							),
 						),
 					}),
 			)

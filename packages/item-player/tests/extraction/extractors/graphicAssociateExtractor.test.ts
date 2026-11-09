@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardGraphicAssociateExtractor } from '../../../src/interactions/graphic-associate/extractor.js';
+import { type GraphicAssociateData, standardGraphicAssociateExtractor } from '../../../src/interactions/graphic-associate/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardGraphicAssociateExtractor', () => {
@@ -287,7 +287,7 @@ describe('standardGraphicAssociateExtractor', () => {
 
 	describe('validation', () => {
 		test('validates correct graphicAssociate data', () => {
-			const data = {
+			const data: GraphicAssociateData = {
 				associableHotspots: [
 					{ identifier: 'A', label: 'A', shape: 'rect', coords: '0,0,100,100', matchMax: 1 },
 					{ identifier: 'B', label: 'B', shape: 'rect', coords: '100,0,200,100', matchMax: 1 },
@@ -305,7 +305,7 @@ describe('standardGraphicAssociateExtractor', () => {
 		});
 
 		test('reports error for insufficient hotspots', () => {
-			const data = {
+			const data: GraphicAssociateData = {
 				associableHotspots: [
 					{ identifier: 'A', label: 'A', shape: 'rect', coords: '0,0,100,100', matchMax: 1 },
 				],
@@ -322,7 +322,7 @@ describe('standardGraphicAssociateExtractor', () => {
 		});
 
 		test('reports error for duplicate identifiers', () => {
-			const data = {
+			const data: GraphicAssociateData = {
 				associableHotspots: [
 					{ identifier: 'A', label: 'A', shape: 'rect', coords: '0,0,100,100', matchMax: 1 },
 					{ identifier: 'A', label: 'B', shape: 'rect', coords: '100,0,200,100', matchMax: 1 },
@@ -340,7 +340,7 @@ describe('standardGraphicAssociateExtractor', () => {
 		});
 
 		test('reports warning for missing image data', () => {
-			const data = {
+			const data: GraphicAssociateData = {
 				associableHotspots: [
 					{ identifier: 'A', label: 'A', shape: 'rect', coords: '0,0,100,100', matchMax: 1 },
 					{ identifier: 'B', label: 'B', shape: 'rect', coords: '100,0,200,100', matchMax: 1 },

@@ -22,10 +22,6 @@
     ]
   },
   "dependenciesUnreferencedByDist": {
-    "@pie-qti/default-components": {
-      "@pie-qti/item-player": "bundled into dist/plugins.js by vite",
-      "@pie-qti/qti-common": "bundled into dist/plugins.js by vite"
-    },
     "@pie-qti/player-elements": {
       "@pie-qti/assessment-player": "fully self-contained bundle: all runtime deps are inlined by vite",
       "@pie-qti/default-components": "fully self-contained bundle: all runtime deps are inlined by vite",
@@ -37,11 +33,9 @@
     },
     "@pie-qti/section-player": {
       "@pie-players/pie-assessment-toolkit": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
-      "@pie-players/pie-calculator-desmos": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package\u2019s contracts-only dist",
       "@pie-players/pie-default-tool-loaders": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
       "@pie-players/pie-tool-calculator-desmos": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
       "@pie-players/pie-tool-tts-inline": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
-      "@pie-players/tts-client-server": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package\u2019s contracts-only dist",
       "@pie-qti/default-components": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
       "@pie-qti/i18n": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
       "@pie-qti/ims-cp-core": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist"

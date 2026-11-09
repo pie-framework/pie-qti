@@ -9,6 +9,7 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
+	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
@@ -95,12 +96,15 @@
 	 * The draggable pool: gapText words and gapImg image tiles share one identifier
 	 * space and one set of placement rules, so everything downstream (palette,
 	 * drop handling, pick-up flow, matchMax/matchGroup constraints) works on this
-	 * combined list. Image choices are named by their alt text.
+	 * combined list. Image choices are named by their alt text; a word or image
+	 * whose content carries no readable text is named by its presented position in
+	 * the palette ("Choice 3"), never by its identifier, which is meaningless and
+	 * potentially answer-leaking to candidates using a screen reader.
 	 */
 	type PaletteWord = {
 		identifier: string;
 		kind: 'text' | 'image';
-		/** Readable name: gapText content, or the image's alt text. */
+		/** Readable name: gapText content, the image's alt text, else a localized ordinal. */
 		name: string;
 		src?: string;
 		width?: number;
@@ -126,7 +130,7 @@
 			words.push({
 				identifier: gapImage.identifier,
 				kind: 'image',
-				name: gapImage.alt || gapImage.identifier,
+				name: gapImage.alt,
 				src: gapImage.src,
 				...(gapImage.width !== undefined ? { width: gapImage.width } : {}),
 				...(gapImage.height !== undefined ? { height: gapImage.height } : {}),
@@ -135,6 +139,11 @@
 				...(gapImage.matchGroup ? { matchGroup: gapImage.matchGroup } : {}),
 			});
 		}
+		// Content-less words take the ordinal of their palette position (1-based, as
+		// presented after shuffle); an authored name passes through unchanged.
+		words.forEach((word, index) => {
+			word.name = choiceAccessibleName({ i18n, label: word.name, position: index + 1 });
+		});
 		return words;
 	});
 
@@ -190,9 +199,27 @@
 		return word?.matchMax ?? 1;
 	}
 
-	function handleGapChange(gapId: string, wordId: string) {
+	/** The interaction's `maxAssociations` (QTI: 0 means no restriction). */
+	const maxAssociations = $derived(Number(parsedInteraction?.maxAssociations ?? 0));
+
+	/** Announce a refused placement: the author's data-max-selections-message wins. */
+	function announceAssociationLimit() {
+		liveMessage =
+			parsedInteraction?.maxSelectionsMessage?.trim() ||
+			translate(i18n, 'interactions.gapMatch.associationLimitReached', 'Association not possible: the limit of {max} is reached.', {
+				max: maxAssociations,
+			});
+	}
+
+	/**
+	 * Place `wordId` in `gapId`, or clear the gap when `wordId` is empty. Returns whether the
+	 * response changed: a placement the gap refuses (matchGroup) or one past `maxAssociations`
+	 * is refused, the latter announced, so an over-limit response never reaches the submit
+	 * that would reject it.
+	 */
+	function handleGapChange(gapId: string, wordId: string): boolean {
 		// matchGroup: refuse a placement the gap does not accept (clearing stays allowed).
-		if (wordId && !canPlaceWord(wordId, gapId)) return;
+		if (wordId && !canPlaceWord(wordId, gapId)) return false;
 
 		// Remove any existing pair for this gap (each gap holds one word)
 		let newPairs = pairs.filter((p: string) => !p.endsWith(` ${gapId}`));
@@ -213,8 +240,16 @@
 			}
 		}
 
+		// maxAssociations: refuse a placement that would exceed the interaction's cap. Replacing
+		// a gap's word or moving a single-use word keeps the count, so it is still allowed.
+		if (wordId && maxAssociations > 0 && newPairs.length > maxAssociations) {
+			announceAssociationLimit();
+			return false;
+		}
+
 		response = newPairs;
 		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: newPairs, onChange });
+		return true;
 	}
 
 	function isWordUsed(wordId: string): boolean {
@@ -239,7 +274,9 @@
 
 	function getWordText(wordId: string): string {
 		const word = paletteWords.find((w) => w.identifier === wordId);
-		return word?.name ?? wordId;
+		// An unknown id has no name to substitute: the identifier stays out of
+		// announcements, as it stays out of every accessible name.
+		return word?.name ?? '';
 	}
 
 	function onWordDragStart(e: DragEvent, wordId: string) {
@@ -365,7 +402,9 @@
 				return;
 			}
 			const wordText = getWordText(pickedUpWord);
-			handleGapChange(gapId, pickedUpWord);
+			// maxAssociations: a refused placement is announced and the word stays held, so the
+			// candidate can place it elsewhere (replacing a word) or cancel.
+			if (!handleGapChange(gapId, pickedUpWord)) return;
 			liveMessage = translate(i18n, 'interactions.gapMatch.placed', 'Placed {word} in blank {position} of {total}.', {
 				word: wordText,
 				position: gapPositions.positions.get(gapId) ?? 0,

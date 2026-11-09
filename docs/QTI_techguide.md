@@ -225,6 +225,8 @@ QTI supports **21 standard interaction types** organized into four functional ca
 
 Examples in this section use QTI 2.x syntax. For QTI 3.0, apply the naming conventions from the mapping table in Part I.
 
+Attribute defaults below are summaries. The audited, per-version defaults for every interaction attribute (QTI 2.1, 2.2 and 3.0 XSDs and information models), with what this player applies, are in [`QTI_attribute_defaults.md`](QTI_attribute_defaults.md).
+
 ## 3.1 Simple Selection Interactions
 
 ### 3.1.1 choiceInteraction
@@ -239,7 +241,7 @@ Examples in this section use QTI 2.x syntax. For QTI 3.0, apply the naming conve
 |-----------|----------|-------------|
 | `responseIdentifier` | Required | Identifier binding to responseDeclaration |
 | `shuffle` | Optional | If true, randomizes choice order on delivery. Default: false |
-| `maxChoices` | Optional | Maximum selections allowed. 0=unlimited, 1=single-choice (radio). Default: 1 |
+| `maxChoices` | Optional | Maximum selections allowed. 0=unlimited, 1=single-choice (radio). Default: 1 (QTI 2.2/3.0); 0 in QTI 2.1 |
 | `minChoices` | Optional | Minimum selections required for valid response. Default: 0 |
 | `orientation` | Optional | Visual hint: 'horizontal' or 'vertical' |
 
@@ -582,7 +584,7 @@ Graphical interactions involve a background image with defined regions (hotspots
 | Attribute | Required | Description |
 |-----------|----------|-------------|
 | `responseIdentifier` | Required | Identifier binding to responseDeclaration |
-| `maxChoices` | Optional | Maximum points selectable. 0=unlimited. Default: 1 |
+| `maxChoices` | Optional | Maximum points selectable. 0=unlimited. Default: 0 (QTI 2.2/3.0) |
 | `minChoices` | Optional | Minimum points required. Default: 0 |
 
 **Scoring with areaMapping:**
@@ -1740,10 +1742,15 @@ QTI 3.0 introduces its own certification program with additional conformance lev
 
 ## 7.4 Deviations from the QTI Specification
 
-These are deliberate choices in this project's scoring engine (`@pie-qti/qti-processing`) and item
-player (`@pie-qti/item-player`) where behavior differs from, or goes beyond, the letter of QTI 2.2
-and 3.0. Each one only widens what is accepted or compared equal for content in ordinary use; none
-changes the result for ASCII text or for durations written as the specification writes them.
+These are the places where this project's scoring engine (`@pie-qti/qti-processing`) and item
+player (`@pie-qti/item-player`) differ from, or go beyond, the letter of QTI 2.2 and 3.0. The
+project follows the specification wherever it is clear, so each entry carries its status:
+
+- **Unicode folding in string comparison** changes the result for content QTI does define. It is a
+  divergence reported for a fix, not a deliberate exception.
+- **The other entries** only give a meaning to content QTI does not allow (a lexical form, an
+  operator use or a `matchGroup` value outside the specification), or are an architecture choice.
+  Conforming content scores and validates as the specification says.
 
 ### Unicode folding in string comparison
 
@@ -1761,18 +1768,29 @@ encoding compares equal (`runtime/normalize.ts`, `normalizeResponse`, applied by
 Case folding still happens only where QTI asks for it (`stringMatch caseSensitive="false"`,
 case-insensitive mapping entries). An ASCII string compares exactly as the specification says.
 
+**Status: divergence, reported for a fix.** QTI is clear: `match` is true when the two values are
+"the same value" (QTI 3.0 §6.9.21; `member` §6.9.33 and `contains` §6.9.25 compare the same way),
+and `٣` and `3` are different strings. Folding therefore changes the score of conforming content.
+The fix compares `string` values exactly in those operators and in mapping lookup, and keeps
+folding only where a host asks for it. It touches every `normalizeResponse` call in
+`eval/evaluator.ts` and the Arabic-script scoring tests, and needs a product decision for
+Arabic-script content, so it was not started in the 2026-11-09 audit.
+
 ### Duration units and lexical forms
 
 QTI defines a duration as a float of seconds (`xsd:double`). The engine stores every duration as a
-number of seconds, including the built-in `duration` variable, and additionally:
+number of seconds, including the built-in `duration` variable. Item XML is read as QTI writes it:
+`90` or `90.5`, and an ISO 8601 literal such as `PT1M30S` there is an invalid duration. ISO 8601 is
+read only at the PCI variable-JSON boundary, which PCI v1.0 Appendix A encodes that way. Beyond the
+letter of QTI, the engine:
 
-- reads ISO 8601 / `xsd:duration` literals such as `PT1M30S` as seconds (a year counts as 365 days,
-  a month as 30), next to the specified `90` / `90.5` form;
 - compares durations by their seconds in `match`, `equal`, `member` and `contains`, which QTI says
   must not be used on durations (`match`, `member`, `contains`) or are defined for numeric base
   types only (`equal`); `durationLT` / `durationGTE` are the specified comparisons;
 - keeps the built-in `duration` up to date for items that are not `timeDependent`, where QTI says it
   must not be used in expressions (it is still reported, as Results Reporting asks).
+
+Status: both only affect content that uses durations where QTI forbids it.
 
 The player's host-facing `duration` fields — `SerializedItemSessionState.duration`,
 `ItemSessionActionResult.duration`, `ItemSessionView.duration`, and the assessment player's
@@ -1786,6 +1804,10 @@ matched with. Content, and this project's default renderers, also use the tokens
 labels. Response validation refuses a pairing only when neither reading allows it, so it never
 rejects a response the delivered interface lets a candidate build.
 
+Status: affects only non-conforming content. When the `matchGroup` lists name identifiers of the
+other side, as QTI defines, the two readings accept the same pairs: identifiers are unique within an
+interaction, so a choice's list and a gap's list share no token.
+
 ### A single value as a container in `contains` and `delete`
 
 QTI defines `contains` on two containers of the same cardinality and `delete` on a single value and
@@ -1794,11 +1816,17 @@ that one value: `contains(RESPONSE, A)`, which content writes for "A is among th
 when `member(A, RESPONSE)` is. A container as the first operand of `delete` removes each of its
 values. Two containers of different cardinality are an error in `contains`.
 
+Status: affects only non-conforming content. QTI requires `contains` to compare two containers
+(QTI 3.0 §6.9.25) and `delete` to take a single value first (§6.9.20). This reading gives the other
+operand shapes a meaning instead of an error.
+
 ### Compliance checks without an XSD engine
 
 `strictQtiCompliance` does not run the QTI XSDs. It checks the item's QTI namespace, its element
 names against the XSD-verified QTI 2.2 / 3.0 vocabulary, and the response binding and
 extractability of every interaction; attributes, content models and value spaces are not checked.
+Status: an architecture choice. QTI does not require a delivery engine to validate content against
+its schemas.
 See [`packages/item-player/docs/QTI-COMPLIANCE.md`](../packages/item-player/docs/QTI-COMPLIANCE.md#strict-mode).
 
 ---

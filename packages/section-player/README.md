@@ -65,9 +65,9 @@ The section tool bar composes external tool packages from the sibling
 
 These packages are pinned to **exact matching versions** because they inter-depend internally with
 exact pins; upgrading requires bumping all of them in lockstep (toolkit registry classes must not
-be loaded twice under different version strings). `pie-calculator-desmos` and `tts-client-server`
-are declared directly as well: the tool bar's Svelte sources, compiled into
-`@pie-qti/player-elements`, reach them.
+be loaded twice under different version strings). Packages only the default tool loaders import,
+such as `pie-calculator-desmos` and `tts-client-server`, are not listed here:
+`pie-default-tool-loaders` declares them itself.
 
 ### Tool bar interface locale
 

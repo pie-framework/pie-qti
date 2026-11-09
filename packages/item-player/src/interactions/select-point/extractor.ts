@@ -7,6 +7,7 @@
 import type { ElementExtractor } from '../../extraction/types.js';
 import { normalizePixelDimension } from '../../security/styleValues.js';
 import { extractImageAlternative, imgAlternativeSource } from '../shared/imageAlt.js';
+import { predatesQti22, unrestrictedLimitDefault } from '../shared/specDefaults.js';
 
 /**
  * Image data for select point interaction
@@ -113,8 +114,15 @@ export const standardSelectPointExtractor: ElementExtractor<SelectPointData> = {
 			};
 		}
 
-		// Extract attributes
-		const maxChoices = utils.getNumberAttribute(element, 'maxChoices', 1);
+		// Extract attributes. Absent maxChoices: "0" (no restriction) in QTI 2.2 (Table 5.95.2)
+		// and QTI 3.0 (Table 5.128.2), resolved to 1 for a single-cardinality response, which
+		// holds one point. QTI 2.1 keeps 1: its information model (`maxChoices [1] = 1`) and
+		// its XSD (default "0") disagree, so 2.1 has no clear default to apply.
+		const maxChoices = utils.getNumberAttribute(
+			element,
+			'maxChoices',
+			predatesQti22(context) ? 1 : unrestrictedLimitDefault(context),
+		);
 		const minChoices = utils.getNumberAttribute(element, 'minChoices', 0);
 
 		// Extract prompt (optional)

@@ -15,6 +15,8 @@ export interface InlineChoiceData {
 	shuffle: boolean;
 	/** Text from the QTI <label> child element; used as the placeholder "Select…" option */
 	label: string | null;
+	/** Choices a valid response selects (QTI 3.0 min-choices; required="true" is 1); omitted when 0. */
+	minChoices?: number;
 }
 
 /**
@@ -59,11 +61,18 @@ export const standardInlineChoiceExtractor: ElementExtractor<InlineChoiceData> =
 		// Extract attributes
 		const shuffle = utils.getBooleanAttribute(element, 'shuffle');
 		const interactionClasses = utils.getClasses(element);
+		// A valid response selects a choice when `required` (QTI 2.1; QTI 3.0 §5.74.2) or at
+		// least `min-choices` (QTI 3.0 §5.74.3).
+		const minChoices = Math.max(
+			utils.getNumberAttribute(element, 'minChoices', 0),
+			utils.getBooleanAttribute(element, 'required', false) ? 1 : 0,
+		);
 
 		return {
 			choices: maybeShuffle(choices, shuffle, context.shuffleRng),
 			shuffle,
 			label,
+			...(minChoices > 0 ? { minChoices } : {}),
 			...(dataPrompt ? { dataPrompt } : {}),
 			...(title ? { title } : {}),
 			...(interactionClasses.length > 0 ? { interactionClasses } : {}),

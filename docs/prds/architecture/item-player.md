@@ -68,9 +68,9 @@ Parsing limits (`ParsingLimitsConfig`) are on by default for the same reason: it
 - **Spec sections:** QTI 2.2 §4 (assessmentItem), §5 (interactions), §6 (response processing), §7 (outcome processing), §8 (template processing), §9 (adaptive items), §13 (view/rubric)
 - **Supported attributes:** `adaptive`, `timeDependent` (tracked), `view` (rubricBlock filtering), all `responseDeclaration`/`outcomeDeclaration`/`templateDeclaration` attributes including `defaultValue`, `correctResponse`, `mapping`, `areaMapping`, `matchTable`, `interpolationTable`
 - **Deliberately omitted attributes:** `timeDependent` does not gate submission (the player has no built-in timer; time tracking is the assessment shell's responsibility)
-- **Known divergences from spec:**
-  - QTI 3.0 element names (`qti-choice-interaction`, etc.) and attribute names (`response-identifier`) are automatically detected and normalized at construction time via `ElementNameMapper`/`AttributeNameMapper`; they do not require explicit configuration.
-  - `completionStatus` and `numAttempts` are injected as built-in outcome declarations if absent — the spec technically requires items to declare them explicitly; in practice, many authored items omit the declaration.
+- **Known divergences from spec:** none. Two behaviors that were once listed here follow the specification:
+  - QTI 3.0 element names (`qti-choice-interaction`, etc.) and attribute names (`response-identifier`) are automatically detected and normalized at construction time via `ElementNameMapper`/`AttributeNameMapper`; they do not require explicit configuration. This is QTI 3.0 support.
+  - The built-in session variables `completionStatus`, `numAttempts` and `duration` are declared implicitly when an item does not declare them. QTI requires exactly that: "All variables must be declared except for the built-in session variables […] which are declared implicitly and must not be declared" (QTI 3.0 Information Model, item variables; QTI 2.1 likewise). An item that declares one anyway, against the specification, is read as authored.
 
 ---
 

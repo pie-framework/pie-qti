@@ -101,6 +101,49 @@ describe('MatchInteraction (pie-qti-match)', () => {
 		cleanupInteraction(mounted);
 	});
 
+	test('a textless choice is named by a localized ordinal; pair announcements use it', async () => {
+		const mounted = mountInteraction(MatchInteraction, {
+			interaction: matchData({
+				sourceSet: [
+					{ identifier: 'SECRET_KEY', text: '<img src="x.png">', matchMax: 1 },
+					{ identifier: 'rome', text: '<p>Rome</p>', matchMax: 1 },
+				],
+				targetSet: [{ identifier: 'italy', text: '<p>Italy</p>', matchMax: 1 }],
+				maxAssociations: 1,
+			}),
+		});
+		await settle();
+
+		// The image has no alt and nothing else to read: the button still carries a
+		// non-empty name, and it is the presented position in its column — not the
+		// identifier, which can leak the answer key to screen reader users (WCAG 4.1.2).
+		const textless = q(mounted, '[data-source-id="SECRET_KEY"]')!;
+		expect(textless.getAttribute('aria-label')).toBe('Choice 1');
+		expect(textless.hasAttribute('aria-labelledby')).toBe(false);
+
+		// An authored label still wins: the content-ful source is named by its content.
+		const labelled = q(mounted, '[data-source-id="rome"]')!;
+		const named = document.getElementById(labelled.getAttribute('aria-labelledby') ?? '');
+		expect(named?.textContent?.trim()).toBe('Rome');
+		expect(labelled.hasAttribute('aria-label')).toBe(false);
+
+		// Pair made and cleared announcements use the same names.
+		textless.click();
+		await settle();
+		q<HTMLButtonElement>(mounted, '[part="target"]')!.click();
+		await settle();
+		expect(mounted.instance.response).toEqual(['SECRET_KEY italy']);
+		expect(liveRegion(mounted)).toBe('Choice 1 matched with Italy.');
+
+		const clear = q<HTMLButtonElement>(mounted, '[part="source-clear"]')!;
+		expect(clear.getAttribute('aria-label')).toBe('Clear match for Choice 1');
+		clear.click();
+		await settle();
+		expect(mounted.instance.response).toEqual([]);
+		expect(liveRegion(mounted)).toBe('Match cleared for Choice 1');
+		cleanupInteraction(mounted);
+	});
+
 	test('matchGroup names partner identifiers: only the named target accepts the source', async () => {
 		// QTI 2.2/3.0: a source's matchGroup lists the target identifiers it may pair with. The
 		// former label-only rule blocked paris–france ([france] and [paris] share no token) and

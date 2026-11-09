@@ -100,7 +100,7 @@ describe('assessment item scorer', () => {
 			Math.random = () => 0.99;
 			const result = scoreAssessmentItem({
 				itemXml: RANDOM_TEMPLATE_ITEM,
-				responses: { RESPONSE: 1 },
+				responses: { RESPONSE: '1' },
 				itemSession: itemSession!,
 			});
 

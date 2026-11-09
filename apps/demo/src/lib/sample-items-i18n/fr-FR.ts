@@ -670,7 +670,7 @@ export const ITEMS_FR_FR: Record<string, LocalizedItemData> = {
 
   <itemBody>
     <p>Les planètes intérieures de notre système solaire sont les quatre planètes rocheuses les plus proches du Soleil : Mercure, Vénus, la Terre et Mars.</p>
-    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="4">
       <prompt>Étiquetez les quatre planètes intérieures de notre système solaire</prompt>
       <object type="image/svg+xml" width="800" height="400">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">

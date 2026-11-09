@@ -169,8 +169,8 @@ describe('templated item session restore', () => {
 		// Simulate a snapshot persisted by an older player build: no correctResponse.
 		const legacy = JSON.parse(JSON.stringify(saved)) as SerializedItemSessionState;
 		for (const variable of Object.values(legacy.responseVariables)) {
-			delete (variable as Record<string, unknown>).correctResponse;
-			delete (variable as Record<string, unknown>).defaultValue;
+			delete variable.correctResponse;
+			delete variable.defaultValue;
 		}
 
 		const reopened = definition.openSession({ restore: legacy });

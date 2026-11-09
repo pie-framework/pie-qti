@@ -70,6 +70,40 @@ describe('GapMatchInteraction (pie-qti-gap-match)', () => {
 		cleanupInteraction(mounted);
 	});
 
+	test('an alt-less gap image is named by a localized ordinal, never its identifier', async () => {
+		const mounted = mountInteraction(GapMatchInteraction, {
+			interaction: gapData({
+				gapImages: [
+					{ identifier: 'SECRET_KEY', src: 'x.png', alt: '', matchMax: 1 },
+					{ identifier: 'europe', src: 'europe.png', alt: 'Map of Europe', matchMax: 1 },
+				],
+			}),
+		});
+		await settle();
+
+		// The image has no alt: the tile still carries a non-empty name, and it is the
+		// tile's presented position in the palette (after the two gap texts) — not the
+		// identifier, which can leak the answer key to screen reader users (WCAG 4.1.2).
+		const textless = q(mounted, 'button[data-word-id="SECRET_KEY"]')!;
+		expect(textless.getAttribute('aria-label')).toBe('Choice 3');
+
+		// An authored alt still wins.
+		expect(q(mounted, 'button[data-word-id="europe"]')?.getAttribute('aria-label')).toBe('Map of Europe');
+
+		// Pick-up and placement announcements use the same name.
+		textless.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		expect(liveRegion(mounted)).toBe('Choice 3 picked up. Select a blank to place it, or press Escape to cancel.');
+
+		q(mounted, 'button[data-gap-id="G1"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await settle();
+		expect(mounted.instance.response).toEqual(['SECRET_KEY G1']);
+		expect(q(mounted, 'button[data-gap-id="G1"]')?.getAttribute('aria-label')).toContain(
+			'Blank 1 of 1, filled with Choice 3',
+		);
+		cleanupInteraction(mounted);
+	});
+
 	test('pick-up flow: select a word, click a gap, pair is emitted and rendered', async () => {
 		const mounted = mountInteraction(GapMatchInteraction, { interaction: gapData() });
 		await settle();
@@ -380,6 +414,79 @@ describe('GapMatchInteraction (pie-qti-gap-match)', () => {
 			click(q(mounted, 'button[data-gap-id="G2"]'));
 			await settle();
 			expect(mounted.instance.response).toEqual(['W4 G1', 'W5 G2']);
+			cleanupInteraction(mounted);
+		});
+	});
+
+	describe('maxAssociations cap (the limit response validation applies)', () => {
+		const click = (element: Element | null) => element?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		const twoGaps = (overrides: Partial<GapMatchInteractionData> = {}) =>
+			gapData({ promptText: 'A [GAP:G1] b [GAP:G2] c.', gaps: ['G1', 'G2'], ...overrides });
+		async function place(mounted: { host: HTMLElement }, wordId: string, gapId: string) {
+			click(q(mounted, `button[data-word-id="${wordId}"]`));
+			await settle();
+			click(q(mounted, `button[data-gap-id="${gapId}"]`));
+			await settle();
+		}
+
+		test('a keyboard placement past the cap is refused, announced, and the word stays held', async () => {
+			const mounted = mountInteraction(GapMatchInteraction, { interaction: twoGaps({ maxAssociations: 1 }) });
+			await settle();
+
+			await place(mounted, 'W1', 'G1');
+			expect(mounted.instance.response).toEqual(['W1 G1']);
+
+			await place(mounted, 'W2', 'G2');
+			expect(mounted.instance.response).toEqual(['W1 G1']);
+			expect(liveRegion(mounted)).toBe('Association not possible: the limit of 1 is reached.');
+			expect(q(mounted, 'button[data-word-id="W2"]')?.getAttribute('aria-pressed')).toBe('true');
+			cleanupInteraction(mounted);
+		});
+
+		test('a pointer drop past the cap is refused and announced', async () => {
+			const mounted = mountInteraction(GapMatchInteraction, { interaction: twoGaps({ maxAssociations: 1 }) });
+			await settle();
+			await place(mounted, 'W1', 'G1');
+
+			const drop = new Event('drop', { bubbles: true, cancelable: true });
+			Object.defineProperty(drop, 'dataTransfer', { value: { getData: () => 'W2' } });
+			q(mounted, 'button[data-gap-id="G2"]')?.dispatchEvent(drop);
+			await settle();
+
+			expect(mounted.instance.response).toEqual(['W1 G1']);
+			expect(liveRegion(mounted)).toBe('Association not possible: the limit of 1 is reached.');
+			cleanupInteraction(mounted);
+		});
+
+		test('replacing the word in a filled gap stays within the cap', async () => {
+			const mounted = mountInteraction(GapMatchInteraction, { interaction: twoGaps({ maxAssociations: 1 }) });
+			await settle();
+			await place(mounted, 'W1', 'G1');
+
+			await place(mounted, 'W2', 'G1');
+			expect(mounted.instance.response).toEqual(['W2 G1']);
+			cleanupInteraction(mounted);
+		});
+
+		test('the author’s data-max-selections-message is announced instead', async () => {
+			const mounted = mountInteraction(GapMatchInteraction, {
+				interaction: twoGaps({ maxAssociations: 1, maxSelectionsMessage: 'Only one word may be placed.' }),
+			});
+			await settle();
+			await place(mounted, 'W1', 'G1');
+			await place(mounted, 'W2', 'G2');
+
+			expect(liveRegion(mounted)).toBe('Only one word may be placed.');
+			cleanupInteraction(mounted);
+		});
+
+		test('maxAssociations=0 means unlimited: both words place', async () => {
+			const mounted = mountInteraction(GapMatchInteraction, { interaction: twoGaps({ maxAssociations: 0 }) });
+			await settle();
+			await place(mounted, 'W1', 'G1');
+			await place(mounted, 'W2', 'G2');
+
+			expect(mounted.instance.response).toEqual(['W1 G1', 'W2 G2']);
 			cleanupInteraction(mounted);
 		});
 	});

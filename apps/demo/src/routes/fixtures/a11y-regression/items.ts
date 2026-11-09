@@ -40,7 +40,7 @@ const LEAKY_NAMES = `<?xml version="1.0" encoding="UTF-8"?>
 
     <p class="blanks">The capital of France is <textEntryInteraction responseIdentifier="TEXT_ENTRY_CAPITAL_IS_PARIS" expectedLength="10"/>, and France lies in <inlineChoiceInteraction responseIdentifier="INLINE_CHOICE_CONTINENT_IS_EUROPE"><inlineChoice identifier="INLINE_CHOICE_EUROPE_CORRECT_ANSWER">Europe</inlineChoice><inlineChoice identifier="INLINE_CHOICE_ASIA_WRONG">Asia</inlineChoice></inlineChoiceInteraction>.</p>
 
-    <gapMatchInteraction responseIdentifier="GAP_MATCH_SEINE_IN_PARIS" class="qti-choices-stacked">
+    <gapMatchInteraction responseIdentifier="GAP_MATCH_SEINE_IN_PARIS" class="qti-choices-stacked" maxAssociations="2">
       <prompt>Complete the sentences about rivers.</prompt>
       <gapText identifier="GAP_TEXT_SEINE_FLOWS_THROUGH_PARIS" matchMax="1">the Seine</gapText>
       <gapText identifier="GAP_TEXT_TAMIIS_NOT_A_RIVER" matchMax="1">the Tamis</gapText>
@@ -188,7 +188,7 @@ const IMAGE_ALTERNATIVES = `<?xml version="1.0" encoding="UTF-8"?>
       <associableHotspot identifier="IMG_ALT_GA_RIGHT_ZONE" shape="rect" coords="190,10,350,150" matchMax="1" hotspotLabel="Right zone">Right zone</associableHotspot>
     </graphicAssociateInteraction>
 
-    <graphicGapMatchInteraction responseIdentifier="GRAPHIC_GAP_MATCH_IMG_ALT">
+    <graphicGapMatchInteraction responseIdentifier="GRAPHIC_GAP_MATCH_IMG_ALT" maxAssociations="2">
       <prompt>Graphic gap match: drop each label on its zone.</prompt>
       <object type="image/svg+xml" width="360" height="160">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 160">

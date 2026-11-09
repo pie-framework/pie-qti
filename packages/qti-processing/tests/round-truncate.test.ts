@@ -115,3 +115,31 @@ describe('integer results in numeric operators', () => {
 		);
 	});
 });
+
+/**
+ * equalRounded@roundingMode is an enumerated attribute: the XSDs of 2.1, 2.2 and 3.0 enumerate
+ * exactly decimalPlaces and significantFigures, with significantFigures as the default. Like
+ * roundTo, the same file's other roundingMode reader, the builder takes those spellings only —
+ * a present but invalid value is a compile error, not a silent default.
+ */
+describe('equalRounded roundingMode', () => {
+	const sigFig = (mode: string | undefined): string =>
+		`<equalRounded${mode === undefined ? '' : ` roundingMode="${mode}"`} figures="3">${float(3.175)}${float(3.183)}</equalRounded>`;
+
+	it('rounds both operands to 3 significant figures', () => {
+		expect(evaluate(sigFig('significantFigures'))).toEqual(yes);
+		expect(evaluate(sigFig('decimalPlaces'))).toEqual(qtiValue('boolean', 'single', false));
+	});
+
+	it('defaults to significantFigures when the attribute is absent', () => {
+		expect(evaluate(sigFig(undefined))).toEqual(yes);
+	});
+
+	it('is a compile error for a spelling the XSD does not enumerate', () => {
+		for (const mode of ['significantFigure', 'decimalplace', 'DECIMALPLACES', 'bogus']) {
+			expect(() => buildExpression(parseXml(sigFig(mode)).documentElement)).toThrow(
+				'<equalRounded> roundingMode must be "decimalPlaces"|"significantFigures"',
+			);
+		}
+	});
+});

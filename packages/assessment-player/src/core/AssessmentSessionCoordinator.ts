@@ -5,7 +5,6 @@ import { AssessmentPlayerError } from './errors.js';
 import {
 	ItemSessionController,
 	type ItemSessionControlSettings,
-	type ItemNavigationBlockReason,
 	type ItemSessionState,
 } from './ItemSessionController.js';
 
@@ -188,13 +187,6 @@ export class AssessmentSessionCoordinator {
 	 */
 	canReview(itemIdentifier: string, options: { completed?: boolean } = {}): boolean {
 		return this.#sessionController.canReview(itemIdentifier, options);
-	}
-
-	canNavigateAway(
-		itemIdentifier: string,
-		responses: Record<string, unknown>
-	): { allowed: boolean; reason?: ItemNavigationBlockReason } {
-		return this.#sessionController.canNavigateAway(itemIdentifier, hasAnyResponse(responses));
 	}
 
 	updateItemSessionControl(settings: ItemSessionControlSettings): void {

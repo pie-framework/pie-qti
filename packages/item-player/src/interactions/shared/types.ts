@@ -112,6 +112,11 @@ export interface InlineChoiceInteractionData extends BaseInteractionData<'inline
 	dataPrompt?: string | null;
 	/** The authored `title`, an accessible name when no aria label is authored */
 	title?: string;
+	/**
+	 * Choices a valid response selects: QTI 3.0 `min-choices` (§5.74.3), or 1 when the
+	 * interaction is `required` (QTI 2.1; QTI 3.0 §5.74.2). Omitted when no choice is required.
+	 */
+	minChoices?: number;
 	choices: Array<{ identifier: string; text: string; fixed?: boolean }>;
 	/** CSS classes from the inlineChoiceInteraction element (e.g. qti-input-width-N) */
 	interactionClasses?: string[];
@@ -204,10 +209,27 @@ export interface GapMatchInteractionData extends BaseInteractionData<'gapMatchIn
 	/** Identifiers of the `<gap>` elements, in reading order (what the extractor delivers). */
 	gaps: string[];
 	/**
+	 * The most associations the candidate may make (QTI `maxAssociations`); 0 means no
+	 * restriction. The extractor always delivers it: absent means 1 in QTI 2.2 and 3.0 and
+	 * 0 in QTI 2.1, which has no such attribute. Optional so hand-built data stays valid;
+	 * missing is treated as 0.
+	 */
+	maxAssociations?: number;
+	/**
+	 * The associations a valid response makes (QTI 2.2 `minAssociations`; QTI 3.0 §5.57.2).
+	 * Present only when above 0.
+	 */
+	minAssociations?: number;
+	/**
 	 * Authored `matchGroup` tokens per gap identifier (QTI 2.2/3.0: the identifiers of the
 	 * choices that may be matched with this gap). Present only when a gap authors one.
 	 */
 	gapMatchGroups?: Record<string, string[]>;
+	/**
+	 * Identifiers of the gaps authored `required`: a valid response fills each of them (QTI 2.1
+	 * gap; QTI 3.0 §5.55.5). Present only when a gap is required.
+	 */
+	requiredGaps?: string[];
 	/** Finalized HTML template containing `[GAP:identifier]` text markers. */
 	promptText: HtmlContent;
 	/** CSS classes from the gapMatchInteraction element (e.g. qti-choices-top, qti-choices-bottom) */

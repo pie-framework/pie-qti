@@ -30,7 +30,7 @@ describe('ExtractionRegistry dispatch', () => {
 			'RESPONSE',
 			element,
 			new Map(),
-			{ itemXml: '', elementNameMapper: mapper },
+			{ elementNameMapper: mapper },
 		);
 
 		const result = registry.extract(element, context);

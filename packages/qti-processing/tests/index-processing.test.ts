@@ -16,7 +16,7 @@ function makeEnv(decls: DeclarationMap) {
 	};
 }
 
-describe('qti-processing index@n and diagnostic console handling', () => {
+describe('qti-processing index@n', () => {
 	it('parses QTI index@n as a one-child container expression plus numeric index', () => {
 		const doc = parseXml('<index n="1"><variable identifier="RESPONSE"/></index>');
 
@@ -91,44 +91,16 @@ describe('qti-processing index@n and diagnostic console handling', () => {
 		});
 	});
 
-	it('ignores text-only diagnostic console statements in responseProcessing', () => {
-		const doc = parseXml([
-			'<responseProcessing>',
-			'<console>PART1</console>',
-			'<setOutcomeValue identifier="SCORE"><baseValue baseType="float">1</baseValue></setOutcomeValue>',
-			'</responseProcessing>',
-		].join(''));
-		const program = buildResponseProcessingAst(doc.documentElement);
-		const env = makeEnv({
-			SCORE: {
-				identifier: 'SCORE',
-				baseType: 'float',
-				cardinality: 'single',
-				defaultValue: qtiValue('float', 'single', 0),
-				value: qtiValue('float', 'single', 0),
-			},
-		});
-
-		execProgram(env, program);
-
-		expect(env.ctx.getValue('SCORE')).toEqual(qtiValue('float', 'single', 1));
-	});
-
-	it('keeps unknown processing statements strict', () => {
-		const doc = parseXml('<responseProcessing><vendorRule>nope</vendorRule></responseProcessing>');
-
-		expect(() => buildResponseProcessingAst(doc.documentElement)).toThrow(
+	it('keeps unknown processing statements strict, <console> included', () => {
+		// <console> is no QTI statement (none of the 2.1/2.2/3.0 XSDs define it), so it errors like
+		// any other unknown element instead of being silently ignored.
+		const vendor = parseXml('<responseProcessing><vendorRule>nope</vendorRule></responseProcessing>');
+		expect(() => buildResponseProcessingAst(vendor.documentElement)).toThrow(
 			'Unknown processing statement tag: <vendorrule> (mode=response)',
 		);
-	});
-
-	it('does not silently swallow console statements with child elements', () => {
-		const doc = parseXml(
-			'<responseProcessing><console><setOutcomeValue identifier="SCORE"><baseValue baseType="float">1</baseValue></setOutcomeValue></console></responseProcessing>',
-		);
-
-		expect(() => buildResponseProcessingAst(doc.documentElement)).toThrow(
-			'Unsupported processing statement tag: <console> with child elements',
+		const consoleEl = parseXml('<responseProcessing><console>PART1</console></responseProcessing>');
+		expect(() => buildResponseProcessingAst(consoleEl.documentElement)).toThrow(
+			'Unknown processing statement tag: <console> (mode=response)',
 		);
 	});
 });

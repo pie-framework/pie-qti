@@ -61,7 +61,7 @@
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `identifier` | Full | Required; deduplicated; used as list item key, in `qti-change` payload, and in response |
-| `fixed` | Partial | Extracted by `standardOrderExtractor` as `fixed?: boolean` on the choice object; passed to component via runtime spread. **The component does not honour `fixed`** — all choices are draggable regardless. See Known gaps. |
+| `fixed` | Full | Extracted by `standardOrderExtractor` as `fixed?: boolean` on the choice object. The extraction-time shuffle keeps a fixed choice at its authored index. QTI's `fixed` binds the delivery engine ("the position of this choice within the interaction must not be changed by the delivery engine even if the immediately enclosing interaction supports the shuffling of choices", QTI 3.0 §5.132.2), not the candidate, so every choice stays draggable. |
 | class (CSS classes) | Partial | Extracted as `classes?: string[]`; not rendered as CSS classes by default component but available for custom renderer detection |
 | `templateIdentifier` | Full | A choice whose template variable hides it is dropped before extraction, by the shared visibility rule. |
 | `showHide` | Full | Inverts `templateIdentifier` visibility. |
@@ -83,7 +83,7 @@
 ### Known gaps
 
 
-- **`fixed` does not restrict dragging:** `fixed=true` is honoured when the initial shuffle is applied (the choice keeps its authored index), but `SortableList` still lets the candidate drag it afterwards. The spec constrains the shuffle, not candidate interaction, so this is a deliberate limitation rather than a defect.
+- **`fixed` does not restrict dragging (not a divergence):** `fixed=true` is honoured when the initial shuffle is applied (the choice keeps its authored index), and `SortableList` still lets the candidate drag it afterwards. QTI constrains the delivery engine's shuffling, not candidate interaction (QTI 2.1 choice; QTI 3.0 §5.132.2), so this follows the specification.
 
 - **G-09 (PNP elimination tool):** Implemented for `orderInteraction`; when `pnp.cognitive.eliminationTool` is enabled, an eliminate/dismiss button appears per choice without changing the response value. In subset mode each choice keeps exactly one toggle, in whichever zone it is.
 
@@ -456,7 +456,7 @@ AC-E5: fixed attribute is extracted on choices
   Given: an orderInteraction where the third choice has fixed="true"
   When: standardOrderExtractor.extract() is called
   Then: choices[2].fixed === true; other choices have no fixed property
-  Notes: the component currently ignores fixed; all items remain draggable
+  Notes: the extraction-time shuffle keeps a fixed choice in place; the candidate may still drag it (QTI binds only the delivery engine)
 
 AC-E6: HTML content in choice text renders
   Given: a simpleChoice whose text contains <strong> and <em> HTML tags
