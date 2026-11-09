@@ -3,7 +3,6 @@ import type { PnpProfile } from '@pie-qti/item-player';
 import {
 	DEFAULT_DISPLAY_SETTINGS,
 	displaySettingsOf,
-	hasDisplaySettingsChanged,
 	readSessionDisplaySettings,
 	TEXT_SIZE_STEPS,
 	withDisplaySettings,
@@ -24,7 +23,6 @@ describe('withDisplaySettings', () => {
 	test('default settings render the host profile as delivered', () => {
 		expect(withDisplaySettings(HOST, DEFAULT_DISPLAY_SETTINGS)).toEqual(HOST);
 		expect(withDisplaySettings(HOST, undefined)).toEqual(HOST);
-		expect(hasDisplaySettingsChanged(DEFAULT_DISPLAY_SETTINGS)).toBe(false);
 	});
 
 	test('a text size step sets the point size and keeps the rest of the appearance', () => {

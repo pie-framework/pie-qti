@@ -73,7 +73,11 @@ describe.each([
 				.present()
 				.flow.find((node) => node.kind === 'interaction' && node.mount.interaction.type === 'endAttemptInteraction');
 			expect(hint).toBeDefined();
-			expect((hint!.mount.interaction as { countAttempt?: boolean }).countAttempt).toBe(false);
+			expect(
+				hint?.kind === 'interaction'
+					? (hint.mount.interaction as { countAttempt?: boolean }).countAttempt
+					: undefined
+			).toBe(false);
 		});
 	});
 

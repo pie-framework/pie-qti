@@ -9,6 +9,10 @@
 
 import { describe, expect, test } from 'bun:test';
 import { Player } from '../../src/core/Player.js';
+import type {
+	GraphicOrderInteractionData,
+	OrderInteractionData,
+} from '../../src/interactions/shared/types.js';
 
 const qti22Item = (identifier: string, body: string, declarations: string) => `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
@@ -174,7 +178,7 @@ describe('graphicOrderInteraction subset response validation (Player.validateRes
 
 describe('extracted interaction data carries the subset fields', () => {
 	test('orderInteraction data reaches the component with minChoices and maxChoices', () => {
-		const interaction = new Player({ itemXml: orderItem('minChoices="2" maxChoices="3"') }).getInteractionData()[0] as Record<string, unknown>;
+		const interaction = new Player({ itemXml: orderItem('minChoices="2" maxChoices="3"') }).getInteractionData()[0] as OrderInteractionData;
 		expect(interaction.minChoices).toBe(2);
 		expect(interaction.maxChoices).toBe(3);
 	});
@@ -211,13 +215,13 @@ describe('extracted interaction data carries the subset fields', () => {
 	});
 
 	test('graphicOrderInteraction data carries maxChoices too', () => {
-		const interaction = new Player({ itemXml: graphicOrderItem('minChoices="2" maxChoices="3"') }).getInteractionData()[0] as Record<string, unknown>;
+		const interaction = new Player({ itemXml: graphicOrderItem('minChoices="2" maxChoices="3"') }).getInteractionData()[0] as GraphicOrderInteractionData;
 		expect(interaction.minChoices).toBe(2);
 		expect(interaction.maxChoices).toBe(3);
 	});
 
 	test('unspecified minChoices leaves subset mode off in the data', () => {
-		const interaction = new Player({ itemXml: orderItem('maxChoices="2"') }).getInteractionData()[0] as Record<string, unknown>;
+		const interaction = new Player({ itemXml: orderItem('maxChoices="2"') }).getInteractionData()[0] as OrderInteractionData;
 		expect(interaction.minChoices).toBe(0);
 		expect(interaction.maxChoices).toBe(2);
 	});

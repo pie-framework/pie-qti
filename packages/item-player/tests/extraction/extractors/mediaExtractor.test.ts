@@ -4,7 +4,7 @@
 
 import { describe, expect, test } from 'bun:test';
 import { Qti3AttributeNameMapper, Qti3ElementNameMapper } from '@pie-qti/qti-common';
-import { standardMediaExtractor } from '../../../src/interactions/media/extractor.js';
+import { type MediaData, standardMediaExtractor } from '../../../src/interactions/media/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardMediaExtractor', () => {
@@ -29,9 +29,9 @@ describe('standardMediaExtractor', () => {
 			expect(result.maxPlays).toBe(3);
 			expect(result.autostart).toBe(false);
 			expect(result.loop).toBe(false);
-			expect(result.mediaElement.type).toBe('audio');
-			expect(result.mediaElement.src).toBe('audio.mp3');
-			expect(result.mediaElement.mimeType).toBe('audio/mpeg');
+			expect(result.mediaElement?.type).toBe('audio');
+			expect(result.mediaElement?.src).toBe('audio.mp3');
+			expect(result.mediaElement?.mimeType).toBe('audio/mpeg');
 		});
 
 		test('extracts audio with multiple source elements', () => {
@@ -51,13 +51,13 @@ describe('standardMediaExtractor', () => {
 
 			// The first source stays the single-URL `src`; every source is kept in order
 			// so the browser can fall back to the next one it can play.
-			expect(result.mediaElement.src).toBe('audio.mp3');
-			expect(result.mediaElement.mimeType).toBe('audio/mpeg');
-			expect(result.mediaElement.sources).toEqual([
+			expect(result.mediaElement?.src).toBe('audio.mp3');
+			expect(result.mediaElement?.mimeType).toBe('audio/mpeg');
+			expect(result.mediaElement?.sources).toEqual([
 				{ src: 'audio.mp3', mimeType: 'audio/mpeg' },
 				{ src: 'audio.ogg', mimeType: 'audio/ogg' },
 			]);
-			expect(result.mediaElement.tracks).toEqual([]);
+			expect(result.mediaElement?.tracks).toEqual([]);
 		});
 
 		test('reads the src attribute of an audio element without source children', () => {
@@ -70,8 +70,8 @@ describe('standardMediaExtractor', () => {
 			const element = parseQTI(xml);
 			const result = standardMediaExtractor.extract(element, createTestContext(element, 'RESPONSE'));
 
-			expect(result.mediaElement.src).toBe('audio.mp3');
-			expect(result.mediaElement.sources).toEqual([{ src: 'audio.mp3', mimeType: '' }]);
+			expect(result.mediaElement?.src).toBe('audio.mp3');
+			expect(result.mediaElement?.sources).toEqual([{ src: 'audio.mp3', mimeType: '' }]);
 		});
 
 		test('throws error if audio element has no source', () => {
@@ -108,11 +108,11 @@ describe('standardMediaExtractor', () => {
 
 			expect(result.autostart).toBe(true);
 			expect(result.loop).toBe(true);
-			expect(result.mediaElement.type).toBe('video');
-			expect(result.mediaElement.src).toBe('video.mp4');
-			expect(result.mediaElement.mimeType).toBe('video/mp4');
-			expect(result.mediaElement.width).toBe(640);
-			expect(result.mediaElement.height).toBe(480);
+			expect(result.mediaElement?.type).toBe('video');
+			expect(result.mediaElement?.src).toBe('video.mp4');
+			expect(result.mediaElement?.mimeType).toBe('video/mp4');
+			expect(result.mediaElement?.width).toBe(640);
+			expect(result.mediaElement?.height).toBe(480);
 		});
 
 		test('uses default dimensions if not specified', () => {
@@ -129,8 +129,8 @@ describe('standardMediaExtractor', () => {
 
 			const result = standardMediaExtractor.extract(element, context);
 
-			expect(result.mediaElement.width).toBe(640);
-			expect(result.mediaElement.height).toBe(480);
+			expect(result.mediaElement?.width).toBe(640);
+			expect(result.mediaElement?.height).toBe(480);
 		});
 
 		test('extracts every source and every caption, subtitle and description track', () => {
@@ -160,11 +160,11 @@ describe('standardMediaExtractor', () => {
 				height: 180,
 				crossOrigin: 'anonymous',
 			});
-			expect(result.mediaElement.sources).toEqual([
+			expect(result.mediaElement?.sources).toEqual([
 				{ src: 'clip.webm', mimeType: 'video/webm' },
 				{ src: 'clip.mp4', mimeType: 'video/mp4' },
 			]);
-			expect(result.mediaElement.tracks).toEqual([
+			expect(result.mediaElement?.tracks).toEqual([
 				{ kind: 'captions', srclang: 'en', label: 'English', src: 'captions-en.vtt', default: true },
 				{ kind: 'subtitles', srclang: 'es', label: 'Español', src: 'subtitles-es.vtt' },
 				{ kind: 'descriptions', srclang: 'en', src: 'descriptions.vtt' },
@@ -189,7 +189,7 @@ describe('standardMediaExtractor', () => {
 			const element = parseQTI(xml);
 			const result = standardMediaExtractor.extract(element, createTestContext(element, 'RESPONSE'));
 
-			expect(result.mediaElement.tracks?.map((track) => track.default ?? false)).toEqual([true, true, false]);
+			expect(result.mediaElement?.tracks?.map((track) => track.default ?? false)).toEqual([true, true, false]);
 		});
 
 		test('extracts QTI 3.0 qti-media-interaction video sources and tracks', () => {
@@ -215,8 +215,8 @@ describe('standardMediaExtractor', () => {
 			expect(result.minPlays).toBe(1);
 			expect(result.maxPlays).toBe(2);
 			expect(result.prompt).toBe('Watch the clip.');
-			expect(result.mediaElement.sources).toEqual([{ src: 'clip.mp4', mimeType: 'video/mp4' }]);
-			expect(result.mediaElement.tracks).toEqual([
+			expect(result.mediaElement?.sources).toEqual([{ src: 'clip.mp4', mimeType: 'video/mp4' }]);
+			expect(result.mediaElement?.tracks).toEqual([
 				{ kind: 'captions', srclang: 'en', label: 'English captions', src: 'captions.vtt' },
 			]);
 		});
@@ -250,11 +250,11 @@ describe('standardMediaExtractor', () => {
 
 			const result = standardMediaExtractor.extract(element, context);
 
-			expect(result.mediaElement.type).toBe('object');
-			expect(result.mediaElement.src).toBe('media.mp3');
-			expect(result.mediaElement.mimeType).toBe('audio/mpeg');
-			expect(result.mediaElement.width).toBe(400);
-			expect(result.mediaElement.height).toBe(300);
+			expect(result.mediaElement?.type).toBe('object');
+			expect(result.mediaElement?.src).toBe('media.mp3');
+			expect(result.mediaElement?.mimeType).toBe('audio/mpeg');
+			expect(result.mediaElement?.width).toBe(400);
+			expect(result.mediaElement?.height).toBe(300);
 			expect(result.minPlays).toBe(2);
 		});
 
@@ -338,7 +338,7 @@ describe('standardMediaExtractor', () => {
 
 	describe('validation', () => {
 		test('validates correct media data', () => {
-			const data = {
+			const data: MediaData = {
 				mediaElement: { type: 'audio', src: 'audio.mp3', mimeType: 'audio/mpeg' },
 				autostart: false,
 				minPlays: 0,
@@ -354,7 +354,7 @@ describe('standardMediaExtractor', () => {
 		});
 
 		test('reports error for missing mediaElement', () => {
-			const data = {
+			const data: MediaData = {
 				mediaElement: null,
 				autostart: false,
 				minPlays: 0,
@@ -370,7 +370,7 @@ describe('standardMediaExtractor', () => {
 		});
 
 		test('reports error when maxPlays < minPlays', () => {
-			const data = {
+			const data: MediaData = {
 				mediaElement: { type: 'audio', src: 'audio.mp3', mimeType: 'audio/mpeg' },
 				autostart: false,
 				minPlays: 5,
@@ -386,7 +386,7 @@ describe('standardMediaExtractor', () => {
 		});
 
 		test('reports warning when loop is true with maxPlays', () => {
-			const data = {
+			const data: MediaData = {
 				mediaElement: { type: 'audio', src: 'audio.mp3', mimeType: 'audio/mpeg' },
 				autostart: false,
 				minPlays: 0,

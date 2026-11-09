@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardOrderExtractor } from '../../../src/interactions/order/extractor.js';
+import { type OrderData, standardOrderExtractor } from '../../../src/interactions/order/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardOrderExtractor', () => {
@@ -161,12 +161,14 @@ describe('standardOrderExtractor', () => {
 
 	describe('validation', () => {
 		test('validates correct order data', () => {
-			const data = {
+			const data: OrderData = {
 				choices: [
 					{ identifier: 'A', text: 'Item A' },
 					{ identifier: 'B', text: 'Item B' },
 				],
 				shuffle: false,
+				minChoices: 0,
+				maxChoices: 0,
 				prompt: null,
 			};
 
@@ -177,9 +179,11 @@ describe('standardOrderExtractor', () => {
 		});
 
 		test('reports error for insufficient choices', () => {
-			const data = {
+			const data: OrderData = {
 				choices: [{ identifier: 'A', text: 'Item A' }],
 				shuffle: false,
+				minChoices: 0,
+				maxChoices: 0,
 				prompt: null,
 			};
 
@@ -190,12 +194,14 @@ describe('standardOrderExtractor', () => {
 		});
 
 		test('reports error for missing identifiers', () => {
-			const data = {
+			const data: OrderData = {
 				choices: [
 					{ identifier: 'A', text: 'Item A' },
 					{ identifier: '', text: 'Item B' },
 				],
 				shuffle: false,
+				minChoices: 0,
+				maxChoices: 0,
 				prompt: null,
 			};
 
@@ -206,12 +212,14 @@ describe('standardOrderExtractor', () => {
 		});
 
 		test('reports error for duplicate identifiers', () => {
-			const data = {
+			const data: OrderData = {
 				choices: [
 					{ identifier: 'A', text: 'Item A' },
 					{ identifier: 'A', text: 'Item B' },
 				],
 				shuffle: false,
+				minChoices: 0,
+				maxChoices: 0,
 				prompt: null,
 			};
 
@@ -226,9 +234,11 @@ describe('standardOrderExtractor', () => {
 			for (let i = 1; i <= 15; i++) {
 				choices.push({ identifier: `ITEM_${i}`, text: `Item ${i}` });
 			}
-			const data = {
+			const data: OrderData = {
 				choices,
 				shuffle: false,
+				minChoices: 0,
+				maxChoices: 0,
 				prompt: null,
 			};
 

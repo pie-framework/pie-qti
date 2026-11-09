@@ -16,6 +16,6 @@ describe('Player without an i18n provider', () => {
 		const i18n = new Player({ itemXml: xml }).getI18nProvider();
 		expect(i18n.getLocale()).toBe('en-US');
 		expect(i18n.t('common.submit')).toBe('Submit');
-		expect(i18n.getDirection()).toBe('ltr');
+		expect(i18n.getDirection?.()).toBe('ltr');
 	});
 });

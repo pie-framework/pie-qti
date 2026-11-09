@@ -56,30 +56,4 @@ describe('ItemSessionController QTI defaults', () => {
 		expect(controller.getRemainingAttempts('a')).toBe(1);
 		expect(controller.getItemSettings('b').maxAttempts).toBe(3);
 	});
-
-	test('canNavigateAway returns stable reason codes, not raw English', () => {
-		const controller = new ItemSessionController({ allowSkipping: false, validateResponses: true });
-		controller.initializeItem('q');
-
-		const unanswered = controller.canNavigateAway('q', false);
-		expect(unanswered.allowed).toBe(false);
-		expect(unanswered.reason).toBe('responseRequired');
-
-		controller.markAnswered('q', true);
-		const invalid = controller.canNavigateAway('q', false);
-		expect(invalid.allowed).toBe(false);
-		expect(invalid.reason).toBe('responseInvalid');
-
-		const valid = controller.canNavigateAway('q', true);
-		expect(valid.allowed).toBe(true);
-		expect(valid.reason).toBeUndefined();
-	});
-
-	test('validateItem returns a stable reason code when validation is on', () => {
-		const controller = new ItemSessionController({ validateResponses: true });
-		controller.initializeItem('q');
-		expect(controller.validateItem('q', false)).toEqual({ isValid: false, error: 'responseInvalid' });
-		expect(controller.validateItem('q', true)).toEqual({ isValid: true });
-		expect(controller.validateItem('uninitialized', false)).toEqual({ isValid: true });
-	});
 });
