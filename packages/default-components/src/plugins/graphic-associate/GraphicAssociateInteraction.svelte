@@ -492,7 +492,7 @@
 						<button
 							type="button"
 							part="hotspot"
-							class="qti-ga-hotspot"
+							class="qti-ga-hotspot qti-graphic-control"
 							class:qti-ga-hotspot-round={hotspot.shape === 'circle' || hotspot.shape === 'ellipse'}
 							class:qti-ga-hotspot-default={hotspot.shape === 'default'}
 							class:qti-ga-hotspot-selected={isSelected}
@@ -804,10 +804,7 @@
 	.qti-ga-hotspot-selected :global(.qti-ga-hit-area) {
 		fill: color-mix(in srgb, var(--pie-qti-primary, #4338ca) 35%, transparent);
 	}
-	.qti-ga-hotspot:focus-visible {
-		outline: 2px solid var(--pie-qti-focus, #4338ca);
-		outline-offset: 2px;
-	}
+	/* Focus: the shared offset outline ring in ImageStage's sheet (WCAG 2.4.7). */
 	.qti-ga-hotspot-unavailable :global(.qti-ga-hit-area),
 	.qti-ga-hotspot:disabled :global(.qti-ga-hit-area),
 	.qti-ga-hotspot[aria-disabled='true'] :global(.qti-ga-hit-area) {

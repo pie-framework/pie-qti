@@ -84,9 +84,13 @@ test.describe('hotspot multiple selection in the real custom element', () => {
 		await expect(star).toHaveAttribute('aria-pressed', 'true');
 		await expect(page.getByTestId('response')).toHaveText('["SUN","STAR"]');
 
-		// The focus ring is drawn on the region outline.
+		// The star is selected AND keyboard-focused here: the shared offset ring is
+		// its focus indicator — the region's halo layer widens into a focus-coloured
+		// ring around the region, distinct from the selected outline by geometry
+		// (WCAG 2.4.7).
 		expect(await star.evaluate((element) => element.matches(':focus-visible'))).toBe(true);
-		await expect(star).toHaveCSS('stroke-width', '3px');
+		await expect(star.locator('xpath=ancestor::g[1]').locator('.qti-graphic-halo')).toHaveCSS('stroke-width', '12px');
+		await expect(star.locator('xpath=ancestor::g[1]').locator('.qti-graphic-halo')).toHaveCSS('stroke', 'rgb(67, 56, 202)');
 		// Toggle buttons with aria-pressed, never radios: valid ARIA.
 		expect((await scan(page, 'pie-qti-hotspot')).violations).toEqual([]);
 

@@ -391,7 +391,7 @@
 					<!-- A region's visible layers: light halo + dark outline (visible on any image), and a
 					     check marker for selected/correct (not colour alone). -->
 					{#snippet regionVisuals(choice: HotspotChoice, selected: boolean, correct: boolean)}
-						<HotspotShape shape={choice.shape} coords={choice.coords} interactive={false} presentation={{ class: 'qti-hotspot-halo' }} />
+						<HotspotShape shape={choice.shape} coords={choice.coords} interactive={false} presentation={{ class: 'qti-hotspot-halo qti-graphic-halo' }} />
 						<HotspotShape shape={choice.shape} coords={choice.coords} interactive={false} presentation={{ class: 'qti-hotspot-outline' }} />
 						{#if selected || correct}
 							{@const at = markerPoint(choice)}
@@ -416,7 +416,7 @@
 							{@const regionSelected = isSelected(choice.identifier)}
 							{@const isCorrectChoice = isCorrect(choice.identifier)}
 							<g
-								class="qti-hotspot-backdrop"
+								class="qti-hotspot-backdrop qti-graphic-region"
 								data-selected={regionSelected ? '' : undefined}
 								data-correct={isCorrectChoice ? '' : undefined}
 							>
@@ -439,7 +439,7 @@
 						<!-- One region: its visible layers, then the invisible interactive target on
 						     top, grown to 24×24 CSS px when small. -->
 						<g
-							class="qti-hotspot-region"
+							class="qti-hotspot-region qti-graphic-region"
 							data-selected={regionSelected ? '' : undefined}
 							data-correct={isCorrectChoice ? '' : undefined}
 						>
@@ -620,17 +620,16 @@
 	.qti-hotspot-overlay[data-disabled] :global(:is(.qti-hotspot-shape, .qti-hotspot-pointer-target)) {
 		cursor: not-allowed;
 	}
-	/* Focus indicator drawn on the region outline (WCAG 2.4.7), haloed for any background */
-	.qti-hotspot-overlay :global(.qti-hotspot-shape:focus-visible) {
+	/*
+	 * Focus indicator: the shared offset ring in ImageStage's sheet — focus-within
+	 * on the region colours and widens its halo layer into a ring around the
+	 * region, distinct from the selected outline (WCAG 2.4.7). A default-shape
+	 * region's control sits in the authored loop while its halo paints in the
+	 * backdrop beneath the other regions, so its ring is bridged here.
+	 */
+	.qti-hotspot-overlay:has(:global(.qti-hotspot-shape-default:focus-visible)) :global(.qti-hotspot-backdrop .qti-graphic-halo) {
 		stroke: var(--pie-qti-focus, #4338ca);
-		stroke-width: 3px;
-	}
-	.qti-hotspot-overlay :global(.qti-hotspot-region:focus-within .qti-hotspot-halo) {
-		stroke-width: 9px;
-	}
-	/* A default-shape region's halo is in its backdrop, beneath the other regions */
-	.qti-hotspot-overlay:has(:global(.qti-hotspot-shape-default:focus-visible)) :global(.qti-hotspot-backdrop .qti-hotspot-halo) {
-		stroke-width: 9px;
+		stroke-width: 12px;
 	}
 
 	/* qti-unselected-hidden: unselected regions show only while focused; they stay operable */

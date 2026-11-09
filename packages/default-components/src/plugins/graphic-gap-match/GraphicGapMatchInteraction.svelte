@@ -662,14 +662,14 @@ function handleRootKeyDown(event: KeyboardEvent) {
 								{@const hotspotReady = !!pickedUpLabel && !disabled && !isBlocked}
 								{@const center = shapeCenter(hotspot.shape, hotspot.coords)}
 								<g
-									class="qti-ggm-zone qti-ggm-backdrop"
+									class="qti-ggm-zone qti-ggm-backdrop qti-graphic-region"
 									data-filled={matchedGapText ? '' : undefined}
 									data-correct={!matchedGapText && isCorrect ? '' : undefined}
 									data-ready={hotspotReady ? '' : undefined}
 									data-hovered={hoveredHotspotId === hotspot.identifier ? '' : undefined}
 									data-blocked={isBlocked ? '' : undefined}
 								>
-									<HotspotShape shape={hotspot.shape} coords={hotspot.coords} interactive={false} presentation={{ class: 'qti-ggm-halo' }} />
+									<HotspotShape shape={hotspot.shape} coords={hotspot.coords} interactive={false} presentation={{ class: 'qti-ggm-halo qti-graphic-halo' }} />
 									<HotspotShape shape={hotspot.shape} coords={hotspot.coords} interactive={false} presentation={{ class: 'qti-ggm-outline' }} />
 									{#if matchedLabelName || (isCorrect && correctLabelName)}
 										<text
@@ -718,14 +718,14 @@ function handleRootKeyDown(event: KeyboardEvent) {
 							     placed label's text (not colour alone), then the interactive target on
 							     top, grown to 24×24 CSS px when small. -->
 							<g
-								class="qti-ggm-zone"
+								class="qti-ggm-zone qti-graphic-region"
 								data-filled={matchedGapText ? '' : undefined}
 								data-correct={!matchedGapText && isCorrect ? '' : undefined}
 								data-ready={hotspotReady ? '' : undefined}
 								data-hovered={isHovered ? '' : undefined}
 								data-blocked={isBlocked ? '' : undefined}
 							>
-								<HotspotShape shape={hotspot.shape} coords={hotspot.coords} interactive={false} presentation={{ class: 'qti-ggm-halo' }} />
+								<HotspotShape shape={hotspot.shape} coords={hotspot.coords} interactive={false} presentation={{ class: 'qti-ggm-halo qti-graphic-halo' }} />
 								<HotspotShape shape={hotspot.shape} coords={hotspot.coords} interactive={false} presentation={{ class: 'qti-ggm-outline' }} />
 
 								{#if matchedLabelName || (isCorrect && correctLabelName)}
@@ -926,14 +926,11 @@ function handleRootKeyDown(event: KeyboardEvent) {
 		pointer-events: auto;
 		outline: none;
 	}
-	/* Focus indicator drawn on the zone outline (WCAG 2.4.7), haloed for any background */
-	.qti-ggm-overlay :global(.qti-ggm-hotspot:focus-visible) {
-		stroke: var(--pie-qti-focus, #4338ca);
-		stroke-width: 3px;
-	}
-	.qti-ggm-overlay :global(.qti-ggm-zone:focus-within .qti-ggm-halo) {
-		stroke-width: 9px;
-	}
+	/*
+	 * Focus indicator: the shared offset ring in ImageStage's sheet — focus-within
+	 * on the zone colours and widens its halo layer into a ring around the zone,
+	 * distinct from the filled/ready outline (WCAG 2.4.7).
+	 */
 
 	/* qti-unselected-hidden: empty drop zones show only while focused; they stay operable */
 	.qti-graphic-gap-match-interaction.qti-unselected-hidden :global(.qti-ggm-zone:not([data-filled]):not(:focus-within) :is(.qti-ggm-halo, .qti-ggm-outline)) {

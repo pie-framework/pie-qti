@@ -378,4 +378,24 @@
 	.qti-dc-background-error p {
 		margin: 0;
 	}
+
+	/*
+	 * Focus on a graphic region (WCAG 2.4.7): one rule for every graphic
+	 * interaction, because a region that is both selected and focused otherwise
+	 * shows two nearly identical thick outlines. The indicator is an offset
+	 * outer ring — a focus-coloured ring around the region, drawn by widening
+	 * its halo layer for the SVG-shape regions, or an offset outline for the
+	 * HTML-button controls — so focus reads by geometry, not colour alone, and
+	 * keeps at least 3:1 against adjacent colours from the theme's focus token.
+	 * The doubled region class out-specifics the callers' selected-state halo
+	 * widths, so the ring wins on a selected region too.
+	 */
+	.qti-graphic-region.qti-graphic-region:focus-within .qti-graphic-halo {
+		stroke: var(--pie-qti-focus, #4338ca);
+		stroke-width: 12px;
+	}
+	.qti-graphic-control:focus-visible {
+		outline: 3px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
+	}
 </style>
