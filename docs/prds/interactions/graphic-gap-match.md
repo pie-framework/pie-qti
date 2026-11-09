@@ -75,7 +75,7 @@ When `role="scorer"` and `correctResponse` is provided, the label pool (the `gap
 | `responseIdentifier` | ✅ Full | Extracted as `responseId`; used in `qti-change` event payload |
 | `maxAssociations` | ✅ Full | Extracted into `GraphicGapMatchInteractionData.maxAssociations` (0 = unlimited). An absent attribute takes the per-version spec default: 1 for QTI 2.2 and 3.0, no cap (0) for QTI 2.1, which has no such attribute (see the default note under Known gaps). **Enforced by the UI**: a placement that would exceed the cap is refused and announced (author's `data-max-selections-message` wins). Engine response validation rejects over-limit responses at submit. |
 | `data-max-selections-message` | ✅ Full | Author's message for a refused placement past `maxAssociations`; delivered as `maxSelectionsMessage` and announced verbatim. |
-| `minAssociations` | ❌ Not extracted | Spec: minimum total pairs required; not extracted; not enforced |
+| `minAssociations` | ✅ Full | Extracted into `GraphicGapMatchInteractionData.minAssociations` when above 0 (absent or `0`: no minimum). **Enforced by response validation**: `Player.validateResponses()` reports a response with fewer pairs incomplete, and `endAttempt` with `validateResponses` rejects it (see Resolved gaps). The default component does not state the minimum yet; authors state it in the prompt. |
 
 ### Supported attributes on `gapText`
 
@@ -120,6 +120,8 @@ When `role="scorer"` and `correctResponse` is provided, the label pool (the `gap
 **G-01: `matchGroup`** (`docs/SPEC-GAPS-PLAN.md` §G-01, Done). QTI 2.2 and 3.0 define `matchGroup` on `gapText`, `gapImg` and `associableHotspot` as "a list of the identifiers for the objects that can be matched with" it (QTI 2.2.4 ASI Information Model, Tables 5.39.4, 5.37.4, 5.5.4; QTI 3.0, Tables 5.58.4, 5.56.4, 5.7.4). The component decides every placement with `isMatchGroupCompatible` from `@pie-qti/item-player`, the rule `Player.validateResponses()` applies: while a label is held or dragged, the hotspots that refuse it are `aria-disabled`, dimmed, named "Not available due to a match group restriction." and do not accept a drag; a refused keyboard placement keeps the label held and announces why. The label being dragged is judged on its own, even when another label is held from the keyboard. The rule accepts a pairing when either reading allows it: the specification's (label and hotspot name each other) or the shared-group-label reading some content uses (shared token; a side without `matchGroup` is unrestricted). `matchGroup` constrains label–hotspot pairs only: placing one label never makes another unavailable.
 
 **`gapImg`**: extracted and rendered (see `gapImg` element above).
+
+**`minAssociations` (fixed 2026-11-09):** QTI 2.2 and QTI 3.0 (§5.60.1 `min-associations`) define it as "the minimum number of associations that the candidate is required to make to form a valid response. If min-associations is 0 then the candidate is not required to make any associations." QTI 2.1 has no such attribute. The extractor delivers it when above 0, and `Player.validateResponses()` reports a response with fewer pairs incomplete, so `endAttempt` with `validateResponses` rejects it.
 
 ### Known gaps
 
@@ -267,6 +269,8 @@ interface GraphicGapMatchInteractionData extends BaseInteractionData {
   responseId: string;          // from responseIdentifier attribute
   prompt: string | null;       // HTML content of <prompt> child, or null
   imageData: ImageData | null; // background image (SVG inline or raster src)
+  maxAssociations: number;     // per-version default for an absent attribute; 0 = unlimited
+  minAssociations?: number;    // present only when above 0; a valid response makes this many pairs
   gapTexts: Array<{
     identifier: string;        // from gapText identifier attribute
     text: string;              // HTML content of gapText element

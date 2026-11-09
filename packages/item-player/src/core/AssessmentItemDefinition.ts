@@ -10,7 +10,7 @@ import {
 import type { I18nProvider } from '@pie-qti/i18n';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 import { resolveCheckedPackagePathFromFile } from '@pie-qti/ims-cp-core';
-import type { ProcessingFragmentResolver, QtiValue } from '@pie-qti/qti-processing';
+import type { ProcessingFragmentResolver, QtiValue, StringComparisonOptions } from '@pie-qti/qti-processing';
 import {
 	createExtractionRegistry,
 	registerFrameworkDeliveryFields,
@@ -75,6 +75,17 @@ export interface AssessmentItemDefinitionConfig {
 			(args: QtiValue[], meta: { class?: string; definition?: string }) => QtiValue
 		>
 	>;
+	/**
+	 * How response processing compares `string` values, for the input the host's candidates use.
+	 * By default it compares as QTI defines (`match` is true when the values are "the same value",
+	 * QTI 3.0 §6.9.21): exactly, up to Unicode canonical equivalence, with case folded only where
+	 * the item asks for it (`stringMatch` and `mapEntry` caseSensitive false). Set
+	 * `foldScriptInput` for input methods that add bidi marks, tatweel or presentation forms to
+	 * right-to-left text, or to accept other scripts' digits in string answers; set
+	 * `foldLetterVariants` to also accept Arabic spelling variants. Numbers typed into integer and
+	 * float responses read digits in any script either way.
+	 */
+	readonly stringComparison?: Readonly<StringComparisonOptions>;
 	readonly resolveProcessingFragment?: ProcessingFragmentResolver;
 	readonly processingFragmentLimits?: Readonly<{
 		/** Maximum nested xi:include depth. Default: 16. */
@@ -211,6 +222,9 @@ function snapshotDefinitionConfig(input: AssessmentItemDefinitionConfig): Readon
 		...(input.pci ? { pci: Object.freeze({ ...input.pci }) } : {}),
 		...(input.customOperators
 			? { customOperators: Object.freeze({ ...input.customOperators }) }
+			: {}),
+		...(input.stringComparison
+			? { stringComparison: Object.freeze({ ...input.stringComparison }) }
 			: {}),
 		...(input.security ? { security: freezePlainSnapshot(input.security) } : {}),
 		...(input.pnp ? { pnp: freezePlainSnapshot(input.pnp) } : {}),
