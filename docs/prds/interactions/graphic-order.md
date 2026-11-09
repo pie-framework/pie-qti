@@ -19,21 +19,21 @@
 
 `graphicOrderInteraction` / `qti-graphic-order-interaction` is a QTI interaction type that asks a candidate to arrange labelled regions of an image into a specific sequence. The candidate is shown a background image overlaid with `associableHotspot` regions; they interact with those regions (by clicking/tapping or dragging in the reorder list) to establish an order. The response is an `ordered`-cardinality variable of `identifier` baseType — a ranked list of hotspot identifiers. This interaction is the graphical counterpart of `orderInteraction`: the choices are spatial regions on an image rather than plain text labels.
 
-In this implementation, the hotspot coordinates are used by the extractor to record spatial metadata but the primary candidate-facing UI is a sortable list panel rendered beside (or below) the image. Candidates drag list items or use keyboard controls to establish the sequence; sequence numbers (1, 2, …) are shown as badges on each list item. The image serves as the visual context that motivates the ordering task but is not itself the interactive surface.
+In this implementation the primary candidate-facing UI is a sortable list panel rendered beside (or below) the image. Candidates drag list items or use keyboard controls to establish the sequence; sequence numbers (1, 2, …) are shown as badges on each list item. The image shows every hotspot's area, outlined, and each placed area carries the same sequence number as its list item, so the candidate sees which area each entry names; the image is not itself the interactive surface.
 
 ---
 
 ## Background and rationale
 
-### Why coordinates are metadata, not the interactive surface
+### Why coordinates draw the areas but are not the interactive surface
 
-The QTI spec defines `associableHotspot` regions with `shape` and `coords` attributes and notes that delivery engines should "display numbers or other indicators showing the selection order." The spec is deliberately silent on the precise interaction modality — click-in-sequence on the image, drag-and-drop, or a separate list are all valid implementations.
+The QTI spec defines `associableHotspot` regions with `shape` and `coords` attributes and notes that delivery engines should "display numbers or other indicators showing the selection order." The spec is deliberately silent on the precise interaction modality — click-in-sequence on the image, drag-and-drop, or a separate list are all valid implementations. It does require that "the delivery engine must clearly indicate all defined area(s) of the image" (QTI 3.0 §5.61).
 
-A click-in-sequence approach (click hotspot 1, click hotspot 2, …) requires pixel-accurate hit-testing of arbitrarily shaped regions rendered on a responsive image. Image scaling, fractional device pixels, and the need to deselect and re-sequence make this fragile on mobile and complex to make accessible. Instead, the implementation renders a separate sortable list beneath the image. The image provides the ordering context (a soil cross-section, a process diagram, a flowchart); the list provides the sequencing surface. Hotspot `shape`/`coords` attributes are extracted and stored for future use (e.g. rendering sequence number overlays on the image, or for custom renderers that do prefer click-in-sequence), but the default component does not use them for interaction.
+A click-in-sequence approach (click hotspot 1, click hotspot 2, …) requires pixel-accurate hit-testing of arbitrarily shaped regions rendered on a responsive image. Image scaling, fractional device pixels, and the need to deselect and re-sequence make this fragile on mobile and complex to make accessible. Instead, the implementation renders a separate sortable list beneath the image. The image provides the ordering context (a soil cross-section, a process diagram, a flowchart); the list provides the sequencing surface. Hotspot `shape`/`coords` draw each area on the image (an SVG overlay in the image's own pixel space) with its position in the order; custom renderers that prefer click-in-sequence can use them for interaction.
 
 ### Why the image is passive, not interactive
 
-Making the image interactive at the hotspot level requires the component to composite sequence-number badges at the correct image coordinates on every screen size and device pixel ratio. This is possible but adds significant complexity, particularly for SVG content where coordinates are in the SVG viewBox space, not CSS pixels. Deferring that complexity to a future enhancement (or to custom renderers) keeps the default component simple, accessible by default, and mobile-safe. The image is still present and visible — it is the semantic anchor that gives the list items their meaning.
+The areas overlay is visual only — hidden from assistive technology and taking no pointer input — because the list already gives every hotspot a keyboard-, pointer- and screen-reader-operable control, and a second, image-based control for the same choice would duplicate it. The overlay uses the same `viewBox` sizing as the hotspot interaction, so the browser scales the areas with the image at any screen size; badges are drawn at a constant CSS size. The image remains the semantic anchor that gives the list items their meaning.
 
 ### Why a confirmation step exists
 
@@ -69,8 +69,8 @@ The QTI 2.x spec uses `hotspotChoice` as the child element name for `graphicOrde
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `identifier` | ✅ Full | Required; deduplicated; becomes the response value for this hotspot position |
-| `shape` | ✅ Extracted | Extracted and stored in `GraphicOrderChoice.shape`. Supported values: `rect`, `circle`, `poly`, `ellipse`. Default: `rect`. Not used for hit-testing in the default component; available for custom renderers. |
-| `coords` | ✅ Extracted | Extracted and stored in `GraphicOrderChoice.coords`. Default: `0,0,50,50`. Not used for rendering in the default component; available for custom renderers. |
+| `shape` | ✅ Full | Extracted and stored in `GraphicOrderChoice.shape`. Supported values: `rect`, `circle`, `poly`, `ellipse`, `default` (the whole image). Default: `rect`. Drawn on the image as the area's outline; not used for hit-testing (the list is the control). |
+| `coords` | ✅ Full | Extracted and stored in `GraphicOrderChoice.coords`. Default: `0,0,50,50`. Places the area's outline and position badge on the image. |
 | `fixed` | ✅ Extracted (boolean) | Extracted and stored as `fixed?: boolean`. In QTI 2.x, `fixed` (inherited from `choice`) holds a choice's position against the delivery engine's shuffling. `graphicOrderInteraction` does not shuffle, so it has no effect here, and QTI 3.0 drops it from hotspot choices (§5.67). It never stops the candidate reordering. |
 | `matchMax` | ❌ Not applicable | `matchMax` is an attribute of `associableHotspot` (used in `graphicAssociateInteraction`), not `hotspotChoice`. Not present on graphic order hotspots. |
 | text content | ✅ Full | Text content of the `hotspotChoice` element becomes `label`; falls back to `identifier` if empty. Used as the visible text in the sortable list. |
@@ -98,15 +98,17 @@ The `coords` attribute uses the same HTML image map coordinate convention as `ho
 - **`poly`**: `x1,y1,x2,y2,...,xN,yN` — polygon vertices in image pixels
 - **`ellipse`**: `cx,cy,rx,ry` — center plus x-radius and y-radius in image pixels
 
-Coordinates are in the natural (un-scaled) image pixel space. When the image is displayed at a different size than its natural dimensions, a consumer of these coordinates is responsible for applying the scale factor.
+Coordinates are in the natural (un-scaled) image pixel space. The areas overlay is an SVG whose `viewBox` is that space (the image's authored `width` and `height`), positioned exactly over the image, so the browser applies the scale factor at any rendered size.
 
 ### Known gaps
 
-- **The image does not show the hotspots.** QTI: "The delivery engine must clearly indicate all defined area(s) of the image" (QTI 2.1 graphicOrderInteraction; QTI 3.0 §5.61). The component draws only the image and the ordered list; the hotspot shapes and sequence numbers never appear on it. A candidate cannot tell which area a list entry names. This needs an SVG overlay over the image (the shared `HotspotShape` and `shapeBounds` draw every QTI shape) with each area's ordinal. Coordinate-to-CSS-pixel scaling comes from the image's authored width and height, as in the other graphic interactions.
+None in the delivered behaviour above.
 
 Resolved since the previous review, and no longer gaps:
 
-- **`fixed` hotspot position-locking**: not a spec requirement. `fixed` constrains the delivery engine's shuffling, which this interaction does not do, and never the candidate (see the attribute table).- **`matchGroup` not applicable here:** `matchGroup` is an attribute of `associableHotspot` (used in `graphicAssociateInteraction` and related interactions), not `hotspotChoice`. It is not a gap for this interaction.
+- **The image shows the hotspots**: QTI 3.0 §5.61 — "The delivery engine must clearly indicate all defined area(s) of the image." Every area is outlined over the image (the shared `HotspotShape`), each placed one with its position in the order the list shows (see FR-17).
+- **`fixed` hotspot position-locking**: not a spec requirement. `fixed` constrains the delivery engine's shuffling, which this interaction does not do, and never the candidate (see the attribute table).
+- **`matchGroup` not applicable here:** `matchGroup` is an attribute of `associableHotspot` (used in `graphicAssociateInteraction` and related interactions), not `hotspotChoice`. It is not a gap for this interaction.
 
 ---
 
@@ -125,9 +127,10 @@ Resolved since the previous review, and no longer gaps:
 - **FR-11:** Accept a `response` prop (`string[]`) and synchronise the list order to it without re-emitting `qti-change`.
 - **FR-12:** When `response` is cleared (set to `null` or `[]`), reset the list to the authored order and clear the confirmed state.
 - **FR-13:** When `disabled=true`, all drag handles and the confirm button must be non-interactive. Disabled state must be visually distinct (reduced opacity, `cursor: not-allowed`).
-- **FR-14:** When `role='scorer'` and `correctResponse` is provided, visually distinguish each item that is in its correct position (green highlight, "Correct" badge). Do not reveal correct order to any other role.
+- **FR-14:** When `role='scorer'` and `correctResponse` is provided (correct-answer mode, the `createInteractionShell` rule shared by every interaction), visually distinguish each item that is in its correct position (green highlight, "Correct" badge). A scorer view without a correct response is the plain interaction. Do not reveal correct order to any other role.
 - **FR-15:** Render the `prompt` HTML content above the image when present.
 - **FR-16 (subset mode):** When `minChoices` is at least 1 and below the hotspot count, render the panel as two labelled zones — "Your order" (the sortable list, holding only the ordered hotspots, with position badges) and "Not in your order" (the other hotspots by label, with no position number) — shared with `orderInteraction` (see [order.md](order.md), FR-16 to FR-21). The order starts empty and the response is `null` until the candidate adds a hotspot; an emptied order is `null` again. Adding past the cap is refused and announced; the limits are stated where the unmet-minimum hint goes. There is no confirm control in subset mode, and the scorer view lists the authored subset under "Correct order".
+- **FR-17 (areas on the image):** Over the image, an SVG overlay in the image's natural pixel space (`viewBox` from the image's width and height, positioned exactly over it and scaling with it) outlines every hotspot's area in its shape — a light halo under the outline, visible on any image. Each placed area carries a badge with its position in the order the list shows: every hotspot in full ordering, only the ordered ones in subset ordering, whose other areas are dashed. Badges keep a constant CSS size at any image scale. The overlay is visual only: `aria-hidden`, no focusable content, `pointer-events: none`, so the list's keyboard and pointer controls are unchanged. No overlay is drawn over an image that failed to load.
 
 ---
 
@@ -155,7 +158,7 @@ Resolved since the previous review, and no longer gaps:
 
 - Drag-and-drop must be operable via touch on iOS Safari and Chrome for Android using the `touchDrag` action from `@pie-qti/qti-common`.
 - The layout must be usable on 375px viewport width (portrait phone) without horizontal scrolling.
-- The image container must scale down proportionally when the viewport is narrower than the image's natural width.
+- The image container must scale down proportionally when the viewport is narrower than the image's natural width; the areas overlay scales with it (it covers exactly the image box, whose aspect ratio is the image's), so areas stay on their features and badges stay legible at 320 px.
 
 ### Security
 
@@ -188,7 +191,7 @@ The subset zones' own labels, control names and announcements are the shared `in
 **Decision:** The primary interaction surface is a text list rendered beside/below the image, not clickable hotspot regions overlaid on the image.  
 **Rationale:** Click-in-sequence requires pixel-accurate hit-testing of potentially overlapping, arbitrarily shaped regions on a scaled image. On mobile, finger precision makes this error-prone; on desktop, overlap between adjacent regions makes the expected click target unclear. A sortable list is familiar (drag handles are a known UX pattern), reliable, and straightforwardly accessible via keyboard and screen reader. The image still provides the visual context that makes the ordering meaningful.  
 **Alternatives considered:** (1) Click-to-assign-sequence-number on each hotspot region — rejected due to hit-testing complexity and lack of a clear deselection model. (2) Drag from image to a slot list — rejected as it conflates two interaction patterns and is hard to operate one-handed on mobile.  
-**Consequences:** The hotspot `shape` and `coords` attributes are extracted and stored but are not used by the default rendering (see Known gaps). A future enhancement or custom renderer could use them to draw the areas and their ordinals on the image.
+**Consequences:** The hotspot `shape` and `coords` attributes draw each area and its position on the image (FR-17) but are not used for interaction. A custom renderer could use them for click-in-sequence.
 
 ### Auto-confirm on drag; explicit confirm button for initial/unchanged state
 
@@ -206,7 +209,7 @@ The subset zones' own labels, control names and announcements are the shared `in
 
 ### Props accept both parsed objects and JSON strings
 
-**Decision:** `interaction`, `response`, `correctResponse`, and `i18n` are each processed with `parseJsonProp` before use.  
+**Decision:** `interaction`, `response` and `correctResponse` are processed by `createInteractionShell` (`parseJsonProp`) before use, which also gives correct-answer mode: the `scorer` role with a correct response.  
 **Rationale:** When used as a native web component via HTML attributes, all prop values arrive as strings. When used as a Svelte component inside the item player, they arrive as typed objects. `parseJsonProp` handles both cases transparently. Without this, the web component usage would require a separate wrapper.  
 **Consequences:** Small runtime cost of attempting `JSON.parse` on every render for the web component case. Negligible for the number of hotspots typical in K-12 items (2–8).
 
@@ -484,7 +487,7 @@ AC-E9: Response reflects confirmed drag order on subsequent re-render
 
 ## Open questions
 
-- [ ] Should the default component overlay sequence number badges on the image at the hotspot coordinates (in addition to the list badges)? QTI requires the areas be clearly indicated (QTI 2.1 graphicOrderInteraction; QTI 3.0 §5.61), so marking them is a real gap (see Known gaps), not a stylistic choice. It needs an SVG overlay with `HotspotShape`/`shapeBounds` and the ordinals.
+- [x] Should the default component overlay sequence number badges on the image at the hotspot coordinates (in addition to the list badges)? (resolved) Yes: QTI requires the areas be clearly indicated (QTI 3.0 §5.61), so every area is outlined on the image and each placed one carries its position (FR-17).
 - [x] Should `maxChoices` and `minChoices` be extracted and enforced? Yes — both are extracted; a `minChoices` below the hotspot count switches the panel to the two-zone "pick k of n" UI shared with `orderInteraction`, and response validation enforces the same limits.
 - [x] Should `fixed` hotspot position-locking be enforced in the sortable list? (resolved) No: in QTI 2.x `fixed` constrains the delivery engine's shuffling, not the candidate, and QTI 3.0 hotspot choices have no `fixed` (§5.67).
 - [ ] Should the image be clickable (click-in-sequence) as an alternative input modality alongside the sortable list? This would require hit-testing and deselection logic.
@@ -495,9 +498,10 @@ AC-E9: Response reflects confirmed drag order on subsequent re-render
 
 - QTI spec: `docs/QTI_techguide.md` §3.3.3 graphicOrderInteraction
 - Response processing: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
-- Spec gaps: `docs/SPEC-GAPS-PLAN.md` — no gap items currently assigned to graphicOrderInteraction; the area-marking gap documented above is reported for a fix
+- Spec gaps: `docs/SPEC-GAPS-PLAN.md` — no gap items assigned to graphicOrderInteraction; the area-marking gap this PRD once listed is resolved
 - Component: `packages/default-components/src/plugins/graphic-order/GraphicOrderInteraction.svelte`
-- Shared component: `packages/default-components/src/shared/components/SortableList.svelte`
+- Shared components: `packages/default-components/src/shared/components/SortableList.svelte`; `HotspotShape.svelte` (the area outlines)
+- Browser checks: `apps/demo/tests/playwright/graphic-interactions.pw.ts` (the areas follow the list; the overlay scales with the image on a 320 px touch screen)
 - Extractor: `packages/item-player/src/interactions/graphic-order/extractor.ts`
 - Type: `packages/item-player/src/interactions/shared/types.ts` — `GraphicOrderInteractionData`, `GraphicOrderChoice`
 - Extractor tests: `packages/item-player/tests/extraction/extractors/graphicOrderExtractor.test.ts`
