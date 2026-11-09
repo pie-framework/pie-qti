@@ -35,6 +35,8 @@ export interface ImageData {
 export interface GraphicGapMatchData {
 	imageData: ImageData | null;
 	maxAssociations: number;
+	/** QTI `minAssociations`, the associations a valid response makes; omitted when 0. */
+	minAssociations?: number;
 	gapTexts: Array<{
 		identifier: string;
 		text: string;
@@ -148,6 +150,10 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 			'maxAssociations',
 			predatesQti22(context) ? 0 : 1,
 		);
+		// minAssociations (QTI 2.2; QTI 3.0 §5.60.1 min-associations): "The minimum number of
+		// associations that the candidate is required to make to form a valid response. If
+		// min-associations is 0 then the candidate is not required to make any associations."
+		const minAssociations = utils.getNumberAttribute(element, 'minAssociations', 0);
 
 		// Extract gapText children (draggable text labels)
 		const gapTextElements = utils.getChildrenByTag(element, 'gapText');
@@ -241,6 +247,7 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 		return {
 			imageData,
 			maxAssociations,
+			...(minAssociations > 0 ? { minAssociations } : {}),
 			gapTexts,
 			gapImages,
 			hotspots,
