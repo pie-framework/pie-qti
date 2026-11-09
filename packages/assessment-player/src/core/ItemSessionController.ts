@@ -16,6 +16,8 @@
  * Settings apply per item where `setItemSettings` has set them, and fall back to the shared settings.
  */
 
+import { resolveMaxAttempts } from './feedback.js';
+
 export interface ItemSessionControlSettings {
 	maxAttempts?: number; // default 1; 0 = unlimited (adaptive items)
 	showFeedback?: boolean;
@@ -148,6 +150,12 @@ export class ItemSessionController {
 	 * Check if feedback should be shown for an item. QTI is attempt-relative here: with
 	 * more than one attempt allowed (or unlimited attempts), feedback for every non-final
 	 * attempt must be shown; once the last attempt has been used, `showFeedback` governs.
+	 *
+	 * This is the session-info view of that rule (`getItemSessionInfo().showFeedback`),
+	 * deliberately narrower than the presentation rule in `feedback.ts`: nothing shows
+	 * before the item's first submission, the count is the live recorded one, and an
+	 * adaptive item is unlimited only through its resolved settings (the session
+	 * controller sees settings, never item XML).
 	 */
 	shouldShowFeedback(itemIdentifier: string): boolean {
 		const state = this.sessionStates.get(itemIdentifier);
@@ -157,8 +165,8 @@ export class ItemSessionController {
 
 		const settings = this.settingsFor(itemIdentifier);
 		if (settings.showFeedback === true) return true;
-		const maxAttempts = settings.maxAttempts ?? 1;
-		return maxAttempts === 0 || (maxAttempts > 1 && state.attemptCount < maxAttempts);
+		const maxAttempts = resolveMaxAttempts(settings, false);
+		return maxAttempts === null || (maxAttempts > 1 && state.attemptCount < maxAttempts);
 	}
 
 	/**
