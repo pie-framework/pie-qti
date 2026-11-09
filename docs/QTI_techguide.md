@@ -1503,7 +1503,7 @@ semantics.
 </div>
 ```
 
-**Structured Labels:** Part of the wider PNP model, but not implemented by the current player.
+**Structured Labels:** `pnp.display.structuredLabelSupport: true` (a player extension: neither APIP 1.0 nor AfA PNP 3.0 defines a structured-label feature) makes the match interaction one `role="group"` named by its prompt and names each answer column by its visible heading. The choice interaction needs no flag: its answer set is always one `role="group"`, named by an authored accessibility label, else by its prompt. See [PNP: structured labels](../packages/item-player/docs/PNP.md#structured-labels).
 
 **Keyword Translation:** When `keywordTranslation` is active, terms linked to catalog entries (see Section 6.3) are automatically presented with translations in the specified language.
 

@@ -792,12 +792,12 @@ glossary/keyword-translation trigger UI are shipped. The color scheme is written
 `data-qti-colorscheme` on the player root and the rulesets ship: `qti-pnp.css` in
 `@pie-qti/default-components` (exported as `./qti-pnp.css`, copied into the web-component loaders'
 `default-runtime.css`) styles every scheme plus inverted polarity, single-column layout, and text
-appearance, with the scheme tokens inheriting into shadow roots. Specialist features such as
-structured labels and braille routing remain deferred under G-13.
+appearance, with the scheme tokens inheriting into shadow roots. The specialist features,
+structured labels and braille routing, landed under G-13.
 
 Action
-Done for the tracked scope. Future PNP work is tracked under G-13 and package-level catalog
-discovery under G-15.
+Done for the tracked scope. Structured labels and braille routing are covered by G-13, and
+package-level catalog discovery by G-15.
 
 Test signal
 - A definition/session created with `pnp: { display: { colorScheme: 'blackwhite' } }` sets `data-qti-colorscheme="blackwhite"`, and the shipped `qti-pnp.css` rules recolour the theme tokens.
@@ -932,10 +932,12 @@ in WAI-ARIA group labelling. The findings, markup contract and NVDA checklist li
 `packages/item-player/docs/PNP.md`.
 
 Implementation
-1. `pnp.display.structuredLabelSupport` rides the presentation plan to every block interaction;
-   `choiceInteraction` and `matchInteraction` announce their answer set as one `role="group"`
-   named by the prompt (i18n fallback otherwise, authored accessibility name still winning), and
-   match columns take their visible headings as `aria-labelledby` names.
+1. `pnp.display.structuredLabelSupport` rides the presentation plan to every block interaction.
+   With it, `matchInteraction` announces its answer set as one `role="group"` named by the prompt
+   (without a prompt, an authored accessibility name, else an i18n fallback), and its columns take
+   their visible headings as `aria-labelledby` names. `choiceInteraction` needs no flag: its answer
+   set is always one `role="group"`, named by an authored accessibility name, else the prompt, else
+   an i18n fallback.
 2. An AfA `<braille/>` grant maps to the platform `brailleText` preference (sign-language to
    `signingDefinition`), and a `braille-text` lookup falls back to APIP's `braille` usage, so
    QTI 3 and APIP catalogs share one routing path.
@@ -944,7 +946,9 @@ Implementation
    `packages/item-player/docs/PNP.md`.
 
 Test signal
-- With `structuredLabelSupport: true`, choice groups carry the correct ARIA roles.
+- With `structuredLabelSupport: true`, the match interaction is one `role="group"` named by its
+  prompt and its columns are named by their headings; the choice group does not depend on the
+  flag.
 - `player.getCatalogEntry(idref, 'braille-text')` finds an APIP item's `braille` entry.
 
 ---

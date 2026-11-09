@@ -341,10 +341,10 @@ Catalog parsing and glossary/keyword-translation popup support are implemented:
   evidence with a published candidate and third-party content as a same-reading check — see
   [`plans/version-1-0-2026-10.md`](plans/version-1-0-2026-10.md).
 - Braille data exposure landed (G-13, done): `braille-text` lookups answer APIP `braille` entries
-  too, and `pnp.display.structuredLabelSupport` labels interaction answer sets for screen
-  readers. Manifest-level shared catalogs landed too (G-15, done): `imsqti_catalog_xmlv3p0`
-  manifest resources back every item's catalog terms, with item-level catalogs winning shared
-  identifiers.
+  too, and `pnp.display.structuredLabelSupport` labels the match interaction's answer set and
+  columns for screen readers. Manifest-level shared catalogs landed too (G-15, done):
+  `imsqti_catalog_xmlv3p0` manifest resources back every item's catalog terms, with item-level
+  catalogs winning shared identifiers.
 - Export writes QTI 3.0 with `targetVersion: '3.0'` on `PieToQtiPlugin` (G-25). Assessment-level
   accessibility catalogs have no QTI home and are named in a warning instead of written.
 - Formal official-suite evidence for current source changes is unavailable until a new NPM candidate
