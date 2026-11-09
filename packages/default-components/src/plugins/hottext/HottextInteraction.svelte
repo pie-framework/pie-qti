@@ -9,6 +9,7 @@
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { HOTTEXT_SELECTOR } from './hottextSelector';
 	import { interactionAria } from '../../shared/utils/interactionAria';
+	import { radioArrowStep, wrapIndex } from '../../shared/utils/radioGroup';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	interface Props {
@@ -179,19 +180,6 @@
 	}
 
 	/**
-	 * The move an arrow key makes through the radio group, in document order: 1 forward,
-	 * -1 back, 0 for any other key. Up/Down are fixed; Left/Right follow the inline
-	 * direction, as native radios do, so under RTL ArrowLeft moves forward.
-	 */
-	function arrowStep(key: string, elem: HTMLElement): number {
-		if (key === 'ArrowDown') return 1;
-		if (key === 'ArrowUp') return -1;
-		if (key !== 'ArrowLeft' && key !== 'ArrowRight') return 0;
-		const rtl = getComputedStyle(elem).direction === 'rtl';
-		return (key === 'ArrowRight') !== rtl ? 1 : -1;
-	}
-
-	/**
 	 * Keyboard model. Enter and Space activate the focused hottext in either mode. In the
 	 * radio group (single selection) the arrow keys move focus to the next or previous
 	 * hottext, wrapping at the ends, and check it (WAI-ARIA APG radio group pattern); Tab
@@ -204,16 +192,15 @@
 			handleHottextClick(identifier);
 			return;
 		}
-		// Modified arrows stay with the browser and assistive technology (Alt+Left is Back).
-		if (!isSingle || disabled || event.altKey || event.ctrlKey || event.metaKey) return;
-		const step = arrowStep(event.key, htmlElem);
+		if (!isSingle || disabled) return;
+		const step = radioArrowStep(event, htmlElem);
 		if (step === 0) return;
 		event.preventDefault();
 
 		const radios = hottextElements();
 		const index = radios.indexOf(htmlElem);
 		if (index < 0) return;
-		const next = radios[(index + step + radios.length) % radios.length];
+		const next = radios[wrapIndex(index, step, radios.length)];
 		const nextId = next?.getAttribute('identifier');
 		if (!next || !nextId) return;
 		next.focus();
