@@ -8,7 +8,7 @@
 		type SecureAssessment,
 	} from '@pie-qti/assessment-player';
 	import { DefaultI18nProvider } from '@pie-qti/i18n';
-	import { AssessmentShell } from '$assessment-components';
+	import { AssessmentShell } from '@pie-qti/assessment-player/components';
 
 	/**
 	 * Fixture for autosave and resume flows.

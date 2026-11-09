@@ -14,7 +14,8 @@ import type {
 import type { ItemTestState } from './assessment-item-scorer.js';
 
 /**
- * Storage key prefix for localStorage
+ * localStorage key prefix of every stored session, defined only here. Saved sessions are
+ * found and resumed by it, so the value must not change.
  */
 const STORAGE_PREFIX = 'qti_session_';
 

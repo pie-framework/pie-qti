@@ -10,6 +10,7 @@ export {
 	type ComponentPlugin,
 	ComponentRegistry,
 	createComponentRegistry,
+	DEFAULT_COMPONENT_TAGS_BY_TYPE,
 } from './core/ComponentRegistry.js';
 // Export drawing utilities
 export * from './utils/drawingUtils.js';

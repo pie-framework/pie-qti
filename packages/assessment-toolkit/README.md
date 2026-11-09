@@ -6,8 +6,9 @@ Small helper surface shared by hosts embedding the assessment players:
   `isQtiViewVisibleForRole` from `@pie-qti/section-player` (the semantics live
   there; this package gives consumers one stable import point) and adds
   block-level role filtering on top.
-- **Tool normalization** — `normalizeQtiToolConfig`, the shared
-  enabled/`tool`-attribute filter used by the section player's composition.
+- **Tool normalization** — `normalizeQtiToolConfig`: the enabled tools visible
+  to a role, as an array. It is `@pie-qti/section-player`'s `filterToolsForRole`
+  (the filter its composition applies) without PNP supports.
 - **Shared context normalization** — helpers for normalizing shared stimulus
   context payloads.
 

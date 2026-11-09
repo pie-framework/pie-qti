@@ -590,8 +590,8 @@ export interface InteractionValueMap {
 	gapMatchInteraction: string[];
 	/** SliderInteraction: the slider value. */
 	sliderInteraction: number;
-	/** HotspotInteraction: the selected hotspot identifier (multi-select is not implemented), or null on "clear answer". */
-	hotspotInteraction: string | null;
+	/** HotspotInteraction: single select emits the identifier or null (cleared); multiple emits the identifiers ([] when cleared). */
+	hotspotInteraction: string | string[] | null;
 	/** GraphicGapMatchInteraction: pairs as `"gapText hotspot"` strings. */
 	graphicGapMatchInteraction: string[];
 	/** UploadInteraction: the file response; null when cleared. */

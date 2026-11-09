@@ -10,13 +10,14 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import SortableList from '../../shared/components/SortableList.svelte';
 	import OrderSubset from '../../shared/components/OrderSubset.svelte';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import HotspotShape from '../../shared/components/HotspotShape.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { minimumHint, subsetOrderHint } from '../../shared/utils/minimumRequirement';
 	import { orderChoiceLimits } from '@pie-qti/item-player';
-	import { escapeHtml, imageAltText } from '../hotspot/graphicRegions';
+	import { escapeHtml, imageAltText, observeWidth, regionMarkerPoint } from '../hotspot/graphicRegions';
 
 	interface Props {
 		interaction?: GraphicOrderInteractionData | string;
@@ -32,11 +33,20 @@
 
 	const uid = $props.id();
 
-	// Parse props that may be JSON strings (web component usage)
-	const parsedInteraction = $derived(parseJsonProp<GraphicOrderInteractionData>(interaction));
-	const parsedResponse = $derived(parseJsonProp<string[]>(response));
-	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
-	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+	// Props may be JSON strings (web component usage). Correct-answer mode is the scorer role
+	// with a correct response, as in every interaction.
+	const shell = $derived(
+		createInteractionShell<GraphicOrderInteractionData, string[], string[]>({
+			interaction,
+			response,
+			correctResponse,
+			role,
+		}),
+	);
+	const parsedInteraction = $derived(shell.interaction);
+	const parsedResponse = $derived(shell.response);
+	const parsedCorrectResponse = $derived(shell.correctResponse);
+	const isShowingCorrect = $derived(shell.isShowingCorrect);
 	const imageWidth = $derived(
 		normalizePixelDimension(parsedInteraction?.imageData?.width, '500') ?? '500',
 	);
@@ -45,6 +55,10 @@
 	);
 	// Reflow (WCAG 1.4.10): the image scales down with its container, never past its natural size.
 	const mediaStyle = $derived(`max-width: ${imageWidth}px; aspect-ratio: ${imageWidth} / ${imageHeight};`);
+
+	// Rendered width of the image, so the area badges keep their CSS size at any image scale.
+	let renderedWidth = $state(0);
+	const renderScale = $derived(renderedWidth > 0 ? renderedWidth / Number(imageWidth) : 1);
 
 	const imageData = $derived(parsedInteraction?.imageData ?? null);
 	const imageAlt = $derived(
@@ -83,6 +97,15 @@
 	// the rest wait in the pool. Unknown or repeated identifiers in a restored response are dropped.
 	const subsetOrderedIds = $derived(
 		parsedResponse ? [...new Set(parsedResponse.filter((id) => initialOrder.includes(id)))] : [],
+	);
+
+	/**
+	 * Each hotspot's position in the order the list shows (1-based), numbered as the list numbers
+	 * it: every hotspot in full ordering, only the ordered ones in subset ordering. The areas on
+	 * the image carry it.
+	 */
+	const positions = $derived(
+		new Map((subsetMode ? subsetOrderedIds : orderedIds).map((id, index) => [id, index + 1])),
 	);
 
 	/**
@@ -222,7 +245,7 @@
 					class="qti-go-stage relative border-2 border-base-300 rounded-lg overflow-hidden bg-base-200"
 				>
 					{#if imageData}
-						<div class="qti-go-media" style={mediaStyle}>
+						<div class="qti-go-media" style={mediaStyle} use:observeWidth={(width) => (renderedWidth = width)}>
 							{#if imageData.type === 'svg' && imageData.content}
 								<div
 									part="image"
@@ -250,6 +273,37 @@
 									class="qti-go-image"
 									onerror={handleImageError}
 								/>
+							{/if}
+							<!-- The areas the candidate orders, on the image (QTI 3.0 §5.61: "The delivery
+							     engine must clearly indicate all defined area(s) of the image"): each one
+							     outlined, each placed one with its position in the order the list shows.
+							     Visual only: the list is what the keyboard and assistive technology use,
+							     so the overlay is hidden from both and takes no pointer input. It covers
+							     exactly the image, in its natural pixel space, and scales with it. -->
+							{#if !imageFailed && (imageData.content || imageData.src)}
+								<svg
+									part="overlay"
+									class="qti-go-overlay"
+									viewBox="0 0 {imageWidth} {imageHeight}"
+									xmlns="http://www.w3.org/2000/svg"
+									aria-hidden="true"
+									pointer-events="none"
+								>
+									{#each parsedInteraction.hotspotChoices as choice}
+										{@const position = positions.get(choice.identifier)}
+										<g class="qti-go-area" data-placed={position ? '' : undefined}>
+											<HotspotShape shape={choice.shape} coords={choice.coords} interactive={false} presentation={{ class: 'qti-go-area-halo' }} />
+											<HotspotShape shape={choice.shape} coords={choice.coords} interactive={false} presentation={{ class: 'qti-go-area-outline' }} />
+											{#if position}
+												{@const at = regionMarkerPoint(choice.shape, choice.coords, renderScale, 16)}
+												<g class="qti-go-badge" transform="translate({at.x} {at.y}) scale({1 / renderScale})">
+													<circle r="12" />
+													<text text-anchor="middle" dominant-baseline="central">{position}</text>
+												</g>
+											{/if}
+										</g>
+									{/each}
+								</svg>
 							{/if}
 						</div>
 						{#if imageDescription}
@@ -393,6 +447,50 @@
 		display: block;
 		width: 100%;
 		height: 100%;
+	}
+
+	/*
+	 * The areas overlay: exactly over the image, scaling with it (the viewBox is the image's
+	 * pixel space). A light halo under a dark outline keeps each area visible on any image
+	 * (WCAG 1.4.11); a placed area is drawn solid in the primary colour with its position, an
+	 * area outside a subset order dashed — never colour alone (WCAG 1.4.1).
+	 */
+	.qti-go-overlay {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		overflow: visible;
+		pointer-events: none;
+	}
+	.qti-go-overlay :global(.qti-go-area-halo) {
+		fill: none;
+		stroke: #fff;
+		stroke-width: 5px;
+		vector-effect: non-scaling-stroke;
+	}
+	.qti-go-overlay :global(.qti-go-area-outline) {
+		fill: none;
+		stroke: var(--pie-qti-border-strong, #767676);
+		stroke-width: 2px;
+		stroke-dasharray: 6px 4px;
+		vector-effect: non-scaling-stroke;
+	}
+	.qti-go-overlay :global(.qti-go-area[data-placed] .qti-go-area-outline) {
+		stroke: var(--pie-qti-primary, oklch(45% 0.24 277));
+		stroke-width: 3px;
+		stroke-dasharray: none;
+	}
+	.qti-go-badge circle {
+		fill: var(--pie-qti-primary, oklch(45% 0.24 277));
+		stroke: #fff;
+		stroke-width: 2px;
+	}
+	.qti-go-badge text {
+		fill: #fff;
+		font-size: 13px;
+		font-weight: 700;
+		font-family: inherit;
 	}
 	.qti-go-image-error {
 		display: flex;

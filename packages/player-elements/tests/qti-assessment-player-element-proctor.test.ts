@@ -191,6 +191,20 @@ describe('events', () => {
 			player.destroy();
 		}
 	});
+
+	test('player-error carries the code of a coded error from the core', async () => {
+		// The bundle compiles the shell and core from assessment-player's source while this
+		// element imports the package's built entry, so the core's errors come from another
+		// copy of the errors module than the element's check.
+		const coreErrors = new URL('../src/core/errors.ts', import.meta.resolve('@pie-qti/assessment-player'));
+		const { AssessmentPlayerError } = (await import(coreErrors.href)) as typeof import('@pie-qti/assessment-player');
+		const element = createElement();
+		const errors = collect<{ code?: string; message: string }>(element, 'player-error');
+
+		element.exposeProps().config.onError?.(new AssessmentPlayerError('submitFailed', 'Backend down'));
+
+		expect(errors).toEqual([{ code: 'submitFailed', message: 'Backend down' }]);
+	});
 });
 
 describe('allow-start-over', () => {

@@ -69,7 +69,13 @@ interface RegisteredComponent<
 	};
 }
 
-const DEFAULT_COMPONENT_TAGS_BY_TYPE = {
+/**
+ * The default custom-element tag for each block interaction type the player renders, plus
+ * `catalogPopup`, the glossary popup. `createComponentRegistry` registers them as fallbacks
+ * (tag metadata only), and `@pie-qti/default-components` registers the components it ships
+ * under the same tags.
+ */
+export const DEFAULT_COMPONENT_TAGS_BY_TYPE = {
 	choiceInteraction: { name: 'default-choice', tagName: 'pie-qti-choice' },
 	sliderInteraction: { name: 'default-slider', tagName: 'pie-qti-slider' },
 	orderInteraction: { name: 'default-order', tagName: 'pie-qti-order' },
@@ -91,7 +97,7 @@ const DEFAULT_COMPONENT_TAGS_BY_TYPE = {
 	uploadInteraction: { name: 'default-upload', tagName: 'pie-qti-upload' },
 	drawingInteraction: { name: 'default-drawing', tagName: 'pie-qti-drawing' },
 	catalogPopup: { name: 'default-catalog-popup', tagName: 'pie-qti-catalog-popup' },
-} satisfies Record<string, { name: string; tagName: string }>;
+} as const satisfies Record<string, { readonly name: string; readonly tagName: string }>;
 
 /**
  * Registry for web components that render QTI interactions

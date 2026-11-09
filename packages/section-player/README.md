@@ -11,7 +11,8 @@ The npm package ships **headless TypeScript contracts and helpers** only:
 - `resolveQtiSectionComposition()` — resolve an assessment test into section compositions; pass
   `assessmentId` and the candidate's `pnp`, which the composition carries to the layouts,
 - role-view visibility helpers and PNP tool-support helpers (`applyToolSupports`,
-  `companionMaterialsOf`, `companionToolIds`),
+  `companionMaterialsOf`, `companionToolIds`), and `filterToolsForRole`, the tool filter the
+  composition applies (supports first, then enabled tools visible to the role),
 - display-settings helpers (`withDisplaySettings`, `displaySettingsOf`, `QtiCandidateDisplaySettings`).
 
 ## Build model: where the UI lives

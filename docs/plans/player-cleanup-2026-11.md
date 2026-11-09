@@ -365,7 +365,6 @@ composable; display settings move to a module; flags derive from one status obje
   internals).
 - section-player spoken-catalog parsing vs item-player catalog parsing.
 - `TimeManager` tick restructuring; hottext's imperative DOM manipulation.
-- Hotspot multi-select (`maxChoices > 1`) — a known gap documented in its PRD.
 - qti-processing's possibly non-QTI `<lookupTable>` expression (outside this scope).
 
 ## Existing code to reuse

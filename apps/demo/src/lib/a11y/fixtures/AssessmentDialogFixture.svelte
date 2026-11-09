@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
-	import { AssessmentDialog } from '$assessment-components';
+	import { AssessmentDialog } from '@pie-qti/assessment-player/components';
 
 	// Get i18n from context (provided by layout)
 	const contextI18nWrapper = getContext<{ value: SvelteI18nProvider | null } | undefined>('i18n');

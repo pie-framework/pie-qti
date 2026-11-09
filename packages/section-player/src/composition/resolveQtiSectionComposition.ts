@@ -56,7 +56,12 @@ function resolveLayout(section: QtiSectionModel, sharedContext: QtiSharedContext
 	return sharedContext.passages.length > 0 ? 'split-pane' : 'vertical';
 }
 
-function filterToolsForRole(
+/**
+ * The tools `role` sees (the candidate when unset): the candidate's PNP supports and the
+ * item's companion materials are applied first (see `applyToolSupports`), then only enabled
+ * tools whose `view` includes the role remain. Undefined when none remain.
+ */
+export function filterToolsForRole(
 	tools: QtiSectionToolConfig[] | undefined,
 	role: QtiSectionModel['role'],
 	pnp?: ResolveQtiSectionCompositionOptions['pnp'],

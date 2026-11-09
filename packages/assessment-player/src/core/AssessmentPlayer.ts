@@ -57,7 +57,7 @@ import type {
 } from '../types/index.js';
 import { AssessmentSessionCoordinator, isSkippedResponseSet, type ResponseDefault } from './AssessmentSessionCoordinator.js';
 import { AutosaveManager, type AutosaveState } from './AutosaveManager.js';
-import { AssessmentPlayerError, type AssessmentPlayerErrorCode } from './errors.js';
+import { AssessmentPlayerError, type AssessmentPlayerErrorCode, isAssessmentPlayerError } from './errors.js';
 import { NavigationManager } from './NavigationManager.js';
 import {
 	addItemVariableDeclarations,
@@ -2117,7 +2117,7 @@ export class AssessmentPlayer {
 			}).catch((error) => {
 				// A concurrent navigation or submission owns the transition; its own path submits
 				// this response. Anything else surfaces to the host without breaking delivery.
-				if (error instanceof AssessmentPlayerError && error.code === 'navigationInFlight') return;
+				if (isAssessmentPlayerError(error) && error.code === 'navigationInFlight') return;
 				this.config.onError?.(error instanceof Error ? error : new Error(String(error)));
 			});
 		});
@@ -4394,7 +4394,7 @@ export class AssessmentPlayer {
 				if (
 					!this.destroyed &&
 					!this.finalized &&
-					error instanceof AssessmentPlayerError &&
+					isAssessmentPlayerError(error) &&
 					error.code === 'navigationInFlight' &&
 					attempt < 4
 				) {
