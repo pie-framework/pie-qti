@@ -59,9 +59,9 @@ Custom renderers cannot currently override inline interactions via the component
 
 The `expectedLength` attribute is a QTI hint for how wide the input should appear (in characters). The implementation maps this to an inline `width` style: `expectedLength * 8` pixels, with a 100 px minimum. This is a heuristic — character widths vary by font — but it matches the common practice of other QTI delivery engines. Using the HTML `size` attribute would require additional CSS interaction to override the browser default metrics and would behave inconsistently across browsers. A 100 px minimum prevents single-character inputs from becoming unusably narrow.
 
-### Why `patternMask` is extracted but not enforced as a live constraint (G-04)
+### How `patternMask` is enforced (G-04)
 
-The extractor reads and exposes `patternMask` as a string on `TextEntryInteractionData`. However, the renderer in `ItemBody.svelte` does not wire `patternMask` to the `pattern` attribute of the `<input>`, meaning browsers do not enforce it with their native `:invalid` state or block form submission. This is gap G-04 — see [Known gaps](#known-gaps). When this gap is closed, the fix must also surface an accessible validation message, not just activate CSS `:invalid`.
+QTI defines `patternMask` as "a regular expression that the candidate's response must match in order to be considered valid", in XSD syntax (QTI 3.0 §5.162.5). The extractor delivers it on `TextEntryInteractionData`. The `<input>` carries it as its `pattern` attribute, translated from XSD to the browser's syntax (`xsdPatternSource`). When the field fails the pattern on blur, the input is marked `aria-invalid` and shows an error message. The message has `role="alert"` and is linked through `aria-describedby`; it is the author's `data-patternmask-message` or a localized default. Response validation (`Player.validateResponses()`) enforces the same pattern, so a host that drives the session without this input still sees an invalid response. A numeric response is the exception: it stores the number, not the text as typed, so only the input checks it.
 
 ### How shuffle persists for `inlineChoiceInteraction`
 
@@ -86,7 +86,7 @@ The extractor reads and exposes `patternMask` as a string on `TextEntryInteracti
 |-----------|---------|-----------|
 | `responseIdentifier` | ✅ Full | Extracted as `responseId`; used as the key in `player.declarations` and in `handleTextEntryInput` |
 | `expectedLength` | ✅ Full | Extracted as `number` (default `20`); drives input width as `expectedLength * 8` px, min 100 px |
-| `patternMask` | ✅ Extracted, ❌ not enforced | Stored in `TextEntryInteractionData.patternMask`; not wired to `<input pattern>` (G-04) |
+| `patternMask` | ✅ Full | Wired to `<input pattern>` (translated from XSD) with an accessible error message; enforced by response validation for `string` responses (G-04) |
 | `placeholderText` | ✅ Full | Extracted and rendered as the `placeholder` attribute on the `<input>` |
 | `format` | ❌ Not extracted | QTI 2.2 display-format hint; not in `TextEntryData` (G-03) |
 | `base` | ✅ Full | Extracted when it is 2–36 and not 10; the player reads typed text for an `integer` or `float` response in that base (`101` in base 2 is 5) |
@@ -95,7 +95,6 @@ The extractor reads and exposes `patternMask` as a string on `TextEntryInteracti
 #### Known gaps
 
 - **G-03** — `format` attribute not extracted. The extractor does not read `format`. When resolved: add `format?: string` to `TextEntryData`; expose it as a `data-format` attribute on the rendered `<input>`; optionally map known values (`plain`, `preFormatted`) to CSS classes.
-- **G-04** — `patternMask` extracted but not enforced as live input constraint. The rendered `<input>` does not carry a `pattern` attribute. When resolved: add `pattern={interaction.patternMask ?? undefined}` to the `<input>`; add an accessible error span wired via `aria-describedby`; activate on `:invalid` CSS state, not on blur-only.
 
 ---
 
@@ -146,7 +145,7 @@ The extractor reads and exposes `patternMask` as a string on `TextEntryInteracti
 - **FR-T2:** Width must be set as `expectedLength * 8` px with a minimum of 100 px.
 - **FR-T3:** When `placeholderText` is present in the extracted data, it must appear as the input's `placeholder` attribute.
 - **FR-T4:** The response value stored must be the raw string typed by the candidate. No trimming, normalisation, or type coercion is applied by the renderer; coercion is the scoring layer's responsibility.
-- **FR-T5:** When `patternMask` is present in the extracted data, it must (once G-04 is resolved) be wired to the `pattern` attribute of the `<input>` and must trigger an accessible validation message when violated.
+- **FR-T5:** When `patternMask` is present in the extracted data, it must be wired to the `pattern` attribute of the `<input>` and must trigger an accessible validation message when violated.
 - **FR-T6:** A numeric response (`baseType` `integer` or `float`) requests a numeric on-screen keyboard (`inputmode="numeric"` or `"decimal"`) only when its `patternMask` provably excludes `-` (for example `^[0-9]+$`): phone number pads offer no minus key, so a negative answer must stay typable. Every other response keeps the default text keyboard.
 - **FR-T7:** When `stringIdentifier` names a declared response other than the interaction's own, every change to the field sets that response to the text as entered, before the numeric response reads it (`3.50` where a float response is 3.5), or NULL when the field is empty. The field shows the companion's text while it is present, so a restored session reads "3.50" as typed rather than as 3.5. It keys no completion or validation: those read the main response only.
 
@@ -174,7 +173,7 @@ Inline interactions present a unique accessibility challenge: unlike standalone 
 - **NFR-A1:** Every `<input type="text">` for a `textEntryInteraction` must have an accessible name that identifies it within the item: the authored label, else its position ("Blank 2 of 4"). The response identifier must never be part of it.
 - **NFR-A2:** Every `<select>` for an `inlineChoiceInteraction` must have an `aria-label` that uniquely identifies it within the item.
 - **NFR-A3:** Keyboard navigation must be fully operable: Tab/Shift-Tab to move between inline interactions; Space/Arrow to operate the dropdown; typing directly into the text input.
-- **NFR-A4:** When `patternMask` validation is implemented (G-04), validation errors must be communicated via an `aria-describedby` pointing to an error message span, not only via `:invalid` CSS state.
+- **NFR-A4:** `patternMask` validation errors must be communicated via an `aria-describedby` pointing to an error message span, not only via `:invalid` CSS state.
 - **NFR-A5:** WCAG 2.2 SC 1.3.5 (Identify Input Purpose) — for text entry fields where the semantic purpose is discernible (e.g., a field asking for a number), `autocomplete` attributes should be omitted or set to `"off"` to prevent browser auto-fill from injecting incorrect values into assessment inputs.
 - **NFR-A6:** Touch targets for the `<input>` (min 100 px wide, `input-sm` height ~32 px) and `<select>` (min 120 px wide, `select-sm` height ~32 px) must meet the WCAG 2.2 SC 2.5.8 minimum target size of 24×24 px. Both currently exceed this threshold.
 - **NFR-A7:** Color alone must not be used to indicate the correct-answer state. The `✓` suffix on the correct option label and the `"Correct: {text}"` badge satisfy this requirement for the scorer role.
@@ -404,11 +403,11 @@ AC-A7: Touch target size
 ### Edge cases
 
 ```
-AC-E1: patternMask extracted but not enforced (documents current behaviour)
+AC-E1: patternMask is enforced
   Given: An item with textEntryInteraction patternMask="[0-9]+"
-  When: The candidate types "abc" into the input
-  Then: The input accepts "abc" without any validation error (current behaviour — G-04 not yet resolved)
-  Notes: Once G-04 is resolved, this AC must be updated to expect a validation error.
+  When: The candidate types "abc" into the input and leaves it
+  Then: The input is aria-invalid and an error message linked by aria-describedby is shown
+  And: Player.validateResponses() reports a string response "abc" invalid
 
 AC-E2: label child not extracted (documents current behaviour)
   Given: An item with inlineChoiceInteraction containing <label>Choose a country</label>

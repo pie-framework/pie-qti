@@ -28,6 +28,7 @@ import {
 	toBoolean,
 	toNumber,
 	toStringValue,
+	xsdPatternToRegExp,
 } from '@pie-qti/qti-processing';
 import type { ElementNameMapper, AttributeNameMapper } from '@pie-qti/qti-common';
 import { prepareContentMarkup } from '@pie-qti/qti-common/accessibility';
@@ -1398,6 +1399,18 @@ export class Player {
 				value.filter(isMeaningfulEntry).length > Number(i.maxStrings)
 			) {
 				errors.push(`Response '${responseId}' exceeds maxStrings=${i.maxStrings}`);
+			}
+			// patternMask (QTI 2.1; QTI 3.0 §5.48.4, §5.162.5): "a regular expression that the
+			// candidate's response must match in order to be considered valid", in XSD syntax. A string
+			// response holds the text as entered; a numeric one does not, and its input checks the text.
+			const patternMask = typeof i.patternMask === 'string' ? xsdPatternToRegExp(i.patternMask) : null;
+			if (patternMask && decl?.baseType === 'string') {
+				const entered = (Array.isArray(value) ? value : [value]).filter(
+					(text): text is string => typeof text === 'string' && text !== '',
+				);
+				if (entered.some((text) => !patternMask.test(text))) {
+					errors.push(`Response '${responseId}' does not match its patternMask`);
+				}
 			}
 			// The order-subset cap: when a subset is requested, a restored or programmatic response
 			// may not order more than maxChoices (clamped to the choices); the delivered UI refuses it.
