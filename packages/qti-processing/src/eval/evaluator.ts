@@ -655,13 +655,12 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const y = toNumber(b);
 			if (!Number.isFinite(x) || !Number.isFinite(y)) return qtiInvalid('equalRounded invalid number');
 
-			const modeRaw = (expr.roundingMode || '').trim().toLowerCase();
+			// The builder admits only the XSD's two spellings (defaulting to significantFigures); an
+			// AST built programmatically with anything else evaluates invalid rather than rounded.
 			const mode =
-				modeRaw === 'significantfigure' || modeRaw === 'significantfigures'
-					? 'significantFigures'
-					: modeRaw === 'decimalplace' || modeRaw === 'decimalplaces'
-						? 'decimalPlaces'
-						: undefined;
+				expr.roundingMode === 'decimalPlaces' || expr.roundingMode === 'significantFigures'
+					? expr.roundingMode
+					: undefined;
 			if (!mode) return qtiInvalid(`equalRounded unsupported roundingMode: ${expr.roundingMode}`);
 
 			const figs = resolveNumberOrVarRef(expr.figures);

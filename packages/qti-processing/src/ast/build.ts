@@ -691,29 +691,22 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			};
 		}
 		case 'equalrounded': {
-			// QTI 2.2.2: roundingMode is optional (default="significantFigures").
-			// For compatibility with QTI 2.1 and real-world content, accept singular forms and normalize.
+			// The XSDs (2.1 line 1268, 2.2 line 7505, 3.0 EqualRoundedDType) enumerate exactly
+			// decimalPlaces and significantFigures, defaulting to significantFigures. Singular or
+			// differently-cased spellings are invalid content: they are a compile error, like
+			// roundTo's roundingMode — the same attribute read strictly right below.
 			const roundingModeRaw = (getAttr(el, 'roundingMode') || 'significantFigures').trim();
 			const figures = getAttr(el, 'figures') || '';
 			if (!figures) throw new Error('<equalRounded> requires figures');
-			const rm = roundingModeRaw.toLowerCase();
-			const roundingMode =
-				rm === 'decimalplace' || rm === 'decimalplaces'
-					? 'decimalPlaces'
-					: rm === 'significantfigure' || rm === 'significantfigures'
-						? 'significantFigures'
-						: null;
-			if (!roundingMode) {
-				throw new Error(
-					'<equalRounded> roundingMode must be "decimalPlaces"|"significantFigures"',
-				);
+			if (roundingModeRaw !== 'decimalPlaces' && roundingModeRaw !== 'significantFigures') {
+				throw new Error('<equalRounded> roundingMode must be "decimalPlaces"|"significantFigures"');
 			}
 			return {
 				kind: 'expr.equalRounded',
 				id,
 				a: buildExpression(kids[0]!, options),
 				b: buildExpression(kids[1]!, options),
-				roundingMode,
+				roundingMode: roundingModeRaw as 'decimalPlaces' | 'significantFigures',
 				figures,
 			};
 		}
