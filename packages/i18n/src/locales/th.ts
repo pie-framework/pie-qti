@@ -183,6 +183,7 @@ export default {
 				other: 'เขียนอย่างน้อย {count} คำตอบ',
 			},
 			minStringsRemoveRefused: 'ไม่ได้ลบคำตอบ: ต้องมีอย่างน้อย {count} คำตอบ',
+			patternMismatch: 'คำตอบนี้ไม่อยู่ในรูปแบบที่กำหนด',
 		},
 
 		mathInput: {

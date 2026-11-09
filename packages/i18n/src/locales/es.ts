@@ -187,6 +187,7 @@ export default {
 				other: 'Escribe al menos {count} respuestas.',
 			},
 			minStringsRemoveRefused: 'Respuesta no eliminada: se requieren al menos {count} respuestas.',
+			patternMismatch: 'Esta respuesta no tiene el formato esperado.',
 		},
 
 		mathInput: {

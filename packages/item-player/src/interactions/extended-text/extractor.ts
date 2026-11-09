@@ -68,7 +68,10 @@ export const standardExtendedTextExtractor: ElementExtractor<ExtendedTextData> =
 		const placeholderText = utils.getAttribute(element, 'placeholderText', '');
 		const format = utils.getAttribute(element, 'format', 'plain');
 		const patternMask = utils.getAttribute(element, 'patternMask', '') || null;
-		const patternMaskMessage = utils.getAttribute(element, 'patternMaskMessage', '') || null;
+		// QTI 3.0 §5.48.4: the author's message for a response that does not match the mask is
+		// the `data-patternmask-message` attribute (QTI 2.x has no equivalent; data-* names are
+		// not renamed between versions), read as the text entry extractor reads it.
+		const patternMaskMessage = utils.getAttribute(element, 'data-patternmask-message', '') || null;
 		const interactionClasses = utils.getClasses(element);
 		const prompt = utils.getPrompt(element);
 

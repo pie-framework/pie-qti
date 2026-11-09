@@ -193,6 +193,7 @@ export default {
 				other: '请至少填写 {count} 个回答。',
 			},
 			minStringsRemoveRefused: '回答未移除：至少需要 {count} 个回答。',
+			patternMismatch: '此答案不符合预期格式。',
 		},
 
 		mathInput: {

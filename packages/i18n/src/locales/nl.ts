@@ -182,6 +182,7 @@ export default {
 				other: 'Schrijf ten minste {count} antwoorden.',
 			},
 			minStringsRemoveRefused: 'Antwoord niet verwijderd: er zijn ten minste {count} antwoorden nodig.',
+			patternMismatch: 'Dit antwoord heeft niet de verwachte notatie.',
 		},
 
 		mathInput: {

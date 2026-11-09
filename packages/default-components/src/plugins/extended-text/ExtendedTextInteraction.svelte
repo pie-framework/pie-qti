@@ -2,7 +2,8 @@
 
 <script lang="ts">
 	import type { ExtendedTextInteractionData, PnpProfile } from '@pie-qti/item-player';
-	import { tick } from 'svelte';
+	import { tick, untrack } from 'svelte';
+	import { xsdPatternToRegExp } from '@pie-qti/qti-processing';
 	import { emitInteractionChange, emitQtiChange } from '../../shared/utils/eventHelpers';
 	import {
 		createExtendedTextResponse,
@@ -21,6 +22,7 @@
 	import {
 		characterCount,
 		isSpellcheckAllowed,
+		patternMaskMessage,
 		reachedExpectedLength,
 		responseInputMode,
 		writingAssistance,
@@ -94,6 +96,10 @@
 	let liveMessage = $state('');
 	let liveToggle = false;
 
+	// Fields whose text failed the pattern mask when the candidate left them (by index). The
+	// message shows from then until the text matches again, as for the text entry.
+	let patternInvalidFields = $state<ReadonlySet<number>>(new Set());
+
 	function sameResponse(a: unknown, b: unknown): boolean {
 		if (Object.is(a, b)) return true;
 		try {
@@ -129,6 +135,9 @@
 			? Math.min(Math.max(values.length, minimumEditors), parsedInteraction.maxStrings)
 			: Math.max(values.length, minimumEditors);
 		editorValues = Array.from({ length: editorCount }, (_, index) => values[index] ?? '');
+		// The rebuilt text may differ from what a mask message was for (a restored response):
+		// only a flag whose field still exists and still fails the mask stays.
+		untrack(prunePatternFlags);
 	});
 
 	function emitResponses(strings: string[]) {
@@ -174,6 +183,9 @@
 		editorValues[index] = html;
 		editorValues = [...editorValues];
 		emitResponses(editorValues);
+		// A flagged field clears as soon as its text matches (or is emptied); a new mismatch
+		// waits for the candidate to leave the field, so typing is never interrupted.
+		if (patternInvalidFields.has(index) && !failsPatternMask(html)) setPatternInvalid(index, false);
 		// The counter itself is quiet; reaching the expected length is the moment to hear.
 		if (showCounter && reachedExpectedLength(before, characterCount(html, format), expectedLength)) {
 			announce(
@@ -223,6 +235,10 @@
 		} else {
 			editorValues = editorValues.filter((_, valueIndex) => valueIndex !== index);
 		}
+		// Mask messages follow their fields: the removed one's goes, later ones move up a place.
+		patternInvalidFields = new Set(
+			[...patternInvalidFields].filter((flagged) => flagged !== index).map((flagged) => (flagged > index ? flagged - 1 : flagged)),
+		);
 		emitResponses(editorValues);
 		announce(
 			translate(i18n, 'interactions.extendedText.responseRemoved', 'Response {number} removed.', {
@@ -273,6 +289,66 @@
 	const fieldId = (index: number) => `${idBase}-field-${index + 1}`;
 	const fieldLabelId = (index: number) => `${fieldId(index)}-label`;
 	const counterId = (index: number) => `${fieldId(index)}-counter`;
+	const patternErrorId = (index: number) => `${fieldId(index)}-pattern-error`;
+
+	// patternMask (QTI 2.1; QTI 3.0 §5.48.4): a string response whose text does not match it is
+	// invalid under validateResponses. The fields compile the mask with the player's own XSD
+	// translation and test the text the response holds (empty text is not tested), so the
+	// message and validation agree. Validation holds only string responses to the mask, so a
+	// numeric response is not flagged either.
+	const patternRegExp = $derived(
+		parsedInteraction?.patternMask && parsedInteraction.baseType === 'string'
+			? xsdPatternToRegExp(parsedInteraction.patternMask)
+			: null,
+	);
+	const patternErrorText = $derived(parsedInteraction ? patternMaskMessage(i18n, parsedInteraction) : '');
+
+	function failsPatternMask(value: string): boolean {
+		return patternRegExp !== null && value !== '' && !patternRegExp.test(value);
+	}
+
+	function setPatternInvalid(index: number, invalid: boolean) {
+		const next = new Set(patternInvalidFields);
+		if (invalid) next.add(index);
+		else next.delete(index);
+		patternInvalidFields = next;
+	}
+
+	/** Drop the flags of fields that are gone or whose text now matches the mask. */
+	function prunePatternFlags() {
+		const kept = [...patternInvalidFields].filter(
+			(index) => index < editorValues.length && failsPatternMask(editorValues[index] ?? ''),
+		);
+		if (kept.length !== patternInvalidFields.size) patternInvalidFields = new Set(kept);
+	}
+
+	/**
+	 * The candidate left field `index`: flag it, and announce the message once, politely, when
+	 * its text fails the mask; else clear its flag. The text entry checks at the same moment
+	 * (on blur), so both interactions tell the candidate alike, and typing is never blocked.
+	 */
+	function handleFieldLeave(index: number) {
+		const invalid = failsPatternMask(editorValues[index] ?? '');
+		if (invalid === patternInvalidFields.has(index)) return;
+		setPatternInvalid(index, invalid);
+		if (invalid) announce(patternErrorText);
+	}
+
+	/** Focus left a rich text field (its toolbar and surface) altogether, not moved within it. */
+	function handleRichFieldFocusOut(index: number, event: FocusEvent) {
+		const field = event.currentTarget as HTMLElement;
+		if (field.contains(event.relatedTarget as Node | null)) return;
+		handleFieldLeave(index);
+	}
+
+	/** What describes field `index`: its counter, and its mask message while it shows. */
+	function fieldDescribedBy(index: number): string | undefined {
+		return (
+			[showCounter ? counterId(index) : '', patternInvalidFields.has(index) ? patternErrorId(index) : '']
+				.filter(Boolean)
+				.join(' ') || undefined
+		);
+	}
 
 	/**
 	 * A single field is named by the prompt (the placeholder is only a hint);
@@ -352,19 +428,23 @@
 						</label>
 					{/if}
 					{#if format === 'xhtml'}
-						<RichTextEditor
-							bind:this={richEditors[index]}
-							value={editorValue}
-							editable={!disabled}
-							{placeholder}
-							minHeight={parsedInteraction.expectedLines ? parsedInteraction.expectedLines * 24 : 200}
-							ariaLabelledby={name.labelledby}
-							ariaLabel={name.label}
-							ariaDescribedby={showCounter ? counterId(index) : undefined}
-							spellcheck={spellcheckAllowed}
-							{i18n}
-							onChange={(html) => handleChange(index, html)}
-						/>
+						<!-- The field ends where the editor (toolbar and surface) ends: leaving it checks the mask. -->
+						<div class="qti-extended-text-rich-field" onfocusout={(event) => handleRichFieldFocusOut(index, event)}>
+							<RichTextEditor
+								bind:this={richEditors[index]}
+								value={editorValue}
+								editable={!disabled}
+								{placeholder}
+								minHeight={parsedInteraction.expectedLines ? parsedInteraction.expectedLines * 24 : 200}
+								ariaLabelledby={name.labelledby}
+								ariaLabel={name.label}
+								ariaDescribedby={fieldDescribedBy(index)}
+								ariaInvalid={patternInvalidFields.has(index)}
+								spellcheck={spellcheckAllowed}
+								{i18n}
+								onChange={(html) => handleChange(index, html)}
+							/>
+						</div>
 					{:else}
 						<textarea
 							bind:this={textareas[index]}
@@ -378,12 +458,17 @@
 							{placeholder}
 							aria-labelledby={name.labelledby}
 							aria-label={name.label}
-							aria-describedby={showCounter ? counterId(index) : undefined}
+							aria-describedby={fieldDescribedBy(index)}
+							aria-invalid={patternInvalidFields.has(index) ? 'true' : undefined}
 							oninput={(event) => handleChange(index, event.currentTarget.value)}
+							onblur={() => handleFieldLeave(index)}
 						></textarea>
 					{/if}
 					{#if showCounter}
 						<p id={counterId(index)} part="counter" class="qti-character-counter">{counterText(editorValue)}</p>
+					{/if}
+					{#if patternInvalidFields.has(index)}
+						<p id={patternErrorId(index)} part="pattern-error" class="qti-extended-text-pattern-error">{patternErrorText}</p>
 					{/if}
 					{#if isContainer && !disabled}
 						<button
@@ -517,6 +602,18 @@
 		color: var(--pie-qti-base-content, #374151);
 		margin-top: 0.25rem;
 		text-align: end;
+	}
+
+	/* Only a focus boundary for the rich text field: it adds no box of its own. */
+	.qti-extended-text-rich-field {
+		display: contents;
+	}
+
+	.qti-extended-text-pattern-error {
+		margin: 0;
+		font-size: 0.875rem;
+		/* Text token, not a fill token: the error fill color fails 1.4.3 as text. */
+		color: var(--pie-qti-error-text, #b91c1c);
 	}
 
 	.qti-extended-text-correct-heading {

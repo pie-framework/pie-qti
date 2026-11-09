@@ -186,6 +186,7 @@ export default {
 				other: 'Scrie cel puțin {count} de răspunsuri.',
 			},
 			minStringsRemoveRefused: 'Răspunsul nu a fost eliminat: sunt necesare cel puțin {count} răspunsuri.',
+			patternMismatch: 'Acest răspuns nu are formatul așteptat.',
 		},
 
 		mathInput: {

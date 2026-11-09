@@ -241,6 +241,7 @@ export default {
 				other: 'اكتب {count} إجابة على الأقل.',
 			},
 			minStringsRemoveRefused: 'لم تُحذف الإجابة: مطلوب {count} إجابات على الأقل.',
+			patternMismatch: 'هذه الإجابة ليست بالتنسيق المتوقع.',
 		},
 
 		mathInput: {

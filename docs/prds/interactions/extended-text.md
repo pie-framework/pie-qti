@@ -5,19 +5,19 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type (interactions only): extendedTextInteraction
-  Last reviewed: 2026-11-07
+  Last reviewed: 2026-11-09
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components`, `@pie-qti/item-player`  
-**Last reviewed:** 2026-11-07
+**Last reviewed:** 2026-11-09
 
 ---
 
 ## Summary
 
-`extendedTextInteraction` is the QTI interaction type for multi-line free-text entry. It is the standard vehicle for short-answer, constructed-response, and essay items in K-12 assessments. The PIE-QTI implementation renders `format="xhtml"` as a rich-text editor (`RichTextEditor.svelte`, backed by TipTap) and `format="plain"`/`"preformatted"` as a native `<textarea>`; `multiple`/`ordered` cardinality renders one named field per response string, with add and remove controls. The response variable has baseType `string` and cardinality `single`. `patternMask` is enforced by response validation: a response that does not match it is invalid. The editor does not yet show an inline message for a non-matching response (see Known gaps). Human scoring via instructor rubric is the expected path for most deployed items.
+`extendedTextInteraction` is the QTI interaction type for multi-line free-text entry. It is the standard vehicle for short-answer, constructed-response, and essay items in K-12 assessments. The PIE-QTI implementation renders `format="xhtml"` as a rich-text editor (`RichTextEditor.svelte`, backed by TipTap) and `format="plain"`/`"preformatted"` as a native `<textarea>`; `multiple`/`ordered` cardinality renders one named field per response string, with add and remove controls. The response variable has baseType `string` and cardinality `single`. `patternMask` is enforced by response validation: a response that does not match it is invalid, and the field says so inline when the candidate leaves it (the author's `data-patternmask-message`, else a localized sentence). Human scoring via instructor rubric is the expected path for most deployed items.
 
 ---
 
@@ -65,7 +65,7 @@ The QTI 3.0 tag name is `qti-extended-text-interaction` (kebab-case) with attrib
 | `expectedLength` | 2.x / 3.0 | Supported (display hint) | Stored in `ExtendedTextInteractionData.expectedLength`, absent when not authored (a hint with no default in any QTI version). No character limit is enforced in the UI. The `qti-counter-up`/`qti-counter-down` counters need it: without it they show no counter. |
 | `placeholderText` | 2.x / 3.0 | Supported | Passed to TipTap `Placeholder` extension. Rendered via `::before` pseudo-element when the editor is empty. Default: `"Enter your response..."`. |
 | `format` | 2.2 / 3.0 | Partially supported | Extracted and stored. All three values (`plain`, `preFormatted`, `xhtml`) render the same TipTap editor; no format-specific rendering distinctions are implemented. Unknown values emit a validator warning. Default: `"plain"`. |
-| `patternMask` | 2.x / 3.0 | Enforced by validation | Delivered as `ExtendedTextInteractionData.patternMask`, with `patternMaskMessage` from `data-patternmask-message`. `Player.validateResponses()` marks a `string` response invalid when any of its strings does not match the XSD pattern (QTI 3.0 §5.48.4). The pattern also decides the numeric keyboard (FR-25). The editor shows no inline message yet (see Known gaps). |
+| `patternMask` | 2.x / 3.0 | Enforced by validation | Delivered as `ExtendedTextInteractionData.patternMask`, with `patternMaskMessage` from `data-patternmask-message`. `Player.validateResponses()` marks a `string` response invalid when any of its strings does not match the XSD pattern (QTI 3.0 §5.48.4). The pattern also decides the numeric keyboard (FR-25). A field whose text fails the mask shows the message inline when the candidate leaves it (FR-26). |
 
 ### Unsupported / omitted attributes
 
@@ -78,7 +78,7 @@ The QTI 3.0 tag name is `qti-extended-text-interaction` (kebab-case) with attrib
 
 ### Known gaps
 
-**No inline message for a response that does not match `patternMask`.** The extractor delivers `patternMask` and `patternMaskMessage`. Response validation enforces the pattern as QTI requires: a response "must match in order to be considered valid" (QTI 3.0 §5.48.4), so a non-matching string makes it invalid. Unlike the text entry, the editor does not yet show the author's `data-patternmask-message`, or a localized default, next to the field. The specification's requirement is met. The inline message is remaining accessibility work, described under Non-functional requirements and tracked with `docs/SPEC-GAPS-PLAN.md` §G-04.
+None against the specification. The `patternMask` gap is resolved (2026-11-09): response validation enforces the pattern as QTI requires — a response "must match in order to be considered valid" (QTI 3.0 §5.48.4) — and the field also shows the author's `data-patternmask-message`, or a localized default, when the candidate leaves it with text that fails the pattern (FR-26), as the text entry does.
 
 ---
 
@@ -101,6 +101,7 @@ The QTI 3.0 tag name is `qti-extended-text-interaction` (kebab-case) with attrib
 - **FR-23:** The QTI 3.0 counters (`qti-counter-up`, `qti-counter-down` with `expectedLength`) must describe the field (`aria-describedby`) without being live regions; a polite live region must announce only when the count reaches `expectedLength` (again only after the count has dropped below it).
 - **FR-24:** Response fields must default to `spellcheck="false"`, `autocorrect="off"` and `autocapitalize="off"`, so spelling and writing items give every candidate the same help. The component's `spellcheck` prop (boolean, or `"true"` on the custom element) opts in to spell check and autocorrect, as does the candidate's PNP spell-checker grant (AfA `spell-checker-on-screen`, mapped to `cognitive.spellChecker` and carried to the component through the `pnp` prop the item body passes to every interaction); automatic capitalization stays off either way.
 - **FR-25:** A plain-text field for a numeric response must request a numeric virtual keyboard — `inputmode="numeric"` for `integer`, `"decimal"` for `float` and numeric `record` cardinality — only when the authored `patternMask` provably excludes `-` (for example `^[0-9]+$`), because phone number pads offer no minus key (nor an exponent). A `base` above 10 (letters as digits) keeps the text keyboard. Every other numeric response keeps the default text keyboard, which can enter whatever the item accepts.
+- **FR-26:** When the candidate leaves a field (plain text or rich text) whose text fails a `string` response's `patternMask`, the field must show the author's `data-patternmask-message` (QTI 3.0; QTI 2.x has no equivalent), else the localized `interactions.extendedText.patternMismatch` sentence, below it. The mask is compiled with the item player's XSD translation (`xsdPatternToRegExp`) and tested against the text the response holds, so the message and `Player.validateResponses()` agree; an empty field and a numeric response are never flagged. The message clears as soon as the text matches. Each field of a multi-part response is checked on its own.
 - **FR-13:** When the `response` prop is updated externally while the editor is not focused, the editor content must update to reflect the new value without triggering a `qti-change` event.
 - **FR-14:** When the `response` prop is updated externally while the editor is focused (active editing), the external update must be silently ignored to prevent clobbering in-progress input.
 
@@ -115,7 +116,7 @@ The QTI 3.0 tag name is `qti-extended-text-interaction` (kebab-case) with attrib
 - Control boundaries (the textarea and editor borders) use `--pie-qti-border-strong` (fallback `#767676`, 4.5:1 on white) for WCAG 1.4.11; focus shows a 2px `--pie-qti-focus` outline with a 2px offset; counter and placeholder text keep 4.5:1 (no opacity or transparency).
 - Toolbar buttons must have `aria-label` attributes sourced from i18n keys (`interactions.extendedText.bold`, `interactions.extendedText.italic`, `interactions.extendedText.insertInlineMath`, `interactions.extendedText.insertBlockMath`). Button labels must not rely on visual icon alone.
 - The correct-response panel (scorer role) must be reachable by keyboard and have sufficient color contrast. The current implementation uses `bg-success bg-opacity-10 border-success` DaisyUI classes — contrast must be verified against all 32 supported themes.
-- When the editor gets its inline `patternMask` message: the validation error message must be associated to the editor via `aria-describedby`. The error must appear on blur (not on every keystroke) to avoid ARIA live-region spam. An `aria-live="polite"` region must announce the error when it appears.
+- The inline `patternMask` message (FR-26) describes its field through `aria-describedby`, and the field states `aria-invalid="true"` while it shows (WCAG 3.3.1). It appears when the candidate leaves the field (not on every keystroke, so the live region is not flooded) and is announced once, through the interaction's polite live region. Its text uses `--pie-qti-error-text` (4.5:1); it never blocks typing.
 - The MathLive modal (triggered by toolbar math buttons) follows the WAI-ARIA APG modal dialog pattern: `role="dialog"`, `aria-modal="true"`, named by its title and described by its instructions; the math field has an associated label; focus moves into the field on open, Tab and Shift+Tab stay inside, Escape cancels (taking precedence over MathLive's own Escape binding), and focus returns as FR-12 describes. All of its strings come from the `interactions.mathInput` catalog section. The dialog carries the opener's writing direction. While MathLive's virtual keyboard is open, the dialog is laid out above it, so its focused control is never obscured (WCAG 2.4.11) and its buttons stay usable; if the math field cannot take focus (MathLive failed to load), focus goes to the next control in the dialog.
 - Touch targets for toolbar, add and remove buttons and the math dialog's buttons are at least 44×44px (the K-12 primary size; WCAG 2.5.8 requires 24×24). The Bold and Italic toolbar buttons expose their state with `aria-pressed`.
 
@@ -414,18 +415,20 @@ AC-G04-1: patternMask is delivered and enforced by validation
   Then: ExtendedTextInteractionData.patternMask is "[0-9]+"
   And: Player.validateResponses() reports the response invalid
 
-AC-G04-2: patternMask — inline message (target behavior)
-  Given: An item with patternMask="[0-9]+"
-  When: The candidate types "abc" and blurs the editor
-  Then: An error message is visible near the editor indicating the input does not match the expected format
-  And: The error message is associated to the editor via aria-describedby
-  Notes: Not implemented yet (see Known gaps).
+AC-G04-2: patternMask — inline message
+  Given: An item with patternMask="[0-9]+" on a string response
+  When: The candidate types "abc" and leaves the field (plain text or rich text)
+  Then: The author's data-patternmask-message, else "This answer is not in the expected format.", is visible below the field
+  And: The message is associated to the field via aria-describedby, the field has aria-invalid="true",
+       and the message is announced once through the polite live region
+  And: An empty field, or a numeric response, is never flagged (validation does not test either)
 
 AC-G04-3: patternMask — valid input clears error
-  Given: An item with patternMask="[0-9]+" and a validation error is showing after invalid input
-  When: The candidate clears the editor and types "42" and blurs
-  Then: The error message disappears
-  Notes: Requires the inline message.
+  Given: An item with patternMask="[0-9]+" and the message is showing after invalid input
+  When: The candidate changes the text to "42"
+  Then: The message and aria-invalid disappear as the text matches; text that still fails keeps them
+  And: In a multi-part response each field is checked on its own, and a message moves with its field
+       when an earlier response is removed
 ```
 
 ### Edge cases
