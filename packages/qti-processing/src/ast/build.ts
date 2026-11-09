@@ -1030,33 +1030,20 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			return { kind: 'expr.mapResponsePoint', id, identifier: getAttr(el, 'identifier') || '' };
 		}
 		case 'randominteger': {
-			// QTI 2.2.2: randomInteger is an empty element with min/max/step attributes.
-			// For compatibility with older/variant content, also accept the legacy child-expression form.
+			// Every QTI version defines randomInteger as an empty element (2.1 RandomInteger.Type
+			// extends EmptyPrimitiveType, line 9317; 2.2 line 16462; 3.0 RandomIntegerDType): the
+			// min/max/step attributes are its only input, and a child-expression form is invalid.
 			const minAttr = attrAsExpr('min', 'integer');
 			const maxAttr = attrAsExpr('max', 'integer');
-			const stepAttr = attrAsExpr('step', 'integer');
-			if (minAttr && maxAttr) {
-				return { kind: 'expr.randomInteger', id, min: minAttr, max: maxAttr, step: stepAttr };
-			}
-			if (!kids[0] || !kids[1]) throw new Error('<randomInteger> requires min/max attributes or 2 child expressions');
-			return {
-				kind: 'expr.randomInteger',
-				id,
-				min: buildExpression(kids[0]),
-				max: buildExpression(kids[1]),
-				step: kids[2] ? buildExpression(kids[2]) : undefined,
-			};
+			if (!minAttr || !maxAttr) throw new Error('<randomInteger> requires min/max attributes');
+			return { kind: 'expr.randomInteger', id, min: minAttr, max: maxAttr, step: attrAsExpr('step', 'integer') };
 		}
 		case 'randomfloat': {
-			// QTI 2.2.2: empty element with min/max attributes.
-			// For compatibility with older/variant content, also accept the legacy child-expression form.
+			// Like randomInteger, an empty element: min/max attributes only.
 			const minAttr = attrAsExpr('min', 'float');
 			const maxAttr = attrAsExpr('max', 'float');
-			if (minAttr && maxAttr) {
-				return { kind: 'expr.randomFloat', id, min: minAttr, max: maxAttr };
-			}
-			if (!kids[0] || !kids[1]) throw new Error('<randomFloat> requires min/max attributes or 2 child expressions');
-			return { kind: 'expr.randomFloat', id, min: buildExpression(kids[0]), max: buildExpression(kids[1]) };
+			if (!minAttr || !maxAttr) throw new Error('<randomFloat> requires min/max attributes');
+			return { kind: 'expr.randomFloat', id, min: minAttr, max: maxAttr };
 		}
 		case 'mathconstant': {
 			const name = (getAttr(el, 'name') || '').trim().toLowerCase();

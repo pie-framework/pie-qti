@@ -139,3 +139,40 @@ describe('templateConstraint restart', () => {
 		expect(ctx.getCorrectResponse('R')).toEqual(qtiValue('identifier', 'single', 'A'));
 	});
 });
+
+/**
+ * randomInteger and randomFloat are empty elements in every QTI version (2.1 RandomInteger.Type
+ * extends EmptyPrimitiveType, line 9317; 2.2 line 16462; 3.0 RandomIntegerDType line 8487; same
+ * for RandomFloat): min/max/step are attributes, and the element takes no child expressions.
+ */
+describe('randomInteger and randomFloat element forms', () => {
+	function templateOf(body: string): Element {
+		return parseXml(`<templateProcessing>${body}</templateProcessing>`).documentElement;
+	}
+
+	it('draws an integer from the min/max/step attributes and a float from min/max', () => {
+		const ctx = new DeclarationContext(makeDecls());
+		execProgram(
+			{ ctx, ops: new OperatorRegistry(), rng: replay([0.5]) },
+			buildTemplateProcessingAst(
+				templateOf(`<setTemplateValue identifier="T"><randomInteger min="1" max="5" step="2"/></setTemplateValue>
+					<setTemplateValue identifier="T2"><randomFloat min="0" max="1"/></setTemplateValue>`),
+				{},
+			),
+		);
+		// count = floor((5-1)/2)+1 = 3, k = floor(0.5*3) = 1, so 1 + 2*1 = 3; the float draws 0.5.
+		expect(ctx.getValue('T')).toEqual(qtiValue('integer', 'single', 3));
+		expect(ctx.getValue('T2')).toEqual(qtiValue('float', 'single', 0.5));
+	});
+
+	it('is a compile error for the child-expression form no QTI version defines', () => {
+		const childForm = '<setTemplateValue identifier="T"><randomInteger><baseValue baseType="integer">1</baseValue><baseValue baseType="integer">5</baseValue></randomInteger></setTemplateValue>';
+		expect(() => buildTemplateProcessingAst(templateOf(childForm), {})).toThrow(
+			'<randomInteger> requires min/max attributes',
+		);
+		const floatChildForm = '<setTemplateValue identifier="T"><randomFloat><baseValue baseType="float">0</baseValue><baseValue baseType="float">1</baseValue></randomFloat></setTemplateValue>';
+		expect(() => buildTemplateProcessingAst(templateOf(floatChildForm), {})).toThrow(
+			'<randomFloat> requires min/max attributes',
+		);
+	});
+});
