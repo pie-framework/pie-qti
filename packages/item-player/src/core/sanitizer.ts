@@ -17,6 +17,7 @@ import {
 } from '@pie-qti/ims-cp-core';
 import { Qti3ElementNameMapper } from '@pie-qti/qti-common';
 import type { PlayerSecurityConfig, UrlPolicyConfig } from '../types/index.js';
+import { escapeHtmlAttribute } from '../security/escapeHtml.js';
 import { normalizeParsingLimits } from './parsingLimits.js';
 import { sanitizeResourceUrl, type UrlKind } from './urlPolicy.js';
 
@@ -47,17 +48,9 @@ function allowIframes(options?: SanitizeHtmlOptions): boolean {
 	return options?.security?.allowIframes === true;
 }
 
-function escapeAttr(value: string): string {
-	return value
-		.replace(/&/g, '&amp;')
-		.replace(/"/g, '&quot;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;');
-}
-
 function getOptionalAttr(element: HTMLElement, attrName: string): string {
 	const value = element.getAttribute(attrName);
-	return value ? ` ${attrName}="${escapeAttr(value)}"` : '';
+	return value ? ` ${attrName}="${escapeHtmlAttribute(value)}"` : '';
 }
 
 /** The accessibility attributes an `object` replacement keeps: `aria-*`, `role` and `lang` (or `xml:lang`). */
@@ -66,11 +59,11 @@ function getAccessibilityAttrs(element: HTMLElement): string {
 	for (const [name, value] of Object.entries(element.attributes ?? {})) {
 		const attrName = name.toLowerCase();
 		if (/^aria-[a-z]+$/.test(attrName) || attrName === 'role') {
-			attrs += ` ${attrName}="${escapeAttr(value)}"`;
+			attrs += ` ${attrName}="${escapeHtmlAttribute(value)}"`;
 		}
 	}
 	const lang = element.getAttribute('lang') ?? element.getAttribute('xml:lang');
-	return lang ? `${attrs} lang="${escapeAttr(lang)}"` : attrs;
+	return lang ? `${attrs} lang="${escapeHtmlAttribute(lang)}"` : attrs;
 }
 
 function sanitizeUrlForHtml(value: string, options: SanitizeHtmlOptions | undefined, kind: UrlKind): string | null {
@@ -455,7 +448,7 @@ function getSafeObjectReplacementHtml(element: HTMLElement, options: SanitizeHtm
 			element.getAttribute('title') ??
 			element.textContent?.trim() ??
 			'';
-		return `<img src="${escapeAttr(src)}" alt="${escapeAttr(alt)}"${dimensions}${classes}${id}${a11y}>`;
+		return `<img src="${escapeHtmlAttribute(src)}" alt="${escapeHtmlAttribute(alt)}"${dimensions}${classes}${id}${a11y}>`;
 	}
 
 	if (rawType.startsWith('audio/')) {
@@ -463,7 +456,7 @@ function getSafeObjectReplacementHtml(element: HTMLElement, options: SanitizeHtm
 		if (!src) {
 			return null;
 		}
-		return `<audio controls${classes}${id}${a11y}><source src="${escapeAttr(src)}" type="${escapeAttr(rawType)}"></audio>`;
+		return `<audio controls${classes}${id}${a11y}><source src="${escapeHtmlAttribute(src)}" type="${escapeHtmlAttribute(rawType)}"></audio>`;
 	}
 
 	if (rawType.startsWith('video/')) {
@@ -475,8 +468,8 @@ function getSafeObjectReplacementHtml(element: HTMLElement, options: SanitizeHtm
 		const poster = rawPoster
 			? sanitizeUrlForHtml(rawPoster, options, 'img')
 			: null;
-		const posterAttr = poster ? ` poster="${escapeAttr(poster)}"` : '';
-		return `<video controls${dimensions}${classes}${id}${posterAttr}${a11y}><source src="${escapeAttr(src)}" type="${escapeAttr(rawType)}"></video>`;
+		const posterAttr = poster ? ` poster="${escapeHtmlAttribute(poster)}"` : '';
+		return `<video controls${dimensions}${classes}${id}${posterAttr}${a11y}><source src="${escapeHtmlAttribute(src)}" type="${escapeHtmlAttribute(rawType)}"></video>`;
 	}
 
 	return null;

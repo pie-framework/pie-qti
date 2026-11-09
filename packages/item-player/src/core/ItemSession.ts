@@ -19,6 +19,7 @@ import type {
 	SerializedItemSessionVariable,
 } from '../types/index.js';
 import type { BaseInteractionData } from '../interactions/shared/types.js';
+import { frozenSnapshot } from '../utils/cloneFreeze.js';
 import { createPlayerFromPreparedInternal, type Player } from './Player.js';
 
 export interface OpenItemSessionOptions {
@@ -201,7 +202,7 @@ export class LiveItemSession implements ItemSession {
 	}
 
 	state(): ItemSessionView {
-		return immutableSnapshot(this.currentView);
+		return frozenSnapshot(this.currentView);
 	}
 
 	dispatch(command: ItemSessionCommand): ItemSessionTransition {
@@ -260,8 +261,8 @@ export class LiveItemSession implements ItemSession {
 				security: this.player.getSecurityConfig(),
 				directRubrics: this.player.getRubrics({ scope: 'direct' }),
 			},
-			responses: immutableSnapshot(this.currentView.responses),
-			outcomeValues: immutableSnapshot(this.currentView.outcomes),
+			responses: frozenSnapshot(this.currentView.responses),
+			outcomeValues: frozenSnapshot(this.currentView.outcomes),
 			role: this.defaultRole,
 		});
 	}
@@ -274,7 +275,7 @@ export class LiveItemSession implements ItemSession {
 
 	serialize(): SerializedItemSessionState {
 		this.assertActive();
-		return immutableSnapshot(this.player.saveItemSession());
+		return frozenSnapshot(this.player.saveItemSession());
 	}
 
 	/**
@@ -291,7 +292,7 @@ export class LiveItemSession implements ItemSession {
 		const previous = this.currentView;
 		this.disposed = true;
 		this.revision += 1;
-		this.currentView = immutableSnapshot({
+		this.currentView = frozenSnapshot({
 			...previous,
 			revision: this.revision,
 			disposed: true,
@@ -309,7 +310,7 @@ export class LiveItemSession implements ItemSession {
 
 	private captureView(serialized = this.player.saveItemSession()): ItemSessionView {
 		const responses = valuesOf(serialized.responseVariables);
-		return immutableSnapshot({
+		return frozenSnapshot({
 			revision: this.revision,
 			itemIdentifier: serialized.itemIdentifier || this.itemIdentifier || undefined,
 			role: this.defaultRole,
@@ -403,7 +404,7 @@ export class LiveItemSession implements ItemSession {
 	private notify(transition: ItemSessionTransition): void {
 		for (const listener of [...this.listeners]) {
 			try {
-				listener(immutableSnapshot(transition));
+				listener(frozenSnapshot(transition));
 			} catch (error) {
 				console.error('[QTI ItemSession] subscriber failed:', error);
 			}
@@ -445,30 +446,11 @@ function valuesOf(
 	return Object.fromEntries(
 		Object.entries(variables).map(([identifier, variable]) => [
 			identifier,
-			immutableSnapshot(variable.value),
+			frozenSnapshot(variable.value),
 		])
 	);
 }
 
 function freezeTransition(transition: ItemSessionTransition): ItemSessionTransition {
-	return immutableSnapshot(transition);
-}
-
-/** Clone and freeze plain data without mutating values owned by the caller or a PCI module. */
-function immutableSnapshot<T>(value: T): T {
-	if (Array.isArray(value)) {
-		return Object.freeze(value.map((entry) => immutableSnapshot(entry))) as T;
-	}
-	if (!value || typeof value !== 'object') return value;
-	if (ArrayBuffer.isView(value)) return structuredClone(value);
-	if (value instanceof ArrayBuffer) return value.slice(0) as T;
-	const prototype = Object.getPrototypeOf(value);
-	if (prototype !== Object.prototype && prototype !== null) return value;
-	const snapshot = Object.fromEntries(
-		Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
-			key,
-			immutableSnapshot(entry),
-		])
-	);
-	return Object.freeze(snapshot) as T;
+	return frozenSnapshot(transition);
 }

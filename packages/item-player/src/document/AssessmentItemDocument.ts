@@ -12,6 +12,7 @@ import { parse } from 'node-html-parser';
 import { dockApipLinks, readApipAccessibility } from '../catalog/apipAccessibility.js';
 import { enforceItemXmlLimits } from '../core/parsingLimits.js';
 import { normalizeInteractionTypeFromTagName } from '../interactions/modules.js';
+import { readResponseIdentifier } from '../extraction/responseIdentifier.js';
 import type { PlayerSecurityConfig } from '../types/index.js';
 import type { QTIElement } from '../interactions/shared/types.js';
 import { type ContentHandlers, resolveContent } from './contentPass.js';
@@ -309,14 +310,7 @@ export class AssessmentItemDocument {
 	}
 
 	private getExtractionResponseIdentifier(element: QTIElement): string {
-		const nativeName = this.attributeNameMapper.toNative('responseIdentifier');
-		return (
-			element.getAttribute?.('responseIdentifier') ||
-			element.getAttribute?.(nativeName) ||
-			element.getAttribute?.('response-identifier') ||
-			element.getAttribute?.('responseidentifier') ||
-			''
-		);
+		return readResponseIdentifier(element, this.attributeNameMapper) ?? '';
 	}
 }
 

@@ -1,5 +1,6 @@
 import { parse as parseHtml } from 'node-html-parser';
 import type { HTMLElement as NhpElement } from 'node-html-parser';
+import { escapeHtmlAttribute } from '../security/escapeHtml.js';
 import { apipCatalogIndex, readApipAccessibility } from './apipAccessibility.js';
 import type { CatalogCard, CatalogEntry, CatalogIndex } from './types.js';
 
@@ -160,14 +161,10 @@ function mediaKindOf(el: NhpElement): 'img' | 'audio' | 'video' | undefined {
 	return undefined;
 }
 
-function escapeAttr(value: string): string {
-	return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
 function fileHrefContent(el: NhpElement): string {
 	const href = fileHrefOf(el);
 	if (!href) return '';
-	const src = escapeAttr(href);
+	const src = escapeHtmlAttribute(href);
 	const kind = mediaKindOf(el);
 	if (kind === 'img') return `<img src="${src}" alt="">`;
 	if (kind) return `<${kind} controls src="${src}"></${kind}>`;

@@ -35,3 +35,4 @@ export {
 } from './reviewState.js';
 export type { TimeManagerConfig, TimeTrackingState } from './TimeManager.js';
 export { TimeManager } from './TimeManager.js';
+export { formatTime } from './formatTime.js';
