@@ -19,6 +19,18 @@ async function openFixture(page: Page, item: string): Promise<Locator> {
 	return root;
 }
 
+/** The page point over image coordinates (x, y) of a rendered image of the given natural size. */
+async function imagePoint(
+	image: Locator,
+	natural: { width: number; height: number },
+	x: number,
+	y: number,
+): Promise<{ x: number; y: number }> {
+	const box = await image.boundingBox();
+	if (!box) throw new Error('The image has no layout box');
+	return { x: box.x + (x / natural.width) * box.width, y: box.y + (y / natural.height) * box.height };
+}
+
 async function scan(page: Page, selector: string) {
 	return new AxeBuilder({ page }).include(selector).withTags(WCAG_AA_TAGS).analyze();
 }
@@ -113,3 +125,44 @@ test.describe('hotspot multiple selection in the real custom element', () => {
 		});
 	});
 });
+
+/**
+ * The default shape is the whole image, drawn beneath the other regions: a click on another
+ * region stays that region's, a click anywhere else is the default region's. Keyboard order and
+ * naming are those of any region.
+ */
+test.describe('hotspot default shape', () => {
+	test('the whole-image region lies beneath the others and is reached by keyboard in its place', async ({ page }) => {
+		const root = await openFixture(page, 'hotspot-default');
+		const host = root.locator('pie-qti-hotspot');
+		const group = host.getByRole('radiogroup');
+		const [lake, island, elsewhere] = ['Lake', 'Island', 'Somewhere else'].map((name) =>
+			group.getByRole('radio', { name, exact: true }),
+		);
+		await expect(group.getByRole('radio')).toHaveCount(3);
+		const image = host.locator('[part="image"]');
+		const click = async (x: number, y: number) => {
+			const point = await imagePoint(image, { width: 400, height: 200 }, x, y);
+			await page.mouse.click(point.x, point.y);
+		};
+
+		await click(100, 90);
+		await expect(lake).toHaveAttribute('aria-checked', 'true');
+		await expect(elsewhere).toHaveAttribute('aria-checked', 'false');
+		await click(300, 100);
+		await expect(island).toHaveAttribute('aria-checked', 'true');
+		await click(380, 20);
+		await expect(elsewhere).toHaveAttribute('aria-checked', 'true');
+		await expect(page.getByTestId('response')).toHaveText('"ELSEWHERE"');
+
+		// In the radio group it is the third region, as authored: the arrow keys wrap past it.
+		await elsewhere.focus();
+		await page.keyboard.press('ArrowRight');
+		await expect(lake).toBeFocused();
+		await page.keyboard.press('ArrowLeft');
+		await expect(elsewhere).toBeFocused();
+		await expect(elsewhere).toHaveAttribute('aria-checked', 'true');
+		expect((await scan(page, 'pie-qti-hotspot')).violations).toEqual([]);
+	});
+});
+

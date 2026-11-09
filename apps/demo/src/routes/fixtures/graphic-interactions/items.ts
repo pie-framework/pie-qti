@@ -45,6 +45,39 @@ const HOTSPOT_MULTIPLE = `<?xml version="1.0" encoding="UTF-8"?>
   <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/map_response"/>
 </assessmentItem>`;
 
+/**
+ * The default shape (QTI 3.0 §8.29: "the entire area of the associated image") listed last,
+ * where a naive overlay would paint it over — and take the clicks of — every other region.
+ */
+const HOTSPOT_DEFAULT_SHAPE = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="graphic-hotspot-default"
+  title="Hotspot default shape" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse>
+      <value>ELSEWHERE</value>
+    </correctResponse>
+  </responseDeclaration>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+  <itemBody>
+    <hotspotInteraction responseIdentifier="RESPONSE" maxChoices="1">
+      <prompt>Where would you build the bridge?</prompt>
+      <object type="image/svg+xml" width="400" height="200">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
+          <title>A lake with an island</title>
+          <rect width="400" height="200" fill="#f0fdf4"/>
+          <rect x="40" y="40" width="120" height="100" fill="#bfdbfe" stroke="#1e3a8a" stroke-width="2"/>
+          <circle cx="300" cy="100" r="40" fill="#d9f99d" stroke="#3f6212" stroke-width="2"/>
+        </svg>
+      </object>
+      <hotspotChoice identifier="LAKE" shape="rect" coords="40,40,160,140" hotspotLabel="Lake"/>
+      <hotspotChoice identifier="ISLAND" shape="circle" coords="300,100,40" hotspotLabel="Island"/>
+      <hotspotChoice identifier="ELSEWHERE" shape="default" coords="" hotspotLabel="Somewhere else"/>
+    </hotspotInteraction>
+  </itemBody>
+  <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
+</assessmentItem>`;
+
 export const GRAPHIC_INTERACTION_FIXTURES: Readonly<Record<string, string>> = {
 	'hotspot-multiple': HOTSPOT_MULTIPLE,
+	'hotspot-default': HOTSPOT_DEFAULT_SHAPE,
 };

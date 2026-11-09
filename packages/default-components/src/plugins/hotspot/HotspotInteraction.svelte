@@ -13,7 +13,7 @@
 	import HotspotShape from '../../shared/components/HotspotShape.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { minimumHint } from '../../shared/utils/minimumRequirement';
-	import { hitStrokeWidth, imageAltText, observeWidth, shapeCenter } from './graphicRegions';
+	import { hitStrokeWidth, imageAltText, observeWidth, shapeCenter, type Point } from './graphicRegions';
 
 	interface Props {
 		interaction?: HotspotInteractionData | string;
@@ -125,6 +125,16 @@
 	// Rendered width of the image, to size hit targets and markers in CSS px.
 	let renderedWidth = $state(0);
 	const renderScale = $derived(imageWidth && renderedWidth > 0 ? renderedWidth / imageWidth : 1);
+
+	/**
+	 * Where a region's check marker sits, in image coordinates: the centre of its shape, or for a
+	 * default-shape region — the whole image — 14 CSS px in from the top-left corner, clear of
+	 * the other regions' markers at their centres.
+	 */
+	function markerPoint(choice: HotspotChoice): Point {
+		if (choice.shape === 'default') return { x: 14 / renderScale, y: 14 / renderScale };
+		return shapeCenter(choice.shape, choice.coords);
+	}
 
 	const imageAlt = $derived(
 		imageAltText(imageData, translate(i18n, 'interactions.hotspot.imageFallback', 'Image for this question')),
@@ -410,29 +420,63 @@
 					data-disabled={disabled ? '' : undefined}
 					{...radioGroupAria}
 				>
+					<!-- A region's visible layers: light halo + dark outline (visible on any image), and a
+					     check marker for selected/correct (not colour alone). -->
+					{#snippet regionVisuals(choice: HotspotChoice, selected: boolean, correct: boolean)}
+						<HotspotShape shape={choice.shape} coords={choice.coords} interactive={false} presentation={{ class: 'qti-hotspot-halo' }} />
+						<HotspotShape shape={choice.shape} coords={choice.coords} interactive={false} presentation={{ class: 'qti-hotspot-outline' }} />
+						{#if selected || correct}
+							{@const at = markerPoint(choice)}
+							<g
+								class="qti-hotspot-marker"
+								aria-hidden="true"
+								transform="translate({at.x} {at.y}) scale({1 / renderScale})"
+							>
+								<circle r="10" />
+								<path d="M-4.5 0.5 L-1.5 3.5 L4.5 -3" />
+							</g>
+						{/if}
+					{/snippet}
+
+					<!-- Default-shape regions are the whole image (QTI 3.0 §8.29), so they lie beneath
+					     every other region: their layers and pointer target are painted first, and a
+					     click on another region stays that region's. Their control keeps its place in
+					     hotspotChoice order below — for the keyboard and its name — and takes no
+					     pointer input. -->
+					{#each choices as choice}
+						{#if choice.shape === 'default'}
+							{@const regionSelected = isSelected(choice.identifier)}
+							{@const isCorrectChoice = isCorrect(choice.identifier)}
+							<g
+								class="qti-hotspot-backdrop"
+								data-selected={regionSelected ? '' : undefined}
+								data-correct={isCorrectChoice ? '' : undefined}
+							>
+								{@render regionVisuals(choice, regionSelected, isCorrectChoice)}
+								<HotspotShape
+									shape={choice.shape}
+									coords={choice.coords}
+									interactive="pointer"
+									presentation={{ class: 'qti-hotspot-pointer-target' }}
+									onclick={() => activate(choice.identifier)}
+								/>
+							</g>
+						{/if}
+					{/each}
+
 					{#each choices as choice, index}
 						{@const regionSelected = isSelected(choice.identifier)}
 						{@const isCorrectChoice = isCorrect(choice.identifier)}
-						{@const center = shapeCenter(choice.shape, choice.coords)}
-						<!-- One region: light halo + dark outline (visible on any image), a check
-						     marker for selected/correct (not colour alone), then the invisible
-						     interactive target on top, grown to 24×24 CSS px when small. -->
+						{@const isDefaultShape = choice.shape === 'default'}
+						<!-- One region: its visible layers, then the invisible interactive target on
+						     top, grown to 24×24 CSS px when small. -->
 						<g
 							class="qti-hotspot-region"
 							data-selected={regionSelected ? '' : undefined}
 							data-correct={isCorrectChoice ? '' : undefined}
 						>
-							<HotspotShape shape={choice.shape} coords={choice.coords} interactive={false} presentation={{ class: 'qti-hotspot-halo' }} />
-							<HotspotShape shape={choice.shape} coords={choice.coords} interactive={false} presentation={{ class: 'qti-hotspot-outline' }} />
-							{#if regionSelected || isCorrectChoice}
-								<g
-									class="qti-hotspot-marker"
-									aria-hidden="true"
-									transform="translate({center.x} {center.y}) scale({1 / renderScale})"
-								>
-									<circle r="10" />
-									<path d="M-4.5 0.5 L-1.5 3.5 L4.5 -3" />
-								</g>
+							{#if !isDefaultShape}
+								{@render regionVisuals(choice, regionSelected, isCorrectChoice)}
 							{/if}
 							<HotspotShape
 								shape={choice.shape}
@@ -444,8 +488,8 @@
 								checked={regionSelected}
 								tabStop={!isSingle || choice.identifier === tabStopIdentifier}
 								presentation={{
-									class: 'qti-hotspot-shape',
-									style: `--qti-hit-stroke: ${hitStrokeWidth(choice.shape, choice.coords, renderScale)}px;`,
+									class: isDefaultShape ? 'qti-hotspot-shape qti-hotspot-shape-default' : 'qti-hotspot-shape',
+									style: `--qti-hit-stroke: ${hitStrokeWidth(choice.shape, choice.coords, renderScale)}px;${isDefaultShape ? ' pointer-events: none;' : ''}`,
 									'data-selected': regionSelected ? '' : undefined,
 									'aria-describedby': minHint ? minHintId : undefined,
 									// A disabled region says so, as a disabled native control does
@@ -547,21 +591,23 @@
 		vector-effect: non-scaling-stroke;
 		transition: fill 120ms ease;
 	}
+	/* A default-shape region (the whole image) is drawn in a backdrop group beneath the other
+	   regions; it takes the same states as a region. */
 	/* Pointer hover affordance */
-	.qti-hotspot-overlay:not([data-disabled]) :global(.qti-hotspot-region:hover .qti-hotspot-outline) {
+	.qti-hotspot-overlay:not([data-disabled]) :global(:is(.qti-hotspot-region, .qti-hotspot-backdrop):hover .qti-hotspot-outline) {
 		fill: color-mix(in srgb, var(--qti-hotspot-selected) 12%, transparent);
 	}
 	/* Selected: thicker outline, tint and a check marker — never colour alone (WCAG 1.4.1) */
-	.qti-hotspot-overlay :global(.qti-hotspot-region[data-selected] .qti-hotspot-outline) {
+	.qti-hotspot-overlay :global(:is(.qti-hotspot-region, .qti-hotspot-backdrop)[data-selected] .qti-hotspot-outline) {
 		stroke: var(--qti-hotspot-selected);
 		stroke-width: 4px;
 		fill: color-mix(in srgb, var(--qti-hotspot-selected) 25%, transparent);
 	}
-	.qti-hotspot-overlay :global(.qti-hotspot-region[data-selected] .qti-hotspot-halo) {
+	.qti-hotspot-overlay :global(:is(.qti-hotspot-region, .qti-hotspot-backdrop)[data-selected] .qti-hotspot-halo) {
 		stroke-width: 8px;
 	}
 	/* Correct answer (scorer view): dashed outline and a check marker */
-	.qti-hotspot-overlay :global(.qti-hotspot-region[data-correct]:not([data-selected]) .qti-hotspot-outline) {
+	.qti-hotspot-overlay :global(:is(.qti-hotspot-region, .qti-hotspot-backdrop)[data-correct]:not([data-selected]) .qti-hotspot-outline) {
 		stroke: var(--qti-hotspot-correct);
 		stroke-width: 3px;
 		stroke-dasharray: 6px 3px;
@@ -571,7 +617,7 @@
 		stroke: #fff;
 		stroke-width: 2px;
 	}
-	.qti-hotspot-overlay :global(.qti-hotspot-region[data-correct]:not([data-selected]) .qti-hotspot-marker circle) {
+	.qti-hotspot-overlay :global(:is(.qti-hotspot-region, .qti-hotspot-backdrop)[data-correct]:not([data-selected]) .qti-hotspot-marker circle) {
 		fill: var(--qti-hotspot-correct);
 	}
 	.qti-hotspot-overlay :global(.qti-hotspot-marker path) {
@@ -595,7 +641,15 @@
 		cursor: pointer;
 		outline: none;
 	}
-	.qti-hotspot-overlay[data-disabled] :global(.qti-hotspot-shape) {
+	/* A default-shape region's pointer target, beneath every other region (its control takes
+	   no pointer input): invisible, but painted so the image around the other regions takes
+	   the pointer. */
+	.qti-hotspot-overlay :global(.qti-hotspot-pointer-target) {
+		fill: rgba(0, 0, 0, 0);
+		stroke: none;
+		cursor: pointer;
+	}
+	.qti-hotspot-overlay[data-disabled] :global(:is(.qti-hotspot-shape, .qti-hotspot-pointer-target)) {
 		cursor: not-allowed;
 	}
 	/* Focus indicator drawn on the region outline (WCAG 2.4.7), haloed for any background */
@@ -606,9 +660,14 @@
 	.qti-hotspot-overlay :global(.qti-hotspot-region:focus-within .qti-hotspot-halo) {
 		stroke-width: 9px;
 	}
+	/* A default-shape region's halo is in its backdrop, beneath the other regions */
+	.qti-hotspot-overlay:has(:global(.qti-hotspot-shape-default:focus-visible)) :global(.qti-hotspot-backdrop .qti-hotspot-halo) {
+		stroke-width: 9px;
+	}
 
 	/* qti-unselected-hidden: unselected regions show only while focused; they stay operable */
-	.qti-unselected-hidden .qti-hotspot-overlay :global(.qti-hotspot-region:not([data-selected]):not(:focus-within) :is(.qti-hotspot-halo, .qti-hotspot-outline)) {
+	.qti-unselected-hidden .qti-hotspot-overlay :global(.qti-hotspot-region:not([data-selected]):not(:focus-within) :is(.qti-hotspot-halo, .qti-hotspot-outline)),
+	.qti-unselected-hidden .qti-hotspot-overlay :global(.qti-hotspot-backdrop:not([data-selected]) :is(.qti-hotspot-halo, .qti-hotspot-outline)) {
 		fill: transparent;
 		stroke: transparent;
 	}
