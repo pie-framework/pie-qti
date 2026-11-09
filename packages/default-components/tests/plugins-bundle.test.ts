@@ -1,5 +1,23 @@
 import { describe, expect, it } from 'bun:test';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseHTML } from 'linkedom';
+
+const SRC_DIR = fileURLToPath(new URL('../src', import.meta.url));
+
+/** Tags declared by `<svelte:options customElement="...">` anywhere in src. */
+function sourceCustomElementTags(): string[] {
+	const tags: string[] = [];
+	for (const entry of readdirSync(SRC_DIR, { recursive: true, withFileTypes: true })) {
+		if (!entry.isFile() || !entry.name.endsWith('.svelte')) continue;
+		const source = readFileSync(join(entry.parentPath, entry.name), 'utf8');
+		for (const match of source.matchAll(/<svelte:options\s+customElement=["']([^"']+)["']/g)) {
+			tags.push(match[1]);
+		}
+	}
+	return tags.sort();
+}
 
 const EXPECTED_PLUGIN_TAGS = [
 	'pie-qti-choice',
@@ -26,6 +44,10 @@ const EXPECTED_PLUGIN_TAGS = [
 ] as const;
 
 describe('compiled plugin bundle', () => {
+	it('expects every custom element declared in the component sources', () => {
+		expect([...EXPECTED_PLUGIN_TAGS].sort()).toEqual(sourceCustomElementTags());
+	});
+
 	it('imports the published plugins entry and registers default custom elements', async () => {
 		const { CustomEvent, HTMLElement, Node, customElements, document, window } = parseHTML(
 			'<!doctype html><html><body></body></html>'

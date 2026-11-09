@@ -670,7 +670,7 @@ export const ITEMS_EN_US: Record<string, LocalizedItemData> = {
 
   <itemBody>
     <p>The inner planets of our solar system are the four rocky planets closest to the Sun: Mercury, Venus, Earth, and Mars.</p>
-    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="4">
       <prompt>Label the four inner planets in our solar system</prompt>
       <object type="image/svg+xml" width="800" height="400">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">

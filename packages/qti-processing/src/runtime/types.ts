@@ -43,10 +43,6 @@ export interface Mapping {
 	entries: Record<string, MappingEntry>;
 	lowerBound?: number;
 	upperBound?: number;
-	/**
-	 * QTI attribute on <mapping>. When "false", string mappings are case-insensitive by default.
-	 */
-	caseSensitive?: string;
 }
 
 export interface Declaration {

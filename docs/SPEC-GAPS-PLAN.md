@@ -8,6 +8,12 @@ This document is the authoritative meta-plan for closing gaps between the QTI sp
 PIE-QTI implementation. Each section maps to one or more concrete sub-tasks that can be handed to an
 AI agent or a human engineer. Sections are ordered by priority tier.
 
+> **Policy (2026-11-09):** follow the QTI spec wherever it is clear, per version; no legacy code.
+> The project is pre-1.0, so there is no backwards-compatibility surface: no shims, deprecated
+> aliases, ignored parameters or migration paths for the project's own past behavior, and no
+> non-spec leniency in parsing. Supporting an older QTI version's defined behavior is compliance,
+> not legacy. See "Spec Compliance and No Legacy Code" in `AGENTS.md`.
+
 > **Goal (2026-10-17):** feature completeness against the QTI 2.2 and 3.0 specifications and a
 > proper 1.0 release. Every item in this plan is committed work on that path — including the PCI
 > spec contract (G-08, phases 1–3 landed), structured labels and braille support (G-13, landed),
@@ -719,8 +725,8 @@ the player in its typed form (each field `{baseType, cardinality, value}`), sinc
 declaration types none of its fields. Before that correction the binding was only right for
 scalar base types: a conformant PCI's pair response `{"base":{"pair":["A","B"]}}` was stored as
 `"A,B"` and scored 0, a spec-shaped record came back keyed by array index, and seeded state carried
-pairs as `"A B"`, records as name-keyed objects and durations as numbers. The earlier name-keyed
-record form is still accepted on input.
+pairs as `"A B"`, records as name-keyed objects and durations as numbers. Input in those earlier
+shapes, or otherwise outside the binding, now reads as NULL.
 
 Action
 Phases 1–3 are done in-repo. Phase 1: the registry global, `getInstance`, `onready`/`ondone`, QTI
@@ -1050,7 +1056,6 @@ Known, accepted delivery limits from the round-5 delivery review and the later l
 - No mid-session time extension: PNP extended time is fixed when the player is created — `packages/assessment-player/src/core/TimeManager.ts`.
 - PNP `line-reader` is parsed into the profile's tool supports, but no built-in line reader renders it — `packages/item-player/src/pnp/parsePnpXml.ts`.
 - The section tool bar hosts only the tools the host configures; there is no built-in calculator, ruler, protractor or TTS of pie-qti's own — `packages/section-player/src/components/QtiToolButtonBar.svelte`.
-- `templateDeclaration@paramVariable` is not applied: a `<param>` inside an `<object>` whose value names a template variable declared with `paramVariable="true"` is delivered with the variable's name, not its value (QTI 2.2 §7.24.2). Confined to legacy plugin-style `object` parameters — `packages/item-player/src/core/Player.ts` (template content pass).
 
 ---
 

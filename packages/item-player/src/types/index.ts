@@ -12,6 +12,7 @@ import type {
 import type {
 	AttributeNameMapper,
 	ElementNameMapper,
+	QtiVersion,
 } from '@pie-qti/qti-common';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 import type { PciConfiguration } from '../pci/types.js';
@@ -46,11 +47,6 @@ export interface Mapping {
 	defaultValue?: number;
 	lowerBound?: number;
 	upperBound?: number;
-	/**
-	 * QTI attribute on <mapping>. When "false", string mappings are case-insensitive by default.
-	 * Stored as raw string to match XML attribute values ("true"/"false").
-	 */
-	caseSensitive?: string;
 	entries: Record<string, MapEntry>;
 }
 
@@ -75,15 +71,6 @@ export interface AreaMapEntry {
 
 export interface ResponseDeclaration extends VariableDeclaration {
 	correctResponse?: any;
-}
-
-export interface OutcomeDeclaration extends VariableDeclaration {
-	interpretation?: string;
-	longInterpretation?: string;
-	normalMaximum?: number;
-	normalMinimum?: number;
-	masteryValue?: number;
-	views?: string[];
 }
 
 /** @internal Private engine snapshot shape; use SerializedItemSessionState. */
@@ -156,11 +143,6 @@ export interface ItemSessionActionResult {
 	sessionState: SerializedItemSessionState;
 	validation?: ResponseValidationResult;
 	scoring?: ScoringResult;
-}
-
-/** @internal Private engine response map. */
-export interface InteractionResponse {
-	[responseId: string]: any;
 }
 
 /**
@@ -333,6 +315,12 @@ export interface ItemSessionEngineConfig {
 	 * @since 0.3.0
 	 */
 	attributeNameMapper?: AttributeNameMapper;
+	/**
+	 * The item's detected QTI version, applied by extractors that carry per-version spec
+	 * defaults (e.g. graphicGapMatchInteraction maxAssociations). Detected from the item
+	 * XML when not supplied.
+	 */
+	qtiVersion?: QtiVersion;
 	/** Optional web component registry for custom interaction components */
 	componentRegistry?: ComponentRegistry;
 	/** Optional extraction registry for custom element extractors */
@@ -456,14 +444,6 @@ export interface ParsingLimitsConfig {
 	 * Maximum element depth sanitized per HTML input. Enforced when enabled.
 	 */
 	maxHtmlDepth?: number;
-}
-
-export interface InteractionContext {
-	responseIdentifier: string;
-	maxChoices?: number;
-	minChoices?: number;
-	shuffle?: boolean;
-	orientation?: 'horizontal' | 'vertical';
 }
 
 export * from './responseValidation.js';

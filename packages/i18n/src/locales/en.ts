@@ -224,7 +224,6 @@ export default {
 		hottext: {
 			selected: 'Selected:',
 			selectText: 'Select text from the passage',
-			clearSelection: 'Clear Selection',
 			ariaLabel: 'Text selection interaction',
 			selectableState: 'Selectable',
 			selectedState: 'Selected',
@@ -318,6 +317,7 @@ export default {
 			filledGapAriaLabelWithHeld: 'Blank {position} of {total}, filled with {word}. Select to replace with {heldWord}.',
 			blankGapAriaLabelWithHeld: 'Blank {position} of {total}. Select to place {heldWord} here.',
 			placed: 'Placed {word} in blank {position} of {total}.',
+			associationLimitReached: 'Association not possible: the limit of {max} is reached.',
 			pointerInstructions: 'Select a word, then select a blank. You can also drag and drop.',
 			instruction: 'Drag words to fill in the blanks',
 			available: 'Available words',

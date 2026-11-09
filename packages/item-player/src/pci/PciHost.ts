@@ -74,25 +74,24 @@ export class PciHost implements PciHostController {
 	private readonly _remountRequestListeners = new Set<() => void>();
 	private readonly _errorListeners = new Set<(error: Error) => void>();
 
-	constructor(data: ExtractedPci, options: PciHostOptions | string = {}) {
+	constructor(data: ExtractedPci, options: PciHostOptions = {}) {
 		this.data = data;
-		this.baseUrl = typeof options === 'string' ? options : (options.baseUrl ?? '');
-		this.moduleResolver = typeof options === 'string' ? undefined : options.moduleResolver;
-		this.sandboxConfig = typeof options === 'string' ? undefined : options.sandbox;
-		this.responseDeclaration =
-			typeof options === 'string' ? undefined : options.responseDeclaration;
-		this.statusSource = typeof options === 'string' ? undefined : options.status;
-		this.registry = typeof options === 'string' ? getSharedPciRegistry() : (options.registry ?? getSharedPciRegistry());
+		this.baseUrl = options.baseUrl ?? '';
+		this.moduleResolver = options.moduleResolver;
+		this.sandboxConfig = options.sandbox;
+		this.responseDeclaration = options.responseDeclaration;
+		this.statusSource = options.status;
+		this.registry = options.registry ?? getSharedPciRegistry();
 
 		if (this.sandboxConfig) {
 			this.session = new SandboxedPciSession({
 				sandbox: this.sandboxConfig,
 				data,
 				baseUrl: this.baseUrl,
-				modulePolicy: typeof options === 'string' ? undefined : options.modulePolicy,
-				frameConnector: typeof options === 'string' ? undefined : options.frameConnector,
-				parentOrigin: typeof options === 'string' ? undefined : options.parentOrigin,
-				contentLanguage: typeof options === 'string' ? undefined : options.contentLanguage,
+				modulePolicy: options.modulePolicy,
+				frameConnector: options.frameConnector,
+				parentOrigin: options.parentOrigin,
+				contentLanguage: options.contentLanguage,
 			});
 		} else {
 			this.session = new PageRealmPciSession({
@@ -100,7 +99,7 @@ export class PciHost implements PciHostController {
 				baseUrl: this.baseUrl,
 				moduleResolver: this.moduleResolver,
 				registry: this.registry,
-				...(typeof options === 'string' ? {} : { registrationTimeoutMs: options.registrationTimeoutMs }),
+				registrationTimeoutMs: options.registrationTimeoutMs,
 			});
 		}
 		this.session.onRemoteReport?.((report) => {

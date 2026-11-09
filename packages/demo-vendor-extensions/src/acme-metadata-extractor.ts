@@ -12,7 +12,7 @@
  * - Custom Acme-specific fields
  */
 
-import type { MetadataExtractor, VendorInfo } from '@pie-qti/to-pie';
+import type { MetadataExtractor, VendorInfo } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 
 /**

@@ -60,6 +60,7 @@ Architecture and authoring guide for QTI source profiles. Covers:
 ### Other active docs in this folder
 
 - `QTI_techguide.md` (technical reference — covers QTI 2.1, 2.2, and 3.0)
+- `QTI_attribute_defaults.md` (audited interaction attribute defaults per QTI version, and what the player applies)
 - `IMS_Content_Packages_techguide.md` (IMS Content Packaging)
 - `LOM_techguide.md` (IEEE LOM metadata)
 - `QTI-RESPONSE-TRACKING-AND-SCORING.md` (scoring/response tracking)

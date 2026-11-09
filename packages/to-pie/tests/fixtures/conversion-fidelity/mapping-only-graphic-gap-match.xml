@@ -15,7 +15,7 @@
   </responseDeclaration>
   <itemBody>
     <p>Drag each label onto the matching zone.</p>
-    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="2">
       <img src="background.png" width="400" height="300"/>
       <gapImg identifier="IMG1"><img src="image1.png"/></gapImg>
       <gapImg identifier="IMG2"><img src="image2.png"/></gapImg>

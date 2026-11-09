@@ -135,6 +135,27 @@ describe('SelectPointInteraction (pie-qti-select-point)', () => {
 		expect(qa(mounted, '[part="points"] li')).toHaveLength(1);
 	});
 
+	test('a response is read only in the QTI "x y" point form', async () => {
+		// `{x, y}` objects are not a QTI point value: they place nothing.
+		const objects = mountInteraction(SelectPointInteraction, {
+			interaction: selectPointData({ maxChoices: 2 }),
+			response: [{ x: 100, y: 60 }] as unknown as string[],
+		});
+		const single = mountInteraction(SelectPointInteraction, {
+			interaction: selectPointData(),
+			response: { x: 100, y: 60 } as unknown as string,
+		});
+		const canonical = mountInteraction(SelectPointInteraction, {
+			interaction: selectPointData(),
+			response: '100 60',
+		});
+		await settle();
+
+		expect(qa(objects, '[part="points"] li')).toHaveLength(0);
+		expect(qa(single, '[part="points"] li')).toHaveLength(0);
+		expect(qa(canonical, '[part="points"] li')).toHaveLength(1);
+	});
+
 	test('reaching maxChoices announces the limit instead of placing', async () => {
 		const mounted = mountInteraction(SelectPointInteraction, {
 			interaction: selectPointData(),
@@ -148,6 +169,22 @@ describe('SelectPointInteraction (pie-qti-select-point)', () => {
 
 		expect(mounted.events).toHaveLength(0);
 		expect(liveRegion(mounted)).toContain('Maximum points reached');
+	});
+
+	test('maxChoices=0 means no restriction: points keep placing and the response is an array', async () => {
+		// The QTI 2.2/3.0 default for an absent maxChoices on a multiple-point response.
+		const mounted = mountInteraction(SelectPointInteraction, {
+			interaction: selectPointData({ maxChoices: 0 }),
+			response: ['100 60', '400 240'],
+		});
+		await settle();
+
+		pressKey(surface(mounted), 'Enter');
+		await settle();
+
+		expect(Array.isArray(mounted.instance.response)).toBe(true);
+		expect(mounted.instance.response).toHaveLength(3);
+		expect(liveRegion(mounted)).not.toContain('Maximum points reached');
 	});
 
 	test('a failed image shows a localized message; the selection area keeps working', async () => {

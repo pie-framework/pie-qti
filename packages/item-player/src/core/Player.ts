@@ -16,7 +16,9 @@ import {
 	findDescendants,
 	findFirstDescendant,
 	getAttr,
+	isElement,
 	isNullValue,
+	localName,
 	OperatorRegistry,
 	parseXml,
 	type ProcessingProgram,
@@ -27,7 +29,7 @@ import {
 	toNumber,
 	toStringValue,
 } from '@pie-qti/qti-processing';
-import type { ElementNameMapper, AttributeNameMapper } from '@pie-qti/qti-common';
+import type { ElementNameMapper, AttributeNameMapper, QtiVersion } from '@pie-qti/qti-common';
 import { prepareContentMarkup } from '@pie-qti/qti-common/accessibility';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 import { DefaultI18nProvider, type I18nProvider } from '@pie-qti/i18n';
@@ -181,9 +183,13 @@ export class Player {
 	private interactionDataCache: readonly BaseInteractionData[] | null = null;
 	/** Template variables declared with `mathVariable`, substituted into MathML. */
 	private mathVariableIds: ReadonlySet<string> | null = null;
+	/** Template variables declared with `paramVariable`, substituted into `<param>` values. */
+	private paramVariableIds: ReadonlySet<string> | null = null;
 	private componentRegistry: ComponentRegistry;
 	private i18nProvider: I18nProvider;
 	private mapper: ElementNameMapper;
+	/** The item's detected QTI version ('unknown' when nothing identified it). */
+	private qtiVersion: QtiVersion;
 
 	private warnedImpliedZeroMaxScore = false;
 	private responseProcessingProgram: ProcessingProgram | null = null;
@@ -226,11 +232,13 @@ export class Player {
 		this.rng = config.rng ?? (typeof config.seed === 'number' ? createSeededRng(config.seed) : Math.random);
 
 		// Resolve QTI-version mappers without mutating caller-owned configuration.
+		// The detected version also drives per-version spec defaults during extraction
+		// (e.g. graphicGapMatchInteraction maxAssociations); detect it once, here.
+		this.qtiVersion = config.qtiVersion ?? detectQtiVersion(this.itemXml);
 		if (prepared) {
 			this.mapper = prepared.mapper;
 		} else if (!config.elementNameMapper) {
-			const version = detectQtiVersion(this.itemXml);
-			if (version === '3.0') {
+			if (this.qtiVersion === '3.0') {
 				this.mapper = new Qti3ElementNameMapper();
 			} else {
 				this.mapper = new Qti2xElementNameMapper();
@@ -247,6 +255,7 @@ export class Player {
 			...config,
 			elementNameMapper: this.mapper,
 			attributeNameMapper: attributeMapper,
+			qtiVersion: this.qtiVersion,
 		};
 
 		if (prepared) {
@@ -547,17 +556,6 @@ export class Player {
 	}
 
 	/**
-	 * Disable/enable all PCI hosts based on role.
-	 * 'candidate' = enabled; any other role = disabled.
-	 */
-	public syncPciDisabledState(): void {
-		const disabled = this.role !== 'candidate';
-		for (const host of this._pciHosts.values()) {
-			if (disabled) host.disable(); else host.enable();
-		}
-	}
-
-	/**
 	 * The QTI 3.0 §6.1 interaction status a PCI instantiates with: 'solution' when
 	 * correct responses are exposed, 'review' for non-candidate roles otherwise,
 	 * 'closed' once the attempt finished, 'interacting' while the candidate works.
@@ -803,10 +801,6 @@ export class Player {
 
 	public getSecurityConfig(): PlayerSecurityConfig | undefined {
 		return this.config.security;
-	}
-
-	public getTrustedTypesPolicyName(): string | undefined {
-		return this.config.security?.trustedTypesPolicyName;
 	}
 
 	/**
@@ -1068,10 +1062,6 @@ export class Player {
 
 	public getComponentRegistry(): ComponentRegistry {
 		return this.componentRegistry;
-	}
-
-	public getExtractionRegistry(): ExtractionRegistry {
-		return this.extractionRegistry;
 	}
 
 	/**
@@ -1372,6 +1362,12 @@ export class Player {
 					}),
 				);
 			}
+			// gapMatch maxAssociations (0 = no restriction): the delivered interface refuses a
+			// placement past it; a restored or programmatic response over it is checked here.
+			const gapMatchMax = i.type === 'gapMatchInteraction' ? Number(i.maxAssociations ?? 0) : 0;
+			if (gapMatchMax > 0 && Array.isArray(value) && value.filter(isMeaningfulEntry).length > gapMatchMax) {
+				errors.push(`Response '${responseId}' exceeds maxAssociations=${gapMatchMax}`);
+			}
 			const shapeErrorCount = errors.length;
 
 			// matchGroup restricts which choices may pair. The renderers enforce it while the
@@ -1588,7 +1584,7 @@ export class Player {
 				return;
 			}
 			case 'match_nothing':
-			case 'cc2_match_nothing': { // QTI 2.1 compatibility
+			case 'cc2_match_nothing': { // Official IMS QTI 3.0 rptemplate
 				const isEmptyResponse = (v: QtiValue | undefined): boolean => {
 					if (!v) return true;
 					if (v.kind === 'null') return true;
@@ -1619,7 +1615,7 @@ export class Player {
 				return;
 			}
 			case 'map_response_point':
-			case 'cc2_map_response_point': { // QTI 2.1 compatibility
+			case 'cc2_map_response_point': { // Official IMS QTI 3.0 rptemplate
 				setScore(mapResponse(true));
 				return;
 			}
@@ -1840,21 +1836,6 @@ export class Player {
 				// @ts-expect-error internal marker
 				__kind: 'outcome',
 			};
-		}
-	}
-
-	private applySessionState(state: ItemSessionState): void {
-		for (const [id, raw] of Object.entries(state)) {
-			const d = this.decls[id];
-			if (!d) continue;
-			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
-		}
-		// `duration` here is the QTI variable's public value, which is in seconds.
-		const restoredSeconds = Number(state.duration);
-		if (Number.isFinite(restoredSeconds) && restoredSeconds >= 0) {
-			this.accumulatedDurationMs = restoredSeconds * 1000;
-			this.sessionStartedAt = Date.now();
-			this.updateDuration();
 		}
 	}
 
@@ -2088,8 +2069,7 @@ export class Player {
 		const upperBound = this.getAttrMapped(mappingEl, 'upperBound') ? Number(this.getAttrMapped(mappingEl, 'upperBound')) : undefined;
 		// mapEntry@caseSensitive defaults to "false" (QTI 2.2 XSD, optional, default "false"):
 		// string entries match case-insensitively unless authored "true". The mapping element
-		// itself has no such attribute in 2.2 — reading one is accepted as leniency.
-		const mappingCaseSensitive = this.getAttrMapped(mappingEl, 'caseSensitive') || 'false';
+		// itself defines no caseSensitive attribute in any QTI version, so none is read.
 		const entries: Record<string, any> = {};
 
 		const normalizePairKey = (k: string): string => {
@@ -2109,9 +2089,8 @@ export class Player {
 			const mappedValue = this.getAttrMapped(e, 'mappedValue');
 			if (!mapKey || mappedValue === null) continue;
 			// Only string values fold case: identifier and the other base types always match
-			// exactly (QTI ASI §17), whatever the entry or mapping says.
-			const effectiveCaseSensitive =
-				baseType === 'string' ? this.getAttrMapped(e, 'caseSensitive') || mappingCaseSensitive : 'true';
+			// exactly (QTI ASI §17), whatever the entry says.
+			const effectiveCaseSensitive = baseType === 'string' ? this.getAttrMapped(e, 'caseSensitive') || 'false' : 'true';
 			const storedKey =
 				baseType === 'pair'
 					? normalizePairKey(mapKey)
@@ -2129,7 +2108,7 @@ export class Player {
 			}
 		}
 
-		return { defaultValue, lowerBound, upperBound, caseSensitive: mappingCaseSensitive, entries };
+		return { defaultValue, lowerBound, upperBound, entries };
 	}
 
 	private parseAreaMapping(areaMappingEl: Element): AreaMapping {
@@ -2349,6 +2328,7 @@ export class Player {
 			['contentbody', (element) => Array.from(element.childNodes)],
 			['templateinline', conditional('templateIdentifier')],
 			['templateblock', conditional('templateIdentifier')],
+			['param', (element) => this.expandParamVariable(element)],
 		]);
 		for (const choice of TEMPLATE_CHOICES) {
 			handlers.set(choice, (element) =>
@@ -2389,6 +2369,52 @@ export class Player {
 				.map((el) => (getAttr(el, 'identifier') || '').trim()),
 		);
 		return this.mathVariableIds;
+	}
+
+	private paramVariables(): ReadonlySet<string> {
+		this.paramVariableIds ??= new Set(
+			this.itemDocument
+				.findDeclarationElements('template')
+				.filter((el) => getAttr(el, 'paramVariable')?.trim() === 'true')
+				.map((el) => (getAttr(el, 'identifier') || '').trim()),
+		);
+		return this.paramVariableIds;
+	}
+
+	/**
+	 * templateDeclaration@paramVariable (QTI 2.2 ASI TemplateDeclaration, `paramVariable`
+	 * characteristic; QTI 3.0 `param-variable`): a `<param>` inside an `<object>` whose `value`
+	 * names such a template variable is delivered with the variable's current value in place of
+	 * the variable's name, so a plugin-style object receives its computed parameter instead of a
+	 * literal.
+	 *
+	 * This resolves in the content pass — not in `prepareContentMarkup` (which runs once on the
+	 * raw XML, before template variables exist) and not on a stored copy — because template
+	 * variables change during the session (`setTemplateVariables`, `newTemplate`, restore).
+	 * Resolving with the pass means every (re)render, like printedVariable, delivers the value
+	 * the session holds at that moment.
+	 *
+	 * The spec defines substitution for a param value naming a declared `paramVariable`
+	 * variable. It is silent on a value naming an undeclared variable or one without the flag:
+	 * those, and NULL or container (multiple/ordered/record) values — a param carries one
+	 * opaque string, and joining container values would be invented semantics — deliver the
+	 * authored value unchanged, which is also the safe reading.
+	 */
+	private expandParamVariable(element: Element): undefined {
+		const value = getAttr(element, 'value')?.trim();
+		if (!value || !this.paramVariables().has(value)) return undefined;
+		const parent = element.parentNode;
+		if (
+			!isElement(parent) ||
+			this.mapper.toCanonical(localName(parent) ?? '') !== 'object'
+		) {
+			return undefined;
+		}
+		const current = this.ctx.getValue(value);
+		if (current.kind !== 'value' || current.cardinality !== 'single') return undefined;
+		// The pass resolves a clone, so this rewrite cannot touch the parsed source.
+		element.setAttribute('value', String(current.value));
+		return undefined;
 	}
 
 	/**

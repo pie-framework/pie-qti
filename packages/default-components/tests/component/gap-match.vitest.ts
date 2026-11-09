@@ -383,6 +383,79 @@ describe('GapMatchInteraction (pie-qti-gap-match)', () => {
 			cleanupInteraction(mounted);
 		});
 	});
+
+	describe('maxAssociations cap (the limit response validation applies)', () => {
+		const click = (element: Element | null) => element?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		const twoGaps = (overrides: Partial<GapMatchInteractionData> = {}) =>
+			gapData({ promptText: 'A [GAP:G1] b [GAP:G2] c.', gaps: ['G1', 'G2'], ...overrides });
+		async function place(mounted: { host: HTMLElement }, wordId: string, gapId: string) {
+			click(q(mounted, `button[data-word-id="${wordId}"]`));
+			await settle();
+			click(q(mounted, `button[data-gap-id="${gapId}"]`));
+			await settle();
+		}
+
+		test('a keyboard placement past the cap is refused, announced, and the word stays held', async () => {
+			const mounted = mountInteraction(GapMatchInteraction, { interaction: twoGaps({ maxAssociations: 1 }) });
+			await settle();
+
+			await place(mounted, 'W1', 'G1');
+			expect(mounted.instance.response).toEqual(['W1 G1']);
+
+			await place(mounted, 'W2', 'G2');
+			expect(mounted.instance.response).toEqual(['W1 G1']);
+			expect(liveRegion(mounted)).toBe('Association not possible: the limit of 1 is reached.');
+			expect(q(mounted, 'button[data-word-id="W2"]')?.getAttribute('aria-pressed')).toBe('true');
+			cleanupInteraction(mounted);
+		});
+
+		test('a pointer drop past the cap is refused and announced', async () => {
+			const mounted = mountInteraction(GapMatchInteraction, { interaction: twoGaps({ maxAssociations: 1 }) });
+			await settle();
+			await place(mounted, 'W1', 'G1');
+
+			const drop = new Event('drop', { bubbles: true, cancelable: true });
+			Object.defineProperty(drop, 'dataTransfer', { value: { getData: () => 'W2' } });
+			q(mounted, 'button[data-gap-id="G2"]')?.dispatchEvent(drop);
+			await settle();
+
+			expect(mounted.instance.response).toEqual(['W1 G1']);
+			expect(liveRegion(mounted)).toBe('Association not possible: the limit of 1 is reached.');
+			cleanupInteraction(mounted);
+		});
+
+		test('replacing the word in a filled gap stays within the cap', async () => {
+			const mounted = mountInteraction(GapMatchInteraction, { interaction: twoGaps({ maxAssociations: 1 }) });
+			await settle();
+			await place(mounted, 'W1', 'G1');
+
+			await place(mounted, 'W2', 'G1');
+			expect(mounted.instance.response).toEqual(['W2 G1']);
+			cleanupInteraction(mounted);
+		});
+
+		test('the author’s data-max-selections-message is announced instead', async () => {
+			const mounted = mountInteraction(GapMatchInteraction, {
+				interaction: twoGaps({ maxAssociations: 1, maxSelectionsMessage: 'Only one word may be placed.' }),
+			});
+			await settle();
+			await place(mounted, 'W1', 'G1');
+			await place(mounted, 'W2', 'G2');
+
+			expect(liveRegion(mounted)).toBe('Only one word may be placed.');
+			cleanupInteraction(mounted);
+		});
+
+		test('maxAssociations=0 means unlimited: both words place', async () => {
+			const mounted = mountInteraction(GapMatchInteraction, { interaction: twoGaps({ maxAssociations: 0 }) });
+			await settle();
+			await place(mounted, 'W1', 'G1');
+			await place(mounted, 'W2', 'G2');
+
+			expect(mounted.instance.response).toEqual(['W1 G1', 'W2 G2']);
+			cleanupInteraction(mounted);
+		});
+	});
 });
 
 describe('word removal (round 6)', () => {

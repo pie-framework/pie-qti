@@ -89,26 +89,6 @@ export function removePairByTarget(pairs: string[], targetId: string): string[] 
 }
 
 /**
- * Checks if a source is paired
- * @param pairs - Array of pair strings
- * @param sourceId - The source identifier
- * @returns True if the source has a pair
- */
-export function isSourcePaired(pairs: string[], sourceId: string): boolean {
-	return pairs.some((p) => p.startsWith(`${sourceId} `));
-}
-
-/**
- * Checks if a target is paired
- * @param pairs - Array of pair strings
- * @param targetId - The target identifier
- * @returns True if the target has a pair
- */
-export function isTargetPaired(pairs: string[], targetId: string): boolean {
-	return pairs.some((p) => p.endsWith(` ${targetId}`));
-}
-
-/**
  * Checks if a pair string contains an identifier as its source or target token.
  * Matches whole tokens only: "A B" contains "B" but not a substring like "B2".
  * @param pair - A "sourceId targetId" pair string

@@ -225,6 +225,8 @@ QTI supports **21 standard interaction types** organized into four functional ca
 
 Examples in this section use QTI 2.x syntax. For QTI 3.0, apply the naming conventions from the mapping table in Part I.
 
+Attribute defaults below are summaries. The audited, per-version defaults for every interaction attribute (QTI 2.1, 2.2 and 3.0 XSDs and information models), with what this player applies, are in [`QTI_attribute_defaults.md`](QTI_attribute_defaults.md).
+
 ## 3.1 Simple Selection Interactions
 
 ### 3.1.1 choiceInteraction
@@ -239,7 +241,7 @@ Examples in this section use QTI 2.x syntax. For QTI 3.0, apply the naming conve
 |-----------|----------|-------------|
 | `responseIdentifier` | Required | Identifier binding to responseDeclaration |
 | `shuffle` | Optional | If true, randomizes choice order on delivery. Default: false |
-| `maxChoices` | Optional | Maximum selections allowed. 0=unlimited, 1=single-choice (radio). Default: 1 |
+| `maxChoices` | Optional | Maximum selections allowed. 0=unlimited, 1=single-choice (radio). Default: 1 (QTI 2.2/3.0); 0 in QTI 2.1 |
 | `minChoices` | Optional | Minimum selections required for valid response. Default: 0 |
 | `orientation` | Optional | Visual hint: 'horizontal' or 'vertical' |
 
@@ -582,7 +584,7 @@ Graphical interactions involve a background image with defined regions (hotspots
 | Attribute | Required | Description |
 |-----------|----------|-------------|
 | `responseIdentifier` | Required | Identifier binding to responseDeclaration |
-| `maxChoices` | Optional | Maximum points selectable. 0=unlimited. Default: 1 |
+| `maxChoices` | Optional | Maximum points selectable. 0=unlimited. Default: 0 (QTI 2.2/3.0) |
 | `minChoices` | Optional | Minimum points required. Default: 0 |
 
 **Scoring with areaMapping:**
@@ -887,6 +889,38 @@ instance from the declared defaults and correct responses: a default set by `set
 correct response set by `setCorrectResponse` in the previous instance does not carry over, so a new
 draw that skips such a rule scores against the declared key. An `assessmentItemRef`'s
 `templateDefault` values apply to every instance, including those of a restored session.
+
+### Template Variables in Item Content
+
+The item body, rubric blocks and modal feedback resolve template variables at delivery, so the
+markup always carries the value the session holds when it renders. `<printedVariable>` prints any
+variable's current value; a MathML `<mi>` or `<ci>` naming a template variable declared with
+`mathVariable="true"` is replaced by the variable's value (a numeric value becomes an `mn`/`cn`).
+
+A `<param>` inside an `<object>` whose `value` names a template variable declared with
+`paramVariable="true"` (QTI 2.2 ASI TemplateDeclaration `paramVariable`; QTI 3.0 `param-variable`)
+is delivered with the variable's current value in place of the variable's name, so a plugin-style
+object receives its computed parameter instead of a literal:
+
+```xml
+<templateDeclaration identifier="LEVEL" cardinality="single" baseType="integer" paramVariable="true"/>
+...
+<object data="widget.swf" type="application/x-plugin">
+  <!-- delivered as value="4" when the session's LEVEL is 4 -->
+  <param name="level" value="LEVEL" valuetype="DATA"/>
+</object>
+```
+
+In the item player, this resolves in the same content pass as `printedVariable`, so the delivered
+parameter tracks `setTemplateVariables`, `newTemplate` and a restored session without re-parsing
+the item. Substitution applies to a single, non-NULL value of any base type. The specification
+defines the substitution for a `param` value naming a declared `paramVariable` variable and is
+silent otherwise; this player delivers the authored value unchanged when the name declares no
+template variable, the declaration lacks `paramVariable="true"`, or the variable's current value is
+NULL or a container (a `param` carries one opaque string, and joining container values would be
+invented semantics). Object embeds themselves still follow the delivery security configuration
+(`security.allowObjectEmbeds`): without it the sanitized body drops the `object` and its `param`
+elements, substitution included.
 
 ## 4.2 Standard Response Processing Templates
 
@@ -1321,8 +1355,8 @@ Base-type values are JSON scalars, except that `pair` and `directedPair` are `["
 The player converts by base type in both directions. Inside the player a pair or point is the
 string `"A B"`, a duration a number of seconds, a file a `QTIFileResponse`, and a record field
 keeps its base type (`{baseType, cardinality, value}`), because a record declaration types none of
-its fields. The earlier name-keyed record form (`{"record": {"x": {"base": ...}}}`) is still
-accepted from a module.
+its fields. A module value outside the binding reads as NULL: a pair or point that is not an
+array, a duration that is not an ISO 8601 string, or a record that is not an array of named members.
 
 ### Scoring PCI Responses
 

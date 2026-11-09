@@ -126,3 +126,32 @@ describe.each([
 		}
 	});
 });
+
+/**
+ * No maxAssociations authored, and every label and hotspot allows more, so only the
+ * interaction's default for an absent attribute binds: 1 in QTI 2.2 (Table 5.41.2) and
+ * QTI 3.0 (Table 5.60.2); no interaction cap in QTI 2.1, whose XSD has no such attribute.
+ */
+const DEFAULT_CAP_ITEM = item(
+	'',
+	`<gapText identifier="T1" matchMax="0">one</gapText>
+      <gapText identifier="T2" matchMax="0">two</gapText>
+      ${HOTSPOTS.replaceAll('matchMax="1"', 'matchMax="0"').replaceAll('matchMax="2"', 'matchMax="0"')}`,
+);
+
+describe('graphicGapMatchInteraction maxAssociations default in response validation', () => {
+	test.each([
+		['QTI 2.2', DEFAULT_CAP_ITEM],
+		['QTI 3.0', convertQti2ToQti3(DEFAULT_CAP_ITEM)],
+	])('%s: an absent maxAssociations allows the spec default of one association', (_version, itemXml) => {
+		expect(errorsFor(itemXml, ['T1 H1'])).toEqual([]);
+		const errors = errorsFor(itemXml, ['T1 H1', 'T2 H2']);
+		expect(errors).toHaveLength(1);
+		expect(errors[0]).toContain('maxAssociations=1');
+	});
+
+	test('QTI 2.1: an absent maxAssociations sets no interaction cap', () => {
+		const itemXml = DEFAULT_CAP_ITEM.replace('imsqti_v2p2', 'imsqti_v2p1');
+		expect(errorsFor(itemXml, ['T1 H1', 'T2 H2', 'T1 H3'])).toEqual([]);
+	});
+});

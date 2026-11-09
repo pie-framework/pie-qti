@@ -42,12 +42,14 @@ export interface PnpProfile {
 		/** AfA `text-appearance`, applied as custom properties on the player root. */
 		textAppearance?: PnpTextAppearance;
 		/**
-		 * Present each interaction's answer set as a labelled ARIA group for assistive
-		 * technology: the choice and match interactions wrap their answers in a
-		 * `role="group"` labelled by the interaction prompt, and the match columns get
-		 * visible, programmatically associated sub-labels. Neither APIP 1.0 nor AfA PNP
-		 * 3.0 defines a structured-label term; this is a player extension, so hosts set
-		 * it in the JSON profile (it has no AfA XML feature).
+		 * Present the match interaction's answer set as a labelled ARIA group for
+		 * assistive technology: match wraps its answers in a `role="group"` labelled
+		 * by the interaction prompt, and its columns get visible, programmatically
+		 * associated sub-labels. (Choice always names its group by the prompt, so
+		 * the flag does not affect it.)
+		 * Neither APIP 1.0 nor AfA PNP 3.0 defines a structured-label term; this is
+		 * a player extension, so hosts set it in the JSON profile (it has no AfA
+		 * XML feature).
 		 */
 		structuredLabelSupport?: boolean;
 	};

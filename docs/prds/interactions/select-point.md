@@ -47,7 +47,7 @@
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `responseIdentifier` | Full | Extracted as `responseId`; bound to the response variable; included in `qti-change` event payload |
-| `maxChoices` | Partial | Values `>= 1` are extracted and enforced. The component blocks additional selections once `selectedPoints.length === maxChoices`. **`maxChoices=0` (unlimited) is rejected by the validator as an error** — see Known gaps |
+| `maxChoices` | Full | `0` means no restriction; a value `>= 1` caps the points, and the component blocks additional selections once `selectedPoints.length === maxChoices`. An absent attribute takes the per-version spec default: 0 in QTI 2.2 (Table 5.95.2) and 3.0 (Table 5.128.2), or 1 when the response is single cardinality, which holds one point; QTI 2.1 content keeps 1, its information model (`maxChoices [1] = 1`) and XSD (default 0) disagreeing |
 | `minChoices` | Full | Extracted and surfaced in the UI as a "select at least N" badge. Not enforced as a hard block at submission time (the response is accepted regardless); enforcement is a delivery-engine concern |
 
 ### Child elements
@@ -62,13 +62,13 @@
 ### Response variable contract
 
 - **baseType:** `point`
-- **cardinality:** `single` when `maxChoices=1`; `multiple` when `maxChoices>1`
+- **cardinality:** `single` when `maxChoices=1`; `multiple` when `maxChoices>1` or `0`
 - **Wire format (single):** A single string `"x y"` — two integers separated by a space, where `x` and `y` are coordinates in natural image pixel space (origin top-left)
 - **Wire format (multiple):** An array of `"x y"` strings
 - **Null/empty:** `null` before any selection (single cardinality); `[]` before any selection (multiple cardinality)
 - **Internal representation:** The component maintains `selectedPoints: Point[]` where `Point = { x: number; y: number }`. Conversion between internal `Point[]` and the `"x y"` string format happens at every click and every inbound `response` prop sync.
 
-The component also accepts legacy inbound formats (`{ x, y }` object, or an array of `{ x, y }` objects) from the `response` prop for backwards compatibility. It always emits canonical `"x y"` strings outward.
+The component reads an inbound `response` only in that `"x y"` form (a string, or an array of them); any other value places no points. It always emits canonical `"x y"` strings outward.
 
 ### Scoring
 
@@ -137,7 +137,7 @@ All coordinates are in natural image pixel space (origin top-left).
 - **FR-5:** When `selectedPoints.length === maxChoices`, block further clicks (do not add new points) and display an alert informing the candidate that the maximum has been reached.
 - **FR-6:** When `minChoices > 0`, display a badge indicating whether the minimum has been met. The badge must update reactively as points are added or removed.
 - **FR-7:** Provide a "Clear All" button when at least one point is selected. Activating it removes all points and emits a `qti-change` event with `null` (single cardinality) or `[]` (multiple cardinality).
-- **FR-8:** Accept an inbound `response` prop and initialize `selectedPoints` from it. Support `"x y"` string, `{ x, y }` object, and arrays of either form.
+- **FR-8:** Accept an inbound `response` prop and initialize `selectedPoints` from it. Support the `"x y"` string and an array of `"x y"` strings; any other value places no points.
 - **FR-9:** When `disabled=true`, the image container must be non-interactive (no clicks accepted, cursor must be `default`). Point markers must be disabled. Clear All must be disabled. No `qti-change` events may fire.
 - **FR-10:** When `role='scorer'` and `correctResponse` is provided, display correct-answer markers (green, `✓` label) at the correct point positions on the image, overlaid on top of the candidate's markers. The scoring regions (`areaMapEntry` areas) must never be rendered visually.
 - **FR-11:** Support both external raster images (via `<object data="...">` or `<img src="...">`) and inline SVG (via `<object type="image/svg+xml">`).
@@ -221,11 +221,11 @@ The "Clear All" button and the "Maximum points reached" alert use hardcoded Engl
 **Rationale:** Percentage positioning keeps markers at the correct visual location when the image is scaled by CSS. Pixel offsets would only be correct at 100% zoom. The image container uses `position: relative; display: inline-block` so the percentage is relative to the container's rendered size.  
 **Consequences:** Marker positions are recomputed on every render but do not require event listeners for resize. If the container width changes (e.g. window resize), Svelte re-renders and the derived percentages are re-applied.
 
-### The component accepts multiple inbound `response` formats
+### The component reads only the QTI `"x y"` response form
 
-**Decision:** The `response` prop is typed as `any` and accepts `"x y"` strings, `{ x, y }` objects, and arrays of either form. All are normalized to `Point[]` internally.  
-**Rationale:** Different integration layers pass different shapes. The item player's state store uses canonical `"x y"` strings (per QTI spec). Some vendor integrations may pass `{ x, y }` objects for convenience. Handling all forms in the component reduces adapter code in callers.  
-**Alternatives considered:** Restrict to canonical `"x y"` format only. Rejected: would break existing integrations without a migration path.  
+**Decision:** The `response` prop accepts `"x y"` strings and arrays of them, the QTI point form, normalized to `Point[]` internally. Other values, such as `{ x, y }` objects, place no points.  
+**Rationale:** The item player's state store holds canonical `"x y"` strings (per QTI spec), and nothing in the player produces another shape. The project is pre-1.0, so it keeps no earlier inbound format.  
+**Alternatives considered:** Also accept `{ x, y }` objects. Rejected: no producer emits them, and a second inbound shape is non-spec surface with no user.  
 **Consequences:** The `$effect` that syncs inbound `response` to `selectedPoints` must run on every render. It is idempotent and cheap, but it means the component does not treat `response` as write-once.
 
 ### Scoring regions are never rendered
@@ -246,7 +246,7 @@ interface SelectPointInteractionData extends BaseInteractionData {
   type: 'selectPointInteraction';
   responseId: string;       // from responseIdentifier attribute
   prompt: string | null;    // HTML content of <prompt> child, or null
-  maxChoices: number;       // must be >= 1; 0 is rejected by extractor validator
+  maxChoices: number;       // 0 = no restriction; absent: 0 (QTI 2.2/3.0, 1 for a single response), 1 (QTI 2.1)
   minChoices: number;       // must be >= 0; must be <= maxChoices
   imageData: ImageData | null;
 }
@@ -261,16 +261,15 @@ interface ImageData {
 ```
 
 **Invariants enforced by extractor:**
-- `maxChoices >= 1` (error if `<= 0`)
+- `maxChoices >= 0` (error if negative; `0` means no restriction)
 - `minChoices >= 0` (error if negative)
-- `minChoices <= maxChoices` (error if violated)
+- `minChoices <= maxChoices` when `maxChoices > 0` (error if violated)
 - `imageData` is never null for well-formed items (warning if absent)
 - For `type='image'`: `src` is non-empty (error if absent)
 - For `type='svg'`: `content` is non-empty (error if absent)
 
 **Invariants that are NOT enforced (gaps):**
 - The authored `width`/`height` values are not validated against the actual image file dimensions
-- `maxChoices=0` is rejected rather than treated as unlimited per the QTI spec
 
 ### `Point` (from `@pie-qti/item-player`)
 
@@ -453,10 +452,10 @@ AC-E1: No image renders placeholder without error
   When: the item renders
   Then: a "No image provided" placeholder is shown; clicking the placeholder does nothing; no JS error is thrown
 
-AC-E2: Legacy {x,y} response object is accepted
+AC-E2: An {x,y} response object places no points
   Given: a maxChoices=1 item with response={x:350, y:200} passed as the response prop
   When: the item renders
-  Then: one marker appears at (350,200) in natural coordinates; qti-change is not fired on mount
+  Then: no marker appears and the points list is empty; qti-change is not fired on mount
 
 AC-E3: maxChoices=1 with two points in inbound array — only first is shown
   Given: a maxChoices=1 item with response=["200 150", "400 300"] passed as the response prop

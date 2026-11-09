@@ -19,7 +19,7 @@ import type {
 	SerializedItemSessionVariable,
 } from '../types/index.js';
 import type { BaseInteractionData } from '../interactions/shared/types.js';
-import { createPlayerFromPreparedInternal, Player } from './Player.js';
+import { createPlayerFromPreparedInternal, type Player } from './Player.js';
 
 export interface OpenItemSessionOptions {
 	/** Restore a previously serialized state before applying response overrides. */
@@ -165,7 +165,7 @@ export class LiveItemSession implements ItemSession {
 		private readonly itemIdentifier: string,
 		config: ItemSessionEngineConfig,
 		options: OpenItemSessionOptions = {},
-		prepared?: unknown,
+		prepared: unknown,
 	) {
 		this.defaultRole = config.role ?? 'candidate';
 		this.presentation = { ...options.presentation };
@@ -174,9 +174,7 @@ export class LiveItemSession implements ItemSession {
 			...(options.contextVariables ? { contextVariables: options.contextVariables } : {}),
 			...(options.templateDefaults ? { templateDefaults: options.templateDefaults } : {}),
 		};
-		this.player = prepared
-			? createPlayerFromPreparedInternal(playerConfig, prepared, Boolean(options.restore))
-			: new Player(playerConfig);
+		this.player = createPlayerFromPreparedInternal(playerConfig, prepared, Boolean(options.restore));
 
 		try {
 			if (options.responses) {

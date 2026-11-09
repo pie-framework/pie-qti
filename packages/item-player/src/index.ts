@@ -87,8 +87,6 @@ export {
 	ExtractionError,
 	ExtractionRegistry,
 	htmlField,
-	isErrorResult,
-	isSuccessResult,
 	urlField,
 } from './extraction/index.js';
 // NOTE:

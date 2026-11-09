@@ -217,7 +217,6 @@ export default {
 		hottext: {
 			selected: 'Sélectionné :',
 			selectText: 'Sélectionnez du texte dans le passage',
-			clearSelection: 'Effacer la sélection',
 			ariaLabel: 'Interaction de sélection de texte',
 			selectableState: 'Sélectionnable',
 			selectedState: 'Sélectionné',
@@ -312,6 +311,7 @@ export default {
 			filledGapAriaLabelWithHeld: 'Blanc {position} sur {total}, rempli avec {word}. Sélectionnez pour remplacer par {heldWord}.',
 			blankGapAriaLabelWithHeld: 'Blanc {position} sur {total}. Sélectionnez pour y placer {heldWord}.',
 			placed: '{word} placé dans le blanc {position} sur {total}.',
+			associationLimitReached: 'Association impossible : la limite de {max} est atteinte.',
 			pointerInstructions: 'Sélectionnez un mot, puis un espace vide. Vous pouvez aussi glisser-déposer.',
 			instruction: 'Faites glisser les mots pour remplir les blancs',
 			available: 'Mots disponibles',

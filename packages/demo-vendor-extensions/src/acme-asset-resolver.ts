@@ -11,7 +11,7 @@
  * - Acme asset service API
  */
 
-import type { AssetResolver, ResolvedAsset } from '@pie-qti/to-pie';
+import type { AssetResolver, ResolvedAsset } from '@pie-qti/transform-types';
 
 /**
  * Resolves assets from Acme-specific sources

@@ -40,6 +40,7 @@ export default defineConfig({
 				'@pie-qti/item-player/web-components': '../../packages/item-player/src/web-components/index.ts',
 				'@pie-qti/item-player/iframe': '../../packages/item-player/src/iframe/index.ts',
 				'@pie-qti/item-player/server': '../../packages/item-player/src/server.ts',
+				'@pie-qti/item-player/pci': '../../packages/item-player/src/pci/index.ts',
 				'@pie-qti/item-player': '../../packages/item-player/src/index.ts',
 				'$assessment-components': '../../packages/assessment-player/src/components/index.ts',
 				'@pie-qti/section-player/components': '../../packages/section-player/src/components/index.ts',
@@ -71,6 +72,9 @@ export default defineConfig({
 			),
 			'@pie-qti/item-player/server': fileURLToPath(
 				new URL('../../packages/item-player/src/server.ts', import.meta.url),
+			),
+			'@pie-qti/item-player/pci': fileURLToPath(
+				new URL('../../packages/item-player/src/pci/index.ts', import.meta.url),
 			),
 			'@pie-qti/item-player': fileURLToPath(
 				new URL('../../packages/item-player/src/index.ts', import.meta.url),

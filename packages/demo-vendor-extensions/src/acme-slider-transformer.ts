@@ -10,8 +10,7 @@
  * - Handle response processing and scoring
  */
 
-import type { VendorTransformer, VendorInfo } from '@pie-qti/to-pie';
-import type { TransformContext, TransformOutput } from '@pie-qti/transform-types';
+import type { TransformContext, TransformOutput, VendorInfo, VendorTransformer } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { v4 as uuidv4 } from 'uuid';
 

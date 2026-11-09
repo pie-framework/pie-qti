@@ -272,7 +272,6 @@ export default {
 		hottext: {
 			selected: 'محدد:',
 			selectText: 'اختر نصًا من الفقرة',
-			clearSelection: 'مسح التحديد',
 			ariaLabel: 'تفاعل تحديد النص',
 			selectableState: 'قابل للاختيار',
 			selectedState: 'مُختار',
@@ -374,6 +373,7 @@ export default {
 			filledGapAriaLabelWithHeld: 'الفراغ {position} من {total} يحتوي على {word}. اختر لاستبداله بـ {heldWord}.',
 			blankGapAriaLabelWithHeld: 'الفراغ {position} من {total}. اختر لوضع {heldWord} هنا.',
 			placed: 'تم وضع {word} في الفراغ {position} من {total}.',
+			associationLimitReached: 'لا يمكن إنشاء الارتباط: تم الوصول إلى الحد {max}.',
 			pointerInstructions: 'اختر كلمة ثم اختر فراغًا. يمكنك أيضًا السحب والإفلات.',
 			instruction: 'اسحب الكلمات لملء الفراغات',
 			available: 'الكلمات المتاحة',

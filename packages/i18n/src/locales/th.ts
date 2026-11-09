@@ -214,7 +214,6 @@ export default {
 		hottext: {
 			selected: 'เลือกแล้ว:',
 			selectText: 'เลือกข้อความจากข้อความ',
-			clearSelection: 'ล้างการเลือก',
 			ariaLabel: 'การโต้ตอบการเลือกข้อความ',
 			selectableState: 'เลือกได้',
 			selectedState: 'เลือกแล้ว',
@@ -307,6 +306,7 @@ export default {
 			filledGapAriaLabelWithHeld: 'ช่องว่างที่ {position} จาก {total} มีคำว่า {word} เลือกเพื่อแทนที่ด้วย {heldWord}',
 			blankGapAriaLabelWithHeld: 'ช่องว่างที่ {position} จาก {total} เลือกเพื่อวาง {heldWord} ที่นี่',
 			placed: 'วาง {word} ในช่องว่างที่ {position} จาก {total} แล้ว',
+			associationLimitReached: 'สร้างความเชื่อมโยงไม่ได้: ถึงขีดจำกัด {max} แล้ว',
 			pointerInstructions: 'เลือกคำ แล้วเลือกช่องว่าง หรือใช้การลากและวาง',
 			instruction: 'ลากคำเพื่อเติมช่องว่าง',
 			available: 'คำที่พร้อมใช้งาน',

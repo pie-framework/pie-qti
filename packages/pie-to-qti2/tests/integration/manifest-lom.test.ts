@@ -146,12 +146,4 @@ describe('manifest LOM', () => {
     expect(item.extensions).toEqual(extensions);
     expect(Object.keys(item.extensions)).toEqual(Object.keys(extensions));
   });
-
-  test('to-pie reads the same extensions from a package written with the legacy LOM source', async () => {
-    const output = await exportPackage();
-    const legacyManifest = output.manifest.replaceAll('pie:extension:', 'pie:searchMetaData:');
-    const item = await importWithoutSidecar(legacyManifest, output);
-
-    expect(item.extensions).toEqual(extensions);
-  });
 });
