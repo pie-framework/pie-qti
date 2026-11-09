@@ -1573,7 +1573,7 @@ export class Player {
 				return;
 			}
 			case 'match_nothing':
-			case 'cc2_match_nothing': { // QTI 2.1 compatibility
+			case 'cc2_match_nothing': { // Official IMS QTI 3.0 rptemplate
 				const isEmptyResponse = (v: QtiValue | undefined): boolean => {
 					if (!v) return true;
 					if (v.kind === 'null') return true;
@@ -1604,7 +1604,7 @@ export class Player {
 				return;
 			}
 			case 'map_response_point':
-			case 'cc2_map_response_point': { // QTI 2.1 compatibility
+			case 'cc2_map_response_point': { // Official IMS QTI 3.0 rptemplate
 				setScore(mapResponse(true));
 				return;
 			}
