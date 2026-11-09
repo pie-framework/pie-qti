@@ -107,7 +107,7 @@ rejecting hard-limit submissions from assessment elapsed time or submitted timin
 | `testPart.navigationMode=linear` | Implemented | Current item or the next item the delivery rules deliver only; no backward navigation |
 | `testPart.navigationMode=nonlinear` | Implemented | Arbitrary in-bounds navigation within the current test part |
 | Sequential test-part delivery | Implemented | Only the forward step out of a part (its first item the rules deliver) may be entered; completed parts cannot be revisited |
-| `preCondition` / `branchRule` | Implemented | The backend decides the moves that submit (`nextItemIdentifier`); a practice check or counted end-attempt keeps its decision for the move on; a move without a backend decision applies the same rules in the player (`test-navigation.ts`), so a part whose precondition fails is never entered |
+| `preCondition` / `branchRule` | Implemented | The backend decides the moves that submit (`nextItemIdentifier`); a practice check or counted end-attempt keeps its decision for the move on (a later counted submission voids it; the decision is persisted with the session state, so a restored session lands identically); a simultaneous part's crossing follows the decision its flush returned for the part's last item; a move without a backend decision applies the same rules in the player (`test-navigation.ts`), so a part whose precondition fails is never entered |
 | Per-test-part `submissionMode=individual` | Implemented during `next()` | The current item is submitted before advancing; backend branching may choose the next item |
 | Per-test-part `submissionMode=simultaneous` | Partial | Navigation defers item submission, but flushing is assessment-final rather than test-part-final |
 | `timeLimits.minTime` | Implemented with limitations | Item transition, section/test-part exit, and final assessment submission are guarded; see Remaining gaps |
@@ -146,7 +146,11 @@ first test part. New code must treat `SecureTestPart.navigationMode` and
   `next()` that submits nothing (the response unchanged since a practice check) follows the decision
   kept from that check (FR-17).
 - **FR-6:** In a simultaneous-submission part, normal navigation must retain responses without
-  calling `submitResponses()` for each move.
+  calling `submitResponses()` for each move. Leaving the part on Next is the crossing: the part's
+  pending responses go out first, and the decision the backend returned for the part's last item
+  (its testPart branchRule) is what delivery follows — through the same part-leave and `EXIT_*`
+  guards as a submitting move. The end of the test's own collection never navigates and stores no
+  decision.
 - **FR-7:** In an individual-submission part, no candidate-initiated submission may send an
   unanswered item (every response NULL, empty or equal to its declared default) when the effective
   `itemSessionControl.allowSkipping` is false: `next()` is rejected before it submits, and the end

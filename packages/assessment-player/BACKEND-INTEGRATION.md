@@ -186,10 +186,18 @@ The player follows `nextItemIdentifier` when the candidate moves on. A submissio
 item — a practice check, a counted `endAttemptInteraction` — keeps your decision instead: when the
 candidate then moves on with the response unchanged (nothing is submitted again), the player
 follows it; a changed response re-submits and your fresh decision replaces it. Any later counted
-submission replaces a kept decision, because the outcomes it was made on have moved.
+submission replaces a kept decision, because the outcomes it was made on have moved. The kept
+decision travels in the saved session state (`AssessmentSessionState.branchDecisions`, item
+identifier → target): store it with the draft, and a resumed session lands exactly where the live
+one would — a backend that drops it just falls back to the delivery rules after a resume.
 
-When no decision of yours applies — you omit the field, the candidate jumps into the next test
-part, moves on from a simultaneous part, or resumes after a reload — the player applies the test's
+When the candidate leaves a simultaneous test part, the player submits the part's pending
+responses first and then follows the decision you returned for the part's last item (your
+testPart branchRule ran there, with every item's variables committed). The end of the test's own
+collection runs through the same submit path but stores no decision — it never navigates.
+
+When no decision of yours applies — you omit the field, or the candidate jumps into the next test
+part — the player applies the test's
 branch rules and preconditions itself with the reference rules (`test-navigation.ts`), against the
 test outcomes you last returned and the item results you recorded (your `result.outcomeValues` over
 the item session): a test part whose precondition fails is never entered, and in a linear part a
