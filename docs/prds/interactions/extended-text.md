@@ -226,7 +226,7 @@ AC-1: Basic response capture
   Given: An item with extendedTextInteraction is loaded in candidate mode (disabled=false)
   When: The candidate types "Photosynthesis converts sunlight into chemical energy." in the editor
   Then: A qti-change event fires with value containing that text (wrapped in <p> tags)
-  Notes: Check event.detail.value or event.detail.response depending on createQtiChangeEvent contract.
+  Notes: The text is in event.detail.value (createQtiChangeEvent's payload; see InteractionValueMap.extendedTextInteraction).
 
 AC-2: Disabled editor
   Given: An item is rendered with disabled=true

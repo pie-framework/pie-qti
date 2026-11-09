@@ -246,7 +246,7 @@ interface Props {
   disabled?: boolean;                              // prevents all interaction
   role?: string;                                   // 'candidate' | 'scorer'
   i18n?: I18nProvider;                             // optional localization
-  onChange?: (value: string | string[]) => void;   // Svelte component callback
+  onChange?: (value: string | string[] | null) => void; // Svelte component callback; null on clear (single)
 }
 ```
 

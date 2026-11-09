@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
 import { createAssessmentItemDefinition } from '../../src/core/AssessmentItemDefinition.js';
-import type { SerializedItemSessionState } from '../../src/types/index.js';
 
 /**
  * QTI ASI §10.3: template processing fixes the item's template variables — and
@@ -106,6 +105,140 @@ const QTI22_TEMPLATE_DEFAULT_ITEM = `<?xml version="1.0" encoding="UTF-8"?>
   </responseProcessing>
 </assessmentItem>`;
 
+/**
+ * QTI 2.1 ASI §8 / QTI 3.0 ASI §10 (Template Processing): setDefaultValue and
+ * setCorrectResponse change a variable's default value and correct response for
+ * the session — including to NULL via the null expression. This item declares a
+ * default and a correct response in its XML and has template processing set each
+ * to NULL, so a restored session must keep NULL where the XML says otherwise.
+ */
+const QTI22_TEMPLATE_NULL_ITEM = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="template-null-restore"
+  title="Template NULL default and correctResponse restore"
+  adaptive="false"
+  timeDependent="false">
+  <responseDeclaration identifier="R" cardinality="single" baseType="identifier">
+    <defaultValue><value>A</value></defaultValue>
+    <correctResponse><value>A</value></correctResponse>
+  </responseDeclaration>
+  <outcomeDeclaration identifier="OUT" cardinality="single" baseType="identifier">
+    <defaultValue><value>DEFAULTED</value></defaultValue>
+  </outcomeDeclaration>
+  <templateProcessing>
+    <setDefaultValue identifier="R"><null/></setDefaultValue>
+    <setCorrectResponse identifier="R"><null/></setCorrectResponse>
+    <setDefaultValue identifier="OUT"><null/></setDefaultValue>
+  </templateProcessing>
+  <itemBody>
+    <p>Answer.</p>
+    <choiceInteraction responseIdentifier="R" maxChoices="1">
+      <simpleChoice identifier="A">A</simpleChoice>
+      <simpleChoice identifier="B">B</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="R"/>
+          <correct identifier="R"/>
+        </match>
+        <setOutcomeValue identifier="OUT">
+          <baseValue baseType="identifier">MATCHED</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>`;
+
+/**
+ * The non-NULL counterpart: template processing replaces both the declared
+ * default and the declared correct response with a different value.
+ */
+const QTI22_TEMPLATE_NONNULL_ITEM = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="template-nonnull-restore"
+  title="Template non-NULL default and correctResponse restore"
+  adaptive="false"
+  timeDependent="false">
+  <responseDeclaration identifier="R" cardinality="single" baseType="identifier">
+    <defaultValue><value>A</value></defaultValue>
+    <correctResponse><value>A</value></correctResponse>
+  </responseDeclaration>
+  <outcomeDeclaration identifier="OUT" cardinality="single" baseType="identifier">
+    <defaultValue><value>DEFAULTED</value></defaultValue>
+  </outcomeDeclaration>
+  <templateProcessing>
+    <setDefaultValue identifier="R"><baseValue baseType="identifier">B</baseValue></setDefaultValue>
+    <setCorrectResponse identifier="R"><baseValue baseType="identifier">B</baseValue></setCorrectResponse>
+  </templateProcessing>
+  <itemBody>
+    <p>Answer.</p>
+    <choiceInteraction responseIdentifier="R" maxChoices="1">
+      <simpleChoice identifier="A">A</simpleChoice>
+      <simpleChoice identifier="B">B</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="R"/>
+          <correct identifier="R"/>
+        </match>
+        <setOutcomeValue identifier="OUT">
+          <baseValue baseType="identifier">MATCHED</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>`;
+
+/**
+ * No template rule touches the declarations: restore must equal the values
+ * parsed from the item XML. SPARE has no correct response at all, so its
+ * snapshot omits the field entirely.
+ */
+const QTI22_UNTOUCHED_DECLARATIONS_ITEM = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="untouched-declarations-restore"
+  title="Declared default and correctResponse restore"
+  adaptive="false"
+  timeDependent="false">
+  <responseDeclaration identifier="R" cardinality="single" baseType="identifier">
+    <defaultValue><value>A</value></defaultValue>
+    <correctResponse><value>A</value></correctResponse>
+  </responseDeclaration>
+  <responseDeclaration identifier="SPARE" cardinality="single" baseType="identifier"/>
+  <outcomeDeclaration identifier="OUT" cardinality="single" baseType="identifier">
+    <defaultValue><value>DEFAULTED</value></defaultValue>
+  </outcomeDeclaration>
+  <itemBody>
+    <p>Answer.</p>
+    <choiceInteraction responseIdentifier="R" maxChoices="1">
+      <simpleChoice identifier="A">A</simpleChoice>
+      <simpleChoice identifier="B">B</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="R"/>
+          <correct identifier="R"/>
+        </match>
+        <setOutcomeValue identifier="OUT">
+          <baseValue baseType="identifier">MATCHED</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>`;
+
 describe('templated item session restore', () => {
 	test('restored templated session keeps the computed correct response and scores identically', () => {
 		const definition = createAssessmentItemDefinition({ itemXml: QTI22_TEMPLATE_CORRECT_ITEM, seed: 7 });
@@ -156,30 +289,105 @@ describe('templated item session restore', () => {
 		reopened.dispose();
 	});
 
-	test('old snapshots without correctResponse/defaultValue fields still restore', () => {
+	test('every serialized variable carries defaultValue, null when it has none', () => {
 		const definition = createAssessmentItemDefinition({ itemXml: QTI22_TEMPLATE_CORRECT_ITEM, seed: 7 });
+		const session = definition.openSession();
+		const saved = session.serialize();
+		session.dispose();
 
-		const first = definition.openSession();
-		const key = first.state().templates.KEY as number;
-		const correct = key + 10;
-		first.dispatch({ action: 'setResponse', responseIdentifier: 'RESPONSE', value: correct });
-		const saved = first.serialize();
-		first.dispose();
+		const variables = [
+			...Object.values(saved.responseVariables),
+			...Object.values(saved.outcomeVariables),
+			...Object.values(saved.templateVariables),
+			...Object.values(saved.contextVariables),
+		];
+		expect(variables.length).toBeGreaterThan(0);
+		for (const variable of variables) expect(variable).toHaveProperty('defaultValue');
+		// RESPONSE declares no default value; SCORE declares 0.
+		expect(saved.responseVariables.RESPONSE?.defaultValue).toBeNull();
+		expect(saved.outcomeVariables.SCORE?.defaultValue).toBe(0);
+	});
 
-		// Simulate a snapshot persisted by an older player build: no correctResponse.
-		const legacy = JSON.parse(JSON.stringify(saved)) as SerializedItemSessionState;
-		for (const variable of Object.values(legacy.responseVariables)) {
-			delete variable.correctResponse;
-			delete variable.defaultValue;
-		}
+	test('restore keeps template-set NULL defaults and a NULL correct response', () => {
+		const definition = createAssessmentItemDefinition({ itemXml: QTI22_TEMPLATE_NULL_ITEM });
 
-		const reopened = definition.openSession({ restore: legacy });
-		expect(reopened.state().responses.RESPONSE).toBe(correct);
-		expect(reopened.state().templates.KEY).toBe(key);
-		const rescored = reopened.dispatch({ action: 'scoreAttempt' });
-		// Without the template-computed correct response the item cannot score,
-		// which is the legacy behavior; the restore itself must not throw.
-		expect(rescored.result?.scoring?.score).toBe(0);
-		reopened.dispose();
+		const live = definition.openSession();
+		// setDefaultValue(R, NULL) instantiates R from its new NULL default (§5.1).
+		expect(live.state().responses.R).toBeNull();
+		live.dispatch({ action: 'setResponse', responseIdentifier: 'R', value: 'A' });
+		const liveScored = live.dispatch({ action: 'scoreAttempt' });
+		// The correct response is NULL, and match with a NULL operand is NULL
+		// (QTI ASI response processing), so the XML-declared answer does not match
+		// and OUT keeps its NULL default through the outcome reset.
+		expect(liveScored.result?.scoring?.outcomeValues.OUT).toBeNull();
+		const saved = live.serialize();
+		live.dispose();
+
+		expect(saved.responseVariables.R?.defaultValue).toBeNull();
+		expect(saved.responseVariables.R?.correctResponse).toBeNull();
+		expect(saved.outcomeVariables.OUT?.defaultValue).toBeNull();
+
+		// The snapshot is authoritative: a NULL default or correct response stays
+		// NULL, never the value parsed from the item XML.
+		const restored = definition.openSession({ restore: saved });
+		const restoredSaved = restored.serialize();
+		expect(restoredSaved.responseVariables.R?.defaultValue).toBeNull();
+		expect(restoredSaved.responseVariables.R?.correctResponse).toBeNull();
+		expect(restoredSaved.outcomeVariables.OUT?.defaultValue).toBeNull();
+		// Scoring the same response gives the live session's outcome.
+		restored.dispatch({ action: 'setResponse', responseIdentifier: 'R', value: 'A' });
+		const restoredScored = restored.dispatch({ action: 'scoreAttempt' });
+		expect(restoredScored.result?.scoring?.outcomeValues.OUT).toBeNull();
+		restored.dispose();
+	});
+
+	test('restore keeps template-set non-NULL defaults and correct responses', () => {
+		const definition = createAssessmentItemDefinition({ itemXml: QTI22_TEMPLATE_NONNULL_ITEM });
+
+		const live = definition.openSession();
+		expect(live.state().responses.R).toBe('B');
+		live.dispatch({ action: 'setResponse', responseIdentifier: 'R', value: 'B' });
+		const liveScored = live.dispatch({ action: 'scoreAttempt' });
+		expect(liveScored.result?.scoring?.outcomeValues.OUT).toBe('MATCHED');
+		const saved = live.serialize();
+		live.dispose();
+
+		expect(saved.responseVariables.R?.defaultValue).toBe('B');
+		expect(saved.responseVariables.R?.correctResponse).toBe('B');
+
+		const restored = definition.openSession({ restore: saved });
+		const restoredSaved = restored.serialize();
+		// Not the values parsed from the item XML ('A'), the template-set ones.
+		expect(restoredSaved.responseVariables.R?.defaultValue).toBe('B');
+		expect(restoredSaved.responseVariables.R?.correctResponse).toBe('B');
+		restored.dispatch({ action: 'setResponse', responseIdentifier: 'R', value: 'B' });
+		const restoredScored = restored.dispatch({ action: 'scoreAttempt' });
+		expect(restoredScored.result?.scoring?.outcomeValues.OUT).toBe('MATCHED');
+		restored.dispose();
+	});
+
+	test('restore keeps declared defaults and correct responses no template rule touched', () => {
+		const definition = createAssessmentItemDefinition({ itemXml: QTI22_UNTOUCHED_DECLARATIONS_ITEM });
+
+		const live = definition.openSession();
+		const saved = live.serialize();
+		live.dispose();
+
+		expect(saved.responseVariables.R?.defaultValue).toBe('A');
+		expect(saved.responseVariables.R?.correctResponse).toBe('A');
+		// SPARE declares no correct response; its snapshot omits the field, keeping
+		// "no correct response" distinct from a NULL correct response.
+		expect(saved.responseVariables.SPARE).not.toHaveProperty('correctResponse');
+
+		const restored = definition.openSession({ restore: saved });
+		const restoredSaved = restored.serialize();
+		expect(restoredSaved.responseVariables.R?.defaultValue).toBe('A');
+		expect(restoredSaved.responseVariables.R?.correctResponse).toBe('A');
+		expect(restoredSaved.responseVariables.SPARE).not.toHaveProperty('correctResponse');
+		// The declared correct response still scores.
+		restored.dispatch({ action: 'setResponse', responseIdentifier: 'R', value: 'A' });
+		const scored = restored.dispatch({ action: 'scoreAttempt' });
+		expect(scored.result?.scoring?.outcomeValues.OUT).toBe('MATCHED');
+		restored.dispose();
 	});
 });

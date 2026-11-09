@@ -73,7 +73,7 @@ Removing an eliminated choice from the DOM would change the response set silentl
 | `layout-single-column` | `display.singleColumn` | Layout grids stack; a section split pane stacks its panes behind the Passage/Question tabs |
 | `language-of-interface` (`xml:lang`) | `display.interfaceLanguage` | Held for the host, which owns the player's interface locale |
 | `magnification` | `display.magnification` | `all-content`'s `zoom-amount`, else `text`'s; set as `data-qti-magnification` metadata for host stylesheets |
-| — (no AfA term) | `display.structuredLabelSupport` | A player extension, JSON profile only: interaction answer sets become prompt-named ARIA groups (`packages/item-player/docs/PNP.md`) |
+| — (no AfA term) | `display.structuredLabelSupport` | A player extension, JSON profile only: the match interaction's answer set becomes a prompt-named ARIA group with heading-named columns; the choice answer set is a prompt-named group regardless (`packages/item-player/docs/PNP.md`) |
 | `answer-masking` | `cognitive.answerMasking` | Applied to `choiceInteraction` |
 | `spell-checker-on-screen` | `cognitive.spellChecker` | The browser's spell check and autocorrect are allowed in the candidate's response fields (the extended text interaction) |
 | — (no AfA term) | `cognitive.eliminationTool` | Set by the host: AfA has no answer-eliminator feature |
@@ -152,7 +152,6 @@ The dialog is named by its title and described by its hint, takes focus on its t
 | Feature | Reason |
 |---------|--------|
 | `magnification` | Parsed into `display.magnification` and set as `data-qti-magnification` / `--qti-magnification` metadata on the root or section surface; no stylesheet renders it. Browser/OS zoom is sufficient, overlay deferred; the section's display settings tool enlarges text through `textAppearance.fontSize` instead |
-| Structured labels | Per-interaction ARIA work; tracked as G-13 |
 | `braille` | Hardware integration; tracked as G-13. The catalog support fires `qti-catalog-lookup` for the host |
 | `sign-language` | Video player is host responsibility; tracked as G-14. The catalog support fires `qti-catalog-lookup` for the host |
 | Timing and pause control | UI for these requires assessment-level integration beyond timer multiplication; tracked separately |
@@ -164,7 +163,7 @@ The dialog is named by its title and described by its hint, takes focus on its t
 
 ### Known gaps
 
-**G-09 — PNP profile support:** Implemented in commit `fa8fa97` (2026-04-28). Elimination tool, extended time, glossary/keyword-translation triggers and popups are shipped. Color schemes set `data-qti-colorscheme` on the player root, and `qti-pnp.css` in `@pie-qti/default-components` ships the scheme rulesets, each at WCAG 1.4.3 contrast. Structured labels and braille data exposure landed with G-13 (research note, markup contract and NVDA checklist in `packages/item-player/docs/PNP.md`): `pnp.display.structuredLabelSupport` announces interaction answer sets as prompt-named ARIA groups, an AfA `<braille/>` grant routes to the platform `brailleText` preference, and `braille-text`/`braille` catalog usage names share one lookup. Remaining item: magnification overlay (browser zoom sufficient — boundary); braille device routing stays host-side. Sign language video is host-owned: G-14 delivers it through `qti-catalog-lookup`.
+**G-09 — PNP profile support:** Implemented in commit `fa8fa97` (2026-04-28). Elimination tool, extended time, glossary/keyword-translation triggers and popups are shipped. Color schemes set `data-qti-colorscheme` on the player root, and `qti-pnp.css` in `@pie-qti/default-components` ships the scheme rulesets, each at WCAG 1.4.3 contrast. Structured labels and braille data exposure landed with G-13 (research note, markup contract and NVDA checklist in `packages/item-player/docs/PNP.md`): `pnp.display.structuredLabelSupport` announces the match interaction's answer set as a prompt-named ARIA group, an AfA `<braille/>` grant routes to the platform `brailleText` preference, and `braille-text`/`braille` catalog usage names share one lookup. Remaining item: magnification overlay (browser zoom sufficient — boundary); braille device routing stays host-side. Sign language video is host-owned: G-14 delivers it through `qti-catalog-lookup`.
 
 ---
 

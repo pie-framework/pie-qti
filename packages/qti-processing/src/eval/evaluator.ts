@@ -1,7 +1,7 @@
 import Decimal from 'decimal.js';
 import type { ExpressionNode } from '../ast/types.js';
 import type { DeclarationContext } from '../runtime/context.js';
-import { normalizeResponse } from '../runtime/normalize.js';
+import { normalizeResponse, type StringComparisonOptions } from '../runtime/normalize.js';
 import { xsdPatternToRegExp } from '../runtime/xsd-pattern.js';
 import type { BaseType, Cardinality, Declaration, LookupTableTable, Mapping, MappingEntry, QtiValue } from '../runtime/types.js';
 import {
@@ -24,10 +24,16 @@ export interface EvalEnv {
 	ops: OperatorRegistry;
 	rng: () => number;
 	/**
-	 * BCP 47 tag of the item's content language. String comparisons and number
-	 * parsing read responses in it: its decimal marks, and its case fold.
+	 * BCP 47 tag of the item's content language. Number parsing reads responses in it (its
+	 * digits and decimal marks), and case-insensitive string comparisons use its case fold.
 	 */
 	language?: string;
+	/**
+	 * How `string` values compare in match, member, contains, delete, stringMatch and mapping
+	 * lookup: exactly, up to Unicode canonical equivalence, unless the host opts in to a fold
+	 * (`StringComparisonOptions`). A delivery option; QTI's own comparison is the default.
+	 */
+	stringComparison?: StringComparisonOptions;
 	/**
 	 * Optional test-level context. Required to evaluate test-only expressions like:
 	 * - testVariables / outcomeMinimum / outcomeMaximum
@@ -78,41 +84,54 @@ export function applyLookupTable(source: QtiValue, table: LookupTableTable, base
 }
 
 /**
+ * How a string value and a mapping key compare: in the content language, with the host's string
+ * comparison folds.
+ */
+interface StringKeyComparison {
+	language: string | undefined;
+	stringComparison: StringComparisonOptions | undefined;
+}
+
+/** The comparable form of a string value or mapping key (`normalizeResponse`). */
+function comparableString(value: string, comparison: StringKeyComparison, ignoreCase = false): string {
+	return normalizeResponse(value, { ...comparison.stringComparison, language: comparison.language, ignoreCase });
+}
+
+/**
  * The mapping entry for a response value. Each entry is matched as case sensitively as it says
- * (mapEntry caseSensitive, QTI ASI §5), with the spec default of false (QTI 2.2 XSD: optional,
- * default "false"; the 2.1 Best Practice: "The default is false"; the QTI 3.0 implementation
- * guide: "by default, NOT case sensitive") — an entry matches case-insensitively unless it says
- * "true". Only string values fold: identifier and the other base types match exactly (QTI ASI
- * §17). The lookup is by the exact key — the player also stores a case-insensitive entry under
- * its lower-case key — and string keys also compare in their normalised form, case folded only
- * where the entry is not case sensitive, so an answer typed in other digits, another Unicode
- * encoding or, for such an entry, another case finds its entry. A case-sensitive entry is never
+ * (mapEntry caseSensitive, QTI ASI §5; QTI 3.0 §7.21.3), with the spec default of false (QTI 2.2
+ * XSD: optional, default "false"; the 2.1 Best Practice: "The default is false"; QTI 3.0: "The
+ * default value is false") — an entry matches case-insensitively unless it says "true". Only
+ * string values fold: identifier and the other base types match exactly (QTI ASI §17). The lookup
+ * is by the exact key — the player also stores a case-insensitive entry under its lower-case key —
+ * and string keys also compare in their comparable form (NFC, plus the host's string comparison
+ * folds), case folded only where the entry is not case sensitive. A case-sensitive entry is never
  * found by folding the response's case.
  */
 function findMappingEntry(
 	mapping: Mapping,
 	key: string,
 	baseType: BaseType | undefined,
-	language: string | undefined,
+	comparison: StringKeyComparison,
 ): MappingEntry | undefined {
 	const exact = mapping.entries[key];
 	if (exact || baseType !== 'string') return exact;
-	const typed = normalizeResponse(key, { language });
-	const typedFolded = normalizeResponse(key, { language, ignoreCase: true });
+	const typed = comparableString(key, comparison);
+	const typedFolded = comparableString(key, comparison, true);
 	return Object.values(mapping.entries).find((entry) =>
 		(entry.caseSensitive ?? 'false') !== 'true'
-			? normalizeResponse(entry.mapKey, { language, ignoreCase: true }) === typedFolded
-			: normalizeResponse(entry.mapKey, { language }) === typed,
+			? comparableString(entry.mapKey, comparison, true) === typedFolded
+			: comparableString(entry.mapKey, comparison) === typed,
 	);
 }
 
 /**
- * mapResponse/mapOutcome over a declared value (QTI ASI §15.3): "If a container
- * contains multiple instances of the same value then that value is counted once
- * only", so {B,B,C} maps to 1.5, not 2.5. Deduplication uses the same normalized
- * key the mapping lookup uses — pair keys ignore member order, directedPair keys
- * keep it, and the values a case-insensitive string entry folds together count
- * once as well.
+ * mapResponse/mapOutcome over a declared value (QTI ASI §15.3; QTI 3.0 §6.9.47): "If a container
+ * contains multiple instances of the same value then that value is counted once only", so {B,B,C}
+ * maps to 1.5, not 2.5. Deduplication uses the same comparison the mapping lookup uses — pair
+ * keys ignore member order, directedPair keys keep it, and the values a case-insensitive string
+ * entry matches count once as the one value they are to it. A string value no entry matches is
+ * the same value only as another that compares equal to it: case does not fold for it.
  *
  * QTI treats a container with no values as NULL, so a NULL container maps as the
  * empty container — its values sum to 0, which the mapping's bounds then clamp —
@@ -123,7 +142,7 @@ function mapMappedValue(
 	decl: Declaration,
 	mapping: Mapping,
 	current: QtiValue,
-	language: string | undefined,
+	comparison: StringKeyComparison,
 ): number {
 	const normalizeMappingKey = (k: string): string => {
 		const raw = String(k ?? '').trim();
@@ -141,7 +160,7 @@ function mapMappedValue(
 	};
 
 	const mapOne = (key: string): number => {
-		const entry = findMappingEntry(mapping, normalizeMappingKey(key), decl.baseType, language);
+		const entry = findMappingEntry(mapping, normalizeMappingKey(key), decl.baseType, comparison);
 		return entry ? Number(entry.mappedValue) : Number(mapping.defaultValue ?? 0);
 	};
 
@@ -151,26 +170,25 @@ function mapMappedValue(
 	}
 
 	// §15.3 counts a repeated value once. String entries default to case-insensitive (the
-	// mapEntry@caseSensitive spec default), so the values they fold together — {Paris, paris} —
-	// count once too: an entry that matches case-insensitively deduplicates by its folded key
+	// mapEntry@caseSensitive spec default), so the values such an entry matches — {Paris, paris} —
+	// count once: an entry that matches case-insensitively deduplicates by its case-folded key
 	// (which also folds the lower-case alias the player stores beside it), a case-sensitive entry
-	// by its own key, and a string value no entry matches by its normalized, folded key.
+	// by its comparable key, and a string value no entry matches by its comparable form, which
+	// keeps its case: no entry asks for case to fold there.
 	const entryDedupKey = (entry: MappingEntry): string => {
+		if (decl.baseType !== 'string') return `entry:${entry.mapKey}`;
 		const matchesInsensitively = (entry.caseSensitive ?? 'false') !== 'true';
-		const mapKey = decl.baseType === 'string' && matchesInsensitively ? normalizeResponse(entry.mapKey, { language, ignoreCase: true }) : entry.mapKey;
-		return `entry:${mapKey}`;
+		return `entry:${comparableString(entry.mapKey, comparison, matchesInsensitively)}`;
 	};
 	const arr = current.kind !== 'value' ? [] : Array.isArray(current.value) ? current.value : [current.value];
 	const counted = new Set<string>();
 	let raw = 0;
 	for (const x of arr) {
 		const key = normalizeMappingKey(String(x));
-		const entry = findMappingEntry(mapping, key, decl.baseType, language);
+		const entry = findMappingEntry(mapping, key, decl.baseType, comparison);
 		const dedupKey = entry
 			? entryDedupKey(entry)
-			: decl.baseType === 'string'
-				? normalizeResponse(key, { language, ignoreCase: true })
-				: key;
+			: `value:${decl.baseType === 'string' ? comparableString(key, comparison) : key}`;
 		if (counted.has(dedupKey)) continue;
 		counted.add(dedupKey);
 		raw += entry ? Number(entry.mappedValue) : Number(mapping.defaultValue ?? 0);
@@ -247,6 +265,10 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 		return new Decimal(String(x)).toSignificantDigits(f, Decimal.ROUND_HALF_UP).toNumber();
 	};
 
+	// match, member, contains, delete and equal compare `string` values as "the same value" (QTI 3.0
+	// §6.9.21): exactly, up to canonical equivalence, with the host's string comparison folds.
+	const stringKeyComparison: StringKeyComparison = { language: env.language, stringComparison: env.stringComparison };
+
 	const normalizeScalarForCompare = (v: unknown, baseType?: BaseType): string => {
 		if ((baseType === 'pair' || baseType === 'directedPair') && typeof v === 'string') {
 			// pair: unordered "A B" == "B A"; directedPair: ordered
@@ -258,7 +280,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 				return `${a} ${b}`;
 			}
 		}
-		if (baseType === 'string' && typeof v === 'string') return normalizeResponse(v, { language: env.language });
+		if (baseType === 'string' && typeof v === 'string') return comparableString(v, stringKeyComparison);
 		if (baseType === 'duration') {
 			// One duration, however written: `30`, `30.0` and `PT30S` are the same 30 seconds.
 			const seconds = durationSeconds(v);
@@ -1131,9 +1153,11 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			if (a.kind === 'invalid' || b.kind === 'invalid') return qtiInvalid('stringMatch invalid');
 			if (isNullValue(a) || isNullValue(b)) return qtiNull('boolean', 'single');
 
-			const options = { language: env.language, ignoreCase: !expr.caseSensitive };
-			const left = normalizeResponse(toStringValue(a), options);
-			const right = normalizeResponse(toStringValue(b), options);
+			// stringMatch compares "according to the comparison rules" its attributes give (QTI 3.0
+			// §6.9.48): case folds when case-sensitive is false (§5.138.1), the rest as every string
+			// comparison does.
+			const left = comparableString(toStringValue(a), stringKeyComparison, !expr.caseSensitive);
+			const right = comparableString(toStringValue(b), stringKeyComparison, !expr.caseSensitive);
 
 			if (expr.substring) return qtiValue('boolean', 'single', left.includes(right));
 			return qtiValue('boolean', 'single', left === right);
@@ -1144,6 +1168,8 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			if (value.kind === 'invalid' || pattern.kind === 'invalid') return qtiInvalid('patternMatch invalid');
 			if (isNullValue(value) || isNullValue(pattern)) return qtiNull('boolean', 'single');
 
+			// The author's regular expression tests the string as entered (QTI 3.0 §6.9.45): no string
+			// comparison fold applies, whatever the host set.
 			const sv = toStringValue(value);
 			const sp = toStringValue(pattern);
 
@@ -1317,7 +1343,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 		case 'expr.mapOutcome': {
 			const decl = env.ctx.getDeclaration(expr.identifier);
 			if (!decl?.mapping) return qtiValue('float', 'single', 0);
-			let raw = mapMappedValue(decl, decl.mapping, decl.value, env.language);
+			let raw = mapMappedValue(decl, decl.mapping, decl.value, stringKeyComparison);
 
 			const lower = decl.mapping.lowerBound;
 			const upper = decl.mapping.upperBound;
@@ -1328,7 +1354,7 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 		case 'expr.mapResponse': {
 			const decl = env.ctx.getDeclaration(expr.identifier);
 			if (!decl?.mapping) return qtiValue('float', 'single', 0);
-			let raw = mapMappedValue(decl, decl.mapping, decl.value, env.language);
+			let raw = mapMappedValue(decl, decl.mapping, decl.value, stringKeyComparison);
 
 			const lower = decl.mapping.lowerBound;
 			const upper = decl.mapping.upperBound;

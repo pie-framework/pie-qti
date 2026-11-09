@@ -143,11 +143,13 @@ function parseNumericString(input: string, base: number): ParsedNumericString {
 }
 
 /**
- * The number as `parseNumericString` reads it: digits in any script folded to
- * 0-9, and the content language's decimal mark read as a point.
+ * The number as `parseNumericString` reads it: script input folded (digits in any script to 0-9,
+ * bidi controls and tatweel removed), and the content language's decimal mark read as a point.
+ * Reading typed text into a number is the delivery system's part, which QTI leaves to it, so this
+ * does not depend on the host's string comparison options.
  */
 function asciiNumberText(input: string, language: string | undefined): string {
-	const folded = normalizeResponse(input, { language });
+	const folded = normalizeResponse(input, { language, foldScriptInput: true });
 	const { decimal } = numberMarks(language);
 	return decimal !== '.' && !folded.includes('.') ? folded.replace(decimal, '.') : folded;
 }

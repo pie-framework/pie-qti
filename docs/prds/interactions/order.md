@@ -278,17 +278,19 @@ interface OrderInteractionData extends BaseInteractionData {
 **Response type:**
 ```typescript
 // In InteractionValueMap (packages/item-player/src/interactions/shared/types.ts)
-orderInteraction: string[]
-// An ordered array of simpleChoice identifiers in candidate-selected order.
-// Null-equivalent: null before confirmation, [] after response clear.
+orderInteraction: string[] | null
+// The ordered array of simpleChoice identifiers in candidate-selected order;
+// null in subset mode once the candidate has ordered nothing. Nothing is emitted
+// before the first confirm or reorder, so the response stays null until then.
 ```
 
 **`qti-change` event payload:**
 ```typescript
 {
   detail: {
-    responseIdentifier: string,  // from parsedInteraction.responseId
-    value: string[]              // ordered array of identifiers
+    responseId: string,      // from parsedInteraction.responseId
+    value: string[] | null,  // ordered identifiers; null for an empty subset order
+    timestamp: number
   }
 }
 ```

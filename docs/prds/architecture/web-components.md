@@ -211,12 +211,14 @@ The component is included via `<ShadowBaseStyles />` at the top of each interact
 Defined in `@pie-qti/item-player/web-components` as `QTIChangeEventDetail`:
 
 ```typescript
-interface QTIChangeEventDetail {
+interface QTIChangeEventDetail<TValue = InteractionResponseValue | null> {
   responseId: string;   // QTI response identifier (non-empty, required)
-  value: unknown;       // The response value (string, string[], number, etc. — type depends on interaction)
+  value: TValue;        // The raw component output; its type per interaction is InteractionValueMap[type]
   timestamp: number;    // Date.now() at dispatch time
 }
 ```
+
+`InteractionValueMap` (`packages/item-player/src/interactions/shared/types.ts`) records what each standard component emits — for example `"source target"` pair strings for match, `"x y"` point strings for position-object, and `null` when a component clears its answer. The player normalizes the value into the response declaration (`setResponse`); `Player.getResponses` returns that normalized form.
 
 The event is constructed by `createQtiChangeEvent(responseId, value)` in `src/shared/utils/eventHelpers.ts`. If `responseId` is empty or undefined, the function throws before constructing the event.
 

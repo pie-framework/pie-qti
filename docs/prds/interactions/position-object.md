@@ -282,7 +282,7 @@ interface PositionObjectStage {
 }
 ```
 
-The response wire format (QTI) is `string[]` where each element is `"x y"` with integer coordinates in natural image pixels. The `InteractionValueMap` for this interaction type maps it as `Record<string, { x: number; y: number }>` but this is the internal map, not the QTI serialization format.
+The response wire format (QTI) is `string[]` where each element is `"x y"` with integer coordinates in natural image pixels. The `qti-change` event carries the same `string[]`, and `InteractionValueMap.positionObjectInteraction` (`packages/item-player/src/interactions/shared/types.ts`) types it as `string[]`.
 
 **Invariants:**
 - `response.length <= maxChoices` (when `maxChoices > 0`)
@@ -455,7 +455,7 @@ Then: The component displays "Minimum required: 2 | Maximum: 3"
 Given: A valid positionObjectInteraction
 When: The candidate places or removes an object
 Then: A "qti-change" CustomEvent is dispatched from the root element
-      event.detail.identifier equals the responseIdentifier from the interaction
+      event.detail.responseId equals the responseIdentifier from the interaction
       event.detail.value is an array of "x y" strings in natural image coordinates
 ```
 

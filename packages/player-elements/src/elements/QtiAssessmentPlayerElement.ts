@@ -10,7 +10,7 @@ import type {
 } from '@pie-qti/assessment-player';
 import { isAssessmentPlayerError, ReferenceBackendAdapter } from '@pie-qti/assessment-player';
 import type { PciConfiguration, PlayerSecurityConfig } from '@pie-qti/item-player';
-import { enforceItemXmlLimits } from '@pie-qti/item-player/security';
+import { enforceItemXmlLimits, normalizeParsingLimits } from '@pie-qti/item-player/security';
 import AssessmentShell from '../../../assessment-player/src/components/AssessmentShell.svelte';
 import { QTI_ASSESSMENT_PLAYER_TAG } from '../constants.js';
 import { parseAssessmentTestXml } from '../qti/parseAssessmentTest.js';
@@ -650,10 +650,12 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 		this.dispatchEvent(new CustomEvent('load-start', { bubbles: true, composed: true }));
 
 		try {
-			const security = this.#effectiveSecurity();
+			const security = this.#security;
 			enforceItemXmlLimits(this.#assessmentTestXml, security);
-			const configuredSectionDepth = security.parsingLimits?.enabled
-				? security.parsingLimits.maxHtmlDepth
+			// While parsing limits are in force (unless the host opts out), the host's maxHtmlDepth
+			// bounds section nesting; without one the parsers keep their own default depth.
+			const configuredSectionDepth = normalizeParsingLimits(security).enabled
+				? security?.parsingLimits?.maxHtmlDepth
 				: undefined;
 			const parsed = parseAssessmentTestXml(
 				this.#assessmentTestXml,
@@ -692,7 +694,11 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 					? {}
 					: { sectionReferenceLimits: { maxDepth: configuredSectionDepth } }),
 			});
-			const backend = new ReferenceBackendAdapter({ rng: this.#config.rng });
+			// The reference backend scores submitted items: it compares strings as the player does.
+			const backend = new ReferenceBackendAdapter({
+				rng: this.#config.rng,
+				...(this.#config.stringComparison ? { stringComparison: this.#config.stringComparison } : {}),
+			});
 			backend.registerAssessment(assessmentId, secure);
 			this.#backend = backend;
 			this.#initSession = { assessmentId, candidateId };
@@ -712,16 +718,6 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 				this.#resourceLoadController = undefined;
 			}
 		}
-	}
-
-	#effectiveSecurity(): PlayerSecurityConfig {
-		return {
-			...(this.#security ?? {}),
-			parsingLimits: {
-				enabled: true,
-				...(this.#security?.parsingLimits ?? {}),
-			},
-		};
 	}
 
 	#dispatchLoadError(message: string): void {
@@ -819,7 +815,7 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 		// Consumers should listen to DOM events instead.
 		const baseConfig: Partial<BackendAssessmentPlayerConfig> = {
 			...this.#config,
-			security: this.#effectiveSecurity(),
+			security: this.#security,
 			pci: this.#pci ?? this.#config.pci,
 			onItemChange: (itemIndex: number, totalItems: number) => {
 				const detail: QtiAssessmentItemChangeDetail = { itemIndex, totalItems };

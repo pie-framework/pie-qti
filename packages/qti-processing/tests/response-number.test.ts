@@ -14,6 +14,13 @@ describe('parseResponseNumber', () => {
 		expect(parseResponseNumber('١٬٢٣٤', 'ar')).toBe(1234);
 	});
 
+	test('reads a number typed with bidi controls or tatweel, which string comparison keeps', () => {
+		// Reading typed text into a number is the delivery system's part, which QTI leaves to it:
+		// it does not depend on the host's stringComparison option.
+		expect(parseResponseNumber('\u200F٣٫٥', 'ar')).toBe(3.5);
+		expect(parseResponseNumber('\u061C١\u0640٢\u200E', 'ar')).toBe(12);
+	});
+
 	test("reads the language's decimal and group marks", () => {
 		expect(parseResponseNumber('3,5', 'fr')).toBe(3.5);
 		expect(parseResponseNumber('1 234,5', 'fr')).toBe(1234.5);
