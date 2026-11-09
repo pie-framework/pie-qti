@@ -22,10 +22,6 @@
     ]
   },
   "dependenciesUnreferencedByDist": {
-    "@pie-qti/default-components": {
-      "@pie-qti/item-player": "bundled into dist/plugins.js by vite",
-      "@pie-qti/qti-common": "bundled into dist/plugins.js by vite"
-    },
     "@pie-qti/player-elements": {
       "@pie-qti/assessment-player": "fully self-contained bundle: all runtime deps are inlined by vite",
       "@pie-qti/default-components": "fully self-contained bundle: all runtime deps are inlined by vite",
