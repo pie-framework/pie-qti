@@ -71,6 +71,8 @@ export interface GapMatchData {
 	gaps: string[];
 	/** QTI `maxAssociations`, with the per-version default for an absent attribute; 0 = no cap. */
 	maxAssociations: number;
+	/** QTI `minAssociations`, the associations a valid response makes; omitted when 0. */
+	minAssociations?: number;
 	/** Authored `matchGroup` tokens per gap identifier; present only when a gap authors one. */
 	gapMatchGroups?: Record<string, string[]>;
 	/** Gaps authored `required`, which a valid response must fill; present only when one is. */
@@ -196,6 +198,9 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 		// 0 = no restriction. QTI 2.2 added the attribute, so QTI 2.1 content sets no
 		// interaction cap. An explicit value is honoured in every version as leniency.
 		const maxAssociations = utils.getNumberAttribute(element, 'maxAssociations', predatesQti22(context) ? 0 : 1);
+		// minAssociations (QTI 2.2; QTI 3.0 §5.57.2): "the minimum number of associations that the
+		// candidate is required to make to form a valid response"; 0 requires none.
+		const minAssociations = utils.getNumberAttribute(element, 'minAssociations', 0);
 
 		// Shuffle the combined choice pool so words and images interleave, then
 		// restore the split view the renderer consumes.
@@ -295,6 +300,7 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 			gapImages,
 			gaps,
 			maxAssociations,
+			...(minAssociations > 0 ? { minAssociations } : {}),
 			...(Object.keys(gapMatchGroups).length > 0 ? { gapMatchGroups } : {}),
 			...(requiredGaps.length > 0 ? { requiredGaps } : {}),
 			shuffle,

@@ -104,19 +104,19 @@ Legend: "—" = the attribute does not exist in that version; "optional" = optio
 |-----------|-----|-----|-----|--------|---------|
 | `shuffle` | false | false | false | false | Aligned |
 | `maxAssociations` | — | 1 | 1 | 2.1: 0 (no cap); 2.2/3.0: 1 | Fixed (was not read) |
-| `minAssociations` | — | optional | optional | not read (no minimum) | Aligned for absence; an authored value is not enforced (feature gap) |
+| `minAssociations` | — | optional | optional | 0 (delivered only when above 0) | Aligned; an authored value is enforced by response validation |
 | `gapText`/`gapImg` `matchMax` | required | required | required | fallback 1 | Required (fallback for invalid content) |
 | `gapText`/`gapImg` `matchMin` | 0 | 0 | 0 | 0 | Aligned |
 | `gapText`/`gapImg` `fixed` | false | — | — | not read (false) | Aligned |
-| `gap` `required` | false | false | false | not read (false) | Aligned for absence; an authored `true` is not enforced (feature gap) |
+| `gap` `required` | false | false | false | false (required gaps delivered as `requiredGaps`) | Aligned; an authored `true` is enforced by response validation |
 
 ### inlineChoiceInteraction / inlineChoice
 
 | Attribute | 2.1 | 2.2 | 3.0 | Player | Verdict |
 |-----------|-----|-----|-----|--------|---------|
 | `shuffle` | false | false | false | false | Aligned |
-| `required` | false | false | false | not read (false) | Aligned for absence; an authored `true` is not enforced (feature gap) |
-| `minChoices` | — | — | 0 | not read (0) | Aligned for absence; an authored value is not enforced (feature gap) |
+| `required` | false | false | false | false (`true` delivered as `minChoices: 1`) | Aligned; an authored `true` is enforced by response validation |
+| `minChoices` | — | — | 0 | 0 (delivered only when above 0) | Aligned; an authored value is enforced by response validation |
 | `inlineChoice` `fixed` | false | false | false | false | Aligned |
 
 ### textEntryInteraction
@@ -241,9 +241,9 @@ Legend: "—" = the attribute does not exist in that version; "optional" = optio
   player keeps the schema default `1`.
 - **extendedTextInteraction `expectedLength`.** The counter shown for `qti-counter-up`/`qti-counter-down`
   uses the extractor's fallback of 200 when the author gave no `expected-length`.
-- **Authored values not enforced** (absence is handled correctly): `minAssociations` on gap match and graphic
-  gap match, `required` on `gap` and `inlineChoiceInteraction`, and QTI 3.0 `min-choices` on
-  `inlineChoiceInteraction`.
+- **Authored values not enforced** (absence is handled correctly): `minAssociations` on graphic gap match.
+  Gap match `minAssociations`, `gap` `required`, and `inlineChoiceInteraction` `required` and QTI 3.0
+  `min-choices` are enforced by response validation.
 
 See also: [QTI technical implementation guide](QTI_techguide.md), and the interaction PRDs under
 [`prds/interactions/`](prds/interactions/), for example

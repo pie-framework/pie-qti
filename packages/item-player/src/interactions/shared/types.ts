@@ -216,6 +216,11 @@ export interface GapMatchInteractionData extends BaseInteractionData<'gapMatchIn
 	 */
 	maxAssociations?: number;
 	/**
+	 * The associations a valid response makes (QTI 2.2 `minAssociations`; QTI 3.0 §5.57.2).
+	 * Present only when above 0.
+	 */
+	minAssociations?: number;
+	/**
 	 * Authored `matchGroup` tokens per gap identifier (QTI 2.2/3.0: the identifiers of the
 	 * choices that may be matched with this gap). Present only when a gap authors one.
 	 */
