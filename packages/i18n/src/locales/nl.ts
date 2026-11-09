@@ -388,6 +388,26 @@ export default {
 				one: 'Zet minimaal {count} item in volgorde.',
 				other: 'Zet minimaal {count} items in volgorde.',
 			},
+			yourOrder: 'Jouw volgorde',
+			notInOrder: 'Niet in je volgorde',
+			emptyOrder: 'Er staat nog niets in je volgorde.',
+			addItem: '{item} aan je volgorde toevoegen',
+			removeItem: '{item} uit je volgorde verwijderen',
+			itemAdded: '{item} toegevoegd aan je volgorde op positie {position} van {total}.',
+			itemRemoved: '{item} verwijderd uit je volgorde.',
+			orderLimitReached: {
+				one: 'Je volgorde kan {max} item bevatten. Verwijder het om een ander toe te voegen.',
+				other: 'Je volgorde kan maximaal {max} items bevatten. Verwijder er een om een ander toe te voegen.',
+			},
+			correctOrder: 'Juiste volgorde',
+			subsetExactHint: {
+				one: 'Kies {count} item voor je volgorde.',
+				other: 'Kies {count} items en zet ze in volgorde.',
+			},
+			subsetRangeHint: {
+				one: 'Kies {min} tot {max} item en zet ze in volgorde.',
+				other: 'Kies {min} tot {max} items en zet ze in volgorde.',
+			},
 		},
 
 		associate: {
@@ -528,6 +548,14 @@ export default {
 			minChoicesHint: {
 				one: 'Zet minimaal {count} item in volgorde.',
 				other: 'Zet minimaal {count} items in volgorde.',
+			},
+			subsetExactHint: {
+				one: 'Kies {count} item voor je volgorde.',
+				other: 'Kies {count} items en zet ze in volgorde.',
+			},
+			subsetRangeHint: {
+				one: 'Kies {min} tot {max} item en zet ze in volgorde.',
+				other: 'Kies {min} tot {max} items en zet ze in volgorde.',
 			},
 		},
 

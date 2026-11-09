@@ -27,6 +27,48 @@ export function minimumHint({ i18n, minimum, count, authored, key, fallback }: M
 	return authored?.trim() || translatePlural(i18n, key, fallback, required);
 }
 
+/** The limits of a subset-ordering interaction (see `orderChoiceLimits` in item-player). */
+export interface SubsetOrderHintOptions {
+	i18n: I18nProvider | undefined;
+	/** The fewest items a complete response orders (minChoices). */
+	min: number;
+	/** The most items a response may order (maxChoices, clamped to the choices). */
+	max: number;
+	/** How many items the response orders now. */
+	count: number;
+	/** The author's `data-min-selections-message`, which wins over the localized default. */
+	authored?: string | null;
+	/** Catalog namespace: `interactions.order` or `interactions.graphicOrder`. */
+	namespace: string;
+}
+
+/**
+ * The limits of subset ordering, stated in the same place and on the same terms as
+ * `minimumHint` while the order is short of its minimum (WCAG 3.3.2): "Choose 2 items and put
+ * them in order." when the minimum is also the maximum, else "Choose between 1 and 3 items…".
+ */
+export function subsetOrderHint({ i18n, min, max, count, authored, namespace }: SubsetOrderHintOptions): string {
+	if (min <= 0 || count >= min) return '';
+	if (authored?.trim()) return authored.trim();
+	return max === min
+		? translatePlural(
+				i18n,
+				`${namespace}.subsetExactHint`,
+				{ one: 'Choose {count} item for your order.', other: 'Choose {count} items and put them in order.' },
+				min,
+			)
+		: translatePlural(
+				i18n,
+				`${namespace}.subsetRangeHint`,
+				{
+					one: 'Choose between {min} and {max} item and put them in order.',
+					other: 'Choose between {min} and {max} items and put them in order.',
+				},
+				max,
+				{ min, max },
+			);
+}
+
 /** Space-separated `aria-describedby` ids, without the empty ones; undefined when none remain. */
 export function describedByIds(...ids: Array<string | null | undefined | false>): string | undefined {
 	const joined = ids.filter((id): id is string => !!id).join(' ');

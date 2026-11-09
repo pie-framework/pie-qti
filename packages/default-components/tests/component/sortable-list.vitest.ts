@@ -99,6 +99,36 @@ describe('SortableList accessible naming', () => {
 	});
 });
 
+describe('SortableList list name', () => {
+	test('names itself by default, or by the caller\'s visible label when one is given', async () => {
+		const items = [
+			{ id: 'I1', text: 'One' },
+			{ id: 'I2', text: 'Two' },
+		];
+		const plain = mountInteraction(SortableList, { items, orderedIds: ['I1', 'I2'], onReorder: () => {} });
+		const label = document.createElement('p');
+		label.id = 'external-order-label';
+		label.textContent = 'Your order';
+		document.body.appendChild(label);
+		const labelled = mountInteraction(SortableList, {
+			items,
+			orderedIds: ['I1', 'I2'],
+			labelledBy: 'external-order-label',
+			onReorder: () => {},
+		});
+		await settle();
+
+		const plainList = q(plain, '[role="list"]')!;
+		expect(plainList.getAttribute('aria-label')).toBe('Reorderable list of choices');
+		expect(plainList.hasAttribute('aria-labelledby')).toBe(false);
+
+		const labelledList = q(labelled, '[role="list"]')!;
+		expect(labelledList.getAttribute('aria-labelledby')).toBe('external-order-label');
+		expect(labelledList.hasAttribute('aria-label')).toBe(false);
+		cleanupInteraction(plain, labelled);
+	});
+});
+
 describe('SortableList instance-unique ids', () => {
 	test('two lists with the same item ids keep their own instruction, name and state ids', async () => {
 		const props = {

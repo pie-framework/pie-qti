@@ -40,6 +40,8 @@ interface Props {
 	rowTrailing?: Snippet<[Item]>;
 	/** Id(s) of more descriptions for the list, such as the interaction's unmet-minimum hint. */
 	describedBy?: string;
+	/** Id of an element that names the list, when the caller's context gives one. */
+	labelledBy?: string;
 	onReorder: (newOrder: string[]) => void;
 }
 
@@ -54,6 +56,7 @@ const {
 	i18n,
 	rowTrailing,
 	describedBy,
+	labelledBy,
 	onReorder,
 }: Props = $props();
 
@@ -281,7 +284,8 @@ function itemState(index: number, isGrabbed: boolean, isCorrect: boolean): strin
 
 <div
 	role="list"
-	aria-label={i18n?.t('interactions.order.listLabel') ?? 'Reorderable list of choices'}
+	aria-label={labelledBy ? undefined : (i18n?.t('interactions.order.listLabel') ?? 'Reorderable list of choices')}
+	aria-labelledby={labelledBy}
 	aria-describedby={describedBy ? `${instructionsId} ${describedBy}` : instructionsId}
 	data-orientation={orientation}
 	part="list"

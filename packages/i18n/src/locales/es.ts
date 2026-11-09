@@ -396,6 +396,29 @@ export default {
 				many: 'Ordena al menos {count} elementos.',
 				other: 'Ordena al menos {count} elementos.',
 			},
+			yourOrder: 'Tu orden',
+			notInOrder: 'Fuera de tu orden',
+			emptyOrder: 'Todavía no hay nada en tu orden.',
+			addItem: 'Añadir {item} a tu orden',
+			removeItem: 'Quitar {item} de tu orden',
+			itemAdded: '{item} añadido a tu orden en la posición {position} de {total}.',
+			itemRemoved: '{item} quitado de tu orden.',
+			orderLimitReached: {
+				one: 'Tu orden puede tener {max} elemento. Quítalo para añadir otro.',
+				many: 'Tu orden puede tener hasta {max} elementos. Quita uno para añadir otro.',
+				other: 'Tu orden puede tener hasta {max} elementos. Quita uno para añadir otro.',
+			},
+			correctOrder: 'Orden correcto',
+			subsetExactHint: {
+				one: 'Elige {count} elemento para tu orden.',
+				many: 'Elige {count} elementos y ordénalos.',
+				other: 'Elige {count} elementos y ordénalos.',
+			},
+			subsetRangeHint: {
+				one: 'Elige entre {min} y {max} elemento y ordénalos.',
+				many: 'Elige entre {min} y {max} elementos y ordénalos.',
+				other: 'Elige entre {min} y {max} elementos y ordénalos.',
+			},
 		},
 
 		associate: {
@@ -543,6 +566,16 @@ export default {
 				one: 'Ordena al menos {count} elemento.',
 				many: 'Ordena al menos {count} elementos.',
 				other: 'Ordena al menos {count} elementos.',
+			},
+			subsetExactHint: {
+				one: 'Elige {count} elemento para tu orden.',
+				many: 'Elige {count} elementos y ordénalos.',
+				other: 'Elige {count} elementos y ordénalos.',
+			},
+			subsetRangeHint: {
+				one: 'Elige entre {min} y {max} elemento y ordénalos.',
+				many: 'Elige entre {min} y {max} elementos y ordénalos.',
+				other: 'Elige entre {min} y {max} elementos y ordénalos.',
 			},
 		},
 

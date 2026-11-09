@@ -401,6 +401,28 @@ export default {
 				one: 'Put at least {count} item in order.',
 				other: 'Put at least {count} items in order.',
 			},
+			// Subset ordering (minChoices below the number of choices): the candidate chooses
+			// which items to order, moving them between the two lists.
+			yourOrder: 'Your order',
+			notInOrder: 'Not in your order',
+			emptyOrder: 'Nothing is in your order yet.',
+			addItem: 'Add {item} to your order',
+			removeItem: 'Remove {item} from your order',
+			itemAdded: '{item} added to your order at position {position} of {total}.',
+			itemRemoved: '{item} removed from your order.',
+			orderLimitReached: {
+				one: 'Your order can hold {max} item. Remove it to add another.',
+				other: 'Your order can hold up to {max} items. Remove one to add another.',
+			},
+			correctOrder: 'Correct order',
+			subsetExactHint: {
+				one: 'Choose {count} item for your order.',
+				other: 'Choose {count} items and put them in order.',
+			},
+			subsetRangeHint: {
+				one: 'Choose between {min} and {max} item and put them in order.',
+				other: 'Choose between {min} and {max} items and put them in order.',
+			},
 		},
 
 		associate: {
@@ -541,6 +563,14 @@ export default {
 			minChoicesHint: {
 				one: 'Put at least {count} item in order.',
 				other: 'Put at least {count} items in order.',
+			},
+			subsetExactHint: {
+				one: 'Choose {count} item for your order.',
+				other: 'Choose {count} items and put them in order.',
+			},
+			subsetRangeHint: {
+				one: 'Choose between {min} and {max} item and put them in order.',
+				other: 'Choose between {min} and {max} items and put them in order.',
 			},
 		},
 

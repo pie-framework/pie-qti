@@ -11,11 +11,13 @@
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import SortableList, { type SortableIndexLabels } from '../../shared/components/SortableList.svelte';
+	import OrderSubset from '../../shared/components/OrderSubset.svelte';
 	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
-	import { minimumHint } from '../../shared/utils/minimumRequirement';
+	import { minimumHint, subsetOrderHint } from '../../shared/utils/minimumRequirement';
+	import { orderChoiceLimits } from '@pie-qti/item-player';
 
 	interface Props {
 		interaction?: OrderInteractionData | string;
@@ -73,6 +75,26 @@
 			: shuffledChoiceIds
 	);
 
+	// Subset ordering (QTI 2.2 ASI §5.73, §2.4.1.2): only a minChoices below the number of
+	// choices lets the candidate pick which items to order; without it, or with minChoices at
+	// or above N, every choice is ordered (and maxChoices is ignored). The same rule the
+	// engine's response validation reads.
+	const limits = $derived(
+		orderChoiceLimits({
+			minChoices: parsedInteraction?.minChoices,
+			maxChoices: parsedInteraction?.maxChoices,
+			choiceCount: shuffledChoiceIds.length,
+		}),
+	);
+	const subsetMode = $derived(limits.subset);
+
+	// The ordered subset: a restored response's known choices, in its sequence, each once.
+	const subsetOrderedIds = $derived(
+		parsedResponse
+			? [...new Set(parsedResponse.filter((id) => shuffledChoiceIds.includes(id)))]
+			: []
+	);
+
 	// Track initial order to detect if user has made changes
 	const initialOrder = $derived(parsedInteraction?.choices.map((c) => c.identifier) ?? []);
 
@@ -91,6 +113,26 @@
 		confirmation.autoConfirm(); // Auto-confirm on drag
 		response = newOrder;
 		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: newOrder, onChange });
+	}
+
+	// Subset ordering has no confirm step. Full mode needs one because the presented order is
+	// itself a plausible answer a candidate could mean to keep untouched; in subset mode nothing
+	// is ordered until the candidate adds an item, every ordered item got there by an explicit
+	// add, and each act stays reversible (remove, move) until submission — the "reversible"
+	// branch of WCAG 2.2 SC 3.3.4 — so a confirm button would only add a step. Each add, remove
+	// and move records the response at once; ordering nothing is a NULL response.
+	function handleSubsetChange(newOrder: string[]) {
+		const value = newOrder.length > 0 ? newOrder : null;
+		response = value;
+		// The public onChange keeps its string[] signature; a cleared subset reports null, as
+		// clearing does elsewhere (choice's clear answer).
+		const nullAwareOnChange = onChange as ((value: string[] | null) => void) | undefined;
+		emitInteractionChange<string[] | null>({
+			target: rootElement,
+			responseId: parsedInteraction?.responseId,
+			value,
+			onChange: nullAwareOnChange,
+		});
 	}
 
 	// Reset confirmation state when response is externally cleared
@@ -120,23 +162,38 @@
 		button?.focus();
 	}
 
-	// Minimum requirement (minChoices): stated while the response orders fewer items — until the
-	// candidate moves an item or confirms the order, it orders none — the same minimum response
-	// validation enforces; the author's message wins. It describes the list. Only while the
-	// candidate can still answer.
+	// Minimum requirement: stated while the response orders fewer items than required — the same
+	// minimum response validation enforces; the author's message wins. In subset mode the
+	// statement also names the cap ("Choose 2 items and put them in order.", or a range), so the
+	// limits are known up front (WCAG 3.3.2). It describes the list. Only while the candidate
+	// can still answer.
 	const uid = $props.id();
 	const minHintId = `${uid}-min-hint`;
-	const orderedCount = $derived(Array.isArray(parsedResponse) ? parsedResponse.filter(Boolean).length : 0);
-	const minHint = $derived(
-		minimumHint({
+	const orderedCount = $derived(
+		subsetMode
+			? (Array.isArray(parsedResponse) ? parsedResponse.filter((id) => shuffledChoiceIds.includes(id)).length : 0)
+			: (Array.isArray(parsedResponse) ? parsedResponse.filter(Boolean).length : 0),
+	);
+	const minHint = $derived.by(() => {
+		if (subsetMode && !disabled && role === 'candidate') {
+			return subsetOrderHint({
+				i18n,
+				min: limits.minOrdered,
+				max: limits.maxOrdered,
+				count: orderedCount,
+				authored: parsedInteraction?.minSelectionsMessage,
+				namespace: 'interactions.order',
+			});
+		}
+		return minimumHint({
 			i18n,
-			minimum: !disabled && role === 'candidate' ? parsedInteraction?.minChoices : 0,
+			minimum: !disabled && role === 'candidate' && !subsetMode ? parsedInteraction?.minChoices : 0,
 			count: orderedCount,
 			authored: parsedInteraction?.minSelectionsMessage,
 			key: 'interactions.order.minChoicesHint',
 			fallback: { one: 'Put at least {count} item in order.', other: 'Put at least {count} items in order.' },
-		})
-	);
+		});
+	});
 
 	// Elimination tool (QTI 3.0 PNP §6.2): scratch-work toggles; the response is untouched.
 	const elimination = createEliminationTool();
@@ -153,6 +210,20 @@
 
 <ShadowBaseStyles />
 
+{#snippet eliminationToggle(item: { id: string })}
+	{#if eliminationTool}
+		<!-- Lives in its item's row, so the toggle aligns with the item at any row height. -->
+		<button
+			type="button"
+			class="qti-eliminate-btn"
+			aria-label={eliminationLabel(item.id)}
+			aria-pressed={elimination.isEliminated(item.id)}
+			onclick={() => elimination.toggle(item.id)}
+			data-eliminated={elimination.isEliminated(item.id) ? '' : undefined}
+		>✕</button>
+	{/if}
+{/snippet}
+
 <div bind:this={rootElement} {...interactionAria(parsedInteraction)} class={['qti-order-interaction', ...classes].join(' ')} use:typesetAction={{ typeset }}>
 	<InteractionDescription interaction={parsedInteraction} />
 	{#if !parsedInteraction}
@@ -165,32 +236,36 @@
 		{/if}
 
 		<div class="qti-order-sortable-wrapper">
-			<SortableList
-				items={parsedInteraction.choices.map(c => ({ id: c.identifier, text: c.text }))}
-				{orderedIds}
-				{i18n}
-				correctOrder={isShowingCorrect ? (parsedCorrectResponse || []) : []}
-				{orientation}
-				{indexLabels}
-				{indexSuffix}
-				{disabled}
-				describedBy={minHint ? minHintId : undefined}
-				onReorder={handleReorder}
-			>
-				{#snippet rowTrailing(item)}
-					{#if eliminationTool}
-						<!-- Lives in its item's row, so the toggle aligns with the item at any row height. -->
-						<button
-							type="button"
-							class="qti-eliminate-btn"
-							aria-label={eliminationLabel(item.id)}
-							aria-pressed={elimination.isEliminated(item.id)}
-							onclick={() => elimination.toggle(item.id)}
-							data-eliminated={elimination.isEliminated(item.id) ? '' : undefined}
-						>✕</button>
-					{/if}
-				{/snippet}
-			</SortableList>
+			{#if subsetMode}
+				<OrderSubset
+					items={parsedInteraction.choices.map(c => ({ id: c.identifier, text: c.text }))}
+					orderedIds={subsetOrderedIds}
+					maxOrdered={limits.maxOrdered}
+					{i18n}
+					correctOrder={isShowingCorrect ? (parsedCorrectResponse || []) : []}
+					{orientation}
+					{indexLabels}
+					{indexSuffix}
+					{disabled}
+					describedBy={minHint ? minHintId : undefined}
+					onChange={handleSubsetChange}
+					rowTrailing={eliminationToggle}
+				/>
+			{:else}
+				<SortableList
+					items={parsedInteraction.choices.map(c => ({ id: c.identifier, text: c.text }))}
+					{orderedIds}
+					{i18n}
+					correctOrder={isShowingCorrect ? (parsedCorrectResponse || []) : []}
+					{orientation}
+					{indexLabels}
+					{indexSuffix}
+					{disabled}
+					describedBy={minHint ? minHintId : undefined}
+					onReorder={handleReorder}
+					rowTrailing={eliminationToggle}
+				/>
+			{/if}
 		</div>
 		<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(parsedResponse ?? null)} />
 
@@ -199,7 +274,7 @@
 		     (aria-disabled, tabindex=-1 — never removed), so the focus that pressed it keeps
 		     a home; the always-present polite region below announces the confirmation. -->
 		<div class="mt-4 flex items-center gap-3">
-			{#if confirmation.needsConfirmation || confirmation.hasConfirmed}
+			{#if !subsetMode && (confirmation.needsConfirmation || confirmation.hasConfirmed)}
 				<button
 					type="button"
 					part={confirmation.hasConfirmed ? 'confirmed' : 'confirm'}
