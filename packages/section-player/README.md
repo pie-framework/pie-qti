@@ -117,6 +117,11 @@ The default TTS tool configuration targets a host-served Polly endpoint at `/api
 `sectionTools[].provider` when composing the section elements. Without it, TTS tool activations
 fail at request time.
 
+A `textToSpeech` tool's `provider` is the toolkit's own TTS provider configuration (`backend`,
+`serverProvider`, `apiEndpoint`, `endpointMode`, `transportMode`, `defaultVoice` and so on),
+applied over these defaults as given. The section player sets its `language` from the content
+language and, for Polly, a `defaultVoice` for that language unless the provider names one.
+
 ## License
 
 MIT
