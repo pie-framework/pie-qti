@@ -215,11 +215,11 @@ Resolved since the previous review, and no longer gaps:
 **Alternatives considered:** CSS custom properties on `:host` for theming; requires host to declare the variables and increases API surface. Not implemented in this version.  
 **Consequences:** Items displayed in high-contrast mode (e.g. Windows High Contrast Mode) will not automatically adapt. Hosts requiring accessible colour overrides must use `::part(overlay)` or inject styles that override fill/stroke on `.qti-hotspot-shape` — but shadow DOM prevents direct CSS targeting unless `::part()` is used.
 
-### Props accept both parsed objects and JSON strings
+### Interaction data accepts an object or its JSON; responses are values
 
-**Decision:** `interaction`, `response` and `correctResponse` are parsed by `createInteractionShell` (`parseJsonProp`) before use, which also gives correct-answer mode: the `scorer` role with a correct response.  
-**Rationale:** Identical to the pattern in `choiceInteraction` and all other default components. When used as a native web component, all prop values arrive as attribute strings. When used as a Svelte component inside the item player, they arrive as typed objects. `parseJsonProp` handles both.  
-**Consequences:** Small runtime JSON.parse overhead on each reactive update. Negligible for typical hotspot item sizes.
+**Decision:** `interaction` is parsed by `createInteractionShell` (`parseJsonProp`) before use; `response` and `correctResponse` pass through it as values, never parsed. The shell also gives correct-answer mode: the `scorer` role with a correct response.  
+**Rationale:** Identical to the pattern in `choiceInteraction` and all other default components. An HTML attribute carries the interaction data as JSON text; inside the item player it arrives as an object, and `parseJsonProp` handles both. A response is a region identifier (or a list of them), and identifiers such as `true` or `null` are valid: read as JSON they would lose the selection. The item player sets responses as JavaScript properties.  
+**Consequences:** Small runtime JSON.parse overhead on the interaction data for the web component case. Negligible for typical hotspot item sizes.
 
 ---
 
