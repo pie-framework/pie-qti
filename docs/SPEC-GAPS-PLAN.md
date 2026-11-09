@@ -725,8 +725,8 @@ the player in its typed form (each field `{baseType, cardinality, value}`), sinc
 declaration types none of its fields. Before that correction the binding was only right for
 scalar base types: a conformant PCI's pair response `{"base":{"pair":["A","B"]}}` was stored as
 `"A,B"` and scored 0, a spec-shaped record came back keyed by array index, and seeded state carried
-pairs as `"A B"`, records as name-keyed objects and durations as numbers. The earlier name-keyed
-record form is still accepted on input.
+pairs as `"A B"`, records as name-keyed objects and durations as numbers. Input in those earlier
+shapes, or otherwise outside the binding, now reads as NULL.
 
 Action
 Phases 1–3 are done in-repo. Phase 1: the registry global, `getInstance`, `onready`/`ondone`, QTI

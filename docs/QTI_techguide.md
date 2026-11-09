@@ -1353,8 +1353,8 @@ Base-type values are JSON scalars, except that `pair` and `directedPair` are `["
 The player converts by base type in both directions. Inside the player a pair or point is the
 string `"A B"`, a duration a number of seconds, a file a `QTIFileResponse`, and a record field
 keeps its base type (`{baseType, cardinality, value}`), because a record declaration types none of
-its fields. The earlier name-keyed record form (`{"record": {"x": {"base": ...}}}`) is still
-accepted from a module.
+its fields. A module value outside the binding reads as NULL: a pair or point that is not an
+array, a duration that is not an ISO 8601 string, or a record that is not an array of named members.
 
 ### Scoring PCI Responses
 
