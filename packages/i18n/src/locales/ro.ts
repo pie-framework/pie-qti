@@ -218,8 +218,6 @@ export default {
 			selected: 'Selectat:',
 			selectText: 'Selectează text din pasaj',
 			ariaLabel: 'Interacțiune de selecție text',
-			selectableState: 'Selectabil',
-			selectedState: 'Selectat',
 			maxChoicesReached: 'Poți selecta cel mult {max}. Deselectează una pentru a alege alta.',
 		},
 

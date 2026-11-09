@@ -273,8 +273,6 @@ export default {
 			selected: 'محدد:',
 			selectText: 'اختر نصًا من الفقرة',
 			ariaLabel: 'تفاعل تحديد النص',
-			selectableState: 'قابل للاختيار',
-			selectedState: 'مُختار',
 			maxChoicesReached: 'يمكنك اختيار {max} خيارات كحد أقصى. ألغِ اختيار أحد الخيارات لاختيار آخر.',
 		},
 

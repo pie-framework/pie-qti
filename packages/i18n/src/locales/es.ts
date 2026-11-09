@@ -219,8 +219,6 @@ export default {
 			selected: 'Seleccionado:',
 			selectText: 'Selecciona texto del pasaje',
 			ariaLabel: 'Interacción de selección de texto',
-			selectableState: 'Seleccionable',
-			selectedState: 'Seleccionado',
 			maxChoicesReached: 'Puedes seleccionar hasta {max}. Desmarca una para elegir otra.',
 		},
 

@@ -10,6 +10,8 @@
 	import { HOTTEXT_SELECTOR } from './hottextSelector';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import { radioArrowStep, wrapIndex } from '../../shared/utils/radioGroup';
+	import { accessibleTextFromHtml } from '../../shared/utils/accessibleText';
+	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	interface Props {
@@ -110,15 +112,15 @@
 	}
 
 	/**
-	 * Give each hottext a structured accessible name: the rendered content plus a
-	 * localized state word, referenced with `aria-labelledby` instead of flattened
-	 * `textContent`. Returns the ids to reference.
+	 * Give each hottext a structured accessible name, referenced with `aria-labelledby`
+	 * instead of a flattened `textContent` label: its rendered content, wrapped once so the
+	 * name can point at it. Content with nothing to read (an empty hottext) is named by a
+	 * hidden, localized ordinal of its position in reading order ("Choice 2"), never by its
+	 * identifier. The selection state is not part of the name: `aria-checked` (radio) or
+	 * `aria-pressed` (toggle button) carries it, so it is announced once and the name stays
+	 * the same as the selection changes.
 	 */
-	function ensureAccessibleNameStructure(htmlElem: HTMLElement, identifier: string): { textId: string; stateId: string; correctId: string } {
-		const textId = `${uid}-hottext-text-${safeId(identifier)}`;
-		const stateId = `${uid}-hottext-state-${safeId(identifier)}`;
-		const correctId = `${uid}-hottext-correct-${safeId(identifier)}`;
-
+	function ensureAccessibleNameStructure(htmlElem: HTMLElement, identifier: string, position: number): void {
 		let textSpan = htmlElem.querySelector<HTMLSpanElement>(':scope > [data-hottext-text]');
 		if (!textSpan) {
 			// Wrap the rendered content once so `aria-labelledby` can point at it.
@@ -127,18 +129,30 @@
 			while (htmlElem.firstChild) textSpan.appendChild(htmlElem.firstChild);
 			htmlElem.appendChild(textSpan);
 		}
-		textSpan.id = textId;
+		textSpan.id = `${uid}-hottext-text-${safeId(identifier)}`;
 
-		let stateSpan = htmlElem.querySelector<HTMLSpanElement>(':scope > [data-hottext-state]');
-		if (!stateSpan) {
-			stateSpan = document.createElement('span');
-			stateSpan.setAttribute('data-hottext-state', '');
-			stateSpan.classList.add('sr-only');
-			htmlElem.appendChild(stateSpan);
+		const label = accessibleTextFromHtml(textSpan.innerHTML);
+		let fallbackSpan = htmlElem.querySelector<HTMLSpanElement>(':scope > [data-hottext-fallback]');
+		if (label) {
+			fallbackSpan?.remove();
+			return;
 		}
-		stateSpan.id = stateId;
+		if (!fallbackSpan) {
+			fallbackSpan = document.createElement('span');
+			fallbackSpan.setAttribute('data-hottext-fallback', '');
+			fallbackSpan.classList.add('sr-only');
+			htmlElem.appendChild(fallbackSpan);
+		}
+		fallbackSpan.id = `${uid}-hottext-fallback-${safeId(identifier)}`;
+		fallbackSpan.textContent = choiceAccessibleName({ i18n, label, position });
+	}
 
-		return { textId, stateId, correctId };
+	/** The element that names a hottext: its content, or the positional fallback when that is empty. */
+	function nameElement(htmlElem: HTMLElement): HTMLElement | null {
+		return (
+			htmlElem.querySelector<HTMLElement>(':scope > [data-hottext-fallback]') ??
+			htmlElem.querySelector<HTMLElement>(':scope > [data-hottext-text]')
+		);
 	}
 
 	/**
@@ -268,16 +282,6 @@
 					htmlElem.removeAttribute('aria-disabled');
 				}
 
-				// Update the localized state word in the accessible name
-				const stateSpan = htmlElem.querySelector<HTMLElement>(':scope > [data-hottext-state]');
-				if (stateSpan) {
-					stateSpan.textContent = translate(
-						i18n,
-						selected ? 'interactions.hottext.selectedState' : 'interactions.hottext.selectableState',
-						selected ? 'Selected' : 'Selectable'
-					);
-				}
-
 				// Update classes
 				const isCorrectChoice = isCorrect(identifier);
 				if (selected) {
@@ -299,7 +303,7 @@
 
 				// Scorer view: mark correct hottexts with more than color — a hidden
 				// "Correct answer" phrase joins the accessible name (WCAG 1.4.1).
-				const textSpan = htmlElem.querySelector<HTMLElement>(':scope > [data-hottext-text]');
+				const nameSource = nameElement(htmlElem);
 				let correctSpan = htmlElem.querySelector<HTMLElement>(':scope > [data-hottext-correct]');
 				if (isCorrectChoice) {
 					if (!correctSpan) {
@@ -313,16 +317,16 @@
 						i18n,
 						'accessibility.correctAnswerIs',
 						'Correct answer: {answer}.',
-						{ answer: textSpan?.textContent?.trim() ?? identifier }
+						{ answer: accessibleTextFromHtml(nameSource?.innerHTML) }
 					);
 				} else {
 					correctSpan?.remove();
 				}
 
-				// Accessible name = rendered content + localized state (+ correct marker)
+				// Accessible name = rendered content, or its positional fallback (+ correct marker).
+				// Never the state: aria-checked / aria-pressed carry it.
 				const labelIds: string[] = [];
-				if (textSpan?.id) labelIds.push(textSpan.id);
-				if (stateSpan?.id) labelIds.push(stateSpan.id);
+				if (nameSource?.id) labelIds.push(nameSource.id);
 				if (isCorrectChoice && correctSpan?.id) labelIds.push(correctSpan.id);
 				if (labelIds.length > 0) {
 					htmlElem.setAttribute('aria-labelledby', labelIds.join(' '));
@@ -340,7 +344,7 @@
 		// The spans stay inline in the running text either way.
 		const role = isSingle ? 'radio' : 'button';
 
-		for (const htmlElem of hottextElements()) {
+		for (const [index, htmlElem] of hottextElements().entries()) {
 			const identifier = htmlElem.getAttribute('identifier');
 			if (identifier) {
 				// Make it visually interactive
@@ -352,8 +356,8 @@
 				// Make keyboard accessible; ARIA state and tab order follow in updateHottextStyles()
 				htmlElem.setAttribute('role', role);
 
-				// Structured accessible name from the rendered content + a localized state
-				ensureAccessibleNameStructure(htmlElem, identifier);
+				// Structured accessible name from the rendered content (or its 1-based position)
+				ensureAccessibleNameStructure(htmlElem, identifier, index + 1);
 
 				// Add click handler
 				htmlElem.onclick = () => handleHottextClick(identifier);

@@ -214,8 +214,6 @@ export default {
 			selected: 'Geselecteerd:',
 			selectText: 'Selecteer tekst uit de passage',
 			ariaLabel: 'Tekstselectie-interactie',
-			selectableState: 'Selecteerbaar',
-			selectedState: 'Geselecteerd',
 			maxChoicesReached: 'Je kunt maximaal {max} selecteren. Deselecteer er een om een andere te kiezen.',
 		},
 

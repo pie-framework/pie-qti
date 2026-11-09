@@ -215,8 +215,6 @@ export default {
 			selected: 'เลือกแล้ว:',
 			selectText: 'เลือกข้อความจากข้อความ',
 			ariaLabel: 'การโต้ตอบการเลือกข้อความ',
-			selectableState: 'เลือกได้',
-			selectedState: 'เลือกแล้ว',
 			maxChoicesReached: 'คุณเลือกได้สูงสุด {max} รายการ ให้ยกเลิกการเลือกหนึ่งรายการเพื่อเลือกรายการอื่น',
 		},
 

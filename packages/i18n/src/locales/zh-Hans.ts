@@ -225,8 +225,6 @@ export default {
 			selected: '已选择:',
 			selectText: '从文章中选择文本',
 			ariaLabel: '文本选择交互',
-			selectableState: '可选择',
-			selectedState: '已选择',
 			maxChoicesReached: '最多可选择 {max} 项。请先取消一项选择,再选择其他项。',
 		},
 

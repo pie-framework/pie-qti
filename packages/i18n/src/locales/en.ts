@@ -225,8 +225,6 @@ export default {
 			selected: 'Selected:',
 			selectText: 'Select text from the passage',
 			ariaLabel: 'Text selection interaction',
-			selectableState: 'Selectable',
-			selectedState: 'Selected',
 			maxChoicesReached: 'You can select up to {max}. Deselect one to choose another.',
 		},
 

@@ -218,8 +218,6 @@ export default {
 			selected: 'Sélectionné :',
 			selectText: 'Sélectionnez du texte dans le passage',
 			ariaLabel: 'Interaction de sélection de texte',
-			selectableState: 'Sélectionnable',
-			selectedState: 'Sélectionné',
 			maxChoicesReached: 'Vous pouvez sélectionner jusqu’à {max} réponses. Désélectionnez-en une pour en choisir une autre.',
 		},
 
