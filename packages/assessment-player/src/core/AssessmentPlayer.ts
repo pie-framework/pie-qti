@@ -78,6 +78,15 @@ import {
 import { firstEligibleItem, nextItemIdentifier } from '../integration/test-navigation.js';
 import { extendTimeLimit, TimeManager } from './TimeManager.js';
 import {
+	cloneData,
+	cloneResponseRecord,
+	closedItemSession,
+	isWritableItemLifecycle,
+	responseDefaultsOf,
+	responseValuesEqual,
+	valuesFromItemSession,
+} from './sessionRecords.js';
+import {
 	interactionRequirementFromXml,
 	interactionResponseIdentifiers,
 	itemAnswerStatus,
@@ -4450,75 +4459,4 @@ export class AssessmentPlayer {
 	private createDefaultI18nProvider(): I18nProvider {
 		return new DefaultI18nProvider('en-US');
 	}
-}
-
-function cloneData<T>(value: T | undefined): T | undefined {
-	return value === undefined ? undefined : structuredClone(value);
-}
-
-function cloneResponseRecord(
-	responses: Readonly<Record<string, unknown>>,
-): Record<string, unknown> {
-	return structuredClone(responses) as Record<string, unknown>;
-}
-
-function valuesFromItemSession(
-	state: SerializedItemSessionState,
-): Record<string, unknown> {
-	return Object.fromEntries(
-		Object.entries(state.responseVariables).map(([identifier, variable]) => [
-			identifier,
-			cloneData(variable.value),
-		]),
-	);
-}
-
-/**
- * Each response variable's declared default from a serialized session (QTI: a response
- * still equal to its default is no response — the `numberResponded` test). Variables
- * without a declared default carry none, so NULL/empty stays the only skipped shape.
- */
-function responseDefaultsOf(
-	state: Pick<SerializedItemSessionState, 'responseVariables'>,
-): Record<string, ResponseDefault> {
-	const out: Record<string, ResponseDefault> = {};
-	for (const [identifier, variable] of Object.entries(state.responseVariables)) {
-		if (variable.defaultValue === null || variable.defaultValue === undefined) continue;
-		out[identifier] = { value: variable.defaultValue, cardinality: variable.cardinality };
-	}
-	return out;
-}
-
-function responseValuesEqual(left: unknown, right: unknown): boolean {
-	if (Object.is(left, right)) return true;
-	if (Array.isArray(left) || Array.isArray(right)) {
-		if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
-		return left.every((value, index) => responseValuesEqual(value, right[index]));
-	}
-	if (!isRecord(left) || !isRecord(right)) return false;
-
-	const leftKeys = Object.keys(left);
-	const rightKeys = Object.keys(right);
-	if (leftKeys.length !== rightKeys.length) return false;
-	const rightKeySet = new Set(rightKeys);
-	return leftKeys.every(
-		(key) => rightKeySet.has(key) && responseValuesEqual(left[key], right[key]),
-	);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return value !== null && typeof value === 'object';
-}
-
-function isWritableItemLifecycle(lifecycleStatus: SerializedItemSessionState['lifecycleStatus']): boolean {
-	return lifecycleStatus === 'initial' || lifecycleStatus === 'interacting';
-}
-
-/** A serialized item session as the end of the test leaves it: an open or suspended one is closed. */
-function closedItemSession(session: SerializedItemSessionState): SerializedItemSessionState {
-	const open =
-		session.lifecycleStatus === 'initial' ||
-		session.lifecycleStatus === 'interacting' ||
-		session.lifecycleStatus === 'suspended';
-	return open ? { ...session, lifecycleStatus: 'closed' } : session;
 }
