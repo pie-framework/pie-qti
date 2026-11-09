@@ -551,8 +551,12 @@ export type NotExpr = { kind: 'expr.not'; id: AstNodeId; expr: ExpressionNode };
 export type AnyNExpr = {
 	kind: 'expr.anyN';
 	id: AstNodeId;
-	min: number;
-	max: number;
+	/**
+	 * min and max are integerOrVariableRef (QTI ASI §10.2): the literal bound, or the identifier
+	 * of the variable that holds it, read when the expression is evaluated.
+	 */
+	min: number | string;
+	max: number | string;
 	ops: ExpressionNode[];
 };
 

@@ -16,6 +16,7 @@ import {
 	findDescendants,
 	findFirstDescendant,
 	getAttr,
+	isNullValue,
 	OperatorRegistry,
 	parseXml,
 	type ProcessingProgram,
@@ -1509,7 +1510,10 @@ export class Player {
 
 		const mapResponse = (point: boolean): number => {
 			const response = this.ctx.getValue('RESPONSE');
-			if (response.kind === 'null') return 0;
+			// The official templates guard with isNull, which reads an empty container or empty string
+			// as NULL too (QTI ASI §5): a cleared response scores 0, rather than being mapped, whose
+			// result the mapping's bounds could clamp away from 0.
+			if (isNullValue(response)) return 0;
 			const mapped = evalExpr(
 				this.processingEnv(),
 				{

@@ -527,6 +527,16 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		return Number.isFinite(n) ? n : defaultValue;
 	};
 
+	// QTI integerOrVariableRef (ASI §10.2): an integer literal, or the identifier of the variable
+	// holding the integer, kept for the evaluator to read. The braced {TEMPLATE} spelling is
+	// accepted too, as patternMatch accepts it for its StringOrVariableRef pattern.
+	const integerOrVariableRefAttr = (name: string, defaultValue: number): number | string => {
+		const raw = (getAttr(el, name) || '').trim();
+		if (!raw) return defaultValue;
+		if (/^[+-]?\d+$/.test(raw)) return Number(raw);
+		return /^\{([^{}\s]+)\}$/.exec(raw)?.[1] ?? raw;
+	};
+
 	const strAttr = (name: string): string | undefined => {
 		const raw = (getAttr(el, name) || '').trim();
 		return raw ? raw : undefined;
@@ -973,10 +983,14 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			return { kind: 'expr.not', id, expr: buildExpression(kids[0]!, options) };
 		}
 		case 'anyn': {
-			// QTI anyN: true if min <= #true(children) <= max
-			const min = numAttr('min', 1);
-			const max = numAttr('max', kids.length);
-			return { kind: 'expr.anyN', id, min, max, ops: kids.map((k) => buildExpression(k, options)) };
+			// QTI anyN: true if min <= #true(children) <= max. Both bounds are integerOrVariableRef.
+			return {
+				kind: 'expr.anyN',
+				id,
+				min: integerOrVariableRefAttr('min', 1),
+				max: integerOrVariableRefAttr('max', kids.length),
+				ops: kids.map((k) => buildExpression(k, options)),
+			};
 		}
 		case 'alln': {
 			// Historical/non-standard: true if #true(children) <= max

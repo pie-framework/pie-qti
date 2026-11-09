@@ -411,6 +411,57 @@ describe('mapping inside a full response condition', () => {
 });
 
 /**
+ * mapEntry caseSensitive (QTI ASI §5): it controls "whether or not a mapEntry string is matched
+ * case sensitively", entry by entry. A case-sensitive entry matches only its own spelling, so a
+ * response in another case takes the defaultValue. The player stores a case-insensitive entry
+ * under its lower-case key as well, which is how a lower-cased response finds it.
+ */
+describe('mapEntry case sensitivity', () => {
+	const OUT = { identifier: 'OUT', baseType: 'float' as const, cardinality: 'single' as const, value: qtiValue('float', 'single', 0) };
+
+	function mapped(
+		response: string,
+		entries: NonNullable<DeclarationMap['RESPONSE']['mapping']>['entries'],
+		baseType: 'identifier' | 'string',
+	): QtiValue {
+		return run(
+			{ OUT, RESPONSE: responseDecl(response, { defaultValue: 0, caseSensitive: 'true', entries }, baseType) },
+			`<setOutcomeValue identifier="OUT"><mapResponse identifier="RESPONSE"/></setOutcomeValue>`,
+		).getValue('OUT');
+	}
+
+	const caseSensitive = { a: { mapKey: 'a', mappedValue: 1, caseSensitive: 'true' } };
+	// As the player parses a case-insensitive entry: its key plus a lower-case alias.
+	const caseInsensitive = {
+		Paris: { mapKey: 'Paris', mappedValue: 1, caseSensitive: 'false' },
+		paris: { mapKey: 'paris', mappedValue: 1, caseSensitive: 'false' },
+	};
+
+	for (const baseType of ['identifier', 'string'] as const) {
+		it(`does not match a case-sensitive ${baseType} entry in another case`, () => {
+			expect(mapped('A', caseSensitive, baseType)).toEqual(qtiValue('float', 'single', 0));
+			expect(mapped('a', caseSensitive, baseType)).toEqual(qtiValue('float', 'single', 1));
+		});
+
+		it(`matches a case-insensitive ${baseType} entry through its lower-case key`, () => {
+			expect(mapped('paris', caseInsensitive, baseType)).toEqual(qtiValue('float', 'single', 1));
+			expect(mapped('Paris', caseInsensitive, baseType)).toEqual(qtiValue('float', 'single', 1));
+		});
+	}
+
+	it('matches a case-insensitive string entry in any case', () => {
+		expect(mapped('PARIS', caseInsensitive, 'string')).toEqual(qtiValue('float', 'single', 1));
+		expect(mapped('pArIs', caseInsensitive, 'string')).toEqual(qtiValue('float', 'single', 1));
+	});
+
+	it('keeps each entry its own case sensitivity in one mapping', () => {
+		const mixed = { ...caseSensitive, ...caseInsensitive };
+		expect(mapped('PARIS', mixed, 'string')).toEqual(qtiValue('float', 'single', 1));
+		expect(mapped('A', mixed, 'string')).toEqual(qtiValue('float', 'single', 0));
+	});
+});
+
+/**
  * QTI ASI: a container with no values is treated as NULL, and a mapping's lowerBound and
  * upperBound bound the result of mapping a container. A NULL container is therefore the empty
  * container: its values sum to 0, which the bounds then clamp — it does not take the mapping's

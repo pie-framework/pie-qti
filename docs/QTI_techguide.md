@@ -922,11 +922,17 @@ Uses a `mapping` element to assign point values to each possible response value,
     template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/map_response"/>
 ```
 
-The template sets `SCORE` to 0 when `RESPONSE` is NULL and maps it otherwise. Rules that call
-`mapResponse` or `mapOutcome` directly on an unanswered multiple or ordered variable map it as the
-empty container, because QTI treats a container with no values as NULL: the result is 0, clamped to
-`lowerBound` and `upperBound`, not the mapping's `defaultValue`, which applies to a value with no
-`mapEntry`. `mapResponsePoint` treats a NULL point container the same way.
+The template sets `SCORE` to 0 when `RESPONSE` is NULL and maps it otherwise. Its `isNull` test reads
+an empty container or an empty string as NULL as well, so a cleared selection scores 0 even when
+`lowerBound` is above 0. Rules that call `mapResponse` or `mapOutcome` directly on an unanswered
+multiple or ordered variable map it as the empty container, because QTI treats a container with no
+values as NULL: the result is 0, clamped to `lowerBound` and `upperBound`, not the mapping's
+`defaultValue`, which applies to a value with no `mapEntry`. `mapResponsePoint` treats a NULL point
+container the same way.
+
+Each `mapEntry` matches as its `caseSensitive` attribute says (the mapping's attribute when the entry
+has none): a case-sensitive entry matches only its own spelling, so a response in another case takes
+the `defaultValue`.
 
 ### map_response_point
 
@@ -996,6 +1002,18 @@ touched. The operators carry NULL through (§15.3):
   and `not` result in NULL when an operand is NULL. `delete` results in NULL as well.
 - `and` is false when any operand is false and otherwise NULL when any operand is NULL; `or` is true
   when any operand is true and otherwise NULL when any operand is NULL.
+- `anyN` is false when more than `max` operands are true or more than n − `min` are false (n operands
+  in all), true when at least `min` are true, and otherwise NULL: with `min` 3 and `max` 4,
+  `{true,true,false,NULL}` is NULL, `{true,false,false,NULL}` is false and `{true,true,true,NULL}`
+  is true. `min` and `max` may name a template variable (`min="MIN"` or `min="{MIN}"`).
+- The numeric operators — `sum`, `product`, `subtract`, `divide`, `max`, `min`, `gcd`, `lcm`,
+  `power`, `integerDivide`, `integerModulus`, `mathOperator`, `round`, `truncate` and `roundTo` —
+  result in NULL when an operand is NULL, the empty string included: `subtract("", 3)` is NULL, not
+  -3. `substring` is NULL for a NULL string, start or length.
+- An undefined result is NULL, not an error: `divide` by 0, `integerDivide` and `integerModulus` by
+  0, and a `divide` or `power` result outside the float range. `max`, `min`, `gcd` and `lcm` are
+  NULL for an operand that is not a number. `integerDivide` rounds down: -7 divided by 2 is -4, and
+  `integerModulus` of the two is 1.
 - A NULL condition is not true: `responseIf`, `responseElseIf` and their outcome and template
   counterparts pass to the next branch, and a NULL `templateConstraint` restarts template
   processing.
@@ -1019,6 +1037,9 @@ float.
   `delete(A, {B,A,C,A})` is `{B,C}`. A value that is not in the container leaves it unchanged;
   removing every value leaves the empty container, which is NULL.
 - `member(value, container)` is true when the value is in the container.
+- `sum`, `product`, `max`, `min`, `gcd` and `lcm` take single, multiple or ordered operands, and a
+  container takes part with each of its values: `max({1,5,3}, 7)` is 7 and `gcd({12,18})` is 6. An
+  empty container is NULL, so it makes the result NULL.
 
 ---
 
