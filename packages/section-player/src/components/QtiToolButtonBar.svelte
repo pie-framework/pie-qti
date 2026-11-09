@@ -1,5 +1,9 @@
 <script lang="ts">
-	import { ToolkitCoordinator, ToolRegistry } from '@pie-players/pie-assessment-toolkit';
+	import {
+		type I18nProvider as ToolkitI18nProvider,
+		ToolkitCoordinator,
+		ToolRegistry,
+	} from '@pie-players/pie-assessment-toolkit';
 	// pie-assessment-toolkit 0.3.65 moved the concrete tool registrations out of the
 	// toolkit core, so a host composes the capabilities it wants. The registrations
 	// are imported individually rather than through createPackagedToolRegistry(),
@@ -19,6 +23,7 @@
 	import type { SpokenCatalog } from '../tts/spoken-catalogs.js';
 	import { companionMaterialsOf, companionToolIds } from '../tools/pnp-tool-supports.js';
 	import { resolveSectionTtsProviderConfig, toolkitAssessmentOf } from '../tools/section-tool-config.js';
+	import { toolkitI18n } from '../tools/toolkit-i18n.js';
 
 	interface Props {
 		tools?: QtiSectionToolConfig[];
@@ -63,9 +68,13 @@
 	let toolkitElement = $state<HTMLElement | null>(null);
 	let toolkitCoordinator = $state<ToolkitCoordinator | null>(null);
 	let toolkitElementsReady = $state(false);
-	// The toolkit's `locale` attribute is its only locale driver: its chrome stamps
-	// that locale's lang/dir and renders from its own catalogs.
+	// The toolkit renders its chrome from its own catalogs, not from the section's
+	// provider: it takes the section's interface locale and a provider over those
+	// catalogs, switches the provider to the locale and stamps its lang/dir.
 	const interfaceLocale = $derived(interfaceLocaleAttributes(i18n)?.lang);
+	// The locale and its provider travel together, so the toolkit never applies a
+	// new locale to the provider built for the previous one.
+	let toolkitLocale = $state<{ locale: string | undefined; provider: ToolkitI18nProvider } | null>(null);
 	const visibleTools = $derived(tools.filter((tool) => tool.enabled !== false));
 	const hasTts = $derived(visibleTools.some((tool) => tool.toolId === 'textToSpeech'));
 	const calculatorTool = $derived(visibleTools.find((tool) => tool.toolId === 'calculator'));
@@ -243,6 +252,19 @@
 	});
 
 	$effect(() => {
+		// The toolkit's catalogs come from the pie-players tiers: English bundled,
+		// every other locale through the generated package, fetched per locale.
+		if (!hasToolkitTools) return;
+		let cancelled = false;
+		void toolkitI18n.providerFor(interfaceLocale).then((provider) => {
+			if (!cancelled) toolkitLocale = { locale: interfaceLocale, provider };
+		});
+		return () => {
+			cancelled = true;
+		};
+	});
+
+	$effect(() => {
 		if (!toolkitCoordinator) return;
 		toolkitElement?.dispatchEvent(
 			new CustomEvent('qti-toolkit-coordinator-ready', {
@@ -290,7 +312,7 @@
 				<span class="qti-display-settings-label">{displaySettingsLabel}</span>
 			</button>
 		{/if}
-		{#if hasToolkitTools && toolkitCoordinator && toolkitElementsReady}
+		{#if hasToolkitTools && toolkitCoordinator && toolkitElementsReady && toolkitLocale}
 			<pie-assessment-toolkit
 				bind:this={toolkitElement}
 				assessment-id={toolkitAssessmentId}
@@ -298,7 +320,8 @@
 				tools={toolsConfig}
 				{toolRegistry}
 				coordinator={toolkitCoordinator}
-				locale={interfaceLocale}
+				i18n={toolkitLocale.provider}
+				locale={toolkitLocale.locale}
 				lazy-init={false}
 			>
 				<pie-item-scope

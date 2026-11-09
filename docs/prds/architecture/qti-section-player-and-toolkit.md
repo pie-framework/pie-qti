@@ -78,7 +78,7 @@ QTI 2.1 shared passages and QTI 3.0 stimuli enter the render model through diffe
 - **Performance:** Section normalization should be linear in the number of item refs and shared resources for the active section. Layout and response-only updates must preserve the injected live session and avoid remounting the item player unnecessarily. Package file resolution should be cached by the host or resolver.
 - **Cross-platform:** Layouts must work in desktop and mobile browsers. Split-pane layouts must provide a vertical fallback for narrow viewports and touch users.
 - **Security:** QTI shared passage, rubric, stimulus, stylesheet, catalog, asset, and test-feedback content is untrusted input. Every shared-content HTML render sink must use the same sanitizer, URL policy, Trusted Types policy, and parsing limits as item rendering.
-- **i18n:** Section navigation labels, passage headings, rubric labels, readiness text, framework errors, and diagnostics must use `@pie-qti/i18n` or host-provided localization rather than hard-coded user-facing strings.
+- **i18n:** Section navigation labels, passage headings, rubric labels, readiness text, framework errors, and diagnostics must use `@pie-qti/i18n` or host-provided localization rather than hard-coded user-facing strings. The tool bars' `pie-players` chrome (tool names, read-aloud and tool panel controls) is the exception. It renders in the section's interface locale from the toolkit's own catalogs: English is bundled, and every other locale comes from `@pie-players/pie-i18n-generated`, loaded only for that locale.
 
 ---
 
