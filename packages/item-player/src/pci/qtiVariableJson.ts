@@ -70,21 +70,22 @@ export function toQtiVariableJson(
 
 /**
  * QTI variable JSON as the player's runtime value. The JSON names each value's base type; a name
- * that is not a QTI base type reads by the declared one. The earlier name-keyed record form
- * (`{"record": {"<field>": {"base": ...}}}`) is still accepted. Anything that is not variable
- * JSON passes through unchanged.
+ * that is not a QTI base type reads by the declared one. A value outside the binding reads as
+ * NULL: a pair, directedPair or point that is not an array, a duration that is not an ISO 8601
+ * string, a record that is not an array of named members. One such list member makes the whole
+ * list NULL. Anything that is not variable JSON passes through unchanged.
  */
 export function fromQtiVariableJson(json: unknown, declaration?: QtiVariableJsonDeclaration): unknown {
 	if (json === null || json === undefined) return null;
 	if (!isPlainObject(json)) return json;
 	if ('base' in json) {
 		const entry = typedEntry(json.base, declaration?.baseType);
-		return entry ? decodeBaseValue(entry.baseType, entry.value) : null;
+		return entry ? valueOrNull(decodeBaseValue(entry.baseType, entry.value)) : null;
 	}
 	if ('list' in json) {
 		const entry = typedEntry(json.list, declaration?.baseType);
 		if (!entry || !Array.isArray(entry.value)) return null;
-		return entry.value.map((item) => decodeBaseValue(entry.baseType, item));
+		return decodeList(entry.baseType, entry.value);
 	}
 	if ('record' in json) return recordFromJson(json.record);
 	return json;
@@ -134,23 +135,14 @@ function recordMember(name: string, field: QtiRecordField): Record<string, unkno
 }
 
 function recordFromJson(record: unknown): Record<string, QtiRecordField> | null {
+	if (!Array.isArray(record)) return null;
 	const fields: Record<string, QtiRecordField> = {};
-	if (Array.isArray(record)) {
-		for (const member of record) {
-			// A member needs a name to be addressed by fieldValue; one without is skipped.
-			if (!isPlainObject(member) || typeof member.name !== 'string') continue;
-			fields[member.name] = memberField(member);
-		}
-		return fields;
+	for (const member of record) {
+		// A member needs a name to be addressed by fieldValue; one without is skipped.
+		if (!isPlainObject(member) || typeof member.name !== 'string') continue;
+		fields[member.name] = memberField(member);
 	}
-	if (isPlainObject(record)) {
-		for (const [name, member] of Object.entries(record)) {
-			fields[name] =
-				isPlainObject(member) && ('base' in member || 'list' in member) ? memberField(member) : readRecordField(member);
-		}
-		return fields;
-	}
-	return null;
+	return fields;
 }
 
 function memberField(member: Record<string, unknown>): QtiRecordField {
@@ -159,12 +151,15 @@ function memberField(member: Record<string, unknown>): QtiRecordField {
 		if (!entry || !Array.isArray(entry.value)) return { cardinality: 'multiple', value: null };
 		return withBaseType(entry.baseType, {
 			cardinality: 'multiple',
-			value: entry.value.map((item) => decodeBaseValue(entry.baseType, item)),
+			value: decodeList(entry.baseType, entry.value),
 		});
 	}
 	const entry = 'base' in member ? typedEntry(member.base, undefined) : null;
 	if (!entry) return { cardinality: 'single', value: null };
-	return withBaseType(entry.baseType, { cardinality: 'single', value: decodeBaseValue(entry.baseType, entry.value) });
+	return withBaseType(entry.baseType, {
+		cardinality: 'single',
+		value: valueOrNull(decodeBaseValue(entry.baseType, entry.value)),
+	});
 }
 
 function withBaseType(baseType: string, field: QtiRecordField): QtiRecordField {
@@ -174,6 +169,12 @@ function withBaseType(baseType: string, field: QtiRecordField): QtiRecordField {
 // ---------------------------------------------------------------------------
 // Base-type values
 // ---------------------------------------------------------------------------
+
+/** Marks a decoded value that is outside its base type's binding. */
+const REJECTED = Symbol('rejected');
+
+/** An ISO 8601 duration literal, as the binding writes durations (`PT1M30S`). */
+const ISO_8601_DURATION = /^-?P/;
 
 /** The one `{"<baseType>": value}` entry of a base or list wrapper. */
 function typedEntry(wrapper: unknown, declared: BaseType | undefined): { baseType: string; value: unknown } | null {
@@ -210,14 +211,28 @@ function decodeBaseValue(baseType: string, value: unknown): unknown {
 		case 'pair':
 		case 'directedPair':
 		case 'point':
-			return Array.isArray(value) ? value.map((part) => String(part)).join(' ') : value;
+			// Bound as an array; the player holds the "A B" form.
+			return Array.isArray(value) ? value.map((part) => String(part)).join(' ') : REJECTED;
 		case 'duration':
-			return typeof value === 'string' ? (parseDurationSeconds(value) ?? value) : value;
+			// Bound as an ISO 8601 duration string; the player holds seconds.
+			return typeof value === 'string' && ISO_8601_DURATION.test(value.trim())
+				? (parseDurationSeconds(value) ?? REJECTED)
+				: REJECTED;
 		case 'file':
 			return decodeFile(value);
 		default:
 			return value;
 	}
+}
+
+function valueOrNull(value: unknown): unknown {
+	return value === REJECTED ? null : value;
+}
+
+/** A list's members as runtime values, or null when any member is outside the binding. */
+function decodeList(baseType: string, items: readonly unknown[]): unknown[] | null {
+	const values = items.map((item) => decodeBaseValue(baseType, item));
+	return values.includes(REJECTED) ? null : values;
 }
 
 /** "A B" (or a two-element array) as a two-element array; anything else as given. */
@@ -230,7 +245,7 @@ function toTuple(value: unknown, member: (part: string) => unknown): unknown {
 
 /** Seconds as an ISO 8601 duration (`PT90S`); an ISO 8601 literal is kept as written. */
 function encodeDuration(value: unknown): unknown {
-	if (typeof value === 'string' && /^-?P/.test(value.trim())) return value.trim();
+	if (typeof value === 'string' && ISO_8601_DURATION.test(value.trim())) return value.trim();
 	const seconds = typeof value === 'number' ? value : typeof value === 'string' ? parseDurationSeconds(value) : null;
 	if (seconds === null || !Number.isFinite(seconds)) return value;
 	const magnitude = Math.abs(seconds).toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 20 });
