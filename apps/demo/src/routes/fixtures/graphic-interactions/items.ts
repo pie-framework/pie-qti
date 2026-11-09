@@ -173,10 +173,46 @@ const GRAPHIC_GAP_MATCH_DEFAULT = `<?xml version="1.0" encoding="UTF-8"?>
   <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
 </assessmentItem>`;
 
+/**
+ * Graphic order with long hotspot labels: at 320 CSS px (WCAG 1.4.10 Reflow) the
+ * labels must wrap, not truncate, and the ordering controls must stay usable.
+ */
+const GRAPHIC_ORDER_LONG_LABELS = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="graphic-order-long-labels"
+  title="Graphic order long labels" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="ordered" baseType="identifier">
+    <correctResponse>
+      <value>TOP</value>
+      <value>MIDDLE</value>
+      <value>BOTTOM</value>
+    </correctResponse>
+  </responseDeclaration>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+  <itemBody>
+    <graphicOrderInteraction responseIdentifier="RESPONSE">
+      <prompt>Order the layers from top to bottom.</prompt>
+      <object type="image/svg+xml" width="400" height="240">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240">
+          <title>Three rock layers</title>
+          <rect width="400" height="240" fill="#ffffff"/>
+          <rect x="20" y="20" width="360" height="60" fill="#f3f4f6" stroke="#6b7280"/>
+          <rect x="20" y="90" width="360" height="60" fill="#e5e7eb" stroke="#6b7280"/>
+          <polygon points="20,160 380,160 200,230" fill="#d1d5db" stroke="#6b7280"/>
+        </svg>
+      </object>
+      <hotspotChoice identifier="BOTTOM" shape="poly" coords="20,160,380,160,200,230" hotspotLabel="Granite bed with visible quartz grains and mica flecks throughout"/>
+      <hotspotChoice identifier="TOP" shape="rect" coords="20,20,380,80" hotspotLabel="Sandstone cap rock, weathered pale and crumbly at the surface"/>
+      <hotspotChoice identifier="MIDDLE" shape="rect" coords="20,90,380,150" hotspotLabel="Shale layer, dark and thinly bedded with fossil impressions"/>
+    </graphicOrderInteraction>
+  </itemBody>
+  <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
+</assessmentItem>`;
+
 export const GRAPHIC_INTERACTION_FIXTURES: Readonly<Record<string, string>> = {
 	'hotspot-multiple': HOTSPOT_MULTIPLE,
 	'hotspot-default': HOTSPOT_DEFAULT_SHAPE,
 	'graphic-order-areas': GRAPHIC_ORDER_AREAS,
 	'graphic-associate-polygon': GRAPHIC_ASSOCIATE_POLYGON,
 	'graphic-gap-match-default': GRAPHIC_GAP_MATCH_DEFAULT,
+	'graphic-order-long-labels': GRAPHIC_ORDER_LONG_LABELS,
 };

@@ -217,6 +217,56 @@ test.describe('graphic order shows its areas on the image', () => {
 });
 
 /**
+ * Reflow (WCAG 1.4.10): at 320 CSS px the ordering list's labels wrap instead of
+ * truncating, nothing overflows the viewport, and the move controls keep working.
+ */
+test.describe('graphic order list reflows at 320 px', () => {
+	test.use({ hasTouch: true, viewport: { width: 320, height: 720 } });
+
+	test('long labels wrap with no loss of content or function', async ({ page }) => {
+		const root = await openFixture(page, 'graphic-order-long-labels');
+		const host = root.locator('pie-qti-graphic-order');
+
+		// Every label is fully visible: no clipping (scrollWidth past clientWidth)
+		// and no one-line squeeze (the text spans at least two rendered lines).
+		const texts = host.locator('[part="text"]');
+		await expect(texts).toHaveCount(3);
+		const labels = host.locator('[part="list"] [role="listitem"]');
+		await expect(labels).toHaveCount(3);
+		for (let index = 0; index < 3; index++) {
+			const item = labels.nth(index);
+			const measurements = await item.locator('[part="item"]').evaluate((element) => {
+				const text = element.querySelector('[part="text"]')!;
+				const range = document.createRange();
+				range.selectNodeContents(text);
+				const lines = range.getClientRects().length;
+				return {
+					scrollWidth: text.scrollWidth,
+					clientWidth: text.clientWidth,
+					lines,
+				};
+			});
+			expect(measurements.scrollWidth, `label ${index + 1} clips horizontally`).toBeLessThanOrEqual(measurements.clientWidth + 1);
+			expect(measurements.lines, `label ${index + 1} renders on a single squeezed line`).toBeGreaterThanOrEqual(2);
+		}
+		// No horizontal overflow anywhere in the interaction.
+		const overflow = await host.evaluate((element) => element.scrollWidth - element.clientWidth);
+		expect(overflow).toBeLessThanOrEqual(1);
+
+		// The list keeps its function: the move controls reorder, and the areas follow.
+		await host.getByRole('button', { name: 'Move Shale layer, dark and thinly bedded with fossil impressions earlier', exact: true }).tap();
+		// Shale moved before Sandstone: the areas' badges follow the list, in choice order.
+		await expect
+			.poll(() =>
+				host.locator('svg[part="overlay"] .qti-go-area').evaluateAll((areas) =>
+					areas.map((area) => area.querySelector('.qti-go-badge')?.textContent?.trim() ?? ''),
+				),
+			)
+			.toEqual(['1', '3', '2']);
+	});
+});
+
+/**
  * Graphic gap match: a whole-image (`default`) hotspot listed last must not take the
  * clicks and drops of the hotspots it covers — its zone lies beneath the others, like the
  * hotspot interaction's default region.
