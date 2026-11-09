@@ -217,7 +217,6 @@ export default {
 		hottext: {
 			selected: 'Selectat:',
 			selectText: 'Selectează text din pasaj',
-			clearSelection: 'Șterge selecția',
 			ariaLabel: 'Interacțiune de selecție text',
 			selectableState: 'Selectabil',
 			selectedState: 'Selectat',

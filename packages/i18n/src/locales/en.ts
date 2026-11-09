@@ -224,7 +224,6 @@ export default {
 		hottext: {
 			selected: 'Selected:',
 			selectText: 'Select text from the passage',
-			clearSelection: 'Clear Selection',
 			ariaLabel: 'Text selection interaction',
 			selectableState: 'Selectable',
 			selectedState: 'Selected',
