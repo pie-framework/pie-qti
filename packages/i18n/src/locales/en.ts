@@ -112,7 +112,6 @@ export default {
 				other: 'Select at least {count} answers.',
 			},
 			eliminateChoice: 'Eliminate',
-			restoreChoice: 'Restore',
 		},
 
 		upload: {
@@ -378,7 +377,6 @@ export default {
 			moveEarlierItem: 'Move {item} earlier',
 			moveLaterItem: 'Move {item} later',
 			eliminateItem: 'Eliminate {item}',
-			restoreItem: 'Restore {item}',
 			instruction: 'Use the move buttons or drag items to reorder them.',
 			keyboardInstructions: 'Press Space or Enter to grab an item. Use arrow keys to move the item. Press Space or Enter again to drop. Press Escape to cancel.',
 			grabbed: 'Grabbed. Use arrow keys to move.',

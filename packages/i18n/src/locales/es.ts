@@ -116,7 +116,6 @@ export default {
 				other: 'Selecciona al menos {count} respuestas.',
 			},
 			eliminateChoice: 'Descartar',
-			restoreChoice: 'Restaurar',
 		},
 
 		upload: {
@@ -372,7 +371,6 @@ export default {
 			moveEarlierItem: 'Mover {item} antes',
 			moveLaterItem: 'Mover {item} después',
 			eliminateItem: 'Descartar {item}',
-			restoreItem: 'Restaurar {item}',
 			instruction: 'Usa los botones de movimiento o arrastra los elementos para ordenarlos.',
 			keyboardInstructions: 'Presiona Espacio o Enter para agarrar un elemento. Usa las flechas para mover el elemento. Presiona Espacio o Enter nuevamente para soltar. Presiona Escape para cancelar.',
 			grabbed: 'Agarrado. Usa las flechas para mover.',

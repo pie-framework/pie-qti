@@ -114,7 +114,6 @@ export default {
 				other: 'Selecteer minimaal {count} antwoorden.',
 			},
 			eliminateChoice: 'Uitsluiten',
-			restoreChoice: 'Herstellen',
 		},
 
 		upload: {
@@ -365,7 +364,6 @@ export default {
 			moveEarlierItem: '{item} naar voren verplaatsen',
 			moveLaterItem: '{item} naar achteren verplaatsen',
 			eliminateItem: '{item} schrappen',
-			restoreItem: '{item} terugzetten',
 			instruction: 'Gebruik de verplaatsknoppen of sleep items om de volgorde te wijzigen.',
 			keyboardInstructions: 'Druk op Spatie of Enter om een item te pakken. Gebruik pijltjestoetsen om het item te verplaatsen. Druk opnieuw op Spatie of Enter om neer te zetten. Druk op Escape om te annuleren.',
 			grabbed: 'Gepakt. Gebruik pijltjestoetsen om te verplaatsen.',

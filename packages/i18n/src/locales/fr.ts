@@ -115,7 +115,6 @@ export default {
 				other: 'Sélectionnez au moins {count} réponses.',
 			},
 			eliminateChoice: 'Écarter',
-			restoreChoice: 'Rétablir',
 		},
 
 		upload: {
@@ -371,7 +370,6 @@ export default {
 			moveEarlierItem: 'Déplacer {item} avant',
 			moveLaterItem: 'Déplacer {item} après',
 			eliminateItem: 'Éliminer {item}',
-			restoreItem: 'Rétablir {item}',
 			instruction: 'Utilisez les boutons de déplacement ou faites glisser les éléments pour les réorganiser.',
 			keyboardInstructions: 'Appuyez sur Espace ou Entrée pour saisir un élément. Utilisez les touches fléchées pour déplacer l\'élément. Appuyez à nouveau sur Espace ou Entrée pour déposer. Appuyez sur Échap pour annuler.',
 			grabbed: 'Saisi. Utilisez les touches fléchées pour déplacer.',

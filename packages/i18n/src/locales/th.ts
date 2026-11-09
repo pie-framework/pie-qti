@@ -115,7 +115,6 @@ export default {
 				other: 'เลือกคำตอบอย่างน้อย {count} ข้อ',
 			},
 			eliminateChoice: 'ตัดออก',
-			restoreChoice: 'เรียกคืน',
 		},
 
 		upload: {
@@ -366,7 +365,6 @@ export default {
 			moveEarlierItem: 'เลื่อน {item} ไปก่อนหน้า',
 			moveLaterItem: 'เลื่อน {item} ไปถัดไป',
 			eliminateItem: 'ตัด {item} ออก',
-			restoreItem: 'เรียก {item} คืน',
 			instruction: 'ใช้ปุ่มเลื่อนหรือลากรายการเพื่อจัดลำดับใหม่',
 			keyboardInstructions: 'กด Space หรือ Enter เพื่อจับรายการ ใช้ปุ่มลูกศรเพื่อย้ายรายการ กด Space หรือ Enter อีกครั้งเพื่อวาง กด Escape เพื่อยกเลิก',
 			grabbed: 'จับแล้ว ใช้ปุ่มลูกศรเพื่อย้าย',

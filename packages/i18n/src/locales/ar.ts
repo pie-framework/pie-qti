@@ -148,7 +148,6 @@ export default {
 				other: 'اختر {count} إجابة على الأقل.',
 			},
 			eliminateChoice: 'استبعاد',
-			restoreChoice: 'استعادة',
 		},
 
 		upload: {
@@ -434,7 +433,6 @@ export default {
 			moveEarlierItem: 'نقل {item} إلى الأمام',
 			moveLaterItem: 'نقل {item} إلى الخلف',
 			eliminateItem: 'استبعاد {item}',
-			restoreItem: 'إعادة {item}',
 			instruction: 'استخدم أزرار النقل أو اسحب العناصر لتغيير ترتيبها.',
 			keyboardInstructions: 'اضغط على مفتاح المسافة أو الإدخال للإمساك بعنصر. استخدم مفاتيح الأسهم لتحريك العنصر. اضغط على مفتاح المسافة أو الإدخال مرة أخرى للإفلات. اضغط على Escape للإلغاء.',
 			grabbed: 'تم الإمساك. استخدم مفاتيح الأسهم للتحريك.',

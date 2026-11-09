@@ -115,7 +115,6 @@ export default {
 				other: 'Selectează cel puțin {count} de răspunsuri.',
 			},
 			eliminateChoice: 'Elimină',
-			restoreChoice: 'Restabilește',
 		},
 
 		upload: {
@@ -371,7 +370,6 @@ export default {
 			moveEarlierItem: 'Mută {item} înainte',
 			moveLaterItem: 'Mută {item} după',
 			eliminateItem: 'Elimină {item}',
-			restoreItem: 'Restabilește {item}',
 			instruction: 'Folosește butoanele de mutare sau trage elementele pentru a le reordona.',
 			keyboardInstructions: 'Apasă Spațiu sau Enter pentru a apuca un element. Folosește săgețile pentru a muta elementul. Apasă din nou Spațiu sau Enter pentru a plasa. Apasă Escape pentru a anula.',
 			grabbed: 'Apucat. Folosește săgețile pentru a muta.',

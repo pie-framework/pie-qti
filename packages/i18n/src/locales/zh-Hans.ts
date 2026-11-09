@@ -112,7 +112,6 @@ export default {
 				other: '请至少选择 {count} 个答案。',
 			},
 			eliminateChoice: '排除',
-			restoreChoice: '恢复',
 		},
 
 		upload: {
@@ -378,7 +377,6 @@ export default {
 			moveEarlierItem: '将 {item} 向前移动',
 			moveLaterItem: '将 {item} 向后移动',
 			eliminateItem: '排除 {item}',
-			restoreItem: '恢复 {item}',
 			instruction: '使用移动按钮或拖动项目来调整顺序。',
 			keyboardInstructions: '按空格键或回车键抓取项目。使用方向键移动项目。再次按空格键或回车键放下。按 Esc 键取消。',
 			grabbed: '已抓取。使用方向键移动。',
