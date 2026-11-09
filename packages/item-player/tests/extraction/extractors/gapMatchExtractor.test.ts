@@ -6,6 +6,7 @@ import { describe, expect, test } from 'bun:test';
 import { Player } from '../../../src/core/Player.js';
 import type { GapMatchInteractionData } from '../../../src/interactions/shared/types.js';
 import { standardGapMatchExtractor } from '../../../src/interactions/gap-match/extractor.js';
+import type { ItemSessionEngineConfig } from '../../../src/types/index.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardGapMatchExtractor', () => {
@@ -541,6 +542,53 @@ describe('standardGapMatchExtractor', () => {
 			expect(result.gapTexts).toHaveLength(0);
 			expect(result.gapImages).toHaveLength(1);
 			expect(result.gapImages[0].src).toBe('images/sun.png');
+		});
+	});
+
+	describe('maxAssociations (per QTI version)', () => {
+		const xml = (attributes = '') => `
+			<gapMatchInteraction responseIdentifier="RESPONSE"${attributes}>
+				<gapText identifier="W1" matchMax="1">one</gapText>
+				<gapText identifier="W2" matchMax="1">two</gapText>
+				<p>A <gap identifier="G1"/> and <gap identifier="G2"/>.</p>
+			</gapMatchInteraction>
+		`;
+		function extractWith(qtiVersion: string | undefined, attributes = '') {
+			const element = parseQTI(xml(attributes));
+			const config = (qtiVersion ? { qtiVersion } : {}) as ItemSessionEngineConfig;
+			return standardGapMatchExtractor.extract(element, createTestContext(element, 'RESPONSE', element, new Map(), config));
+		}
+
+		test('QTI 2.2 and 3.0: absent maxAssociations is 1 (Default = "1", Tables 5.38.3 / 5.57.3)', () => {
+			expect(extractWith('2.2').maxAssociations).toBe(1);
+			expect(extractWith('3.0').maxAssociations).toBe(1);
+			expect(extractWith(undefined).maxAssociations).toBe(1);
+		});
+
+		test('QTI 2.1: absent maxAssociations is 0, no cap: the attribute was added in QTI 2.2', () => {
+			expect(extractWith('2.1').maxAssociations).toBe(0);
+		});
+
+		test('an authored maxAssociations is honoured in every version, "0" meaning unlimited', () => {
+			expect(extractWith('2.1', ' maxAssociations="3"').maxAssociations).toBe(3);
+			expect(extractWith('3.0', ' maxAssociations="0"').maxAssociations).toBe(0);
+			expect(extractWith('2.2', ' maxAssociations="2"').maxAssociations).toBe(2);
+		});
+
+		test('a QTI 3.0 item delivers max-associations, defaulting to 1', () => {
+			const itemXml = (attributes: string) => `<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="gm3" title="t" adaptive="false" time-dependent="false">
+				<qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="directedPair"/>
+				<qti-item-body>
+					<qti-gap-match-interaction response-identifier="RESPONSE"${attributes}>
+						<qti-gap-text identifier="W1" match-max="1">one</qti-gap-text>
+						<p>A <qti-gap identifier="G1"/> and <qti-gap identifier="G2"/>.</p>
+					</qti-gap-match-interaction>
+				</qti-item-body>
+			</qti-assessment-item>`;
+			const read = (attributes: string) =>
+				(new Player({ itemXml: itemXml(attributes) }).getInteractionData()[0] as GapMatchInteractionData).maxAssociations;
+			expect(read('')).toBe(1);
+			expect(read(' max-associations="2"')).toBe(2);
 		});
 	});
 

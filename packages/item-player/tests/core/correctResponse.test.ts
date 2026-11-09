@@ -261,7 +261,7 @@ describe('Player - Correct Response Access', () => {
     </correctResponse>
   </responseDeclaration>
   <itemBody>
-    <gapMatchInteraction responseIdentifier="RESPONSE">
+    <gapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="2">
       <gapText identifier="W1">word1</gapText>
       <gapText identifier="W2">word2</gapText>
       <blockquote>

@@ -670,7 +670,7 @@ export const ITEMS_ES_ES: Record<string, LocalizedItemData> = {
 
   <itemBody>
     <p>Los planetas interiores de nuestro sistema solar son los cuatro planetas rocosos más cercanos al Sol: Mercurio, Venus, Tierra y Marte.</p>
-    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="4">
       <prompt>Etiqueta los cuatro planetas interiores de nuestro sistema solar</prompt>
       <object type="image/svg+xml" width="800" height="400">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">

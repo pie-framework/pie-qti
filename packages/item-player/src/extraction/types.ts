@@ -5,7 +5,7 @@
  * priority-based dispatch, validation, and type safety.
  */
 
-import type { AttributeNameMapper, ElementNameMapper } from '@pie-qti/qti-common';
+import type { AttributeNameMapper, ElementNameMapper, QtiVersion } from '@pie-qti/qti-common';
 import type { PlayerSecurityConfig, QTIRole } from '../types/index.js';
 import type { QTIElement } from '../interactions/shared/types.js';
 import type { InteractionDeliverySchema } from './deliveryTypes.js';
@@ -16,6 +16,14 @@ export interface ExtractionConfig {
 	readonly security?: PlayerSecurityConfig;
 	readonly elementNameMapper?: ElementNameMapper;
 	readonly attributeNameMapper?: AttributeNameMapper;
+	/**
+	 * The item's detected QTI version ('unknown' when nothing identified it). Extractors
+	 * apply per-version spec defaults with it (e.g. graphicGapMatchInteraction
+	 * `maxAssociations` defaults to 1 in 2.2/3.0 and has no cap in 2.1). Absent in
+	 * hand-built contexts, where extractors fall back to the 2.2 assumption
+	 * {@link detectQtiVersion} itself makes.
+	 */
+	readonly qtiVersion?: QtiVersion;
 }
 
 /**

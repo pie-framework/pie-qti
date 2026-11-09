@@ -670,7 +670,7 @@ export const ITEMS_RO_RO: Record<string, LocalizedItemData> = {
 
   <itemBody>
     <p>Planetele interioare ale sistemului nostru solar sunt cele patru planete stâncoase cele mai apropiate de Soare: Mercur, Venus, Pământ și Marte.</p>
-    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="4">
       <prompt>Etichetați cele patru planete interioare ale sistemului nostru solar</prompt>
       <object type="image/svg+xml" width="800" height="400">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">

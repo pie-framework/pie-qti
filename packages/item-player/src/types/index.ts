@@ -12,6 +12,7 @@ import type {
 import type {
 	AttributeNameMapper,
 	ElementNameMapper,
+	QtiVersion,
 } from '@pie-qti/qti-common';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 import type { PciConfiguration } from '../pci/types.js';
@@ -314,6 +315,12 @@ export interface ItemSessionEngineConfig {
 	 * @since 0.3.0
 	 */
 	attributeNameMapper?: AttributeNameMapper;
+	/**
+	 * The item's detected QTI version, applied by extractors that carry per-version spec
+	 * defaults (e.g. graphicGapMatchInteraction maxAssociations). Detected from the item
+	 * XML when not supplied.
+	 */
+	qtiVersion?: QtiVersion;
 	/** Optional web component registry for custom interaction components */
 	componentRegistry?: ComponentRegistry;
 	/** Optional extraction registry for custom element extractors */

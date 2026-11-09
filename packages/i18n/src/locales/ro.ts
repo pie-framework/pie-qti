@@ -311,6 +311,7 @@ export default {
 			filledGapAriaLabelWithHeld: 'Spațiul {position} din {total}, completat cu {word}. Selectează pentru a înlocui cu {heldWord}.',
 			blankGapAriaLabelWithHeld: 'Spațiul {position} din {total}. Selectează pentru a plasa {heldWord} aici.',
 			placed: '{word} a fost plasat în spațiul {position} din {total}.',
+			associationLimitReached: 'Asociere imposibilă: s-a atins limita de {max}.',
 			pointerInstructions: 'Selectează un cuvânt, apoi un spațiu liber. Poți și să tragi și să plasezi.',
 			instruction: 'Trage cuvinte pentru a completa spațiile libere',
 			available: 'Cuvinte disponibile',

@@ -47,7 +47,7 @@
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `responseIdentifier` | Full | Extracted as `responseId`; bound to the response variable; included in `qti-change` event payload |
-| `maxChoices` | Partial | Values `>= 1` are extracted and enforced. The component blocks additional selections once `selectedPoints.length === maxChoices`. **`maxChoices=0` (unlimited) is rejected by the validator as an error** — see Known gaps |
+| `maxChoices` | Full | `0` means no restriction; a value `>= 1` caps the points, and the component blocks additional selections once `selectedPoints.length === maxChoices`. An absent attribute takes the per-version spec default: 0 in QTI 2.2 (Table 5.95.2) and 3.0 (Table 5.128.2), or 1 when the response is single cardinality, which holds one point; QTI 2.1 content keeps 1, its information model (`maxChoices [1] = 1`) and XSD (default 0) disagreeing |
 | `minChoices` | Full | Extracted and surfaced in the UI as a "select at least N" badge. Not enforced as a hard block at submission time (the response is accepted regardless); enforcement is a delivery-engine concern |
 
 ### Child elements
@@ -62,7 +62,7 @@
 ### Response variable contract
 
 - **baseType:** `point`
-- **cardinality:** `single` when `maxChoices=1`; `multiple` when `maxChoices>1`
+- **cardinality:** `single` when `maxChoices=1`; `multiple` when `maxChoices>1` or `0`
 - **Wire format (single):** A single string `"x y"` — two integers separated by a space, where `x` and `y` are coordinates in natural image pixel space (origin top-left)
 - **Wire format (multiple):** An array of `"x y"` strings
 - **Null/empty:** `null` before any selection (single cardinality); `[]` before any selection (multiple cardinality)
@@ -246,7 +246,7 @@ interface SelectPointInteractionData extends BaseInteractionData {
   type: 'selectPointInteraction';
   responseId: string;       // from responseIdentifier attribute
   prompt: string | null;    // HTML content of <prompt> child, or null
-  maxChoices: number;       // must be >= 1; 0 is rejected by extractor validator
+  maxChoices: number;       // 0 = no restriction; absent: 0 (QTI 2.2/3.0, 1 for a single response), 1 (QTI 2.1)
   minChoices: number;       // must be >= 0; must be <= maxChoices
   imageData: ImageData | null;
 }
@@ -261,16 +261,15 @@ interface ImageData {
 ```
 
 **Invariants enforced by extractor:**
-- `maxChoices >= 1` (error if `<= 0`)
+- `maxChoices >= 0` (error if negative; `0` means no restriction)
 - `minChoices >= 0` (error if negative)
-- `minChoices <= maxChoices` (error if violated)
+- `minChoices <= maxChoices` when `maxChoices > 0` (error if violated)
 - `imageData` is never null for well-formed items (warning if absent)
 - For `type='image'`: `src` is non-empty (error if absent)
 - For `type='svg'`: `content` is non-empty (error if absent)
 
 **Invariants that are NOT enforced (gaps):**
 - The authored `width`/`height` values are not validated against the actual image file dimensions
-- `maxChoices=0` is rejected rather than treated as unlimited per the QTI spec
 
 ### `Point` (from `@pie-qti/item-player`)
 

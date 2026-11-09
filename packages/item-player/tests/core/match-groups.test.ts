@@ -104,7 +104,7 @@ const ASSOCIATE = item(
 );
 
 const GAP_MATCH = item(
-	`<gapMatchInteraction responseIdentifier="RESPONSE">
+	`<gapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="2">
 		<gapText identifier="W1" matchMax="1">one</gapText>
 		<gapText identifier="W2" matchMax="1" matchGroup="G2">two</gapText>
 		<p>First <gap identifier="G1" matchGroup="W1"/> then <gap identifier="G2"/>.</p>

@@ -73,7 +73,7 @@ When `role="scorer"` and `correctResponse` is provided, the label pool (the `gap
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `responseIdentifier` | ✅ Full | Extracted as `responseId`; used in `qti-change` event payload |
-| `maxAssociations` | ✅ Full | Extracted into `GraphicGapMatchInteractionData.maxAssociations` (0 = unlimited; absent attribute = 0 in this repo — see the default note under Known gaps). **Enforced by the UI**: a placement that would exceed the cap is refused and announced (author's `data-max-selections-message` wins). Engine response validation rejects over-limit responses at submit. |
+| `maxAssociations` | ✅ Full | Extracted into `GraphicGapMatchInteractionData.maxAssociations` (0 = unlimited). An absent attribute takes the per-version spec default: 1 for QTI 2.2 and 3.0, no cap (0) for QTI 2.1, which has no such attribute (see the default note under Known gaps). **Enforced by the UI**: a placement that would exceed the cap is refused and announced (author's `data-max-selections-message` wins). Engine response validation rejects over-limit responses at submit. |
 | `data-max-selections-message` | ✅ Full | Author's message for a refused placement past `maxAssociations`; delivered as `maxSelectionsMessage` and announced verbatim. |
 | `minAssociations` | ❌ Not extracted | Spec: minimum total pairs required; not extracted; not enforced |
 
@@ -123,8 +123,8 @@ When `role="scorer"` and `correctResponse` is provided, the label pool (the `gap
 
 ### Known gaps
 
-**`maxAssociations` default is a deliberate divergence from the spec**
-The interaction-level `maxAssociations` attribute is extracted and the component refuses and announces placements past it (the author's `data-max-selections-message` wins), so an over-limit response can no longer be built through the UI only to be rejected at submit. The **default for an absent attribute**, however, diverges from the specification on purpose: QTI 2.2 (ASI Information Model Table 5.41.2) and QTI 3.0 (Table 5.60.2) define `max-associations` as optional with `Default = "1"` (0 = no restriction), and the attribute does not exist at all on `graphicGapMatchInteraction` in the QTI 2.1 XSD (it was added in 2.2). This repo's extractor keeps `0` (= unlimited) for items that omit the attribute, so delivered content authored without it — including the demo sample items and the clean-room certification fixtures — keeps its historical, unrestricted behaviour instead of suddenly being capped at one placement. **Conformance risk:** an item relying on the missing attribute is more permissive than the 2.2/3.0 default; for strict conformance, authors (and item banks) should always author `max-associations` explicitly. A spec-exact default of `1` would require a coordinated content migration (demo items, certification fixtures) together with the extractor change.
+**`maxAssociations` default follows the spec per QTI version**
+The interaction-level `maxAssociations` attribute is extracted and the component refuses and announces placements past it (the author's `data-max-selections-message` wins), so an over-limit response can no longer be built through the UI only to be rejected at submit. An absent attribute takes the specification's default for the item's QTI version: QTI 2.2 (ASI Information Model Table 5.41.2) and QTI 3.0 (Table 5.60.2) define `max-associations` as optional with `Default = "1"` (0 = no restriction), so such an item allows one association; the attribute does not exist on `graphicGapMatchInteraction` in QTI 2.1 (it was added in 2.2), so a 2.1 item has no interaction cap, only the per-choice `matchMax` values. An authored value is honoured in every version, including 2.1 content, with `0` meaning unlimited. Items meant to fill several hotspots author `max-associations` explicitly; the demo sample items and the clean-room certification fixtures do.
 
 Per-label and per-hotspot `matchMax` need no separate UI guard: the placement model holds one pair per label and one pair per hotspot, so a placement never raises either side's count above 1 — never past any authored `matchMax ≥ 1`. The engine (`graphicGapMatchMaximaErrors` in `Player.validateResponses`) additionally checks all three maxima against restored or programmatic responses.
 
@@ -284,7 +284,6 @@ interface GraphicGapMatchInteractionData extends BaseInteractionData {
 - `imageData` absence produces a warning (not an error)
 
 **Invariants not enforced (gaps):**
-- `maxAssociations` defaults to 0 (= unlimited) for an absent attribute — a deliberate divergence from the 2.2/3.0 spec default of 1 (see Known gaps); an authored value is enforced by the UI and validated by the engine
 - `matchMin` per gapText extracted into extractor-local shape but discarded before returning from `extract()` (not in `GraphicGapMatchInteractionData`)
 
 ### Response format
@@ -588,7 +587,7 @@ AC-E14: the author's data-max-selections-message wins
   Then: the aria-live region announces the author's message verbatim
 
 AC-E15: maxAssociations=0 means unlimited
-  Given: maxAssociations=0 (or the attribute absent, the repo default) with two labels and
+  Given: maxAssociations=0 (or the attribute absent in a QTI 2.1 item) with two labels and
          two hotspots
   When: the candidate places both labels
   Then: both placements are accepted; no refusal is announced
@@ -598,7 +597,7 @@ AC-E15: maxAssociations=0 means unlimited
 
 ## Open questions
 
-- [x] Should `maxAssociations` be extracted and enforced? (resolved 2026-11-09) Yes: it is delivered in `GraphicGapMatchInteractionData`, the component refuses and announces placements past it (author's `data-max-selections-message` wins), and the engine validates it for restored responses. The default for an absent attribute stays 0 (= unlimited) as a documented divergence from the 2.2/3.0 spec default of 1 — see Known gaps.
+- [x] Should `maxAssociations` be extracted and enforced? (resolved 2026-11-09) Yes: it is delivered in `GraphicGapMatchInteractionData`, the component refuses and announces placements past it (author's `data-max-selections-message` wins), and the engine validates it for restored responses. An absent attribute takes the per-version spec default: 1 for QTI 2.2 and 3.0, no cap for QTI 2.1 — see Known gaps.
 - [ ] Should the background image carry an accessible name (alt text)? The `<object>` element in QTI XML supports child text fallback content and an `aria-label`. The extractor currently discards anything other than the image data. Adding an `altText` field to `ImageData` and passing it to the SVG container would address this.
 - [ ] For `gapImg` image labels placed on a hotspot: should the image be rendered as an SVG `<image>` element on the hotspot, or should a thumbnail badge overlay the hotspot in HTML? SVG `<image>` is simpler; HTML overlay has richer accessibility options.
 - [ ] Should `poly` hotspot rendering be prioritized? It is needed for items with irregular (non-rectangular, non-circular) regions such as country shapes on maps.

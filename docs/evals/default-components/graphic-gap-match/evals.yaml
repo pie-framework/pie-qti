@@ -57,7 +57,7 @@ evals:
     sampleId: graphic-gap-match-solar-system
     gradeBand: "4-8"
     subject: science
-    intent: "One label missing → partial credit via mapping. (maxAssociations=3, so a fourth pair cannot be placed.)"
+    intent: "One label missing → partial credit via mapping. (maxAssociations=4, so the missing fourth pair may still be placed.)"
     steps:
       - action: navigate
         path: "/item-demo/graphic-gap-match-solar-system"

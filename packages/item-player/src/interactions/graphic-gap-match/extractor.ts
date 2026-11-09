@@ -10,6 +10,7 @@ import {
 	normalizePixelDimension,
 } from '../../security/styleValues.js';
 import { extractImageAlternative, imgAlternativeSource } from '../shared/imageAlt.js';
+import { predatesQti22 } from '../shared/specDefaults.js';
 
 /**
  * Image data for graphic gap match interaction
@@ -136,15 +137,17 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 			};
 		}
 
-		// Extract interaction-level attributes. Deliberate divergence from the spec default:
-		// QTI 2.2 (Table 5.41.2) and QTI 3.0 (Table 5.60.2) give max-associations the default
-		// "1" (and the attribute does not exist at all on graphicGapMatchInteraction in the
-		// QTI 2.1 XSD), but this extractor keeps 0 = unlimited for items that omit it, so
-		// delivered content authored without the attribute keeps its historical behaviour.
-		// Conformance risk: an item relying on the missing attribute is more permissive than
-		// the 2.2/3.0 default; conformant items author the attribute explicitly. See
-		// docs/prds/interactions/graphic-gap-match.md ("maxAssociations default").
-		const maxAssociations = utils.getNumberAttribute(element, 'maxAssociations', 0);
+		// Extract interaction-level attributes with the per-version spec default for an
+		// absent maxAssociations: QTI 2.2 (Table 5.41.2) and QTI 3.0 (Table 5.60.2) give
+		// it the default "1" (0 = no restriction), while the attribute does not exist on
+		// graphicGapMatchInteraction in QTI 2.1, so absent means no interaction cap there
+		// (the only 2.1 limits are the per-choice matchMax values). An explicit value is
+		// honoured in every version as leniency, with "0" meaning unlimited.
+		const maxAssociations = utils.getNumberAttribute(
+			element,
+			'maxAssociations',
+			predatesQti22(context) ? 0 : 1,
+		);
 
 		// Extract gapText children (draggable text labels)
 		const gapTextElements = utils.getChildrenByTag(element, 'gapText');

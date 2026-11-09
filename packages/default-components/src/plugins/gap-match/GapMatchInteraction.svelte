@@ -190,9 +190,27 @@
 		return word?.matchMax ?? 1;
 	}
 
-	function handleGapChange(gapId: string, wordId: string) {
+	/** The interaction's `maxAssociations` (QTI: 0 means no restriction). */
+	const maxAssociations = $derived(Number(parsedInteraction?.maxAssociations ?? 0));
+
+	/** Announce a refused placement: the author's data-max-selections-message wins. */
+	function announceAssociationLimit() {
+		liveMessage =
+			parsedInteraction?.maxSelectionsMessage?.trim() ||
+			translate(i18n, 'interactions.gapMatch.associationLimitReached', 'Association not possible: the limit of {max} is reached.', {
+				max: maxAssociations,
+			});
+	}
+
+	/**
+	 * Place `wordId` in `gapId`, or clear the gap when `wordId` is empty. Returns whether the
+	 * response changed: a placement the gap refuses (matchGroup) or one past `maxAssociations`
+	 * is refused, the latter announced, so an over-limit response never reaches the submit
+	 * that would reject it.
+	 */
+	function handleGapChange(gapId: string, wordId: string): boolean {
 		// matchGroup: refuse a placement the gap does not accept (clearing stays allowed).
-		if (wordId && !canPlaceWord(wordId, gapId)) return;
+		if (wordId && !canPlaceWord(wordId, gapId)) return false;
 
 		// Remove any existing pair for this gap (each gap holds one word)
 		let newPairs = pairs.filter((p: string) => !p.endsWith(` ${gapId}`));
@@ -213,8 +231,16 @@
 			}
 		}
 
+		// maxAssociations: refuse a placement that would exceed the interaction's cap. Replacing
+		// a gap's word or moving a single-use word keeps the count, so it is still allowed.
+		if (wordId && maxAssociations > 0 && newPairs.length > maxAssociations) {
+			announceAssociationLimit();
+			return false;
+		}
+
 		response = newPairs;
 		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: newPairs, onChange });
+		return true;
 	}
 
 	function isWordUsed(wordId: string): boolean {
@@ -365,7 +391,9 @@
 				return;
 			}
 			const wordText = getWordText(pickedUpWord);
-			handleGapChange(gapId, pickedUpWord);
+			// maxAssociations: a refused placement is announced and the word stays held, so the
+			// candidate can place it elsewhere (replacing a word) or cancel.
+			if (!handleGapChange(gapId, pickedUpWord)) return;
 			liveMessage = translate(i18n, 'interactions.gapMatch.placed', 'Placed {word} in blank {position} of {total}.', {
 				word: wordText,
 				position: gapPositions.positions.get(gapId) ?? 0,
