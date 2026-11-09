@@ -411,6 +411,24 @@ describe('HotspotInteraction single selection (maxChoices=1) is a radio group', 
 		expect(restored.events).toHaveLength(0);
 	});
 
+	// Identifiers are NCNames, so "true", "false" and "null" are valid region identifiers. The
+	// response names the region; it is never read as a JSON literal.
+	test.each(['true', 'false', 'null'])('a stored answer naming the region "%s" keeps it checked', async (identifier) => {
+		const literalRegions = THREE_REGIONS.map((region, index) => ({
+			...region,
+			identifier: ['true', 'false', 'null'][index]!,
+		}));
+		const mounted = mountInteraction(HotspotInteraction, {
+			interaction: hotspotData({ hotspotChoices: literalRegions }),
+			response: identifier,
+		});
+		await settle();
+
+		expect(regions(mounted).map((region) => region.getAttribute('aria-checked'))).toEqual(
+			['true', 'false', 'null'].map((id) => String(id === identifier)),
+		);
+	});
+
 	test('arrow keys move focus to the next or previous region and check it, wrapping', async () => {
 		const mounted = mountInteraction(HotspotInteraction, { interaction: hotspotData({ hotspotChoices: THREE_REGIONS }) });
 		await settle();
