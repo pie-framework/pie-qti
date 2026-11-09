@@ -1,5 +1,4 @@
 ---
-'@pie-qti/demo-vendor-extensions': patch
 '@pie-qti/pie-to-qti2': patch
 ---
 
