@@ -1,7 +1,27 @@
 {
   "id": "mapResponse_identifier_case_sensitive",
   "cases": [
-    { "name": "the authored spelling maps", "responses": { "R": "Paris" }, "expect": { "outcomes": { "SCORE": 1 } } },
-    { "name": "another case takes the defaultValue even though caseSensitive=false", "responses": { "R": "paris" }, "expect": { "outcomes": { "SCORE": 0.5 } } }
+    {
+      "name": "the authored spelling maps",
+      "responses": {
+        "R": "Paris"
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 1
+        }
+      }
+    },
+    {
+      "name": "another case takes the defaultValue even though the entry says caseSensitive=false",
+      "responses": {
+        "R": "paris"
+      },
+      "expect": {
+        "outcomes": {
+          "SCORE": 0.5
+        }
+      }
+    }
   ]
 }

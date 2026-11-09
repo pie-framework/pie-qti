@@ -1,12 +1,10 @@
 {
   "id": "mapResponse_mapping_caseSensitive_defaultValue",
   "qtiVersion": "2.2",
-  "title": "mapResponse: mapping caseSensitive + defaultValue",
-  "description": "Ensures mapping@caseSensitive='false' enables case-insensitive mapEntry matching, and mapping@defaultValue applies on miss.",
+  "title": "mapResponse: mapEntry caseSensitive default + defaultValue",
+  "description": "Ensures mapEntry@caseSensitive='false' (the XSD default for entries) matches case-insensitively, and mapping@defaultValue applies on miss.",
   "source": {
     "type": "custom",
     "license": "CC0-1.0"
   }
 }
-
-

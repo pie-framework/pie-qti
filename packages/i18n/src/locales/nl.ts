@@ -305,6 +305,7 @@ export default {
 			filledGapAriaLabelWithHeld: 'Lege plek {position} van {total}, ingevuld met {word}. Selecteer om te vervangen door {heldWord}.',
 			blankGapAriaLabelWithHeld: 'Lege plek {position} van {total}. Selecteer om {heldWord} hier te plaatsen.',
 			placed: '{word} is geplaatst in lege plek {position} van {total}.',
+			associationLimitReached: 'Koppeling niet mogelijk: de limiet van {max} is bereikt.',
 			pointerInstructions: 'Selecteer een woord en daarna een lege plek. Je kunt ook slepen.',
 			instruction: 'Sleep woorden om de lege plaatsen in te vullen',
 			available: 'Beschikbare woorden',

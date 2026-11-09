@@ -15,7 +15,7 @@
   </responseDeclaration>
   <itemBody>
     <p>Drag each animal into the right blank.</p>
-    <gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+    <gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="2">
       <gapText identifier="cat" matchMax="1">cat</gapText>
       <gapText identifier="salmon" matchMax="1">salmon</gapText>
       <p>A <gap identifier="GAP1"/> is a mammal and a <gap identifier="GAP2"/> is a fish.</p>

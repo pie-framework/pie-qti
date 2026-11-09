@@ -86,11 +86,11 @@
         <baseValue baseType="point">10 20</baseValue>
       </match>
     </setOutcomeValue>
-    <!-- durations compare in seconds: PT1H is 3600 -->
+    <!-- durations are xsd:double seconds: one hour is 3600 -->
     <setOutcomeValue identifier="OK_DUR">
       <equal>
         <variable identifier="DUR"/>
-        <baseValue baseType="duration">PT1H</baseValue>
+        <baseValue baseType="duration">3600</baseValue>
       </equal>
     </setOutcomeValue>
     <setOutcomeValue identifier="OK_FILE">

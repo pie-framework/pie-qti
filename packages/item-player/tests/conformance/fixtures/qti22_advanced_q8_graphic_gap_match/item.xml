@@ -9,7 +9,7 @@
   </responseDeclaration>
   <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
   <itemBody>
-    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="2">
       <prompt>Label two parts of the cell diagram.</prompt>
       <object data="images/cell-diagram.svg" type="image/svg+xml" width="400" height="260">Cell diagram</object>
       <gapText identifier="nucleus" matchMax="1">nucleus</gapText>

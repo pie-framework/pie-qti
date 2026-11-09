@@ -52,6 +52,7 @@ This is distinct from `matchInteraction` (a grid of row-column pairings) and `as
 |-----------|---------|-----------|
 | `responseIdentifier` | ✅ Full | Extracted as `responseId`; used in `qti-change` event payload |
 | `shuffle` | ✅ Full | Shuffles the `gapTexts` palette order at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads |
+| `maxAssociations` | ✅ Full | Delivered as `maxAssociations` (0 = no restriction). An absent attribute takes the per-version spec default: 1 in QTI 2.2 (Table 5.38.3) and 3.0 (Table 5.57.3); no cap in QTI 2.1, which has no such attribute. The component refuses and announces a placement past the cap (the author's `data-max-selections-message` wins; a held word stays held), and response validation rejects an over-limit response |
 
 ### Supported attributes on `gapText`
 
@@ -229,6 +230,7 @@ interface GapMatchInteractionData extends BaseInteractionData {
     matchMin?: number; matchGroup?: string[]; width?: number; height?: number;
   }>;
   gaps: string[];             // gap identifiers, in reading order
+  maxAssociations?: number;   // 0 = no restriction; absent attribute: 1 (QTI 2.2/3.0), 0 (QTI 2.1)
   gapMatchGroups?: Record<string, string[]>; // per gap identifier, when authored: the labels it accepts
   promptText: string;         // HTML string with [GAP:id] placeholders replacing <gap> elements
 }

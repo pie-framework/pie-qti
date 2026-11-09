@@ -3,7 +3,9 @@
  */
 
 import { describe, expect, test } from 'bun:test';
+import { Player } from '../../../src/core/Player.js';
 import { standardSelectPointExtractor } from '../../../src/interactions/select-point/extractor.js';
+import type { ItemSessionEngineConfig } from '../../../src/types/index.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardSelectPointExtractor', () => {
@@ -107,11 +109,66 @@ describe('standardSelectPointExtractor', () => {
 
 			const result = standardSelectPointExtractor.extract(element, context);
 
-			expect(result.maxChoices).toBe(1);
+			// QTI 2.2 Table 5.95.2 / QTI 3.0 Table 5.128.2: maxChoices Default = "0" (no restriction).
+			expect(result.maxChoices).toBe(0);
 			expect(result.minChoices).toBe(0);
 			expect(result.prompt).toBeNull();
 			expect(result.imageData?.width).toBe('500');
 			expect(result.imageData?.height).toBe('300');
+		});
+
+		describe('maxChoices default for an absent attribute (per QTI version)', () => {
+			const xml = `
+				<selectPointInteraction responseIdentifier="RESPONSE">
+					<object data="image.png" type="image/png"/>
+				</selectPointInteraction>
+			`;
+			function extractWith(qtiVersion: string | undefined, cardinality?: 'single' | 'multiple') {
+				const element = parseQTI(xml);
+				const declarations = new Map(
+					cardinality ? [['RESPONSE', { identifier: 'RESPONSE', cardinality, baseType: 'point' }]] : [],
+				);
+				const config = (qtiVersion ? { qtiVersion } : {}) as ItemSessionEngineConfig;
+				return standardSelectPointExtractor.extract(
+					element,
+					createTestContext(element, 'RESPONSE', element, declarations as any, config),
+				);
+			}
+
+			test('QTI 2.2 and 3.0: absent maxChoices is 0, no restriction, for a multiple response', () => {
+				expect(extractWith('2.2', 'multiple').maxChoices).toBe(0);
+				expect(extractWith('3.0', 'multiple').maxChoices).toBe(0);
+			});
+
+			test('QTI 2.2 and 3.0: a single-cardinality response holds one point, so absent maxChoices is 1', () => {
+				expect(extractWith('2.2', 'single').maxChoices).toBe(1);
+				expect(extractWith('3.0', 'single').maxChoices).toBe(1);
+			});
+
+			test('QTI 2.1 keeps 1: its information model (maxChoices [1] = 1) and XSD (default 0) disagree', () => {
+				expect(extractWith('2.1', 'multiple').maxChoices).toBe(1);
+			});
+
+			test('an authored maxChoices is honoured', () => {
+				const element = parseQTI(xml.replace('responseIdentifier="RESPONSE"', 'responseIdentifier="RESPONSE" maxChoices="3"'));
+				const context = createTestContext(element, 'RESPONSE', element, new Map(), {
+					qtiVersion: '3.0',
+				} as ItemSessionEngineConfig);
+				expect(standardSelectPointExtractor.extract(element, context).maxChoices).toBe(3);
+			});
+
+			test('a QTI 3.0 multiple-point item delivered through the Player reads the spec default', () => {
+				const itemXml = `<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="sp3" title="t" adaptive="false" time-dependent="false">
+					<qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="point"/>
+					<qti-item-body>
+						<qti-select-point-interaction response-identifier="RESPONSE">
+							<img src="map.png" alt="Map" width="200" height="100"/>
+						</qti-select-point-interaction>
+					</qti-item-body>
+				</qti-assessment-item>`;
+				const [interaction] = new Player({ itemXml }).getInteractionData() as Array<{ maxChoices: number }>;
+				expect(interaction?.maxChoices).toBe(0);
+			});
 		});
 
 		test('replaces authored CSS payloads in image dimensions with safe defaults', () => {

@@ -13,7 +13,7 @@
         "P": "B A",
         "DP": "A B",
         "PT": "10 20",
-        "DUR": "PT1H",
+        "DUR": "3600",
         "FILE": "file://example.txt"
       },
       "expect": {
@@ -46,7 +46,7 @@
         "P": "B A",
         "DP": "B A",
         "PT": "10 20",
-        "DUR": "PT1H",
+        "DUR": "3600",
         "FILE": "file://example.txt"
       },
       "expect": {
@@ -57,5 +57,3 @@
     }
   ]
 }
-
-

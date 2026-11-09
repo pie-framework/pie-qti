@@ -19,7 +19,7 @@
 	<itemBody>
 		<p>The International Air Transport Association assigns three-letter codes to identify
 			airports worldwide. For example, London Heathrow has code LHR.</p>
-		<graphicGapMatchInteraction responseIdentifier="RESPONSE">
+		<graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="3">
 			<prompt>Some of the labels on the following diagram are missing: can you identify the
 				correct three-letter codes for the unlabelled airports?</prompt>
 			<object type="image/png" data="images/ukairtags.png" width="206" height="280"/>

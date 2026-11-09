@@ -3,7 +3,7 @@
   <!-- Even with caseSensitive="false" authored, identifier values match exactly (QTI ASI §17):
        mapEntry@caseSensitive loosens string matching only. -->
   <responseDeclaration identifier="R" cardinality="single" baseType="identifier">
-    <mapping defaultValue="0.5" caseSensitive="false">
+    <mapping defaultValue="0.5">
       <mapEntry mapKey="Paris" mappedValue="1" caseSensitive="false"/>
     </mapping>
   </responseDeclaration>

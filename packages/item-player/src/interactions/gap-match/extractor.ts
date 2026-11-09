@@ -8,6 +8,7 @@ import type { ElementExtractor, ExtractionUtils } from '../../extraction/types.j
 import type { DeliveredInteraction, GapMatchInteractionData, QTIElement } from '../../interactions/shared/types.js';
 import { maybeShuffle } from '../../core/shuffle.js';
 import { normalizeCssPixelLength, normalizePixelDimension } from '../../security/styleValues.js';
+import { predatesQti22 } from '../shared/specDefaults.js';
 
 const GAP_ELEMENT_PATTERN = /<(?:qti-gap|gap)(?=[\s/>])([^>]*)\/?>/gi;
 const GAP_CLOSE_PATTERN = /<\/(?:qti-gap|gap)>/gi;
@@ -68,6 +69,8 @@ export interface GapMatchData {
 	}>;
 	gapImages: GapMatchImage[];
 	gaps: string[];
+	/** QTI `maxAssociations`, with the per-version default for an absent attribute; 0 = no cap. */
+	maxAssociations: number;
 	/** Authored `matchGroup` tokens per gap identifier; present only when a gap authors one. */
 	gapMatchGroups?: Record<string, string[]>;
 	/** Gaps authored `required`, which a valid response must fill; present only when one is. */
@@ -189,6 +192,10 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 
 		// Extract attributes
 		const shuffle = utils.getBooleanAttribute(element, 'shuffle');
+		// Absent maxAssociations: "1" in QTI 2.2 (Table 5.38.3) and QTI 3.0 (Table 5.57.3),
+		// 0 = no restriction. QTI 2.2 added the attribute, so QTI 2.1 content sets no
+		// interaction cap. An explicit value is honoured in every version as leniency.
+		const maxAssociations = utils.getNumberAttribute(element, 'maxAssociations', predatesQti22(context) ? 0 : 1);
 
 		// Shuffle the combined choice pool so words and images interleave, then
 		// restore the split view the renderer consumes.
@@ -287,6 +294,7 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 			gapTexts,
 			gapImages,
 			gaps,
+			maxAssociations,
 			...(Object.keys(gapMatchGroups).length > 0 ? { gapMatchGroups } : {}),
 			...(requiredGaps.length > 0 ? { requiredGaps } : {}),
 			shuffle,

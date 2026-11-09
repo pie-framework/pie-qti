@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="mapResponse_mapping_caseSensitive_defaultValue" title="mapResponse mapping caseSensitive/defaultValue" adaptive="false" timeDependent="false">
   <responseDeclaration identifier="R" cardinality="single" baseType="string">
-    <mapping defaultValue="7" caseSensitive="false">
-      <mapEntry mapKey="photosynthesis" mappedValue="2"/>
+    <!-- mapEntry@caseSensitive defaults to "false" (QTI 2.2 XSD); the entry is case-insensitive. -->
+    <mapping defaultValue="7">
+      <mapEntry mapKey="photosynthesis" mappedValue="2" caseSensitive="false"/>
     </mapping>
   </responseDeclaration>
 

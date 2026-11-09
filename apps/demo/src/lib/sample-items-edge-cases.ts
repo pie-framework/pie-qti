@@ -1181,7 +1181,7 @@ export const GAP_MATCH_MANY_GAPS = `<?xml version="1.0" encoding="UTF-8"?>
 
   <itemBody>
     <p>Fill in the blanks with the correct part of speech. Drag words to complete the sentence:</p>
-    <gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+    <gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="12">
       <gapText identifier="noun" matchMax="0">NOUN</gapText>
       <gapText identifier="verb" matchMax="0">VERB</gapText>
       <gapText identifier="adjective" matchMax="0">ADJECTIVE</gapText>
@@ -1244,7 +1244,7 @@ export const GAP_MATCH_REUSABLE_GAPS = `<?xml version="1.0" encoding="UTF-8"?>
 
   <itemBody>
     <p>Complete the descriptions of water molecules using H (hydrogen) and O (oxygen). Each element can be used multiple times. Drag elements to complete the formulas:</p>
-    <gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+    <gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="6">
       <gapText identifier="hydrogen" matchMax="0">H</gapText>
       <gapText identifier="oxygen" matchMax="0">O</gapText>
 

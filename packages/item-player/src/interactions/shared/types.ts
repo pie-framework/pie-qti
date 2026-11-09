@@ -209,6 +209,13 @@ export interface GapMatchInteractionData extends BaseInteractionData<'gapMatchIn
 	/** Identifiers of the `<gap>` elements, in reading order (what the extractor delivers). */
 	gaps: string[];
 	/**
+	 * The most associations the candidate may make (QTI `maxAssociations`); 0 means no
+	 * restriction. The extractor always delivers it: absent means 1 in QTI 2.2 and 3.0 and
+	 * 0 in QTI 2.1, which has no such attribute. Optional so hand-built data stays valid;
+	 * missing is treated as 0.
+	 */
+	maxAssociations?: number;
+	/**
 	 * Authored `matchGroup` tokens per gap identifier (QTI 2.2/3.0: the identifiers of the
 	 * choices that may be matched with this gap). Present only when a gap authors one.
 	 */
