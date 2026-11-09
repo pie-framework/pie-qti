@@ -5,7 +5,7 @@
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
@@ -21,11 +21,15 @@
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 
-	// Parse props that may be JSON strings (web component usage)
-	const parsedInteraction = $derived(parseJsonProp<SliderInteractionData>(interaction));
-	const parsedResponse = $derived(parseJsonProp<number>(response));
-	const parsedCorrectResponse = $derived(parseJsonProp<number>(correctResponse));
-	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+	// Parse props that may be JSON strings (web component usage). Correct-answer mode is the
+	// scorer's view of an item that has a correct response (the shared shell's rule).
+	const shell = $derived(
+		createInteractionShell<SliderInteractionData, number, number>({ interaction, response, correctResponse, role }),
+	);
+	const parsedInteraction = $derived(shell.interaction);
+	const parsedResponse = $derived(shell.response);
+	const parsedCorrectResponse = $derived(shell.correctResponse);
+	const isShowingCorrect = $derived(shell.isShowingCorrect);
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
@@ -41,7 +45,7 @@
 	);
 	// In scorer mode, use the correct response value; otherwise use user's response.
 	const displayValue = $derived(
-		isShowingCorrect && parsedCorrectResponse !== null
+		isShowingCorrect && parsedCorrectResponse !== undefined
 			? parsedCorrectResponse
 			: hasValue
 				? (parsedResponse as number)
@@ -82,7 +86,7 @@
 	// aria-valuetext carries the state: the value once selected, "No value selected" before.
 	const valueText = $derived.by(() => {
 		if (hasValue) return String(parsedResponse);
-		if (isShowingCorrect && parsedCorrectResponse !== null) {
+		if (isShowingCorrect && parsedCorrectResponse !== undefined) {
 			return joinSentences(
 				String(parsedCorrectResponse),
 				translate(i18n, 'accessibility.correctAnswerIs', 'Correct answer: {answer}.', { answer: parsedCorrectResponse })
@@ -135,7 +139,7 @@
 				aria-orientation={isVertical ? 'vertical' : undefined}
 				aria-valuemin={parsedInteraction.lowerBound}
 				aria-valuemax={parsedInteraction.upperBound}
-				aria-valuenow={hasValue || (isShowingCorrect && parsedCorrectResponse !== null) ? displayValue : undefined}
+				aria-valuenow={hasValue || (isShowingCorrect && parsedCorrectResponse !== undefined) ? displayValue : undefined}
 				aria-valuetext={valueText}
 				oninput={(e: Event) => handleChange(Number((e.currentTarget as HTMLInputElement).value))}
 				disabled={disabled || isShowingCorrect}
@@ -163,7 +167,7 @@
 				class:qti-slider-untouched={!hasValue && !isShowingCorrect}
 				class:qti-slider-correct={isShowingCorrect}
 			>
-				{#if hasValue || (isShowingCorrect && parsedCorrectResponse !== null)}
+				{#if hasValue || (isShowingCorrect && parsedCorrectResponse !== undefined)}
 					<div class="qti-slider-stat-title stat-title">{i18n?.t('interactions.slider.statTitle') ?? 'Selected Value'}</div>
 					<div
 						part="value-number"

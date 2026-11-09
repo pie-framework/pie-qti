@@ -14,7 +14,7 @@ import HotspotShape from '../../shared/components/HotspotShape.svelte';
 import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
 	import { normalizeCssPixelLength, normalizePixelDimension } from '@pie-qti/item-player/security';
 	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
@@ -39,11 +39,20 @@ let { interaction = $bindable(), response = $bindable(), correctResponse = $bind
 
 const uid = $props.id();
 
-// Parse props that may be JSON strings (web component usage)
-const parsedInteraction = $derived(parseJsonProp<GraphicGapMatchInteractionData>(interaction));
-const parsedResponse = $derived(parseJsonProp<string | string[]>(response));
-const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
-const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+// Parse props that may be JSON strings (web component usage). Correct-answer mode is the
+// scorer's view of an item that has a correct response (the shared shell's rule).
+const shell = $derived(
+	createInteractionShell<GraphicGapMatchInteractionData, string | string[], string[]>({
+		interaction,
+		response,
+		correctResponse,
+		role,
+	}),
+);
+const parsedInteraction = $derived(shell.interaction);
+const parsedResponse = $derived(shell.response);
+const parsedCorrectResponse = $derived(shell.correctResponse);
+const isShowingCorrect = $derived(shell.isShowingCorrect);
 const correctPairs = $derived(Array.isArray(parsedCorrectResponse) ? parsedCorrectResponse : []);
 const choicesContainerWidth = $derived(
 	normalizeCssPixelLength(parsedInteraction?.choicesContainerWidth),
@@ -709,7 +718,8 @@ function handleRootKeyDown(event: KeyboardEvent) {
 									label={hotspotAriaLabel(
 										hotspotIndex + 1,
 										matchedLabelName,
-										correctLabelName,
+										// Only the correct-answer view names the key; outside it the name must not.
+										isCorrect ? correctLabelName : undefined,
 										hotspotReady ? pickedUpLabelName : null,
 										isBlocked,
 									)}

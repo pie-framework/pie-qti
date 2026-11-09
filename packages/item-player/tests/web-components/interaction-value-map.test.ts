@@ -113,11 +113,12 @@ describe('InteractionValueMap matches each component emission', () => {
 		emit('sliderInteraction', '73');
 	});
 
-	test('hotspot: select emits the selected identifier, clearAnswer null', () => {
+	test('hotspot: activate emits a string (single) or string[] (multiple); clearAnswer emits null or []', () => {
 		expect(emit('hotspotInteraction', 'H1' as string)).toBe('H1');
+		expect(emit('hotspotInteraction', ['H1', 'H3'] as string[])).toEqual(['H1', 'H3']);
 		expect(emit('hotspotInteraction', null)).toBeNull();
-		// @ts-expect-error the earlier string[] shape is not emitted (multi-select is not implemented)
-		emit('hotspotInteraction', ['H1']);
+		// @ts-expect-error a hotspot emits identifiers, never a record
+		emit('hotspotInteraction', { H1: true });
 	});
 
 	test('graphicGapMatch: handleHotspotDrop, clearMatch and placePickedUpLabelOnHotspot emit "gapText hotspot" strings', () => {

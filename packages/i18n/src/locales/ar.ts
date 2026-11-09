@@ -241,6 +241,7 @@ export default {
 				other: 'اكتب {count} إجابة على الأقل.',
 			},
 			minStringsRemoveRefused: 'لم تُحذف الإجابة: مطلوب {count} إجابات على الأقل.',
+			patternMismatch: 'هذه الإجابة ليست بالتنسيق المتوقع.',
 		},
 
 		mathInput: {
@@ -287,6 +288,7 @@ export default {
 			imageLoadError: 'تعذّر تحميل الصورة.',
 			regionOfTotal: 'المنطقة {index} من {total}',
 			selectedRegion: 'المحدد: {region}',
+			maxChoicesReached: 'يمكنك اختيار {max} خيارات كحد أقصى. ألغِ اختيار أحد الخيارات لاختيار آخر.',
 			minChoicesHint: {
 				zero: 'اختر {count} منطقة على الأقل.',
 				one: 'اختر منطقة واحدة على الأقل.',
@@ -388,6 +390,7 @@ export default {
 			minPlacementsHint: 'ما زال عليك وضعها في الفراغات: {words}.',
 			notCompatibleSentence: 'غير متوافق مع الكلمة المحددة.',
 			wordRemovedFromBlanks: 'تمت إزالة {word} من الفراغات.',
+			requiredBlanksLegend: 'الفراغات المميزة بعلامة * مطلوبة.',
 		},
 
 		graphicGapMatch: {

@@ -193,7 +193,9 @@ export const standardHotspotExtractor: ElementExtractor<HotspotData> = {
 					identifiers.add(hotspot.identifier);
 				}
 
-				if (!hotspot.coords) {
+				// The default shape is the whole image (QTI 3.0 §8.29 ShapeEnum), so its coords
+				// say nothing; every other shape is placed by them.
+				if (!hotspot.coords && hotspot.shape !== 'default') {
 					errors.push(`Hotspot ${hotspot.identifier} must have coords`);
 				}
 			}

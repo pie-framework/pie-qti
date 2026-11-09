@@ -20,6 +20,8 @@
 		ariaLabel?: string;
 		/** Id(s) of the element(s) that describe the editor, such as a character counter. */
 		ariaDescribedby?: string;
+		/** The content fails the interaction's pattern mask: the surface states `aria-invalid`. */
+		ariaInvalid?: boolean;
 		/**
 		 * Allow the browser's spell check and autocorrect. Off by default, so
 		 * spelling and writing items give every candidate the same help.
@@ -37,6 +39,7 @@
 		ariaLabelledby,
 		ariaLabel,
 		ariaDescribedby,
+		ariaInvalid = false,
 		spellcheck = false,
 		i18n,
 		onChange,
@@ -139,6 +142,7 @@
 		'aria-multiline': 'true',
 		...(ariaLabelledby ? { 'aria-labelledby': ariaLabelledby } : { 'aria-label': translations.editorLabel }),
 		...(ariaDescribedby ? { 'aria-describedby': ariaDescribedby } : {}),
+		...(ariaInvalid ? { 'aria-invalid': 'true' } : {}),
 		...(placeholder ? { 'aria-placeholder': placeholder } : {}),
 		...(editable ? {} : { 'aria-readonly': 'true' }),
 		spellcheck: spellcheck ? 'true' : 'false',

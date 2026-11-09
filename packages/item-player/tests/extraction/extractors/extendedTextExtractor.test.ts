@@ -145,6 +145,48 @@ describe('standardExtendedTextExtractor', () => {
 		expect(standardExtendedTextExtractor.canHandle(qti3, createTestContext(qti3))).toBe(true);
 	});
 
+	test('extracts the pattern mask and its QTI 3.0 data-patternmask-message', () => {
+		// QTI 3.0 §5.48.4: the mask is `pattern-mask` (mapped from `patternMask`) and the
+		// author's message is the data-* attribute `data-patternmask-message`, which no
+		// version renames.
+		const element = parseQTI(`
+			<qti-extended-text-interaction
+				response-identifier="RESPONSE"
+				pattern-mask="[0-9]+"
+				data-patternmask-message="Numbers only."
+			/>
+		`);
+		const context = createTestContext(
+			element,
+			'RESPONSE',
+			element,
+			declarations({ identifier: 'RESPONSE', cardinality: 'single', baseType: 'string' }),
+			{
+				elementNameMapper: new Qti3ElementNameMapper(),
+				attributeNameMapper: new Qti3AttributeNameMapper(),
+			} as any,
+		);
+
+		const result = standardExtendedTextExtractor.extract(element, context);
+
+		expect(result).toMatchObject({ patternMask: '[0-9]+', patternMaskMessage: 'Numbers only.' });
+	});
+
+	test('an absent pattern mask and message stay absent', () => {
+		const element = parseQTI('<extendedTextInteraction responseIdentifier="RESPONSE"/>');
+		const context = createTestContext(
+			element,
+			'RESPONSE',
+			element,
+			declarations({ identifier: 'RESPONSE', cardinality: 'single', baseType: 'string' }),
+		);
+
+		const result = standardExtendedTextExtractor.extract(element, context);
+
+		expect(result).not.toHaveProperty('patternMask');
+		expect(result).not.toHaveProperty('patternMaskMessage');
+	});
+
 	test('validates declaration, base, and string-count constraints', () => {
 		const valid = {
 			cardinality: 'multiple' as const,

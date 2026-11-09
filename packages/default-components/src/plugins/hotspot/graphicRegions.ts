@@ -79,6 +79,20 @@ export function shapeCenter(shape: string, coords: string): Point {
 }
 
 /**
+ * Where a marker (a check, a position badge) for a QTI region sits, in image coordinates: the
+ * centre of its shape, or for the `default` shape — the whole image (QTI 3.0 §8.29) — `insetPx`
+ * CSS px in from the image's top-left corner at the rendered `renderScale`, clear of the other
+ * regions' markers at their centres.
+ */
+export function regionMarkerPoint(shape: string, coords: string, renderScale: number, insetPx: number): Point {
+	if (shape === 'default') {
+		const inset = insetPx / (renderScale > 0 ? renderScale : 1);
+		return { x: inset, y: inset };
+	}
+	return shapeCenter(shape, coords);
+}
+
+/**
  * Width (CSS px) of a transparent, non-scaling hit stroke that grows a shape's
  * pointer target to at least {@link MIN_TARGET_PX} at the rendered scale. The
  * stroke straddles the outline, so the target's smallest extent becomes

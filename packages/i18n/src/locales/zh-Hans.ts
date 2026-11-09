@@ -193,6 +193,7 @@ export default {
 				other: '请至少填写 {count} 个回答。',
 			},
 			minStringsRemoveRefused: '回答未移除：至少需要 {count} 个回答。',
+			patternMismatch: '此答案不符合预期格式。',
 		},
 
 		mathInput: {
@@ -239,6 +240,7 @@ export default {
 			imageLoadError: '无法加载图像。',
 			regionOfTotal: '第 {index} 个区域，共 {total} 个',
 			selectedRegion: '已选择：{region}',
+			maxChoicesReached: '最多可选择 {max} 项。请先取消一项选择,再选择其他项。',
 			minChoicesHint: {
 				one: '请至少选择 {count} 个区域。',
 				other: '请至少选择 {count} 个区域。',
@@ -332,6 +334,7 @@ export default {
 			minPlacementsHint: '还需放入空白处：{words}。',
 			notCompatibleSentence: '与所选词语不兼容。',
 			wordRemovedFromBlanks: '已将 {word} 从空格中移除。',
+			requiredBlanksLegend: '标有 * 的空白处为必填。',
 		},
 
 		graphicGapMatch: {

@@ -186,6 +186,7 @@ export default {
 				other: 'Scrie cel puțin {count} de răspunsuri.',
 			},
 			minStringsRemoveRefused: 'Răspunsul nu a fost eliminat: sunt necesare cel puțin {count} răspunsuri.',
+			patternMismatch: 'Acest răspuns nu are formatul așteptat.',
 		},
 
 		mathInput: {
@@ -232,6 +233,7 @@ export default {
 			imageLoadError: 'Imaginea nu a putut fi încărcată.',
 			regionOfTotal: 'Regiunea {index} din {total}',
 			selectedRegion: 'Selectat: {region}',
+			maxChoicesReached: 'Poți selecta cel mult {max}. Deselectează una pentru a alege alta.',
 			minChoicesHint: {
 				one: 'Selectează cel puțin o regiune.',
 				few: 'Selectează cel puțin {count} regiuni.',
@@ -325,6 +327,7 @@ export default {
 			minPlacementsHint: 'Mai sunt de plasat în spațiile libere: {words}.',
 			notCompatibleSentence: 'Incompatibil cu cuvântul selectat.',
 			wordRemovedFromBlanks: 'S-a eliminat {word} din spații.',
+			requiredBlanksLegend: 'Spațiile libere marcate cu * sunt obligatorii.',
 		},
 
 		graphicGapMatch: {

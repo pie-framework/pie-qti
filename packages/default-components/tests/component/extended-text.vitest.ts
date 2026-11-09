@@ -448,3 +448,208 @@ describe('ExtendedTextInteraction rich text (format="xhtml")', () => {
 		expect(editable(m).getAttribute('aria-describedby')).toBe(q(m, '[part="counter"]')!.id);
 	});
 });
+
+// patternMask (QTI 2.1; QTI 3.0 §5.48.4): a string response that does not match it is invalid
+// under validateResponses. The field says so where the candidate is (WCAG 3.3.1), at the moment
+// the text entry does: when the candidate leaves the field.
+describe('ExtendedTextInteraction patternMask message', () => {
+	function editable(m: MountedInteraction) {
+		return q<HTMLElement>(m, '[contenteditable]')!;
+	}
+
+	test('a plain response that fails its patternMask shows the authored message on blur', async () => {
+		const m = mountExtendedText({
+			interaction: extendedTextData({
+				prompt: null,
+				placeholderText: '',
+				patternMask: '[0-9]+',
+				patternMaskMessage: 'Numbers only, please.',
+			}),
+		});
+		await settle();
+
+		const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
+		// Nothing shows while the candidate types: the check waits for the field to lose focus.
+		type(textarea, 'not numbers');
+		await settle();
+		expect(q(m, '[part="pattern-error"]')).toBeNull();
+		expect(announcement(m)).toBe('');
+
+		textarea.dispatchEvent(new FocusEvent('blur'));
+		await settle();
+
+		const error = q(m, '[part="pattern-error"]');
+		expect(error?.textContent?.trim()).toBe('Numbers only, please.');
+		// The message is the failing field's description, and the field states the invalid state.
+		expect(textarea.getAttribute('aria-invalid')).toBe('true');
+		expect(textarea.getAttribute('aria-describedby')?.split(/\s+/)).toContain(error!.id);
+		// It is announced politely once, through the interaction's live region.
+		expect(announcement(m)).toBe('Numbers only, please.');
+		// Typing is never blocked.
+		expect(textarea.disabled).toBe(false);
+		expect(m.events).toHaveLength(1);
+	});
+
+	test('without an authored message a localized generic sentence shows', async () => {
+		const m = mountExtendedText({
+			interaction: extendedTextData({ prompt: null, placeholderText: '', patternMask: '[0-9]+' }),
+		});
+		await settle();
+
+		const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
+		type(textarea, 'abc');
+		await settle();
+		textarea.dispatchEvent(new FocusEvent('blur'));
+		await settle();
+
+		expect(q(m, '[part="pattern-error"]')?.textContent?.trim()).toBe('This answer is not in the expected format.');
+	});
+
+	test('a matching response clears the message and the invalid state', async () => {
+		const m = mountExtendedText({
+			interaction: extendedTextData({
+				prompt: null,
+				placeholderText: '',
+				base: 10,
+				patternMask: '[0-9]+',
+				patternMaskMessage: 'Numbers only.',
+			}),
+		});
+		await settle();
+
+		const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
+		type(textarea, 'abc');
+		await settle();
+		textarea.dispatchEvent(new FocusEvent('blur'));
+		await settle();
+		expect(q(m, '[part="pattern-error"]')).toBeTruthy();
+
+		type(textarea, '42');
+		await settle();
+
+		expect(q(m, '[part="pattern-error"]')).toBeNull();
+		expect(textarea.hasAttribute('aria-invalid')).toBe(false);
+		expect(textarea.getAttribute('aria-describedby') ?? '').not.toContain('pattern-error');
+	});
+
+	test('the message stays while the candidate keeps typing text that still fails the mask', async () => {
+		const m = mountExtendedText({
+			interaction: extendedTextData({
+				prompt: null,
+				placeholderText: '',
+				base: 10,
+				patternMask: '[a-z]+',
+				patternMaskMessage: 'Letters only.',
+			}),
+		});
+		await settle();
+
+		const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
+		type(textarea, '12');
+		await settle();
+		textarea.dispatchEvent(new FocusEvent('blur'));
+		await settle();
+		expect(q(m, '[part="pattern-error"]')?.textContent?.trim()).toBe('Letters only.');
+
+		type(textarea, '123');
+		await settle();
+
+		expect(q(m, '[part="pattern-error"]')?.textContent?.trim()).toBe('Letters only.');
+		expect(textarea.getAttribute('aria-invalid')).toBe('true');
+	});
+
+	test('each response of a multi-part answer is checked on its own, and its message moves with it', async () => {
+		const m = mountExtendedText({
+			interaction: extendedTextData({
+				cardinality: 'ordered',
+				minStrings: 0,
+				maxStrings: 0,
+				patternMask: '[a-z]+',
+				patternMaskMessage: 'Letters only.',
+			}),
+			response: ['alpha', 'BETA'],
+		});
+		await settle();
+
+		let areas = qa<HTMLTextAreaElement>(m, 'textarea');
+		areas[0]!.dispatchEvent(new FocusEvent('blur'));
+		areas[1]!.dispatchEvent(new FocusEvent('blur'));
+		await settle();
+
+		// Only the second response fails, so only it is invalid and described by the message.
+		expect(qa(m, '[part="pattern-error"]')).toHaveLength(1);
+		expect(areas[0]!.hasAttribute('aria-invalid')).toBe(false);
+		expect(areas[1]!.getAttribute('aria-invalid')).toBe('true');
+		expect(areas[1]!.getAttribute('aria-describedby')).toBe(q(m, '[part="pattern-error"]')!.id);
+
+		// Removing the first response moves the failing one up; its message moves with it.
+		await click(qa<HTMLButtonElement>(m, 'button[part="remove-string"]')[0]!);
+		areas = qa<HTMLTextAreaElement>(m, 'textarea');
+		expect(areas).toHaveLength(1);
+		expect(areas[0]!.value).toBe('BETA');
+		expect(areas[0]!.getAttribute('aria-invalid')).toBe('true');
+		expect(areas[0]!.getAttribute('aria-describedby')).toBe(q(m, '[part="pattern-error"]')!.id);
+	});
+
+	test('an empty response is never flagged: the mask constrains entered text only', async () => {
+		const m = mountExtendedText({
+			interaction: extendedTextData({ prompt: null, placeholderText: '', patternMask: '[0-9]+' }),
+		});
+		await settle();
+
+		const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
+		textarea.dispatchEvent(new FocusEvent('blur'));
+		await settle();
+
+		expect(q(m, '[part="pattern-error"]')).toBeNull();
+		expect(textarea.hasAttribute('aria-invalid')).toBe(false);
+	});
+
+	test('a numeric response is not flagged: validation enforces the mask on string responses only', async () => {
+		const m = mountExtendedText({
+			interaction: extendedTextData({
+				prompt: null,
+				placeholderText: '',
+				baseType: 'integer',
+				patternMask: '[0-9]+',
+			}),
+		});
+		await settle();
+
+		const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
+		type(textarea, 'abc');
+		await settle();
+		textarea.dispatchEvent(new FocusEvent('blur'));
+		await settle();
+
+		expect(q(m, '[part="pattern-error"]')).toBeNull();
+		expect(textarea.hasAttribute('aria-invalid')).toBe(false);
+	});
+
+	test('a rich text response that fails its patternMask shows the message when focus leaves the editor', async () => {
+		const m = mountExtendedText({
+			interaction: extendedTextData({
+				format: 'xhtml',
+				prompt: null,
+				placeholderText: '',
+				patternMask: '[0-9]+',
+				patternMaskMessage: 'Numbers only.',
+			}),
+			response: '<p>not numbers</p>',
+		});
+		await settle();
+
+		const surface = editable(m);
+		expect(q(m, '[part="pattern-error"]')).toBeNull();
+
+		// Focus leaves the editor surface (nothing takes it inside the field).
+		surface.dispatchEvent(new FocusEvent('focusout', { relatedTarget: null, bubbles: true }));
+		await settle();
+
+		const error = q(m, '[part="pattern-error"]');
+		expect(error?.textContent?.trim()).toBe('Numbers only.');
+		expect(surface.getAttribute('aria-invalid')).toBe('true');
+		expect(surface.getAttribute('aria-describedby')?.split(/\s+/)).toContain(error!.id);
+		expect(announcement(m)).toBe('Numbers only.');
+	});
+});

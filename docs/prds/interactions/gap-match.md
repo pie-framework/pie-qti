@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: gapMatchInteraction
-  Last reviewed: 2026-11-07
+  Last reviewed: 2026-11-09
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor, type)  
-**Last reviewed:** 2026-11-07
+**Last reviewed:** 2026-11-09
 
 ---
 
@@ -70,7 +70,7 @@ This is distinct from `matchInteraction` (a grid of row-column pairings) and `as
 |-----------|---------|-----------|
 | `identifier` | ✅ Full | Required; deduplicated; forms the second element of each `directedPair` response value |
 | `matchGroup` | ✅ Full (G-01) | Delivered as `gapMatchGroups[gapId]`: the labels this gap accepts. Read wherever the gap sits (prompt or body content), as `matchGroup` (QTI 2.x) or `match-group` (QTI 3.0) |
-| `required` | ❌ Not extracted | Spec: when `true`, the gap must be filled for a valid response. Not extracted. Treated as optional by the component. |
+| `required` | ✅ Full | Delivered as `requiredGaps`. `Player.validateResponses()` reports the response incomplete while a required gap is empty; the component marks each required gap visibly and in its accessible description (FR-14). |
 
 ### Response variable contract
 
@@ -92,7 +92,7 @@ None against the specification.
 
 ### Resolved gaps
 
-- **`gap required` (fixed 2026-11-09):** QTI defines `required` on `<gap>`: "If true then this gap must be filled by the candidate in order to form a valid response to the interaction" (QTI 2.1 gap; QTI 3.0 §5.55.5, default false). The extractor delivers the required gaps as `requiredGaps`, and `Player.validateResponses()` reports the response incomplete while a required gap is not the target of a pair. The default component does not mark required gaps yet; authors state the requirement in the prompt.
+- **`gap required` (fixed 2026-11-09):** QTI defines `required` on `<gap>`: "If true then this gap must be filled by the candidate in order to form a valid response to the interaction" (QTI 2.1 gap; QTI 3.0 §5.55.5, default false). The extractor delivers the required gaps as `requiredGaps`, and `Player.validateResponses()` reports the response incomplete while a required gap is not the target of a pair. The default component marks each required gap with an asterisk, which a visible legend explains, and states the requirement as the gap's accessible description (FR-14).
 - **`minAssociations` (fixed 2026-11-09):** QTI 2.2 and QTI 3.0 (§5.57.2) define it as "the minimum number of associations that the candidate is required to make to form a valid response". The extractor delivers it when above 0, and `Player.validateResponses()` reports a response with fewer pairs incomplete.
 
 - **G-01 (`matchGroup`, Done):** QTI 2.2 and 3.0 define `matchGroup` on `gapText`, `gapImg` and `gap` as "a list of the identifiers for the objects that can be matched with" it (QTI 2.2.4 ASI Information Model, Tables 5.39.4, 5.37.4, 5.36.4; QTI 3.0, Tables 5.58.4, 5.56.4, 5.55.4). The component decides every placement with `isMatchGroupCompatible` from `@pie-qti/item-player`, the rule `Player.validateResponses()` applies: while a label is held or dragged, the gaps that refuse it are `aria-disabled`, say so in their name, do not accept a drag, and refuse the placement (a held label stays held and the refusal is announced). The rule accepts a pairing when either reading allows it: the specification's (the label and the gap name each other) or the shared-group-label reading some content uses (shared token; a side without `matchGroup` is unrestricted). `matchGroup` no longer makes other labels unavailable once one is placed: it constrains label–gap pairs only.
@@ -116,6 +116,7 @@ None against the specification.
 - **FR-11:** When `role='scorer'` and `correctResponse` is provided, display the correct label text inside each gap with a green success style. Do not reveal correct answers for `role='candidate'` or any other non-scorer role.
 - **FR-12:** Render the optional `prompt` HTML content (above the palette and passage) when present.
 - **FR-13:** When `parsedInteraction` is null or undefined, render an error state rather than a blank or broken layout.
+- **FR-14:** Mark each gap in `requiredGaps` (QTI gap `required`) so the candidate knows it must be filled: a visible asterisk inside the gap (a character, not a colour alone) with `data-required="true"`, a visible legend before the passage while any gap is required ("Blanks marked * are required.", `interactions.gapMatch.requiredBlanksLegend`), and the requirement as the gap's accessible description ("Required.", from `common.required`) through `aria-describedby`. A gap is a `button`, on which `aria-required` is not allowed, so the description carries it. The mark and description stay when the gap is filled; the name stays the gap's ordinal and state.
 
 ---
 
@@ -132,6 +133,7 @@ WCAG 2.2 Level AA is mandatory.
 - **Focus visibility (WCAG 2.4.11):** Gap buttons and palette buttons must display a 2px focus-visible outline that meets 3:1 contrast with the surrounding background.
 - **Disabled state communication (WCAG 4.1.2):** When `disabled=true`, gap buttons must carry `aria-disabled="true"`. Palette labels that have reached `matchMax` must also carry `aria-disabled="true"` and `disabled` attribute.
 - **Drag-and-drop alternative (WCAG 2.5.7 — Level AA in WCAG 2.2):** All drag-and-drop functionality must have a pointer-equivalent alternative (already met by the click-to-clear and the intended select-then-place keyboard pattern).
+- **Required gaps (WCAG 3.3.2, 1.4.1):** A required gap shows an asterisk (`aria-hidden`; a character, so not colour alone, in `--pie-qti-error-text` for 4.5:1) that the visible legend explains, and its `aria-describedby` names a hidden "Required." description — not `aria-required`, which ARIA does not allow on role `button` (FR-14).
 - **Reading order (WCAG 1.3.2):** Screen readers must encounter the palette before the passage, so users understand what labels are available before reaching the gaps. The DOM order in the component (`palette` before `text`) achieves this.
 
 ### Performance
@@ -155,6 +157,8 @@ The following strings must be translateable via the `I18nProvider`:
 | `interactions.gapMatch.blankGapAriaLabel` | `"Blank {gapId}. Drop an answer here."` |
 | `interactions.gapMatch.filledGapAriaLabel` | `"Blank {gapId}, filled with {word}. Click to clear."` |
 | `interactions.gapMatch.removeWord` | `"Remove word"` |
+| `interactions.gapMatch.requiredBlanksLegend` | `"Blanks marked * are required."` |
+| `common.required` (with `accessibility.sentence`) | `"Required."` (a required gap's description) |
 | `common.errorNoData` | `"No interaction data provided"` |
 
 ### Security
@@ -248,7 +252,7 @@ interface GapMatchInteractionData extends BaseInteractionData {
 
 **Invariants NOT enforced:**
 - The number of gaps vs. the number of labels (no warning when `gaps.length >= gapTexts.length`).
-- `gap.required` is enforced by response validation, not by the component: a response that leaves a required gap empty is incomplete (see Resolved gaps).
+- `gap.required` is enforced by response validation: a response that leaves a required gap empty is incomplete (see Resolved gaps). The component marks required gaps (FR-14) but does not stop the candidate leaving one empty.
 
 ### Response value format
 

@@ -182,6 +182,7 @@ export default {
 				other: 'Schrijf ten minste {count} antwoorden.',
 			},
 			minStringsRemoveRefused: 'Antwoord niet verwijderd: er zijn ten minste {count} antwoorden nodig.',
+			patternMismatch: 'Dit antwoord heeft niet de verwachte notatie.',
 		},
 
 		mathInput: {
@@ -228,6 +229,7 @@ export default {
 			imageLoadError: 'De afbeelding kon niet worden geladen.',
 			regionOfTotal: 'Gebied {index} van {total}',
 			selectedRegion: 'Geselecteerd: {region}',
+			maxChoicesReached: 'Je kunt maximaal {max} selecteren. Deselecteer er een om een andere te kiezen.',
 			minChoicesHint: {
 				one: 'Selecteer minimaal {count} gebied.',
 				other: 'Selecteer minimaal {count} gebieden.',
@@ -319,6 +321,7 @@ export default {
 			minPlacementsHint: 'Nog te plaatsen in de lege plekken: {words}.',
 			notCompatibleSentence: 'Niet compatibel met het geselecteerde woord.',
 			wordRemovedFromBlanks: '{word} verwijderd uit de gaten.',
+			requiredBlanksLegend: 'Lege plekken met een * zijn verplicht.',
 		},
 
 		graphicGapMatch: {

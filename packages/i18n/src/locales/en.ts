@@ -193,6 +193,7 @@ export default {
 				other: 'Write at least {count} responses.',
 			},
 			minStringsRemoveRefused: 'Response not removed: at least {count} responses are required.',
+			patternMismatch: 'This answer is not in the expected format.',
 		},
 
 		mathInput: {
@@ -239,6 +240,7 @@ export default {
 			imageLoadError: 'The image could not be loaded.',
 			regionOfTotal: 'Region {index} of {total}',
 			selectedRegion: 'Selected: {region}',
+			maxChoicesReached: 'You can select up to {max}. Deselect one to choose another.',
 			minChoicesHint: {
 				one: 'Select at least {count} region.',
 				other: 'Select at least {count} regions.',
@@ -332,6 +334,7 @@ export default {
 			minPlacementsHint: 'Still to place in the blanks: {words}.',
 			notCompatibleSentence: 'Not compatible with the selected word.',
 			wordRemovedFromBlanks: '{word} removed from the blanks.',
+			requiredBlanksLegend: 'Blanks marked * are required.',
 		},
 
 		graphicGapMatch: {
