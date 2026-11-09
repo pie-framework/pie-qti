@@ -18,7 +18,7 @@
 	 */
 	import type { AssessmentPlayer } from '../core/AssessmentPlayer.js';
 	import type { I18nProvider } from '@pie-qti/i18n';
-	import { TimeManager } from '../core/TimeManager.js';
+	import { formatTime as formatClock } from '../core/formatTime.js';
 
 	interface Props {
 		player: AssessmentPlayer;
@@ -44,7 +44,7 @@
 	const t = (key: string, fallback: string, params?: Record<string, string | number>) =>
 		i18n?.t(key, fallback, params) ?? fallback;
 
-	const formatTime = (seconds: number) => TimeManager.formatTime(seconds, i18n?.formatNumber?.bind(i18n));
+	const formatTime = (seconds: number) => formatClock(seconds, i18n?.formatNumber?.bind(i18n));
 
 	/** Whole minutes read as sentences ("5 minutes remaining"); odd values as clock time. */
 	function warningMessage(seconds: number): string {

@@ -58,6 +58,7 @@ import type {
 import { AssessmentSessionCoordinator, isSkippedResponseSet, type ResponseDefault } from './AssessmentSessionCoordinator.js';
 import { AutosaveManager, type AutosaveState } from './AutosaveManager.js';
 import { AssessmentPlayerError, type AssessmentPlayerErrorCode, isAssessmentPlayerError } from './errors.js';
+import { attemptFeedbackVisible, resolveMaxAttempts } from './feedback.js';
 import { NavigationManager } from './NavigationManager.js';
 import {
 	addItemVariableDeclarations,
@@ -1407,13 +1408,6 @@ export class AssessmentPlayer {
 		);
 	}
 
-	/** The item's maximum attempts; null when unlimited (adaptive items, maxAttempts 0). */
-	private resolvedMaxAttempts(q: FlatItem): number | null {
-		if (isAdaptiveItemXml(q.item.itemXml)) return null;
-		const maxAttempts = this.sessionCoordinator.getItemSettings(q.identifier).maxAttempts ?? 1;
-		return maxAttempts === 0 ? null : Math.max(1, maxAttempts);
-	}
-
 	/**
 	 * QTI feedback visibility is attempt-relative: with more than one attempt allowed,
 	 * feedback for every non-final attempt must be shown; once the last attempt has
@@ -1422,10 +1416,13 @@ export class AssessmentPlayer {
 	 */
 	private feedbackVisible(q: FlatItem, attemptsAfter: number): boolean {
 		const control = this.sessionCoordinator.getItemSettings(q.identifier);
-		if (control.showFeedback === true || isAdaptiveItemXml(q.item.itemXml)) return true;
-		if (attemptsAfter < 1) return false;
-		const maxAttempts = this.resolvedMaxAttempts(q);
-		return maxAttempts === null || (maxAttempts > 1 && attemptsAfter < maxAttempts);
+		const adaptive = isAdaptiveItemXml(q.item.itemXml);
+		return attemptFeedbackVisible({
+			showFeedback: control.showFeedback === true,
+			maxAttempts: resolveMaxAttempts(control, adaptive),
+			attempts: attemptsAfter,
+			adaptive,
+		});
 	}
 
 	private flattenItems(assessment: SecureAssessment): FlatItem[] {
@@ -2790,7 +2787,7 @@ export class AssessmentPlayer {
 			};
 		}
 		const info = this.sessionCoordinator.getItemSessionInfo(id);
-		const maxAttempts = this.resolvedMaxAttempts(q);
+		const maxAttempts = resolveMaxAttempts(this.sessionCoordinator.getItemSettings(id), adaptive);
 		const remainingAttempts = maxAttempts === null ? null : Math.max(0, maxAttempts - info.attemptCount);
 		const attemptsExhausted = maxAttempts !== null && info.attemptCount >= maxAttempts;
 		// maxAttempts 1 delivers feedback on the move (submit-on-move): no check control.
