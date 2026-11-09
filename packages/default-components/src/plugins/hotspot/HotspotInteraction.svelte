@@ -17,13 +17,17 @@
 
 	interface Props {
 		interaction?: HotspotInteractionData | string;
-		response?: string | null;
+		/** The chosen region's identifier (single selection), or the chosen regions' identifiers (multiple). */
+		response?: string | string[] | null;
 		correctResponse?: string | string[] | null;
 		disabled?: boolean;
 		role?: string;
 		i18n?: I18nProvider;
-		/** Called with the chosen region's identifier, or null when the answer is cleared. */
-		onChange?: (value: string | null) => void;
+		/**
+		 * Called with the chosen region's identifier (single selection) or the chosen regions'
+		 * identifiers (multiple selection); null (single) or [] (multiple) when the answer is cleared.
+		 */
+		onChange?: (value: string | string[] | null) => void;
 	}
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
@@ -32,7 +36,7 @@
 
 	// Parse props that may be JSON strings (web component usage)
 	const parsedInteraction = $derived(parseJsonProp<HotspotInteractionData>(interaction));
-	const parsedResponse = $derived(parseJsonProp<string>(response));
+	const parsedResponse = $derived(parseJsonProp<string | string[]>(response));
 	const parsedCorrectResponse = $derived(parseJsonProp<string | string[]>(correctResponse));
 	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
 
@@ -55,6 +59,22 @@
 	const choices = $derived(parsedInteraction?.hotspotChoices ?? []);
 	const imageData = $derived(parsedInteraction?.imageData ?? null);
 	const imageSrc = $derived(imageData?.type === 'image' ? (imageData.src ?? '') : '');
+
+	/**
+	 * The selected regions' identifiers, in selection order. The response is one identifier in
+	 * single selection and a list in multiple selection; a single selection bound to a
+	 * multiple-cardinality response comes back as a one-element list. Identifiers that name no
+	 * region, and repeats, are dropped.
+	 */
+	const selectedIds = $derived.by(() => {
+		const raw = Array.isArray(parsedResponse) ? parsedResponse : typeof parsedResponse === 'string' ? [parsedResponse] : [];
+		const known = new Set(choices.map((choice) => choice.identifier));
+		return [...new Set(raw.filter((id) => typeof id === 'string' && known.has(id)))];
+	});
+
+	function isSelected(identifier: string): boolean {
+		return selectedIds.includes(identifier);
+	}
 
 	// Raster images report their natural size once loaded; that is the pixel space
 	// QTI coords are authored in when the item declares no width/height.
@@ -148,7 +168,8 @@
 		);
 	}
 
-	const selectedRegionName = $derived(parsedResponse ? regionNameById(parsedResponse) : '');
+	// The visible summary names every selected region (never its identifier).
+	const selectedRegionNames = $derived(selectedIds.map((id) => regionNameById(id)).filter(Boolean));
 	// Scorer view: correct regions by name; an id that matches no region is dropped, never shown raw.
 	const correctRegionNames = $derived(correctIds.map((id) => regionNameById(id)).filter(Boolean));
 
@@ -156,7 +177,7 @@
 	// response validation enforces; the author's message wins. Each region is described by it,
 	// so it is heard on the region that has focus. Only while the candidate can still answer.
 	const minHintId = `${uid}-min-hint`;
-	const selectionCount = $derived(Array.isArray(parsedResponse) ? parsedResponse.length : parsedResponse ? 1 : 0);
+	const selectionCount = $derived(selectedIds.length);
 	const minHint = $derived(
 		minimumHint({
 			i18n,
@@ -171,8 +192,39 @@
 	// Single cardinality (maxChoices=1) is a radio group, as single-select hottext and
 	// choiceInteraction's radios: one checked region, which another one replaces and which
 	// activating it again never unchecks; "Clear answer" retracts it. Any other maxChoices
-	// keeps aria-pressed toggle buttons, each its own Tab stop.
+	// (QTI 3.0 §5.68.2: above 1, or 0 for no restriction, binds a multiple-cardinality
+	// response) keeps aria-pressed toggle buttons, each its own Tab stop: the response is the
+	// list of selected regions.
 	const isSingle = $derived(parsedInteraction?.maxChoices === 1);
+
+	// Selection limit (maxChoices; 0 is no restriction). Multiple selection refuses a selection
+	// past it. The message is the author's data-max-selections-message ("rendered upon violation
+	// of the max-choices constraint", QTI 3.0 §5.68.4), else the localized default choice and
+	// hottext show. It is stated at the cap, by the same rule as theirs: an authored message for
+	// any cardinality, the default only where a selection can be refused. A refusal announces it.
+	const maxChoices = $derived(parsedInteraction?.maxChoices ?? 0);
+	const atLimit = $derived(!isSingle && maxChoices > 0 && selectedIds.length >= maxChoices);
+	const maxMessage = $derived(
+		parsedInteraction?.maxSelectionsMessage ||
+			translate(i18n, 'interactions.hotspot.maxChoicesReached', 'You can select up to {max}. Deselect one to choose another.', {
+				max: maxChoices,
+			})
+	);
+	const showMaxMessage = $derived(
+		maxChoices > 0 && selectedIds.length >= maxChoices && (!!parsedInteraction?.maxSelectionsMessage || maxChoices > 1)
+	);
+
+	// Polite status messages (a refused selection) for the always-rendered live region.
+	let statusAnnouncement = $state('');
+
+	/**
+	 * Put `message` in the live region. Announcing the same message again would leave the text
+	 * unchanged, which assistive technology does not announce, so a repeat toggles a trailing
+	 * zero-width space (silent to screen readers) to make it a change.
+	 */
+	function announce(message: string) {
+		statusAnnouncement = statusAnnouncement === message ? `${message}\u200b` : message;
+	}
 
 	// The radio group is named by the prompt, else by a generic localized label.
 	const promptId = `${uid}-prompt`;
@@ -187,7 +239,7 @@
 	// else the first — and the arrow keys move within it.
 	const tabStopIdentifier = $derived(
 		isSingle
-			? (choices.find((choice) => choice.identifier === parsedResponse)?.identifier ?? choices[0]?.identifier)
+			? (choices.find((choice) => isSelected(choice.identifier))?.identifier ?? choices[0]?.identifier)
 			: undefined
 	);
 
@@ -198,16 +250,36 @@
 		return overlayElement ? Array.from(overlayElement.querySelectorAll<SVGElement>('.qti-hotspot-shape')) : [];
 	}
 
-	/**
-	 * Select a region: click or tap, Enter or Space, or an arrow key in the radio group.
-	 * In the radio group, activating the checked region again keeps it and emits nothing.
-	 */
-	function select(identifier: string) {
-		if (disabled) return;
-		if (isSingle && parsedResponse === identifier) return;
-		response = identifier;
+	/** Record the response and emit it. */
+	function commit(value: string | string[] | null) {
+		response = value;
 		// Call onChange callback if provided (for Svelte component usage)
-		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: identifier, onChange });
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value, onChange });
+	}
+
+	/**
+	 * Activate a region: click or tap, Enter or Space, or an arrow key in the radio group.
+	 * Single selection checks it; activating the checked region again keeps it and emits
+	 * nothing. Multiple selection toggles it: a selected region is deselected, an unselected
+	 * one is added unless the selection is at maxChoices, where the refusal is announced.
+	 */
+	function activate(identifier: string) {
+		if (disabled || !parsedInteraction) return;
+		if (isSingle) {
+			if (isSelected(identifier)) return;
+			commit(identifier);
+			return;
+		}
+		if (isSelected(identifier)) {
+			commit(selectedIds.filter((id) => id !== identifier));
+			return;
+		}
+		if (atLimit) {
+			// Refused at the cap: nothing changes, so nothing is emitted
+			announce(maxMessage);
+			return;
+		}
+		commit([...selectedIds, identifier]);
 	}
 
 	/**
@@ -222,7 +294,7 @@
 		if (!choice) return;
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();
-			select(choice.identifier);
+			activate(choice.identifier);
 			return;
 		}
 		if (!isSingle) return;
@@ -236,24 +308,24 @@
 		const next = choices[nextIndex];
 		if (!next) return;
 		regions[nextIndex]?.focus();
-		select(next.identifier);
+		activate(next.identifier);
 	}
 
-	// Clear answer: the visible way to retract the radio group's answer, with the same name and
-	// rule as choiceInteraction's control (WCAG 3.2.4): offered only while there is an answer
-	// to retract and the interaction is enabled.
-	const canClearAnswer = $derived(isSingle && !!parsedResponse && !disabled);
+	// Clear answer: the visible way to retract the whole answer, with the same name and rule as
+	// choiceInteraction's control (WCAG 3.2.4): offered only while there is an answer to retract
+	// and the interaction is enabled.
+	const canClearAnswer = $derived(selectedIds.length > 0 && !disabled);
 
 	/**
-	 * Retract the answer. The control removes itself with the answer, which would drop keyboard
-	 * focus to the document; focus moves to the first region instead — the radio group's Tab
-	 * stop once nothing is checked — as choiceInteraction focuses its first radio.
+	 * Retract the answer: null in single selection — the clear signal the player listens for —
+	 * and the empty list in multiple selection, as hottext does. The control removes itself with
+	 * the answer, which would drop keyboard focus to the document; focus moves to the first
+	 * region instead — the radio group's Tab stop once nothing is checked — as
+	 * choiceInteraction focuses its first radio.
 	 */
 	async function clearAnswer() {
 		if (disabled || !parsedInteraction) return;
-		response = null;
-		// A null value is the clear signal the player listens for.
-		emitInteractionChange({ target: rootElement, responseId: parsedInteraction.responseId, value: null, onChange });
+		commit(isSingle ? null : []);
 		await tick();
 		regionElements()[0]?.focus();
 	}
@@ -263,6 +335,9 @@
 
 <div bind:this={rootElement} {...interactionAria(parsedInteraction)} class={['qti-hotspot-interaction space-y-3', ...(parsedInteraction?.interactionClasses ?? [])].join(' ')}>
 	<InteractionDescription interaction={parsedInteraction} />
+	<!-- Polite announcements (a refused selection). Always rendered, before any conditional
+	     content, so the region exists before its text changes. -->
+	<div aria-live="polite" aria-atomic="true" class="qti-hotspot-live-region">{statusAnnouncement}</div>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -336,7 +411,7 @@
 					{...radioGroupAria}
 				>
 					{#each choices as choice, index}
-						{@const isSelected = parsedResponse === choice.identifier}
+						{@const regionSelected = isSelected(choice.identifier)}
 						{@const isCorrectChoice = isCorrect(choice.identifier)}
 						{@const center = shapeCenter(choice.shape, choice.coords)}
 						<!-- One region: light halo + dark outline (visible on any image), a check
@@ -344,12 +419,12 @@
 						     interactive target on top, grown to 24×24 CSS px when small. -->
 						<g
 							class="qti-hotspot-region"
-							data-selected={isSelected ? '' : undefined}
+							data-selected={regionSelected ? '' : undefined}
 							data-correct={isCorrectChoice ? '' : undefined}
 						>
 							<HotspotShape shape={choice.shape} coords={choice.coords} interactive={false} presentation={{ class: 'qti-hotspot-halo' }} />
 							<HotspotShape shape={choice.shape} coords={choice.coords} interactive={false} presentation={{ class: 'qti-hotspot-outline' }} />
-							{#if isSelected || isCorrectChoice}
+							{#if regionSelected || isCorrectChoice}
 								<g
 									class="qti-hotspot-marker"
 									aria-hidden="true"
@@ -365,18 +440,18 @@
 								label={regionAriaLabel(regionName(choice, index), isCorrectChoice)}
 								{disabled}
 								role={isSingle ? 'radio' : 'button'}
-								pressed={isSelected}
-								checked={isSelected}
+								pressed={regionSelected}
+								checked={regionSelected}
 								tabStop={!isSingle || choice.identifier === tabStopIdentifier}
 								presentation={{
 									class: 'qti-hotspot-shape',
 									style: `--qti-hit-stroke: ${hitStrokeWidth(choice.shape, choice.coords, renderScale)}px;`,
-									'data-selected': isSelected ? '' : undefined,
+									'data-selected': regionSelected ? '' : undefined,
 									'aria-describedby': minHint ? minHintId : undefined,
 									// A disabled region says so, as a disabled native control does
 									'aria-disabled': disabled ? 'true' : undefined,
 								}}
-								onclick={() => select(choice.identifier)}
+								onclick={() => activate(choice.identifier)}
 								onkeydown={(event) => handleKeyDown(event, index)}
 							/>
 						</g>
@@ -386,10 +461,10 @@
 			</div>
 		</div>
 
-		{#if selectedRegionName || correctRegionNames.length > 0}
+		{#if selectedRegionNames.length > 0 || correctRegionNames.length > 0}
 			<div part="selected" class="alert alert-info">
-				{#if selectedRegionName}
-					<span>{translate(i18n, 'interactions.hotspot.selectedRegion', 'Selected: {region}', { region: selectedRegionName })}</span>
+				{#if selectedRegionNames.length > 0}
+					<span>{translate(i18n, 'interactions.hotspot.selectedRegion', 'Selected: {region}', { region: formatList(i18n, selectedRegionNames) })}</span>
 				{/if}
 				{#if correctRegionNames.length > 0}
 					<span class="qti-hotspot-correct-list">{translate(i18n, 'interactions.hotspot.correctList', 'Correct: {ids}', { ids: formatList(i18n, correctRegionNames) })}</span>
@@ -402,12 +477,9 @@
 				{translate(i18n, 'interactions.choice.clearAnswer', 'Clear answer')}
 			</button>
 		{/if}
-		<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(parsedResponse ?? null)} />
-		{#if parsedInteraction.maxSelectionsMessage}
-			{@const selected = Array.isArray(parsedResponse) ? parsedResponse : (parsedResponse ? [parsedResponse] : [])}
-			{#if selected.length >= parsedInteraction.maxChoices && parsedInteraction.maxChoices > 0}
-				<p class="qti-selection-message" role="alert">{parsedInteraction.maxSelectionsMessage}</p>
-			{/if}
+		<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(selectedIds)} />
+		{#if showMaxMessage}
+			<p class="qti-selection-message" role="alert">{maxMessage}</p>
 		{/if}
 	{/if}
 </div>
@@ -600,7 +672,8 @@
 		/* halos, focus rings and grown hit areas may extend past the image edge */
 		overflow: visible;
 	}
-	.qti-hotspot-sr-only {
+	.qti-hotspot-sr-only,
+	.qti-hotspot-live-region {
 		position: absolute;
 		width: 1px;
 		height: 1px;

@@ -239,6 +239,7 @@ export default {
 			imageLoadError: '无法加载图像。',
 			regionOfTotal: '第 {index} 个区域，共 {total} 个',
 			selectedRegion: '已选择：{region}',
+			maxChoicesReached: '最多可选择 {max} 项。请先取消一项选择,再选择其他项。',
 			minChoicesHint: {
 				one: '请至少选择 {count} 个区域。',
 				other: '请至少选择 {count} 个区域。',

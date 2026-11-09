@@ -232,6 +232,7 @@ export default {
 			imageLoadError: 'Imaginea nu a putut fi încărcată.',
 			regionOfTotal: 'Regiunea {index} din {total}',
 			selectedRegion: 'Selectat: {region}',
+			maxChoicesReached: 'Poți selecta cel mult {max}. Deselectează una pentru a alege alta.',
 			minChoicesHint: {
 				one: 'Selectează cel puțin o regiune.',
 				few: 'Selectează cel puțin {count} regiuni.',

@@ -229,6 +229,7 @@ export default {
 			imageLoadError: 'ไม่สามารถโหลดรูปภาพได้',
 			regionOfTotal: 'พื้นที่ {index} จาก {total}',
 			selectedRegion: 'เลือกแล้ว: {region}',
+			maxChoicesReached: 'คุณเลือกได้สูงสุด {max} รายการ ให้ยกเลิกการเลือกหนึ่งรายการเพื่อเลือกรายการอื่น',
 			minChoicesHint: {
 				one: 'เลือกพื้นที่อย่างน้อย {count} พื้นที่',
 				other: 'เลือกพื้นที่อย่างน้อย {count} พื้นที่',

@@ -239,6 +239,7 @@ export default {
 			imageLoadError: 'The image could not be loaded.',
 			regionOfTotal: 'Region {index} of {total}',
 			selectedRegion: 'Selected: {region}',
+			maxChoicesReached: 'You can select up to {max}. Deselect one to choose another.',
 			minChoicesHint: {
 				one: 'Select at least {count} region.',
 				other: 'Select at least {count} regions.',

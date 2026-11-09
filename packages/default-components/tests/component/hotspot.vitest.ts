@@ -639,6 +639,242 @@ describe('HotspotInteraction multiple selection keeps its toggle buttons', () =>
 	}
 });
 
+/**
+ * Multiple selection (QTI 3.0 §5.68.2: maxChoices above 1, or 0 for no restriction, binds a
+ * multiple-cardinality response): the response is the set of selected regions' identifiers,
+ * each region an aria-pressed toggle button.
+ */
+describe('HotspotInteraction multiple selection answers with the set of selected regions', () => {
+	const LIMIT_MESSAGE = 'You can select up to 2. Deselect one to choose another.';
+
+	/** The polite status region's text, without the zero-width space that re-announces a repeat. */
+	function announced(mounted: MountedInteraction): string {
+		return (q(mounted, '.qti-hotspot-live-region')?.textContent ?? '').replace(/\u200b/g, '');
+	}
+
+	function pressedStates(mounted: MountedInteraction): Array<string | null> {
+		return regions(mounted).map((region) => region.getAttribute('aria-pressed'));
+	}
+
+	test('click/tap, Enter and Space toggle a region; the response is the array of selected identifiers', async () => {
+		const mounted = mountInteraction(HotspotInteraction, {
+			interaction: hotspotData({ hotspotChoices: THREE_REGIONS, maxChoices: 3 }),
+		});
+		await settle();
+
+		const [sun, house, tree] = regions(mounted);
+		tap(sun!);
+		await settle();
+		pressKey(tree!, 'Enter');
+		await settle();
+		pressKey(house!, ' ');
+		await settle();
+		expect(mounted.instance.response).toEqual(['H1', 'H3', 'H2']);
+		expect(pressedStates(mounted)).toEqual(['true', 'true', 'true']);
+
+		// Activating a selected region again deselects it, by any gesture.
+		tap(sun!);
+		await settle();
+		pressKey(tree!, ' ');
+		await settle();
+		expect(mounted.instance.response).toEqual(['H2']);
+		expect(pressedStates(mounted)).toEqual(['false', 'true', 'false']);
+		expect(mounted.events.map((event) => event.detail.value)).toEqual([
+			['H1'],
+			['H1', 'H3'],
+			['H1', 'H3', 'H2'],
+			['H3', 'H2'],
+			['H2'],
+		]);
+		expect(mounted.events.every((event) => event.detail.responseId === 'RESPONSE')).toBe(true);
+	});
+
+	test('every selected region shows its marker and is named in the summary, never by identifier', async () => {
+		const mounted = mountInteraction(HotspotInteraction, {
+			interaction: hotspotData({ hotspotChoices: THREE_REGIONS, maxChoices: 0 }),
+		});
+		await settle();
+
+		tap(regions(mounted)[0]!);
+		await settle();
+		tap(regions(mounted)[2]!);
+		await settle();
+
+		const marked = qa(mounted, '.qti-hotspot-region').map(
+			(region) => region.hasAttribute('data-selected') && !!region.querySelector('.qti-hotspot-marker'),
+		);
+		expect(marked).toEqual([true, false, true]);
+		const summary = q(mounted, '[part="selected"]')!.textContent ?? '';
+		expect(summary).toContain('Selected: The sun and A tree');
+		expect(summary).not.toContain('H1');
+	});
+
+	test('at maxChoices a further selection is refused: nothing changes and the limit is announced', async () => {
+		const mounted = mountInteraction(HotspotInteraction, {
+			interaction: hotspotData({ hotspotChoices: THREE_REGIONS, maxChoices: 2 }),
+		});
+		await settle();
+
+		const live = q(mounted, '.qti-hotspot-live-region');
+		// Always rendered, so it exists before its text changes.
+		expect(live?.getAttribute('aria-live')).toBe('polite');
+		expect(announced(mounted)).toBe('');
+
+		const [sun, house, tree] = regions(mounted);
+		tap(sun!);
+		await settle();
+		tap(house!);
+		await settle();
+		// At the cap the limit is stated, with the same localized default as choice and hottext.
+		expect(q(mounted, '.qti-selection-message')?.textContent).toBe(LIMIT_MESSAGE);
+
+		tap(tree!);
+		await settle();
+		expect(mounted.instance.response).toEqual(['H1', 'H2']);
+		expect(tree!.getAttribute('aria-pressed')).toBe('false');
+		expect(qa(mounted, '.qti-hotspot-region')[2]!.hasAttribute('data-selected')).toBe(false);
+		expect(mounted.events).toHaveLength(2);
+		expect(announced(mounted)).toBe(LIMIT_MESSAGE);
+
+		// The same refusal by keyboard is announced again: the region's text changes.
+		const before = q(mounted, '.qti-hotspot-live-region')?.textContent;
+		pressKey(tree!, 'Enter');
+		await settle();
+		expect(q(mounted, '.qti-hotspot-live-region')?.textContent).not.toBe(before);
+		expect(announced(mounted)).toBe(LIMIT_MESSAGE);
+		expect(mounted.events).toHaveLength(2);
+
+		// Deselecting one frees a place.
+		tap(sun!);
+		await settle();
+		tap(tree!);
+		await settle();
+		expect(mounted.instance.response).toEqual(['H2', 'H3']);
+	});
+
+	test("the author's data-max-selections-message is the limit message stated and announced", async () => {
+		const mounted = mountInteraction(HotspotInteraction, {
+			interaction: hotspotData({
+				hotspotChoices: THREE_REGIONS,
+				maxChoices: 2,
+				maxSelectionsMessage: 'Pick no more than two places.',
+			}),
+			response: ['H1', 'H2'],
+		});
+		await settle();
+
+		expect(q(mounted, '.qti-selection-message')?.textContent).toBe('Pick no more than two places.');
+		tap(regions(mounted)[2]!);
+		await settle();
+		expect(announced(mounted)).toBe('Pick no more than two places.');
+		expect(mounted.events).toHaveLength(0);
+	});
+
+	test('maxChoices=0 is unlimited: every region can be selected and no limit is stated or announced', async () => {
+		const mounted = mountInteraction(HotspotInteraction, {
+			interaction: hotspotData({ hotspotChoices: THREE_REGIONS, maxChoices: 0 }),
+		});
+		await settle();
+
+		for (const region of regions(mounted)) {
+			tap(region);
+			await settle();
+		}
+		expect(mounted.instance.response).toEqual(['H1', 'H2', 'H3']);
+		expect(pressedStates(mounted)).toEqual(['true', 'true', 'true']);
+		expect(q(mounted, '.qti-selection-message')).toBeNull();
+		expect(announced(mounted)).toBe('');
+	});
+
+	test('a restored array response selects its regions without emitting, also as a JSON attribute', async () => {
+		for (const response of [['H1', 'H3'], '["H1","H3"]']) {
+			const mounted = mountInteraction(HotspotInteraction, {
+				interaction: hotspotData({ hotspotChoices: THREE_REGIONS, maxChoices: 2 }),
+				response,
+			});
+			await settle();
+
+			expect(pressedStates(mounted)).toEqual(['true', 'false', 'true']);
+			expect(qa(mounted, '.qti-hotspot-region').map((region) => region.hasAttribute('data-selected'))).toEqual([
+				true,
+				false,
+				true,
+			]);
+			expect(mounted.events).toHaveLength(0);
+
+			// The restored selection counts toward the limit and toggles like a fresh one.
+			tap(regions(mounted)[1]!);
+			await settle();
+			expect(mounted.events).toHaveLength(0);
+			tap(regions(mounted)[0]!);
+			await settle();
+			expect(mounted.instance.response).toEqual(['H3']);
+			cleanupInteraction(mounted);
+		}
+	});
+
+	test('the minimum hint counts every selected region', async () => {
+		const mounted = mountInteraction(HotspotInteraction, {
+			interaction: hotspotData({ hotspotChoices: THREE_REGIONS, maxChoices: 0, minChoices: 2 }),
+		});
+		await settle();
+
+		const hint = () => q(mounted, '[part="min-hint"]')?.textContent?.trim() ?? '';
+		expect(hint()).toBe('Select at least 2 regions.');
+		tap(regions(mounted)[0]!);
+		await settle();
+		expect(hint()).toBe('Select at least 2 regions.');
+		tap(regions(mounted)[2]!);
+		await settle();
+		expect(hint()).toBe('');
+	});
+
+	test('clear answer: offered only with a selection, clears every region, emits [] and returns focus to the first region', async () => {
+		const mounted = mountInteraction(HotspotInteraction, {
+			interaction: hotspotData({ hotspotChoices: THREE_REGIONS, maxChoices: 0 }),
+		});
+		await settle();
+		expect(q(mounted, 'button[part="clear"]')).toBeNull();
+
+		tap(regions(mounted)[1]!);
+		await settle();
+		tap(regions(mounted)[2]!);
+		await settle();
+
+		// The same name as choiceInteraction's control with the same function (WCAG 3.2.4).
+		const clear = q<HTMLButtonElement>(mounted, 'button[part="clear"]');
+		expect(clear?.textContent?.trim()).toBe('Clear answer');
+		clear!.focus();
+		clear!.click();
+		await settle();
+
+		expect(mounted.instance.response).toEqual([]);
+		expect(mounted.events.at(-1)?.detail).toMatchObject({ responseId: 'RESPONSE', value: [] });
+		expect(pressedStates(mounted)).toEqual(['false', 'false', 'false']);
+		expect(q(mounted, '[part="selected"]')).toBeNull();
+		expect(q(mounted, 'button[part="clear"]')).toBeNull();
+		expect(document.activeElement).toBe(regions(mounted)[0]);
+	});
+
+	test('a single selection restored as a one-element array (multiple cardinality) checks its region', async () => {
+		const mounted = mountInteraction(HotspotInteraction, {
+			interaction: hotspotData({ hotspotChoices: THREE_REGIONS, maxChoices: 1 }),
+			response: ['H2'],
+		});
+		await settle();
+
+		expect(regions(mounted).map((region) => region.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false']);
+		expect(tabStops(mounted)).toEqual(['-1', '0', '-1']);
+		// Activating the checked region keeps it; another one replaces it.
+		tap(regions(mounted)[1]!);
+		await settle();
+		expect(mounted.events).toHaveLength(0);
+		tap(regions(mounted)[2]!);
+		await settle();
+		expect(mounted.instance.response).toBe('H3');
+	});
+});
+
 describe('HotspotInteraction clear control names the same function as choiceInteraction', () => {
 	let nl: DefaultI18nProvider;
 
