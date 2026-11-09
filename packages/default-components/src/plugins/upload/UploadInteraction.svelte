@@ -7,14 +7,14 @@
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import FileUpload from '../../shared/components/FileUpload.svelte';
-		import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+		import { parseJsonProp, responseProp } from '../../shared/utils/webComponentHelpers';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	interface Props {
 		interaction?: UploadInteractionData | string;
-		response?: QTIFileResponse | string | null;
+		response?: QTIFileResponse | null;
 		disabled?: boolean;
 		/** Maximum accepted upload size in bytes; use Infinity to disable the cap */
 		maxFileSizeBytes?: number;
@@ -25,9 +25,9 @@
 
 	let { interaction = $bindable(), response = $bindable(), disabled = false, maxFileSizeBytes, i18n = $bindable(), typeset, onChange }: Props = $props();
 
-	// Parse props that may be JSON strings (web component usage)
+	// Parse props that may be JSON strings (web component usage); the response is a value
 	const parsedInteraction = $derived(parseJsonProp<UploadInteractionData>(interaction));
-	const parsedResponse = $derived(parseJsonProp<QTIFileResponse>(response));
+	const parsedResponse = $derived(responseProp(response));
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();

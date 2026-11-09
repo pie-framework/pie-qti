@@ -3,8 +3,13 @@
  */
 
 /**
- * Parse a prop that may be a JSON string or an object
- * Used when components are used as web components and receive JSON strings
+ * Parse a prop whose value is always an object (interaction data, a PNP profile): the object
+ * itself, or its JSON text, which is how an HTML attribute carries it
+ * (`<pie-qti-choice interaction='{"responseId":"R1",…}'>`). The string "null" stands for no
+ * value; text that is not JSON is returned as given.
+ *
+ * Never use it for a response: a string response is a value, and reading it as JSON would turn
+ * the answer "1.50" into 1.5 or "null" into no answer. Responses go through `responseProp`.
  */
 export function parseJsonProp<T>(prop: T | string | null | undefined): T | undefined {
 	if (prop === null || prop === undefined) return undefined;
@@ -26,10 +31,23 @@ export function parseJsonProp<T>(prop: T | string | null | undefined): T | undef
 	return prop as T;
 }
 
+/**
+ * A response-like prop (`response`, `correctResponse`) as the host set it. Hosts set responses as
+ * JavaScript properties, and a response is never JSON text: a string is the candidate's text or a
+ * choice identifier and stays exactly that ("1.50", "1e5", "true", "null", "[1]"). `null` means no
+ * response.
+ */
+export function responseProp<T>(prop: T | null | undefined): T | undefined {
+	return prop ?? undefined;
+}
+
 export interface InteractionShellProps<TInteraction, TResponse, TCorrectResponse = TResponse> {
+	/** The interaction data, or its JSON text (an HTML attribute). */
 	interaction?: TInteraction | string;
-	response?: TResponse | string | null;
-	correctResponse?: TCorrectResponse | string | null;
+	/** The response itself, never JSON text. */
+	response?: TResponse | null;
+	/** The correct response itself, never JSON text. */
+	correctResponse?: TCorrectResponse | null;
 	role?: string;
 }
 
@@ -56,8 +74,8 @@ export function createInteractionShell<
 	TCorrectResponse
 > {
 	const parsedInteraction = parseJsonProp<TInteraction>(interaction);
-	const parsedResponse = parseJsonProp<TResponse>(response);
-	const parsedCorrectResponse = parseJsonProp<TCorrectResponse>(correctResponse);
+	const parsedResponse = responseProp(response);
+	const parsedCorrectResponse = responseProp(correctResponse);
 
 	return {
 		interaction: parsedInteraction,
