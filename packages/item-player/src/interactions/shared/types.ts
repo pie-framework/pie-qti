@@ -112,6 +112,11 @@ export interface InlineChoiceInteractionData extends BaseInteractionData<'inline
 	dataPrompt?: string | null;
 	/** The authored `title`, an accessible name when no aria label is authored */
 	title?: string;
+	/**
+	 * Choices a valid response selects: QTI 3.0 `min-choices` (§5.74.3), or 1 when the
+	 * interaction is `required` (QTI 2.1; QTI 3.0 §5.74.2). Omitted when no choice is required.
+	 */
+	minChoices?: number;
 	choices: Array<{ identifier: string; text: string; fixed?: boolean }>;
 	/** CSS classes from the inlineChoiceInteraction element (e.g. qti-input-width-N) */
 	interactionClasses?: string[];

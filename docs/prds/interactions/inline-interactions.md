@@ -88,13 +88,13 @@ QTI defines `patternMask` as "a regular expression that the candidate's response
 | `expectedLength` | ✅ Full | Extracted as `number` (default `20`); drives input width as `expectedLength * 8` px, min 100 px |
 | `patternMask` | ✅ Full | Wired to `<input pattern>` (translated from XSD) with an accessible error message; enforced by response validation for `string` responses (G-04) |
 | `placeholderText` | ✅ Full | Extracted and rendered as the `placeholder` attribute on the `<input>` |
-| `format` | ❌ Not extracted | QTI 2.2 display-format hint; not in `TextEntryData` (G-03) |
+| `format` | ✅ Extracted | QTI display-format hint. Delivered as `TextEntryInteractionData.format` and exposed as `data-format` on the `<input>`; it changes no other rendering (G-03) |
 | `base` | ✅ Full | Extracted when it is 2–36 and not 10; the player reads typed text for an `integer` or `float` response in that base (`101` in base 2 is 5) |
 | `stringIdentifier` | ✅ Full | Extracted as `stringIdentifier`. Every change also sets the string response it names to the text as entered, before the numeric response reads it (`3.50` where a float response is 3.5, `101` where a base-2 integer response is 5), or NULL when the field is empty; a restored session shows that text in the field. Ignored when it repeats `responseIdentifier` or names no declared response |
 
 #### Known gaps
 
-- **G-03** — `format` attribute not extracted. The extractor does not read `format`. When resolved: add `format?: string` to `TextEntryData`; expose it as a `data-format` attribute on the rendered `<input>`; optionally map known values (`plain`, `preFormatted`) to CSS classes.
+None against the specification. G-03 (`format`) and G-04 (`patternMask`) are resolved: see the attribute table.
 
 ---
 
@@ -108,7 +108,7 @@ QTI defines `patternMask` as "a regular expression that the candidate's response
 |-----------|---------|-----------|
 | `responseIdentifier` | ✅ Full | Extracted as `responseId` |
 | `shuffle` | ✅ Full | Shuffles `choices` at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads |
-| `required` | ❌ Not extracted | Spec says: if `true`, candidate must select an option before submission is valid. Not in `InlineChoiceInteractionData`. Unimplemented gap. |
+| `required` | ✅ Full | When `true`, "a choice must be selected by the candidate in order to form a valid response" (QTI 2.1; QTI 3.0 §5.74.2). Delivered as `minChoices: 1`, so response validation reports an unanswered dropdown incomplete. QTI 3.0 `min-choices` (§5.74.3) is read into the same field |
 
 #### Supported child elements and their attributes
 
@@ -120,11 +120,11 @@ QTI defines `patternMask` as "a regular expression that the candidate's response
 | `inlineChoice/@fixed` | ✅ Full | Extracted as `choice.fixed`; when `shuffle=true` the choice keeps its authored index. |
 | `inlineChoice/@templateIdentifier` | ✅ Full | A choice whose template variable hides it is dropped before extraction, by the shared visibility rule. |
 | `inlineChoice/@showHide` | ✅ Full | Inverts `templateIdentifier` visibility. |
-| `label` (child element, QTI 2.2+) | ❌ Not extracted | Placeholder text shown before selection. Not extracted (G-02). |
+| `label` (child element, QTI 2.2+) | ✅ Full | Its text is the placeholder option shown before selection, the first `<option>` with an empty value (G-02) |
 
 #### Known gaps
 
-- **G-02** — `<label>` child element not extracted. When an `inlineChoiceInteraction` has a `<label>` child, its text should be used as the placeholder option (the disabled first `<option>` the user sees before selecting). Currently the renderer always shows the i18n string `"Select..."`. When resolved: add `label?: string` to `InlineChoiceData`; use it as the disabled placeholder `<option>` text in `ItemBody.svelte`.
+None against the specification. G-02 (`<label>`) is resolved: see the table above.
 
 ---
 
@@ -152,7 +152,7 @@ QTI defines `patternMask` as "a regular expression that the candidate's response
 ### `inlineChoiceInteraction`
 
 - **FR-I1:** The interaction must render as a `<select>` with `display: inline-block` and `vertical-align: baseline`.
-- **FR-I2:** An empty-value `<option>` using the i18n key `interactions.inline.selectPlaceholder` (fallback `"Select..."`) must always be the first option and represent the unselected state.
+- **FR-I2:** An empty-value `<option>` must always be the first option and represent the unselected state. Its text is the authored `<label>`, else `data-prompt`, else the i18n key `interactions.inline.selectPlaceholder` (fallback `"Select..."`). It stays selectable, so the candidate can return to no answer: QTI requires that a blank response can be selected when the interaction is not `required` (QTI 2.1 inlineChoiceInteraction).
 - **FR-I3:** Each `inlineChoice` child must render as an `<option>` with `value={choice.identifier}` and label text `{choice.text}`.
 - **FR-I4:** When `shuffle` is `true`, the non-fixed choices must appear in the shuffled order produced at extraction time.
 - **FR-I5:** The response value stored must be the `identifier` of the selected `inlineChoice`, not the display text.
@@ -409,16 +409,15 @@ AC-E1: patternMask is enforced
   Then: The input is aria-invalid and an error message linked by aria-describedby is shown
   And: Player.validateResponses() reports a string response "abc" invalid
 
-AC-E2: label child not extracted (documents current behaviour)
+AC-E2: label child is the placeholder
   Given: An item with inlineChoiceInteraction containing <label>Choose a country</label>
   When: The item is rendered
-  Then: The placeholder option text shows "Select..." (the i18n default), not "Choose a country" (current behaviour — G-02 not yet resolved)
-  Notes: Once G-02 is resolved, this AC must be updated to expect "Choose a country".
+  Then: The placeholder option text shows "Choose a country"
 
-AC-E3: required attribute not enforced (documents current behaviour)
-  Given: An item with inlineChoiceInteraction required="true"
-  When: The candidate submits without making a selection
-  Then: The submission is not blocked by the player (current behaviour — required is not extracted)
+AC-E3: required is enforced by response validation
+  Given: An item with inlineChoiceInteraction required="true" (or QTI 3.0 min-choices="1")
+  When: The response is validated without a selection
+  Then: The response is incomplete and canSubmit is false
 
 AC-E4: Single-character expectedLength uses minimum width
   Given: An item with textEntryInteraction expectedLength="1"
@@ -450,7 +449,7 @@ AC-E8: Interaction markup without interaction data
 
 ## Open questions
 
-- [ ] **G-03 priority**: The `format` attribute is a display hint. For numeric formats specifically, should the input switch to `type="number"` or remain `type="text"`? Using `type="number"` has known accessibility issues (screen reader announces "spin button"; step arrows clutter the input; leading zeros are stripped). Decision needed before closing G-03. (Numeric responses get a numeric on-screen keyboard through `inputmode`, but only when the authored `patternMask` proves the answer cannot be negative — FR-T6 — since phone number pads have no minus key.)
+- [ ] **G-03 priority**: The `format` attribute is a display hint. For numeric formats specifically, should the input switch to `type="number"` or remain `type="text"`? Using `type="number"` has known accessibility issues (screen reader announces "spin button"; step arrows clutter the input; leading zeros are stripped). G-03 itself is closed (`format` is delivered as `data-format`); this decision applies only if a format value is ever mapped to an input type. (Numeric responses get a numeric on-screen keyboard through `inputmode`, but only when the authored `patternMask` proves the answer cannot be negative — FR-T6 — since phone number pads have no minus key.)
 - [ ] **Performance with large cloze passages**: No measurement of slot placement at 20+ inline interactions. If items with dense cloze (20+ blanks) are in the target content set, this should be benchmarked.
 
 ---
