@@ -486,7 +486,7 @@ describe('transformQtiPackageToPie', () => {
           <imsmd:classification>
             <imsmd:purpose><imsmd:source>LOMv1.0</imsmd:source><imsmd:value>discipline</imsmd:value></imsmd:purpose>
             <imsmd:taxonPath>
-              <imsmd:source><imsmd:string language="x-none">pie:searchMetaData:subject</imsmd:string></imsmd:source>
+              <imsmd:source><imsmd:string language="x-none">pie:extension:subject</imsmd:string></imsmd:source>
               <imsmd:taxon><imsmd:entry><imsmd:string language="x-none">Math</imsmd:string></imsmd:entry></imsmd:taxon>
             </imsmd:taxonPath>
           </imsmd:classification>

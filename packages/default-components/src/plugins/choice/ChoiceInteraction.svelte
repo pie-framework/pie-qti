@@ -30,12 +30,6 @@
 		eliminationTool?: boolean;
 		/** AfA `answer-masking`: each choice stays masked behind a reveal button until the candidate reveals it. */
 		answerMasking?: boolean;
-		/**
-		 * G-13 structured labels. The group is now always associated with the prompt via
-		 * `aria-labelledby` (generic localized name only when there is no prompt), so this
-		 * prop is kept for API compatibility and no longer changes behaviour.
-		 */
-		structuredLabelSupport?: boolean;
 	}
 
 	let {
@@ -50,8 +44,7 @@
 		outcomeValues = {},
 		heuristicsConfig,
 		eliminationTool = false,
-		answerMasking = false,
-		structuredLabelSupport = false
+		answerMasking = false
 	}: Props = $props();
 
 	// Normalize heuristics configuration with defaults
