@@ -4,9 +4,9 @@
 	import type { Point, SelectPointInteractionData } from '@pie-qti/item-player';
 	import { tick } from 'svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
-	import { normalizePixelDimension } from '@pie-qti/item-player/security';
-	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
+		import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import ImageStage from '../../shared/components/ImageStage.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
@@ -40,15 +40,12 @@
 	const parsedResponse = $derived(shell.response);
 	const parsedCorrectResponse = $derived(shell.correctResponse);
 	const isShowingCorrect = $derived(shell.isShowingCorrect);
-	// Responses are always in the image's natural pixel space, whatever its rendered size.
-	const imageWidth = $derived(
-		Number(normalizePixelDimension(parsedInteraction?.imageData?.width, '500') ?? '500'),
-	);
-	const imageHeight = $derived(
-		Number(normalizePixelDimension(parsedInteraction?.imageData?.height, '300') ?? '300'),
-	);
-	// Reflow (WCAG 1.4.10): the image scales with its container up to its natural size.
-	const canvasStyle = $derived(`max-width: ${imageWidth}px; aspect-ratio: ${imageWidth} / ${imageHeight};`);
+	// The stage's pixel space (shared ImageStage, `fallback-strict` sizing while the
+	// declared→natural→refuse rule lands for this interaction too). Points are emitted in it,
+	// whatever the rendered size.
+	let imageWidth = $state(0);
+	let imageHeight = $state(0);
+	let imageFailed = $state(false);
 
 	const imageData = $derived(parsedInteraction?.imageData ?? null);
 	const imageAlt = $derived(
@@ -58,12 +55,9 @@
 	const imageDescriptionId = $derived(`${uid}-image-description`);
 	const instructionsId = $derived(`${uid}-instructions`);
 	const pointsHeadingId = $derived(`${uid}-points-heading`);
-	let failedSrc = $state<string | null>(null);
-	const imageFailed = $derived(!!imageData?.src && failedSrc === imageData.src);
 
-	function handleImageError() {
-		failedSrc = imageData?.src ?? null;
-		console.warn(`[pie-qti-select-point] The image failed to load: ${imageData?.src ?? ''}`);
+	function warnImageFailed(src: string) {
+		console.warn(`[pie-qti-select-point] The image failed to load: ${src}`);
 	}
 
 	let selectedPoints = $state<Point[]>([]);
@@ -304,36 +298,27 @@
 			</p>
 
 			{#if imageData}
-				<div part="stage" class="qti-sp-canvas" style={canvasStyle}>
-					<!-- The image is ordinary content with its authored text alternative -->
-					{#if imageData.type === 'svg'}
-						<div
-							part="image"
-							class="qti-sp-image"
-							role={imageData.decorative ? undefined : 'img'}
-							aria-hidden={imageData.decorative ? 'true' : undefined}
-							aria-label={imageData.decorative ? undefined : imageAlt}
-							aria-describedby={imageDescription ? imageDescriptionId : undefined}
-						>
-							{@html imageData.content}
-						</div>
-					{:else if imageFailed}
-						<div part="image-error" class="qti-sp-image qti-sp-image-error">
-							<p>{translate(i18n, 'interactions.selectPoint.imageLoadError', 'The image could not be loaded.')}</p>
-							{#if imageData.alt && !imageData.decorative}
-								<p>{imageData.alt}</p>
-							{/if}
-						</div>
-					{:else if imageData.src}
-						<img
-							part="image"
-							src={imageData.src}
-							alt={imageAlt}
-							aria-describedby={imageDescription ? imageDescriptionId : undefined}
-							class="qti-sp-image"
-							onerror={handleImageError}
-						/>
-					{/if}
+				<ImageStage
+					{imageData}
+					alt={imageAlt}
+					description={imageDescription}
+					descriptionId={imageDescriptionId}
+					containerClass="qti-sp-canvas"
+					containerPart="stage"
+					svgContentClass="qti-sp-image"
+					imgClass="qti-sp-image"
+					errorClass="qti-sp-image qti-sp-image-error"
+					mediaPart="image"
+					errorPart="image-error"
+					loadErrorText={translate(i18n, 'interactions.selectPoint.imageLoadError', 'The image could not be loaded.')}
+					onImageError={warnImageFailed}
+					sizing="fallback-strict"
+					fallbackWidth={500}
+					fallbackHeight={300}
+					bind:width={imageWidth}
+					bind:height={imageHeight}
+					bind:failed={imageFailed}
+				>
 
 					<!-- Markers mirror the accessible point list below; decorative here -->
 					<div class="qti-sp-markers" aria-hidden="true">
@@ -401,7 +386,7 @@
 							<span class="crosshair-dot" style="left: {crosshairX * 100}%; top: {crosshairY * 100}%;"></span>
 						{/if}
 					</div>
-				</div>
+				</ImageStage>
 				{#if imageDescription}
 					<p id={imageDescriptionId} class="qti-sp-sr-only">{imageDescription}</p>
 				{/if}
@@ -528,39 +513,6 @@
 	}
 
 	/* The canvas scales with its container up to the image's natural size (WCAG 1.4.10). */
-	.qti-sp-canvas {
-		position: relative;
-		width: 100%;
-		box-sizing: border-box;
-		outline: 2px solid color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 20%, transparent);
-		border-radius: 8px;
-	}
-
-	.qti-sp-image {
-		display: block;
-		width: 100%;
-		height: 100%;
-		object-fit: contain;
-	}
-	.qti-sp-image :global(svg) {
-		display: block;
-		width: 100%;
-		height: 100%;
-	}
-	.qti-sp-image-error {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 0.25rem;
-		padding: 1rem;
-		box-sizing: border-box;
-		text-align: center;
-		color: var(--pie-qti-error-text, #b91c1c);
-	}
-	.qti-sp-image-error p {
-		margin: 0;
-	}
 
 	.qti-sp-markers {
 		position: absolute;

@@ -109,8 +109,11 @@ export function hitStrokeWidth(shape: string, coords: string | undefined, render
 }
 
 /**
- * Map a pointer position (client px) on the rendered image to natural image
- * coordinates, so responses stay in the image's own pixel space at any scale.
+ * Map a pointer or touch position (client px) on the rendered image to natural
+ * image coordinates, so responses stay in the image's own pixel space at any
+ * scale. The point is clamped to the image. It is rounded to whole image
+ * pixels unless `round: false` — interactions that round (or don't) at their
+ * own emission step pass `round: false` and keep their own rule.
  */
 export function clientToImagePoint(
 	clientX: number,
@@ -118,10 +121,17 @@ export function clientToImagePoint(
 	rect: { left: number; top: number; width: number; height: number },
 	naturalWidth: number,
 	naturalHeight: number,
+	options: { round?: boolean } = {},
 ): Point | null {
 	if (!(rect.width > 0) || !(rect.height > 0)) return null;
 	const x = ((clientX - rect.left) / rect.width) * naturalWidth;
 	const y = ((clientY - rect.top) / rect.height) * naturalHeight;
+	if (options.round === false) {
+		return {
+			x: Math.min(naturalWidth, Math.max(0, x)),
+			y: Math.min(naturalHeight, Math.max(0, y)),
+		};
+	}
 	return {
 		x: Math.min(naturalWidth, Math.max(0, Math.round(x))),
 		y: Math.min(naturalHeight, Math.max(0, Math.round(y))),

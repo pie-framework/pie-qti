@@ -57,11 +57,12 @@
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import { joinSentences, translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import ImageStage from '../../shared/components/ImageStage.svelte';
 	import DragHandle from '../../shared/components/DragHandle.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
-	import { imageAltText } from '../../shared/utils/graphicRegions';
+	import { clientToImagePoint, imageAltText } from '../../shared/utils/graphicRegions';
 
 	interface Position {
 		stageId: string;
@@ -99,12 +100,11 @@
 	const parsedResponse = $derived(shell.response);
 	const parsedCorrectResponse = $derived(shell.correctResponse);
 	const isShowingCorrect = $derived(shell.isShowingCorrect);
-	const imageWidth = $derived(
-		Number(normalizePixelDimension(parsedInteraction?.imageData?.width, '800') ?? '800'),
-	);
-	const imageHeight = $derived(
-		Number(normalizePixelDimension(parsedInteraction?.imageData?.height, '600') ?? '600'),
-	);
+	// The stage's pixel space (shared ImageStage, `fallback-strict` sizing while the
+	// declared→natural→refuse rule lands for this interaction too). Points live in it.
+	let imageWidth = $state(0);
+	let imageHeight = $state(0);
+	let imageFailed = $state(false);
 	// The authored reference point (QTI centerPoint), in object image pixels from
 	// its top-left; null means the QTI default, the object's centre.
 	const centerPoint = $derived(validCenterPoint(parsedInteraction?.centerPoint));
@@ -115,12 +115,8 @@
 	);
 	const imageDescription = $derived(imageData?.decorative ? '' : (imageData?.altDescription ?? ''));
 	const imageDescriptionId = $derived(`${uid}-image-description`);
-	let failedSrc = $state<string | null>(null);
-	const imageFailed = $derived(!!imageData?.src && failedSrc === imageData.src);
-
-	function handleImageError() {
-		failedSrc = imageData?.src ?? null;
-		console.warn(`[pie-qti-position-object] The stage image failed to load: ${imageData?.src ?? ''}`);
+	function warnImageFailed(src: string) {
+		console.warn(`[pie-qti-position-object] The stage image failed to load: ${src}`);
 	}
 
 	function objectDimension(value: unknown): number {
@@ -158,7 +154,7 @@
 	let positions = $state<Position[]>([]);
 	let draggedStageId: string | null = $state(null);
 	let draggedPositionIndex: number | null = $state(null);
-	let imageContainer: HTMLDivElement | null = $state(null);
+	let imageContainer: HTMLElement | null = $state(null);
 
 	// Keyboard accessibility state (K-04)
 	let selectedStageId: string | null = $state(null); // stage currently being keyboard-positioned
@@ -258,16 +254,14 @@
 
 	/**
 	 * Map a pointer position on the rendered (scaled) stage to the stage image's
-	 * natural pixel space, clamped to the image.
+	 * natural pixel space, clamped to the image. Unrounded: the emission step
+	 * rounds (see emitPositions).
 	 */
 	function stagePointFromClient(clientX: number, clientY: number): { x: number; y: number } | null {
 		if (!imageContainer) return null;
-		const rect = imageContainer.getBoundingClientRect();
-		if (!(rect.width > 0) || !(rect.height > 0)) return null;
-		return {
-			x: Math.min(imageWidth, Math.max(0, ((clientX - rect.left) / rect.width) * imageWidth)),
-			y: Math.min(imageHeight, Math.max(0, ((clientY - rect.top) / rect.height) * imageHeight)),
-		};
+		return clientToImagePoint(clientX, clientY, imageContainer.getBoundingClientRect(), imageWidth, imageHeight, {
+			round: false,
+		});
 	}
 
 	/** Place a new instance of `stageId` with its reference point at (x, y). */
@@ -604,57 +598,46 @@
 					     readers pass the arrow keys through); otherwise it is a plain container,
 					     so the stage image is read as ordinary content. Placed objects inside
 					     are groups (with a remove button), not buttons. -->
-					<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-					<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-					<!-- svelte-ignore a11y_no_static_element_interactions -->
-					<!-- svelte-ignore a11y_click_events_have_key_events -->
-					<div
-						bind:this={imageContainer}
-						part="canvas"
-						class="qti-po-canvas {crosshairActive ? 'qti-po-canvas-active' : ''}"
-						class:qti-po-canvas-placing={!!selectedStageId}
-						style="aspect-ratio: {imageWidth} / {imageHeight};"
-						ondrop={handleDrop}
-						ondragover={handleDragOver}
-						onkeydown={handleCanvasKeydown}
-						onclick={handleCanvasClick}
-						role={crosshairActive ? 'application' : undefined}
-						tabindex={crosshairActive ? 0 : -1}
-						aria-label={crosshairActive
-							? translate(i18n, 'interactions.positionObject.canvasActiveLabel', 'Positioning canvas: use the arrow keys to move the crosshair, Enter to place, Escape to cancel')
-							: undefined}
+					<!-- The canvas is the drop target and the keyboard/pointer placement surface.
+					     While an object is being placed it is a focusable `application` (screen
+					     readers pass the arrow keys through); otherwise it is a plain container,
+					     so the stage image is read as ordinary content. Placed objects inside
+					     are groups (with a remove button), not buttons. The ImageStage container
+					     carries the canvas' interactive attributes (containerProps). -->
+					<ImageStage
+						{imageData}
+						alt={imageAlt}
+						description={imageDescription}
+						descriptionId={imageDescriptionId}
+						containerClass="qti-po-canvas {crosshairActive ? 'qti-po-canvas-active' : ''} {selectedStageId ? 'qti-po-canvas-placing' : ''}"
+						containerPart="canvas"
+						capContainerWidth={false}
+						containerProps={{
+							ondrop: handleDrop,
+							ondragover: handleDragOver,
+							onkeydown: handleCanvasKeydown,
+							onclick: handleCanvasClick,
+							role: crosshairActive ? 'application' : undefined,
+							tabindex: crosshairActive ? 0 : -1,
+							'aria-label': crosshairActive
+								? translate(i18n, 'interactions.positionObject.canvasActiveLabel', 'Positioning canvas: use the arrow keys to move the crosshair, Enter to place, Escape to cancel')
+								: undefined,
+						}}
+						svgContentClass="qti-po-image"
+						imgClass="qti-po-image"
+						errorClass="qti-po-image qti-po-image-error"
+						mediaPart="image"
+						errorPart="image-error"
+						loadErrorText={translate(i18n, 'interactions.positionObject.imageLoadError', 'The image could not be loaded.')}
+						onImageError={warnImageFailed}
+						sizing="fallback-strict"
+						fallbackWidth={800}
+						fallbackHeight={600}
+						bind:width={imageWidth}
+						bind:height={imageHeight}
+						bind:failed={imageFailed}
+						bind:container={imageContainer}
 					>
-						<!-- Background Image with its authored text alternative -->
-						{#if imageData}
-							{#if imageData.type === 'svg' && imageData.content}
-								<div
-									part="image"
-									class="qti-po-image"
-									role={imageData.decorative ? undefined : 'img'}
-									aria-hidden={imageData.decorative ? 'true' : undefined}
-									aria-label={imageData.decorative ? undefined : imageAlt}
-									aria-describedby={imageDescription ? imageDescriptionId : undefined}
-								>
-									{@html imageData.content}
-								</div>
-							{:else if imageFailed}
-								<div part="image-error" class="qti-po-image qti-po-image-error">
-									<p>{translate(i18n, 'interactions.positionObject.imageLoadError', 'The image could not be loaded.')}</p>
-									{#if imageData.alt && !imageData.decorative}
-										<p>{imageData.alt}</p>
-									{/if}
-								</div>
-							{:else if imageData.src}
-								<img
-									part="image"
-									src={imageData.src}
-									alt={imageAlt}
-									aria-describedby={imageDescription ? imageDescriptionId : undefined}
-									class="qti-po-image"
-									onerror={handleImageError}
-								/>
-							{/if}
-						{/if}
 
 						<!-- Positioned Objects -->
 						{#each positions as position, index}
@@ -790,7 +773,7 @@
 								<circle cx="{crosshairX * 100}%" cy="{crosshairY * 100}%" r="6" class="qti-po-crosshair-dot" />
 							</svg>
 						{/if}
-					</div>
+					</ImageStage>
 				</div>
 				{#if imageDescription}
 					<p id={imageDescriptionId} class="qti-po-sr-only">{imageDescription}</p>
@@ -961,42 +944,12 @@
 		background: var(--pie-qti-base-200, oklch(98% 0 0));
 	}
 	/* Borderless canvas: exactly the stage image's aspect ratio, so percentages map to image pixels */
-	.qti-po-canvas {
-		position: relative;
-		width: 100%;
-	}
 	.qti-po-canvas-placing {
 		cursor: crosshair;
 	}
 	.qti-po-canvas:focus-visible {
 		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
-	}
-	.qti-po-image {
-		display: block;
-		width: 100%;
-		height: 100%;
-		object-fit: contain;
-		pointer-events: none;
-	}
-	.qti-po-image :global(svg) {
-		display: block;
-		width: 100%;
-		height: 100%;
-	}
-	.qti-po-image-error {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 0.25rem;
-		padding: 1rem;
-		box-sizing: border-box;
-		text-align: center;
-		color: var(--pie-qti-error-text, #b91c1c);
-	}
-	.qti-po-image-error p {
-		margin: 0;
 	}
 	/* Critical: positioned items must be absolutely positioned even without Tailwind's `absolute` utility */
 	.qti-po-placed {

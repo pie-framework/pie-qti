@@ -7,6 +7,7 @@
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import ImageStage from '../../shared/components/ImageStage.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
 	import { countPairsWithId, pairIncludesId } from '../../shared/utils/pairHelpers';
@@ -47,16 +48,14 @@
 	const parsedCorrectResponse = $derived(shell.correctResponse);
 	const isShowingCorrect = $derived(shell.isShowingCorrect);
 	const correctPairs = $derived(Array.isArray(parsedCorrectResponse) ? parsedCorrectResponse : []);
-	const imageWidth = $derived(
-		Number(normalizePixelDimension(parsedInteraction?.imageData?.width, '500') ?? '500'),
-	);
-	const imageHeight = $derived(
-		Number(normalizePixelDimension(parsedInteraction?.imageData?.height, '300') ?? '300'),
-	);
-	// Reflow (WCAG 1.4.10): the stage scales with its container up to the image's
-	// natural size; hotspots are positioned in percentages of the natural size.
+	// The stage's pixel space (shared ImageStage, `fallback-strict` sizing while the
+	// declared→natural→refuse rule lands for this interaction too). Hotspots are
+	// positioned in percentages of it, so the stage scales with its container (WCAG 1.4.10).
+	let imageWidth = $state(0);
+	let imageHeight = $state(0);
+	let imageFailed = $state(false);
+
 	const stageStyle = $derived(`max-width: calc(${imageWidth}px + 4px);`);
-	const canvasStyle = $derived(`aspect-ratio: ${imageWidth} / ${imageHeight};`);
 
 	const imageData = $derived(parsedInteraction?.imageData ?? null);
 	const imageAlt = $derived(
@@ -64,12 +63,9 @@
 	);
 	const imageDescription = $derived(imageData?.decorative ? '' : (imageData?.altDescription ?? ''));
 	const imageDescriptionId = $derived(`${uid}-image-description`);
-	let failedSrc = $state<string | null>(null);
-	const imageFailed = $derived(!!imageData?.src && failedSrc === imageData.src);
 
-	function handleImageError() {
-		failedSrc = imageData?.src ?? null;
-		console.warn(`[pie-qti-graphic-associate] The image failed to load: ${imageData?.src ?? ''}`);
+	function warnImageFailed(src: string) {
+		console.warn(`[pie-qti-graphic-associate] The image failed to load: ${src}`);
 	}
 
 	// Get reference to the root element for event dispatching
@@ -355,37 +351,27 @@
 				>
 					<!-- Borderless positioning canvas: exactly the image's aspect ratio, so the
 					     percentage hotspot boxes and the overlay's viewBox align at any scale. -->
-					<div class="qti-ga-canvas" style={canvasStyle}>
-					{#if imageData}
-						{#if imageData.type === 'svg' && imageData.content}
-							<div
-								part="image"
-								class="qti-ga-image"
-								role={imageData.decorative ? undefined : 'img'}
-								aria-hidden={imageData.decorative ? 'true' : undefined}
-								aria-label={imageData.decorative ? undefined : imageAlt}
-								aria-describedby={imageDescription ? imageDescriptionId : undefined}
-							>
-								{@html imageData.content}
-							</div>
-						{:else if imageFailed}
-							<div part="image-error" class="qti-ga-image qti-ga-image-error">
-								<p>{translate(i18n, 'interactions.graphicAssociate.imageLoadError', 'The image could not be loaded.')}</p>
-								{#if imageData.alt && !imageData.decorative}
-									<p>{imageData.alt}</p>
-								{/if}
-							</div>
-						{:else if imageData.src}
-							<img
-								part="image"
-								src={imageData.src}
-								alt={imageAlt}
-								aria-describedby={imageDescription ? imageDescriptionId : undefined}
-								class="qti-ga-image"
-								onerror={handleImageError}
-							/>
-						{/if}
-					{/if}
+					<ImageStage
+						{imageData}
+						alt={imageAlt}
+						description={imageDescription}
+						descriptionId={imageDescriptionId}
+						containerClass="qti-ga-canvas"
+						capContainerWidth={false}
+						svgContentClass="qti-ga-image"
+						imgClass="qti-ga-image"
+						errorClass="qti-ga-image qti-ga-image-error"
+						mediaPart="image"
+						errorPart="image-error"
+						loadErrorText={translate(i18n, 'interactions.graphicAssociate.imageLoadError', 'The image could not be loaded.')}
+						onImageError={warnImageFailed}
+						sizing="fallback-strict"
+						fallbackWidth={500}
+						fallbackHeight={300}
+						bind:width={imageWidth}
+						bind:height={imageHeight}
+						bind:failed={imageFailed}
+					>
 
 					<!-- The hotspots on the image, each in its real shape (QTI 3.0 §5.7.5–5.7.6: the
 					     area its shape and coords describe) with its state: a light halo under the
@@ -507,7 +493,7 @@
 							</span>
 						</button>
 					{/each}
-					</div>
+					</ImageStage>
 				</div>
 				{#if imageDescription}
 					<p id={imageDescriptionId} class="qti-ga-sr-only">{imageDescription}</p>
@@ -665,35 +651,6 @@
 		border-radius: 0.75rem;
 		border: 2px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		background: var(--pie-qti-base-200, oklch(98% 0 0));
-	}
-	.qti-ga-canvas {
-		position: relative;
-		width: 100%;
-	}
-	.qti-ga-image {
-		display: block;
-		width: 100%;
-		height: 100%;
-		object-fit: contain;
-	}
-	.qti-ga-image :global(svg) {
-		display: block;
-		width: 100%;
-		height: 100%;
-	}
-	.qti-ga-image-error {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 0.25rem;
-		padding: 1rem;
-		box-sizing: border-box;
-		text-align: center;
-		color: var(--pie-qti-error-text, #b91c1c);
-	}
-	.qti-ga-image-error p {
-		margin: 0;
 	}
 	/* Critical: overlay must be absolutely positioned even without Tailwind utilities */
 	.qti-ga-overlay {

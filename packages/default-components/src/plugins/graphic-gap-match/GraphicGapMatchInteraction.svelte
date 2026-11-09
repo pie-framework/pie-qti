@@ -11,8 +11,9 @@ import type { GraphicGapMatchInteractionData } from '@pie-qti/item-player';
 	import { tick } from 'svelte';
 	import { touchDrag } from '@pie-qti/qti-common';
 import HotspotShape from '../../shared/components/HotspotShape.svelte';
+import ImageStage from '../../shared/components/ImageStage.svelte';
 import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
-	import { normalizeCssPixelLength, normalizePixelDimension } from '@pie-qti/item-player/security';
+	import { normalizeCssPixelLength } from '@pie-qti/item-player/security';
 	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
@@ -20,7 +21,7 @@ import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { choicesShortOfMatchMin } from '../../shared/utils/minimumRequirement';
-import { hitStrokeWidth, imageAltText, observeWidth, shapeCenter } from '../../shared/utils/graphicRegions';
+import { hitStrokeWidth, imageAltText, shapeCenter } from '../../shared/utils/graphicRegions';
 
 import '../../shared/styles/shared.css';
 import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
@@ -60,27 +61,19 @@ const choicesContainerWidth = $derived(
 );
 
 const imageData = $derived(parsedInteraction?.imageData ?? null);
-const imageSrc = $derived(imageData?.type === 'image' ? (imageData.src ?? '') : '');
 
-// Raster images report their natural size once loaded; hotspot coords are in
-// that pixel space when the item declares no width/height.
-let loadedImage = $state<{ src: string; width: number; height: number } | null>(null);
-let failedSrc = $state<string | null>(null);
-const naturalSize = $derived(loadedImage && loadedImage.src === imageSrc ? loadedImage : null);
-const imageFailed = $derived(!!imageSrc && failedSrc === imageSrc);
-
-const authoredWidth = $derived(normalizePixelDimension(imageData?.width));
-const authoredHeight = $derived(normalizePixelDimension(imageData?.height));
-const hasAuthoredDimensions = $derived(!!authoredWidth && !!authoredHeight);
-const imageWidth = $derived(hasAuthoredDimensions ? Number(authoredWidth) : (naturalSize?.width ?? null));
-const imageHeight = $derived(hasAuthoredDimensions ? Number(authoredHeight) : (naturalSize?.height ?? null));
+// The stage's pixel space: the image's authored width/height, else its natural size once
+// loaded (resolved by the shared ImageStage; `refuse` mode). Hotspot coords are in that
+// pixel space when the item declares no width/height.
+let imageWidth = $state<number | null>(null);
+let imageHeight = $state<number | null>(null);
+let imageFailed = $state(false);
+let awaitingNaturalSize = $state(false);
 const hasImageDimensions = $derived(imageWidth !== null && imageHeight !== null);
-const awaitingNaturalSize = $derived(!!imageSrc && !hasAuthoredDimensions && !naturalSize && !imageFailed);
 const missingDimensions = $derived(!!parsedInteraction && !!imageData && !hasImageDimensions && !awaitingNaturalSize);
 
 // Reflow (WCAG 1.4.10): the stage scales with its container up to the image's natural size.
 const frameStyle = $derived(imageWidth ? `max-width: calc(${imageWidth}px + 4px);` : '');
-const canvasStyle = $derived(imageWidth && imageHeight ? `aspect-ratio: ${imageWidth} / ${imageHeight};` : '');
 
 let warnedMissingDimensions = false;
 $effect(() => {
@@ -103,16 +96,8 @@ const imageDescription = $derived(imageData?.decorative ? '' : (imageData?.altDe
 const imageDescriptionId = $derived(`${uid}-image-description`);
 const instructionsId = $derived(`${uid}-instructions`);
 
-function handleImageLoad(event: Event) {
-	const img = event.currentTarget as HTMLImageElement;
-	if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-		loadedImage = { src: imageSrc, width: img.naturalWidth, height: img.naturalHeight };
-	}
-}
-
-function handleImageError() {
-	failedSrc = imageSrc;
-	console.warn(`[pie-qti-graphic-gap-match] The image failed to load: ${imageSrc}`);
+function warnImageFailed(src: string) {
+	console.warn(`[pie-qti-graphic-gap-match] The image failed to load: ${src}`);
 }
 
 let pairs = $state<string[]>([]);
@@ -632,37 +617,27 @@ function handleRootKeyDown(event: KeyboardEvent) {
 
 			<!-- Image/diagram with hotspot drop zones -->
 			<div part="stage" class="qti-ggm-stage" style={frameStyle}>
-				<div class="qti-ggm-canvas" style={canvasStyle} use:observeWidth={(width) => (renderedWidth = width)}>
-					<!-- SVG image or raster image, with the author's text alternative -->
-					{#if imageData?.type === 'svg' && imageData.content}
-						<div
-							part="image"
-							class="qti-ggm-image"
-							role={imageData.decorative ? undefined : 'img'}
-							aria-hidden={imageData.decorative ? 'true' : undefined}
-							aria-label={imageData.decorative ? undefined : imageAlt}
-							aria-describedby={imageDescription ? imageDescriptionId : undefined}
-						>
-							{@html imageData.content}
-						</div>
-					{:else if imageData && imageFailed}
-						<div part="image-error" class="qti-ggm-image qti-ggm-image-error">
-							<p>{translate(i18n, 'interactions.graphicGapMatch.imageLoadError', 'The image could not be loaded.')}</p>
-							{#if imageData.alt && !imageData.decorative}
-								<p>{imageData.alt}</p>
-							{/if}
-						</div>
-					{:else if imageData?.src}
-						<img
-							part="image"
-							class="qti-ggm-image"
-							src={imageData.src}
-							alt={imageAlt}
-							aria-describedby={imageDescription ? imageDescriptionId : undefined}
-							onload={handleImageLoad}
-							onerror={handleImageError}
-						/>
-					{/if}
+				<ImageStage
+					{imageData}
+					alt={imageAlt}
+					description={imageDescription}
+					descriptionId={imageDescriptionId}
+					containerClass="qti-ggm-canvas"
+					capContainerWidth={false}
+					svgContentClass="qti-ggm-image"
+					imgClass="qti-ggm-image"
+					errorClass="qti-ggm-image qti-ggm-image-error"
+					mediaPart="image"
+					errorPart="image-error"
+					loadErrorText={translate(i18n, 'interactions.graphicGapMatch.imageLoadError', 'The image could not be loaded.')}
+					onImageError={warnImageFailed}
+					sizing="refuse"
+					bind:width={imageWidth}
+					bind:height={imageHeight}
+					bind:failed={imageFailed}
+					bind:awaiting={awaitingNaturalSize}
+					bind:renderedWidth
+				>
 
 					<!-- Overlay with hotspot drop zones, in the image's natural pixel space.
 					     Only drawn when that space is known: any guess misplaces every hotspot. -->
@@ -741,7 +716,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 						{/each}
 					</svg>
 					{/if}
-				</div>
+				</ImageStage>
 			</div>
 			{#if imageDescription}
 				<p id={imageDescriptionId} class="sr-only">{imageDescription}</p>
@@ -820,36 +795,6 @@ function handleRootKeyDown(event: KeyboardEvent) {
 		border: 2px solid var(--pie-qti-base-300, oklch(95% 0 0));
 	}
 	/* Borderless canvas at the image's aspect ratio: overlay viewBox and image align at any scale */
-	.qti-ggm-canvas {
-		position: relative;
-		width: 100%;
-	}
-	.qti-ggm-image {
-		display: block;
-		width: 100%;
-		height: 100%;
-		object-fit: contain;
-	}
-	.qti-ggm-image :global(svg) {
-		display: block;
-		width: 100%;
-		height: 100%;
-	}
-	.qti-ggm-image-error {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 0.25rem;
-		min-height: 6rem;
-		padding: 1rem;
-		box-sizing: border-box;
-		text-align: center;
-		color: var(--pie-qti-error-text, #b91c1c);
-	}
-	.qti-ggm-image-error p {
-		margin: 0;
-	}
 	.qti-ggm-overlay {
 		position: absolute;
 		inset: 0;
