@@ -611,6 +611,7 @@ export default {
 		close: 'Cerrar retroalimentación',
 		closeFeedback: 'Descartar retroalimentación',
 		testFeedback: 'Retroalimentación de prueba',
+		shown: 'Se muestra retroalimentación.',
 	},
 
 	assessment: {

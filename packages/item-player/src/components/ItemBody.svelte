@@ -4,7 +4,7 @@
 
 <script lang="ts">
 	import { mount as mountComponent, unmount, untrack, type ComponentProps } from 'svelte';
-	import { getItemSessionBinding, type ItemSession } from '../core/ItemSession';
+	import { getItemSessionBinding, type ItemSession, type ItemSessionTransition } from '../core/ItemSession';
 	import type { InteractionResponseValue, QTIChangeEventDetail } from '../web-components';
 	import type { ExtractedPci } from '../pci/types';
 	import type { PlayerSecurityConfig } from '../types';
@@ -14,7 +14,13 @@
 		ItemInteractionMount,
 		ItemPresentation,
 	} from '../presentation/itemPresentationPlan';
-	import { contentLanguageAttributes, type I18nProvider } from '@pie-qti/i18n';
+	import {
+		contentLanguageAttributes,
+		interfaceLocaleAttributes,
+		translate,
+		type I18nProvider,
+		type LanguageAttributes,
+	} from '@pie-qti/i18n';
 	import type { QtiHeuristicsConfig } from '@pie-qti/ims-cp-core';
 	import { typesetAction } from './actions/typesetAction';
 	import { glossaryAction } from '../catalog/glossaryAction';
@@ -22,6 +28,10 @@
 	import { assignProps } from '@pie-qti/qti-common';
 	import { createItemBodyRenderer, type MountedInteraction } from './utils/itemBodyRenderer';
 	import { sentenceContextId } from './utils/sentenceContext';
+	import {
+		isCandidateAttemptFeedback,
+		nextFeedbackAnnouncement,
+	} from '../presentation/feedbackAnnouncement';
 	import InlineChoice from '../interactions/inline-choice/InlineChoice.svelte';
 	import InlineTextEntry from '../interactions/text-entry/InlineTextEntry.svelte';
 
@@ -131,6 +141,52 @@
 			el.removeEventListener('qti-change', handler as EventListener);
 		};
 	});
+
+	/**
+	 * Status message for the integrated feedback the candidate's attempt showed (WCAG 4.1.3). The
+	 * attempt splices feedbackInline and feedbackBlock into the body without moving focus, so the
+	 * persistent live region below says what appeared. Feedback text is item content, read in the
+	 * item's language; the fallback phrase for feedback with no text is interface text, read in the
+	 * interface language.
+	 */
+	let feedbackAnnouncement = $state<{ text: string; language?: LanguageAttributes }>({ text: '' });
+
+	// Only the candidate's own attempt announces. Initial render, restore, review and scorer views
+	// dispatch no attempt, and a re-render is no session transition at all. A new session starts
+	// silent.
+	$effect(() => {
+		const current = session;
+		feedbackAnnouncement = { text: '' };
+		let unsubscribe: (() => void) | undefined;
+		try {
+			unsubscribe = current.subscribe((transition) => announceAttemptFeedback(current, transition));
+		} catch {
+			// A disposed session has no attempt left to announce.
+		}
+		return () => unsubscribe?.();
+	});
+
+	function announceAttemptFeedback(source: ItemSession, transition: ItemSessionTransition) {
+		if (transition.current.disposed || !isCandidateAttemptFeedback(transition, transition.current.role)) return;
+		let shownPresentation: ItemPresentation;
+		try {
+			shownPresentation = source.present({ heuristicsConfig, itemBodyScopeSelector, renderItemBodyRubrics });
+		} catch {
+			return; // The body reports a presentation failure itself; there is nothing to announce.
+		}
+		const { shown, text } = shownPresentation.shownFeedback;
+		if (!shown) {
+			feedbackAnnouncement = { text: '' };
+			return;
+		}
+		const message = text || translate(i18n, 'feedback.shown', 'Feedback is shown.');
+		feedbackAnnouncement = {
+			text: nextFeedbackAnnouncement(feedbackAnnouncement.text, message),
+			language: text
+				? contentLanguageAttributes(shownPresentation.contentLanguage)
+				: interfaceLocaleAttributes(i18n),
+		};
+	}
 
 	interface BodyParams {
 		presentation: ItemPresentation;
@@ -320,11 +376,38 @@
 	></div>
 </div>
 
+<!--
+	Status messages for the feedback the candidate's attempt showed (WCAG 4.1.3): one polite region,
+	in the DOM from the first render so that a later change is announced. It sits outside the body
+	root, so typesetting and display settings leave it alone, and it carries its own language.
+-->
+<div
+	class="qti-feedback-announcer"
+	role="status"
+	aria-live="polite"
+	aria-atomic="true"
+	lang={feedbackAnnouncement.language?.lang}
+	dir={feedbackAnnouncement.language?.dir}
+>{feedbackAnnouncement.text}</div>
+
 <style>
 	/* Allow the whole item body to shrink inside flex/grid layouts (prevents overflow). */
 	.qti-item-body {
 		max-width: 100%;
 		min-width: 0;
+	}
+
+	/* Read by screen readers, never seen: the feedback status message region. */
+	.qti-feedback-announcer {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
 	}
 
 	.qti-item-body-content {

@@ -44,6 +44,7 @@ export type {
 	ItemPresentation,
 	ItemPresentationFlowNode,
 } from './presentation/itemPresentationPlan.js';
+export type { ShownFeedback } from './presentation/feedbackAnnouncement.js';
 /** The attribute on the empty slot that marks an interaction's authored position in the body. */
 export { INTERACTION_SLOT_ATTRIBUTE } from './presentation/itemPresentationPlan.js';
 export { getRoleCapabilities, type RoleCapabilities } from './core/rolePolicy.js';

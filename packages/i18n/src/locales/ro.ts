@@ -610,6 +610,7 @@ export default {
 		close: 'Închide feedback-ul',
 		closeFeedback: 'Respinge feedback-ul',
 		testFeedback: 'Feedback test',
+		shown: 'Se afișează feedback.',
 	},
 
 	assessment: {

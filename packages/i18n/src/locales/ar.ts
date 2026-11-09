@@ -700,6 +700,7 @@ export default {
 		close: 'إغلاق التعليقات',
 		closeFeedback: 'رفض التعليقات',
 		testFeedback: 'تعليقات الاختبار',
+		shown: 'تم عرض التعليقات.',
 	},
 
 	assessment: {

@@ -595,6 +595,7 @@ export default {
 		close: 'Feedback sluiten',
 		closeFeedback: 'Feedback negeren',
 		testFeedback: 'Testfeedback',
+		shown: 'Er wordt terugkoppeling getoond.',
 	},
 
 	assessment: {

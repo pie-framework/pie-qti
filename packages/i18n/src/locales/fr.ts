@@ -610,6 +610,7 @@ export default {
 		close: 'Fermer les commentaires',
 		closeFeedback: 'Ignorer les commentaires',
 		testFeedback: 'Commentaires du test',
+		shown: 'Des commentaires sont affichés.',
 	},
 
 	assessment: {
