@@ -76,46 +76,47 @@
 					</power>
 				</setOutcomeValue>
 
+				<!-- Statistics are statsOperator name="..." (QTI has no mean/sampleVariance/... elements). -->
 				<setOutcomeValue identifier="MEAN">
-					<mean>
+					<statsOperator name="mean">
 						<multiple>
 							<baseValue baseType="integer">1</baseValue>
 							<baseValue baseType="integer">2</baseValue>
 							<baseValue baseType="integer">3</baseValue>
 						</multiple>
-					</mean>
+					</statsOperator>
 				</setOutcomeValue>
 
 				<setOutcomeValue identifier="SVAR">
-					<sampleVariance>
+					<statsOperator name="sampleVariance">
 						<multiple>
 							<baseValue baseType="integer">1</baseValue>
 							<baseValue baseType="integer">2</baseValue>
 							<baseValue baseType="integer">3</baseValue>
 						</multiple>
-					</sampleVariance>
+					</statsOperator>
 				</setOutcomeValue>
 
 				<setOutcomeValue identifier="SSD">
-					<sampleSD>
+					<statsOperator name="sampleSD">
 						<multiple>
 							<baseValue baseType="integer">1</baseValue>
 							<baseValue baseType="integer">2</baseValue>
 							<baseValue baseType="integer">3</baseValue>
 						</multiple>
-					</sampleSD>
+					</statsOperator>
 				</setOutcomeValue>
 
 				<setOutcomeValue identifier="PVAR_MILLI">
 					<truncate>
 						<product>
-							<popVariance>
+							<statsOperator name="popVariance">
 								<multiple>
 									<baseValue baseType="integer">1</baseValue>
 									<baseValue baseType="integer">2</baseValue>
 									<baseValue baseType="integer">3</baseValue>
 								</multiple>
-							</popVariance>
+							</statsOperator>
 							<baseValue baseType="float">1000</baseValue>
 						</product>
 					</truncate>
@@ -124,13 +125,13 @@
 				<setOutcomeValue identifier="PSD_MILLI">
 					<truncate>
 						<product>
-							<popSD>
+							<statsOperator name="popSD">
 								<multiple>
 									<baseValue baseType="integer">1</baseValue>
 									<baseValue baseType="integer">2</baseValue>
 									<baseValue baseType="integer">3</baseValue>
 								</multiple>
-							</popSD>
+							</statsOperator>
 							<baseValue baseType="float">1000</baseValue>
 						</product>
 					</truncate>

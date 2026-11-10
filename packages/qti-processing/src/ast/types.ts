@@ -62,11 +62,6 @@ export type ExpressionNode =
 	| PowerExpr
 	| ModExpr
 	| IntegerDivideExpr
-	| MeanExpr
-	| SampleVarianceExpr
-	| SampleSDExpr
-	| PopVarianceExpr
-	| PopSDExpr
 	| IsTypeOfExpr
 	| StringMatchExpr
 	| PatternMatchExpr
@@ -461,36 +456,6 @@ export type IntegerDivideExpr = {
 	id: AstNodeId;
 	a: ExpressionNode;
 	b: ExpressionNode;
-};
-
-export type MeanExpr = {
-	kind: 'expr.mean';
-	id: AstNodeId;
-	values: ExpressionNode;
-};
-
-export type SampleVarianceExpr = {
-	kind: 'expr.sampleVariance';
-	id: AstNodeId;
-	values: ExpressionNode;
-};
-
-export type SampleSDExpr = {
-	kind: 'expr.sampleSD';
-	id: AstNodeId;
-	values: ExpressionNode;
-};
-
-export type PopVarianceExpr = {
-	kind: 'expr.popVariance';
-	id: AstNodeId;
-	values: ExpressionNode;
-};
-
-export type PopSDExpr = {
-	kind: 'expr.popSD';
-	id: AstNodeId;
-	values: ExpressionNode;
 };
 
 export type IsTypeOfExpr = {

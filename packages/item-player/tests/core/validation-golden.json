@@ -5757,7 +5757,7 @@
         }
       },
       "qti30": {
-        "error": "Unknown processing expression tag: <sampleVariance>"
+        "error": "Unknown processing expression tag: <isTypeOf>"
       }
     },
     "responseProcessing_not_equal_basic": {

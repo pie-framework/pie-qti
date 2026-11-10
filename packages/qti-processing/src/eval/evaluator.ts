@@ -1096,35 +1096,6 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			// No negative zero: -4 mod 2 and 0 integerDivide -5 are 0.
 			return qtiValue(resultBaseType, 'single', result === 0 ? 0 : result);
 		}
-		case 'expr.mean':
-		case 'expr.sampleVariance':
-		case 'expr.sampleSD':
-		case 'expr.popVariance':
-		case 'expr.popSD': {
-			const valuesExpr = (expr as any).values as ExpressionNode;
-			const values = evalExpr(env, valuesExpr);
-			if (values.kind === 'invalid') return qtiInvalid(`${expr.kind} invalid`);
-			if (values.kind !== 'value') return qtiInvalid(`${expr.kind} expects a container`);
-
-			const arr = Array.isArray(values.value) ? values.value : [values.value];
-			const nums = arr.map((x) => Number(x));
-			if (nums.length === 0) return qtiInvalid(`${expr.kind} empty`);
-			if (nums.some((n) => Number.isNaN(n))) return qtiInvalid(`${expr.kind} NaN`);
-
-			const mean = nums.reduce((a, b) => a + b, 0) / nums.length;
-
-			if (expr.kind === 'expr.mean') return qtiValue('float', 'single', mean);
-
-			const squared = nums.map((n) => (n - mean) * (n - mean)).reduce((a, b) => a + b, 0);
-			const denom = expr.kind === 'expr.sampleVariance' || expr.kind === 'expr.sampleSD' ? nums.length - 1 : nums.length;
-			if (denom <= 0) return qtiInvalid(`${expr.kind} requires at least 2 values`);
-			const variance = squared / denom;
-
-			if (expr.kind === 'expr.sampleVariance' || expr.kind === 'expr.popVariance') {
-				return qtiValue('float', 'single', variance);
-			}
-			return qtiValue('float', 'single', Math.sqrt(variance));
-		}
 		case 'expr.isTypeOf': {
 			const v = evalExpr(env, expr.value);
 			const baseType = toStringValue(evalExpr(env, expr.baseType)).trim();

@@ -880,21 +880,6 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		case 'integerdivide': {
 			return { kind: 'expr.integerDivide', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
-		case 'mean': {
-			return { kind: 'expr.mean', id, values: buildExpression(kids[0]!, options) };
-		}
-		case 'samplevariance': {
-			return { kind: 'expr.sampleVariance', id, values: buildExpression(kids[0]!, options) };
-		}
-		case 'samplesd': {
-			return { kind: 'expr.sampleSD', id, values: buildExpression(kids[0]!, options) };
-		}
-		case 'popvariance': {
-			return { kind: 'expr.popVariance', id, values: buildExpression(kids[0]!, options) };
-		}
-		case 'popsd': {
-			return { kind: 'expr.popSD', id, values: buildExpression(kids[0]!, options) };
-		}
 		case 'istypeof': {
 			return {
 				kind: 'expr.isTypeOf',
