@@ -81,7 +81,7 @@ import {
 	serializeItemSession,
 	updateDuration,
 } from './serialization/sessionState.js';
-import { qtiValueToPci, qtiValueToPublic } from './serialization/valueForms.js';
+import { qtiValueEquals, qtiValueToPci, qtiValueToPublic } from './serialization/valueForms.js';
 import {
 	buildDeclarationMap,
 	ensureBuiltinDeclarations,
@@ -217,6 +217,22 @@ export class Player {
 	accumulatedDurationMs = 0;
 	/** Time on task at the last duration update, in milliseconds. @internal */
 	durationMs = 0;
+	/**
+	 * Bumped at every change to the session's response values (candidate input, restore,
+	 * template rules, PCI writes, attempt settlement) and wherever the interaction data
+	 * regenerates; keys the response-validation memo.
+	 */
+	private responseRevision = 0;
+	private interactionDataGeneration = 0;
+	/** The base validation of the engine's current responses, memoized per revision. */
+	private engineValidationMemo: { revision: number; generation: number; result: ResponseValidationResult } | null = null;
+	/** The last base validation computed for an explicit responses record. */
+	private validationMemo: {
+		responses: Record<string, any>;
+		revision: number;
+		generation: number;
+		result: ResponseValidationResult;
+	} | null = null;
 
 	constructor(config: ItemSessionEngineConfig);
 	/** @internal Definition-backed sessions use the module-local factory above. */
@@ -491,6 +507,7 @@ export class Player {
 			contentLanguage: () => this.getContentLanguage(),
 			coerceToDeclarationValue: (baseType, cardinality, raw, identifier) =>
 				this.coerceToDeclarationValue(baseType, cardinality, raw, identifier),
+			onResponseApplied: () => this.touchResponses(),
 		});
 	}
 
@@ -568,6 +585,14 @@ export class Player {
 			if (this.itemDocument.getTextEntryBase(id) !== undefined) this.applyTextEntryStringResponse(id, raw);
 			applyToPci(id, this.qtiValueToPci(d.value));
 		}
+		this.touchResponses();
+	}
+
+	/** Response values changed: the response snapshot and its memoized validation drop. */
+	private touchResponses(): void {
+		this.responseRevision += 1;
+		this.responseSnapshotState = null;
+		this.engineValidationMemo = null;
 	}
 
 	/**
@@ -612,7 +637,7 @@ export class Player {
 
 	public restoreItemSession(state: SerializedItemSessionState): void {
 		this.sessionGuid = state.sessionGuid;
-		this.interactionDataCache = null;
+		this.invalidateInteractionData();
 		this.endAttemptActivations.clear();
 		this.lifecycleStatus = state.lifecycleStatus;
 		this.accumulatedDurationMs = Math.max(0, Number(state.duration) || 0);
@@ -621,6 +646,7 @@ export class Player {
 		this.applySerializedVariables(state.outcomeVariables);
 		this.applySerializedVariables(state.templateVariables);
 		this.applySerializedVariables(state.contextVariables);
+		this.touchResponses();
 		this.updateDuration();
 	}
 
@@ -655,7 +681,7 @@ export class Player {
 	}
 
 	private runSuspendAttemptAction(): ItemSessionActionResult {
-		const validation = this.validateResponses(this.getResponses());
+		const validation = this.currentResponsesValidation();
 		this.lifecycleStatus = 'suspended';
 		const sessionState = this.saveItemSession();
 		return this.createItemSessionActionResult('suspendAttempt', sessionState, { validation });
@@ -663,7 +689,7 @@ export class Player {
 
 	private runEndAttemptAction(options: { countAttempt?: boolean; validateResponses?: boolean }): ItemSessionActionResult {
 		const validate = options.validateResponses ?? false;
-		const validation = validate ? this.validateAttemptResponses(this.getResponses()) : undefined;
+		const validation = validate ? this.validateAttemptResponses(this.responseSnapshot()) : undefined;
 		if (validation && !validation.valid) {
 			return this.createItemSessionActionResult('endAttempt', this.saveItemSession(), { validation });
 		}
@@ -806,6 +832,7 @@ export class Player {
 
 	private resetResponsesToDefault(): void {
 		resetResponsesToDefault(this);
+		this.touchResponses();
 	}
 
 	private resetTemplatesToDefault(): void {
@@ -914,6 +941,7 @@ export class Player {
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, this.endAttemptActivations.has(id), d.identifier);
 		}
 		this.endAttemptActivations.clear();
+		this.touchResponses();
 	}
 
 	public getResponseIdentifiers(): string[] {
@@ -976,6 +1004,7 @@ export class Player {
 			if ((d as any).__kind !== 'response') continue;
 			const pciHost = this.pciSession.get(d.identifier);
 			if (pciHost) {
+				const before = d.value;
 				const currentResponse = pciHost.getResponse();
 				d.value = this.coerceToDeclarationValue(
 					d.baseType,
@@ -983,11 +1012,29 @@ export class Player {
 					currentResponse,
 					d.identifier
 				);
+				// Adopting a different mounted-module response is a response change.
+				if (!qtiValueEquals(before, d.value)) this.touchResponses();
 			}
 			out[d.identifier] = this.qtiValueToPublic(d.value);
 		}
 		return out;
 	}
+
+	/**
+	 * The engine's current responses, stable within one response revision: the serializer and
+	 * the end-attempt gate read the same record, so their validations memoize together.
+	 * @internal Serialization reads it through the host.
+	 */
+	responseSnapshot(): Record<string, any> {
+		if (this.responseSnapshotState && this.responseSnapshotState.revision === this.responseRevision) {
+			return this.responseSnapshotState.responses;
+		}
+		const responses = this.getResponses();
+		this.responseSnapshotState = { revision: this.responseRevision, responses };
+		return responses;
+	}
+
+	private responseSnapshotState: { revision: number; responses: Record<string, any> } | null = null;
 
 	/**
 	 * Get all correct responses as a map
@@ -1005,7 +1052,7 @@ export class Player {
 	}
 
 	public setTemplateVariables(vars: Record<string, any>): void {
-		this.interactionDataCache = null;
+		this.invalidateInteractionData();
 		for (const [id, raw] of Object.entries(vars)) {
 			const d = this.decls[id];
 			if (!d?.isTemplate) continue;
@@ -1014,7 +1061,47 @@ export class Player {
 	}
 
 	public validateResponses(responses: Record<string, any>): ResponseValidationResult {
-		return validateResponses(this, responses);
+		const memo = this.validationMemo;
+		if (
+			memo &&
+			memo.responses === responses &&
+			memo.revision === this.responseRevision &&
+			memo.generation === this.interactionDataGeneration
+		) {
+			return memo.result;
+		}
+		const result = validateResponses(this, responses);
+		this.validationMemo = {
+			responses,
+			revision: this.responseRevision,
+			generation: this.interactionDataGeneration,
+			result,
+		};
+		return result;
+	}
+
+	/**
+	 * The base validation of the engine's current responses, memoized per response revision
+	 * and interaction-data generation: serialization and the suspend path read it repeatedly
+	 * at unchanged state. The end-attempt gate (validateAttemptResponses) stays a separate
+	 * derivation, so its `incomplete` issues never reach the memoized base result.
+	 */
+	private currentResponsesValidation(): ResponseValidationResult {
+		const memo = this.engineValidationMemo;
+		if (
+			memo &&
+			memo.revision === this.responseRevision &&
+			memo.generation === this.interactionDataGeneration
+		) {
+			return memo.result;
+		}
+		const result = this.validateResponses(this.responseSnapshot());
+		this.engineValidationMemo = {
+			revision: this.responseRevision,
+			generation: this.interactionDataGeneration,
+			result,
+		};
+		return result;
 	}
 
 	/**
@@ -1064,11 +1151,20 @@ export class Player {
 
 	/**
 	 * Template processing re-extracts the item's interactions, so the interaction cache
-	 * drops before the program runs.
+	 * drops before the program runs. Template rules can also change response values
+	 * (setDefaultValue), so the response revision moves with it.
 	 */
 	private execTemplateProcessing(): void {
-		this.interactionDataCache = null;
+		this.invalidateInteractionData();
 		execTemplateProcessingProgram(this);
+		this.responseRevision += 1;
+		this.responseSnapshotState = null;
+	}
+
+	private invalidateInteractionData(): void {
+		this.interactionDataCache = null;
+		this.interactionDataGeneration += 1;
+		this.responseSnapshotState = null;
 	}
 
 	// ----------------------------------------------------------------------------

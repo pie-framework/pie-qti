@@ -18,7 +18,11 @@ export interface SerializationHost {
 	lifecycleStatus: ItemLifecycleStatus;
 	getCompletionStatus(): SerializedItemSessionState['completionStatus'];
 	getNumAttempts(): number;
-	getResponses(): Record<string, any>;
+	/**
+	 * The engine's current responses, stable within one response revision (the same record
+	 * the end-attempt gate reads, so their validations memoize together).
+	 */
+	responseSnapshot(): Record<string, any>;
 	validateResponses(responses: Record<string, any>): { issues: SerializedItemSessionState['validationMessages'] };
 	restorePciResponse(responseIdentifier: string, value: unknown): void;
 	/** Time on task at the last duration update, in milliseconds. */
@@ -49,7 +53,7 @@ export function serializeItemSession(host: SerializationHost): SerializedItemSes
 		}
 	}
 
-	const validation = host.validateResponses(host.getResponses());
+	const validation = host.validateResponses(host.responseSnapshot());
 	return {
 		itemIdentifier: host.itemDocument.getAssessmentItemAttribute('identifier') ?? undefined,
 		sessionGuid: host.sessionGuid,

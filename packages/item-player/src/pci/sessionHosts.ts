@@ -22,6 +22,8 @@ export interface PciSessionContext {
 		raw: unknown,
 		identifier?: string,
 	): QtiValue;
+	/** Called after a module's response was written into the declarations. */
+	onResponseApplied?(responseIdentifier: string): void;
 }
 
 /**
@@ -60,6 +62,7 @@ export class PciHostSession {
 			const d = context.decls[responseId];
 			if (d) {
 				d.value = context.coerceToDeclarationValue(d.baseType, d.cardinality, value, d.identifier);
+				context.onResponseApplied?.(responseId);
 			}
 		});
 
