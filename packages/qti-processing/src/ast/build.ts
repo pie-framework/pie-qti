@@ -803,61 +803,6 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 				length: kids[2] ? buildExpression(kids[2], options) : undefined,
 			};
 		}
-		case 'lookuptable': {
-			const source = buildExpression(kids[0]!, options);
-			const tableEl = kids[1];
-			if (!tableEl) {
-				throw new Error('<lookupTable> is missing its table element child');
-			}
-			const canonical = (node: Element) => mapper.toCanonical(localName(node) || '').toLowerCase();
-			const tableTag = canonical(tableEl);
-			const tableKids = childElements(tableEl);
-			const defaultValue = (getAttr(tableEl, 'defaultValue') || '').trim() || undefined;
-
-			if (tableTag === 'matchtable') {
-				const entries = tableKids
-					.filter((e) => canonical(e) === 'matchtableentry')
-					.map((e) => ({
-						sourceValue: getAttr(e, 'sourceValue') || '',
-						targetValue: getAttr(e, 'targetValue') || '',
-					}));
-
-				return {
-					kind: 'expr.lookupTable',
-					id,
-					source,
-					table: {
-						kind: 'table.matchTable',
-						defaultValue,
-						entries,
-					},
-				};
-			}
-
-			if (tableTag === 'interpolationtable') {
-				const entries = tableKids
-					.filter((e) => canonical(e) === 'interpolationtableentry')
-					.map((e) => ({
-						sourceValue: Number((getAttr(e, 'sourceValue') || '').trim() || Number.NaN),
-						targetValue: (getAttr(e, 'targetValue') || '').trim(),
-						includeBoundary: (getAttr(e, 'includeBoundary') || '').trim() !== 'false',
-					}))
-					.filter((e) => Number.isFinite(e.sourceValue));
-
-				return {
-					kind: 'expr.lookupTable',
-					id,
-					source,
-					table: {
-						kind: 'table.interpolationTable',
-						defaultValue,
-						entries,
-					},
-				};
-			}
-
-			throw new Error(`<lookupTable> unsupported table element: <${tableTag}>`);
-		}
 		case 'power': {
 			return { kind: 'expr.power', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}

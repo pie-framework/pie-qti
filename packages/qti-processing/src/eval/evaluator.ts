@@ -1056,10 +1056,6 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			if (!Number.isFinite(len)) return qtiInvalid('substring length invalid');
 			return qtiValue('string', 'single', s.substring(startIdx, startIdx + len));
 		}
-		case 'expr.lookupTable': {
-			const source = evalExpr(env, expr.source);
-			return applyLookupTable(source, expr.table);
-		}
 		case 'expr.random': {
 			const v = evalExpr(env, expr.value);
 			if (v.kind !== 'value') return v;

@@ -5082,7 +5082,7 @@
       },
       "qti30": "same as qti22"
     },
-    "responseProcessing_lookupTable_interpolationTable": {
+    "responseProcessing_lookupOutcomeValue_interpolationTable": {
       "qti22": {
         "probes": {
           "(no responses)": {
@@ -5171,78 +5171,7 @@
           }
         }
       },
-      "qti30": {
-        "error": "Unknown processing expression tag: <lookupTable>"
-      }
-    },
-    "responseProcessing_lookupTable_matchTable": {
-      "qti22": {
-        "probes": {
-          "(no responses)": {
-            "engine": {
-              "attempted": false,
-              "entries": {},
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "(wrong cardinality)": {
-            "engine": {
-              "attempted": false,
-              "entries": {},
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "R=1 -> SCORE=2": {
-            "engine": {
-              "attempted": false,
-              "entries": {},
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "R=2 -> SCORE=5": {
-            "engine": {
-              "attempted": false,
-              "entries": {},
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "R=3 -> SCORE=0 (defaultValue)": {
-            "engine": {
-              "attempted": false,
-              "entries": {},
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          }
-        }
-      },
-      "qti30": {
-        "error": "Unknown processing expression tag: <lookupTable>"
-      }
+      "qti30": "same as qti22"
     },
     "responseProcessing_mapResponsePoint_basic": {
       "qti22": {
@@ -5997,6 +5926,18 @@
             }
           },
           "(wrong cardinality)": {
+            "engine": {
+              "attempted": false,
+              "entries": {},
+              "issues": []
+            },
+            "session": {
+              "canSubmit": true,
+              "gateIssues": [],
+              "issues": []
+            }
+          },
+          "lookupOutcomeValue_uses_defaultValue_when_no_entry_matches": {
             "engine": {
               "attempted": false,
               "entries": {},

@@ -1,5 +1,5 @@
 {
-	"id": "responseProcessing_lookupTable_interpolationTable",
+	"id": "responseProcessing_lookupOutcomeValue_interpolationTable",
 	"cases": [
 		{
 			"name": "R=12 -> SCORE=100 (first entry it exceeds)",

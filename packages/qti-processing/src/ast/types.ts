@@ -1,5 +1,3 @@
-import type { InterpolationTableDef, MatchTableDef } from '../runtime/types.js';
-
 export type AstNodeId = string;
 
 export type ProcessingProgram = {
@@ -57,7 +55,6 @@ export type ExpressionNode =
 	| RecordExpr
 	| FieldValueExpr
 	| SubstringExpr
-	| LookupTableExpr
 	| PowerExpr
 	| IntegerDivideExpr
 	| StringMatchExpr
@@ -417,13 +414,6 @@ export type SubstringExpr = {
 	value: ExpressionNode;
 	start: ExpressionNode;
 	length?: ExpressionNode;
-};
-
-export type LookupTableExpr = {
-	kind: 'expr.lookupTable';
-	id: AstNodeId;
-	source: ExpressionNode;
-	table: MatchTableDef | InterpolationTableDef;
 };
 
 export type PowerExpr = {

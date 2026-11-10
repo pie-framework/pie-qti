@@ -150,7 +150,6 @@ const GUARD: ReadonlyArray<readonly [tag: string, attrs: string, body: string]> 
 	['integertofloat', '', ONE],
 	['isnull', '', ONE],
 	['lcm', '', TWO],
-	['lookuptable', '', `${ONE}<qti-match-table/>`],
 	['lt', '', TWO],
 	['lte', '', TWO],
 	['mapresponse', 'identifier="RESPONSE"', ''],
