@@ -660,8 +660,6 @@ export default {
 		sectionDefault: 'Section {number}',
 		readingPassage: 'Passage de Lecture',
 		readingPassages: 'Passages de lecture',
-		expandPassage: 'Développer le passage',
-		collapsePassage: 'Réduire le passage',
 		closeMenu: 'Fermer le menu',
 
 		attempts: {

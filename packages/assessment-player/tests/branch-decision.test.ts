@@ -417,6 +417,47 @@ describe.each(Object.keys(VERSIONS) as Version[])('%s branch decision', (version
 		expect(attemptsOf(player2, 'i1')).toBe(1);
 	});
 
+	test('6b. a restored session evaluates delivery rules on the test outcomes it held', async () => {
+		// Scenario 5 up to the final Next: nothing is kept to follow (the counted i1 submission
+		// voided i3's check decision), so Next from i3 evaluates part-1's rule on the test score
+		// TOTAL (2) the session holds — live, and after getState()/restoreState() alike.
+		const xml = assessmentTest(
+			`${part(
+				'part-1',
+				section('s1', `${ref('i1')}${ref('i2')}${ref('i3')}`),
+				{
+					navigationMode: 'nonlinear',
+					itemSessionControl: twoAttempts,
+					branchRule: branchRule('i5', `<gte><variable identifier="TOTAL"/><baseValue baseType="float">2</baseValue></gte>`),
+				},
+			)}${part('part-2', section('s2', `${ref('i4')}${ref('i5')}`), { navigationMode: 'nonlinear' })}`,
+			{ outcomeProcessing: totalScoreProcessing },
+		);
+		const { parsed, backend } = await referenceBackend(convert, xml, items('i1', 'i2', 'i3', 'i4', 'i5'));
+		const player = await makePlayer(new CountingBackend(backend), parsed.identifier);
+
+		await player.navigateTo(2);
+		player.updateResponse('RESPONSE', 'A');
+		await player.checkCurrentItem();
+		await player.navigateTo(0);
+		player.updateResponse('RESPONSE', 'A');
+		await player.next();
+		await player.navigateTo(2);
+		const state = player.getState();
+
+		await player.next();
+		expect(player.getCurrentItem()?.identifier).toBe('i5');
+
+		const restored = new CountingBackend(backend);
+		const player2 = await makePlayer(restored, parsed.identifier);
+		await player2.restoreState(state);
+		expect(player2.getCurrentItem()?.identifier).toBe('i3');
+
+		await player2.next();
+		expect(player2.getCurrentItem()?.identifier).toBe('i5');
+		expect(restored.submittedItems).toEqual([]);
+	});
+
 	test('7. a branch target whose testPart preCondition is false is skipped', async () => {
 		// i1's rule targets part-2, whose preCondition is false: the decision must carry
 		// delivery past it to part-3's first item.
@@ -581,5 +622,51 @@ describe.each(Object.keys(VERSIONS) as Version[])('%s branch decision', (version
 		expect(counting.finalizeCalls).toBe(1);
 		expect(completions).toBe(1);
 		expect(results.itemResults.map((result) => result.itemIdentifier)).toEqual(['i1', 'i2', 'i3']);
+	});
+
+	test('8e. simultaneous part: Next is offered when only the crossing flush can open the way on', async () => {
+		// Before the flush i3.SCORE is NULL, so part-2's preCondition (i3 wrong) is false and
+		// the pre-flush rules find nothing after the part; the flush decides (here EXIT_TEST).
+		const xml = assessmentTest(
+			`${part(
+				'part-1',
+				section('s1', `${ref('i1')}${ref('i2')}${ref('i3')}`),
+				{
+					navigationMode: 'nonlinear',
+					submissionMode: 'simultaneous',
+					branchRule: branchRule('EXIT_TEST', `<gte><variable identifier="i3.SCORE"/><baseValue baseType="float">1</baseValue></gte>`),
+				},
+			)}${part('part-2', section('s2', ref('i4')), {
+				navigationMode: 'nonlinear',
+				preCondition: preCondition(`<lt><variable identifier="i3.SCORE"/><baseValue baseType="float">1</baseValue></lt>`),
+			})}`,
+		);
+		const { parsed, backend } = await referenceBackend(convert, xml, items('i1', 'i2', 'i3', 'i4'));
+		const counting = new CountingBackend(backend);
+		let completions = 0;
+		const player = await makePlayer(counting, parsed.identifier, () => {
+			completions += 1;
+		});
+
+		player.updateResponse('RESPONSE', 'A');
+		await player.navigateTo(1);
+		player.updateResponse('RESPONSE', 'A');
+		await player.navigateTo(2);
+		player.updateResponse('RESPONSE', 'A');
+
+		// Leaving needs the flush, so Next is offered (as a step out of the part).
+		expect(player.getNavigationState().canNext).toBe(true);
+		expect(player.getForwardTransitionInfo()).toEqual({ nextIndex: 3, leavesTestPart: true });
+
+		await player.next();
+
+		// Where 8d lands: the flush's EXIT_TEST decision ends the test where it stands.
+		expect(completions).toBe(1);
+		expect(counting.finalizeCalls).toBe(1);
+		expect(player.getCurrentItem()?.identifier).toBe('i3');
+		expect(player.getNavigationState().isComplete).toBe(true);
+		expect(player.getNavigationState().canNext).toBe(false);
+		expect(player.getEndReason()).toBe('branch');
+		expect(counting.submittedItems).toEqual(['i1', 'i2', 'i3']);
 	});
 });

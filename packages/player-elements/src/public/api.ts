@@ -370,7 +370,10 @@ export interface QtiAssessmentPlayerConfig {
 	showSections?: boolean;
 	allowSectionNavigation?: boolean;
 	showProgress?: boolean;
-	/** Seconds before a time limit expires at which a warning is announced. Default 60. */
+	/**
+	 * Seconds before a time limit expires at which a warning is announced. Default 60 when unset;
+	 * `0` turns this default warning off (`timeWarningThresholds` still announce).
+	 */
 	timeWarningThreshold?: number;
 	/** Additional warning thresholds in seconds, e.g. `[300, 60]`; each is announced once per limit. */
 	timeWarningThresholds?: number[];

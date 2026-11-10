@@ -106,19 +106,6 @@
 		return interfaceText(i18n, 'sectionPlayer.passage', 'Passage');
 	}
 
-	/**
-	 * The toggle's accessible name: the passage's heading plus the translated action verb, so
-	 * each collapse control is distinguishable when several passages share the section.
-	 * `interfaceText` holds the English verb: a provider that answers a missing key with the
-	 * key itself must never read as the verb.
-	 */
-	function toggleName(passage: QtiSharedHtmlBlock, index: number, collapsed: boolean): string {
-		const verb = collapsed
-			? interfaceText(i18n, 'assessment.expandPassage', 'Expand passage')
-			: interfaceText(i18n, 'assessment.collapsePassage', 'Collapse passage');
-		return `${passageTitle(passage, index)} — ${verb}`;
-	}
-
 	function passageScope(node: HTMLElement, identifier: string) {
 		passageScopeElements = { ...passageScopeElements, [identifier]: node };
 		return {
@@ -160,12 +147,16 @@
 									{assessmentId}
 									{pnp}
 								/>
+								<!--
+									A disclosure named by the passage's heading: the name stays the same in
+									both states, and `aria-expanded` alone says which one it is in.
+								-->
 								<button
 									type="button"
 									class="passage-toggle"
 									onclick={() => toggleCollapse(passage.identifier)}
 									aria-expanded={!passageCollapsed}
-									aria-label={toggleName(passage, index, passageCollapsed)}
+									aria-labelledby={headingId}
 								>
 									<svg
 										class="passage-toggle-icon"

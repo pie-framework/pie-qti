@@ -5635,9 +5635,7 @@
           }
         }
       },
-      "qti30": {
-        "error": "Unknown processing expression tag: <qti-base-value>"
-      }
+      "qti30": "same as qti22"
     },
     "responseProcessing_math_max_min_round_truncate": {
       "qti22": {
@@ -5763,7 +5761,7 @@
         }
       },
       "qti30": {
-        "error": "Unknown processing expression tag: <qti-base-value>"
+        "error": "Unknown processing expression tag: <sampleVariance>"
       }
     },
     "responseProcessing_notEqual_basic": {
@@ -7412,9 +7410,7 @@
           }
         }
       },
-      "qti30": {
-        "error": "Unknown processing expression tag: <qti-variable>"
-      }
+      "qti30": "same as qti22"
     },
     "template_randomInteger_printedVariable": {
       "qti22": {
