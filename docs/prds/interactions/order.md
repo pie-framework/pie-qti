@@ -57,6 +57,7 @@
 | `maxChoices` | ✅ Full | Extracted as `maxChoices` (0 when unspecified). Caps subset ordering (clamped to the number of choices; 0 = up to all); adding past it is refused and announced, and validation rejects a longer response. Ignored when `minChoices` is unspecified, as the spec requires. |
 | `data-min-selections-message` | ✅ Full | QTI 3.0 (Table on `qti-order-interaction`). Replaces the localized minimum hint, and the range statement of subset mode, while the order holds fewer items than `minChoices` requires. |
 | `data-max-selections-message` | ✅ Full | QTI 3.0 (Table on `qti-order-interaction`). Announced when an add is refused at the subset cap, instead of the localized "Your order can hold up to {max} items…". |
+| `data-choices-container-width` | ❌ Not implemented | Defined by QTI 3.0 on `qti-order-interaction` (3.0 XSD line 5013): the width of the choices container for the `qti-choices-top/bottom/left/right` side-by-side layouts (optional Level 3 conformance). This component ships no side-by-side layout by PRD decision, so the attribute has nothing to size and is not delivered; an authored value is ignored. |
 
 ### Supported attributes on `simpleChoice`
 

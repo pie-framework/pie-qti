@@ -108,7 +108,7 @@ Legend: "—" = the attribute does not exist in that version; "optional" = optio
 | `minAssociations` | — | optional | optional | 0 (delivered only when above 0) | Aligned; an authored value is enforced by response validation |
 | `gapText`/`gapImg` `matchMax` | required | required | required | fallback 1 | Required (fallback for invalid content) |
 | `gapText`/`gapImg` `matchMin` | 0 | 0 | 0 | 0 | Aligned |
-| `gapText`/`gapImg` `fixed` | false | — | — | false (an authored `true` is delivered and pins the choice in the shuffle; honoured in every version as leniency) | Fixed (was not read; the earlier "Aligned" verdict was wrong — an authored `fixed="true"` was ignored) |
+| `gapText`/`gapImg` `fixed` | false | — | — | false (a QTI 2.1-authored `true` is delivered and pins the choice in the shuffle; read for QTI 2.1 content only — 2.2/3.0 define no `fixed` on gap choices) | Fixed for QTI 2.1 (was not read; the earlier "Aligned" verdict was wrong — an authored `fixed="true"` was ignored) |
 | `gap` `required` | false | false | false | false (required gaps delivered as `requiredGaps`) | Aligned; an authored `true` is enforced by response validation |
 
 ### inlineChoiceInteraction / inlineChoice

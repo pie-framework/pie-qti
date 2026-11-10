@@ -124,6 +124,11 @@ function restoreFixedPositions<T extends { fixed?: boolean }>(shuffled: readonly
 
 /**
  * Extracts one draggable image choice from gapImg/qti-gap-img content.
+ *
+ * `readsFixed` is true for QTI 2.1 content only: `fixed` exists on gapImg (and
+ * gapText) in the QTI 2.1 schema alone (fixed.GapImg.Attr / fixed.GapText.Attr);
+ * QTI 2.2 and 3.0 define none, so an authored one there is not an attribute of
+ * the element and is not read.
  */
 function extractGapImage(
 	gapImg: QTIElement,
@@ -136,6 +141,7 @@ function extractGapImage(
 		| 'getChildrenByTag'
 		| 'getTextContent'
 	>,
+	readsFixed: boolean,
 ): GapMatchImage {
 	const classes = utils.getClasses(gapImg);
 	const matchMax = utils.getNumberAttribute(gapImg, 'matchMax', 1);
@@ -143,9 +149,7 @@ function extractGapImage(
 	const matchGroupRaw = utils.getAttribute(gapImg, 'matchGroup', '');
 	const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
 	const objectLabel = utils.getAttribute(gapImg, 'objectLabel', '').trim();
-	// `fixed` exists on gapImg in QTI 2.1 (fixed.GapImg.Attr); an authored value
-	// is honoured in every version as leniency, as with maxAssociations.
-	const fixed = utils.getBooleanAttribute(gapImg, 'fixed');
+	const fixed = readsFixed && utils.getBooleanAttribute(gapImg, 'fixed');
 
 	let src = '';
 	let alt = '';
@@ -208,6 +212,11 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 	extract(element, context) {
 		const { utils } = context;
 
+		// `fixed` exists on gapText and gapImg in the QTI 2.1 schema alone
+		// (fixed.GapText.Attr / fixed.GapImg.Attr); QTI 2.2 and 3.0 define none on
+		// gap choices, so it is read for QTI 2.1 content only.
+		const readsFixed = predatesQti22(context);
+
 		// Extract gapText children (draggable text items)
 		const gapTextElements = utils.getChildrenByTag(element, 'gapText');
 		const gapTexts = gapTextElements.map((gapText) => {
@@ -216,9 +225,7 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 			const matchMin = utils.getNumberAttribute(gapText, 'matchMin', 0);
 			const matchGroupRaw = utils.getAttribute(gapText, 'matchGroup', '');
 			const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
-			// `fixed` exists on gapText in QTI 2.1 (fixed.GapText.Attr); an authored
-			// value is honoured in every version as leniency, as with maxAssociations.
-			const fixed = utils.getBooleanAttribute(gapText, 'fixed');
+			const fixed = readsFixed && utils.getBooleanAttribute(gapText, 'fixed');
 
 			return {
 				identifier: utils.getAttribute(gapText, 'identifier', ''),
@@ -233,7 +240,7 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 
 		// Extract gapImg children (draggable image items; QTI 2.x gapImg / QTI 3.0 qti-gap-img)
 		const gapImgElements = utils.getChildrenByTag(element, 'gapImg');
-		const gapImages = gapImgElements.map((gapImg) => extractGapImage(gapImg, utils));
+		const gapImages = gapImgElements.map((gapImg) => extractGapImage(gapImg, utils, readsFixed));
 
 		// Extract attributes
 		const shuffle = utils.getBooleanAttribute(element, 'shuffle');

@@ -51,7 +51,7 @@ This is distinct from `matchInteraction` (a grid of row-column pairings) and `as
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `responseIdentifier` | ✅ Full | Extracted as `responseId`; used in `qti-change` event payload |
-| `shuffle` | ✅ Full | Shuffles the `gapTexts` palette order at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads. A `gapText` or `gapImg` authored `fixed="true"` (a QTI 2.1 attribute, `fixed.GapText.Attr` / `fixed.GapImg.Attr`; honoured in every version as leniency) keeps the palette position it has unshuffled; delivered as `fixed` |
+| `shuffle` | ✅ Full | Shuffles the `gapTexts` palette order at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads. A `gapText` or `gapImg` authored `fixed="true"` (a QTI 2.1 attribute, `fixed.GapText.Attr` / `fixed.GapImg.Attr`; read for QTI 2.1 content only, which defines it) keeps the palette position it has unshuffled; delivered as `fixed` |
 | `maxAssociations` | ✅ Full | Delivered as `maxAssociations` (0 = no restriction). An absent attribute takes the per-version spec default: 1 in QTI 2.2 (Table 5.38.3) and 3.0 (Table 5.57.3); no cap in QTI 2.1, which has no such attribute. The component refuses and announces a placement past the cap (the author's `data-max-selections-message` wins; a held word stays held), and response validation rejects an over-limit response |
 
 ### Supported attributes on `gapText`

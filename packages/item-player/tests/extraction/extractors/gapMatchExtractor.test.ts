@@ -25,22 +25,39 @@ describe('standardGapMatchExtractor authored fixed (QTI 2.1 fixed.GapText.Attr /
   </itemBody>
 </assessmentItem>`;
 
-	test('delivers fixed on the gapText and gapImg choices that author it', () => {
-		const element = parseQTI(`
-			<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
-				<prompt>Fill: <gap identifier="G1" /></prompt>
-				<gapText identifier="T1" matchMax="1" fixed="true">cat</gapText>
-				<gapText identifier="T2" matchMax="1">dog</gapText>
-				<gapImg identifier="I1" matchMax="1" fixed="true"><object data="sun.png" type="image/png">Sun</object></gapImg>
-				<gapImg identifier="I2" matchMax="1"><object data="moon.png" type="image/png">Moon</object></gapImg>
-			</gapMatchInteraction>
-		`);
-		const result = standardGapMatchExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+	const FIXED_INTERACTION = `
+		<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+			<prompt>Fill: <gap identifier="G1" /></prompt>
+			<gapText identifier="T1" matchMax="1" fixed="true">cat</gapText>
+			<gapText identifier="T2" matchMax="1">dog</gapText>
+			<gapImg identifier="I1" matchMax="1" fixed="true"><object data="sun.png" type="image/png">Sun</object></gapImg>
+			<gapImg identifier="I2" matchMax="1"><object data="moon.png" type="image/png">Moon</object></gapImg>
+		</gapMatchInteraction>
+	`;
+
+	function extractFixed(qtiVersion: string) {
+		const element = parseQTI(FIXED_INTERACTION);
+		return standardGapMatchExtractor.extract(
+			element,
+			createTestContext(element, 'RESPONSE', element, new Map(), { qtiVersion } as ItemSessionEngineConfig),
+		);
+	}
+
+	test('QTI 2.1: delivers fixed on the gapText and gapImg choices that author it', () => {
+		const result = extractFixed('2.1');
 
 		expect(result.gapTexts.find((g) => g.identifier === 'T1')?.fixed).toBe(true);
 		expect(result.gapTexts.find((g) => g.identifier === 'T2')?.fixed).toBeUndefined();
 		expect(result.gapImages.find((g) => g.identifier === 'I1')?.fixed).toBe(true);
 		expect(result.gapImages.find((g) => g.identifier === 'I2')?.fixed).toBeUndefined();
+	});
+
+	test.each(['2.2', '3.0'])('QTI %s defines no fixed on gap choices, so an authored one is not read', (qtiVersion) => {
+		// fixed.GapText.Attr / fixed.GapImg.Attr exist in the QTI 2.1 schema alone.
+		const result = extractFixed(qtiVersion);
+
+		expect(result.gapTexts.every((g) => g.fixed === undefined)).toBe(true);
+		expect(result.gapImages.every((g) => g.fixed === undefined)).toBe(true);
 	});
 
 	test('a fixed gapText and gapImg keep their pool position in every shuffle session', () => {
