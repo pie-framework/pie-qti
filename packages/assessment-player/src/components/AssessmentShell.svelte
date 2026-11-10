@@ -37,6 +37,7 @@
 	import AssessmentTimer from './AssessmentTimer.svelte';
 	import CompletionScreen from './CompletionScreen.svelte';
 	import ExpiryNoticeDialog, { type ExpiryNotice } from './ExpiryNoticeDialog.svelte';
+	import FeedbackDialog from './FeedbackDialog.svelte';
 	import LeavePartDialog from './LeavePartDialog.svelte';
 	import NavigationBar from './NavigationBar.svelte';
 	import PauseOverlay from './PauseOverlay.svelte';
@@ -2274,27 +2275,14 @@
 			shown with the shell's dialog semantics (focus in, Escape/Continue to close).
 		-->
 		{#if feedbackDialogOpen}
-			<AssessmentDialog
+			<FeedbackDialog
 				bind:open={feedbackDialogOpen}
-				title={i18n.t('assessment.feedback.title', 'Feedback')}
-				confirmLabel={i18n.t('common.continue', 'Continue')}
-				showCancel={false}
+				entries={feedbackEntries}
+				security={config.security}
+				{typeset}
 				{i18n}
 				onClose={() => handleFeedbackDialogClose()}
-			>
-				{#snippet children()}
-					<div class="feedback-dialog-body pie-qti-content" data-testid="assessment-item-feedback" use:typesetNode>
-						{#each feedbackEntries as entry, index (`${entry.identifier}:${index}`)}
-							<div class="feedback-dialog-entry">
-								{#if entry.title}
-									<p class="feedback-dialog-entry-title">{entry.title}</p>
-								{/if}
-								{@html sanitizeHtml(entry.content, { security: config.security })}
-							</div>
-						{/each}
-					</div>
-				{/snippet}
-			</AssessmentDialog>
+			/>
 		{/if}
 
 		<!--
@@ -2674,32 +2662,6 @@
 	.item-comments-input:focus-visible {
 		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
-	}
-
-	/* Item feedback inside the shell dialog (snippet content keeps the shell's CSS scope). */
-	.feedback-dialog-body {
-		display: flex;
-		flex-direction: column;
-		gap: var(--pie-qti-space-3, 0.75rem);
-		overflow-wrap: anywhere;
-	}
-
-	.feedback-dialog-entry + .feedback-dialog-entry {
-		padding-block-start: var(--pie-qti-space-3, 0.75rem);
-		border-block-start: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
-	}
-
-	.feedback-dialog-entry-title {
-		margin: 0 0 var(--pie-qti-space-2, 0.5rem);
-		font-weight: 700;
-	}
-
-	.feedback-dialog-entry :global(> :first-child) {
-		margin-block-start: 0;
-	}
-
-	.feedback-dialog-entry :global(> :last-child) {
-		margin-block-end: 0;
 	}
 
 	.support-code {
