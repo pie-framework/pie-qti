@@ -2907,6 +2907,15 @@ export class AssessmentPlayer {
 			return itemResult;
 		}
 
+		// The hint consumed no attempt: the item session must be as open as it was before it.
+		// Response processing may have marked the item completed (a hint on a correct answer),
+		// which closes the session and would leave the candidate with no way to answer —
+		// reopen it while attempts remain, as a counted check reopens.
+		// The backend accepted these exact responses (it ran response processing on them), so
+		// they stand as the item's last submitted set: moving on unchanged re-submits nothing
+		// and follows the counted decision on record, never a fresh one on the hint's state.
+		this.lastSubmittedResponses.set(q.identifier, cloneResponseRecord(responses));
+		this.reopenForRemainingAttempts(q);
 		this.sessionCoordinator.markAnswered(q.identifier, responses);
 		return {
 			itemIdentifier: q.identifier,
