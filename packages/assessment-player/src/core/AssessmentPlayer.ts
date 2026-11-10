@@ -67,15 +67,16 @@ import {
 	deliveredItems,
 	endAttemptInteractionInfo,
 	evaluateTestExpression,
+	firstEligibleItem,
 	isAdaptiveItemXml,
 	itemSessionVariableValues,
+	nextItemIdentifier,
 	plainQtiValue,
 	recordedItemVariableValues,
 	resolveItemSessionControl,
 	sectionComponents,
 	testOutcomeDeclarations,
 } from './testStructure.js';
-import { firstEligibleItem, nextItemIdentifier } from '../integration/test-navigation.js';
 import { extendTimeLimit, TimeManager } from './TimeManager.js';
 import {
 	asResponseValues,
