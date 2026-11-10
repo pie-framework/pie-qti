@@ -1,10 +1,8 @@
 <script lang="ts">
 	import { flushSync, onDestroy, onMount, tick, getContext } from 'svelte';
 	import { DefaultI18nProvider, interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
-	import { applyPnpToSurface, clearPnpSurface, type PnpProfile } from '@pie-qti/item-player';
-	import { sanitizeHtml } from '@pie-qti/item-player/security';
+	import { applyDisplaySettingsSurface, createDisplaySettings } from './displaySettings.svelte.js';
 	import { normalizeQtiSharedContext } from '@pie-qti/assessment-toolkit';
-	import { withDisplaySettings, type QtiCandidateDisplaySettings } from '@pie-qti/section-player';
 	import type { QtiSharedHtmlBlock } from '@pie-qti/section-player';
 	import {
 		PlayerBaseStyles,
@@ -338,7 +336,7 @@
 	// report changes; the shell root is a PNP surface so the profile also covers the
 	// header, navigation and timer chrome around the item.
 	let shellRootEl = $state<HTMLElement | null>(null);
-	let candidateDisplaySettings = $state<QtiCandidateDisplaySettings>({});
+	const displaySettings = createDisplaySettings(() => config.pnp);
 	// Practice delivery: the item-level check control, the feedback it surfaces, and
 	// the candidate's comment for the test team (QTI allowComment).
 	let checkAnswer = $state<CheckAnswerState | null>(null);
@@ -364,8 +362,6 @@
 		stateVersion;
 		return player ? toSectionComposition(player, config) : null;
 	});
-	/** The PNP profile the shell chrome renders with: the host profile with the candidate's display settings applied. */
-	const shellPnp = $derived<PnpProfile>(withDisplaySettings(config.pnp, candidateDisplaySettings));
 	const hasSplitPane = $derived(sectionComposition?.layout === 'split-pane');
 	const sectionRole = $derived(config.role ?? 'candidate');
 	const titleHeadingLevel = $derived(Math.min(5, Math.max(1, Math.round(headingLevel ?? (fullViewport ? 1 : 2)))));
@@ -1308,23 +1304,14 @@
 	// PNP surface: the shell chrome follows the candidate's display settings
 	// ---------------------------------------------------------------------------
 
-	/**
-	 * The section layouts repaint their own surface when the candidate changes their
-	 * display settings; the shell root is a separate PNP surface so the header,
-	 * navigation bar and timer follow too (nested inverting filters are neutralized
-	 * by the surface mechanism, and nothing outside the shell changes).
-	 */
-	function handleDisplaySettingsChange(event: { settings: QtiCandidateDisplaySettings }) {
-		candidateDisplaySettings = event.settings;
-	}
-
-	$effect(() => {
-		const root = shellRootEl;
-		if (!root) return;
-		const pnp = shellPnp;
-		applyPnpToSurface(root, pnp);
-		return () => clearPnpSurface(root);
-	});
+	// The section layouts repaint their own surface when the candidate changes their
+	// display settings; the shell root is a separate PNP surface so the header,
+	// navigation bar and timer follow too (nested inverting filters are neutralized
+	// by the surface mechanism, and nothing outside the shell changes).
+	applyDisplaySettingsSurface(
+		() => shellRootEl,
+		() => displaySettings.shellPnp,
+	);
 
 	async function handleExpiryConfirm() {
 		if (expiryDialog?.mode !== 'submit') return;
@@ -1999,7 +1986,7 @@
 							{typeset}
 							headingLevel={titleHeadingLevel + 1}
 							onItemPaneReady={(el) => (itemPaneEl = el)}
-							onDisplaySettingsChange={handleDisplaySettingsChange}
+							onDisplaySettingsChange={displaySettings.handleChange}
 						/>
 					{:else}
 						<SectionPlayerVertical
@@ -2012,7 +1999,7 @@
 							{typeset}
 							headingLevel={titleHeadingLevel + 1}
 							onItemPaneReady={(el) => (itemPaneEl = el)}
-							onDisplaySettingsChange={handleDisplaySettingsChange}
+							onDisplaySettingsChange={displaySettings.handleChange}
 						/>
 					{/if}
 				{/if}
