@@ -114,8 +114,10 @@ describe('standardSelectPointExtractor', () => {
 			expect(result.maxChoices).toBe(0);
 			expect(result.minChoices).toBe(0);
 			expect(result.prompt).toBeNull();
-			expect(result.imageData?.width).toBe('500');
-			expect(result.imageData?.height).toBe('300');
+			// No declared dimensions: none are invented — the renderer stages the
+			// raster at its natural size (the space points are authored in).
+			expect(result.imageData?.width).toBeUndefined();
+			expect(result.imageData?.height).toBeUndefined();
 		});
 
 		describe('maxChoices default for an absent attribute (per QTI version)', () => {
@@ -190,8 +192,10 @@ describe('standardSelectPointExtractor', () => {
 				createTestContext(element, 'RESPONSE'),
 			);
 
-			expect(result.imageData?.width).toBe('500');
-			expect(result.imageData?.height).toBe('300');
+			// A malicious width/height is dropped, not defaulted: no dimensions are
+			// invented for an image that declares unusable ones.
+			expect(result.imageData?.width).toBeUndefined();
+			expect(result.imageData?.height).toBeUndefined();
 			expect(JSON.stringify(result.imageData)).not.toContain('tracker.test');
 		});
 	});

@@ -85,7 +85,7 @@ describe('standardGraphicOrderExtractor', () => {
 		]);
 	});
 
-	test('uses default values when attributes are missing', () => {
+	test('keeps hotspot defaults but invents no image dimensions when attributes are missing', () => {
 		const xml = `
 			<graphicOrderInteraction responseIdentifier="RESPONSE">
 				<object data="test.png" type="image/png"/>
@@ -98,8 +98,10 @@ describe('standardGraphicOrderExtractor', () => {
 
 		const result = standardGraphicOrderExtractor.extract(element, context);
 
-		expect(result.imageData?.width).toBe('500');
-		expect(result.imageData?.height).toBe('300');
+		// The stage's pixel space stays the image's own: a default would place the
+		// areas in a guessed space. The renderer stages the raster at its natural size.
+		expect(result.imageData?.width).toBeUndefined();
+		expect(result.imageData?.height).toBeUndefined();
 		expect(result.hotspotChoices[0].shape).toBe('rect');
 		expect(result.hotspotChoices[0].coords).toBe('0,0,50,50');
 	});

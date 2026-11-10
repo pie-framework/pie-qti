@@ -141,9 +141,78 @@ const GRAPHIC_ASSOCIATE_POLYGON = `<?xml version="1.0" encoding="UTF-8"?>
   <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
 </assessmentItem>`;
 
+/**
+ * Graphic gap match with a whole-image (`default`) hotspot listed last: a click on the
+ * lake's area must fill the lake, not the zone that covers the whole image.
+ */
+const GRAPHIC_GAP_MATCH_DEFAULT = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="graphic-gap-match-default"
+  title="Graphic gap match default shape" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair">
+    <correctResponse>
+      <value>RAIN LAKE</value>
+    </correctResponse>
+  </responseDeclaration>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+  <itemBody>
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+      <prompt>Where does the rain fall?</prompt>
+      <object type="image/svg+xml" width="400" height="200">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
+          <title>A lake with an island</title>
+          <rect width="400" height="200" fill="#f0fdf4"/>
+          <rect x="40" y="40" width="120" height="100" fill="#bfdbfe" stroke="#1e3a8a" stroke-width="2"/>
+          <circle cx="300" cy="100" r="40" fill="#d9f99d" stroke="#3f6212" stroke-width="2"/>
+        </svg>
+      </object>
+      <gapText identifier="RAIN" matchMax="1">Rain</gapText>
+      <associableHotspot identifier="LAKE" shape="rect" coords="40,40,160,140" matchMax="1" hotspotLabel="Lake"/>
+      <associableHotspot identifier="ALL" shape="default" coords="" matchMax="1" hotspotLabel="Anywhere else"/>
+    </graphicGapMatchInteraction>
+  </itemBody>
+  <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
+</assessmentItem>`;
+
+/**
+ * Graphic order with long hotspot labels: at 320 CSS px (WCAG 1.4.10 Reflow) the
+ * labels must wrap, not truncate, and the ordering controls must stay usable.
+ */
+const GRAPHIC_ORDER_LONG_LABELS = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="graphic-order-long-labels"
+  title="Graphic order long labels" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="ordered" baseType="identifier">
+    <correctResponse>
+      <value>TOP</value>
+      <value>MIDDLE</value>
+      <value>BOTTOM</value>
+    </correctResponse>
+  </responseDeclaration>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+  <itemBody>
+    <graphicOrderInteraction responseIdentifier="RESPONSE">
+      <prompt>Order the layers from top to bottom.</prompt>
+      <object type="image/svg+xml" width="400" height="240">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240">
+          <title>Three rock layers</title>
+          <rect width="400" height="240" fill="#ffffff"/>
+          <rect x="20" y="20" width="360" height="60" fill="#f3f4f6" stroke="#6b7280"/>
+          <rect x="20" y="90" width="360" height="60" fill="#e5e7eb" stroke="#6b7280"/>
+          <polygon points="20,160 380,160 200,230" fill="#d1d5db" stroke="#6b7280"/>
+        </svg>
+      </object>
+      <hotspotChoice identifier="BOTTOM" shape="poly" coords="20,160,380,160,200,230" hotspotLabel="Granite bed with visible quartz grains and mica flecks throughout"/>
+      <hotspotChoice identifier="TOP" shape="rect" coords="20,20,380,80" hotspotLabel="Sandstone cap rock, weathered pale and crumbly at the surface"/>
+      <hotspotChoice identifier="MIDDLE" shape="rect" coords="20,90,380,150" hotspotLabel="Shale layer, dark and thinly bedded with fossil impressions"/>
+    </graphicOrderInteraction>
+  </itemBody>
+  <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
+</assessmentItem>`;
+
 export const GRAPHIC_INTERACTION_FIXTURES: Readonly<Record<string, string>> = {
 	'hotspot-multiple': HOTSPOT_MULTIPLE,
 	'hotspot-default': HOTSPOT_DEFAULT_SHAPE,
 	'graphic-order-areas': GRAPHIC_ORDER_AREAS,
 	'graphic-associate-polygon': GRAPHIC_ASSOCIATE_POLYGON,
+	'graphic-gap-match-default': GRAPHIC_GAP_MATCH_DEFAULT,
+	'graphic-order-long-labels': GRAPHIC_ORDER_LONG_LABELS,
 };

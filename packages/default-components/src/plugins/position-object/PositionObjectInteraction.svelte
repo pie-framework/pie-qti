@@ -57,11 +57,13 @@
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import { joinSentences, translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import ImageStage from '../../shared/components/ImageStage.svelte';
+	import { createKeyboardCrosshair } from '../../shared/components/keyboardCrosshair.svelte';
 	import DragHandle from '../../shared/components/DragHandle.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
-	import { imageAltText } from '../../shared/utils/graphicRegions';
+	import { clientToImagePoint, imageAltText } from '../../shared/utils/graphicRegions';
 
 	interface Position {
 		stageId: string;
@@ -99,28 +101,39 @@
 	const parsedResponse = $derived(shell.response);
 	const parsedCorrectResponse = $derived(shell.correctResponse);
 	const isShowingCorrect = $derived(shell.isShowingCorrect);
-	const imageWidth = $derived(
-		Number(normalizePixelDimension(parsedInteraction?.imageData?.width, '800') ?? '800'),
-	);
-	const imageHeight = $derived(
-		Number(normalizePixelDimension(parsedInteraction?.imageData?.height, '600') ?? '600'),
-	);
+	// The stage's pixel space (shared ImageStage): the stage image's declared
+	// width/height, else a raster image's natural size once loaded, else unknown —
+	// QTI points live in that space, so unknown means nothing is placed (a default
+	// would score placements in a guessed space).
+	let imageWidth = $state<number | null>(null);
+	let imageHeight = $state<number | null>(null);
+	let imageFailed = $state(false);
+	let awaitingNaturalSize = $state(false);
 	// The authored reference point (QTI centerPoint), in object image pixels from
 	// its top-left; null means the QTI default, the object's centre.
 	const centerPoint = $derived(validCenterPoint(parsedInteraction?.centerPoint));
 
 	const imageData = $derived(parsedInteraction?.imageData ?? null);
+	const hasImageDimensions = $derived(imageWidth !== null && imageHeight !== null);
+	const missingDimensions = $derived(!!imageData && !hasImageDimensions && !awaitingNaturalSize);
+	const showDiagnostics = $derived(role !== 'candidate');
+
+	let warnedMissingDimensions = false;
+	$effect(() => {
+		if (missingDimensions && !warnedMissingDimensions) {
+			warnedMissingDimensions = true;
+			console.warn(
+				'[pie-qti-position-object] The stage image has no known width/height, so objects cannot be placed correctly. Add width and height to the image, or supply the asset dimensions.',
+			);
+		}
+	});
 	const imageAlt = $derived(
 		imageAltText(imageData, translate(i18n, 'interactions.positionObject.imageFallback', 'Image for this question')),
 	);
 	const imageDescription = $derived(imageData?.decorative ? '' : (imageData?.altDescription ?? ''));
 	const imageDescriptionId = $derived(`${uid}-image-description`);
-	let failedSrc = $state<string | null>(null);
-	const imageFailed = $derived(!!imageData?.src && failedSrc === imageData.src);
-
-	function handleImageError() {
-		failedSrc = imageData?.src ?? null;
-		console.warn(`[pie-qti-position-object] The stage image failed to load: ${imageData?.src ?? ''}`);
+	function warnImageFailed(src: string) {
+		console.warn(`[pie-qti-position-object] The stage image failed to load: ${src}`);
 	}
 
 	function objectDimension(value: unknown): number {
@@ -158,14 +171,14 @@
 	let positions = $state<Position[]>([]);
 	let draggedStageId: string | null = $state(null);
 	let draggedPositionIndex: number | null = $state(null);
-	let imageContainer: HTMLDivElement | null = $state(null);
+	let imageContainer: HTMLElement | null = $state(null);
 
-	// Keyboard accessibility state (K-04)
-	let selectedStageId: string | null = $state(null); // stage currently being keyboard-positioned
-	let crosshairX = $state(0.5); // normalized [0,1] x position on background image
-	let crosshairY = $state(0.5); // normalized [0,1] y position on background image
-	let crosshairActive = $state(false); // whether the crosshair is visible/active
-	let liveMessage = $state(''); // message for aria-live region
+	// Keyboard accessibility state (K-04): the object being keyboard-positioned, the
+	// shared crosshair's normalized position on the background image, and the live
+	// region that reports selection, movement, placement and refusals.
+	let selectedStageId: string | null = $state(null);
+	const crosshair = createKeyboardCrosshair();
+	let liveMessage = $state('');
 
 	const canInteract = $derived(!disabled);
 	const canAddMore = $derived(
@@ -258,22 +271,20 @@
 
 	/**
 	 * Map a pointer position on the rendered (scaled) stage to the stage image's
-	 * natural pixel space, clamped to the image.
+	 * natural pixel space, clamped to the image. Unrounded: the emission step
+	 * rounds (see emitPositions).
 	 */
 	function stagePointFromClient(clientX: number, clientY: number): { x: number; y: number } | null {
-		if (!imageContainer) return null;
-		const rect = imageContainer.getBoundingClientRect();
-		if (!(rect.width > 0) || !(rect.height > 0)) return null;
-		return {
-			x: Math.min(imageWidth, Math.max(0, ((clientX - rect.left) / rect.width) * imageWidth)),
-			y: Math.min(imageHeight, Math.max(0, ((clientY - rect.top) / rect.height) * imageHeight)),
-		};
+		if (!imageContainer || !hasImageDimensions) return null;
+		return clientToImagePoint(clientX, clientY, imageContainer.getBoundingClientRect(), imageWidth ?? 0, imageHeight ?? 0, {
+			round: false,
+		});
 	}
 
 	/** Place a new instance of `stageId` with its reference point at (x, y). */
 	function placeStageAt(stageId: string, x: number, y: number): boolean {
 		const stage = getStageById(stageId);
-		if (!stage) return false;
+		if (!stage || !hasImageDimensions) return false;
 		if (isStageAtLimit(stage)) return false;
 		if (!canAddMore) return false;
 		positions = [...positions, { stageId, x, y }];
@@ -316,7 +327,7 @@
 
 			const stage = getStageById(stageId);
 			if (stage?.objectData) {
-				const renderScale = imageContainer ? imageContainer.getBoundingClientRect().width / imageWidth || 1 : 1;
+				const renderScale = imageContainer ? imageContainer.getBoundingClientRect().width / (imageWidth ?? 1) || 1 : 1;
 				const width = objectDimension(stage.objectData.width) * renderScale;
 				const height = objectDimension(stage.objectData.height) * renderScale;
 
@@ -436,12 +447,12 @@
 	 * reference point so that point (not the corner) lands on the recorded point.
 	 */
 	function objectBoxStyle(stage: PositionObjectStage, position: { x: number; y: number }, zIndex: number): string {
-		const width = stage.objectData ? `${(objectDimension(stage.objectData.width) / imageWidth) * 100}%` : 'auto';
-		const height = stage.objectData ? `${(objectDimension(stage.objectData.height) / imageHeight) * 100}%` : 'auto';
+		const width = stage.objectData ? `${(objectDimension(stage.objectData.width) / (imageWidth ?? 1)) * 100}%` : 'auto';
+		const height = stage.objectData ? `${(objectDimension(stage.objectData.height) / (imageHeight ?? 1)) * 100}%` : 'auto';
 		const reference = referenceFraction(stage);
 		return [
-			`left: ${(position.x / imageWidth) * 100}%`,
-			`top: ${(position.y / imageHeight) * 100}%`,
+			`left: ${(position.x / (imageWidth ?? 1)) * 100}%`,
+			`top: ${(position.y / (imageHeight ?? 1)) * 100}%`,
 			`width: ${width}`,
 			`height: ${height}`,
 			`z-index: ${zIndex}`,
@@ -462,21 +473,19 @@
 	 * Select a palette object for placement and move focus to the canvas.
 	 */
 	async function activateKeyboardPlacement(stageId: string) {
-		if (!canInteract) return;
+		if (!canInteract || !hasImageDimensions) return;
 		const stage = getStageById(stageId);
 		if (!stage || !canDragStage(stageId)) return;
 
 		selectedStageId = stageId;
-		crosshairActive = true;
+		crosshair.activate();
 
 		// Initialise crosshair to the stage's last placed position, or centre
 		const existing = [...positions].reverse().find((p: Position) => p.stageId === stageId);
 		if (existing) {
-			crosshairX = Math.max(0, Math.min(1, existing.x / imageWidth));
-			crosshairY = Math.max(0, Math.min(1, existing.y / imageHeight));
+			crosshair.jumpTo(existing.x / (imageWidth ?? 1), existing.y / (imageHeight ?? 1));
 		} else {
-			crosshairX = 0.5;
-			crosshairY = 0.5;
+			crosshair.centre();
 		}
 
 		liveMessage = translate(
@@ -512,11 +521,11 @@
 		}
 		liveMessage = translate(i18n, 'interactions.positionObject.objectPlacedAt', '{object} placed at {x}%, {y}%.', {
 			object: stageName(stage),
-			x: percent(x, imageWidth),
-			y: percent(y, imageHeight),
+			x: percent(x, imageWidth ?? 0),
+			y: percent(y, imageHeight ?? 0),
 		});
 		selectedStageId = null;
-		crosshairActive = false;
+		crosshair.deactivate();
 	}
 
 	/**
@@ -524,7 +533,8 @@
 	 */
 	function placeAtCrosshair() {
 		if (!selectedStageId || !parsedInteraction?.imageData) return;
-		finishPlacement(selectedStageId, crosshairX * imageWidth, crosshairY * imageHeight);
+		// Unrounded here: the emission step rounds (see emitPositions).
+		finishPlacement(selectedStageId, crosshair.x * (imageWidth ?? 0), crosshair.y * (imageHeight ?? 0));
 	}
 
 	/** Single-pointer alternative to dragging (WCAG 2.5.7): click/tap the canvas to place the selected object. */
@@ -538,26 +548,15 @@
 	 * Handle keydown on the canvas when in keyboard placement mode.
 	 */
 	function handleCanvasKeydown(event: KeyboardEvent) {
-		if (!crosshairActive || !selectedStageId) return;
-
-		const step = event.shiftKey ? 0.01 : 0.05;
+		if (!crosshair.active || !selectedStageId) return;
 
 		switch (event.key) {
 			case 'ArrowLeft':
-				event.preventDefault();
-				crosshairX = Math.max(0, crosshairX - step);
-				break;
 			case 'ArrowRight':
-				event.preventDefault();
-				crosshairX = Math.min(1, crosshairX + step);
-				break;
 			case 'ArrowUp':
-				event.preventDefault();
-				crosshairY = Math.max(0, crosshairY - step);
-				break;
 			case 'ArrowDown':
 				event.preventDefault();
-				crosshairY = Math.min(1, crosshairY + step);
+				if (!crosshair.move(event.key, event.shiftKey)) return;
 				break;
 			case 'Enter':
 			case ' ':
@@ -567,7 +566,7 @@
 			case 'Escape':
 				event.preventDefault();
 				selectedStageId = null;
-				crosshairActive = false;
+				crosshair.deactivate();
 				liveMessage = translate(i18n, 'interactions.positionObject.placementCancelled', 'Placement cancelled.');
 				return;
 			default:
@@ -576,8 +575,8 @@
 
 		// Announce updated position after arrow movement
 		liveMessage = translate(i18n, 'accessibility.positionPercent', 'Position: {x}%, {y}%.', {
-			x: Math.round(crosshairX * 100),
-			y: Math.round(crosshairY * 100),
+			x: Math.round(crosshair.x * 100),
+			y: Math.round(crosshair.y * 100),
 		});
 	}
 </script>
@@ -595,6 +594,16 @@
 			</div>
 		{/if}
 
+		{#if missingDimensions && showDiagnostics}
+			<div part="diagnostic" class="alert alert-error qti-po-diagnostic" role="alert">
+				{translate(
+					i18n,
+					'interactions.positionObject.unknownImageDimensions',
+					'Objects cannot be placed: the size of the stage image is unknown. Add width and height to the image, or supply the asset dimensions.',
+				)}
+			</div>
+		{/if}
+
 		<div part="layout" class="qti-po-layout flex flex-col lg:flex-row gap-4 items-start">
 			<!-- Canvas Area with Background Image -->
 			<div part="canvas-area" class="qti-po-canvas-area flex-1 min-w-0">
@@ -604,57 +613,45 @@
 					     readers pass the arrow keys through); otherwise it is a plain container,
 					     so the stage image is read as ordinary content. Placed objects inside
 					     are groups (with a remove button), not buttons. -->
-					<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-					<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-					<!-- svelte-ignore a11y_no_static_element_interactions -->
-					<!-- svelte-ignore a11y_click_events_have_key_events -->
-					<div
-						bind:this={imageContainer}
-						part="canvas"
-						class="qti-po-canvas {crosshairActive ? 'qti-po-canvas-active' : ''}"
-						class:qti-po-canvas-placing={!!selectedStageId}
-						style="aspect-ratio: {imageWidth} / {imageHeight};"
-						ondrop={handleDrop}
-						ondragover={handleDragOver}
-						onkeydown={handleCanvasKeydown}
-						onclick={handleCanvasClick}
-						role={crosshairActive ? 'application' : undefined}
-						tabindex={crosshairActive ? 0 : -1}
-						aria-label={crosshairActive
-							? translate(i18n, 'interactions.positionObject.canvasActiveLabel', 'Positioning canvas: use the arrow keys to move the crosshair, Enter to place, Escape to cancel')
-							: undefined}
+					<!-- The canvas is the drop target and the keyboard/pointer placement surface.
+					     While an object is being placed it is a focusable `application` (screen
+					     readers pass the arrow keys through); otherwise it is a plain container,
+					     so the stage image is read as ordinary content. Placed objects inside
+					     are groups (with a remove button), not buttons. The ImageStage container
+					     carries the canvas' interactive attributes (containerProps). -->
+					<ImageStage
+						{imageData}
+						alt={imageAlt}
+						description={imageDescription}
+						descriptionId={imageDescriptionId}
+						containerClass="qti-po-canvas {crosshair.active ? 'qti-po-canvas-active' : ''} {selectedStageId ? 'qti-po-canvas-placing' : ''}"
+						containerPart="canvas"
+						capContainerWidth={false}
+						containerProps={{
+							ondrop: handleDrop,
+							ondragover: handleDragOver,
+							onkeydown: handleCanvasKeydown,
+							onclick: handleCanvasClick,
+							role: crosshair.active ? 'application' : undefined,
+							tabindex: crosshair.active ? 0 : -1,
+							'aria-label': crosshair.active
+								? translate(i18n, 'interactions.positionObject.canvasActiveLabel', 'Positioning canvas: use the arrow keys to move the crosshair, Enter to place, Escape to cancel')
+								: undefined,
+						}}
+						svgContentClass="qti-po-image"
+						imgClass="qti-po-image"
+						errorClass="qti-po-image qti-po-image-error"
+						mediaPart="image"
+						errorPart="image-error"
+						loadErrorText={translate(i18n, 'interactions.positionObject.imageLoadError', 'The image could not be loaded.')}
+						onImageError={warnImageFailed}
+						sizing="refuse"
+						bind:width={imageWidth}
+						bind:height={imageHeight}
+						bind:failed={imageFailed}
+						bind:awaiting={awaitingNaturalSize}
+						bind:container={imageContainer}
 					>
-						<!-- Background Image with its authored text alternative -->
-						{#if imageData}
-							{#if imageData.type === 'svg' && imageData.content}
-								<div
-									part="image"
-									class="qti-po-image"
-									role={imageData.decorative ? undefined : 'img'}
-									aria-hidden={imageData.decorative ? 'true' : undefined}
-									aria-label={imageData.decorative ? undefined : imageAlt}
-									aria-describedby={imageDescription ? imageDescriptionId : undefined}
-								>
-									{@html imageData.content}
-								</div>
-							{:else if imageFailed}
-								<div part="image-error" class="qti-po-image qti-po-image-error">
-									<p>{translate(i18n, 'interactions.positionObject.imageLoadError', 'The image could not be loaded.')}</p>
-									{#if imageData.alt && !imageData.decorative}
-										<p>{imageData.alt}</p>
-									{/if}
-								</div>
-							{:else if imageData.src}
-								<img
-									part="image"
-									src={imageData.src}
-									alt={imageAlt}
-									aria-describedby={imageDescription ? imageDescriptionId : undefined}
-									class="qti-po-image"
-									onerror={handleImageError}
-								/>
-							{/if}
-						{/if}
 
 						<!-- Positioned Objects -->
 						{#each positions as position, index}
@@ -674,8 +671,8 @@
 										translate(i18n, 'accessibility.sentence', '{text}.', {
 											text: translate(i18n, 'interactions.positionObject.placedAtPercent', '{label} at {x}%, {y}%', {
 												label: stageName(stage),
-												x: percent(position.x, imageWidth),
-												y: percent(position.y, imageHeight),
+												x: percent(position.x, imageWidth ?? 0),
+												y: percent(position.y, imageHeight ?? 0),
 											}),
 										}),
 										isCorrect && translate(i18n, 'accessibility.correctPosition', 'Correct position.'),
@@ -752,8 +749,8 @@
 										role="img"
 										aria-label={translate(i18n, 'interactions.positionObject.correctPositionAtPercent', 'Correct position for {label}: {x}%, {y}%', {
 											label: stageName(stage),
-											x: percent(correctPos.x, imageWidth),
-											y: percent(correctPos.y, imageHeight),
+											x: percent(correctPos.x, imageWidth ?? 0),
+											y: percent(correctPos.y, imageHeight ?? 0),
 										})}
 									>
 										{#if stage.objectData}
@@ -777,20 +774,20 @@
 						{/if}
 
 						<!-- Keyboard crosshair overlay (K-04) -->
-						{#if crosshairActive}
+						{#if crosshair.active}
 							<svg
 								class="qti-po-crosshair-overlay"
 								aria-hidden="true"
 								xmlns="http://www.w3.org/2000/svg"
 							>
-								<line x1="{crosshairX * 100}%" y1="0" x2="{crosshairX * 100}%" y2="100%" class="qti-po-crosshair-halo" />
-								<line x1="0" y1="{crosshairY * 100}%" x2="100%" y2="{crosshairY * 100}%" class="qti-po-crosshair-halo" />
-								<line x1="{crosshairX * 100}%" y1="0" x2="{crosshairX * 100}%" y2="100%" class="qti-po-crosshair-line" />
-								<line x1="0" y1="{crosshairY * 100}%" x2="100%" y2="{crosshairY * 100}%" class="qti-po-crosshair-line" />
-								<circle cx="{crosshairX * 100}%" cy="{crosshairY * 100}%" r="6" class="qti-po-crosshair-dot" />
+								<line x1="{crosshair.x * 100}%" y1="0" x2="{crosshair.x * 100}%" y2="100%" class="qti-po-crosshair-halo" />
+								<line x1="0" y1="{crosshair.y * 100}%" x2="100%" y2="{crosshair.y * 100}%" class="qti-po-crosshair-halo" />
+								<line x1="{crosshair.x * 100}%" y1="0" x2="{crosshair.x * 100}%" y2="100%" class="qti-po-crosshair-line" />
+								<line x1="0" y1="{crosshair.y * 100}%" x2="100%" y2="{crosshair.y * 100}%" class="qti-po-crosshair-line" />
+								<circle cx="{crosshair.x * 100}%" cy="{crosshair.y * 100}%" r="6" class="qti-po-crosshair-dot" />
 							</svg>
 						{/if}
-					</div>
+					</ImageStage>
 				</div>
 				{#if imageDescription}
 					<p id={imageDescriptionId} class="qti-po-sr-only">{imageDescription}</p>
@@ -961,42 +958,12 @@
 		background: var(--pie-qti-base-200, oklch(98% 0 0));
 	}
 	/* Borderless canvas: exactly the stage image's aspect ratio, so percentages map to image pixels */
-	.qti-po-canvas {
-		position: relative;
-		width: 100%;
-	}
 	.qti-po-canvas-placing {
 		cursor: crosshair;
 	}
 	.qti-po-canvas:focus-visible {
 		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
-	}
-	.qti-po-image {
-		display: block;
-		width: 100%;
-		height: 100%;
-		object-fit: contain;
-		pointer-events: none;
-	}
-	.qti-po-image :global(svg) {
-		display: block;
-		width: 100%;
-		height: 100%;
-	}
-	.qti-po-image-error {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 0.25rem;
-		padding: 1rem;
-		box-sizing: border-box;
-		text-align: center;
-		color: var(--pie-qti-error-text, #b91c1c);
-	}
-	.qti-po-image-error p {
-		margin: 0;
 	}
 	/* Critical: positioned items must be absolutely positioned even without Tailwind's `absolute` utility */
 	.qti-po-placed {

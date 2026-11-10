@@ -138,6 +138,7 @@ Per-label and per-hotspot `matchMax` need no separate UI guard: the placement mo
 ## Functional requirements
 
 - **FR-1:** Render a background image (SVG inline or raster `<img>`) at the declared `width` × `height` pixel dimensions. Overlay an absolutely-positioned, full-coverage SVG for hotspot rendering.
+- **FR-1a (hotspot paint order):** A `shape="default"` hotspot — the whole image (QTI 3.0 §8.29) — is painted beneath the other hotspots: its layers and pointer target render first, and a drop or click on another hotspot stays that hotspot's. Its control keeps its authored place in the keyboard order and takes no pointer input.
 - **FR-2:** Render a label pool above the image stage, displaying one button per `gapText` entry. Labels in the pool that have already been placed show a visually distinct "placed" state and are disabled for dragging.
 - **FR-3:** When a candidate drags a label onto a hotspot and drops it, create the pair `"gapTextId hotspotId"` and add it to the response array. If the hotspot was already occupied, replace the existing pair (displace the previous label, which returns to an available state in the pool). Emit a `qti-change` event.
 - **FR-4:** When a candidate clicks the ✕ button adjacent to a placed label in the pool, remove that label's pair from the response array and return the label to an available state. Emit `qti-change`.

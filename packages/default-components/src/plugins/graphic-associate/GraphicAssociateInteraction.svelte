@@ -7,6 +7,7 @@
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import ImageStage from '../../shared/components/ImageStage.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
 	import { countPairsWithId, pairIncludesId } from '../../shared/utils/pairHelpers';
@@ -47,29 +48,39 @@
 	const parsedCorrectResponse = $derived(shell.correctResponse);
 	const isShowingCorrect = $derived(shell.isShowingCorrect);
 	const correctPairs = $derived(Array.isArray(parsedCorrectResponse) ? parsedCorrectResponse : []);
-	const imageWidth = $derived(
-		Number(normalizePixelDimension(parsedInteraction?.imageData?.width, '500') ?? '500'),
-	);
-	const imageHeight = $derived(
-		Number(normalizePixelDimension(parsedInteraction?.imageData?.height, '300') ?? '300'),
-	);
-	// Reflow (WCAG 1.4.10): the stage scales with its container up to the image's
-	// natural size; hotspots are positioned in percentages of the natural size.
-	const stageStyle = $derived(`max-width: calc(${imageWidth}px + 4px);`);
-	const canvasStyle = $derived(`aspect-ratio: ${imageWidth} / ${imageHeight};`);
+	// The stage's pixel space (shared ImageStage): the image's declared width/height,
+	// else a raster image's natural size once loaded, else unknown — the hotspots are
+	// positioned in percentages of it, so unknown means no stage is drawn (a default
+	// would associate in a guessed space). The stage scales with its container (WCAG 1.4.10).
+	let imageWidth = $state<number | null>(null);
+	let imageHeight = $state<number | null>(null);
+	let imageFailed = $state(false);
+	let awaitingNaturalSize = $state(false);
+
+	const stageStyle = $derived(`max-width: calc(${imageWidth ?? 0}px + 4px);`);
 
 	const imageData = $derived(parsedInteraction?.imageData ?? null);
+	const hasImageDimensions = $derived(imageWidth !== null && imageHeight !== null);
+	const missingDimensions = $derived(!!imageData && !hasImageDimensions && !awaitingNaturalSize);
+	const showDiagnostics = $derived(role !== 'candidate');
+
+	let warnedMissingDimensions = false;
+	$effect(() => {
+		if (missingDimensions && !warnedMissingDimensions) {
+			warnedMissingDimensions = true;
+			console.warn(
+				'[pie-qti-graphic-associate] The image has no known width/height, so its hotspots cannot be placed. Add width and height to the image, or supply the asset dimensions.',
+			);
+		}
+	});
 	const imageAlt = $derived(
 		imageAltText(imageData, translate(i18n, 'interactions.graphicAssociate.imageFallback', 'Image for this question')),
 	);
 	const imageDescription = $derived(imageData?.decorative ? '' : (imageData?.altDescription ?? ''));
 	const imageDescriptionId = $derived(`${uid}-image-description`);
-	let failedSrc = $state<string | null>(null);
-	const imageFailed = $derived(!!imageData?.src && failedSrc === imageData.src);
 
-	function handleImageError() {
-		failedSrc = imageData?.src ?? null;
-		console.warn(`[pie-qti-graphic-associate] The image failed to load: ${imageData?.src ?? ''}`);
+	function warnImageFailed(src: string) {
+		console.warn(`[pie-qti-graphic-associate] The image failed to load: ${src}`);
 	}
 
 	// Get reference to the root element for event dispatching
@@ -286,13 +297,13 @@
 	 * image (QTI 3.0 §8.29); a shape whose coords cannot be read has an empty box.
 	 */
 	function hotspotBounds(hotspot: GraphicAssociateHotspot): Bounds {
-		if (hotspot.shape === 'default') return { x: 0, y: 0, width: imageWidth, height: imageHeight };
+		if (hotspot.shape === 'default') return { x: 0, y: 0, width: imageWidth ?? 0, height: imageHeight ?? 0 };
 		return shapeBounds(hotspot.shape, hotspot.coords) ?? { x: 0, y: 0, width: 0, height: 0 };
 	}
 
 	/** Where an association line meets a hotspot: its shape's centre; the whole image's for the default shape. */
 	function hotspotCenter(hotspot: GraphicAssociateHotspot): { x: number; y: number } {
-		if (hotspot.shape === 'default') return { x: imageWidth / 2, y: imageHeight / 2 };
+		if (hotspot.shape === 'default') return { x: (imageWidth ?? 0) / 2, y: (imageHeight ?? 0) / 2 };
 		return shapeCenter(hotspot.shape, hotspot.coords);
 	}
 
@@ -306,10 +317,10 @@
 		const bounds = hotspotBounds(hotspot);
 		const pct = (value: number, total: number) => `${((value / total) * 100).toFixed(4)}%`;
 		return [
-			`left: ${pct(bounds.x + bounds.width / 2, imageWidth)}`,
-			`top: ${pct(bounds.y + bounds.height / 2, imageHeight)}`,
-			`width: ${pct(bounds.width, imageWidth)}`,
-			`height: ${pct(bounds.height, imageHeight)}`,
+			`left: ${pct(bounds.x + bounds.width / 2, imageWidth ?? 1)}`,
+			`top: ${pct(bounds.y + bounds.height / 2, imageHeight ?? 1)}`,
+			`width: ${pct(bounds.width, imageWidth ?? 1)}`,
+			`height: ${pct(bounds.height, imageHeight ?? 1)}`,
 			'pointer-events: none',
 		].join('; ');
 	}
@@ -345,6 +356,16 @@
 			</div>
 		{/if}
 
+		{#if missingDimensions && showDiagnostics}
+			<div part="diagnostic" class="alert alert-error qti-ga-diagnostic" role="alert">
+				{translate(
+					i18n,
+					'interactions.graphicAssociate.unknownImageDimensions',
+					'This graphic association cannot be shown: the size of its image is unknown, so the hotspots cannot be placed. Add width and height to the image, or supply the asset dimensions.',
+				)}
+			</div>
+		{/if}
+
 		<div part="layout" class="qti-ga-layout flex flex-col lg:flex-row gap-4">
 			<!-- Image with Hotspots -->
 			<div part="image-area" class="qti-ga-image-area flex-1">
@@ -355,38 +376,28 @@
 				>
 					<!-- Borderless positioning canvas: exactly the image's aspect ratio, so the
 					     percentage hotspot boxes and the overlay's viewBox align at any scale. -->
-					<div class="qti-ga-canvas" style={canvasStyle}>
-					{#if imageData}
-						{#if imageData.type === 'svg' && imageData.content}
-							<div
-								part="image"
-								class="qti-ga-image"
-								role={imageData.decorative ? undefined : 'img'}
-								aria-hidden={imageData.decorative ? 'true' : undefined}
-								aria-label={imageData.decorative ? undefined : imageAlt}
-								aria-describedby={imageDescription ? imageDescriptionId : undefined}
-							>
-								{@html imageData.content}
-							</div>
-						{:else if imageFailed}
-							<div part="image-error" class="qti-ga-image qti-ga-image-error">
-								<p>{translate(i18n, 'interactions.graphicAssociate.imageLoadError', 'The image could not be loaded.')}</p>
-								{#if imageData.alt && !imageData.decorative}
-									<p>{imageData.alt}</p>
-								{/if}
-							</div>
-						{:else if imageData.src}
-							<img
-								part="image"
-								src={imageData.src}
-								alt={imageAlt}
-								aria-describedby={imageDescription ? imageDescriptionId : undefined}
-								class="qti-ga-image"
-								onerror={handleImageError}
-							/>
-						{/if}
-					{/if}
+					<ImageStage
+						{imageData}
+						alt={imageAlt}
+						description={imageDescription}
+						descriptionId={imageDescriptionId}
+						containerClass="qti-ga-canvas"
+						capContainerWidth={false}
+						svgContentClass="qti-ga-image"
+						imgClass="qti-ga-image"
+						errorClass="qti-ga-image qti-ga-image-error"
+						mediaPart="image"
+						errorPart="image-error"
+						loadErrorText={translate(i18n, 'interactions.graphicAssociate.imageLoadError', 'The image could not be loaded.')}
+						onImageError={warnImageFailed}
+						sizing="refuse"
+						bind:width={imageWidth}
+						bind:height={imageHeight}
+						bind:failed={imageFailed}
+						bind:awaiting={awaitingNaturalSize}
+					>
 
+					{#if hasImageDimensions}
 					<!-- The hotspots on the image, each in its real shape (QTI 3.0 §5.7.5–5.7.6: the
 					     area its shape and coords describe) with its state: a light halo under the
 					     outline keeps it visible on any image. Visual only — default-shape hotspots
@@ -412,7 +423,9 @@
 							</g>
 						{/each}
 					</svg>
+					{/if}
 
+					{#if hasImageDimensions}
 					<!-- SVG overlay for drawing connection lines (natural image coordinates, scales with the stage) -->
 					<svg
 						part="overlay"
@@ -457,12 +470,16 @@
 							{/each}
 						{/if}
 					</svg>
+					{/if}
 
 					<!-- The hotspot controls: one button per hotspot over its bounding box, for the
 					     keyboard and assistive technology, with its focus indicator. The button takes
 					     no pointer input itself; the shape drawn inside it does (HotspotShape, the
 					     same geometry as the outline), so pointer input hits the real shape and the
-					     press reaches the button. A small shape grows with the button's 24 px minimum. -->
+					     press reaches the button. A small shape grows with the button's 24 px minimum.
+					     Drawn only when the stage's pixel space is known: their boxes are percentages
+					     of it. -->
+					{#if hasImageDimensions}
 					{#each parsedInteraction.associableHotspots as hotspot}
 						{@const isSelected = isHotspotSelected(hotspot.identifier)}
 						{@const isMaxed = isHotspotMaxed(hotspot.identifier)}
@@ -475,7 +492,7 @@
 						<button
 							type="button"
 							part="hotspot"
-							class="qti-ga-hotspot"
+							class="qti-ga-hotspot qti-graphic-control"
 							class:qti-ga-hotspot-round={hotspot.shape === 'circle' || hotspot.shape === 'ellipse'}
 							class:qti-ga-hotspot-default={hotspot.shape === 'default'}
 							class:qti-ga-hotspot-selected={isSelected}
@@ -507,7 +524,8 @@
 							</span>
 						</button>
 					{/each}
-					</div>
+					{/if}
+					</ImageStage>
 				</div>
 				{#if imageDescription}
 					<p id={imageDescriptionId} class="qti-ga-sr-only">{imageDescription}</p>
@@ -666,35 +684,6 @@
 		border: 2px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		background: var(--pie-qti-base-200, oklch(98% 0 0));
 	}
-	.qti-ga-canvas {
-		position: relative;
-		width: 100%;
-	}
-	.qti-ga-image {
-		display: block;
-		width: 100%;
-		height: 100%;
-		object-fit: contain;
-	}
-	.qti-ga-image :global(svg) {
-		display: block;
-		width: 100%;
-		height: 100%;
-	}
-	.qti-ga-image-error {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 0.25rem;
-		padding: 1rem;
-		box-sizing: border-box;
-		text-align: center;
-		color: var(--pie-qti-error-text, #b91c1c);
-	}
-	.qti-ga-image-error p {
-		margin: 0;
-	}
 	/* Critical: overlay must be absolutely positioned even without Tailwind utilities */
 	.qti-ga-overlay {
 		position: absolute;
@@ -815,10 +804,7 @@
 	.qti-ga-hotspot-selected :global(.qti-ga-hit-area) {
 		fill: color-mix(in srgb, var(--pie-qti-primary, #4338ca) 35%, transparent);
 	}
-	.qti-ga-hotspot:focus-visible {
-		outline: 2px solid var(--pie-qti-focus, #4338ca);
-		outline-offset: 2px;
-	}
+	/* Focus: the shared offset outline ring in ImageStage's sheet (WCAG 2.4.7). */
 	.qti-ga-hotspot-unavailable :global(.qti-ga-hit-area),
 	.qti-ga-hotspot:disabled :global(.qti-ga-hit-area),
 	.qti-ga-hotspot[aria-disabled='true'] :global(.qti-ga-hit-area) {

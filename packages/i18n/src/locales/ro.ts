@@ -242,6 +242,7 @@ export default {
 		},
 
 		selectPoint: {
+			unknownImageDimensions: 'Această interacțiune de selectare a punctelor nu poate fi afișată: dimensiunea imaginii este necunoscută, deci punctele nu pot fi plasate corect. Adaugă lățime și înălțime imaginii sau furnizează dimensiunile fișierului.',
 			instruction: 'Clic pe imagine pentru a selecta puncte',
 			instructionAria: 'Clic pentru a selecta puncte pe imagine',
 			maxPointsReached: 'Număr maxim de puncte atins. Elimină un punct pentru a adăuga unul nou.',
@@ -457,6 +458,7 @@ export default {
 		},
 
 		positionObject: {
+			unknownImageDimensions: 'Obiectele nu pot fi plasate: dimensiunea imaginii scenei este necunoscută. Adaugă lățime și înălțime imaginii sau furnizează dimensiunile fișierului.',
 			instruction: 'Trage obiecte pe imagine',
 			placeObject: 'Plasează {object} pe imagine',
 			removeObject: 'Elimină {object}',
@@ -548,6 +550,7 @@ export default {
 		},
 
 		graphicOrder: {
+			unknownImageDimensions: 'Zonele nu pot fi afișate: dimensiunea imaginii este necunoscută. Adaugă lățime și înălțime imaginii sau furnizează dimensiunile fișierului.',
 			instruction: 'Clic pe hotspot-uri pentru a le ordona',
 			diagramLabel: 'Diagramă de ordonare',
 			altText: 'Diagramă de ordonare',
@@ -577,6 +580,7 @@ export default {
 		},
 
 		graphicAssociate: {
+			unknownImageDimensions: 'Această asociere grafică nu poate fi afișată: dimensiunea imaginii este necunoscută, deci zonele active nu pot fi plasate. Adaugă lățime și înălțime imaginii sau furnizează dimensiunile fișierului.',
 			imageFallback: 'Imaginea acestei întrebări',
 			imageLoadError: 'Imaginea nu a putut fi încărcată.',
 			unlabeledHotspot: 'Regiunea {index}',

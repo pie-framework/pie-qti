@@ -80,14 +80,11 @@ export const standardGraphicOrderExtractor: ElementExtractor<GraphicOrderData> =
 			const objectElement = objectElements[0];
 			const type = utils.getAttribute(objectElement, 'type', '');
 			const data = utils.getAttribute(objectElement, 'data', '');
-			const width = normalizePixelDimension(
-				utils.getAttribute(objectElement, 'width', ''),
-				'500',
-			);
-			const height = normalizePixelDimension(
-				utils.getAttribute(objectElement, 'height', ''),
-				'300',
-			);
+			// The stage's pixel space: the authored width/height, when declared. Without
+			// them the renderer stages the raster at its natural size; a default here
+			// would silently place areas in a guessed space.
+			const width = normalizePixelDimension(utils.getAttribute(objectElement, 'width', ''));
+			const height = normalizePixelDimension(utils.getAttribute(objectElement, 'height', ''));
 			const content = type.startsWith('image/svg') ? utils.getHtmlContent(objectElement) : '';
 
 			if (/<svg[\s>]/i.test(content)) {
@@ -115,8 +112,8 @@ export const standardGraphicOrderExtractor: ElementExtractor<GraphicOrderData> =
 			imageData = {
 				type: 'image',
 				src: utils.getAttribute(imgElement, 'src', ''),
-				width: normalizePixelDimension(utils.getAttribute(imgElement, 'width', ''), '500'),
-				height: normalizePixelDimension(utils.getAttribute(imgElement, 'height', ''), '300'),
+				width: normalizePixelDimension(utils.getAttribute(imgElement, 'width', '')),
+				height: normalizePixelDimension(utils.getAttribute(imgElement, 'height', '')),
 				...extractImageAlternative(imgElement, utils, dom, imgAlternativeSource(imgElement)),
 			};
 		}

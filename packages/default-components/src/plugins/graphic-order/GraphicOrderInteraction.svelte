@@ -5,9 +5,9 @@
 	import { tick } from 'svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { createConfirmationFlow } from '../../shared/utils/confirmationFlow.svelte';
-	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import ImageStage from '../../shared/components/ImageStage.svelte';
 	import SortableList from '../../shared/components/SortableList.svelte';
 	import OrderSubset from '../../shared/components/OrderSubset.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
@@ -17,7 +17,7 @@
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { minimumHint, subsetOrderHint } from '../../shared/utils/minimumRequirement';
 	import { orderChoiceLimits } from '@pie-qti/item-player';
-	import { escapeHtml, imageAltText, observeWidth, regionMarkerPoint } from '../../shared/utils/graphicRegions';
+	import { escapeHtml, imageAltText, regionMarkerPoint } from '../../shared/utils/graphicRegions';
 
 	interface Props {
 		interaction?: GraphicOrderInteractionData | string;
@@ -48,31 +48,41 @@
 	const parsedResponse = $derived(shell.response);
 	const parsedCorrectResponse = $derived(shell.correctResponse);
 	const isShowingCorrect = $derived(shell.isShowingCorrect);
-	const imageWidth = $derived(
-		normalizePixelDimension(parsedInteraction?.imageData?.width, '500') ?? '500',
-	);
-	const imageHeight = $derived(
-		normalizePixelDimension(parsedInteraction?.imageData?.height, '300') ?? '300',
-	);
-	// Reflow (WCAG 1.4.10): the image scales down with its container, never past its natural size.
-	const mediaStyle = $derived(`max-width: ${imageWidth}px; aspect-ratio: ${imageWidth} / ${imageHeight};`);
+	// The stage's pixel space (shared ImageStage): the image's declared width/height,
+	// else a raster image's natural size once loaded, else unknown — the areas live
+	// in that space, so unknown means no overlay is drawn (a default would place
+	// them in a guessed space).
+	let imageWidth = $state<number | null>(null);
+	let imageHeight = $state<number | null>(null);
+	let imageFailed = $state(false);
+	let awaitingNaturalSize = $state(false);
+
+	let warnedMissingDimensions = false;
+	$effect(() => {
+		if (missingDimensions && !warnedMissingDimensions) {
+			warnedMissingDimensions = true;
+			console.warn(
+				'[pie-qti-graphic-order] The image has no known width/height, so its areas cannot be placed. Add width and height to the image, or supply the asset dimensions.',
+			);
+		}
+	});
 
 	// Rendered width of the image, so the area badges keep their CSS size at any image scale.
 	let renderedWidth = $state(0);
-	const renderScale = $derived(renderedWidth > 0 ? renderedWidth / Number(imageWidth) : 1);
+	const renderScale = $derived(imageWidth && renderedWidth > 0 ? renderedWidth / imageWidth : 1);
 
 	const imageData = $derived(parsedInteraction?.imageData ?? null);
+	const hasImageDimensions = $derived(imageWidth !== null && imageHeight !== null);
+	const missingDimensions = $derived(!!imageData && !hasImageDimensions && !awaitingNaturalSize);
+	const showDiagnostics = $derived(role !== 'candidate');
 	const imageAlt = $derived(
 		imageAltText(imageData, translate(i18n, 'interactions.graphicOrder.imageFallback', 'Image for this question')),
 	);
 	const imageDescription = $derived(imageData?.decorative ? '' : (imageData?.altDescription ?? ''));
 	const imageDescriptionId = $derived(`${uid}-image-description`);
-	let failedSrc = $state<string | null>(null);
-	const imageFailed = $derived(!!imageData?.src && failedSrc === imageData.src);
 
-	function handleImageError() {
-		failedSrc = imageData?.src ?? null;
-		console.warn(`[pie-qti-graphic-order] The image failed to load: ${imageData?.src ?? ''}`);
+	function warnImageFailed(src: string) {
+		console.warn(`[pie-qti-graphic-order] The image failed to load: ${src}`);
 	}
 
 	// Get reference to the root element for event dispatching
@@ -238,6 +248,16 @@
 			</div>
 		{/if}
 
+		{#if missingDimensions && showDiagnostics}
+			<div part="diagnostic" class="alert alert-error qti-go-diagnostic" role="alert">
+				{translate(
+					i18n,
+					'interactions.graphicOrder.unknownImageDimensions',
+					'The areas cannot be shown: the size of the image is unknown. Add width and height to the image, or supply the asset dimensions.',
+				)}
+			</div>
+		{/if}
+
 		<div part="layout" class="qti-go-layout flex flex-col gap-4">
 			<!-- Image Area -->
 			<div part="image-area" class="qti-go-image-area">
@@ -246,42 +266,34 @@
 					class="qti-go-stage relative border-2 border-base-300 rounded-lg overflow-hidden bg-base-200"
 				>
 					{#if imageData}
-						<div class="qti-go-media" style={mediaStyle} use:observeWidth={(width) => (renderedWidth = width)}>
-							{#if imageData.type === 'svg' && imageData.content}
-								<div
-									part="image"
-									class="qti-go-image"
-									role={imageData.decorative ? undefined : 'img'}
-									aria-hidden={imageData.decorative ? 'true' : undefined}
-									aria-label={imageData.decorative ? undefined : imageAlt}
-									aria-describedby={imageDescription ? imageDescriptionId : undefined}
-								>
-									{@html imageData.content}
-								</div>
-							{:else if imageFailed}
-								<div part="image-error" class="qti-go-image qti-go-image-error">
-									<p>{translate(i18n, 'interactions.graphicOrder.imageLoadError', 'The image could not be loaded.')}</p>
-									{#if imageData.alt && !imageData.decorative}
-										<p>{imageData.alt}</p>
-									{/if}
-								</div>
-							{:else if imageData.src}
-								<img
-									part="image"
-									src={imageData.src}
-									alt={imageAlt}
-									aria-describedby={imageDescription ? imageDescriptionId : undefined}
-									class="qti-go-image"
-									onerror={handleImageError}
-								/>
-							{/if}
+						<ImageStage
+							{imageData}
+							alt={imageAlt}
+							description={imageDescription}
+							descriptionId={imageDescriptionId}
+							containerClass="qti-go-media"
+							svgContentClass="qti-go-image"
+							imgClass="qti-go-image"
+							errorClass="qti-go-image qti-go-image-error"
+							mediaPart="image"
+							errorPart="image-error"
+							loadErrorText={translate(i18n, 'interactions.graphicOrder.imageLoadError', 'The image could not be loaded.')}
+							onImageError={warnImageFailed}
+							sizing="refuse"
+							reportWidth
+							bind:width={imageWidth}
+							bind:height={imageHeight}
+							bind:failed={imageFailed}
+							bind:awaiting={awaitingNaturalSize}
+							bind:renderedWidth
+						>
 							<!-- The areas the candidate orders, on the image (QTI 3.0 §5.61: "The delivery
 							     engine must clearly indicate all defined area(s) of the image"): each one
 							     outlined, each placed one with its position in the order the list shows.
 							     Visual only: the list is what the keyboard and assistive technology use,
 							     so the overlay is hidden from both and takes no pointer input. It covers
 							     exactly the image, in its natural pixel space, and scales with it. -->
-							{#if !imageFailed && (imageData.content || imageData.src)}
+							{#if hasImageDimensions && !imageFailed && (imageData.content || imageData.src)}
 								<svg
 									part="overlay"
 									class="qti-go-overlay"
@@ -306,7 +318,7 @@
 									{/each}
 								</svg>
 							{/if}
-						</div>
+						</ImageStage>
 						{#if imageDescription}
 							<p id={imageDescriptionId} class="qti-go-sr-only">{imageDescription}</p>
 						{/if}
@@ -434,16 +446,6 @@
 		background: var(--pie-qti-base-200, oklch(98% 0 0));
 	}
 	/* The image fills the available width up to its natural size, keeping its aspect ratio. */
-	.qti-go-media {
-		position: relative;
-		width: 100%;
-	}
-	.qti-go-image {
-		display: block;
-		width: 100%;
-		height: 100%;
-		object-fit: contain;
-	}
 	.qti-go-image :global(svg) {
 		display: block;
 		width: 100%;
@@ -492,20 +494,6 @@
 		font-size: 13px;
 		font-weight: 700;
 		font-family: inherit;
-	}
-	.qti-go-image-error {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 0.25rem;
-		padding: 1rem;
-		box-sizing: border-box;
-		text-align: center;
-		color: var(--pie-qti-error-text, #b91c1c);
-	}
-	.qti-go-image-error p {
-		margin: 0;
 	}
 	.qti-go-card {
 		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));

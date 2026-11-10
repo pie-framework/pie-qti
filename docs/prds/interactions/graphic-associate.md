@@ -96,7 +96,7 @@ The interaction wraps its background image in a QTI `<object>` element (not `<im
 | `image/svg+xml` (inline SVG) | SVG content is extracted as raw HTML and rendered via `{@html}`. The inline SVG content appears directly inside the stage container. |
 | Any other image MIME type | The `data` attribute is used as the `src` of an `<img>` element. |
 
-The `width` and `height` attributes of `<object>` set the pixel dimensions of the stage container. If absent, defaults are `500px × 300px`.
+The `width` and `height` attributes of `<object>` set the pixel dimensions of the stage container. If absent, the stage uses the raster image's natural size once loaded; if the size is neither declared nor knowable (no loadable image, or inline SVG without dimensions), the hotspots cannot be placed and the component says so with an authoring diagnostic — no default stage size is invented, because the hotspots' `coords` live in the image's own pixel space.
 
 ### Response variable contract
 
@@ -127,7 +127,7 @@ None in the delivered behaviour above.
 
 ## Functional requirements
 
-- **FR-1:** The component renders the background image (raster or inline SVG) at the dimensions specified by the `<object>` element's `width` and `height` attributes. If those attributes are absent, the stage defaults to `500 × 300` px.
+- **FR-1:** The component renders the background image (raster or inline SVG) at the dimensions specified by the `<object>` element's `width` and `height` attributes. If those attributes are absent, a raster image stages at its natural size once loaded; when the stage's pixel space is neither declared nor knowable, no hotspots are drawn and an authoring diagnostic (console warning always, a visible alert outside the candidate role) says so.
 - **FR-2:** Each `associableHotspot` is rendered as an absolutely positioned `<button>` over its shape's bounding box (derived from `coords`), for the keyboard and assistive technology. Pointer input hits only the shape itself: the button takes none, the `HotspotShape` inside it does. Each hotspot's outline and state are drawn in its shape on the image.
 - **FR-3:** Clicking an un-maxed hotspot when no hotspot is selected marks that hotspot as "pending" and displays an info banner identifying the selected hotspot and prompting the candidate to click a second hotspot.
 - **FR-4:** Clicking a second, different, un-maxed hotspot while one hotspot is pending creates a pair, adds it to the response array, draws a line between the two hotspot centers on the SVG overlay, and clears the pending selection.

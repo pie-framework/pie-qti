@@ -4,9 +4,10 @@
 	import type { Point, SelectPointInteractionData } from '@pie-qti/item-player';
 	import { tick } from 'svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
-	import { normalizePixelDimension } from '@pie-qti/item-player/security';
-	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
+		import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import ImageStage from '../../shared/components/ImageStage.svelte';
+	import { createKeyboardCrosshair } from '../../shared/components/keyboardCrosshair.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
@@ -40,15 +41,27 @@
 	const parsedResponse = $derived(shell.response);
 	const parsedCorrectResponse = $derived(shell.correctResponse);
 	const isShowingCorrect = $derived(shell.isShowingCorrect);
-	// Responses are always in the image's natural pixel space, whatever its rendered size.
-	const imageWidth = $derived(
-		Number(normalizePixelDimension(parsedInteraction?.imageData?.width, '500') ?? '500'),
-	);
-	const imageHeight = $derived(
-		Number(normalizePixelDimension(parsedInteraction?.imageData?.height, '300') ?? '300'),
-	);
-	// Reflow (WCAG 1.4.10): the image scales with its container up to its natural size.
-	const canvasStyle = $derived(`max-width: ${imageWidth}px; aspect-ratio: ${imageWidth} / ${imageHeight};`);
+	// The stage's pixel space (shared ImageStage): the image's declared width/height,
+	// else a raster image's natural size once loaded, else unknown — and QTI points
+	// live in that space, so unknown means no placement is offered (a default would
+	// score clicks in a guessed space).
+	let imageWidth = $state<number | null>(null);
+	let imageHeight = $state<number | null>(null);
+	let imageFailed = $state(false);
+	let awaitingNaturalSize = $state(false);
+	const hasImageDimensions = $derived(imageWidth !== null && imageHeight !== null);
+	const missingDimensions = $derived(!!parsedInteraction?.imageData && !hasImageDimensions && !awaitingNaturalSize);
+	const showDiagnostics = $derived(role !== 'candidate');
+
+	let warnedMissingDimensions = false;
+	$effect(() => {
+		if (missingDimensions && !warnedMissingDimensions) {
+			warnedMissingDimensions = true;
+			console.warn(
+				'[pie-qti-select-point] The image has no known width/height, so points cannot be placed correctly. Add width and height to the image, or supply the asset dimensions.',
+			);
+		}
+	});
 
 	const imageData = $derived(parsedInteraction?.imageData ?? null);
 	const imageAlt = $derived(
@@ -58,12 +71,9 @@
 	const imageDescriptionId = $derived(`${uid}-image-description`);
 	const instructionsId = $derived(`${uid}-instructions`);
 	const pointsHeadingId = $derived(`${uid}-points-heading`);
-	let failedSrc = $state<string | null>(null);
-	const imageFailed = $derived(!!imageData?.src && failedSrc === imageData.src);
 
-	function handleImageError() {
-		failedSrc = imageData?.src ?? null;
-		console.warn(`[pie-qti-select-point] The image failed to load: ${imageData?.src ?? ''}`);
+	function warnImageFailed(src: string) {
+		console.warn(`[pie-qti-select-point] The image failed to load: ${src}`);
 	}
 
 	let selectedPoints = $state<Point[]>([]);
@@ -71,10 +81,9 @@
 	let surfaceElement: HTMLDivElement | null = $state(null);
 	let pointsList: HTMLUListElement | null = $state(null);
 
-	// Keyboard crosshair state (K-01)
-	let crosshairActive = $state(false);
-	let crosshairX = $state(0.5); // normalized 0-1
-	let crosshairY = $state(0.5); // normalized 0-1
+	// Keyboard crosshair state (K-01): the shared crosshair's normalized position
+	// and the live region that reports it.
+	const crosshair = createKeyboardCrosshair();
 	let liveRegionText = $state('');
 
 	/**
@@ -146,8 +155,8 @@
 	function pointDescription(point: Point, index: number): string {
 		return translate(i18n, 'interactions.selectPoint.pointAtPercent', 'Point {index} at {x}%, {y}%', {
 			index: index + 1,
-			x: percent(point.x, imageWidth),
-			y: percent(point.y, imageHeight),
+			x: percent(point.x, imageWidth ?? 0),
+			y: percent(point.y, imageHeight ?? 0),
 		});
 	}
 
@@ -163,7 +172,7 @@
 	}
 
 	function addPoint(point: Point) {
-		if (disabled || !parsedInteraction?.imageData) return;
+		if (disabled || !parsedInteraction?.imageData || !hasImageDimensions) return;
 		if (!canSelectMore) {
 			liveRegionText = translate(i18n, 'interactions.selectPoint.maxPointsReached', 'Maximum points reached. Remove a point to add a new one.');
 			return;
@@ -172,8 +181,8 @@
 		commit(points);
 		liveRegionText = translate(i18n, 'interactions.selectPoint.pointPlaced', 'Point {index} placed at {x}%, {y}%.', {
 			index: points.length,
-			x: percent(point.x, imageWidth),
-			y: percent(point.y, imageHeight),
+			x: percent(point.x, imageWidth ?? 0),
+			y: percent(point.y, imageHeight ?? 0),
 		});
 	}
 
@@ -182,13 +191,13 @@
 	 * image's natural pixel space, which is what QTI scoring compares against.
 	 */
 	function handleSurfaceClick(event: MouseEvent) {
-		if (disabled || !surfaceElement) return;
+		if (disabled || !surfaceElement || !hasImageDimensions) return;
 		const point = clientToImagePoint(
 			event.clientX,
 			event.clientY,
 			surfaceElement.getBoundingClientRect(),
-			imageWidth,
-			imageHeight,
+			imageWidth ?? 0,
+			imageHeight ?? 0,
 		);
 		if (point) addPoint(point);
 	}
@@ -219,7 +228,9 @@
 	 * Converts normalized crosshair coords to natural pixel coords.
 	 */
 	function placePointAtCrosshair() {
-		addPoint({ x: Math.round(crosshairX * imageWidth), y: Math.round(crosshairY * imageHeight) });
+		if (!hasImageDimensions) return;
+		// select point rounds at placement: the emitted point is whole image pixels.
+		addPoint({ x: Math.round(crosshair.x * (imageWidth ?? 0)), y: Math.round(crosshair.y * (imageHeight ?? 0)) });
 	}
 
 	/**
@@ -229,25 +240,17 @@
 	function handleKeydown(e: KeyboardEvent) {
 		if (disabled) return;
 
-		const LARGE_STEP = 0.05; // 5% per arrow key press
-		const SMALL_STEP = 0.01; // 1% with Shift for fine control
-
 		switch (e.key) {
 			case 'ArrowLeft':
 			case 'ArrowRight':
 			case 'ArrowUp':
 			case 'ArrowDown': {
 				e.preventDefault();
-				crosshairActive = true;
-				const step = e.shiftKey ? SMALL_STEP : LARGE_STEP;
-				if (e.key === 'ArrowLeft')  crosshairX = Math.max(0, crosshairX - step);
-				if (e.key === 'ArrowRight') crosshairX = Math.min(1, crosshairX + step);
-				if (e.key === 'ArrowUp')    crosshairY = Math.max(0, crosshairY - step);
-				if (e.key === 'ArrowDown')  crosshairY = Math.min(1, crosshairY + step);
-
+				crosshair.activate();
+				if (!crosshair.move(e.key, e.shiftKey)) return;
 				liveRegionText = translate(i18n, 'accessibility.positionPercent', 'Position: {x}%, {y}%.', {
-					x: Math.round(crosshairX * 100),
-					y: Math.round(crosshairY * 100),
+					x: Math.round(crosshair.x * 100),
+					y: Math.round(crosshair.y * 100),
 				});
 				break;
 			}
@@ -260,8 +263,7 @@
 	}
 
 	function handleFocus() {
-		crosshairX = 0.5;
-		crosshairY = 0.5;
+		crosshair.centre();
 		// Show the crosshair for keyboard focus only; a pointer click places its point directly.
 		let keyboardFocus = true;
 		try {
@@ -269,12 +271,13 @@
 		} catch {
 			keyboardFocus = true;
 		}
-		crosshairActive = keyboardFocus;
+		if (keyboardFocus) crosshair.activate();
+		else crosshair.deactivate();
 		liveRegionText = translate(i18n, 'accessibility.positionPercent', 'Position: {x}%, {y}%.', { x: 50, y: 50 });
 	}
 
 	function handleBlur() {
-		crosshairActive = false;
+		crosshair.deactivate();
 	}
 </script>
 
@@ -291,6 +294,16 @@
 			</div>
 		{/if}
 
+		{#if missingDimensions && showDiagnostics}
+			<div part="diagnostic" class="alert alert-error qti-sp-diagnostic" role="alert">
+				{translate(
+					i18n,
+					'interactions.selectPoint.unknownImageDimensions',
+					'This select-point interaction cannot be shown: the size of its image is unknown, so points cannot be placed correctly. Add width and height to the image, or supply the asset dimensions.',
+				)}
+			</div>
+		{/if}
+
 		<div class="qti-sp-body space-y-3">
 			<!-- Visually-hidden live region: crosshair position, placement and removal -->
 			<div class="qti-sp-sr-only" aria-live="polite" aria-atomic="true">{liveRegionText}</div>
@@ -304,36 +317,26 @@
 			</p>
 
 			{#if imageData}
-				<div part="stage" class="qti-sp-canvas" style={canvasStyle}>
-					<!-- The image is ordinary content with its authored text alternative -->
-					{#if imageData.type === 'svg'}
-						<div
-							part="image"
-							class="qti-sp-image"
-							role={imageData.decorative ? undefined : 'img'}
-							aria-hidden={imageData.decorative ? 'true' : undefined}
-							aria-label={imageData.decorative ? undefined : imageAlt}
-							aria-describedby={imageDescription ? imageDescriptionId : undefined}
-						>
-							{@html imageData.content}
-						</div>
-					{:else if imageFailed}
-						<div part="image-error" class="qti-sp-image qti-sp-image-error">
-							<p>{translate(i18n, 'interactions.selectPoint.imageLoadError', 'The image could not be loaded.')}</p>
-							{#if imageData.alt && !imageData.decorative}
-								<p>{imageData.alt}</p>
-							{/if}
-						</div>
-					{:else if imageData.src}
-						<img
-							part="image"
-							src={imageData.src}
-							alt={imageAlt}
-							aria-describedby={imageDescription ? imageDescriptionId : undefined}
-							class="qti-sp-image"
-							onerror={handleImageError}
-						/>
-					{/if}
+				<ImageStage
+					{imageData}
+					alt={imageAlt}
+					description={imageDescription}
+					descriptionId={imageDescriptionId}
+					containerClass="qti-sp-canvas"
+					containerPart="stage"
+					svgContentClass="qti-sp-image"
+					imgClass="qti-sp-image"
+					errorClass="qti-sp-image qti-sp-image-error"
+					mediaPart="image"
+					errorPart="image-error"
+					loadErrorText={translate(i18n, 'interactions.selectPoint.imageLoadError', 'The image could not be loaded.')}
+					onImageError={warnImageFailed}
+					sizing="refuse"
+					bind:width={imageWidth}
+					bind:height={imageHeight}
+					bind:failed={imageFailed}
+					bind:awaiting={awaitingNaturalSize}
+				>
 
 					<!-- Markers mirror the accessible point list below; decorative here -->
 					<div class="qti-sp-markers" aria-hidden="true">
@@ -342,7 +345,7 @@
 								part="point"
 								class="point-marker"
 								class:point-marker-correct={isCorrectPoint(point)}
-								style="left: {(point.x / imageWidth) * 100}%; top: {(point.y / imageHeight) * 100}%;"
+								style="left: {(point.x / (imageWidth ?? 1)) * 100}%; top: {(point.y / (imageHeight ?? 1)) * 100}%;"
 							>
 								<span class="point-number">{isCorrectPoint(point) ? '✓' : index + 1}</span>
 							</span>
@@ -353,7 +356,7 @@
 									<span
 										part="correct-point"
 										class="point-marker point-marker-expected"
-										style="left: {(point.x / imageWidth) * 100}%; top: {(point.y / imageHeight) * 100}%;"
+										style="left: {(point.x / (imageWidth ?? 1)) * 100}%; top: {(point.y / (imageHeight ?? 1)) * 100}%;"
 									>
 										<span class="point-number">✓</span>
 									</span>
@@ -383,9 +386,9 @@
 						onfocus={handleFocus}
 						onblur={handleBlur}
 					>
-						{#if crosshairActive && !disabled}
-							{@const cx = crosshairX * imageWidth}
-							{@const cy = crosshairY * imageHeight}
+						{#if crosshair.active && !disabled}
+							{@const cx = crosshair.x * (imageWidth ?? 0)}
+							{@const cy = crosshair.y * (imageHeight ?? 0)}
 							<svg
 								aria-hidden="true"
 								class="crosshair-overlay"
@@ -398,10 +401,10 @@
 								<line x1="0" y1={cy} x2={imageWidth} y2={cy} class="crosshair-line" />
 								<line x1={cx} y1="0" x2={cx} y2={imageHeight} class="crosshair-line" />
 							</svg>
-							<span class="crosshair-dot" style="left: {crosshairX * 100}%; top: {crosshairY * 100}%;"></span>
+							<span class="crosshair-dot" style="left: {crosshair.x * 100}%; top: {crosshair.y * 100}%;"></span>
 						{/if}
 					</div>
-				</div>
+				</ImageStage>
 				{#if imageDescription}
 					<p id={imageDescriptionId} class="qti-sp-sr-only">{imageDescription}</p>
 				{/if}
@@ -475,8 +478,8 @@
 						<li class="qti-sp-point">
 							{translate(i18n, 'accessibility.correctAnswerIs', 'Correct answer: {answer}.', {
 								answer: translate(i18n, 'interactions.selectPoint.percentPosition', '{x}%, {y}%', {
-									x: percent(point.x, imageWidth),
-									y: percent(point.y, imageHeight),
+									x: percent(point.x, imageWidth ?? 0),
+									y: percent(point.y, imageHeight ?? 0),
 								}),
 							})}
 						</li>
@@ -528,39 +531,6 @@
 	}
 
 	/* The canvas scales with its container up to the image's natural size (WCAG 1.4.10). */
-	.qti-sp-canvas {
-		position: relative;
-		width: 100%;
-		box-sizing: border-box;
-		outline: 2px solid color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 20%, transparent);
-		border-radius: 8px;
-	}
-
-	.qti-sp-image {
-		display: block;
-		width: 100%;
-		height: 100%;
-		object-fit: contain;
-	}
-	.qti-sp-image :global(svg) {
-		display: block;
-		width: 100%;
-		height: 100%;
-	}
-	.qti-sp-image-error {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 0.25rem;
-		padding: 1rem;
-		box-sizing: border-box;
-		text-align: center;
-		color: var(--pie-qti-error-text, #b91c1c);
-	}
-	.qti-sp-image-error p {
-		margin: 0;
-	}
 
 	.qti-sp-markers {
 		position: absolute;

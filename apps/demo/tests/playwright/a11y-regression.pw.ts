@@ -476,19 +476,35 @@ test.describe('keyboard focus visibility', () => {
 		await tabTo(page, browserName, '.qti-hotspot-shape');
 
 		await expect(shape).toBeFocused();
+		// The focus indicator is the shared offset ring: the focused region's halo layer
+		// widens into a ring coloured with the theme's focus token. It is drawn on the halo
+		// layer beneath the region, not on the interactive shape's stroke (that stroke is
+		// the invisible hit target). It straddles the region's edge: inside is the drawn
+		// shape's fill (#e5e7eb in the fixture image), outside the white panel. It must
+		// stand out against both, and it must be the focus state — the resting halo is the
+		// theme's halo colour, never the focus token.
 		const focused = await shape.evaluate((element: Element) => {
-			const computed = getComputedStyle(element);
+			const ring = element.closest('g')?.querySelector('.qti-graphic-halo');
+			const ringStyle = ring ? getComputedStyle(ring) : null;
+			// Resolve the focus token the way the ring is coloured, whatever colour format
+			// the theme defines it in.
+			const probe = document.createElement('div');
+			probe.style.color = 'var(--pie-qti-focus, #4338ca)';
+			element.getRootNode().querySelector('.qti-hotspot-interaction')?.appendChild(probe);
+			const focusToken = getComputedStyle(probe).color;
+			probe.remove();
 			return {
 				isFocusVisible: element.matches(':focus-visible'),
-				stroke: computed.stroke,
-				strokeWidth: Number.parseFloat(computed.strokeWidth),
+				ringPresent: !!ring,
+				stroke: ringStyle?.stroke ?? 'none',
+				strokeWidth: ringStyle ? Number.parseFloat(ringStyle.strokeWidth) : 0,
+				focusToken,
 			};
 		});
 		expect(focused.isFocusVisible).toBe(true);
-		expect(focused.stroke).not.toBe('none');
+		expect(focused.ringPresent).toBe(true);
+		expect(focused.stroke).toBe(focused.focusToken);
 		expect(focused.strokeWidth).toBeGreaterThanOrEqual(2);
-		// The ring straddles the region's edge: inside is the drawn shape's fill (#e5e7eb in
-		// the fixture image), outside the white panel. It must stand out against both.
 		for (const adjacent of ['#ffffff', '#e5e7eb']) {
 			expect(await contrast(page, focused.stroke, adjacent), `focus ring vs ${adjacent}`).toBeGreaterThanOrEqual(3);
 		}

@@ -88,10 +88,10 @@ export function type(input: HTMLInputElement | HTMLTextAreaElement, value: strin
 	input.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-/** Simulate a key press with a real KeyboardEvent (cancelable, like a user's). */
-export function pressKey(target: Element, key: string): void {
+/** Simulate a key press with a real KeyboardEvent (cancelable, bubbling, like a user's). */
+export function pressKey(target: Element, key: string, init: KeyboardEventInit = {}): void {
 	target.dispatchEvent(
-		new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }),
+		new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init }),
 	);
 }
 

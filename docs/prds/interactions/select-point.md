@@ -210,6 +210,8 @@ The "Clear answer" button uses `interactions.choice.clearAnswer`, the key `choic
 **Alternatives considered:** Use `img.naturalWidth` / `img.naturalHeight` from the DOM. Rejected: image load timing makes these unavailable synchronously, and they may differ from the QTI-authored coordinate space.  
 **Consequences:** If the authored `width`/`height` does not match the image's actual pixel dimensions, scoring regions will be misaligned. Item authors are responsible for declaring correct dimensions in the QTI XML.
 
+**When the item declares no dimensions:** the stage uses the raster image's natural size once loaded (the space points are then authored in); when the size is neither declared nor knowable, no points can be placed and an authoring diagnostic says so. A default stage size is never invented — a guessed space would silently misplace every point.
+
 ### Coordinate normalization formula
 
 **Decision:** `x = Math.round((clickX / rect.width) * intrinsicWidth)`, where `clickX` is the click offset from `getBoundingClientRect().left`, `rect.width` is the rendered element width, and `intrinsicWidth` is the authored natural width.  
