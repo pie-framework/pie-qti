@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { ChoiceInteractionData } from '@pie-qti/item-player';
+	import type { InteractionProps, TypesetProps } from '../../shared/utils/interactionProps';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { createEliminationTool } from '../../shared/utils/eliminationTool.svelte';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
@@ -16,15 +17,7 @@
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { describedByIds, minimumHint } from '../../shared/utils/minimumRequirement';
 
-	interface Props {
-		interaction?: ChoiceInteractionData | string;
-		response?: string | string[] | null;
-		correctResponse?: string | string[] | null;
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
-		typeset?: (element: HTMLElement) => void;
-		onChange?: (value: string | string[]) => void;
+	interface Props extends InteractionProps<'choiceInteraction'>, TypesetProps {
 		outcomeValues?: Record<string, any>;
 		heuristicsConfig?: QtiHeuristicsConfig;
 		/** When true, renders an elimination toggle button per choice (QTI 3.0 PNP §6.2). */
@@ -222,13 +215,7 @@
 	function clearAnswer() {
 		if (disabled) return;
 		response = null;
-		const nullAwareOnChange = onChange as ((value: string | string[] | null) => void) | undefined;
-		emitInteractionChange<string | string[] | null>({
-			target: rootElement,
-			responseId: shell.responseId,
-			value: null,
-			onChange: nullAwareOnChange
-		});
+		emitInteractionChange({ target: rootElement, responseId: shell.responseId, value: null, onChange });
 		// Move focus to the first choice so keyboard users stay in the interaction.
 		rootElement?.querySelector<HTMLInputElement>('input[type="radio"]:not([disabled])')?.focus();
 	}

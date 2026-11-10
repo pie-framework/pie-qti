@@ -17,6 +17,8 @@ export interface InlineChoiceData {
 	label: string | null;
 	/** Choices a valid response selects (QTI 3.0 min-choices; required="true" is 1); omitted when 0. */
 	minChoices?: number;
+	/** The author's `data-min-selections-message` (QTI 3.0, inlineChoiceInteraction); omitted when none is authored. */
+	minSelectionsMessage?: string;
 }
 
 /**
@@ -67,12 +69,16 @@ export const standardInlineChoiceExtractor: ElementExtractor<InlineChoiceData> =
 			utils.getNumberAttribute(element, 'minChoices', 0),
 			utils.getBooleanAttribute(element, 'required', false) ? 1 : 0,
 		);
+		// QTI 3.0 defines data-min-selections-message (and no max) on inlineChoiceInteraction:
+		// it describes the requirement a valid response must meet.
+		const minSelectionsMessage = utils.getAttribute(element, 'data-min-selections-message', '') || null;
 
 		return {
 			choices: maybeShuffle(choices, shuffle, context.shuffleRng),
 			shuffle,
 			label,
 			...(minChoices > 0 ? { minChoices } : {}),
+			...(minSelectionsMessage ? { minSelectionsMessage } : {}),
 			...(dataPrompt ? { dataPrompt } : {}),
 			...(title ? { title } : {}),
 			...(interactionClasses.length > 0 ? { interactionClasses } : {}),

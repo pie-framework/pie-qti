@@ -2,15 +2,19 @@
 
 <script lang="ts">
 	import type { OrderInteractionData } from '@pie-qti/item-player';
+	import type { InteractionProps, TypesetProps } from '../../shared/utils/interactionProps';
 	import { tick } from 'svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { createConfirmationFlow } from '../../shared/utils/confirmationFlow.svelte';
 	import { createEliminationTool } from '../../shared/utils/eliminationTool.svelte';
 	import { accessibleTextFromHtml } from '../../shared/utils/accessibleText.js';
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
+	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import Icon from '../../shared/components/Icon.svelte';
+	import { ICON_CHECK } from '../../shared/components/icons';
 	import SortableList, { type SortableIndexLabels } from '../../shared/components/SortableList.svelte';
 	import OrderSubset from '../../shared/components/OrderSubset.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
@@ -20,15 +24,7 @@
 	import { minimumHint, subsetOrderHint } from '../../shared/utils/minimumRequirement';
 	import { orderChoiceLimits } from '@pie-qti/item-player';
 
-	interface Props {
-		interaction?: OrderInteractionData | string;
-		response?: string[] | null;
-		correctResponse?: string[] | null;
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
-		typeset?: (element: HTMLElement) => void;
-		onChange?: (value: string[]) => void;
+	interface Props extends InteractionProps<'orderInteraction'>, TypesetProps {
 		/** When true, renders an elimination toggle button per choice (QTI 3.0 PNP §6.2). */
 		eliminationTool?: boolean;
 	}
@@ -129,15 +125,8 @@
 	function handleSubsetChange(newOrder: string[]) {
 		const value = newOrder.length > 0 ? newOrder : null;
 		response = value;
-		// The public onChange keeps its string[] signature; a cleared subset reports null, as
-		// clearing does elsewhere (choice's clear answer).
-		const nullAwareOnChange = onChange as ((value: string[] | null) => void) | undefined;
-		emitInteractionChange<string[] | null>({
-			target: rootElement,
-			responseId: parsedInteraction?.responseId,
-			value,
-			onChange: nullAwareOnChange,
-		});
+		// A cleared subset reports null, as clearing does elsewhere (choice's clear answer).
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value, onChange });
 	}
 
 	// Reset confirmation state when response is externally cleared
@@ -149,12 +138,12 @@
 	// becomes an inert "Order confirmed" state instead of being swapped for a badge), so
 	// the focus that pressed it keeps a home, and the always-present polite region below
 	// announces the confirmation to assistive technology.
-	let confirmationAnnouncement = $state('');
+	const confirmationAnnouncer = createAnnouncer();
 
+	/** Announce the confirmation; the shared announcer keeps repeats announcing. */
 	function announceConfirmation(message: string) {
-		confirmationAnnouncement = confirmationAnnouncement === message ? `${message}\u200b` : message;
+		confirmationAnnouncer.announce(message);
 	}
-
 	async function confirmFromButton(event: MouseEvent) {
 		const button = event.currentTarget as HTMLButtonElement | null;
 		const wasNeedy = confirmation.needsConfirmation;
@@ -252,6 +241,7 @@
 					items={parsedInteraction.choices.map(c => ({ id: c.identifier, text: c.text }))}
 					orderedIds={subsetOrderedIds}
 					maxOrdered={limits.maxOrdered}
+					capMessage={parsedInteraction?.maxSelectionsMessage}
 					{i18n}
 					correctOrder={isShowingCorrect ? (parsedCorrectResponse || []) : []}
 					{orientation}
@@ -298,21 +288,7 @@
 						: (i18n?.t('interactions.order.confirmAria') ?? 'Confirm this order as your answer')}
 				>
 					{#if confirmation.hasConfirmed}
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							fill="none"
-							viewBox="0 0 24 24"
-							part="confirmed-icon"
-							class="qti-icon-sm inline-block w-4 h-4 stroke-current"
-							aria-hidden="true"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M5 13l4 4L19 7"
-							></path>
-						</svg>
+						<Icon d={ICON_CHECK} part="confirmed-icon" class="qti-icon-sm inline-block w-4 h-4 stroke-current" />
 						{translate(i18n, 'interactions.order.orderConfirmed', 'Order confirmed')}
 					{:else}
 						{confirmation.hasReordered
@@ -327,7 +303,7 @@
 				{/if}
 			{/if}
 		</div>
-		<div aria-live="polite" aria-atomic="true" class="qti-order-confirmation-live">{confirmationAnnouncement}</div>
+		<div aria-live="polite" aria-atomic="true" class="qti-order-confirmation-live">{confirmationAnnouncer.message}</div>
 	{/if}
 </div>
 
@@ -350,18 +326,6 @@
 		cursor: default;
 	}
 
-	/* Visually hidden confirmation live region, self-contained so it hides without Tailwind. */
-	.qti-order-confirmation-live {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
-	}
 
 	/* Elimination tool layout */
 	.qti-order-sortable-wrapper {

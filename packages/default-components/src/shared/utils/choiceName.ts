@@ -22,18 +22,26 @@ export interface ChoiceNameInput {
 	 * The choice's authored label: `accessibleTextFromHtml` of its content (for
 	 * plain-text choices, the text itself). Empty when there is nothing to read.
 	 */
-	label: string;
+	label: string | undefined;
 	/** The choice's 1-based position as presented to the candidate (after shuffle). */
 	position: number;
+	/**
+	 * The interaction's own localized ordinal, when its vocabulary names the
+	 * choice differently ("Region 3", "Object 2"): the catalog key and its
+	 * English form, both carrying `{index}`. Absent, the shared
+	 * `accessibility.choiceFallback` ("Choice {index}") is used.
+	 */
+	fallback?: { key: string; text: string };
 }
 
 /**
  * The accessible name of a choice: its authored label, else a localized
- * ordinal (`accessibility.choiceFallback`, "Choice {index}") of the position
- * the candidate sees. Every interactive choice label, announcement and
- * `aria-label` fallback names a choice through this, so no identifier can
- * reach a candidate's screen reader.
+ * ordinal of the position the candidate sees — `accessibility.choiceFallback`
+ * ("Choice {index}"), or the interaction's own noun through `fallback`. Every
+ * interactive choice label, announcement and `aria-label` fallback names a
+ * choice through this, so no identifier can reach a candidate's screen reader.
  */
-export function choiceAccessibleName({ i18n, label, position }: ChoiceNameInput): string {
-	return label.trim() || translate(i18n, 'accessibility.choiceFallback', 'Choice {index}', { index: position });
+export function choiceAccessibleName({ i18n, label, position, fallback }: ChoiceNameInput): string {
+	const [key, text] = fallback ? [fallback.key, fallback.text] : ['accessibility.choiceFallback', 'Choice {index}'];
+	return (label ?? '').trim() || translate(i18n, key, text, { index: position });
 }

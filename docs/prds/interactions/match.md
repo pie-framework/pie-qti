@@ -70,6 +70,8 @@ When `shuffle=true`, the extractor returns `sourceSet` and `targetSet` shuffled 
 | `shuffle` | ✅ Full | Shuffles each set independently at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads |
 | `maxAssociations` | ✅ Full | Limits total pairs that can be formed; `0` = unlimited per spec; defaults to `1`; enforced in the UI via `matchMax` per source choice |
 | `minAssociations` | ✅ Full | Minimum total pairs; extracted when `> 0` and enforced by `Player.validateResponses()` (incomplete below it) |
+| `data-max-selections-message` | ✅ Full | QTI 3.0 (Table on `qti-match-interaction`): "rendered upon violation of the max-associations constraint". Stated at `maxAssociations` through one `role="alert"` when authored, and named in the refusal announcements; the extractor reads exactly the spec attribute name — the `data-qti-max-selections-message` spelling it once read (and no QTI version defines) is no longer recognised. |
+| `data-min-selections-message` | ✅ Full | Replaces the localized minimum hint (interaction minimum and per-choice `matchMin`) while the pairs fall short of it, and wins over the localized refusal text. Only the spec attribute name is read. |
 
 ### Supported attributes on `simpleAssociableChoice`
 
@@ -311,7 +313,8 @@ AC-11: scorer role shows correct pairings
   Given: the item rendered with role="scorer" and correctResponse=["capital1 country1", ...]
   When: the item renders
   Then: each correct source shows a green border and the matched target label; "Correct" badges appear;
-        no interaction is possible (disabled in scorer mode)
+        the interaction stays interactive until the host disables it (scorer mode does not set
+        disabled — interactivity is governed only by the disabled prop, AC-9)
 
 AC-12: candidate role never reveals correct answers
   Given: the item rendered with role="candidate" and correctResponse populated

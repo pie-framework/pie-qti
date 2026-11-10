@@ -54,6 +54,8 @@
 | `shuffle` | ✅ Full | Shuffles choice order at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads |
 | `maxChoices` | ✅ Full | `1` → radio buttons; `>1` or `0` → checkboxes; `0` triggers a validator warning. An absent attribute takes the per-version spec default: 1 in QTI 2.2/3.0, 0 (no restriction) in QTI 2.1 — or 1 when the response is single cardinality, which holds one choice |
 | `minChoices` | ✅ Full | Delivered in `ChoiceInteractionData`. Response validation reports fewer selections incomplete, and the component states the minimum while the response is short of it. |
+| `data-max-selections-message` | ✅ Full | QTI 3.0 §5.40.4: "rendered upon violation of the max-choices constraint". Stated at the cap through one `role="alert"` (for any cardinality) and announced on a refused selection; without it, the localized default shows only where a selection can actually be refused (`maxChoices>1`). |
+| `data-min-selections-message` | ✅ Full | Replaces the localized minimum hint while the response selects fewer than `minChoices`. |
 | `orientation` | ❌ Not extracted | Visual hint (`horizontal`/`vertical`). Not in `ChoiceInteractionData`. The component always renders vertically. Low priority since most K-12 content doesn't use it. |
 
 ### Supported attributes on `simpleChoice`

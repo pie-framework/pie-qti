@@ -11,11 +11,13 @@
 import { createAssessmentItemDefinition } from '@pie-qti/item-player';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import ChoiceInteraction from '../../src/plugins/choice/ChoiceInteraction.svelte';
+import ExtendedTextInteraction from '../../src/plugins/extended-text/ExtendedTextInteraction.svelte';
 import GraphicAssociateInteraction from '../../src/plugins/graphic-associate/GraphicAssociateInteraction.svelte';
 import HotspotInteraction from '../../src/plugins/hotspot/HotspotInteraction.svelte';
 import HottextInteraction from '../../src/plugins/hottext/HottextInteraction.svelte';
 import MatchInteraction from '../../src/plugins/match/MatchInteraction.svelte';
 import PositionObjectInteraction from '../../src/plugins/position-object/PositionObjectInteraction.svelte';
+import SelectPointInteraction from '../../src/plugins/select-point/SelectPointInteraction.svelte';
 import { check, cleanupInteraction, mountInteraction, q, qa, settle } from './helpers';
 
 afterEach(() => {
@@ -180,6 +182,49 @@ describe('a blank authored limit message falls back to the default', () => {
 		const mounted = mountInteraction(MatchInteraction, { interaction, response: ['S T'] });
 		await settle();
 		expect(q(mounted, '.qti-selection-message')).toBeNull();
+		cleanupInteraction(mounted);
+	});
+});
+
+describe('a limit that is not a number restricts nothing (select point, extended text, media)', () => {
+	test('select point: maxChoices="any" lets several points be placed', async () => {
+		const interaction = delivered(
+			'cardinality="multiple" baseType="point"',
+			`<selectPointInteraction responseIdentifier="RESPONSE" maxChoices="any">${IMAGE}</selectPointInteraction>`,
+		);
+		expect(interaction.maxChoices).toBeNaN();
+		const mounted = mountInteraction(SelectPointInteraction, { interaction });
+		await settle();
+		const surface = q<HTMLElement>(mounted, '[part="selection-area"]')!;
+		vi.spyOn(surface, 'getBoundingClientRect').mockReturnValue({
+			left: 0, top: 0, width: 400, height: 100, right: 400, bottom: 100, x: 0, y: 0, toJSON: () => ({}),
+		} as DOMRect);
+		surface.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 50, clientY: 25 }));
+		await settle();
+		surface.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 300, clientY: 75 }));
+		await settle();
+		expect(mounted.instance.response).toEqual(['50 25', '300 75']);
+		cleanupInteraction(mounted);
+	});
+
+	test('extended text: maxStrings="any" lets another response be added', async () => {
+		// Hand-built delivery data: the extended-text extractor refuses to deliver a
+		// malformed maxStrings, so a NaN limit reaches the component only this way.
+		const interaction = {
+			type: 'extendedTextInteraction',
+			responseId: 'RESPONSE',
+			cardinality: 'multiple',
+			baseType: 'string',
+			minStrings: 1,
+			maxStrings: Number.NaN,
+		};
+		const mounted = mountInteraction(ExtendedTextInteraction, { interaction });
+		await settle();
+		const add = q<HTMLButtonElement>(mounted, '[part="add-string"]');
+		expect(add).not.toBeNull();
+		add!.click();
+		await settle();
+		expect(qa(mounted, '[part="string"]')).toHaveLength(2);
 		cleanupInteraction(mounted);
 	});
 });

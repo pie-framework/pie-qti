@@ -6,11 +6,16 @@
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
+	import type { InteractionProps } from '../../shared/utils/interactionProps';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import Icon from '../../shared/components/Icon.svelte';
+	import { ICON_CLOSE, ICON_INFO } from '../../shared/components/icons';
 	import ImageStage from '../../shared/components/ImageStage.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { isAtLimit } from '../../shared/utils/capacity';
 	import { matchGroupBlockedIds } from '../../shared/utils/matchGroupUtils';
+	import { choiceAccessibleName } from '../../shared/utils/choiceName';
+	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 	import { countPairsWithId, hasUnorderedPair, pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
@@ -19,15 +24,7 @@
 	import { choicesShortOfMatchMin, minimumHint } from '../../shared/utils/minimumRequirement';
 	import { imageAltText, shapeBounds, shapeCenter, type Bounds } from '../../shared/utils/graphicRegions';
 
-	interface Props {
-		interaction?: GraphicAssociateInteractionData | string;
-		response?: string[] | null;
-		correctResponse?: string[] | null;
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
-		onChange?: (value: string[]) => void;
-	}
+	type Props = InteractionProps<'graphicAssociateInteraction'>;
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 
@@ -93,10 +90,11 @@
 
 	// Polite announcements of associations made, removed, and refused, for the
 	// always-rendered live region below the description.
-	let statusAnnouncement = $state('');
+	const statusAnnouncer = createAnnouncer();
 
+	/** Announce through the polite live region; the shared announcer keeps repeats announcing. */
 	function announce(message: string) {
-		statusAnnouncement = statusAnnouncement === message ? `${message}\u200b` : message;
+		statusAnnouncer.announce(message);
 	}
 
 	const canInteract = $derived(!disabled);
@@ -204,10 +202,13 @@
 	function hotspotName(hotspot: GraphicAssociateHotspot | undefined): string {
 		if (!hotspot) return '';
 		const index = parsedInteraction?.associableHotspots.indexOf(hotspot) ?? -1;
-		return (
-			hotspot.label?.trim() ||
-			translate(i18n, 'interactions.graphicAssociate.unlabeledHotspot', 'Region {index}', { index: index + 1 })
-		);
+		return choiceAccessibleName({
+			i18n,
+			label: hotspot.label,
+			position: index + 1,
+			// The interaction's own noun for an unlabeled hotspot ("Region 3").
+			fallback: { key: 'interactions.graphicAssociate.unlabeledHotspot', text: 'Region {index}' },
+		});
 	}
 
 	function hotspotNameById(id: string): string {
@@ -346,7 +347,7 @@
 	<InteractionDescription interaction={parsedInteraction} />
 	<!-- Polite announcements (association made, removed, refused) that survive the changed
 	     or focused controls themselves. Always rendered, before any conditional content. -->
-	<div aria-live="polite" aria-atomic="true" class="qti-ga-live-region">{statusAnnouncement}</div>
+	<div aria-live="polite" aria-atomic="true" class="qti-ga-live-region">{statusAnnouncer.message}</div>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -533,21 +534,7 @@
 
 				{#if selectedHotspot}
 					<div class="alert alert-info mt-2" role="status">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							fill="none"
-							viewBox="0 0 24 24"
-							part="selected-icon"
-							class="qti-icon stroke-current shrink-0 w-6 h-6"
-							aria-hidden="true"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-							></path>
-						</svg>
+						<Icon d={ICON_INFO} part="selected-icon" class="qti-icon stroke-current shrink-0 w-6 h-6" />
 						<span>{translate(i18n, 'interactions.graphicAssociate.selectAnotherHotspot', 'Selected: {label}. Select another hotspot to create an association.', {
 							label: hotspotNameById(selectedHotspot),
 						})}</span>
@@ -613,22 +600,7 @@
 												onclick={() => removePair(index)}
 												aria-label={translate(i18n, 'interactions.graphicAssociate.removeAssociation', 'Remove association between {first} and {second}', { first, second })}
 											>
-												<svg
-													xmlns="http://www.w3.org/2000/svg"
-													part="remove-icon"
-													class="qti-icon-sm h-4 w-4"
-													fill="none"
-													viewBox="0 0 24 24"
-													stroke="currentColor"
-													aria-hidden="true"
-												>
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M6 18L18 6M6 6l12 12"
-													/>
-												</svg>
+												<Icon d={ICON_CLOSE} part="remove-icon" class="qti-icon-sm h-4 w-4" stroke="currentColor" />
 											</button>
 										{/if}
 									</li>
@@ -816,18 +788,6 @@
 		opacity: 0.6;
 	}
 
-	/* Visually hidden live region, self-contained so it hides without Tailwind. */
-	.qti-ga-live-region {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
-	}
 	/* Above the hit-area SVG in the button; takes no pointer input (inherited). */
 	.qti-ga-hotspot-label {
 		position: relative;
@@ -880,16 +840,5 @@
 	.qti-ga-remove:focus-visible {
 		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
-	}
-	.qti-ga-sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
 	}
 </style>

@@ -59,7 +59,9 @@
 |-----------|---------|-----------|
 | `responseIdentifier` | Full | Extracted as `responseId`; used in `qti-change` event payload |
 | `maxChoices` | Full | Enforced at selection time, and it decides the widget. With `maxChoices=1` the spans form a radio group: a new selection replaces the current one, activating the selected span again keeps it (a radio is never unchecked by activating it), and "Clear answer" retracts the answer. With `maxChoices>1` each span is a toggle button: activating a selected span deselects it, and once `selectedIds.length === maxChoices` further selections are refused until a deselection occurs. Default `1` when absent. |
-| `minChoices` | Partial — extracted, not surfaced | Extracted by `standardHottextExtractor` (conditionally included in `HottextData` when `> 0`) and validated structurally. **Not present in `HottextInteractionData`** and not surfaced to the component, so no "minimum required" UI hint is shown. See Known gaps. |
+| `minChoices` | ✅ Full | Extracted when `> 0`. While the response selects fewer spans, the footer states the requirement ("Select at least 2"), flipping to "Minimum met" once reached; response validation reports a shorter response incomplete. |
+| `data-min-selections-message` | ✅ Full | QTI 3.0 (Table on `qti-hottext-interaction`). States the unmet-minimum badge instead of the localized "Select at least {n}". |
+| `data-max-selections-message` | ✅ Full | QTI 3.0 (Table on `qti-hottext-interaction`). Shown at the cap for any cardinality and announced on a refused selection, exactly as on `choiceInteraction`. |
 
 ### Supported attributes on `<hottext>`
 

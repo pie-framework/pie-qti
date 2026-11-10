@@ -12,6 +12,7 @@
 	import { PciHost } from '@pie-qti/item-player/pci';
 	import { sanitizeSharedHtml } from '@pie-qti/item-player/security';
 	import type { I18nProvider } from '@pie-qti/i18n';
+	import type { ResponseOnlyInteractionProps } from '../../shared/utils/interactionProps';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { parseJsonProp, responseProp } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
@@ -20,17 +21,12 @@
 	type PciHostFactory = (data: ExtractedPci) => PciHostController;
 	type LoadStatus = 'idle' | 'loading' | 'ready' | 'error';
 
-	interface Props {
-		interaction?: PortableCustomInteractionData | string;
-		response?: unknown;
-		disabled?: boolean;
-		i18n?: I18nProvider;
+	interface Props extends ResponseOnlyInteractionProps<'portableCustomInteraction'> {
 		security?: PlayerSecurityConfig;
 		/** Player-owned factory used when rendered inside pie-qti-item-player. */
 		createPciHost?: PciHostFactory;
 		/** Standalone custom-element trust configuration. Set as a JavaScript property. */
 		pci?: PciConfiguration;
-		onChange?: (value: unknown) => void;
 	}
 
 	let {

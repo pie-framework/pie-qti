@@ -15,10 +15,13 @@
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { minimumHint } from '../../shared/utils/minimumRequirement';
 	import { translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
+	import type { InteractionProps, TypesetProps } from '../../shared/utils/interactionProps';
 	import RichTextEditor from '../../shared/components/RichTextEditor.svelte';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createInteractionShell, parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { isLimited } from '../../shared/utils/capacity';
+	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 	import {
 		characterCount,
 		isSpellcheckAllowed,
@@ -28,16 +31,9 @@
 		writingAssistance,
 	} from './textInput';
 
-	interface Props {
-		interaction?: ExtendedTextInteractionData | string;
-		response?: unknown;
+	interface Props extends InteractionProps<'extendedTextInteraction', unknown>, TypesetProps {
 		/** Lexical response held by the declaration named by stringIdentifier. */
 		stringResponse?: unknown;
-		correctResponse?: unknown;
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
-		typeset?: (element: HTMLElement) => void;
 		/**
 		 * The candidate's Personal Needs and Preferences profile (or its JSON). Its
 		 * spell-checker grant opts the fields into spelling help like the
@@ -52,7 +48,6 @@
 		 * Accepts `true`/`"true"` (or the bare attribute) on the custom element.
 		 */
 		spellcheck?: boolean | string;
-		onChange?: (value: unknown) => void;
 	}
 
 	let {
@@ -93,8 +88,7 @@
 	let richEditors: Array<{ focus: () => void } | null> = $state([]);
 
 	// Polite live region: threshold and removal messages only, never per keystroke.
-	let liveMessage = $state('');
-	let liveToggle = false;
+	const liveAnnouncer = createAnnouncer();
 
 	// Fields whose text failed the pattern mask when the candidate left them (by index). The
 	// message shows from then until the text matches again, as for the text entry.
@@ -131,7 +125,7 @@
 			parsedInteraction.cardinality === 'multiple' || parsedInteraction.cardinality === 'ordered'
 				? Math.max(1, parsedInteraction.minStrings)
 				: 1;
-		const editorCount = parsedInteraction.maxStrings > 0
+		const editorCount = isLimited(parsedInteraction.maxStrings)
 			? Math.min(Math.max(values.length, minimumEditors), parsedInteraction.maxStrings)
 			: Math.max(values.length, minimumEditors);
 		editorValues = Array.from({ length: editorCount }, (_, index) => values[index] ?? '');
@@ -174,8 +168,7 @@
 
 	/** Announce through the polite live region; a repeat still changes the DOM. */
 	function announce(message: string) {
-		liveToggle = !liveToggle;
-		liveMessage = liveToggle ? message : `${message}\u00A0`;
+		liveAnnouncer.announce(message);
 	}
 
 	function handleChange(index: number, html: string) {
@@ -212,7 +205,7 @@
 
 	function addString() {
 		if (!parsedInteraction) return;
-		if (parsedInteraction.maxStrings > 0 && editorValues.length >= parsedInteraction.maxStrings) return;
+		if (isLimited(parsedInteraction.maxStrings) && editorValues.length >= parsedInteraction.maxStrings) return;
 		editorValues = [...editorValues, ''];
 		void focusField(editorValues.length - 1);
 	}
@@ -265,7 +258,8 @@
 	);
 	const canAddString = $derived(
 		isContainer &&
-		(parsedInteraction?.maxStrings === 0 || editorValues.length < (parsedInteraction?.maxStrings ?? 0))
+		!!parsedInteraction &&
+		(!isLimited(parsedInteraction.maxStrings) || editorValues.length < parsedInteraction.maxStrings)
 	);
 	const correctResponseStrings = $derived(
 		parsedInteraction ? extendedTextResponseToStrings(parsedCorrectResponse, parsedInteraction) : []
@@ -489,7 +483,7 @@
 			{/if}
 		</div>
 		<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(editorValues)} />
-		<div part="announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true">{liveMessage}</div>
+		<div part="announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true">{liveAnnouncer.message}</div>
 		{#if isShowingCorrect && parsedCorrectResponse}
 			<div part="correct-answer" class="mt-3 p-3 bg-success bg-opacity-10 border border-success rounded">
 				<div class="qti-extended-text-correct-heading text-sm font-semibold mb-2">

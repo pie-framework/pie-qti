@@ -6,7 +6,10 @@
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { createConfirmationFlow } from '../../shared/utils/confirmationFlow.svelte';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
+	import type { InteractionProps } from '../../shared/utils/interactionProps';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import Icon from '../../shared/components/Icon.svelte';
+	import { ICON_CHECK } from '../../shared/components/icons';
 	import ImageStage from '../../shared/components/ImageStage.svelte';
 	import SortableList from '../../shared/components/SortableList.svelte';
 	import OrderSubset from '../../shared/components/OrderSubset.svelte';
@@ -18,16 +21,10 @@
 	import { minimumHint, subsetOrderHint } from '../../shared/utils/minimumRequirement';
 	import { orderChoiceLimits } from '@pie-qti/item-player';
 	import { escapeHtml, imageAltText, regionMarkerPoint } from '../../shared/utils/graphicRegions';
+	import { choiceAccessibleName } from '../../shared/utils/choiceName';
+	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 
-	interface Props {
-		interaction?: GraphicOrderInteractionData | string;
-		response?: string[] | null;
-		correctResponse?: string[] | null;
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
-		onChange?: (value: string[]) => void;
-	}
+	type Props = InteractionProps<'graphicOrderInteraction'>;
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 
@@ -128,8 +125,13 @@
 		(parsedInteraction?.hotspotChoices ?? []).map((choice, index) => ({
 			id: choice.identifier,
 			text: escapeHtml(
-				choice.label?.trim() ||
-					translate(i18n, 'interactions.graphicOrder.unlabeledItem', 'Item {index}', { index: index + 1 }),
+				choiceAccessibleName({
+					i18n,
+					label: choice.label,
+					position: index + 1,
+					// The interaction's own noun for an unlabeled hotspot ("Item 3").
+					fallback: { key: 'interactions.graphicOrder.unlabeledItem', text: 'Item {index}' },
+				}),
 			),
 		})),
 	);
@@ -160,12 +162,12 @@
 	// becomes an inert "Order confirmed" state instead of being swapped for an alert), so
 	// the focus that pressed it keeps a home, and the always-present polite region below
 	// announces the confirmation to assistive technology.
-	let confirmationAnnouncement = $state('');
+	const confirmationAnnouncer = createAnnouncer();
 
+	/** Announce the confirmation; the shared announcer keeps repeats announcing. */
 	function announceConfirmation(message: string) {
-		confirmationAnnouncement = confirmationAnnouncement === message ? `${message}\u200b` : message;
+		confirmationAnnouncer.announce(message);
 	}
-
 	async function confirmFromButton(event: MouseEvent) {
 		const button = event.currentTarget as HTMLButtonElement | null;
 		const wasNeedy = confirmation.needsConfirmation;
@@ -189,6 +191,8 @@
 			? (Array.isArray(parsedResponse) ? parsedResponse.filter((id) => initialOrder.includes(id)).length : 0)
 			: (Array.isArray(parsedResponse) ? parsedResponse.filter(Boolean).length : 0),
 	);
+	// No QTI version defines a selections message on graphicOrderInteraction, so the hint is
+	// always the localized text.
 	const minHint = $derived.by(() => {
 		if (subsetMode && !disabled && role === 'candidate') {
 			return subsetOrderHint({
@@ -196,7 +200,6 @@
 				min: limits.minOrdered,
 				max: limits.maxOrdered,
 				count: orderedCount,
-				authored: parsedInteraction?.minSelectionsMessage,
 				namespace: 'interactions.graphicOrder',
 			});
 		}
@@ -204,7 +207,6 @@
 			i18n,
 			minimum: !disabled && role === 'candidate' && !subsetMode ? parsedInteraction?.minChoices : 0,
 			count: orderedCount,
-			authored: parsedInteraction?.minSelectionsMessage,
 			key: 'interactions.graphicOrder.minChoicesHint',
 			fallback: { one: 'Put at least {count} item in order.', other: 'Put at least {count} items in order.' },
 		});
@@ -225,13 +227,7 @@
 		const value = newOrder.length > 0 ? newOrder : null;
 		orderedIds = newOrder;
 		response = value;
-		const nullAwareOnChange = onChange as ((value: string[] | null) => void) | undefined;
-		emitInteractionChange<string[] | null>({
-			target: rootElement,
-			responseId: parsedInteraction?.responseId,
-			value,
-			onChange: nullAwareOnChange,
-		});
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value, onChange });
 	}
 </script>
 
@@ -375,21 +371,7 @@
 										: (i18n?.t('interactions.graphicOrder.confirmAria') ?? 'Confirm this order as your answer')}
 								>
 									{#if confirmation.hasConfirmed}
-										<svg
-											xmlns="http://www.w3.org/2000/svg"
-											fill="none"
-											viewBox="0 0 24 24"
-											part="confirmed-icon"
-											class="qti-icon qti-go-confirmed stroke-current shrink-0 w-5 h-5"
-											aria-hidden="true"
-										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M5 13l4 4L19 7"
-											></path>
-										</svg>
+										<Icon d={ICON_CHECK} part="confirmed-icon" class="qti-icon qti-go-confirmed stroke-current shrink-0 w-5 h-5" />
 										<span class="text-sm">{translate(i18n, 'interactions.order.orderConfirmed', 'Order confirmed')}</span>
 									{:else}
 										{confirmation.hasReordered
@@ -403,7 +385,7 @@
 									</p>
 								{/if}
 							{/if}
-							<div aria-live="polite" aria-atomic="true" class="qti-go-confirmation-live">{confirmationAnnouncement}</div>
+							<div aria-live="polite" aria-atomic="true" class="qti-go-confirmation-live">{confirmationAnnouncer.message}</div>
 						</div>
 					</div>
 				</div>
@@ -520,27 +502,4 @@
 		cursor: default;
 	}
 
-	/* Visually hidden confirmation live region, self-contained so it hides without Tailwind. */
-	.qti-go-confirmation-live {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
-	}
-	.qti-go-sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
-	}
 </style>

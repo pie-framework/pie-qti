@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { HottextInteractionData } from '@pie-qti/item-player';
+	import type { InteractionProps } from '../../shared/utils/interactionProps';
 	import { tick } from 'svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
@@ -15,15 +16,7 @@
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
-	interface Props {
-		interaction?: HottextInteractionData | string;
-		response?: string | string[] | null;
-		correctResponse?: string | string[] | null;
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
-		onChange?: (value: string | string[] | null) => void;
-	}
+	type Props = InteractionProps<'hottextInteraction'>;
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 
@@ -432,7 +425,7 @@
 					{#if selectedIds.length >= parsedInteraction.minChoices}
 						<span class="badge badge-success badge-sm ms-2">✓ {translate(i18n, 'interactions.hottext.minimumMet', 'Minimum met')}</span>
 					{:else}
-						<span class="badge badge-warning badge-sm ms-2">{translate(i18n, 'interactions.hottext.selectAtLeast', `Select at least ${parsedInteraction.minChoices}`, { minChoices: parsedInteraction.minChoices })}</span>
+						<span class="badge badge-warning badge-sm ms-2">{limitMessage(parsedInteraction.minSelectionsMessage, translate(i18n, 'interactions.hottext.selectAtLeast', `Select at least ${parsedInteraction.minChoices}`, { minChoices: parsedInteraction.minChoices }))}</span>
 					{/if}
 				{/if}
 			</div>

@@ -531,6 +531,22 @@ describe('sortable list pick-up/place', () => {
 		cleanupInteraction(mounted);
 	});
 
+	test('Escape from another item announces the grabbed item, not the focused one', async () => {
+		const { mounted } = mountList();
+		await settle();
+
+		key(item(mounted, 0), 'Enter');
+		await settle();
+		// Tab can move focus to another item while the grab continues.
+		item(mounted, 1).focus();
+		const cancel = key(item(mounted, 1), 'Escape');
+		await settle();
+		expect(cancel.defaultPrevented).toBe(true);
+		expect(item(mounted, 0).dataset.grabbed).toBe('false');
+		expect(live(mounted)).toBe('One selection cancelled');
+		cleanupInteraction(mounted);
+	});
+
 	test('a move button puts a grabbed item down and moves it', async () => {
 		const { mounted, reorders } = mountList();
 		await settle();

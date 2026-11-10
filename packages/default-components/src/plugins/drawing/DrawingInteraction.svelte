@@ -4,6 +4,7 @@
 	import type { DrawingInteractionData, QTIFileResponse } from '@pie-qti/item-player';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import type { I18nProvider } from '@pie-qti/i18n';
+	import type { ResponseOnlyInteractionProps, TypesetProps } from '../../shared/utils/interactionProps';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import DrawingCanvas from '../../shared/components/DrawingCanvas.svelte';
 		import { parseJsonProp, responseProp } from '../../shared/utils/webComponentHelpers';
@@ -11,14 +12,7 @@
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
-	interface Props {
-		interaction?: DrawingInteractionData | string;
-		response?: QTIFileResponse | null;
-		disabled?: boolean;
-		i18n?: I18nProvider;
-		typeset?: (element: HTMLElement) => void;
-		onChange?: (value: QTIFileResponse | null) => void;
-	}
+	type Props = ResponseOnlyInteractionProps<'drawingInteraction'> & TypesetProps;
 
 	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), typeset, onChange }: Props = $props();
 

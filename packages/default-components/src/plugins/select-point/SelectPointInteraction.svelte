@@ -5,28 +5,23 @@
 	import { tick } from 'svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 		import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
+	import type { InteractionProps } from '../../shared/utils/interactionProps';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import Icon from '../../shared/components/Icon.svelte';
+	import { ICON_INFO } from '../../shared/components/icons';
 	import ImageStage from '../../shared/components/ImageStage.svelte';
 	import { createKeyboardCrosshair } from '../../shared/components/keyboardCrosshair.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import { clientToImagePoint, imageAltText } from '../../shared/utils/graphicRegions';
+	import { isLimited } from '../../shared/utils/capacity';
 
-	interface Props {
-		interaction?: SelectPointInteractionData | string;
-		/**
-		 * QTI point responses are typically represented as a single "x y" string (cardinality=single),
-		 * or an array of "x y" strings (cardinality=multiple/ordered). Some UI layers may pass
-		 * an array of {x,y} points for convenience. We accept all of these and normalize internally.
-		 */
-		response?: any;
-		correctResponse?: any;
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
-		onChange?: (value: any) => void;
-	}
+	// QTI point responses are typically represented as a single "x y" string
+	// (cardinality=single), or an array of "x y" strings (cardinality=multiple/ordered).
+	// Some UI layers may pass an array of {x,y} points for convenience; the component
+	// accepts all of these and normalizes internally.
+	type Props = InteractionProps<'selectPointInteraction', any>;
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 
@@ -132,10 +127,10 @@
 		selectedPoints = parsePoints(parsedResponse);
 	});
 
-	// maxChoices=0 means unlimited per QTI spec
+	// Only a positive maxChoices restricts; 0 and a non-numeric limit are no restriction.
 	const canSelectMore = $derived(
 		!parsedInteraction ||
-		parsedInteraction.maxChoices === 0 ||
+		!isLimited(parsedInteraction.maxChoices) ||
 		selectedPoints.length < parsedInteraction.maxChoices
 	);
 
@@ -489,21 +484,7 @@
 
 			{#if !canSelectMore}
 				<div class="alert alert-info">
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
-						part="limit-icon"
-						class="qti-icon stroke-current shrink-0 w-6 h-6"
-						aria-hidden="true"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-						></path>
-					</svg>
+					<Icon d={ICON_INFO} part="limit-icon" class="qti-icon stroke-current shrink-0 w-6 h-6" />
 					<span>{translate(i18n, 'interactions.selectPoint.maxPointsReached', 'Maximum points reached. Remove a point to add a new one.')}</span>
 				</div>
 			{/if}
@@ -686,15 +667,4 @@
 		pointer-events: none;
 	}
 
-	.qti-sp-sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
-	}
 </style>
