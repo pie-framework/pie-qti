@@ -763,8 +763,7 @@ export default {
 			warningMinutes: '剩余 {count} 分钟',
 			warningTime: '剩余 {time}',
 			paused: '已暂停',
-			showTimer: '显示计时器',
-			hideTimer: '隐藏计时器',
+			label: '计时器',
 		},
 
 		start: {

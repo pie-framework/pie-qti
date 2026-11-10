@@ -751,8 +751,7 @@ export default {
 			warningMinutes: 'เหลือเวลา {count} นาที',
 			warningTime: 'เหลือเวลา {time}',
 			paused: 'หยุดชั่วคราว',
-			showTimer: 'แสดงตัวจับเวลา',
-			hideTimer: 'ซ่อนตัวจับเวลา',
+			label: 'ตัวจับเวลา',
 		},
 
 		start: {

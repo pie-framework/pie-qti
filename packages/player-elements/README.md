@@ -34,7 +34,10 @@ to register only the four player/section elements.
 `@pie-qti/player-elements` is the publishable UI artifact of the platform. Its vite build compiles
 Svelte component sources from the sibling packages' source trees (`assessment-player`,
 `section-player`, `item-player`) and inlines them, together with the Svelte runtime and all
-interaction implementations, into a self-contained bundle with zero runtime bare imports.
+interaction implementations, into a self-contained bundle with zero runtime bare imports. The two
+players' bare names are pinned to their source entries in `vite.config.ts` so a bare-name import and
+a compiled component never bundle the same module twice — `tests/bundle-single-copy.test.ts` reads
+the built sourcemaps and fails if a module ships in two copies again.
 
 Consequences for consumers:
 

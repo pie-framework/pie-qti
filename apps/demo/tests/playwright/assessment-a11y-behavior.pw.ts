@@ -89,11 +89,13 @@ test.describe('assessment accessibility behavior', () => {
 		await page.goto('a11y-components/assessment-timer');
 
 		const toggle = page.getByTestId('assessment-timer-toggle');
-		await expect(toggle).toContainText('Hide timer');
+		// One name in both states (WCAG 4.1.2): the control is named for the countdown it
+		// reveals, and `aria-expanded` alone says whether the countdown is showing.
+		await expect(toggle).toHaveAccessibleName('Timer');
 		await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 		await toggle.click();
 		await expect(page.getByRole('timer')).toHaveCount(0);
-		await expect(toggle).toContainText('Show timer');
+		await expect(toggle).toHaveAccessibleName('Timer');
 		await expect(toggle).toHaveAttribute('aria-expanded', 'false');
 		await toggle.click();
 		await expect(page.getByRole('timer')).toHaveCount(1);

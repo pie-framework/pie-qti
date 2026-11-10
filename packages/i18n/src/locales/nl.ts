@@ -750,8 +750,7 @@ export default {
 			warningMinutes: 'Nog {count} minuten',
 			warningTime: 'Nog {time}',
 			paused: 'Gepauzeerd',
-			showTimer: 'Timer tonen',
-			hideTimer: 'Timer verbergen',
+			label: 'Timer',
 		},
 
 		start: {

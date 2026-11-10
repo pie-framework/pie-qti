@@ -771,8 +771,7 @@ export default {
 			warningMinutes: 'Quedan {count} minutos',
 			warningTime: 'Quedan {time}',
 			paused: 'En pausa',
-			showTimer: 'Mostrar temporizador',
-			hideTimer: 'Ocultar temporizador',
+			label: 'Temporizador',
 		},
 
 		start: {
