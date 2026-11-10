@@ -42,6 +42,8 @@ export type {
 	QtiModalFeedback,
 	QtiItemSessionReference,
 	QtiItemPlayerCompleteDetail,
+	QtiItemPlayerErrorCode,
+	QtiItemPlayerErrorDetail,
 	QtiItemPlayerEventMap,
 	QtiItemPlayerResponseChangeDetail,
 	QtiItemPlayerResponseMap,

@@ -196,18 +196,42 @@ export interface QtiItemPlayerCompleteDetail {
 	result: QtiAdaptiveAttemptResult;
 }
 
+/** Why the item player reported a failure, as the `error` event's `detail.code`. */
+export type QtiItemPlayerErrorCode = import('@pie-qti/item-player').ItemPlayerErrorCode;
+
+/**
+ * An item player failure: a stable `code`, the raw `message` for host logs — never render it
+ * to candidates, who see a localized generic message — and the item when known.
+ */
+export type QtiItemPlayerErrorDetail = import('@pie-qti/item-player').ItemPlayerErrorDetail;
+
 export interface QtiItemPlayerEventMap {
 	'response-change': CustomEvent<QtiItemPlayerResponseChangeDetail>;
+	/** Fires once per successful mount; a broken item fires `error` instead. */
 	ready: CustomEvent<void>;
 	submit: CustomEvent<QtiItemPlayerSubmitDetail>;
 	complete: CustomEvent<QtiItemPlayerCompleteDetail>;
+	error: CustomEvent<QtiItemPlayerErrorDetail>;
 }
 
 export interface QtiItemPlayerElement extends HTMLElement {
 	itemXml: string | undefined;
 	session?: QtiItemSessionReference;
+	/**
+	 * The QTI view the item renders for. Declaratively the `qti-role` attribute: a bare `role`
+	 * attribute is the ARIA role. Unknown values render as `candidate`.
+	 */
 	role: QtiRole | null;
 	disabled: boolean | undefined;
+	/** Per-element interface locale, declaratively the `locale` attribute; needs `i18n`. */
+	locale?: string | null;
+	/**
+	 * Standalone opt-in for integrated feedback (`show-feedback`); QTI's
+	 * `itemSessionControl@showFeedback` default is false, so it is hidden unless set.
+	 */
+	showFeedback?: boolean;
+	/** Standalone opt-in to show correct responses once the attempt ends (`show-solution`). */
+	showSolution?: boolean;
 	renderItemBodyRubrics: boolean | undefined;
 	typeset?: (element: HTMLElement) => void;
 	i18n?: QtiI18nProvider;
