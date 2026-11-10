@@ -16,6 +16,7 @@ import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
 	import { normalizeCssPixelLength } from '@pie-qti/item-player/security';
 	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
+	import { exceedsLimit, limitMessage } from '../../shared/utils/capacity';
 	import { isCompatibleMatchGroup, matchGroupBlockedIds } from '../../shared/utils/matchGroupUtils';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
@@ -147,20 +148,20 @@ function canPlaceLabel(labelId: string, hotspotId: string): boolean {
  * hotspot, so a placement never raises either side's count above 1.
  */
 function exceedsMaxAssociations(candidatePairs: string[]): boolean {
-	const max = Number(parsedInteraction?.maxAssociations ?? 0);
-	return max > 0 && candidatePairs.length > max;
+	return exceedsLimit(candidatePairs.length, Number(parsedInteraction?.maxAssociations ?? 0));
 }
 
 /** Announce a refused placement: the author's data-max-selections-message wins. */
 function announceAssociationLimit() {
-	liveMessage =
-		parsedInteraction?.maxSelectionsMessage?.trim() ||
+	liveMessage = limitMessage(
+		parsedInteraction?.maxSelectionsMessage,
 		translate(
 			i18n,
 			'interactions.graphicGapMatch.associationLimitReached',
 			'Association not possible: the limit of {max} is reached.',
 			{ max: Number(parsedInteraction?.maxAssociations ?? 0) },
-		);
+		),
+	);
 }
 
 // Hotspots the label being placed may not go on, due to matchGroup: the dragged label during a

@@ -7,6 +7,7 @@
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
+	import { isAtLimit } from '../../shared/utils/capacity';
 	import { HOTTEXT_SELECTOR } from './hottextSelector';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import { radioArrowStep, wrapIndex } from '../../shared/utils/radioGroup';
@@ -402,7 +403,7 @@
 		);
 	});
 	const showMaxMessage = $derived(
-		maxChoices > 0 && selectedIds.length >= maxChoices && (!!parsedInteraction?.maxSelectionsMessage || maxChoices > 1)
+		isAtLimit(selectedIds.length, maxChoices) && (!!parsedInteraction?.maxSelectionsMessage || maxChoices > 1)
 	);
 </script>
 

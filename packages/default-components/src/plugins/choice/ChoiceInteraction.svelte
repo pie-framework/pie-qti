@@ -10,6 +10,7 @@
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
+	import { isAtLimit } from '../../shared/utils/capacity';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
@@ -128,7 +129,7 @@
 		if (checked) {
 			// Enforce maxChoices (0 = unlimited)
 			const max = parsedInteraction?.maxChoices ?? 0;
-			if (max > 0 && newValues.length >= max) {
+			if (isAtLimit(newValues.length, max)) {
 				// The selection is refused, so don't leave the checkbox visually checked.
 				if (input) input.checked = false;
 				return;
@@ -186,7 +187,7 @@
 		);
 	});
 	const showMaxMessage = $derived(
-		maxChoices > 0 && selectionCount >= maxChoices && (!!parsedInteraction?.maxSelectionsMessage || maxChoices > 1)
+		isAtLimit(selectionCount, maxChoices) && (!!parsedInteraction?.maxSelectionsMessage || maxChoices > 1)
 	);
 
 	// Minimum requirement (minChoices): stated on the question while the response is short of it,

@@ -61,6 +61,7 @@
 	import { createKeyboardCrosshair } from '../../shared/components/keyboardCrosshair.svelte';
 	import DragHandle from '../../shared/components/DragHandle.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
+	import { isAtLimit } from '../../shared/utils/capacity';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import { clientToImagePoint, imageAltText } from '../../shared/utils/graphicRegions';
@@ -253,7 +254,7 @@
 	 * unlimited here too — otherwise an unlimited item could never be answered.
 	 */
 	function isStageAtLimit(stage: PositionObjectStage): boolean {
-		return stage.matchMax > 0 && getStageUsageCount(stage.identifier) >= stage.matchMax;
+		return isAtLimit(getStageUsageCount(stage.identifier), stage.matchMax);
 	}
 
 	function canDragStage(id: string): boolean {
@@ -302,7 +303,7 @@
 	function announcePlacementRefused(stage: PositionObjectStage) {
 		const maxChoices = parsedInteraction?.maxChoices ?? 0;
 		const message =
-			maxChoices > 0 && positions.length >= maxChoices
+			isAtLimit(positions.length, maxChoices)
 				? translatePlural(
 						i18n,
 						'interactions.positionObject.maxChoicesReached',

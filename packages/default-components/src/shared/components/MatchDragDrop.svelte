@@ -10,6 +10,7 @@ import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qt
 import { touchDrag } from '@pie-qti/qti-common';
 import { tick } from 'svelte';
 import { accessibleTextFromHtml } from '../utils/accessibleText.js';
+import { exceedsLimit } from '../utils/capacity.js';
 import { choiceAccessibleName } from '../utils/choiceName.js';
 import { createOrUpdatePair, getSourceForTarget, getTargetsForSource, removePairBySource } from '../utils/pairHelpers.js';
 import { isCompatibleMatchGroup, matchGroupBlockedIds } from '../utils/matchGroupUtils.js';
@@ -171,11 +172,11 @@ function createMatch(sourceId: string, targetId: string): boolean {
 	const matchMax = source.matchMax ?? 1;
 	// The two caps are refused separately and named (WCAG 3.3.1): the interaction's
 	// maxAssociations names the limit, the source's own matchMax names the choice.
-	if (maxAssociations > 0 && newPairs.length > maxAssociations) {
+	if (exceedsLimit(newPairs.length, maxAssociations)) {
 		announceRefusal(translate(i18n, 'interactions.match.associationLimitReached', 'Association not possible: the limit of {max} is reached.', { max: maxAssociations }));
 		return false;
 	}
-	if (matchMax > 0 && sourceCount > matchMax) {
+	if (exceedsLimit(sourceCount, matchMax)) {
 		announceRefusal(
 			translate(i18n, 'interactions.match.sourceLimitReached', 'Not possible: {label} cannot be in more associations.', {
 				label: choiceLabel(source),

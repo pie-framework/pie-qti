@@ -8,6 +8,7 @@
 	import { tick } from 'svelte';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
+	import { exceedsLimit, isAtLimit, limitMessage } from '../../shared/utils/capacity';
 	import { isCompatibleMatchGroup, matchGroupBlockedIds, type MatchGroupBearer } from '../../shared/utils/matchGroupUtils';
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import { interactionAria } from '../../shared/utils/interactionAria';
@@ -236,11 +237,12 @@
 
 	/** Announce a refused placement: the author's data-max-selections-message wins. */
 	function announceAssociationLimit() {
-		liveMessage =
-			parsedInteraction?.maxSelectionsMessage?.trim() ||
+		liveMessage = limitMessage(
+			parsedInteraction?.maxSelectionsMessage,
 			translate(i18n, 'interactions.gapMatch.associationLimitReached', 'Association not possible: the limit of {max} is reached.', {
 				max: maxAssociations,
-			});
+			}),
+		);
 	}
 
 	/**
@@ -260,7 +262,7 @@
 
 		// maxAssociations: refuse a placement that would exceed the interaction's cap. Replacing
 		// a gap's word or moving a single-use word keeps the count, so it is still allowed.
-		if (wordId && maxAssociations > 0 && newPairs.length > maxAssociations) {
+		if (wordId && exceedsLimit(newPairs.length, maxAssociations)) {
 			announceAssociationLimit();
 			return false;
 		}
@@ -271,9 +273,8 @@
 	}
 
 	function isWordUsed(wordId: string): boolean {
-		const matchMax = getMatchMax(wordId);
-		const count = countPairsForSource(pairs, wordId);
-		return matchMax > 0 ? count >= matchMax : false; // matchMax=0 means unlimited, never "used"
+		// matchMax=0 means unlimited: such a word is never "used".
+		return isAtLimit(countPairsForSource(pairs, wordId), getMatchMax(wordId));
 	}
 
 	function getSelectedWord(gapId: string): string {

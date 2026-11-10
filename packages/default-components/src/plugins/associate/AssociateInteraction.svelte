@@ -7,6 +7,7 @@
 	import { formatList, joinSentences, translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
+	import { exceedsLimit, isAtLimit, isLimited } from '../../shared/utils/capacity';
 	import { accessibleTextFromHtml } from '../../shared/utils/accessibleText.js';
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import { matchGroupBlockedIds } from '../../shared/utils/matchGroupUtils';
@@ -138,7 +139,7 @@
 	// The interaction's association cap (QTI maxAssociations): 0 means unlimited, as every
 	// spec version that defines the attribute reads it.
 	const maxAssociations = $derived(parsedInteraction ? Math.max(0, Math.trunc(Number(parsedInteraction.maxAssociations) || 0)) : 0);
-	const associationCapReached = $derived(maxAssociations > 0 && pairs.length >= maxAssociations);
+	const associationCapReached = $derived(isAtLimit(pairs.length, maxAssociations));
 
 	function usesOf(choiceId: string): number {
 		return countPairsWithId(pairs, choiceId);
@@ -149,7 +150,7 @@
 	 * or the interaction's maxAssociations cap is reached (then no choice can).
 	 */
 	function isChoiceMaxed(choice: { identifier: string; matchMax: number }): boolean {
-		return (choice.matchMax > 0 && usesOf(choice.identifier) >= choice.matchMax) || associationCapReached;
+		return isAtLimit(usesOf(choice.identifier), choice.matchMax) || associationCapReached;
 	}
 
 	function announceAssociationLimit() {
@@ -181,7 +182,7 @@
 		// Capacity refusals (QTI matchMax per choice and maxAssociations per interaction),
 		// announced: the same maxima response validation enforces, refused here so an
 		// over-limit response never reaches the submit that would reject it.
-		if (clicked && clicked.matchMax > 0 && usesOf(choiceId) >= clicked.matchMax) {
+		if (clicked && isAtLimit(usesOf(choiceId), clicked.matchMax)) {
 			announceChoiceLimit(clicked);
 			return;
 		}
@@ -207,13 +208,13 @@
 		}
 		const newPair = `${selectedForPairing} ${choiceId}`;
 		const newPairs = [...pairs, newPair];
-		if (maxAssociations > 0 && newPairs.length > maxAssociations) {
+		if (exceedsLimit(newPairs.length, maxAssociations)) {
 			announceAssociationLimit();
 			return;
 		}
 		const pending = parsedInteraction.choices.find((c) => c.identifier === selectedForPairing);
 		for (const choice of [pending, clicked]) {
-			if (choice && choice.matchMax > 0 && countPairsWithId(newPairs, choice.identifier) > choice.matchMax) {
+			if (choice && exceedsLimit(countPairsWithId(newPairs, choice.identifier), choice.matchMax)) {
 				announceChoiceLimit(choice);
 				return;
 			}
@@ -454,7 +455,7 @@
 								'Select two items to create an association between them. Keyboard users can tab to each item and press Enter or Space.'),
 						// The interaction's cap, named up front (WCAG 3.3.2) so the limit is known
 						// before the first refusal announces it.
-						maxAssociations > 0 &&
+						isLimited(maxAssociations) &&
 							translatePlural(
 								i18n,
 								'interactions.associate.maxAssociationsHint',

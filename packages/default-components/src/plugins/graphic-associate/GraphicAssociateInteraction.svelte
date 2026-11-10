@@ -9,6 +9,7 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import ImageStage from '../../shared/components/ImageStage.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
+	import { isAtLimit } from '../../shared/utils/capacity';
 	import { matchGroupBlockedIds } from '../../shared/utils/matchGroupUtils';
 	import { countPairsWithId, hasUnorderedPair, pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
@@ -225,7 +226,7 @@
 
 	/** A hotspot's own cap (QTI matchMax): 0 means unlimited, as for every associable choice. */
 	function isAtMatchMax(hotspot: GraphicAssociateHotspot, usageCount: number): boolean {
-		return hotspot.matchMax > 0 && usageCount >= hotspot.matchMax;
+		return isAtLimit(usageCount, hotspot.matchMax);
 	}
 
 	function isHotspotMaxed(id: string): boolean {

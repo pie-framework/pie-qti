@@ -8,6 +8,7 @@
 	import MatchDragDrop from '../../shared/components/MatchDragDrop.svelte';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
+	import { isAtLimit } from '../../shared/utils/capacity';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
@@ -141,7 +142,7 @@
 			onPairsChange={handlePairsChange}
 		/>
 		<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(pairs)} />
-		{#if parsedInteraction.maxSelectionsMessage && pairs.length >= parsedInteraction.maxAssociations && parsedInteraction.maxAssociations > 0}
+		{#if parsedInteraction.maxSelectionsMessage && isAtLimit(pairs.length, parsedInteraction.maxAssociations)}
 			<p class="qti-selection-message" role="alert">{parsedInteraction.maxSelectionsMessage}</p>
 		{/if}
 	{/if}
