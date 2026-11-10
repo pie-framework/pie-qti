@@ -311,7 +311,8 @@ AC-11: scorer role shows correct pairings
   Given: the item rendered with role="scorer" and correctResponse=["capital1 country1", ...]
   When: the item renders
   Then: each correct source shows a green border and the matched target label; "Correct" badges appear;
-        no interaction is possible (disabled in scorer mode)
+        the interaction stays interactive until the host disables it (scorer mode does not set
+        disabled — interactivity is governed only by the disabled prop, AC-9)
 
 AC-12: candidate role never reveals correct answers
   Given: the item rendered with role="candidate" and correctResponse populated
