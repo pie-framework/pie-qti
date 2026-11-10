@@ -73,7 +73,6 @@ const CANONICAL: Record<string, string> = {
 
   // mapping / tables
   mapresponse: 'expr.mapResponse',
-  mapoutcome: 'expr.mapOutcome',
   mapresponsepoint: 'expr.mapResponsePoint',
   lookuptable: 'expr.lookupTable',
 

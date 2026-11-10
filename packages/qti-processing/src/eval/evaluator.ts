@@ -126,7 +126,7 @@ function findMappingEntry(
 }
 
 /**
- * mapResponse/mapOutcome over a declared value (QTI ASI §15.3; QTI 3.0 §6.9.47): "If a container
+ * mapResponse over a declared value (QTI ASI §15.3; QTI 3.0 §6.9.47): "If a container
  * contains multiple instances of the same value then that value is counted once only", so {B,B,C}
  * maps to 1.5, not 2.5. Deduplication uses the same comparison the mapping lookup uses — pair
  * keys ignore member order, directedPair keys keep it, and the values a case-insensitive string
@@ -1281,17 +1281,6 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const result = expr.kind === 'expr.round' ? Math.round(n) : Math.trunc(n);
 			// No negative zero: -0.4 rounds to the integer 0.
 			return qtiValue('integer', 'single', result === 0 ? 0 : result);
-		}
-		case 'expr.mapOutcome': {
-			const decl = env.ctx.getDeclaration(expr.identifier);
-			if (!decl?.mapping) return qtiValue('float', 'single', 0);
-			let raw = mapMappedValue(decl, decl.mapping, decl.value, stringKeyComparison);
-
-			const lower = decl.mapping.lowerBound;
-			const upper = decl.mapping.upperBound;
-			if (typeof lower === 'number' && raw < lower) raw = lower;
-			if (typeof upper === 'number' && raw > upper) raw = upper;
-			return qtiValue('float', 'single', raw);
 		}
 		case 'expr.mapResponse': {
 			const decl = env.ctx.getDeclaration(expr.identifier);

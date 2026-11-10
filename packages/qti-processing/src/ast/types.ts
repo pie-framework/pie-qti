@@ -81,7 +81,6 @@ export type ExpressionNode =
 	| RoundExpr
 	| TruncateExpr
 	| MapResponseExpr
-	| MapOutcomeExpr
 	| MapResponsePointExpr
 	| RandomExpr
 	| RandomIntegerExpr
@@ -504,8 +503,6 @@ export type RoundExpr = { kind: 'expr.round'; id: AstNodeId; value: ExpressionNo
 export type TruncateExpr = { kind: 'expr.truncate'; id: AstNodeId; value: ExpressionNode };
 
 export type MapResponseExpr = { kind: 'expr.mapResponse'; id: AstNodeId; identifier: string };
-
-export type MapOutcomeExpr = { kind: 'expr.mapOutcome'; id: AstNodeId; identifier: string };
 
 export type MapResponsePointExpr = { kind: 'expr.mapResponsePoint'; id: AstNodeId; identifier: string };
 

@@ -971,9 +971,6 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		case 'mapresponse': {
 			return { kind: 'expr.mapResponse', id, identifier: getAttr(el, 'identifier') || '' };
 		}
-		case 'mapoutcome': {
-			return { kind: 'expr.mapOutcome', id, identifier: getAttr(el, 'identifier') || '' };
-		}
 		case 'mapresponsepoint': {
 			return { kind: 'expr.mapResponsePoint', id, identifier: getAttr(el, 'identifier') || '' };
 		}
