@@ -1,3 +1,10 @@
+<script module lang="ts">
+	// One FontAwesome suppression marker per page: the toolkit's own check is
+	// document-wide, and tool bars created in the same mount all read the same
+	// document, so the flag dedupes where the scan cannot.
+	let fontAwesomeMarkerPlaced = false;
+</script>
+
 <script lang="ts">
 	import {
 		type I18nProvider as ToolkitI18nProvider,
@@ -204,31 +211,51 @@
 		};
 	});
 	/**
-	 * Stop pie-assessment-toolkit from injecting FontAwesome into this page.
+	 * Whether this bar renders the marker that stops pie-assessment-toolkit from
+	 * injecting FontAwesome into the page.
 	 *
 	 * Its ItemToolBar appends FontAwesome Free from jsDelivr plus host-relative
 	 * /_fa-pro/*.min.css links at import time, expecting the embedding app to serve
 	 * FontAwesome Pro — Quiz Engine does; this repo does not, so those requests 404.
 	 * The injection is skipped when a stylesheet whose href matches
-	 * /font.?awesome|fa-?pro/i is already present, so a dummy data: URL suppresses it.
+	 * /font.?awesome|fa-?pro/i is already present anywhere in the document, so a
+	 * dummy `data:` stylesheet suppresses it.
+	 *
+	 * The marker renders inside this bar's own shell rather than the host's <head>:
+	 * the toolkit's check scans the whole document tree, so the suppression works
+	 * from here, and the marker leaves with the bar instead of accumulating in the
+	 * host document. A strict CSP `style-src` still reports the `data:` stylesheet
+	 * (allow `data:` in `style-src`, or link a real FontAwesome stylesheet, which
+	 * suppresses the injection without the marker). One marker per page: the flag
+	 * dedupes where the document scan cannot (bars created in the same mount).
 	 *
 	 * This runs regardless of the `ndsIcons` opt-in: the toolkit injects on import, not
 	 * on the decision to render vendored icon buttons. Removing it brings the 404s back,
 	 * which apps/demo/tests/playwright/section-player.pw.ts asserts against.
 	 */
-	function ensureFontAwesomeFallbackMarker() {
-		if (typeof document === 'undefined') return;
+	let ownsFontAwesomeMarker = false;
+	function claimFontAwesomeMarker(): boolean {
+		if (ownsFontAwesomeMarker) return true;
+		if (fontAwesomeMarkerPlaced || typeof document === 'undefined') return false;
 		const hasFontAwesomeLink = Array.from(document.querySelectorAll('link[rel="stylesheet"][href]')).some((link) =>
 			/font.?awesome|fa-?pro/i.test((link as HTMLLinkElement).href),
 		);
-		if (hasFontAwesomeLink) return;
-		const link = document.createElement('link');
-		link.rel = 'stylesheet';
-		link.href = 'data:text/css;charset=utf-8,/*fontawesome-pie-qti-fallback*/';
-		document.head.appendChild(link);
+		if (hasFontAwesomeLink) return false;
+		fontAwesomeMarkerPlaced = true;
+		ownsFontAwesomeMarker = true;
+		return true;
 	}
 
-	ensureFontAwesomeFallbackMarker();
+	// The page's marker claim ends when the bar that holds it goes away, so a section
+	// mounted later still suppresses a toolkit import that has not happened yet.
+	$effect(() => {
+		return () => {
+			if (ownsFontAwesomeMarker) {
+				fontAwesomeMarkerPlaced = false;
+				ownsFontAwesomeMarker = false;
+			}
+		};
+	});
 
 	$effect(() => {
 		// A bar holding only the display settings button needs no toolkit.
@@ -282,6 +309,14 @@
 
 {#if hasToolkitTools || displaySettingsControls}
 	<span bind:this={shellHost} class="qti-pie-tool-shell">
+		<!--
+			The FontAwesome suppression marker (see `claimFontAwesomeMarker`): a bar about
+			to load the toolkit renders it before that import can evaluate, inside the
+			section player's own DOM instead of the host's <head>.
+		-->
+		{#if hasToolkitTools && claimFontAwesomeMarker()}
+			<link rel="stylesheet" href="data:text/css;charset=utf-8,/*fontawesome-pie-qti-fallback*/" />
+		{/if}
 		{#if displaySettingsControls}
 			<button
 				type="button"
