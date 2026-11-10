@@ -613,6 +613,7 @@ export default {
 		loadError: 'Fout bij laden van item: {error}',
 		parsingError: 'Kan QTI XML niet parseren',
 		processingError: 'Kan antwoorden niet verwerken',
+		submitError: 'Je antwoord kon niet worden verzonden. Probeer het opnieuw.',
 		submit: 'Verzenden',
 		complete: 'Voltooien',
 		completed: 'Voltooid',

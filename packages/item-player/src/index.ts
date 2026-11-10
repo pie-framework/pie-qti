@@ -28,6 +28,7 @@ export {
 } from './core/compliance.js';
 export { UnsupportedResponseProcessingTemplateError } from './core/responseProcessingTemplates.js';
 export {
+	UnknownResponseIdentifierError,
 	type ItemPresentationView,
 	type ItemSession,
 	type ItemSessionCommand,
