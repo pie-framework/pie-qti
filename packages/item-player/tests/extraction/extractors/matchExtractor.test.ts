@@ -412,7 +412,10 @@ describe('standardMatchExtractor', () => {
 			let moved = 0;
 			for (let session = 0; session < 30; session++) {
 				const player = new Player({ itemXml: FIXED_ITEM });
-				const data = player.getInteractionData()[0] as { sourceSet: Array<{ identifier: string }>; targetSet: Array<{ identifier: string }> };
+				const data = player.getInteractionData()[0] as unknown as {
+					sourceSet: Array<{ identifier: string }>;
+					targetSet: Array<{ identifier: string }>;
+				};
 				if (data.sourceSet[0]?.identifier !== 'S1') moved += 1;
 				if (data.targetSet[0]?.identifier !== 'T1') moved += 1;
 			}

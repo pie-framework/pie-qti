@@ -42,7 +42,7 @@ describe('standardAssociateExtractor authored fixed (QTI fixed.SimpleAssociableC
 		let moved = 0;
 		for (let session = 0; session < 30; session++) {
 			const player = new Player({ itemXml: FIXED_ASSOCIATE_ITEM });
-			const data = player.getInteractionData()[0] as { choices: Array<{ identifier: string }> };
+			const data = player.getInteractionData()[0] as unknown as { choices: Array<{ identifier: string }> };
 			if (data.choices[0]?.identifier !== 'A') moved += 1;
 		}
 		expect(moved).toBe(0);

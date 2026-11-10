@@ -50,7 +50,7 @@ describe('standardGapMatchExtractor authored fixed (QTI 2.1 fixed.GapText.Attr /
 		let moved = 0;
 		for (let session = 0; session < 30; session++) {
 			const player = new Player({ itemXml: FIXED_GAP_MATCH_ITEM });
-			const data = player.getInteractionData()[0] as {
+			const data = player.getInteractionData()[0] as unknown as {
 				gapTexts: Array<{ identifier: string }>;
 				gapImages: Array<{ identifier: string }>;
 			};
