@@ -66,14 +66,11 @@ import { collectItemDiagnostics, type QtiItemDiagnostic, reportItemDiagnostics }
 import { type MatchGroupConstraints, readMatchGroupConstraints } from './matchGroups.js';
 import { createSeededRng } from './random.js';
 import { sanitizeHtml } from './sanitizer.js';
-import { toTrustedHtml } from './trustedTypes.js';
-import { sanitizeResourceUrl } from './urlPolicy.js';
 import { enforceItemXmlLimits } from './parsingLimits.js';
 import type { PnpProfile } from '../pnp/types.js';
 import { applyPnpToRoot } from '../pnp/applyPnp.js';
 import type { CatalogIndex } from '../catalog/types.js';
-import { extractCatalog, extractCatalogFromItemXml, mergeCatalogs } from '../catalog/catalogExtractor.js';
-import { getCatalogEntryWithAliases } from '../catalog/catalogLookup.js';
+import { buildSessionCatalogIndexes, catalogEntryOf } from '../catalog/sessionCatalog.js';
 import { PciHost } from '../pci/PciHost.js';
 import { cloneValue } from '../utils/cloneFreeze.js';
 import { attributeNameMapperForVersion, elementNameMapperForVersion } from './nameMappers.js';
@@ -371,30 +368,9 @@ export class Player {
 			this._catalogIndex = prepared.catalogIndex;
 			this._stimulusCatalogIndexes = prepared.stimulusCatalogIndexes;
 		} else {
-			let mergedCatalog: CatalogIndex = new Map();
-			let deliveryItemCatalog: CatalogIndex = new Map();
-			for (const source of this.config.deliveryContext?.catalogSources ?? []) {
-				const sourceCatalog = extractCatalog(source.xml);
-				if (source.scope === 'stimulus' && source.stimulusIdentifier) {
-					const existing = this._stimulusCatalogIndexes.get(source.stimulusIdentifier) ?? new Map();
-					this._stimulusCatalogIndexes.set(
-						source.stimulusIdentifier,
-						mergeCatalogs(existing, sourceCatalog),
-					);
-				} else if (source.scope === 'package') {
-					mergedCatalog = mergeCatalogs(mergedCatalog, sourceCatalog);
-				} else {
-					deliveryItemCatalog = mergeCatalogs(deliveryItemCatalog, sourceCatalog);
-				}
-			}
-			if (this.config.catalogXml) {
-				mergedCatalog = mergeCatalogs(
-					mergedCatalog,
-					extractCatalogFromItemXml(this.config.catalogXml),
-				);
-			}
-			mergedCatalog = mergeCatalogs(mergedCatalog, extractCatalogFromItemXml(this.itemXml));
-			this._catalogIndex = mergeCatalogs(mergedCatalog, deliveryItemCatalog);
+			const indexes = buildSessionCatalogIndexes({ config: this.config, itemXml: this.itemXml });
+			this._catalogIndex = indexes.catalogIndex;
+			this._stimulusCatalogIndexes = indexes.stimulusCatalogIndexes;
 		}
 
 		// Checks that read the item as authored, before the content pass: matchGroup constraints, and
@@ -493,22 +469,16 @@ export class Player {
 		lang?: string,
 		options?: { stimulusIdentifier?: string }
 	): HtmlContent | null {
-		const stimulusHtml = options?.stimulusIdentifier
-			? getCatalogEntryWithAliases(this._stimulusCatalogIndexes.get(options.stimulusIdentifier) ?? new Map(), idref, usage, lang)
-			: null;
-		const html =
-			stimulusHtml ?? getCatalogEntryWithAliases(this._catalogIndex, idref, usage, lang);
-		if (html === null) return null;
-		if (looksLikeCatalogUrl(html)) {
-			return sanitizeResourceUrl(html.trim(), this.config.security?.urlPolicy, 'img');
-		}
-		return toTrustedHtml(
-			this.sanitizeHtmlContent(html),
-			this.config.security?.trustedTypesPolicyName,
+		return catalogEntryOf(
+			{ catalogIndex: this._catalogIndex, stimulusCatalogIndexes: this._stimulusCatalogIndexes },
+			idref,
+			usage,
+			lang,
+			options,
+			this.config.security,
 		);
 	}
 
-	/** Sanitize externally resolved item-adjacent HTML before it reaches a rendering sink. */
 	public sanitizeHtmlContent(html: string): string {
 		return sanitizeHtml(html, { security: this.config.security });
 	}
@@ -1263,8 +1233,3 @@ function createSessionGuid(): string {
 	);
 }
 
-function looksLikeCatalogUrl(value: string): boolean {
-	const trimmed = value.trim();
-	return /^(https?:\/\/|\/\/|\/|\.{0,2}\/|data:|blob:)/i.test(trimmed) ||
-		/\.(png|jpe?g|gif|webp|svg|mp3|wav|ogg|mp4|webm|pdf)(\?.*)?$/i.test(trimmed);
-}
