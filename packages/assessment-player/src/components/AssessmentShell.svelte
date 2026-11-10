@@ -38,6 +38,7 @@
 	import CompletionScreen from './CompletionScreen.svelte';
 	import LeavePartDialog from './LeavePartDialog.svelte';
 	import NavigationBar from './NavigationBar.svelte';
+	import PauseOverlay from './PauseOverlay.svelte';
 	import ReviewScreen from './ReviewScreen.svelte';
 	import SubmitBlockerGroup, { type BlockerGroups, type SubmitDialogItem } from './SubmitBlockerGroup.svelte';
 	import SubmitConfirmDialog, { type SubmitDialogSummary } from './SubmitConfirmDialog.svelte';
@@ -2406,22 +2407,13 @@
 		<!-- Proctor pause: an overlay replaces the blocked shell, naming the reason.
 		     It sits OUTSIDE the inert chrome wrapper, so it stays operable. -->
 		{#if paused}
-			<div class="pause-overlay" data-testid="assessment-pause-overlay" bind:this={pauseOverlayEl}>
-				<div class="pause-card" role="status" aria-live="assertive">
-					<!-- One level below the shell title, like the passage and item titles. -->
-					<svelte:element
-						this={`h${Math.min(6, titleHeadingLevel + 1)}`}
-						class="pause-title"
-						tabindex="-1"
-						bind:this={pauseHeadingEl}
-					>
-						{i18n.t('assessment.pause.title', 'Assessment paused')}
-					</svelte:element>
-					<p class="pause-reason">
-						{pauseReason ?? i18n.t('assessment.pause.message', 'Your test has been paused. Please wait until it resumes.')}
-					</p>
-				</div>
-			</div>
+			<PauseOverlay
+				headingLevel={titleHeadingLevel}
+				reason={pauseReason}
+				{i18n}
+				bind:headingElement={pauseHeadingEl}
+				bind:overlayElement={pauseOverlayEl}
+			/>
 		{/if}
 	</svelte:element>
 {/if}
@@ -3022,46 +3014,6 @@
 
 	.assessment-start-paused-reason {
 		margin: var(--pie-qti-space-1, 0.25rem) 0 0;
-		overflow-wrap: anywhere;
-	}
-
-	/* Proctor pause: blocks the shell and names the reason. */
-	.pause-overlay {
-		position: absolute;
-		inset: 0;
-		z-index: 30;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: var(--pie-qti-space-4, 1rem);
-		background: color-mix(in oklab, var(--pie-qti-base-100, oklch(100% 0 0)) 92%, black);
-	}
-
-	.pause-card {
-		box-sizing: border-box;
-		inline-size: min(28rem, 100%);
-		padding: var(--pie-qti-space-6, 2rem);
-		border: 1px solid var(--pie-qti-border-strong, #767676);
-		border-radius: var(--pie-qti-radius, 0.5rem);
-		background: var(--pie-qti-base-100, oklch(100% 0 0));
-		color: var(--pie-qti-base-content, oklch(21% 0 0));
-		box-shadow: 0 1.25rem 2.75rem rgb(0 0 0 / 0.25);
-	}
-
-	.pause-title {
-		margin: 0 0 var(--pie-qti-space-3, 0.75rem);
-		font-size: 1.25em;
-		font-weight: 700;
-		line-height: 1.3;
-	}
-
-	.pause-title:focus-visible {
-		outline: 2px solid var(--pie-qti-focus, #4338ca);
-		outline-offset: 2px;
-	}
-
-	.pause-reason {
-		margin: 0;
 		overflow-wrap: anywhere;
 	}
 
