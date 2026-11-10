@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { I18nProvider } from '@pie-qti/i18n';
-import type { CustomInteractionData } from '@pie-qti/item-player';
+import { createAssessmentItemDefinition, type CustomInteractionData } from '@pie-qti/item-player';
 import CustomInteraction from '../../src/plugins/custom/CustomInteraction.svelte';
-import { cleanupInteraction, mountInteraction, q, settle, type } from './helpers';
+import { cleanupInteraction, mountInteraction, pressCharacter, q, settle, type } from './helpers';
 
 /**
  * English fallback provider. The component calls `i18n?.t(key, fallback)`, so with no
@@ -195,6 +195,96 @@ describe('CustomInteraction fallback (pie-qti-custom)', () => {
 			expect(q<HTMLLabelElement>(mounted, `label[for="${textarea.id}"]`)).not.toBeNull();
 		}
 		cleanupInteraction(first, second);
+	});
+
+	// Typed spaces are part of the answer (INT-03). The field is controlled by the stored
+	// response: the player stores what a keystroke reported and sets it back at once, and a
+	// value trimmed at rest echoed the trimmed text into the focused field and deleted the
+	// space the candidate had just typed ("two words" came out "twowords").
+	describe('typed spaces survive the session round trip', () => {
+		const SESSION_ITEM = `<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+		  identifier="manual" title="Manual" adaptive="false" timeDependent="false">
+		  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="string"/>
+		  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+		    <defaultValue><value>0</value></defaultValue>
+		  </outcomeDeclaration>
+		  <itemBody><customInteraction responseIdentifier="RESPONSE"/></itemBody>
+		</assessmentItem>`;
+
+		/** Type `text` key by key, with the player storing each report and setting it back. */
+		async function typeThroughSession(text: string) {
+			const session = createAssessmentItemDefinition({ itemXml: SESSION_ITEM, role: 'candidate' }).openSession();
+			const mounted = mountInteraction(CustomInteraction, { interaction: customData(), i18n });
+			await settle();
+			const textarea = q<HTMLTextAreaElement>(mounted, 'textarea')!;
+			textarea.focus();
+			try {
+				let typed = '';
+				for (const character of text) {
+					typed += character;
+					pressCharacter(textarea, character);
+					await settle();
+					session.dispatch({
+						action: 'setResponse',
+						responseIdentifier: 'RESPONSE',
+						value: mounted.events.at(-1)!.detail.value,
+					});
+					mounted.instance.response = session.state().responses.RESPONSE;
+					await settle();
+					// The field holds exactly what was typed after the stored value came back.
+					expect(textarea.value).toBe(typed);
+				}
+				return { textarea, stored: session.state().responses.RESPONSE };
+			} finally {
+				session.dispose();
+			}
+		}
+
+		test('typing "two words" keeps every space in the field and in the stored response', async () => {
+			const { textarea, stored } = await typeThroughSession('two words');
+			expect(textarea.value).toBe('two words');
+			expect(stored).toBe('two words');
+		});
+
+		test('a leading space survives too: white space alone is no response yet, and is not taken back', async () => {
+			// " hello" starts as a lone space, which the session stores as no response (NULL). That
+			// NULL coming back must not empty the field under the candidate.
+			const { textarea, stored } = await typeThroughSession(' hello');
+			expect(textarea.value).toBe(' hello');
+			expect(stored).toBe(' hello');
+		});
+
+		test('a host that trims what it stores does not rewrite the field under the candidate', async () => {
+			const mounted = mountInteraction(CustomInteraction, { interaction: customData(), i18n });
+			await settle();
+
+			const textarea = q<HTMLTextAreaElement>(mounted, 'textarea')!;
+			textarea.focus();
+			let typed = '';
+			// A trailing space is exactly what a trimming host stores without: typing it must not
+			// bring the trimmed text back into the field.
+			for (const character of 'two words ') {
+				typed += character;
+				pressCharacter(textarea, character);
+				await settle();
+				// A host that trims what it stores, then sets it back.
+				mounted.instance.response = String(mounted.events.at(-1)!.detail.value).trim();
+				await settle();
+				expect(textarea.value).toBe(typed);
+			}
+			expect(textarea.value).toBe('two words ');
+			expect(mounted.instance.response).toBe('two words');
+
+			// A response the host sets deliberately still reaches the field: an emptied one clears it…
+			mounted.instance.response = null;
+			await settle();
+			expect(textarea.value).toBe('');
+
+			// …and a restored one shows.
+			mounted.instance.response = 'restored answer';
+			await settle();
+			expect(textarea.value).toBe('restored answer');
+		});
 	});
 
 	// Regression: CustomInteraction accepted an `i18n` prop but did not forward it to

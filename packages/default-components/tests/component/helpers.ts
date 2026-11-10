@@ -88,6 +88,16 @@ export function type(input: HTMLInputElement | HTMLTextAreaElement, value: strin
 	input.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
+/**
+ * Simulate pressing one character key in a text field: the character is appended to what the
+ * field holds at that moment — so text a re-render removed stays removed, as it does for a
+ * candidate — and `input` fires. `type` sets the whole value and so cannot show that loss.
+ */
+export function pressCharacter(input: HTMLInputElement | HTMLTextAreaElement, character: string): void {
+	input.value = `${input.value}${character}`;
+	input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
 /** Simulate a key press with a real KeyboardEvent (cancelable, bubbling, like a user's). */
 export function pressKey(target: Element, key: string, init: KeyboardEventInit = {}): void {
 	target.dispatchEvent(
