@@ -199,7 +199,10 @@ export interface BackendAssessmentPlayerConfig {
 	allowSectionNavigation?: boolean;
 	showProgress?: boolean;
 	// Time management
-	/** Seconds before a limit expires at which a warning fires. Default 60. */
+	/**
+	 * Seconds before a limit expires at which a warning fires. Default 60 when unset;
+	 * `0` turns this default warning off (`timeWarningThresholds` still fire).
+	 */
 	timeWarningThreshold?: number;
 	/**
 	 * Additional warning thresholds in seconds (for example `[300, 60]` for 5-minute
@@ -546,11 +549,19 @@ export class AssessmentPlayer {
 				this.items.map((q) => [q.identifier, resolveItemSessionControl(q.testPart, q.sections, q.item)]),
 			),
 		});
+		// A resumed session's snapshot carries the test outcomes its submissions produced:
+		// the delivery rules read them, so the restored session navigates like the live one.
+		if (initialState.testOutcomes) {
+			this.testOutcomes = cloneData(initialState.testOutcomes)!;
+		} else if (init.outcomes) {
+			this.sessionCoordinator.setTestOutcomes(init.outcomes);
+		}
 
 		this.timeManager = new TimeManager({
 			assessmentTimeLimits: this.assessment.timeLimits,
-			// The default warning (60 s unless the host moves it), then any additional ones.
-			warningThresholds: [config.timeWarningThreshold || 60, ...(config.timeWarningThresholds ?? [])],
+			// The default warning (60 s unless the host moves it; 0 turns it off — a 0 threshold
+			// never fires), then any additional ones.
+			warningThresholds: [config.timeWarningThreshold ?? 60, ...(config.timeWarningThresholds ?? [])],
 			now: config.now,
 			extendedTime: config.pnp?.content?.extendedTime,
 			onWarning: (remainingSeconds) => this.notifyTimeWarning(remainingSeconds),
@@ -1643,6 +1654,8 @@ export class AssessmentPlayer {
 	private setTestOutcomes(outcomes: TestOutcomeValues | undefined): void {
 		if (!outcomes) return;
 		this.testOutcomes = cloneData(outcomes)!;
+		// The snapshot carries them: delivery rules read the same values after a restore.
+		this.sessionCoordinator.setTestOutcomes(outcomes);
 		this.notifyTestFeedbackChange();
 	}
 
@@ -2010,8 +2023,10 @@ export class AssessmentPlayer {
 			this.templateDefaultsByPart.clear();
 			// The snapshot replaces delivery — kept branch decisions included, so a restored
 			// session lands identically (a snapshot from before the feature simply carries
-			// none). The snapshot carries the proctor pause; the begin gate keeps holding the
-			// clocks.
+			// none). The test outcomes ride it too: the delivery rules read the values the
+			// session's submissions produced, as the live session did. The snapshot carries
+			// the proctor pause; the begin gate keeps holding the clocks.
+			this.testOutcomes = state.testOutcomes ? cloneData(state.testOutcomes)! : null;
 			const pauseChanged = this.pauseControl.setFromRestore(state.timing?.isPaused === true, state.timing?.pauseReason);
 			if (!this.started) this.timeManager?.pause();
 
@@ -2227,10 +2242,16 @@ export class AssessmentPlayer {
 		// Next from a simultaneous part's last item always crosses (or ends the test): the
 		// part commits at the crossing, and only then is a decision on record to follow.
 		const crossesSimultaneousPart =
-			!submits && !kept && this.endsTestPart(q) && this.isSimultaneousSubmission(q);
+			!submits && !kept && this.crossingFlushDue(q);
 		// On a crossing the pre-flush rule result is provisional: the flush can still change
 		// the outcomes the rules read, so the landing is computed again after it.
-		const forward = submits ? this.nextUnlockedIndex(q.index) : kept ? -1 : this.ruleForwardIndex(q);
+		const forward = crossesSimultaneousPart
+			? this.nextUnlockedIndex(q.index)
+			: submits
+				? this.nextUnlockedIndex(q.index)
+				: kept
+					? -1
+					: this.ruleForwardIndex(q);
 		if (!kept && forward < 0 && !crossesSimultaneousPart) return;
 
 		this.sessionCoordinator.markAnswered(q.identifier, responses);
@@ -2385,13 +2406,30 @@ export class AssessmentPlayer {
 	}
 
 	/**
-	 * Where the candidate's Next goes from `q`: when it submits the item, the backend decides
-	 * once the submission is accepted (the adjacent open item stands for that decision until
-	 * then); otherwise the destination is known now (`unsubmittedForwardIndex`). -1 when
-	 * nothing follows — Submit is the way on.
+	 * Where the candidate's Next goes from `q`: when it submits the item — or crosses out of
+	 * a simultaneous part whose responses still have to go out (`crossingFlushDue`) — the
+	 * backend decides once the submissions are accepted (the adjacent open item stands for
+	 * that decision until then; the pre-flush rules read uncommitted state); otherwise the
+	 * destination is known now (`unsubmittedForwardIndex`). -1 when nothing follows — Submit
+	 * is the way on.
 	 */
 	private forwardStepIndex(q: FlatItem): number {
-		return this.nextSubmits(q) ? this.nextUnlockedIndex(q.index) : this.unsubmittedForwardIndex(q);
+		return this.nextSubmits(q) || this.crossingFlushDue(q)
+			? this.nextUnlockedIndex(q.index)
+			: this.unsubmittedForwardIndex(q);
+	}
+
+	/**
+	 * Whether `next()` from `q` crosses out of its simultaneous part with some of the part's
+	 * responses not yet accepted: the crossing flushes them, and that flush decides the landing.
+	 */
+	private crossingFlushDue(q: FlatItem): boolean {
+		return (
+			this.endsTestPart(q) &&
+			this.isSimultaneousSubmission(q) &&
+			!this.keptBranchDecisionFor(q) &&
+			this.items.some((item) => item.testPart === q.testPart && this.itemNeedsSubmission(item))
+		);
 	}
 
 	/**
@@ -2468,7 +2506,7 @@ export class AssessmentPlayer {
 			recorded[item.identifier] = applyVariableMappings(variables, item.item.variableMappings);
 		}
 		return addItemVariableDeclarations(
-			testOutcomeDeclarations(this.assessment, this.testOutcomes ?? undefined),
+			testOutcomeDeclarations(this.assessment, this.testOutcomes ?? this.sessionCoordinator.getTestOutcomes()),
 			recorded,
 			recorded[from.identifier] ?? {},
 		);
@@ -2869,6 +2907,15 @@ export class AssessmentPlayer {
 			return itemResult;
 		}
 
+		// The hint consumed no attempt: the item session must be as open as it was before it.
+		// Response processing may have marked the item completed (a hint on a correct answer),
+		// which closes the session and would leave the candidate with no way to answer —
+		// reopen it while attempts remain, as a counted check reopens.
+		// The backend accepted these exact responses (it ran response processing on them), so
+		// they stand as the item's last submitted set: moving on unchanged re-submits nothing
+		// and follows the counted decision on record, never a fresh one on the hint's state.
+		this.lastSubmittedResponses.set(q.identifier, cloneResponseRecord(responses));
+		this.reopenForRemainingAttempts(q);
 		this.sessionCoordinator.markAnswered(q.identifier, responses);
 		return {
 			itemIdentifier: q.identifier,
@@ -3438,6 +3485,8 @@ export class AssessmentPlayer {
 		this.timeManager?.pause();
 		this.timeManager?.stopTimer();
 		this.testOutcomes = cloneData(finalized.outcomes ?? this.testOutcomes ?? {})!;
+		// The persisted snapshot carries them (testFeedback and rules read them on a resume).
+		this.sessionCoordinator.setTestOutcomes(this.testOutcomes);
 		this.notifyTestFeedbackChange();
 		this.reportOutcomeProcessingError(finalized.outcomeProcessingError);
 

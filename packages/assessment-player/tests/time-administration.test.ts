@@ -432,6 +432,21 @@ describe('warnings', () => {
 		await tick();
 		expect(warnings).toEqual([55, 25]);
 	});
+
+	test('timeWarningThreshold 0 turns the default warning off; additional thresholds still fire', async () => {
+		const warnings: number[] = [];
+		const { player, advance } = await deliver(testXml({ testLimits: '<timeLimits maxTime="100"/>' }), items('i1', 'i2'), {
+			timeWarningThreshold: 0,
+			timeWarningThresholds: [30],
+		});
+		player.onTimeWarning((remaining) => warnings.push(remaining));
+		advance(45_000);
+		await tick();
+		expect(warnings).toEqual([]);
+		advance(30_000);
+		await tick();
+		expect(warnings).toEqual([25]);
+	});
 });
 
 describe('reference backend timing', () => {
