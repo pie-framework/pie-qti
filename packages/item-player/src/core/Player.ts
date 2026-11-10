@@ -106,6 +106,7 @@ import {
 	runResponseProcessing,
 } from './processing/responseProcessing.js';
 import type { ExtractedPci, PciInteractionStatus } from '../pci/types.js';
+import { PciHostSession } from '../pci/sessionHosts.js';
 import { createTextEntryStringResponse, textEntryStringIdentifier } from '../interactions/text-entry/response.js';
 
 /** Immutable source-derived artifacts shared by sessions from one definition. */
@@ -198,7 +199,8 @@ export class Player {
 	private _rootEl: HTMLElement | undefined;
 	private _catalogIndex: CatalogIndex = new Map();
 	private _stimulusCatalogIndexes: Map<string, CatalogIndex> = new Map();
-	private _pciHosts: Map<string, PciHost> = new Map();
+	/** @internal The PCI hosts of this session, by response identifier. */
+	private readonly pciSession = new PciHostSession();
 	private _pnpChangeListeners = new Set<(pnp: PnpProfile | undefined) => void>();
 	/** @internal The shuffle seed, persisted in saved state and restored. */
 	sessionGuid: string;
@@ -511,60 +513,18 @@ export class Player {
 		return sanitizeHtml(html, { security: this.config.security });
 	}
 
-	/**
-	 * Create a PciHost for an extracted PCI and register it for response tracking.
-	 * The caller is responsible for calling host.load() and
-	 * host.initialize(domNode) once the DOM element is available.
-	 */
 	public createPciHost(data: ExtractedPci): PciHost {
-		const host = new PciHost(data, {
-			baseUrl: this.config.pci?.baseUrl,
-			moduleResolver: this.config.pci?.moduleResolver,
-			sandbox: this.config.pci?.sandbox,
-			modulePolicy: this.config.pci?.modulePolicy,
-			responseDeclaration: (() => {
-				const d = this.decls[data.responseIdentifier];
-				return d ? { baseType: d.baseType, cardinality: d.cardinality } : undefined;
-			})(),
-			status: () => this.pciInteractionStatus(),
-			contentLanguage: this.getContentLanguage(),
+		return this.pciSession.create(data, {
+			pci: this.config.pci,
+			decls: this.decls,
+			lifecycleStatus: () => this.lifecycleStatus,
+			interactionStatus: () => this.pciInteractionStatus(),
+			contentLanguage: () => this.getContentLanguage(),
+			coerceToDeclarationValue: (baseType, cardinality, raw, identifier) =>
+				this.coerceToDeclarationValue(baseType, cardinality, raw, identifier),
 		});
-
-		// Wire response changes back into the player's declaration context
-		host.onResponseChange((responseId: string, value: unknown) => {
-			if (this.lifecycleStatus !== 'initial' && this.lifecycleStatus !== 'interacting') return;
-			const d = this.decls[responseId];
-			if (d) {
-				d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, value, d.identifier);
-			}
-		});
-
-		this._pciHosts.set(data.responseIdentifier, host);
-		return host;
 	}
 
-	/**
-	 * Offer a response value to the PCI identified by responseIdentifier. A
-	 * mounted module that has already reported a response keeps it.
-	 */
-	public offerPciResponse(responseIdentifier: string, value: unknown): void {
-		this._pciHosts.get(responseIdentifier)?.offerResponse(value);
-	}
-
-	/**
-	 * Authoritatively replace a PCI's response, discarding in-progress candidate
-	 * state. Session restore and reset-to-default use this.
-	 */
-	public restorePciResponse(responseIdentifier: string, value: unknown): void {
-		this._pciHosts.get(responseIdentifier)?.restore(value);
-	}
-
-	/**
-	 * The QTI 3.0 §6.1 interaction status a PCI instantiates with: 'solution' when
-	 * correct responses are exposed, 'review' for non-candidate roles otherwise,
-	 * 'closed' once the attempt finished, 'interacting' while the candidate works.
-	 * Hosts that know better pass their own `status` to the PciHost options.
-	 */
 	private pciInteractionStatus(): PciInteractionStatus {
 		if (this.role !== 'candidate') return 'review';
 		if (this.lifecycleStatus === 'closed') return 'closed';
@@ -572,13 +532,26 @@ export class Player {
 	}
 
 	/**
+	 * Offer a response value to the PCI identified by responseIdentifier. A
+	 * mounted module that has already reported a response keeps it.
+	 */
+	public offerPciResponse(responseIdentifier: string, value: unknown): void {
+		this.pciSession.offer(responseIdentifier, value);
+	}
+
+	/**
+	 * Authoritatively replace a PCI's response, discarding in-progress candidate
+	 * state. Session restore and reset-to-default use this.
+	 */
+	public restorePciResponse(responseIdentifier: string, value: unknown): void {
+		this.pciSession.restore(responseIdentifier, value);
+	}
+
+	/**
 	 * Destroy all PCI hosts. Call on player teardown.
 	 */
 	public destroyPciHosts(): void {
-		for (const host of this._pciHosts.values()) {
-			host.destroy();
-		}
-		this._pciHosts.clear();
+		this.pciSession.destroyAll();
 	}
 
 	/** Breaking-change API: returns the typed declaration map */
@@ -1043,7 +1016,7 @@ export class Player {
 		const out: Record<string, any> = {};
 		for (const d of Object.values(this.decls)) {
 			if ((d as any).__kind !== 'response') continue;
-			const pciHost = this._pciHosts.get(d.identifier);
+			const pciHost = this.pciSession.get(d.identifier);
 			if (pciHost) {
 				const currentResponse = pciHost.getResponse();
 				d.value = this.coerceToDeclarationValue(
