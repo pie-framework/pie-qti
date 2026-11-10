@@ -549,6 +549,13 @@ export class AssessmentPlayer {
 				this.items.map((q) => [q.identifier, resolveItemSessionControl(q.testPart, q.sections, q.item)]),
 			),
 		});
+		// A resumed session's snapshot carries the test outcomes its submissions produced:
+		// the delivery rules read them, so the restored session navigates like the live one.
+		if (initialState.testOutcomes) {
+			this.testOutcomes = cloneData(initialState.testOutcomes)!;
+		} else if (init.outcomes) {
+			this.sessionCoordinator.setTestOutcomes(init.outcomes);
+		}
 
 		this.timeManager = new TimeManager({
 			assessmentTimeLimits: this.assessment.timeLimits,
@@ -1647,6 +1654,8 @@ export class AssessmentPlayer {
 	private setTestOutcomes(outcomes: TestOutcomeValues | undefined): void {
 		if (!outcomes) return;
 		this.testOutcomes = cloneData(outcomes)!;
+		// The snapshot carries them: delivery rules read the same values after a restore.
+		this.sessionCoordinator.setTestOutcomes(outcomes);
 		this.notifyTestFeedbackChange();
 	}
 
@@ -2014,8 +2023,10 @@ export class AssessmentPlayer {
 			this.templateDefaultsByPart.clear();
 			// The snapshot replaces delivery — kept branch decisions included, so a restored
 			// session lands identically (a snapshot from before the feature simply carries
-			// none). The snapshot carries the proctor pause; the begin gate keeps holding the
-			// clocks.
+			// none). The test outcomes ride it too: the delivery rules read the values the
+			// session's submissions produced, as the live session did. The snapshot carries
+			// the proctor pause; the begin gate keeps holding the clocks.
+			this.testOutcomes = state.testOutcomes ? cloneData(state.testOutcomes)! : null;
 			const pauseChanged = this.pauseControl.setFromRestore(state.timing?.isPaused === true, state.timing?.pauseReason);
 			if (!this.started) this.timeManager?.pause();
 
@@ -2231,10 +2242,16 @@ export class AssessmentPlayer {
 		// Next from a simultaneous part's last item always crosses (or ends the test): the
 		// part commits at the crossing, and only then is a decision on record to follow.
 		const crossesSimultaneousPart =
-			!submits && !kept && this.endsTestPart(q) && this.isSimultaneousSubmission(q);
+			!submits && !kept && this.crossingFlushDue(q);
 		// On a crossing the pre-flush rule result is provisional: the flush can still change
 		// the outcomes the rules read, so the landing is computed again after it.
-		const forward = submits ? this.nextUnlockedIndex(q.index) : kept ? -1 : this.ruleForwardIndex(q);
+		const forward = crossesSimultaneousPart
+			? this.nextUnlockedIndex(q.index)
+			: submits
+				? this.nextUnlockedIndex(q.index)
+				: kept
+					? -1
+					: this.ruleForwardIndex(q);
 		if (!kept && forward < 0 && !crossesSimultaneousPart) return;
 
 		this.sessionCoordinator.markAnswered(q.identifier, responses);
@@ -2489,7 +2506,7 @@ export class AssessmentPlayer {
 			recorded[item.identifier] = applyVariableMappings(variables, item.item.variableMappings);
 		}
 		return addItemVariableDeclarations(
-			testOutcomeDeclarations(this.assessment, this.testOutcomes ?? undefined),
+			testOutcomeDeclarations(this.assessment, this.testOutcomes ?? this.sessionCoordinator.getTestOutcomes()),
 			recorded,
 			recorded[from.identifier] ?? {},
 		);
@@ -3459,6 +3476,8 @@ export class AssessmentPlayer {
 		this.timeManager?.pause();
 		this.timeManager?.stopTimer();
 		this.testOutcomes = cloneData(finalized.outcomes ?? this.testOutcomes ?? {})!;
+		// The persisted snapshot carries them (testFeedback and rules read them on a resume).
+		this.sessionCoordinator.setTestOutcomes(this.testOutcomes);
 		this.notifyTestFeedbackChange();
 		this.reportOutcomeProcessingError(finalized.outcomeProcessingError);
 

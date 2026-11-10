@@ -373,9 +373,6 @@ Work on the assessment player stops after Phase 5. Most integrators build their 
 section and item players, so the remaining effort goes to those layers. These findings are
 recorded, not scheduled:
 
-- Test-level outcomes are not part of `AssessmentSessionState`, so after a restore, branch and
-  preCondition rules that read them evaluate on missing values. Branch decisions persist, so the
-  decision path lands like the live session.
 - A hint (uncounted) submission after a check on a reopened item leaves that item session closed.
 - Toggle controls in the shell whose visible label flips while `aria-expanded` also changes: the
   timer show/hide control and the review button.

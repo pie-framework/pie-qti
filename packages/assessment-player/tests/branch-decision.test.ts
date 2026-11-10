@@ -417,6 +417,47 @@ describe.each(Object.keys(VERSIONS) as Version[])('%s branch decision', (version
 		expect(attemptsOf(player2, 'i1')).toBe(1);
 	});
 
+	test('6b. a restored session evaluates delivery rules on the test outcomes it held', async () => {
+		// Scenario 5 up to the final Next: nothing is kept to follow (the counted i1 submission
+		// voided i3's check decision), so Next from i3 evaluates part-1's rule on the test score
+		// TOTAL (2) the session holds — live, and after getState()/restoreState() alike.
+		const xml = assessmentTest(
+			`${part(
+				'part-1',
+				section('s1', `${ref('i1')}${ref('i2')}${ref('i3')}`),
+				{
+					navigationMode: 'nonlinear',
+					itemSessionControl: twoAttempts,
+					branchRule: branchRule('i5', `<gte><variable identifier="TOTAL"/><baseValue baseType="float">2</baseValue></gte>`),
+				},
+			)}${part('part-2', section('s2', `${ref('i4')}${ref('i5')}`), { navigationMode: 'nonlinear' })}`,
+			{ outcomeProcessing: totalScoreProcessing },
+		);
+		const { parsed, backend } = await referenceBackend(convert, xml, items('i1', 'i2', 'i3', 'i4', 'i5'));
+		const player = await makePlayer(new CountingBackend(backend), parsed.identifier);
+
+		await player.navigateTo(2);
+		player.updateResponse('RESPONSE', 'A');
+		await player.checkCurrentItem();
+		await player.navigateTo(0);
+		player.updateResponse('RESPONSE', 'A');
+		await player.next();
+		await player.navigateTo(2);
+		const state = player.getState();
+
+		await player.next();
+		expect(player.getCurrentItem()?.identifier).toBe('i5');
+
+		const restored = new CountingBackend(backend);
+		const player2 = await makePlayer(restored, parsed.identifier);
+		await player2.restoreState(state);
+		expect(player2.getCurrentItem()?.identifier).toBe('i3');
+
+		await player2.next();
+		expect(player2.getCurrentItem()?.identifier).toBe('i5');
+		expect(restored.submittedItems).toEqual([]);
+	});
+
 	test('7. a branch target whose testPart preCondition is false is skipped', async () => {
 		// i1's rule targets part-2, whose preCondition is false: the decision must carry
 		// delivery past it to part-3's first item.
