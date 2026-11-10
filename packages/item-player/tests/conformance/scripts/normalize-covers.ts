@@ -18,7 +18,6 @@ const CANONICAL: Record<string, string> = {
   templatecondition: 'stmt.templateCondition',
   setoutcomevalue: 'stmt.setOutcomeValue',
   settemplatevalue: 'stmt.setTemplateValue',
-  setresponsevalue: 'stmt.setResponseValue',
   setcorrectresponse: 'stmt.setCorrectResponse',
   setdefaultvalue: 'stmt.setDefaultValue',
   exitresponse: 'stmt.exitResponse',
@@ -39,17 +38,14 @@ const CANONICAL: Record<string, string> = {
   or: 'expr.or',
   not: 'expr.not',
   equal: 'expr.equal',
-  notequal: 'expr.notEqual',
   gt: 'expr.gt',
   gte: 'expr.gte',
   lt: 'expr.lt',
   lte: 'expr.lte',
-  alln: 'expr.allN',
   anyn: 'expr.anyN',
   member: 'expr.member',
   contains: 'expr.contains',
   isnull: 'expr.isNull',
-  isnotnull: 'expr.isNotNull',
   stringmatch: 'expr.stringMatch',
   patternmatch: 'expr.patternMatch',
   equalrounded: 'expr.equalRounded',
@@ -74,7 +70,6 @@ const CANONICAL: Record<string, string> = {
   // mapping / tables
   mapresponse: 'expr.mapResponse',
   mapresponsepoint: 'expr.mapResponsePoint',
-  lookuptable: 'expr.lookupTable',
 
   // newer / misc
   delete: 'expr.delete',
@@ -89,7 +84,6 @@ const CANONICAL: Record<string, string> = {
   precondition: 'expr.preCondition',
   customoperator: 'expr.customOperator',
   fieldvalue: 'expr.fieldValue',
-  record: 'expr.record',
 };
 
 function stableJson(obj: unknown) {

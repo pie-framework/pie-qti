@@ -959,7 +959,7 @@ Uses a `mapping` element to assign point values to each possible response value,
 
 The template sets `SCORE` to 0 when `RESPONSE` is NULL and maps it otherwise. Its `isNull` test reads
 an empty container or an empty string as NULL as well, so a cleared selection scores 0 even when
-`lowerBound` is above 0. Rules that call `mapResponse` or `mapOutcome` directly on an unanswered
+`lowerBound` is above 0. Rules that call `mapResponse` directly on an unanswered
 multiple or ordered variable map it as the empty container, because QTI treats a container with no
 values as NULL: the result is 0, clamped to `lowerBound` and `upperBound`, not the mapping's
 `defaultValue`, which applies to a value with no `mapEntry`. `mapResponsePoint` treats a NULL point

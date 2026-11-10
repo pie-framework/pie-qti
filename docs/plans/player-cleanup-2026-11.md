@@ -262,8 +262,8 @@ carries a changeset note.
   slotted/hidden and diagnosed sets.
 - **Table parser**: Player's spec-path parser (the one that trims values) moves into qti-processing
   as the single implementation; the name mapper is a required parameter; target values stay lexical
-  and are coerced in `lookupOutcomeValue`; qti-processing's `<lookupTable>` expression parsing is
-  left alone (certification fixtures use it).
+  and are coerced in `lookupOutcomeValue`. (qti-processing's non-QTI `<lookupTable>` expression
+  parsing was removed since, in refactor/no-legacy-nonspec-expressions.)
 - default-components imports `patternExcludesMinus`/`classExcludesMinus` from item-player; the two
   wrappers (base > 10 and record handling) stay separate.
 
@@ -365,7 +365,6 @@ composable; display settings move to a module; flags derive from one status obje
   internals).
 - section-player spoken-catalog parsing vs item-player catalog parsing.
 - `TimeManager` tick restructuring; hottext's imperative DOM manipulation.
-- qti-processing's possibly non-QTI `<lookupTable>` expression (outside this scope).
 
 ### Assessment player: parked (2026-11-10)
 
