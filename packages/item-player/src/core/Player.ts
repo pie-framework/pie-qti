@@ -7,12 +7,9 @@ import {
 	DeclarationContext,
 	type DeclarationMap,
 	durationSecondsFromMilliseconds,
-	evalExpr,
-	execProgram,
 	findAssessmentItem,
 	getAttr,
 	isElement,
-	isNullValue,
 	localName,
 	OperatorRegistry,
 	parseXml,
@@ -74,10 +71,6 @@ import { createComponentRegistry } from './ComponentRegistry.js';
 import { collectItemDiagnostics, type QtiItemDiagnostic, reportItemDiagnostics } from './compliance.js';
 import { type MatchGroupConstraints, readMatchGroupConstraints } from './matchGroups.js';
 import { createSeededRng } from './random.js';
-import {
-	resolveResponseProcessingTemplate,
-	UnsupportedResponseProcessingTemplateError,
-} from './responseProcessingTemplates.js';
 import { sanitizeHtml } from './sanitizer.js';
 import { toTrustedHtml } from './trustedTypes.js';
 import { sanitizeResourceUrl } from './urlPolicy.js';
@@ -93,7 +86,6 @@ import { attributeNameMapperForVersion, elementNameMapperForVersion } from './na
 import {
 	buildDeclarationMap,
 	ensureBuiltinDeclarations,
-	type DeclKind,
 } from './declarations/declarationBuilder.js';
 import { coerceToDeclarationValue } from './declarations/declarationValues.js';
 import {
@@ -101,6 +93,15 @@ import {
 	validateAttemptResponses,
 	validateResponses,
 } from './processing/responseValidation.js';
+import {
+	assertSupportedResponseProcessing,
+	execTemplateProcessingProgram,
+	resetOutcomesToDefault,
+	resetResponsesToDefault,
+	resetTemplatesToDefault,
+	restoreDeclaredTemplateRuleTargets,
+	runResponseProcessing,
+} from './processing/responseProcessing.js';
 import type { ExtractedPci, PciInteractionStatus } from '../pci/types.js';
 import { createTextEntryStringResponse, textEntryStringIdentifier } from '../interactions/text-entry/response.js';
 
@@ -171,7 +172,8 @@ export class Player {
 	itemDocument: AssessmentItemDocument;
 	/** @internal Engine modules read the session's declarations through the host. */
 	decls: DeclarationMap;
-	private sourceDeclarations: DeclarationMap;
+	/** @internal The declarations as compiled from the item source, before any template rule changed them. */
+	sourceDeclarations: DeclarationMap;
 	/** @internal Engine modules read the variable context through the host. */
 	ctx: DeclarationContext;
 	/** @internal Engine modules read the session's random stream through the host. */
@@ -190,11 +192,16 @@ export class Player {
 	/** The item's detected QTI version ('unknown' when nothing identified it). */
 	private qtiVersion: QtiVersion;
 
-	private warnedImpliedZeroMaxScore = false;
-	private responseProcessingProgram: ProcessingProgram | null = null;
-	private responseProcessing: ResponseProcessingDescriptor;
-	private templateProcessingProgram: ProcessingProgram | null = null;
-	private outcomeProcessingProgram: ProcessingProgram | null = null;
+	/** @internal Set once the implied-zero MAXSCORE warning has fired. */
+	warnedImpliedZeroMaxScore = false;
+	/** @internal Compiled processing programs, shared by the sessions of one definition. */
+	responseProcessingProgram: ProcessingProgram | null = null;
+	/** @internal */
+	responseProcessing: ResponseProcessingDescriptor;
+	/** @internal */
+	templateProcessingProgram: ProcessingProgram | null = null;
+	/** @internal */
+	outcomeProcessingProgram: ProcessingProgram | null = null;
 	private _pnp: PnpProfile | undefined;
 	private _rootEl: HTMLElement | undefined;
 	private _catalogIndex: CatalogIndex = new Map();
@@ -206,8 +213,9 @@ export class Player {
 	/**
 	 * End-attempt responses the candidate turned true since the attempt last ended: the
 	 * interactions that invoke the next response processing (see settleEndAttemptResponses).
+	 * @internal Response resets read and clear it through the host.
 	 */
-	private readonly endAttemptActivations = new Set<string>();
+	readonly endAttemptActivations = new Set<string>();
 	private diagnostics: readonly QtiItemDiagnostic[] = [];
 	/** @internal matchGroup constraints of the item's pairing interactions, by response identifier. */
 	matchGroupConstraints: ReadonlyMap<string, MatchGroupConstraints> = new Map();
@@ -331,7 +339,7 @@ export class Player {
 
 		const responseProcessing = prepared ? null : this.itemDocument.getProcessingElement('response');
 		this.responseProcessing = prepared?.responseProcessing ?? this.itemDocument.describeResponseProcessing();
-		if (!prepared) this.assertSupportedResponseProcessing();
+		if (!prepared) assertSupportedResponseProcessing(this);
 		this.responseProcessingProgram =
 			prepared?.responseProcessingProgram ??
 			(responseProcessing
@@ -866,154 +874,26 @@ export class Player {
 	}
 
 	private resetOutcomesToDefault(): void {
-		for (const d of Object.values(this.decls)) {
-			if ((d as any).__kind !== 'outcome') continue;
-			// Built-in stateful variables must survive across processing runs.
-			// They are updated by the runtime (adaptive attempt tracking), not by outcome defaults.
-			if (d.identifier === 'numAttempts' || d.identifier === 'completionStatus' || d.identifier === 'duration') continue;
-			this.ctx.resetToDefault(d.identifier);
-		}
+		resetOutcomesToDefault(this);
 	}
 
 	private resetResponsesToDefault(): void {
-		this.endAttemptActivations.clear();
-		for (const d of Object.values(this.decls)) {
-			if ((d as any).__kind !== 'response') continue;
-			this.ctx.resetToDefault(d.identifier);
-			this.restorePciResponse(d.identifier, this.qtiValueToPci(d.value));
-		}
+		resetResponsesToDefault(this);
 	}
 
 	private resetTemplatesToDefault(): void {
-		for (const d of Object.values(this.decls)) {
-			if (!d.isTemplate) continue;
-			this.ctx.resetToDefault(d.identifier);
-		}
+		resetTemplatesToDefault(this);
 	}
 
-	/**
-	 * QTI ASI §10.3 with §5.1: template processing runs on a fresh instance of the item, so a new
-	 * template instance starts from the declarations, not from the instance before it. The
-	 * template rules setDefaultValue and setCorrectResponse change response and outcome
-	 * declarations for one instance; their declared defaults and correct responses come back
-	 * here, before the variables reset and template processing runs again. Template variables
-	 * keep their defaults: template rules do not change them, and they hold the
-	 * assessmentItemRef's templateDefault values (applied at session start, carried by a
-	 * snapshot), which apply to every instance.
-	 */
 	private restoreDeclaredTemplateRuleTargets(): void {
-		for (const d of Object.values(this.decls)) {
-			const kind = (d as any).__kind as DeclKind | undefined;
-			if (kind !== 'response' && kind !== 'outcome') continue;
-			const declared = this.sourceDeclarations[d.identifier];
-			if (!declared) continue;
-			const fields = d as { defaultValue?: QtiValue; correctResponse?: QtiValue };
-			if (declared.defaultValue) fields.defaultValue = cloneValue(declared.defaultValue);
-			else delete fields.defaultValue;
-			if (kind !== 'response') continue;
-			if (declared.correctResponse) fields.correctResponse = cloneValue(declared.correctResponse);
-			else delete fields.correctResponse;
-		}
-	}
-
-	/**
-	 * A MAXSCORE declared without a <defaultValue> is 0 per the numeric outcome rule, so an item
-	 * that never assigns it scores against a maximum of zero. That is the spec-correct reading of
-	 * under-specified content, and silently substituting 1 would make this engine disagree with a
-	 * conformant one — so surface the authoring gap instead of masking it.
-	 */
-	private warnOnceOnImpliedZeroMaxScore(outcomes: Record<string, unknown>): void {
-		if (this.warnedImpliedZeroMaxScore) return;
-		if (!this.decls.MAXSCORE?.impliedNumericDefault) return;
-		if (outcomes.MAXSCORE !== 0) return;
-		this.warnedImpliedZeroMaxScore = true;
-		console.warn(
-			`[QTI Player] MAXSCORE is 0 for item "${this.itemDocument.getAssessmentItemAttribute('identifier') ?? 'unknown'}": its outcomeDeclaration ` +
-				'has no <defaultValue>, so QTI initializes it to 0 and response processing never assigned it. ' +
-				'Declare <defaultValue> on the MAXSCORE outcomeDeclaration to score against a real maximum.',
-		);
+		restoreDeclaredTemplateRuleTargets(this);
 	}
 
 	private runResponseProcessing(options: {
 		finalizeNonAdaptiveAttempt: boolean;
 		countAttempt?: boolean;
 	}): ScoringResult {
-		this.updateDuration();
-		// QTI ASI §5.1: numAttempts starts at 0 and is incremented at the start of each attempt,
-		// so the response processing that ends a counted attempt reads that attempt's own
-		// number (1 on the first). The adaptive path counts in runAdaptiveSubmitAttempt; an
-		// uncounted attempt (countAttempt=false) and a scoring pass (scoreAttempt) do not count.
-		const countsAttempt = options.finalizeNonAdaptiveAttempt && (options.countAttempt ?? true);
-		if (!this.isAdaptive() && countsAttempt) {
-			this.ctx.setValue('numAttempts', qtiValue('integer', 'single', this.getNumAttempts() + 1));
-		}
-		// QTI ASI §5.2: for a non-adaptive item, outcome variables are reset to their defaults
-		// before each invocation of response processing. An adaptive item's outcomes "retain the
-		// values that were assigned to them during the previous invocation" (§5.2, §8), so they
-		// carry across attempts — and across a save/restore, which restores them as saved. They
-		// start from their defaults only at session start and on newTemplate.
-		if (!this.isAdaptive()) {
-			this.resetOutcomesToDefault();
-		}
-
-		// Execute response processing if present
-		if (this.responseProcessing.present) {
-			// If responseProcessing has explicit statements, run the compiled program.
-			// Otherwise, fall back to template-based processing (responseProcessing@template).
-			if (this.responseProcessing.hasStatements) {
-				this.execResponseProcessingProgram();
-			} else if (this.responseProcessing.template) {
-				this.execResponseProcessingTemplate(this.responseProcessing.template);
-			}
-		}
-
-		// Execute outcome processing if present (runs after responseProcessing)
-		this.execOutcomeProcessingProgram();
-
-		// Compatibility: processResponses() has historically finalized non-adaptive items.
-		// New scoreAttempt() uses this same engine with finalization disabled.
-		if (!this.isAdaptive() && options.finalizeNonAdaptiveAttempt) {
-			this.ctx.setValue('completionStatus', qtiValue('identifier', 'single', 'completed'));
-		}
-
-		const outcomes = this.collectOutcomes();
-
-		this.warnOnceOnImpliedZeroMaxScore(outcomes);
-
-		const score = Number(outcomes.SCORE ?? 0);
-		const maxScore = Number(outcomes.MAXSCORE ?? 1);
-		const completionStatus = (outcomes.completionStatus as CompletionStatus | undefined) ?? 'not_attempted';
-		const completed = completionStatus === 'completed' || (!this.isAdaptive() && options.finalizeNonAdaptiveAttempt);
-
-		return {
-			score,
-			maxScore,
-			completed,
-			outcomeValues: outcomes,
-			correct: this.responsesMatchCorrect(),
-			modalFeedback: this.getModalFeedback(outcomes),
-		};
-	}
-
-	/**
-	 * QTI item correctness, as test-level `numberCorrect` reads it: every declared response matches
-	 * its correct response. Undefined when the item has no response or one declares no correct
-	 * response.
-	 */
-	private responsesMatchCorrect(): boolean | undefined {
-		const responses = Object.values(this.decls).filter((d) => (d as any).__kind === 'response');
-		if (responses.length === 0 || responses.some((d) => d.correctResponse?.kind !== 'value')) return undefined;
-		const env = this.processingEnv();
-		return responses.every((d) =>
-			toBoolean(
-				evalExpr(env, {
-					kind: 'expr.match',
-					id: `correct-${d.identifier}`,
-					a: { kind: 'expr.variable', id: `correct-${d.identifier}-response`, identifier: d.identifier },
-					b: { kind: 'expr.correct', id: `correct-${d.identifier}-correct`, identifier: d.identifier },
-				} as any),
-			),
-		);
+		return runResponseProcessing(this, options);
 	}
 
 	public getItemBodyHtml(): HtmlContent {
@@ -1308,170 +1188,12 @@ export class Player {
 	// ----------------------------------------------------------------------------
 
 	/**
-	 * The evaluator's environment, which reads responses in the item's content language and
-	 * compares strings with the host's string comparison folds.
+	 * Template processing re-extracts the item's interactions, so the interaction cache
+	 * drops before the program runs.
 	 */
-	private processingEnv() {
-		return {
-			ctx: this.ctx,
-			ops: this.ops,
-			rng: this.rng,
-			language: this.getContentLanguage(),
-			stringComparison: this.config.stringComparison,
-			customOperators: this.config.customOperators,
-		};
-	}
-
 	private execTemplateProcessing(): void {
 		this.interactionDataCache = null;
-		if (!this.templateProcessingProgram) return;
-		execProgram(
-			this.processingEnv(),
-			this.templateProcessingProgram
-		);
-	}
-
-	private execResponseProcessingProgram(): void {
-		if (!this.responseProcessingProgram) return;
-		execProgram(
-			this.processingEnv(),
-			this.responseProcessingProgram
-		);
-	}
-
-	private execOutcomeProcessingProgram(): void {
-		if (!this.outcomeProcessingProgram) return;
-		execProgram(
-			this.processingEnv(),
-			this.outcomeProcessingProgram
-		);
-	}
-
-	private execResponseProcessingTemplate(templateUrl: string): void {
-		const name = resolveResponseProcessingTemplate(templateUrl);
-		// Compilation rejects unsupported templates; this guards a hand-built prepared definition.
-		if (!name) throw this.unsupportedTemplateError(templateUrl);
-
-		const responseMatchesCorrect = (): boolean => {
-			const expression = {
-				kind: 'expr.match',
-				id: 'fixed-template-match',
-				a: { kind: 'expr.variable', id: 'fixed-template-response', identifier: 'RESPONSE' },
-				b: { kind: 'expr.correct', id: 'fixed-template-correct', identifier: 'RESPONSE' },
-			} as any;
-			return toBoolean(
-				evalExpr(
-					this.processingEnv(),
-					expression,
-				),
-			);
-		};
-
-		const setScore = (value: number): void => {
-			this.ctx.setValue('SCORE', qtiValue('float', 'single', value));
-		};
-
-		const setIdentifierOutcome = (identifier: string, value: string): void => {
-			this.ctx.setValue(identifier, qtiValue('identifier', 'single', value));
-		};
-
-		const mapResponse = (point: boolean): number => {
-			const response = this.ctx.getValue('RESPONSE');
-			// The official templates guard with isNull, which reads an empty container or empty string
-			// as NULL too (QTI ASI §5): a cleared response scores 0, rather than being mapped, whose
-			// result the mapping's bounds could clamp away from 0.
-			if (isNullValue(response)) return 0;
-			const mapped = evalExpr(
-				this.processingEnv(),
-				{
-					kind: point ? 'expr.mapResponsePoint' : 'expr.mapResponse',
-					id: point ? 'fixed-template-map-response-point' : 'fixed-template-map-response',
-					identifier: 'RESPONSE',
-				} as any,
-			);
-			const value = toNumber(mapped);
-			return Number.isFinite(value) ? value : 0;
-		};
-
-		switch (name) {
-			case 'match_correct':
-			case 'cc2_match': {
-				setScore(responseMatchesCorrect() ? 1 : 0);
-				return;
-			}
-			case 'cc2_match_basic': {
-				if (responseMatchesCorrect()) {
-					const maxScore = toNumber(this.ctx.getValue('MAXSCORE'));
-					this.ctx.setValue(
-						'SCORE',
-						Number.isFinite(maxScore) ? qtiValue('float', 'single', maxScore) : qtiNull('float', 'single'),
-					);
-					setIdentifierOutcome('FEEDBACKBASIC', 'correct');
-				} else {
-					setIdentifierOutcome('FEEDBACKBASIC', 'incorrect');
-				}
-				return;
-			}
-			case 'match_nothing':
-			case 'cc2_match_nothing': { // Official IMS QTI 3.0 rptemplate
-				const isEmptyResponse = (v: QtiValue | undefined): boolean => {
-					if (!v) return true;
-					if (v.kind === 'null') return true;
-					if (v.kind === 'invalid') return false;
-					if (v.value === null || v.value === undefined) return true;
-					if (Array.isArray(v.value)) return v.value.length === 0;
-					if (typeof v.value === 'string') return v.value.trim().length === 0;
-					return false;
-				};
-
-				const allEmpty = isEmptyResponse(this.ctx.getValue('RESPONSE'));
-				const max = toNumber(this.ctx.getValue('MAXSCORE'));
-				this.ctx.setValue('SCORE', qtiValue('float', 'single', allEmpty ? (Number.isFinite(max) ? max : 1) : 0));
-				return;
-			}
-			case 'map_response': {
-				setScore(mapResponse(false));
-				return;
-			}
-			case 'cc2_map_response': {
-				const score = mapResponse(false);
-				setScore(score);
-				const maxScore = toNumber(this.ctx.getValue('MAXSCORE'));
-				setIdentifierOutcome(
-					'FEEDBACK',
-					Number.isFinite(maxScore) && score === maxScore ? 'correct' : 'incorrect',
-				);
-				return;
-			}
-			case 'map_response_point':
-			case 'cc2_map_response_point': { // Official IMS QTI 3.0 rptemplate
-				setScore(mapResponse(true));
-				return;
-			}
-			case 'no_response_processing': {
-				// The standard empty template: outcomes keep their defaults (unscored item).
-				return;
-			}
-		}
-	}
-
-	/**
-	 * A template reference is the item's only scoring rule when responseProcessing has no rules of
-	 * its own. Without a built-in program for that template the item would score its defaults
-	 * silently, so compilation fails instead (docs/SPEC-GAPS-PLAN.md G-19).
-	 */
-	private assertSupportedResponseProcessing(): void {
-		const { present, hasStatements, template } = this.responseProcessing;
-		if (!present || hasStatements || !template) return;
-		if (resolveResponseProcessingTemplate(template)) return;
-		throw this.unsupportedTemplateError(template);
-	}
-
-	private unsupportedTemplateError(templateUri: string): UnsupportedResponseProcessingTemplateError {
-		return new UnsupportedResponseProcessingTemplateError(
-			templateUri,
-			this.itemDocument.getAssessmentItemAttribute('identifier') ?? undefined,
-		);
+		execTemplateProcessingProgram(this);
 	}
 
 	// ----------------------------------------------------------------------------
@@ -1607,13 +1329,15 @@ export class Player {
 	 * base type and cardinality (its serialized form). A record declaration types none of its
 	 * fields, so the host could not write them into QTI variable JSON otherwise.
 	 */
-	private qtiValueToPci(value: QtiValue | undefined): unknown {
+	/** @internal Value forms shared with PCI hosts and the serializer. */
+	qtiValueToPci(value: QtiValue | undefined): unknown {
 		return value?.kind === 'value' && value.cardinality === 'record'
 			? this.qtiValueToSerializable(value)
 			: this.qtiValueToPublic(value);
 	}
 
-	private qtiValueToPublic(value: QtiValue | undefined): any {
+	/** @internal */
+	qtiValueToPublic(value: QtiValue | undefined): any {
 		if (!value || value.kind !== 'value') return null;
 		if (value.cardinality !== 'record') return cloneValue(value.value);
 
@@ -1624,7 +1348,8 @@ export class Player {
 		return record;
 	}
 
-	private updateDuration(): void {
+	/** @internal Response processing runs start by bringing the duration variable current. */
+	updateDuration(): void {
 		const elapsedMs = Math.max(0, Date.now() - this.sessionStartedAt);
 		this.durationMs = Math.max(0, Math.floor(this.accumulatedDurationMs + elapsedMs));
 		// QTI 2.2/3.0: the built-in `duration` response variable is a float of seconds, truncated.
@@ -1658,19 +1383,6 @@ export class Player {
 		return coerceToDeclarationValue({ itemDocument: this.itemDocument }, baseType, cardinality, raw, identifier);
 	}
 
-	private collectOutcomes(): Record<string, unknown> {
-		const out: Record<string, unknown> = {};
-		for (const d of Object.values(this.decls)) {
-			if ((d as any).__kind !== 'outcome') continue;
-			if (d.value.kind === 'value') out[d.identifier] = this.qtiValueToPublic(d.value);
-			else if (d.value.kind === 'null') out[d.identifier] = null;
-		}
-		// Ensure MAXSCORE always has a value (fallback to 1.0 if null or missing)
-		if (out.MAXSCORE === null || out.MAXSCORE === undefined) {
-			out.MAXSCORE = 1.0;
-		}
-		return out;
-	}
 
 	// ----------------------------------------------------------------------------
 	// Item content pass: printedVariable, feedback, templates
@@ -1821,7 +1533,8 @@ export class Player {
 		return toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
 	}
 
-	private getModalFeedback(outcomes: Record<string, any>): ModalFeedback[] {
+	/** @internal Scoring resolves the attempt's active modal feedback. */
+	getModalFeedback(outcomes: Record<string, any>): ModalFeedback[] {
 		const active: ModalFeedback[] = [];
 
 		for (const feedback of this.itemDocument.readModalFeedback(this.contentHandlers())) {
