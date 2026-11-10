@@ -56,6 +56,7 @@
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import { joinSentences, translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
+	import type { InteractionProps } from '../../shared/utils/interactionProps';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import Icon from '../../shared/components/Icon.svelte';
 	import { ICON_CLOSE } from '../../shared/components/icons';
@@ -77,15 +78,8 @@
 		y: number;
 	}
 
-	interface Props {
-		interaction?: PositionObjectInteractionData | string;
-		response?: string[] | null; // QTI format: array of "x y" strings
-		correctResponse?: string[] | null; // QTI format: array of "x y" strings
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
-		onChange?: (value: string[]) => void;
-	}
+	// The response and correct response are arrays of "x y" strings in natural image pixels.
+	type Props = InteractionProps<'positionObjectInteraction'>;
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 

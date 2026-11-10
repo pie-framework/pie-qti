@@ -15,6 +15,7 @@
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { minimumHint } from '../../shared/utils/minimumRequirement';
 	import { translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
+	import type { InteractionProps, TypesetProps } from '../../shared/utils/interactionProps';
 	import RichTextEditor from '../../shared/components/RichTextEditor.svelte';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
@@ -30,16 +31,9 @@
 		writingAssistance,
 	} from './textInput';
 
-	interface Props {
-		interaction?: ExtendedTextInteractionData | string;
-		response?: unknown;
+	interface Props extends InteractionProps<'extendedTextInteraction', unknown>, TypesetProps {
 		/** Lexical response held by the declaration named by stringIdentifier. */
 		stringResponse?: unknown;
-		correctResponse?: unknown;
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
-		typeset?: (element: HTMLElement) => void;
 		/**
 		 * The candidate's Personal Needs and Preferences profile (or its JSON). Its
 		 * spell-checker grant opts the fields into spelling help like the
@@ -54,7 +48,6 @@
 		 * Accepts `true`/`"true"` (or the bare attribute) on the custom element.
 		 */
 		spellcheck?: boolean | string;
-		onChange?: (value: unknown) => void;
 	}
 
 	let {

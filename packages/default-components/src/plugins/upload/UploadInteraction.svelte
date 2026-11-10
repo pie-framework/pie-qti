@@ -5,6 +5,7 @@
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { htmlToString } from '@pie-qti/item-player/security';
 	import type { I18nProvider } from '@pie-qti/i18n';
+	import type { ResponseOnlyInteractionProps, TypesetProps } from '../../shared/utils/interactionProps';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import FileUpload from '../../shared/components/FileUpload.svelte';
 		import { parseJsonProp, responseProp } from '../../shared/utils/webComponentHelpers';
@@ -12,15 +13,9 @@
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
-	interface Props {
-		interaction?: UploadInteractionData | string;
-		response?: QTIFileResponse | null;
-		disabled?: boolean;
+	interface Props extends ResponseOnlyInteractionProps<'uploadInteraction'>, TypesetProps {
 		/** Maximum accepted upload size in bytes; use Infinity to disable the cap */
 		maxFileSizeBytes?: number;
-		i18n?: I18nProvider;
-		typeset?: (element: HTMLElement) => void;
-		onChange?: (value: QTIFileResponse | null) => void;
 	}
 
 	let { interaction = $bindable(), response = $bindable(), disabled = false, maxFileSizeBytes, i18n = $bindable(), typeset, onChange }: Props = $props();

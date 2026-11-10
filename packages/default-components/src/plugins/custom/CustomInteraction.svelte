@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { CustomInteractionData } from '@pie-qti/item-player';
+	import type { ResponseOnlyInteractionProps, TypesetProps } from '../../shared/utils/interactionProps';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import CustomInteractionFallback from '../../shared/components/CustomInteractionFallback.svelte';
@@ -10,14 +11,7 @@
 		import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
-	interface Props {
-		interaction?: CustomInteractionData | string;
-		response?: string | null;
-		disabled?: boolean;
-		i18n?: I18nProvider;
-		typeset?: (element: HTMLElement) => void;
-		onChange?: (value: string | null) => void;
-	}
+	type Props = ResponseOnlyInteractionProps<'customInteraction'> & TypesetProps;
 
 	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), typeset, onChange }: Props = $props();
 

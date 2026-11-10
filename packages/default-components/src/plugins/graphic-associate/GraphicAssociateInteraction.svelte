@@ -6,6 +6,7 @@
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
+	import type { InteractionProps } from '../../shared/utils/interactionProps';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import Icon from '../../shared/components/Icon.svelte';
 	import { ICON_CLOSE, ICON_INFO } from '../../shared/components/icons';
@@ -23,15 +24,7 @@
 	import { choicesShortOfMatchMin, minimumHint } from '../../shared/utils/minimumRequirement';
 	import { imageAltText, shapeBounds, shapeCenter, type Bounds } from '../../shared/utils/graphicRegions';
 
-	interface Props {
-		interaction?: GraphicAssociateInteractionData | string;
-		response?: string[] | null;
-		correctResponse?: string[] | null;
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
-		onChange?: (value: string[]) => void;
-	}
+	type Props = InteractionProps<'graphicAssociateInteraction'>;
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 

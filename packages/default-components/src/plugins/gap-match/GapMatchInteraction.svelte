@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { GapMatchInteractionData, HtmlContent, PlayerSecurityConfig } from '@pie-qti/item-player';
+	import type { InteractionProps } from '../../shared/utils/interactionProps';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { normalizeCssPixelLength, sanitizeSharedHtml } from '@pie-qti/item-player/security';
 	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
@@ -22,15 +23,8 @@
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { createPickUpPlace } from '../../shared/components/pickUpPlace.svelte';
 
-	interface Props {
-		interaction?: GapMatchInteractionData | string;
-		response?: string[];
-		correctResponse?: string[] | null;
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
+	interface Props extends InteractionProps<'gapMatchInteraction', string[]> {
 		security?: PlayerSecurityConfig;
-		onChange?: (value: string[]) => void;
 	}
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), security, onChange }: Props = $props();

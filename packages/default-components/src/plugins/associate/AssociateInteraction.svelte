@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { AssociateInteractionData, HtmlContent } from '@pie-qti/item-player';
+	import type { InteractionProps } from '../../shared/utils/interactionProps';
 	import { tick } from 'svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { formatList, joinSentences, translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
@@ -18,16 +19,9 @@
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { describedByIds, choicesShortOfMatchMin, minimumHint } from '../../shared/utils/minimumRequirement';
 
-	interface Props {
-		interaction?: AssociateInteractionData | string;
-		response?: string[] | null;
-		correctResponse?: string[] | null;
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
+	interface Props extends InteractionProps<'associateInteraction'> {
 		selectedForPairing?: string | null;
 		onSelectionChange?: (selected: string | null) => void;
-		onChange?: (value: string[]) => void;
 	}
 
 	let {

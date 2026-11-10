@@ -5,6 +5,7 @@
 	import { tick } from 'svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 		import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
+	import type { InteractionProps } from '../../shared/utils/interactionProps';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import Icon from '../../shared/components/Icon.svelte';
 	import { ICON_INFO } from '../../shared/components/icons';
@@ -16,20 +17,11 @@
 	import { clientToImagePoint, imageAltText } from '../../shared/utils/graphicRegions';
 	import { isLimited } from '../../shared/utils/capacity';
 
-	interface Props {
-		interaction?: SelectPointInteractionData | string;
-		/**
-		 * QTI point responses are typically represented as a single "x y" string (cardinality=single),
-		 * or an array of "x y" strings (cardinality=multiple/ordered). Some UI layers may pass
-		 * an array of {x,y} points for convenience. We accept all of these and normalize internally.
-		 */
-		response?: any;
-		correctResponse?: any;
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
-		onChange?: (value: any) => void;
-	}
+	// QTI point responses are typically represented as a single "x y" string
+	// (cardinality=single), or an array of "x y" strings (cardinality=multiple/ordered).
+	// Some UI layers may pass an array of {x,y} points for convenience; the component
+	// accepts all of these and normalizes internally.
+	type Props = InteractionProps<'selectPointInteraction', any>;
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 

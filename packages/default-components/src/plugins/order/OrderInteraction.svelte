@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { OrderInteractionData } from '@pie-qti/item-player';
+	import type { InteractionProps, TypesetProps } from '../../shared/utils/interactionProps';
 	import { tick } from 'svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { createConfirmationFlow } from '../../shared/utils/confirmationFlow.svelte';
@@ -23,15 +24,7 @@
 	import { minimumHint, subsetOrderHint } from '../../shared/utils/minimumRequirement';
 	import { orderChoiceLimits } from '@pie-qti/item-player';
 
-	interface Props {
-		interaction?: OrderInteractionData | string;
-		response?: string[] | null;
-		correctResponse?: string[] | null;
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
-		typeset?: (element: HTMLElement) => void;
-		onChange?: (value: string[]) => void;
+	interface Props extends InteractionProps<'orderInteraction'>, TypesetProps {
 		/** When true, renders an elimination toggle button per choice (QTI 3.0 PNP §6.2). */
 		eliminationTool?: boolean;
 	}
@@ -132,15 +125,8 @@
 	function handleSubsetChange(newOrder: string[]) {
 		const value = newOrder.length > 0 ? newOrder : null;
 		response = value;
-		// The public onChange keeps its string[] signature; a cleared subset reports null, as
-		// clearing does elsewhere (choice's clear answer).
-		const nullAwareOnChange = onChange as ((value: string[] | null) => void) | undefined;
-		emitInteractionChange<string[] | null>({
-			target: rootElement,
-			responseId: parsedInteraction?.responseId,
-			value,
-			onChange: nullAwareOnChange,
-		});
+		// A cleared subset reports null, as clearing does elsewhere (choice's clear answer).
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value, onChange });
 	}
 
 	// Reset confirmation state when response is externally cleared

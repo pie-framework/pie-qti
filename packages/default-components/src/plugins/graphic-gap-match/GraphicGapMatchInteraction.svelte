@@ -15,6 +15,7 @@ import ImageStage from '../../shared/components/ImageStage.svelte';
 import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
 	import { normalizeCssPixelLength } from '@pie-qti/item-player/security';
 	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
+	import type { InteractionProps } from '../../shared/utils/interactionProps';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { exceedsLimit, limitMessage } from '../../shared/utils/capacity';
 	import { isCompatibleMatchGroup, matchGroupBlockedIds } from '../../shared/utils/matchGroupUtils';
@@ -35,15 +36,7 @@ import { hitStrokeWidth, imageAltText, shapeCenter } from '../../shared/utils/gr
 import '../../shared/styles/srOnly.js';
 import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 
-interface Props {
-	interaction?: GraphicGapMatchInteractionData | string;
-	response?: string | string[] | null;
-	correctResponse?: string[] | null;
-	disabled?: boolean;
-	role?: string;
-	i18n?: I18nProvider;
-	onChange?: (value: string[]) => void;
-}
+	type Props = InteractionProps<'graphicGapMatchInteraction', string | string[] | null, string[] | null>;
 
 let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 

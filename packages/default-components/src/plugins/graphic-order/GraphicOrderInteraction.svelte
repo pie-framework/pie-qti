@@ -6,6 +6,7 @@
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { createConfirmationFlow } from '../../shared/utils/confirmationFlow.svelte';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
+	import type { InteractionProps } from '../../shared/utils/interactionProps';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import Icon from '../../shared/components/Icon.svelte';
 	import { ICON_CHECK } from '../../shared/components/icons';
@@ -23,15 +24,7 @@
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 
-	interface Props {
-		interaction?: GraphicOrderInteractionData | string;
-		response?: string[] | null;
-		correctResponse?: string[] | null;
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
-		onChange?: (value: string[]) => void;
-	}
+	type Props = InteractionProps<'graphicOrderInteraction'>;
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 
@@ -234,13 +227,7 @@
 		const value = newOrder.length > 0 ? newOrder : null;
 		orderedIds = newOrder;
 		response = value;
-		const nullAwareOnChange = onChange as ((value: string[] | null) => void) | undefined;
-		emitInteractionChange<string[] | null>({
-			target: rootElement,
-			responseId: parsedInteraction?.responseId,
-			value,
-			onChange: nullAwareOnChange,
-		});
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value, onChange });
 	}
 </script>
 

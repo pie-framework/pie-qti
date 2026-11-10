@@ -4,6 +4,7 @@
 	import type { EndAttemptInteractionData } from '@pie-qti/item-player';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
+	import type { ResponseOnlyInteractionProps } from '../../shared/utils/interactionProps';
 	import { tick } from 'svelte';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import Icon from '../../shared/components/Icon.svelte';
@@ -12,13 +13,7 @@
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
-	interface Props {
-		interaction?: EndAttemptInteractionData | string;
-		response?: boolean | null;
-		disabled?: boolean;
-		i18n?: I18nProvider;
-		onChange?: (value: boolean) => void;
-	}
+	type Props = ResponseOnlyInteractionProps<'endAttemptInteraction'>;
 
 	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), onChange }: Props = $props();
 

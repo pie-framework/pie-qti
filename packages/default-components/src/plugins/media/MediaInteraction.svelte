@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { MediaInteractionData } from '@pie-qti/item-player';
+	import type { ResponseOnlyInteractionProps } from '../../shared/utils/interactionProps';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { joinSentences, translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
@@ -24,13 +25,7 @@
 		selectableTextTracks,
 	} from './mediaPlayback';
 
-	interface Props {
-		interaction?: MediaInteractionData | string;
-		response?: number | null;
-		disabled?: boolean;
-		i18n?: I18nProvider;
-		onChange?: (value: number) => void;
-	}
+	type Props = ResponseOnlyInteractionProps<'mediaInteraction'>;
 
 	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), onChange }: Props = $props();
 

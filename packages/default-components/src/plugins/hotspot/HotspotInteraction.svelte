@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { HotspotChoice, HotspotInteractionData } from '@pie-qti/item-player';
+	import type { InteractionProps } from '../../shared/utils/interactionProps';
 	import { tick } from 'svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
@@ -18,20 +19,9 @@
 	import { hitStrokeWidth, imageAltText, regionMarkerPoint, type Point } from '../../shared/utils/graphicRegions';
 	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 
-	interface Props {
-		interaction?: HotspotInteractionData | string;
-		/** The chosen region's identifier (single selection), or the chosen regions' identifiers (multiple). */
-		response?: string | string[] | null;
-		correctResponse?: string | string[] | null;
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
-		/**
-		 * Called with the chosen region's identifier (single selection) or the chosen regions'
-		 * identifiers (multiple selection); null (single) or [] (multiple) when the answer is cleared.
-		 */
-		onChange?: (value: string | string[] | null) => void;
-	}
+	// The response is the chosen region's identifier (single selection), or the chosen
+	// regions' identifiers (multiple); null (single) or [] (multiple) when cleared.
+	type Props = InteractionProps<'hotspotInteraction'>;
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 
