@@ -4,6 +4,8 @@ import { PieQtiItemPlayerElement } from '@pie-qti/item-player/element-class';
 export { PieQtiItemPlayerElement as QtiItemPlayerElement } from '@pie-qti/item-player/element-class';
 export type {
 	PieQtiItemPlayerCompleteDetail as QtiItemPlayerCompleteDetail,
+	PieQtiItemPlayerErrorDetail as QtiItemPlayerErrorDetail,
+	PieQtiItemPlayerErrorCode as QtiItemPlayerErrorCode,
 	PieQtiItemPlayerEventMap as QtiItemPlayerEventMap,
 	PieQtiItemPlayerResponseChangeDetail as QtiItemPlayerResponseChangeDetail,
 	PieQtiItemPlayerResponseMap as QtiItemPlayerResponseMap,
