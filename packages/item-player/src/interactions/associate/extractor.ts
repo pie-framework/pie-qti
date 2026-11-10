@@ -17,14 +17,13 @@ export interface AssociateData {
 		matchMax: number;
 		matchMin?: number;
 		matchGroup?: string[];
+		fixed?: boolean;
 		classes?: string[];
 	}>;
 	shuffle: boolean;
 	maxAssociations: number;
 	minAssociations?: number;
 	prompt: string | null;
-	/** Message shown while the response has fewer than minAssociations (data-min-selections-message) */
-	minSelectionsMessage?: string;
 }
 
 /**
@@ -57,6 +56,7 @@ export const standardAssociateExtractor: ElementExtractor<AssociateData> = {
 			const matchMin = utils.getNumberAttribute(choice, 'matchMin', 0);
 			const matchGroupRaw = utils.getAttribute(choice, 'matchGroup', '');
 			const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
+			const fixed = utils.getBooleanAttribute(choice, 'fixed');
 
 			return {
 				identifier: utils.getAttribute(choice, 'identifier', ''),
@@ -64,6 +64,8 @@ export const standardAssociateExtractor: ElementExtractor<AssociateData> = {
 				matchMax,
 				...(matchMin > 0 ? { matchMin } : {}),
 				...(matchGroup.length > 0 ? { matchGroup } : {}),
+				// Authored fixed pins the choice under shuffle (QTI fixed.SimpleAssociableChoice.Attr).
+				...(fixed ? { fixed } : {}),
 				...(classes.length > 0 ? { classes } : {}),
 			};
 		});

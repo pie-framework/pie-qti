@@ -331,7 +331,9 @@ function labelContent(labelId: string): string {
 	const text = parsedInteraction?.gapTexts.find((g) => g.identifier === labelId);
 	if (text) return text.text;
 	const img = (parsedInteraction?.gapImages ?? []).find((g) => g.identifier === labelId);
-	return img?.alt ?? '';
+	// The image's alternative text names it; the gapImg's authored `objectLabel`
+	// stands in when the image itself carries none (QTI objectLabel/object-label).
+	return img?.alt || img?.objectLabel || '';
 }
 
 function cancelledMessage(): string {
@@ -361,21 +363,52 @@ function paletteHintId(kind: 'text' | 'image', index: number): string {
 }
 
 /**
- * Accessible name of a hotspot: its number and contents, then the drop hint while a label
- * is held, or that matchGroup keeps the held label off it.
+ * The name of a hotspot zone: its authored `hotspotLabel` when the author gave
+ * one (QTI hotspotLabel / hotspot-label), else the localized ordinal ("Hotspot
+ * 3"). Never the identifier, which can reveal the answer key.
+ */
+function hotspotZoneName(hotspot: { hotspotLabel?: string }, number: number): string {
+	return (
+		hotspot.hotspotLabel?.trim() ||
+		translate(i18n, 'interactions.graphicGapMatch.hotspot', 'Hotspot {number}', { number })
+	);
+}
+
+/**
+ * Accessible name of a hotspot: its name and contents, then the drop hint while a label
+ * is held, or that matchGroup keeps the held label off it. A zone the author named
+ * (`hotspotLabel`) is announced by that name; an unnamed one keeps its ordinal.
  */
 function hotspotAriaLabel(
+	hotspot: { hotspotLabel?: string },
 	number: number,
 	contains: string | undefined,
 	correct: string | undefined,
 	heldLabel: string | null,
 	blocked: boolean,
 ): string {
-	const state = contains
-		? translate(i18n, 'interactions.graphicGapMatch.hotspotContains', 'Hotspot {number}. Contains {label}.', { number, label: contains })
-		: correct
-			? translate(i18n, 'interactions.graphicGapMatch.hotspotCorrectAnswer', 'Hotspot {number}. Correct answer: {label}.', { number, label: correct })
-			: translate(i18n, 'interactions.graphicGapMatch.hotspotEmpty', 'Hotspot {number}. Empty.', { number });
+	// A named zone: its name as a sentence, then the localized state after it
+	// (the shared sentence and correct-answer keys; `contains` is this
+	// interaction's own state-only key).
+	const authored = hotspot.hotspotLabel?.trim();
+	const sentence = (text: string) => translate(i18n, 'accessibility.sentence', '{text}.', { text });
+	const state = authored
+		? contains
+			? joinSentences(
+					sentence(authored),
+					sentence(translate(i18n, 'interactions.graphicGapMatch.contains', 'Contains: {label}', { label: contains })),
+				)
+			: correct
+				? joinSentences(
+						sentence(authored),
+						translate(i18n, 'accessibility.correctAnswerIs', 'Correct answer: {answer}.', { answer: correct }),
+					)
+				: sentence(authored)
+		: contains
+			? translate(i18n, 'interactions.graphicGapMatch.hotspotContains', 'Hotspot {number}. Contains {label}.', { number, label: contains })
+			: correct
+				? translate(i18n, 'interactions.graphicGapMatch.hotspotCorrectAnswer', 'Hotspot {number}. Correct answer: {label}.', { number, label: correct })
+				: translate(i18n, 'interactions.graphicGapMatch.hotspotEmpty', 'Hotspot {number}. Empty.', { number });
 	return joinSentences(
 		state,
 		blocked
@@ -413,6 +446,7 @@ function handleLabelKeyDown(event: KeyboardEvent, labelId: string) {
 function placePickedUpLabelOnHotspot(hotspotId: string) {
 	if (disabled || !pickUp.held || !parsedInteraction) return;
 	const hotspotIndex = parsedInteraction.hotspots.findIndex((h) => h.identifier === hotspotId);
+	const hotspot = hotspotIndex >= 0 ? parsedInteraction.hotspots[hotspotIndex] : undefined;
 
 	// A refused placement keeps the label held, so the candidate can place it elsewhere or cancel.
 	const placed = pickUp.place(hotspotId, (labelId) => {
@@ -428,7 +462,9 @@ function placePickedUpLabelOnHotspot(hotspotId: string) {
 
 	liveMessage = translate(i18n, 'interactions.graphicGapMatch.labelPlaced', '{label} placed on hotspot {hotspot}', {
 		label: getLabelName(placed),
-		hotspot: hotspotIndex + 1,
+		// The message names the target "hotspot {n}"; a zone the author named
+		// (hotspotLabel) is announced by that name instead of its number.
+		hotspot: hotspot?.hotspotLabel?.trim() || hotspotIndex + 1,
 	});
 }
 
@@ -743,6 +779,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 									shape={hotspot.shape}
 									coords={hotspot.coords}
 									label={hotspotAriaLabel(
+										hotspot,
 										hotspotIndex + 1,
 										matchedLabelName,
 										// Only the correct-answer view names the key; outside it the name must not.

@@ -84,15 +84,15 @@ As in QTI 2.2 and 3.0, `positionObjectStage` is the **parent** of `positionObjec
 | Extracted from the stage/interaction pair | Source | Behaviour |
 |-------------------------------------------|--------|-----------|
 | Stage identifier | `responseIdentifier` of the interaction | Internal tracking key for the one draggable object this interaction contributes (see Design decisions) |
-| Background image | stage's `object` child | Rendered as the canvas; its declared `width`/`height` define the coordinate system |
-| Draggable object | interaction's `object` child | Rendered in the palette; its declared `width`/`height` (default 50×50) size the placed box |
+| Background image | stage's image child: `object` (QTI 2.x), or `img`/`picture` (QTI 3.0; a `<picture>` delivers its `<img>` fallback) | Rendered as the canvas; its declared `width`/`height` define the coordinate system |
+| Draggable object | interaction's image child: `object` (QTI 2.x), or `img`/`picture` (QTI 3.0; a `<picture>` delivers its `<img>` fallback) | Rendered in the palette; its declared `width`/`height` (default 50×50) size the placed box |
 | `label` | the draggable object's authored text alternative | Names the object in the palette and announcements; never falls back to the identifier (which can leak the answer key) |
 | `class` on the interaction | interaction element | Extracted into the stage entry's `classes`; not currently applied to the rendered palette element |
 | Placement limit | interaction `maxChoices` | Becomes the stage entry's `matchMax` (one draggable object, placed up to `maxChoices` times). `maxChoices="0"` ("no limit") arrives as `matchMax` 0, which the component reads as unlimited too |
 
-### Background image (`object` element)
+### Background image (`object` / `img` / `picture` element)
 
-The background image is the child `object` element of `positionObjectInteraction`. Both external image references (`type="image/png"`, `data="url"`) and inline SVG (`type="image/svg+xml"` with inline content) are supported. The declared `width` and `height` attributes define the natural coordinate system for all response point values.
+QTI 2.x authors the background image as the `object` child of `positionObjectStage`; the QTI 3.0 schema gives the stage (and the interaction's draggable) a choice of `object`, `img` or `picture` (3.0 XSD `PositionObjectStageDType` / `PositionObjectInteractionDType`). All three forms extract. Both external image references (`object type="image/png" data="url"` / `img src="url"`) and inline SVG (`object type="image/svg+xml"` with inline content) are supported; a `picture` delivers its required `<img>` fallback (its `src`, `alt` and dimensions), the content that renders when no `<source>` matches. The declared `width` and `height` attributes define the natural coordinate system for all response point values.
 
 **Critical: declared dimensions must match actual image dimensions.** The coordinate system of response point values is defined by the declared `width`/`height`. If the declared values differ from the actual rendered image pixels (e.g. the image is scaled by CSS), coordinate values in stored responses will not correspond to the correct visual positions when the item is replayed. The extractor emits a validation warning for external images reminding authors to verify dimension accuracy. See `positionObjectExtractor.ts` `validate()`.
 

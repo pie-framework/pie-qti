@@ -14,6 +14,19 @@ AI agent or a human engineer. Sections are ordered by priority tier.
 > non-spec leniency in parsing. Supporting an older QTI version's defined behavior is compliance,
 > not legacy. See "Spec Compliance and No Legacy Code" in `AGENTS.md`.
 
+> **Deliberate extensions (2026-11-10):** attributes the player reads that no QTI version
+> defines, each a PRD-sanctioned product decision rather than an oversight. This ledger keeps
+> them visible so a future spec-conformance pass reviews them deliberately instead of by
+> accident.
+>
+> - `title` on `textEntryInteraction` and `inlineChoiceInteraction`
+>   (`interactions/text-entry/extractor.ts`, `interactions/inline-choice/extractor.ts`): read
+>   as an accessible-name fallback, after `aria-labelledby`/`aria-label` and before the
+>   localized positional name. No QTI version defines `title` on those elements or on any
+>   base type, but inline controls carry no visible label element to name them, and authors
+>   label them with `title` in practice; without it the only fallback is a positional name.
+>   PRD: `docs/prds/interactions/inline-interactions.md` §Accessibility, "Current approach".
+
 > **Goal (2026-10-17):** feature completeness against the QTI 2.2 and 3.0 specifications and a
 > proper 1.0 release. Every item in this plan is committed work on that path — including the PCI
 > spec contract (G-08, phases 1–3 landed), structured labels and braille support (G-13, landed),

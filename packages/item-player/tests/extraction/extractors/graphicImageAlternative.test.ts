@@ -19,7 +19,7 @@ import { standardSelectPointExtractor } from '../../../src/interactions/select-p
 import type { QTIElement } from '../../../src/interactions/shared/types.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
-type ImageLike = { alt?: string; altDescription?: string; decorative?: boolean; src?: string; type?: string } | null;
+type ImageLike = { alt?: string; altDescription?: string; decorative?: boolean; src?: string; type?: string; width?: string | number; height?: string | number } | null;
 
 /** One graphic interaction element wrapping `image`, plus the extractor reading it. */
 const GRAPHIC_INTERACTIONS: Array<{
@@ -97,6 +97,31 @@ describe('graphic interaction image alternatives', () => {
 				const image = extractImage('<img src="map.png" alt="A street map" width="40" height="20"/>');
 				expect(image?.src).toBe('map.png');
 				expect(image?.alt).toBe('A street map');
+			});
+
+			test('a <picture> delivers its <img> fallback', () => {
+				// QTI 3.0 allows the interaction image as a <picture> (3.0 XSD, each
+				// interaction's object|img|picture choice); the fallback <img> is the
+				// content that renders, so it is what extraction delivers.
+				const image = extractImage(
+					'<picture><source srcset="map-2x.png 2x"/><img src="map.png" alt="A street map" width="40" height="20"/></picture>',
+				);
+				expect(image?.src).toBe('map.png');
+				expect(image?.alt).toBe('A street map');
+				// Width/height arrive as strings (the object form) or numbers (graphic
+				// gap match's gap-text side) depending on the interaction's delivery.
+				expect(String(image?.width)).toBe('40');
+				expect(String(image?.height)).toBe('20');
+			});
+
+			test('a <picture> with an empty-fallback alt marks the image decorative', () => {
+				const image = extractImage('<picture><img src="map.png" alt=""/></picture>');
+				expect(image?.decorative).toBe(true);
+			});
+
+			test('an img-less <picture> delivers no image', () => {
+				const image = extractImage('<picture><source srcset="map-2x.png 2x"/></picture>');
+				expect(image).toBeNull();
 			});
 
 			test('an empty <img alt> marks the image decorative', () => {
@@ -187,5 +212,19 @@ describe('graphic interaction image alternatives', () => {
 
 		expect(result.gapImages[0]).toMatchObject({ src: 'hawk.png', alt: 'Hawk' });
 		expect(result.gapImages[1].alt).toBe('');
+	});
+
+	test('graphicGapMatch gap images authored as <picture> deliver their <img> fallback', () => {
+		// QTI 3.0 GapImgDType allows object|img|picture for the gap label.
+		const element = parseQTI(`
+			<graphicGapMatchInteraction responseIdentifier="R">
+				<object data="bg.png" type="image/png" width="100" height="100">Background</object>
+				<gapImg identifier="I1" matchMax="1"><picture><source srcset="hawk-2x.png 2x"/><img src="hawk.png" alt="Hawk" width="20" height="20"/></picture></gapImg>
+				<associableHotspot identifier="A" shape="circle" coords="5,5,5"/>
+			</graphicGapMatchInteraction>
+		`);
+		const result = standardGraphicGapMatchExtractor.extract(element, createTestContext(element, 'R'));
+
+		expect(result.gapImages[0]).toMatchObject({ src: 'hawk.png', alt: 'Hawk', width: 20, height: 20 });
 	});
 });

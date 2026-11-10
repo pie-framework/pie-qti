@@ -115,6 +115,7 @@ The value stored is the integer play count (number of times the `ended` event ha
 | `minPlays` | No | xs:integer ≥ 0 | `0` | Yes | Blocks submission until play count reaches this value |
 | `maxPlays` | No | xs:integer ≥ 0 | `0` | Yes | `0` = unlimited; > 0 caps replay and blocks further play |
 | `loop` | No | boolean | `false` | Yes | Restarts after each end (never the native `loop` attribute), each restart counting as a play, until `maxPlays` plays have started |
+| `coords` | No | string | — | **No** | Defined in every QTI version (2.1 XSD 3305-3319; 3.0 XSD 4822): a presentation hint for the region of the media element. Not extracted; the media element renders at its natural size. See Deliberately omitted attributes. |
 | `showControls` | No | boolean | `true` | **No** | QTI 2.2 spec attribute; not extracted; controls are always shown |
 | `pausable` | No | boolean | `true` | **No** | QTI 2.2 spec attribute; not extracted; native controls always allow pause |
 | `class` | No | string | — | No | QTI generic styling attribute; not extracted |
@@ -126,6 +127,8 @@ The value stored is the integer play count (number of times the `ended` event ha
 **`showControls`** — The spec allows hiding the native browser controls. This is deliberately omitted: without controls, there is no keyboard-accessible way to play audio/video, which violates WCAG 2.2 SC 2.1.1 (Keyboard) and SC 1.4.2 (Audio Control). Hiding controls creates a trap where keyboard-only users cannot start playback at all. Item authors who need a custom player skin should implement a PCI.
 
 **`pausable`** — The spec allows preventing candidates from pausing. This is deliberately omitted: preventing pause forces candidates to re-listen from the start if they are interrupted, which disproportionately disadvantages candidates with attention or processing speed needs. WCAG 2.2 SC 2.2.2 (Pause, Stop, Hide) additionally requires that moving, blinking, or auto-playing content be pausable. A future implementation could enforce this only for non-auto-playing content, but it is out of scope here.
+
+**`coords`** — Defined in every QTI version as a presentation hint for the region of the media element (the same shape/coords vocabulary the graphic interactions use). Deliberately omitted: the delivered media element renders at its natural size, and no layout in this component has a region to constrain. No behaviour is lost; a QTI 2.1-style fixed-size media region can be achieved with ordinary markup around the interaction.
 
 ### Known gaps
 

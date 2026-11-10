@@ -1,6 +1,7 @@
 import type { ElementExtractor } from '../../extraction/types.js';
 import { normalizePixelDimension } from '../../security/styleValues.js';
-import { extractImageAlternative } from '../shared/imageAlt.js';
+import { extractImageAlternative, imgAlternativeSource } from '../shared/imageAlt.js';
+import { type InteractionImage, findInteractionImage } from '../shared/interactionImage.js';
 import type { PositionObjectCenterPoint, QTIElement } from '../shared/types.js';
 
 export interface ImageData {
@@ -64,22 +65,40 @@ function readCenterPoint(
 	return { x: Number(parts[0]), y: Number(parts[1]) };
 }
 
-function imageDataFromObject(
-	objectElement: QTIElement | undefined,
+/**
+ * The image data of one resolved interaction image. QTI 2.x authors an
+ * `<object data=… width height>`; the QTI 3.0 schema gives the stage background
+ * and the draggable a choice of `object`, `img` or `picture` (delivered via the
+ * `<picture>`'s `<img>` fallback).
+ */
+function imageDataFromInteractionImage(
+	image: InteractionImage | null | undefined,
 	context: Parameters<ElementExtractor<PositionObjectData>['extract']>[1],
 	fallback?: { width: string; height: string },
 ): ImageData | null {
-	if (!objectElement) return null;
-
+	if (!image) return null;
+	const imageElement = image.element;
 	const { utils, dom } = context;
-	const type = utils.getAttribute(objectElement, 'type', '');
-	const data = utils.getAttribute(objectElement, 'data', '');
 	// The pixel space is the authored width/height, when declared (the stage's
 	// natural size stands in when it is not). A `fallback` keeps a box size that
 	// is not a scoring space (the draggable object's 50×50).
-	const width = normalizePixelDimension(utils.getAttribute(objectElement, 'width', ''), fallback?.width);
-	const height = normalizePixelDimension(utils.getAttribute(objectElement, 'height', ''), fallback?.height);
-	const content = utils.getHtmlContent(objectElement);
+	const width = normalizePixelDimension(utils.getAttribute(imageElement, 'width', ''), fallback?.width);
+	const height = normalizePixelDimension(utils.getAttribute(imageElement, 'height', ''), fallback?.height);
+
+	if (image.kind === 'img') {
+		// QTI 3.0 <img>: the alt attribute is the text alternative (alt="" = decorative)
+		return {
+			type: 'image',
+			src: utils.getAttribute(imageElement, 'src', ''),
+			width,
+			height,
+			...extractImageAlternative(imageElement, utils, dom, imgAlternativeSource(imageElement)),
+		};
+	}
+
+	const type = utils.getAttribute(imageElement, 'type', '');
+	const data = utils.getAttribute(imageElement, 'data', '');
+	const content = utils.getHtmlContent(imageElement);
 
 	if (type.startsWith('image/svg') && /<svg[\s>]/i.test(content)) {
 		return {
@@ -87,7 +106,7 @@ function imageDataFromObject(
 			content,
 			width,
 			height,
-			...extractImageAlternative(objectElement, utils, dom, { inlineSvgContent: content }),
+			...extractImageAlternative(imageElement, utils, dom, { inlineSvgContent: content }),
 		};
 	}
 
@@ -96,7 +115,7 @@ function imageDataFromObject(
 		src: data,
 		width,
 		height,
-		...extractImageAlternative(objectElement, utils, dom),
+		...extractImageAlternative(imageElement, utils, dom),
 	};
 }
 
@@ -122,10 +141,10 @@ export const standardPositionObjectExtractor: ElementExtractor<PositionObjectDat
 			? parent
 			: undefined;
 
-		const backgroundObject = stage ? utils.getChildrenByTag(stage, 'object')[0] : undefined;
-		const draggableObject = utils.getChildrenByTag(element, 'object')[0];
-		const imageData = imageDataFromObject(backgroundObject, context);
-		const objectData = imageDataFromObject(draggableObject, context, { width: '50', height: '50' });
+		const backgroundImage = stage ? findInteractionImage(stage, utils) : undefined;
+		const draggableImage = findInteractionImage(element, utils);
+		const imageData = imageDataFromInteractionImage(backgroundImage, context);
+		const objectData = imageDataFromInteractionImage(draggableImage, context, { width: '50', height: '50' });
 		const maxChoices = utils.getNumberAttribute(element, 'maxChoices', 1);
 		const minChoices = utils.getNumberAttribute(element, 'minChoices', 0);
 		// The draggable object's authored alternative names it. No identifier
@@ -159,18 +178,18 @@ export const standardPositionObjectExtractor: ElementExtractor<PositionObjectDat
 		const warnings: string[] = [];
 
 		if (!data.imageData) {
-			errors.push('positionObjectInteraction must have a parent positionObjectStage with a background object');
+			errors.push('positionObjectInteraction must have a parent positionObjectStage with a background image');
 		} else if (data.imageData.type === 'image' && !data.imageData.src) {
-			errors.push('positionObjectStage background object must have a data URL');
+			errors.push('positionObjectStage background image must have a data URL');
 		} else if (data.imageData.type === 'svg' && !data.imageData.content) {
-			errors.push('positionObjectStage background object must have SVG content');
+			errors.push('positionObjectStage background image must have SVG content');
 		}
 
 		const draggable = data.positionObjectStages[0];
 		if (!draggable?.objectData) {
-			errors.push('positionObjectInteraction must contain one draggable object');
+			errors.push('positionObjectInteraction must contain one draggable image');
 		} else if (draggable.objectData.type === 'image' && !draggable.objectData.src) {
-			errors.push('positionObjectInteraction draggable object must have a data URL');
+			errors.push('positionObjectInteraction draggable image must have a data URL');
 		}
 
 		if (data.maxChoices < 0) errors.push('maxChoices must be non-negative');

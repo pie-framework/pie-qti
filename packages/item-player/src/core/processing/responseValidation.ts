@@ -108,6 +108,9 @@ export function validateResponses(host: ResponseValidationHost, responses: Recor
 			...(i.sourceSet ?? []),
 			...(i.targetSet ?? []),
 			...(i.associableHotspots ?? []),
+			// graphicGapMatch delivers its hotspots as `hotspots` (graphic-associate
+			// delivers the same element as `associableHotspots`); both carry matchMin.
+			...(i.hotspots ?? []),
 		];
 		const minimum = Math.max(
 			0,

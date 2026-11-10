@@ -711,7 +711,7 @@ const QTI2_PCI_ITEM = `
   <responseDeclaration identifier="PCI_RESPONSE" cardinality="single" baseType="string"/>
   <itemBody>
     <customInteraction responseIdentifier="PCI_RESPONSE" id="echo">
-      <pci:portableCustomInteraction customInteractionIdentifierType="urn:example:qti2-echo">
+      <pci:portableCustomInteraction customInteractionTypeIdentifier="urn:example:qti2-echo">
         <pci:instance>
           <script type="text/javascript" src="pci/qti2-echo.js"></script>
           <script type="text/javascript">window.shouldNeverRun = true;</script>
@@ -932,6 +932,17 @@ describe('portableCustomExtractor', () => {
 		const el = parseEl(PCI_XML);
 		const data = portableCustomExtractor.extract(el, makeContext(el));
 		expect(data.customInteractionTypeIdentifier).toBe('urn:example:echo-pci');
+	});
+
+	it('reads the schema-defined attribute names only: the invented customInteractionIdentifierType spellings are not identifiers', () => {
+		// No QTI or PCI version defines customInteractionIdentifierType /
+		// custom-interaction-identifier-type; the schema name is
+		// customInteractionTypeIdentifier (3.0 XSD) with the 2.x camelCase.
+		const el = parseEl(
+			'<qti-portable-custom-interaction response-identifier="R" custom-interaction-identifier-type="urn:invented:kebab" customInteractionIdentifierType="urn:invented:camel"><qti-interaction-markup><p>x</p></qti-interaction-markup></qti-portable-custom-interaction>',
+		);
+		const data = portableCustomExtractor.extract(el, makeContext(el));
+		expect(data.customInteractionTypeIdentifier).toBe('');
 	});
 
 	it('extracts primaryPath from qti-interaction-module', () => {

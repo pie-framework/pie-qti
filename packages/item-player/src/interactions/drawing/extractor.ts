@@ -7,6 +7,7 @@
 import type { ElementExtractor } from '../../extraction/types.js';
 import { normalizePixelDimension } from '../../security/styleValues.js';
 import { extractImageAlternative, imgAlternativeSource } from '../shared/imageAlt.js';
+import { findInteractionImage } from '../shared/interactionImage.js';
 
 /**
  * Image data for drawing interaction
@@ -53,13 +54,13 @@ export const standardDrawingExtractor: ElementExtractor<DrawingData> = {
 	extract(element, context) {
 		const { utils, dom } = context;
 
-		// Extract background image data from the object element, or an img element (QTI 3.0) (optional)
-		const objectElements = utils.getChildrenByTag(element, 'object');
-		const imgElements = objectElements.length === 0 ? utils.getChildrenByTag(element, 'img') : [];
+		// Extract background image data from the object element (QTI 2.x) or an img
+		// element (QTI 3.0, plain or as a <picture>'s fallback img) (optional)
+		const interactionImage = findInteractionImage(element, utils);
 		let imageData: ImageData | null = null;
 
-		if (objectElements.length > 0) {
-			const objectElement = objectElements[0];
+		if (interactionImage?.kind === 'object') {
+			const objectElement = interactionImage.element;
 			const type = utils.getAttribute(objectElement, 'type', '');
 			const data = utils.getAttribute(objectElement, 'data', '');
 			const width = normalizePixelDimension(utils.getAttribute(objectElement, 'width', ''));
@@ -85,9 +86,9 @@ export const standardDrawingExtractor: ElementExtractor<DrawingData> = {
 					...extractImageAlternative(objectElement, utils, dom),
 				};
 			}
-		} else if (imgElements.length > 0) {
+		} else if (interactionImage) {
 			// QTI 3.0 <img>: the alt attribute is the text alternative (alt="" = decorative)
-			const imgElement = imgElements[0];
+			const imgElement = interactionImage.element;
 			const src = utils.getAttribute(imgElement, 'src', '');
 			const width = normalizePixelDimension(utils.getAttribute(imgElement, 'width', ''));
 			const height = normalizePixelDimension(utils.getAttribute(imgElement, 'height', ''));

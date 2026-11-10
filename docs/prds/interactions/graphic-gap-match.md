@@ -83,7 +83,7 @@ When `role="scorer"` and `correctResponse` is provided, the label pool (the `gap
 |-----------|---------|-----------|
 | `identifier` | ✅ Full | Required; deduplicated in validator |
 | `matchMax` | ✅ Full | Extracted; controls how many times a label can be used. When `matchMax=1` (default), the label button is disabled and shows "placed" state once matched |
-| `matchMin` | ✅ Extracted, not validated | Extracted to the local `GraphicGapMatchData` shape; not in `GraphicGapMatchInteractionData` type; not enforced at submission |
+| `matchMin` | ✅ Full | Delivered as `gapTexts[].matchMin` (absent when 0). **Enforced by response validation**: `Player.validateResponses()` reports a response that uses the label fewer times incomplete, and `endAttempt` with `validateResponses` rejects it |
 | `matchGroup` | ✅ Full (G-01) | Delivered as `gapTexts[]`/`gapImages[].matchGroup`: the hotspots this label may be placed on. Applied with the hotspot's own `matchGroup` by the shared rule (see Resolved gaps) |
 | CSS classes | ✅ Partial | Extracted as `classes?: string[]`; present in `GraphicGapMatchData` but not surfaced in `GraphicGapMatchInteractionData` |
 
@@ -95,12 +95,13 @@ When `role="scorer"` and `correctResponse` is provided, the label pool (the `gap
 | `shape` | ✅ Partial | `circle` and `rect` rendered correctly. `poly` uses a 40×40 bounding-box approximation. `ellipse` not handled. |
 | `coords` | ✅ Partial | Parsed for `circle` and `rect`. `poly` uses only the first coordinate pair plus a fixed size. |
 | `matchMax` | ✅ Full | Extracted; when a hotspot already has a label placed on it, a subsequent drop replaces the occupant (enforces `matchMax=1` semantics implicitly) |
-| `matchMin` | ❌ Not extracted | Not in `AssociableHotspot` type; not validated at submission |
+| `matchMin` | ✅ Full | Delivered as `hotspots[].matchMin` (absent when 0; QTI 2.1 `matchMin.AssociableHotspot.Attr`, QTI 3.0 `match-min`). **Enforced by response validation** like the label minimum: a response that places fewer labels on the hotspot is incomplete, and `endAttempt` with `validateResponses` rejects it |
+| `hotspotLabel` | ✅ Full | Delivered as `hotspots[].hotspotLabel` when authored (QTI 2.1 `hotspotLabel.AssociableHotspot.Attr`, QTI 3.0 `hotspot-label`). Names the zone for assistive technology; a zone without one keeps the generic positional name ("Hotspot 1"), never its identifier |
 | `matchGroup` | ✅ Full (G-01) | Delivered as `hotspots[].matchGroup`: the labels this hotspot accepts (see Resolved gaps) |
 
 ### `gapImg` element
 
-`gapImg` choices (each holding an `<object>` or `<img>` image) are extracted as `gapImages` with their `src`, size, `matchMax` and `matchGroup`, and render as image buttons in the same pool as `gapText` labels. A gap image is named by its image's text alternative; one without any gets the generic, localized name "Label", never its identifier.
+`gapImg` choices (each holding an `<object>`, `<img>` or — QTI 3.0 — `<picture>` image, delivered through its `<img>` fallback) are extracted as `gapImages` with their `src`, size, `matchMax`, `matchMin` and `matchGroup`, and render as image buttons in the same pool as `gapText` labels. `matchMin` is enforced by response validation like the `gapText` minimum. A gap image is named by its image's text alternative, else by its authored `objectLabel` (QTI 2.1 `objectLabel.GapImg.Attr`, QTI 3.0 `object-label`); one without either gets the generic, localized name "Label", never its identifier.
 
 ### Response variable contract
 
@@ -168,7 +169,7 @@ WCAG 2.2 Level AA is mandatory. Assessment-specific concerns compound the genera
 - **`aria-live="polite"` region** must announce placements, removals, and selection changes as they occur.
 - **Visually hidden instruction block** must describe the keyboard workflow; the interaction region must reference it via `aria-describedby`.
 - **Background image alt text:** The background image (`<object>` element) requires an accessible description. SVG backgrounds rendered inline need either an accessible `<title>` child or an `aria-label` on the containing element. Currently the SVG is rendered with `{@html}` and carries no accessible name — this is a known gap to address in content authoring guidelines.
-- **`gapImg` objectLabel:** The `objectLabel` attribute on `gapImg` elements is not extracted; image labels are named by their image's text alternative instead.
+- **`gapImg` objectLabel:** Extracted as `gapImages[].objectLabel` when authored and used to name the image label for assistive technology (after the image's text alternative, before the generic localized fallback).
 - **Touch targets:** Label buttons must have a minimum touch target size of 44×44px (WCAG 2.2 SC 2.5.8 minimum 24×24px; assessment best practice is 44×44px). Hotspot regions' interactive area must satisfy the same constraint.
 - **Color is not the only indicator:** Placed (green) vs. available (primary) vs. selected (accent) state must be distinguishable without relying on color alone. The label text, `aria-pressed`, and button `disabled` state together provide non-color cues.
 
@@ -289,7 +290,7 @@ interface GraphicGapMatchInteractionData extends BaseInteractionData {
 - `imageData` absence produces a warning (not an error)
 
 **Invariants not enforced (gaps):**
-- `matchMin` per gapText extracted into extractor-local shape but discarded before returning from `extract()` (not in `GraphicGapMatchInteractionData`)
+- None. `matchMin` on gapText, gapImg and associableHotspot is delivered and enforced by response validation.
 
 ### Response format
 

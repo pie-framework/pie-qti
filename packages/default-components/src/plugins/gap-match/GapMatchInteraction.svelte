@@ -150,7 +150,9 @@
 			words.push({
 				identifier: gapImage.identifier,
 				kind: 'image',
-				name: gapImage.alt,
+				// The image's alt text names it; the gapImg's authored objectLabel stands
+				// in when the image carries none (QTI objectLabel / object-label).
+				name: gapImage.alt || gapImage.objectLabel || '',
 				src: gapImage.src,
 				...(gapImage.width !== undefined ? { width: gapImage.width } : {}),
 				...(gapImage.height !== undefined ? { height: gapImage.height } : {}),

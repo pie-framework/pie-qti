@@ -37,6 +37,13 @@ function getChildrenByTagWithMapper(
 /**
  * Extract a boolean attribute from a QTI element
  * Supports both QTI 2.x (camelCase) and QTI 3.0 (kebab-case) attributes
+ *
+ * Every QTI interaction boolean is `xs:boolean`, whose lexical space is
+ * `{true, false, 1, 0}` (XML Schema Part 2), so the on-forms are `"true"` and
+ * `"1"` — not just the literal `"true"`. This helper is the one xs:boolean
+ * reader for every extractor. (The media extractor's `isBooleanAttributeOn`
+ * stays separate on purpose: it reads HTML presence semantics for
+ * `<track default>`, which has no xs:boolean lexical space.)
  */
 function getBooleanAttribute(
 	element: QTIElement,
@@ -53,7 +60,7 @@ function getBooleanAttribute(
 	}
 
 	if (value === null || value === undefined) return defaultValue;
-	return value === 'true';
+	return value === 'true' || value === '1';
 }
 
 /**

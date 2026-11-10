@@ -112,6 +112,32 @@ describe('standardGraphicGapMatchExtractor', () => {
 		});
 	});
 
+	test('extracts matchMin on gapTexts, gapImages and hotspots, hotspotLabel and objectLabel too', () => {
+		// matchMin exists on gapText, gapImg and associableHotspot in 2.1 and 3.0
+		// (default 0); hotspotLabel/hotspot-label names the zone and objectLabel/
+		// object-label names the gap image for assistive technology.
+		const xml = `
+			<graphicGapMatchInteraction responseIdentifier="RESPONSE">
+				<object type="image/png" data="diagram.png" />
+				<gapText identifier="T1" matchMax="2" matchMin="2">Mercury</gapText>
+				<gapImg identifier="I1" matchMax="2" matchMin="1" objectLabel="Venus"><object data="venus.png" type="image/png"/></gapImg>
+				<associableHotspot identifier="H1" shape="circle" coords="40,50,20" matchMax="3" matchMin="2" hotspotLabel="Inner planets" />
+				<associableHotspot identifier="H2" shape="circle" coords="140,50,20" matchMax="1" />
+			</graphicGapMatchInteraction>
+		`;
+		const element = parseQTI(xml);
+		const result = standardGraphicGapMatchExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+		expect(result.gapTexts[0].matchMin).toBe(2);
+		expect(result.gapImages[0].matchMin).toBe(1);
+		expect(result.gapImages[0].objectLabel).toBe('Venus');
+		expect(result.hotspots[0].matchMin).toBe(2);
+		expect(result.hotspots[0].hotspotLabel).toBe('Inner planets');
+		// Absent attributes stay absent (0 = the spec default, no minimum).
+		expect(result.hotspots[1].matchMin).toBeUndefined();
+		expect(result.hotspots[1].hotspotLabel).toBeUndefined();
+	});
+
 	test('uses default shape for hotspots when not specified', () => {
 		const xml = `
 			<graphicGapMatchInteraction responseIdentifier="RESPONSE">

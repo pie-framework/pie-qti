@@ -8,6 +8,7 @@ import type { ElementExtractor, ExtractionUtils } from '../../extraction/types.j
 import type { DeliveredInteraction, GapMatchInteractionData, QTIElement } from '../../interactions/shared/types.js';
 import { maybeShuffle } from '../../core/shuffle.js';
 import { normalizeCssPixelLength, normalizePixelDimension } from '../../security/styleValues.js';
+import { findInteractionImage } from '../shared/interactionImage.js';
 import { predatesQti22 } from '../shared/specDefaults.js';
 
 const GAP_ELEMENT_PATTERN = /<(?:qti-gap|gap)(?=[\s/>])([^>]*)\/?>/gi;
@@ -50,6 +51,17 @@ export interface GapMatchImage {
 	matchMax: number;
 	matchMin?: number;
 	matchGroup?: string[];
+	/**
+	 * The gapImg's authored `objectLabel` (QTI 2.1 `objectLabel.GapImg.Attr`,
+	 * QTI 3.0 `object-label`). Names the label for assistive technology when
+	 * the image itself carries no text alternative.
+	 */
+	objectLabel?: string;
+	/**
+	 * Authored `fixed` (a QTI 2.1 attribute on gapImg): pins the choice at its
+	 * authored position when `shuffle` is true.
+	 */
+	fixed?: boolean;
 	classes?: string[];
 	width?: number;
 	height?: number;
@@ -65,6 +77,8 @@ export interface GapMatchData {
 		matchMax: number;
 		matchMin?: number;
 		matchGroup?: string[];
+		/** Authored `fixed` (a QTI 2.1 attribute on gapText): pins the choice under shuffle. */
+		fixed?: boolean;
 		classes?: string[];
 	}>;
 	gapImages: GapMatchImage[];
@@ -93,42 +107,69 @@ const DELIVERED_MATCHES_CONTRACT: DeliveredInteraction<'gapMatchInteraction', Ga
 void DELIVERED_MATCHES_CONTRACT;
 
 /**
+ * Put each fixed choice back at its authored index; the others keep the order
+ * the (combined) shuffle left them in. No authored `fixed` means no repair and
+ * the shuffle result stands unchanged.
+ */
+function restoreFixedPositions<T extends { fixed?: boolean }>(shuffled: readonly T[], authored: readonly T[]): T[] {
+	if (!authored.some((choice) => choice.fixed)) return [...shuffled];
+	const movable = shuffled.filter((choice) => !choice.fixed);
+	const restored: T[] = [];
+	let next = 0;
+	for (const choice of authored) {
+		restored.push(choice.fixed ? choice : movable[next++]);
+	}
+	return restored;
+}
+
+/**
  * Extracts one draggable image choice from gapImg/qti-gap-img content.
+ *
+ * `readsFixed` is true for QTI 2.1 content only: `fixed` exists on gapImg (and
+ * gapText) in the QTI 2.1 schema alone (fixed.GapImg.Attr / fixed.GapText.Attr);
+ * QTI 2.2 and 3.0 define none, so an authored one there is not an attribute of
+ * the element and is not read.
  */
 function extractGapImage(
 	gapImg: QTIElement,
 	utils: Pick<
 		ExtractionUtils,
-		'getClasses' | 'getNumberAttribute' | 'getAttribute' | 'getChildrenByTag' | 'getTextContent'
+		| 'getClasses'
+		| 'getNumberAttribute'
+		| 'getBooleanAttribute'
+		| 'getAttribute'
+		| 'getChildrenByTag'
+		| 'getTextContent'
 	>,
+	readsFixed: boolean,
 ): GapMatchImage {
 	const classes = utils.getClasses(gapImg);
 	const matchMax = utils.getNumberAttribute(gapImg, 'matchMax', 1);
 	const matchMin = utils.getNumberAttribute(gapImg, 'matchMin', 0);
 	const matchGroupRaw = utils.getAttribute(gapImg, 'matchGroup', '');
 	const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
+	const objectLabel = utils.getAttribute(gapImg, 'objectLabel', '').trim();
+	const fixed = readsFixed && utils.getBooleanAttribute(gapImg, 'fixed');
 
 	let src = '';
 	let alt = '';
 	let width: number | undefined;
 	let height: number | undefined;
 
-	// QTI 2.x: <gapImg><object data="…" width height>alt text</object></gapImg>
-	const objectChildren = utils.getChildrenByTag(gapImg, 'object');
-	if (objectChildren.length > 0) {
-		const obj = objectChildren[0];
+	// QTI 2.x: <gapImg><object data="…" width height>alt text</object></gapImg>.
+	// QTI 3.0 allows an <img> or a <picture> (delivered via its <img> fallback):
+	// <qti-gap-img><img src="…" alt="…" /></qti-gap-img>
+	const image = findInteractionImage(gapImg, utils);
+	if (image?.kind === 'object') {
+		const obj = image.element;
 		src = utils.getAttribute(obj, 'data', '');
 		alt = utils.getTextContent(obj);
 		const w = normalizePixelDimension(utils.getAttribute(obj, 'width', ''));
 		const h = normalizePixelDimension(utils.getAttribute(obj, 'height', ''));
 		if (w) width = Number(w);
 		if (h) height = Number(h);
-	}
-
-	// QTI 3.0: <qti-gap-img><img src="…" alt="…" /></qti-gap-img>
-	const imgChildren = utils.getChildrenByTag(gapImg, 'img');
-	if (imgChildren.length > 0 && !src) {
-		const img = imgChildren[0];
+	} else if (image) {
+		const img = image.element;
 		src = utils.getAttribute(img, 'src', '');
 		alt = utils.getAttribute(img, 'alt', '');
 		const w = normalizePixelDimension(utils.getAttribute(img, 'width', ''));
@@ -144,6 +185,8 @@ function extractGapImage(
 		matchMax,
 		...(matchMin > 0 ? { matchMin } : {}),
 		...(matchGroup.length > 0 ? { matchGroup } : {}),
+		...(objectLabel ? { objectLabel } : {}),
+		...(fixed ? { fixed } : {}),
 		...(classes.length > 0 ? { classes } : {}),
 		...(width !== undefined ? { width } : {}),
 		...(height !== undefined ? { height } : {}),
@@ -169,6 +212,11 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 	extract(element, context) {
 		const { utils } = context;
 
+		// `fixed` exists on gapText and gapImg in the QTI 2.1 schema alone
+		// (fixed.GapText.Attr / fixed.GapImg.Attr); QTI 2.2 and 3.0 define none on
+		// gap choices, so it is read for QTI 2.1 content only.
+		const readsFixed = predatesQti22(context);
+
 		// Extract gapText children (draggable text items)
 		const gapTextElements = utils.getChildrenByTag(element, 'gapText');
 		const gapTexts = gapTextElements.map((gapText) => {
@@ -177,6 +225,7 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 			const matchMin = utils.getNumberAttribute(gapText, 'matchMin', 0);
 			const matchGroupRaw = utils.getAttribute(gapText, 'matchGroup', '');
 			const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
+			const fixed = readsFixed && utils.getBooleanAttribute(gapText, 'fixed');
 
 			return {
 				identifier: utils.getAttribute(gapText, 'identifier', ''),
@@ -184,13 +233,14 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 				matchMax,
 				...(matchMin > 0 ? { matchMin } : {}),
 				...(matchGroup.length > 0 ? { matchGroup } : {}),
+				...(fixed ? { fixed } : {}),
 				...(classes.length > 0 ? { classes } : {}),
 			};
 		});
 
 		// Extract gapImg children (draggable image items; QTI 2.x gapImg / QTI 3.0 qti-gap-img)
 		const gapImgElements = utils.getChildrenByTag(element, 'gapImg');
-		const gapImages = gapImgElements.map((gapImg) => extractGapImage(gapImg, utils));
+		const gapImages = gapImgElements.map((gapImg) => extractGapImage(gapImg, utils, readsFixed));
 
 		// Extract attributes
 		const shuffle = utils.getBooleanAttribute(element, 'shuffle');
@@ -205,6 +255,8 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 		// Shuffle the combined choice pool so words and images interleave, then
 		// restore the split view the renderer consumes.
 		if (gapTexts.length > 0 || gapImages.length > 0) {
+			const authoredTexts = [...gapTexts];
+			const authoredImages = [...gapImages];
 			const combined: Array<
 				{ type: 'text'; choice: (typeof gapTexts)[number] } | { type: 'image'; choice: GapMatchImage }
 			> = [...gapTexts.map((choice) => ({ type: 'text' as const, choice })), ...gapImages.map((choice) => ({ type: 'image' as const, choice }))];
@@ -215,6 +267,11 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 				if (entry.type === 'text') gapTexts.push(entry.choice);
 				else gapImages.push(entry.choice);
 			}
+			// A fixed choice keeps the position it has unshuffled. The pool is
+			// presented words first, then images, so that position is its authored
+			// index among the choices of its kind.
+			gapTexts.splice(0, gapTexts.length, ...restoreFixedPositions(gapTexts, authoredTexts));
+			gapImages.splice(0, gapImages.length, ...restoreFixedPositions(gapImages, authoredImages));
 		}
 
 		// Extract prompt (optional) and process gap placeholders.

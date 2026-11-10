@@ -153,6 +153,8 @@ export interface AssociableChoice {
 	 * with; content also uses the tokens as shared group labels). Empty/absent: unrestricted.
 	 */
 	matchGroup?: string[];
+	/** Authored `fixed` (QTI fixed.SimpleAssociableChoice.Attr): pins the choice under shuffle. */
+	fixed?: boolean;
 	/** CSS classes from the choice element for custom renderer detection */
 	classes?: string[];
 }
@@ -190,7 +192,8 @@ export interface GapMatchInteractionData extends BaseInteractionData<'gapMatchIn
 		/** Minimum number of gaps this choice must fill (QTI matchMin); absent means 0. */
 		matchMin?: number;
 		matchGroup?: string[];
-		inputWidth?: number;
+		/** Authored `fixed` (a QTI 2.1 attribute on gapText): pins the choice under shuffle. */
+		fixed?: boolean;
 	}>;
 	/**
 	 * Image choices from gapImg (QTI 2.x) / qti-gap-img (QTI 3.0); optional so
@@ -205,6 +208,14 @@ export interface GapMatchInteractionData extends BaseInteractionData<'gapMatchIn
 		/** Minimum number of gaps this choice must fill (QTI matchMin); absent means 0. */
 		matchMin?: number;
 		matchGroup?: string[];
+		/**
+		 * The gapImg's authored `objectLabel` (QTI 2.1 `objectLabel.GapImg.Attr`,
+		 * QTI 3.0 `object-label`). Names the label for assistive technology when
+		 * the image itself carries no text alternative.
+		 */
+		objectLabel?: string;
+		/** Authored `fixed` (a QTI 2.1 attribute on gapImg): pins the choice under shuffle. */
+		fixed?: boolean;
 		width?: number;
 		height?: number;
 	}>;
@@ -301,8 +312,15 @@ export interface AssociableHotspot {
 	shape: string;
 	coords: string;
 	matchMax: number;
+	/** Minimum number of labels this hotspot must take (QTI matchMin); absent means 0. */
+	matchMin?: number;
 	/** Authored `matchGroup`: the identifiers of the labels that may be matched with this hotspot. */
 	matchGroup?: string[];
+	/**
+	 * Authored `hotspotLabel`: the zone's name for assistive technology.
+	 * Absent when the author gave none; the renderer then names the zone generically.
+	 */
+	hotspotLabel?: string;
 }
 
 export interface GraphicGapMatchInteractionData extends BaseInteractionData<'graphicGapMatchInteraction'> {
@@ -314,9 +332,32 @@ export interface GraphicGapMatchInteractionData extends BaseInteractionData<'gra
 	 * Present only when above 0.
 	 */
 	minAssociations?: number;
-	gapTexts: Array<{ identifier: string; text: string; matchMax: number; matchGroup?: string[] }>;
+	gapTexts: Array<{
+		identifier: string;
+		text: string;
+		matchMax: number;
+		/** Minimum number of hotspots this label must fill (QTI matchMin); absent means 0. */
+		matchMin?: number;
+		matchGroup?: string[];
+	}>;
 	/** Image-based draggable labels (gapImg elements); rendered as <img> in the choice pool */
-	gapImages: Array<{ identifier: string; src: string; alt: string; matchMax: number; matchGroup?: string[]; width?: number; height?: number }>;
+	gapImages: Array<{
+		identifier: string;
+		src: string;
+		alt: string;
+		matchMax: number;
+		/** Minimum number of hotspots this label must fill (QTI matchMin); absent means 0. */
+		matchMin?: number;
+		matchGroup?: string[];
+		/**
+		 * The gapImg's authored `objectLabel` (QTI 2.1 `objectLabel.GapImg.Attr`,
+		 * QTI 3.0 `object-label`). Names the label for assistive technology when
+		 * the image itself carries no text alternative.
+		 */
+		objectLabel?: string;
+		width?: number;
+		height?: number;
+	}>;
 	hotspots: AssociableHotspot[];
 	/** CSS classes from the graphicGapMatchInteraction element (e.g. qti-choices-top, qti-selections-dark) */
 	interactionClasses?: string[];

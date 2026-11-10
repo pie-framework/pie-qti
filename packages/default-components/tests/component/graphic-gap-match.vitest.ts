@@ -81,6 +81,63 @@ describe('GraphicGapMatchInteraction (pie-qti-graphic-gap-match)', () => {
 		expect(mounted.host.innerHTML).not.toContain('CLOUD_IS_TOP_RIGHT');
 	});
 
+	test('a gap image without alt text takes its name from the gapImg objectLabel', async () => {
+		// QTI objectLabel / object-label on gapImg: the label's name when the image
+		// itself carries no text alternative — before the generic ordinal fallback.
+		const mounted = mountInteraction(GraphicGapMatchInteraction, {
+			interaction: ggmData({
+				gapImages: [{ identifier: 'CLOUD_IS_TOP_RIGHT', src: 'cloud.png', alt: '', objectLabel: 'Cloud', matchMax: 1 }],
+			}),
+		});
+		await settle();
+
+		const imageLabel = qa<HTMLButtonElement>(mounted, '[part="labels"] button').find((button) => button.querySelector('img'));
+		expect(imageLabel?.getAttribute('aria-label')).toBe('Cloud');
+		expect(mounted.host.innerHTML).not.toContain('CLOUD_IS_TOP_RIGHT');
+	});
+
+	test('the image alt text wins over the gapImg objectLabel', async () => {
+		const mounted = mountInteraction(GraphicGapMatchInteraction, {
+			interaction: ggmData({
+				gapImages: [{ identifier: 'CLOUD_IS_TOP_RIGHT', src: 'cloud.png', alt: 'A storm cloud', objectLabel: 'Cloud', matchMax: 1 }],
+			}),
+		});
+		await settle();
+
+		const imageLabel = qa<HTMLButtonElement>(mounted, '[part="labels"] button').find((button) => button.querySelector('img'));
+		expect(imageLabel?.getAttribute('aria-label')).toBe('A storm cloud');
+	});
+
+	test('a zone with an authored hotspotLabel is announced by that name; an unnamed one keeps its ordinal', async () => {
+		// QTI hotspotLabel / hotspot-label on associableHotspot names the zone for
+		// assistive technology, as it does on the sibling graphic interactions.
+		const mounted = mountInteraction(GraphicGapMatchInteraction, {
+			interaction: ggmData({
+				hotspots: [
+					{ identifier: 'TOP_RIGHT_ANSWER', shape: 'circle', coords: '300,50,8', matchMax: 1 },
+					{ identifier: 'LAKE_ZONE', shape: 'rect', coords: '20,120,220,190', matchMax: 1, hotspotLabel: 'Lake' },
+				],
+			}),
+		});
+		await settle();
+
+		expect(hotspotTargets(mounted)[0]!.getAttribute('aria-label')).toBe('Hotspot 1. Empty.');
+		expect(hotspotTargets(mounted)[1]!.getAttribute('aria-label')).toBe('Lake.');
+		expect(mounted.host.innerHTML).not.toContain('LAKE_ZONE');
+
+		const rain = qa<HTMLButtonElement>(mounted, '[part="labels"] button').find((b) => b.textContent?.trim() === 'Rain')!;
+		pressKey(rain, 'Enter');
+		await settle();
+		// The drop hint follows the zone's own name.
+		expect(hotspotTargets(mounted)[1]!.getAttribute('aria-label')).toBe('Lake. Press Enter to place Rain here.');
+
+		pressKey(hotspotTargets(mounted)[1]!, 'Enter');
+		await settle();
+
+		expect(hotspotTargets(mounted)[1]!.getAttribute('aria-label')).toBe('Lake. Contains: Rain.');
+		expect(q(mounted, '[aria-live="polite"]')?.textContent).toContain('Rain placed on hotspot Lake');
+	});
+
 	test('a palette label keeps its name as it is picked up and placed; the hint is its description', async () => {
 		const mounted = mountInteraction(GraphicGapMatchInteraction, { interaction: ggmData() });
 		await settle();

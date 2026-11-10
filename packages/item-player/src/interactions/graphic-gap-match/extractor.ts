@@ -10,6 +10,7 @@ import {
 	normalizePixelDimension,
 } from '../../security/styleValues.js';
 import { extractImageAlternative, imgAlternativeSource } from '../shared/imageAlt.js';
+import { findInteractionImage } from '../shared/interactionImage.js';
 import { predatesQti22 } from '../shared/specDefaults.js';
 
 /**
@@ -50,11 +51,29 @@ export interface GraphicGapMatchData {
 		src: string;
 		alt: string;
 		matchMax: number;
+		/** Minimum number of hotspots this label must fill; omitted when 0. */
+		matchMin?: number;
 		matchGroup?: string[];
+		/**
+		 * The gapImg's authored `objectLabel` (QTI 2.1 `objectLabel.GapImg.Attr`,
+		 * QTI 3.0 `object-label`). Names the label for assistive technology when
+		 * the image itself carries no text alternative.
+		 */
+		objectLabel?: string;
 		width?: number;
 		height?: number;
 	}>;
-	hotspots: Array<{ identifier: string; shape: string; coords: string; matchMax: number; matchGroup?: string[] }>;
+	hotspots: Array<{
+		identifier: string;
+		shape: string;
+		coords: string;
+		matchMax: number;
+		/** Minimum number of labels this hotspot must take; omitted when 0. */
+		matchMin?: number;
+		matchGroup?: string[];
+		/** The authored `hotspotLabel`; names the zone for assistive technology. */
+		hotspotLabel?: string;
+	}>;
 	prompt: string | null;
 }
 
@@ -77,13 +96,13 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 	extract(element, context) {
 		const { utils, dom } = context;
 
-		// Extract image data from the object element (QTI 2.x / 3.0) or an img element (QTI 3.0)
-		const objectElements = utils.getChildrenByTag(element, 'object');
-		const imgElements = objectElements.length === 0 ? utils.getChildrenByTag(element, 'img') : [];
+		// Extract image data from the object element (QTI 2.x) or an img element
+		// (QTI 3.0, plain or as a <picture>'s fallback img)
+		const interactionImage = findInteractionImage(element, utils);
 		let imageData: ImageData | null = null;
 
-		if (objectElements.length > 0) {
-			const objectElement = objectElements[0];
+		if (interactionImage?.kind === 'object') {
+			const objectElement = interactionImage.element;
 			const type = utils.getAttribute(objectElement, 'type', '');
 			const data = utils.getAttribute(objectElement, 'data', '');
 			const normalizedWidth = normalizePixelDimension(utils.getAttribute(objectElement, 'width', ''));
@@ -125,9 +144,9 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 					...extractImageAlternative(objectElement, utils, dom),
 				};
 			}
-		} else if (imgElements.length > 0) {
+		} else if (interactionImage) {
 			// QTI 3.0 <img>: the alt attribute is the text alternative (alt="" = decorative)
-			const imgElement = imgElements[0];
+			const imgElement = interactionImage.element;
 			const normalizedWidth = normalizePixelDimension(utils.getAttribute(imgElement, 'width', ''));
 			const normalizedHeight = normalizePixelDimension(utils.getAttribute(imgElement, 'height', ''));
 			imageData = {
@@ -179,19 +198,21 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 		const gapImgElements = utils.getChildrenByTag(element, 'gapImg');
 		const gapImages = gapImgElements.map((gapImg) => {
 			const matchMax = utils.getNumberAttribute(gapImg, 'matchMax', 1);
+			const matchMin = utils.getNumberAttribute(gapImg, 'matchMin', 0);
 			const matchGroupRaw = utils.getAttribute(gapImg, 'matchGroup', '');
 			const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
-			const objectChildren = utils.getChildrenByTag(gapImg, 'object');
-			const imgChildren = objectChildren.length === 0 ? utils.getChildrenByTag(gapImg, 'img') : [];
+			const objectLabel = utils.getAttribute(gapImg, 'objectLabel', '').trim();
+			// QTI 3.0 GapImgDType allows object, img or picture (delivered via its img fallback)
+			const image = findInteractionImage(gapImg, utils);
 			let src = '';
 			let alt = '';
 			let width: number | undefined;
 			let height: number | undefined;
 			// The image's text alternative names the draggable label for assistive
 			// technology; an empty alt never falls back to the identifier.
-			const imageElement = objectChildren[0] ?? imgChildren[0];
+			const imageElement = image?.element;
 			if (imageElement) {
-				const isImg = objectChildren.length === 0;
+				const isImg = image?.kind === 'img';
 				src = utils.getAttribute(imageElement, isImg ? 'src' : 'data', '');
 				alt =
 					extractImageAlternative(
@@ -210,7 +231,9 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 				src,
 				alt,
 				matchMax,
+				...(matchMin > 0 ? { matchMin } : {}),
 				...(matchGroup.length > 0 ? { matchGroup } : {}),
+				...(objectLabel ? { objectLabel } : {}),
 				...(width !== undefined ? { width } : {}),
 				...(height !== undefined ? { height } : {}),
 			};
@@ -223,13 +246,19 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 				.getAttribute(hotspot, 'matchGroup', '')
 				.split(/\s+/)
 				.filter(Boolean);
+			const matchMin = utils.getNumberAttribute(hotspot, 'matchMin', 0);
+			const hotspotLabel = utils.getAttribute(hotspot, 'hotspotLabel', '').trim();
 			return {
 				identifier: utils.getAttribute(hotspot, 'identifier', ''),
 				shape: utils.getAttribute(hotspot, 'shape', 'rect'),
 				coords: utils.getAttribute(hotspot, 'coords', ''),
 				matchMax: utils.getNumberAttribute(hotspot, 'matchMax', 1),
+				...(matchMin > 0 ? { matchMin } : {}),
 				// Authored matchGroup: the identifiers of the labels that may be matched with this hotspot.
 				...(matchGroup.length > 0 ? { matchGroup } : {}),
+				// The authored zone name for assistive technology (2.1 hotspotLabel,
+				// 3.0 hotspot-label); an empty attribute never falls back to the identifier.
+				...(hotspotLabel ? { hotspotLabel } : {}),
 			};
 		});
 
