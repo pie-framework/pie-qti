@@ -9,8 +9,8 @@
   },
   "covers": [
     "expr.integerDivide",
+    "expr.integerModulus",
     "expr.isTypeOf",
-    "expr.mod",
     "expr.popSD",
     "expr.popVariance",
     "expr.power",

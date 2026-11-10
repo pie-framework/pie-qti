@@ -874,9 +874,6 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		case 'power': {
 			return { kind: 'expr.power', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
-		case 'mod': {
-			return { kind: 'expr.mod', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
-		}
 		case 'integerdivide': {
 			return { kind: 'expr.integerDivide', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}

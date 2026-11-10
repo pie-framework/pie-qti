@@ -60,7 +60,6 @@ export type ExpressionNode =
 	| SubstringExpr
 	| LookupTableExpr
 	| PowerExpr
-	| ModExpr
 	| IntegerDivideExpr
 	| IsTypeOfExpr
 	| StringMatchExpr
@@ -439,13 +438,6 @@ export type LookupTableExpr = {
 
 export type PowerExpr = {
 	kind: 'expr.power';
-	id: AstNodeId;
-	a: ExpressionNode;
-	b: ExpressionNode;
-};
-
-export type ModExpr = {
-	kind: 'expr.mod';
 	id: AstNodeId;
 	a: ExpressionNode;
 	b: ExpressionNode;

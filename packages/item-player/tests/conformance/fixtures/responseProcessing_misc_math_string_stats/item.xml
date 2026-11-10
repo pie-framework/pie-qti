@@ -12,7 +12,7 @@
 	<outcomeDeclaration identifier="IDIV" cardinality="single" baseType="integer">
 		<defaultValue><value>0</value></defaultValue>
 	</outcomeDeclaration>
-	<outcomeDeclaration identifier="MOD" cardinality="single" baseType="float">
+	<outcomeDeclaration identifier="MOD" cardinality="single" baseType="integer">
 		<defaultValue><value>0</value></defaultValue>
 	</outcomeDeclaration>
 	<outcomeDeclaration identifier="POW" cardinality="single" baseType="float">
@@ -62,11 +62,12 @@
 					</integerDivide>
 				</setOutcomeValue>
 
+				<!-- QTI has no <mod>: integer remainder is integerModulus. -->
 				<setOutcomeValue identifier="MOD">
-					<mod>
+					<integerModulus>
 						<baseValue baseType="integer">7</baseValue>
 						<baseValue baseType="integer">2</baseValue>
-					</mod>
+					</integerModulus>
 				</setOutcomeValue>
 
 				<setOutcomeValue identifier="POW">

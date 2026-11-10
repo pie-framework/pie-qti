@@ -147,7 +147,7 @@ describe('max, min, gcd and lcm take single, multiple or ordered operands (QTI A
 	}
 });
 
-describe('divide, power, integerDivide and mod give NULL where the result is undefined (QTI ASI §15.3)', () => {
+describe('divide, power and integerDivide give NULL where the result is undefined (QTI ASI §15.3)', () => {
 	it('divide by zero is NULL ("the operator should result in NULL")', () => {
 		expect(isNull(evaluate(`<divide>${float(1)}${float(0)}</divide>`))).toBe(true);
 		expect(isNull(evaluate(`<divide>${int(0)}${int(0)}</divide>`))).toBe(true);
@@ -166,22 +166,17 @@ describe('divide, power, integerDivide and mod give NULL where the result is und
 		expect(isNull(evaluate(`<integerDivide>${int(7)}${int(0)}</integerDivide>`))).toBe(true);
 	});
 
-	it('mod by zero is NULL, as divide by zero is', () => {
-		expect(isNull(evaluate(`<mod>${int(7)}${int(0)}</mod>`))).toBe(true);
-	});
-
 	it('NULL operands give NULL', () => {
 		expect(isNull(evaluate(`<power>${NULL}${int(2)}</power>`))).toBe(true);
 		expect(isNull(evaluate(`<power>${int(2)}${NULL}</power>`))).toBe(true);
 		expect(isNull(evaluate(`<integerDivide>${NULL}${int(2)}</integerDivide>`))).toBe(true);
-		expect(isNull(evaluate(`<mod>${int(7)}${NULL}</mod>`))).toBe(true);
+		expect(isNull(evaluate(`<integerModulus>${int(7)}${NULL}</integerModulus>`))).toBe(true);
 	});
 
 	it('keeps the defined results', () => {
 		expect(evaluate(`<divide>${int(6)}${int(4)}</divide>`)).toEqual(qtiValue('float', 'single', 1.5));
 		expect(evaluate(`<power>${int(2)}${int(10)}</power>`)).toEqual(qtiValue('float', 'single', 1024));
 		expect(evaluate(`<integerDivide>${int(7)}${int(2)}</integerDivide>`)).toEqual(qtiValue('integer', 'single', 3));
-		expect(evaluate(`<mod>${int(7)}${int(2)}</mod>`)).toEqual(qtiValue('float', 'single', 1));
 	});
 
 	it('integerDivide rounds down to the greatest integer not above x/y', () => {
@@ -251,7 +246,6 @@ describe('an empty string is NULL in every numeric operator (QTI ASI §5)', () =
 		['lcm', (x) => `<lcm>${x}${int(12)}</lcm>`],
 		['mathOperator', (x) => `<mathOperator name="sin">${x}</mathOperator>`],
 		['power', (x) => `<power>${x}${int(2)}</power>`],
-		['mod', (x) => `<mod>${x}${int(2)}</mod>`],
 		['integerDivide', (x) => `<integerDivide>${x}${int(2)}</integerDivide>`],
 		['integerModulus', (x) => `<integerModulus>${x}${int(7)}</integerModulus>`],
 		['roundTo', (x) => `<roundTo roundingMode="decimalPlaces" figures="2">${x}</roundTo>`],

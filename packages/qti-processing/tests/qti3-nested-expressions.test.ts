@@ -162,7 +162,6 @@ const GUARD: ReadonlyArray<readonly [tag: string, attrs: string, body: string]> 
 	['max', '', TWO],
 	['member', '', TWO],
 	['min', '', TWO],
-	['mod', '', TWO],
 	['multiple', '', TWO],
 	['not', '', ONE],
 	['null', '', ''],
