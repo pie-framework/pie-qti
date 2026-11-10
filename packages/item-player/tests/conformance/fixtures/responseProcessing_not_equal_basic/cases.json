@@ -1,5 +1,5 @@
 {
-  "id": "responseProcessing_notEqual_basic",
+  "id": "responseProcessing_not_equal_basic",
   "cases": [
     {
       "name": "missing response => condition false => 0",
@@ -18,5 +18,3 @@
     }
   ]
 }
-
-

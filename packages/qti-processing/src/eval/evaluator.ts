@@ -564,10 +564,6 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const v = evalExpr(env, expr.expr);
 			return qtiValue('boolean', 'single', isNullValue(v));
 		}
-		case 'expr.isNotNull': {
-			const v = evalExpr(env, expr.expr);
-			return qtiValue('boolean', 'single', !isNullValue(v));
-		}
 		case 'expr.match': {
 			// QTI: "If either sub-expression is NULL then the operator results in NULL."
 			const a = evalExpr(env, expr.a);
@@ -697,14 +693,6 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			if (!Number.isFinite(rx) || !Number.isFinite(ry)) return qtiInvalid('equalRounded rounding invalid');
 
 			return qtiValue('boolean', 'single', rx === ry);
-		}
-		case 'expr.notEqual': {
-			const eq = evalExpr(env, { kind: 'expr.equal', id: expr.id, a: expr.a, b: expr.b } as any);
-			// Spec-aligned null/invalid propagation: if equality is null/invalid, notEqual is also null/invalid.
-			// This prevents missing responses (NULL) from becoming truthy via boolean negation.
-			if (eq.kind === 'null') return qtiNull();
-			if (eq.kind === 'invalid') return eq;
-			return qtiValue('boolean', 'single', !toBoolean(eq));
 		}
 		case 'expr.member': {
 			// QTI: "If either sub-expression is NULL then the result of the operator is NULL."
@@ -1246,10 +1234,6 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			if (trueCount > max || falseCount > expr.ops.length - min) return qtiValue('boolean', 'single', false);
 			if (trueCount >= min) return qtiValue('boolean', 'single', true);
 			return unknown ?? qtiValue('boolean', 'single', false);
-		}
-		case 'expr.allN': {
-			const trueCount = expr.ops.reduce((acc, o) => acc + (toBoolean(evalExpr(env, o)) ? 1 : 0), 0);
-			return qtiValue('boolean', 'single', trueCount <= expr.max);
 		}
 		case 'expr.sum': {
 			let acc = 0;

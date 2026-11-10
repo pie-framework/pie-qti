@@ -43,7 +43,6 @@ export type ExpressionNode =
 	| MatchExpr
 	| EqualExpr
 	| EqualRoundedExpr
-	| NotEqualExpr
 	| MemberExpr
 	| ContainsExpr
 	| ContainerSizeExpr
@@ -72,7 +71,6 @@ export type ExpressionNode =
 	| StringMatchExpr
 	| PatternMatchExpr
 	| IsNullExpr
-	| IsNotNullExpr
 	| LtExpr
 	| LteExpr
 	| GtExpr
@@ -81,7 +79,6 @@ export type ExpressionNode =
 	| OrExpr
 	| NotExpr
 	| AnyNExpr
-	| AllNExpr
 	| SumExpr
 	| SubtractExpr
 	| ProductExpr
@@ -330,13 +327,6 @@ export type EqualRoundedExpr = {
 	figures: string;
 };
 
-export type NotEqualExpr = {
-	kind: 'expr.notEqual';
-	id: AstNodeId;
-	a: ExpressionNode;
-	b: ExpressionNode;
-};
-
 export type MemberExpr = {
 	kind: 'expr.member';
 	id: AstNodeId;
@@ -533,12 +523,6 @@ export type IsNullExpr = {
 	expr: ExpressionNode;
 };
 
-export type IsNotNullExpr = {
-	kind: 'expr.isNotNull';
-	id: AstNodeId;
-	expr: ExpressionNode;
-};
-
 export type LtExpr = { kind: 'expr.lt'; id: AstNodeId; a: ExpressionNode; b: ExpressionNode };
 export type LteExpr = { kind: 'expr.lte'; id: AstNodeId; a: ExpressionNode; b: ExpressionNode };
 export type GtExpr = { kind: 'expr.gt'; id: AstNodeId; a: ExpressionNode; b: ExpressionNode };
@@ -559,10 +543,6 @@ export type AnyNExpr = {
 	max: number | string;
 	ops: ExpressionNode[];
 };
-
-// Historical/non-standard helper used in some older QTI engines:
-// "at most max operands are true" (equivalent to anyN with min=0 and a max bound).
-export type AllNExpr = { kind: 'expr.allN'; id: AstNodeId; max: number; ops: ExpressionNode[] };
 
 export type SumExpr = { kind: 'expr.sum'; id: AstNodeId; values: ExpressionNode[] };
 export type SubtractExpr = { kind: 'expr.subtract'; id: AstNodeId; a: ExpressionNode; b: ExpressionNode };

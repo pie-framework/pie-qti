@@ -119,14 +119,12 @@ const TEST_LEVEL = new Set([
 
 /**
  * One row per `buildExpression` switch case: [canonical tag, attributes, body]. `mapper.toNative`
- * spells the QTI 3.0 element name; for the tags the builder supports beyond the QTI 3.0 schema
- * (allN, isNotNull, lookupTable, mapOutcome, mod, mean, the sample/pop statistics, isTypeOf,
- * preCondition, record) it yields the bare canonical name, which the QTI 3 mapper passes through
+ * spells the QTI 3.0 element name; for the one tag the builder supports beyond the QTI 3.0 schema
+ * (preCondition) it yields the bare canonical name, which the QTI 3 mapper passes through
  * unchanged — the same spelling the 2 → 3 conversion leaves such elements with. Every child
  * expression is spelled kebab-case, so a nested call that drops `options` throws.
  */
 const GUARD: ReadonlyArray<readonly [tag: string, attrs: string, body: string]> = [
-	['alln', 'max="2"', TWO],
 	['and', '', TWO],
 	['anyn', 'min="1" max="2"', TWO],
 	['basevalue', 'base-type="integer"', '1'],
@@ -150,7 +148,6 @@ const GUARD: ReadonlyArray<readonly [tag: string, attrs: string, body: string]> 
 	['integerdivide', '', TWO],
 	['integermodulus', '', TWO],
 	['integertofloat', '', ONE],
-	['isnotnull', '', ONE],
 	['isnull', '', ONE],
 	['istypeof', '', TWO],
 	['lcm', '', TWO],
@@ -170,7 +167,6 @@ const GUARD: ReadonlyArray<readonly [tag: string, attrs: string, body: string]> 
 	['mod', '', TWO],
 	['multiple', '', TWO],
 	['not', '', ONE],
-	['notequal', '', TWO],
 	['null', '', ''],
 	['numbercorrect', '', ''],
 	['numberincorrect', '', ''],

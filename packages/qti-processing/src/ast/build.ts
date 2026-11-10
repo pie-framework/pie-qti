@@ -510,13 +510,6 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		return defaultValue;
 	};
 
-	const numAttr = (name: string, defaultValue: number): number => {
-		const raw = (getAttr(el, name) || '').trim();
-		if (!raw) return defaultValue;
-		const n = Number(raw);
-		return Number.isFinite(n) ? n : defaultValue;
-	};
-
 	// QTI integerOrVariableRef (ASI §10.2): an integer literal, or the identifier of the variable
 	// holding the integer, kept for the evaluator to read. The braced {TEMPLATE} spelling is
 	// accepted too, as patternMatch accepts it for its StringOrVariableRef pattern.
@@ -699,9 +692,6 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 				roundingMode: roundingModeRaw as 'decimalPlaces' | 'significantFigures',
 				figures,
 			};
-		}
-		case 'notequal': {
-			return { kind: 'expr.notEqual', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
 		case 'member': {
 			return {
@@ -945,9 +935,6 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		case 'isnull': {
 			return { kind: 'expr.isNull', id, expr: buildExpression(kids[0]!, options) };
 		}
-		case 'isnotnull': {
-			return { kind: 'expr.isNotNull', id, expr: buildExpression(kids[0]!, options) };
-		}
 		case 'lt': {
 			return { kind: 'expr.lt', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
@@ -978,11 +965,6 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 				max: integerOrVariableRefAttr('max', kids.length),
 				ops: kids.map((k) => buildExpression(k, options)),
 			};
-		}
-		case 'alln': {
-			// Historical/non-standard: true if #true(children) <= max
-			const max = numAttr('max', kids.length);
-			return { kind: 'expr.allN', id, max, ops: kids.map((k) => buildExpression(k, options)) };
 		}
 		case 'sum': {
 			return { kind: 'expr.sum', id, values: kids.map((k) => buildExpression(k, options)) };

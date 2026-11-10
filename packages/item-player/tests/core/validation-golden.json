@@ -341,7 +341,7 @@
       },
       "qti30": "same as qti22"
     },
-    "isNull_isNotNull": {
+    "isNull_not": {
       "qti22": {
         "probes": {
           "(no responses)": {
@@ -391,7 +391,7 @@
               "issues": []
             }
           },
-          "present response is not null": {
+          "present response is not null (not(isNull))": {
             "engine": {
               "attempted": true,
               "entries": {
@@ -407,9 +407,7 @@
           }
         }
       },
-      "qti30": {
-        "error": "Unknown processing expression tag: <isNotNull>"
-      }
+      "qti30": "same as qti22"
     },
     "mapResponse_bounds_default_duplicates": {
       "qti22": {
@@ -4356,7 +4354,7 @@
       },
       "qti30": "same as qti22"
     },
-    "responseProcessing_anyN_allN": {
+    "responseProcessing_anyN_bounds": {
       "qti22": {
         "probes": {
           "(no responses)": {
@@ -4433,9 +4431,7 @@
           }
         }
       },
-      "qti30": {
-        "error": "Unknown processing expression tag: <allN>"
-      }
+      "qti30": "same as qti22"
     },
     "responseProcessing_arithmetic_nulls": {
       "qti22": {
@@ -5764,7 +5760,7 @@
         "error": "Unknown processing expression tag: <sampleVariance>"
       }
     },
-    "responseProcessing_notEqual_basic": {
+    "responseProcessing_not_equal_basic": {
       "qti22": {
         "probes": {
           "(no responses)": {
@@ -5844,9 +5840,7 @@
           }
         }
       },
-      "qti30": {
-        "error": "Unknown processing expression tag: <notEqual>"
-      }
+      "qti30": "same as qti22"
     },
     "responseProcessing_null_conditions": {
       "qti22": {
