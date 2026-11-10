@@ -56,12 +56,17 @@
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import { joinSentences, translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
+	import type { InteractionProps } from '../../shared/utils/interactionProps';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import Icon from '../../shared/components/Icon.svelte';
+	import { ICON_CLOSE } from '../../shared/components/icons';
 	import ImageStage from '../../shared/components/ImageStage.svelte';
 	import { createKeyboardCrosshair } from '../../shared/components/keyboardCrosshair.svelte';
 	import DragHandle from '../../shared/components/DragHandle.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { isAtLimit } from '../../shared/utils/capacity';
+	import { choiceAccessibleName } from '../../shared/utils/choiceName';
+	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import { clientToImagePoint, imageAltText } from '../../shared/utils/graphicRegions';
@@ -73,15 +78,8 @@
 		y: number;
 	}
 
-	interface Props {
-		interaction?: PositionObjectInteractionData | string;
-		response?: string[] | null; // QTI format: array of "x y" strings
-		correctResponse?: string[] | null; // QTI format: array of "x y" strings
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
-		onChange?: (value: string[]) => void;
-	}
+	// The response and correct response are arrays of "x y" strings in natural image pixels.
+	type Props = InteractionProps<'positionObjectInteraction'>;
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 
@@ -179,7 +177,7 @@
 	// region that reports selection, movement, placement and refusals.
 	let selectedStageId: string | null = $state(null);
 	const crosshair = createKeyboardCrosshair();
-	let liveMessage = $state('');
+	const liveAnnouncer = createAnnouncer();
 
 	const canInteract = $derived(!disabled);
 	// The interaction's maxChoices: 0 means unlimited, as does anything but a positive number.
@@ -237,10 +235,13 @@
 	function stageName(stage: PositionObjectStage | undefined): string {
 		if (!stage) return '';
 		const index = parsedInteraction?.positionObjectStages.indexOf(stage) ?? -1;
-		return (
-			stage.label?.trim() ||
-			translate(i18n, 'interactions.positionObject.objectFallback', 'Object {index}', { index: index + 1 })
-		);
+		return choiceAccessibleName({
+			i18n,
+			label: stage.label,
+			position: index + 1,
+			// The interaction's own noun for an unnamed object ("Object 3").
+			fallback: { key: 'interactions.positionObject.objectFallback', text: 'Object {index}' },
+		});
 	}
 
 	function getStageUsageCount(id: string): number {
@@ -313,7 +314,7 @@
 				: translate(i18n, 'interactions.positionObject.objectLimitReached', 'Not possible: {object} cannot be placed again.', {
 						object: stageName(stage),
 					});
-		liveMessage = liveMessage === message ? `${message}\u200b` : message;
+		liveAnnouncer.announce(message);
 	}
 
 	function handleDragStart(event: DragEvent, stageId: string, existingIndex?: number) {
@@ -403,9 +404,11 @@
 		positions = positions.filter((_, i) => i !== index);
 		emitPositions();
 		if (removed) {
-			liveMessage = translate(i18n, 'interactions.positionObject.objectRemoved', '{object} removed.', {
-				object: stageName(getStageById(removed.stageId)),
-			});
+			liveAnnouncer.set(
+				translate(i18n, 'interactions.positionObject.objectRemoved', '{object} removed.', {
+					object: stageName(getStageById(removed.stageId)),
+				}),
+			);
 		}
 		// The removed object's button is gone, which would drop keyboard focus to the
 		// document. The canvas is the interaction's persistent surface (tabindex="-1"),
@@ -488,11 +491,13 @@
 			crosshair.centre();
 		}
 
-		liveMessage = translate(
-			i18n,
-			'interactions.positionObject.objectSelected',
-			'{object} selected. Tab to the canvas, then use the arrow keys to position it. Press Enter to place it or Escape to cancel.',
-			{ object: stageName(stage) },
+		liveAnnouncer.set(
+			translate(
+				i18n,
+				'interactions.positionObject.objectSelected',
+				'{object} selected. Tab to the canvas, then use the arrow keys to position it. Press Enter to place it or Escape to cancel.',
+				{ object: stageName(stage) },
+			),
 		);
 
 		// Move focus to the canvas so arrow keys work immediately
@@ -519,11 +524,13 @@
 			announcePlacementRefused(stage);
 			return;
 		}
-		liveMessage = translate(i18n, 'interactions.positionObject.objectPlacedAt', '{object} placed at {x}%, {y}%.', {
-			object: stageName(stage),
-			x: percent(x, imageWidth ?? 0),
-			y: percent(y, imageHeight ?? 0),
-		});
+		liveAnnouncer.set(
+			translate(i18n, 'interactions.positionObject.objectPlacedAt', '{object} placed at {x}%, {y}%.', {
+				object: stageName(stage),
+				x: percent(x, imageWidth ?? 0),
+				y: percent(y, imageHeight ?? 0),
+			}),
+		);
 		selectedStageId = null;
 		crosshair.deactivate();
 	}
@@ -567,17 +574,19 @@
 				event.preventDefault();
 				selectedStageId = null;
 				crosshair.deactivate();
-				liveMessage = translate(i18n, 'interactions.positionObject.placementCancelled', 'Placement cancelled.');
+				liveAnnouncer.set(translate(i18n, 'interactions.positionObject.placementCancelled', 'Placement cancelled.'));
 				return;
 			default:
 				return;
 		}
 
 		// Announce updated position after arrow movement
-		liveMessage = translate(i18n, 'accessibility.positionPercent', 'Position: {x}%, {y}%.', {
-			x: Math.round(crosshair.x * 100),
-			y: Math.round(crosshair.y * 100),
-		});
+		liveAnnouncer.set(
+			translate(i18n, 'accessibility.positionPercent', 'Position: {x}%, {y}%.', {
+				x: Math.round(crosshair.x * 100),
+				y: Math.round(crosshair.y * 100),
+			}),
+		);
 	}
 </script>
 
@@ -714,22 +723,7 @@
 											}}
 											aria-label={translate(i18n, 'interactions.positionObject.removeObject', 'Remove {object}', { object: stageName(stage) })}
 										>
-											<svg
-												xmlns="http://www.w3.org/2000/svg"
-												part="remove-icon"
-												class="qti-icon-xs h-3 w-3"
-												fill="none"
-												viewBox="0 0 24 24"
-												stroke="currentColor"
-												aria-hidden="true"
-											>
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M6 18L18 6M6 6l12 12"
-												/>
-											</svg>
+											<Icon d={ICON_CLOSE} part="remove-icon" class="qti-icon-xs h-3 w-3" stroke="currentColor" />
 										</button>
 									{/if}
 								</div>
@@ -920,7 +914,7 @@
 	{/if}
 
 	<!-- Visually-hidden live region for placement announcements (K-04) -->
-	<div aria-live="polite" aria-atomic="true" class="qti-po-sr-only">{liveMessage}</div>
+	<div aria-live="polite" aria-atomic="true" class="qti-po-sr-only">{liveAnnouncer.message}</div>
 </div>
 
 <style>
@@ -1104,16 +1098,4 @@
 		stroke-width: 2;
 	}
 
-	/* Visually hidden live region (K-04) */
-	.qti-po-sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
-	}
 </style>

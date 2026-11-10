@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { HotspotChoice, HotspotInteractionData } from '@pie-qti/item-player';
+	import type { InteractionProps } from '../../shared/utils/interactionProps';
 	import { tick } from 'svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
@@ -16,21 +17,11 @@
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { minimumHint } from '../../shared/utils/minimumRequirement';
 	import { hitStrokeWidth, imageAltText, regionMarkerPoint, type Point } from '../../shared/utils/graphicRegions';
+	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 
-	interface Props {
-		interaction?: HotspotInteractionData | string;
-		/** The chosen region's identifier (single selection), or the chosen regions' identifiers (multiple). */
-		response?: string | string[] | null;
-		correctResponse?: string | string[] | null;
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
-		/**
-		 * Called with the chosen region's identifier (single selection) or the chosen regions'
-		 * identifiers (multiple selection); null (single) or [] (multiple) when the answer is cleared.
-		 */
-		onChange?: (value: string | string[] | null) => void;
-	}
+	// The response is the chosen region's identifier (single selection), or the chosen
+	// regions' identifiers (multiple); null (single) or [] (multiple) when cleared.
+	type Props = InteractionProps<'hotspotInteraction'>;
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 
@@ -206,15 +197,11 @@
 	const showMaxMessage = $derived(isLimitMessageShown(selectedIds.length, maxChoices, parsedInteraction?.maxSelectionsMessage));
 
 	// Polite status messages (a refused selection) for the always-rendered live region.
-	let statusAnnouncement = $state('');
+	const statusAnnouncer = createAnnouncer();
 
-	/**
-	 * Put `message` in the live region. Announcing the same message again would leave the text
-	 * unchanged, which assistive technology does not announce, so a repeat toggles a trailing
-	 * zero-width space (silent to screen readers) to make it a change.
-	 */
+	/** Put `message` in the live region; the shared announcer keeps repeats announcing. */
 	function announce(message: string) {
-		statusAnnouncement = statusAnnouncement === message ? `${message}\u200b` : message;
+		statusAnnouncer.announce(message);
 	}
 
 	// The radio group is named by the prompt, else by a generic localized label.
@@ -328,7 +315,7 @@
 	<InteractionDescription interaction={parsedInteraction} />
 	<!-- Polite announcements (a refused selection). Always rendered, before any conditional
 	     content, so the region exists before its text changes. -->
-	<div aria-live="polite" aria-atomic="true" class="qti-hotspot-live-region">{statusAnnouncement}</div>
+	<div aria-live="polite" aria-atomic="true" class="qti-hotspot-live-region">{statusAnnouncer.message}</div>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -667,17 +654,5 @@
 		height: 100%;
 		/* halos, focus rings and grown hit areas may extend past the image edge */
 		overflow: visible;
-	}
-	.qti-hotspot-sr-only,
-	.qti-hotspot-live-region {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
 	}
 </style>

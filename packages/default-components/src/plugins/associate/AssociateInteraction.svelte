@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { AssociateInteractionData, HtmlContent } from '@pie-qti/item-player';
+	import type { InteractionProps } from '../../shared/utils/interactionProps';
 	import { tick } from 'svelte';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { formatList, joinSentences, translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
@@ -10,6 +11,7 @@
 	import { exceedsLimit, isAtLimit, isLimited } from '../../shared/utils/capacity';
 	import { accessibleTextFromHtml } from '../../shared/utils/accessibleText.js';
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
+	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 	import { matchGroupBlockedIds } from '../../shared/utils/matchGroupUtils';
 	import { countPairsWithId, hasUnorderedPair, pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
@@ -17,16 +19,9 @@
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { describedByIds, choicesShortOfMatchMin, minimumHint } from '../../shared/utils/minimumRequirement';
 
-	interface Props {
-		interaction?: AssociateInteractionData | string;
-		response?: string[] | null;
-		correctResponse?: string[] | null;
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
+	interface Props extends InteractionProps<'associateInteraction'> {
 		selectedForPairing?: string | null;
 		onSelectionChange?: (selected: string | null) => void;
-		onChange?: (value: string[]) => void;
 	}
 
 	let {
@@ -60,17 +55,12 @@
 
 	// Polite announcements of pair removals and refused pairings, for the screen-reader
 	// live region below.
-	let statusAnnouncement = $state('');
+	const statusAnnouncer = createAnnouncer();
 
-	/**
-	 * Put `message` in the live region. Announcing the same message again would leave the
-	 * text unchanged, which assistive technology does not announce, so a repeated message
-	 * toggles a trailing zero-width space (silent to screen readers) to make it a change.
-	 */
+	/** Announce through the polite live region; the shared announcer keeps repeats announcing. */
 	function announce(message: string) {
-		statusAnnouncement = statusAnnouncement === message ? `${message}\u200b` : message;
+		statusAnnouncer.announce(message);
 	}
-
 	// Use external selection state if provided, otherwise use internal state
 	let internalSelectedForPairing = $state<string | null>(null);
 	const selectedForPairing = $derived(externalSelectedForPairing ?? internalSelectedForPairing);
@@ -97,10 +87,11 @@
 			key: 'interactions.associate.minAssociationsHint',
 			fallback: { one: 'Make at least {count} association.', other: 'Make at least {count} associations.' },
 		});
+		// No QTI version defines a selections message on associateInteraction, so the hint is
+		// always the localized text.
 		const shortChoices = choicesShortOfMatchMin(parsedInteraction.choices, pairs);
 		if (!fewerAssociations && shortChoices.length === 0) return '';
 		return (
-			parsedInteraction.minSelectionsMessage?.trim() ||
 			joinSentences(
 				fewerAssociations,
 				shortChoices.length > 0 &&
@@ -317,7 +308,7 @@
 <div bind:this={rootElement} {...interactionAria(parsedInteraction)} part="root" class="qti-associate-interaction space-y-3">
 	<InteractionDescription interaction={parsedInteraction} />
 	<!-- Polite announcements (pair removal, refused pairing) that survive the changed/focused controls themselves. -->
-	<div aria-live="polite" aria-atomic="true" class="qti-associate-live-region">{statusAnnouncement}</div>
+	<div aria-live="polite" aria-atomic="true" class="qti-associate-live-region">{statusAnnouncer.message}</div>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
@@ -538,17 +529,5 @@
 	.qti-associate-helper {
 		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		background: var(--pie-qti-base-200, oklch(98% 0 0));
-	}
-	/* Visually hidden live region, self-contained so it hides without Tailwind. */
-	.qti-associate-live-region {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
 	}
 </style>

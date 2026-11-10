@@ -222,4 +222,45 @@ describe('endAttemptInteraction in assessment delivery', () => {
 		expect(finalSession?.numAttempts).toBe(1);
 		expect(finalSession?.lifecycleStatus).toBe('closed');
 	});
+
+	it('a hint after a counted check on a reopened item leaves the item session open', async () => {
+		// The item's response processing marks completionStatus=completed for the correct
+		// answer, so a hint on that answer runs response processing into "completed". The
+		// hint consumed no attempt, so the session must be as open as it was before it.
+		const item1 = {
+			...endAttemptItem('item-1', { countAttempt: false }),
+			itemSessionControl: { showFeedback: true, maxAttempts: 3 },
+		};
+		const { player, submissions } = await fixture('individual', [
+			item1,
+			endAttemptItem('item-2', { countAttempt: false }),
+		]);
+		player.updateResponse('RESPONSE', 'B');
+		await player.next();
+		expect(player.getNavigationState().currentIndex).toBe(1);
+
+		// Back to the submitted item: it reopens attemptable (two attempts remain).
+		await player.navigateTo(0);
+		expect(player.getItemSessionInfo()).toMatchObject({ attemptCount: 1, remainingAttempts: 2 });
+
+		// A counted check on the reopened item: attempt 2, then it reopens writable again.
+		await player.checkCurrentItem();
+		expect(player.getNavigationState().currentIndex).toBe(0);
+		expect(player.getItemSessionInfo()).toMatchObject({ attemptCount: 2, remainingAttempts: 1 });
+		expect(player.getCurrentItemSession()?.state().lifecycleStatus).toBe('interacting');
+
+		// The hint submits uncounted and must leave the session as open as it was.
+		player.updateResponse('END', true);
+		await waitFor(() => submissions.length === 3 && !player.isBusy(), 'the hint submission');
+		expect(submissions[2]).toMatchObject({ itemIdentifier: 'item-1', countAttempt: false });
+		expect(player.getCurrentItemSession()?.state().lifecycleStatus).toBe('interacting');
+		expect(player.getItemSessionInfo()).toMatchObject({ attemptCount: 2, remainingAttempts: 1 });
+
+		// The candidate can still answer: change the response and submit a counted attempt.
+		player.updateResponse('RESPONSE', 'A');
+		await player.checkCurrentItem();
+		expect(submissions.map((s) => s.itemIdentifier)).toEqual(['item-1', 'item-1', 'item-1', 'item-1']);
+		expect(submissions[3]).toMatchObject({ countAttempt: true, responses: { RESPONSE: 'A' } });
+		expect(player.getItemSessionInfo()).toMatchObject({ attemptCount: 3, remainingAttempts: 0 });
+	});
 });

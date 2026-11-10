@@ -70,9 +70,11 @@ test.describe('section toolkit locale', () => {
 		expect(fetchedToolkitCatalog(requests, 'th-TH')).toBe(false);
 		// The section's own labels never leak a raw i18n key: the host provider here
 		// answers a lookup it has no default for with the key itself, and the passage
-		// toggle composes its name from heading plus verb, which once read
-		// "Passage — assessment.collapsePassage".
-		await expect(page.getByRole('button', { name: /^Passage — (Collapse|Expand) passage$/ }).first()).toBeVisible();
+		// toggle takes its name from the heading, which would read
+		// "sectionPlayer.passage" as the name.
+		const toggle = page.getByRole('button', { name: 'Passage', exact: true }).first();
+		await expect(toggle).toBeVisible();
+		await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 	});
 
 	test('a regional Spanish interface renders the toolkit from the Spanish catalog', async ({ page }) => {

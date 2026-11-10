@@ -113,13 +113,10 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 		const minAssociationsRaw = utils.getNumberAttribute(element, 'minAssociations', 0);
 		const minAssociations = minAssociationsRaw > 0 ? minAssociationsRaw : undefined;
 		const interactionClasses = utils.getClasses(element);
-		const maxSelectionsMessage = utils.getAttribute(element, 'data-qti-max-selections-message', '') || null;
-		// QTI 3.0 names it data-min-selections-message, as on the other interactions.
-		const minSelectionsMessage =
-			utils.getAttribute(element, 'data-qti-min-selections-message', '') ||
-			utils.getAttribute(element, 'data-min-selections-message', '') ||
-			null;
-		const firstColumnHeader = utils.getAttribute(element, 'data-qti-first-column-header', '') || null;
+		// QTI 3.0 defines both messages on matchInteraction under these spec names; no QTI
+		// version defines a data-qti- spelling, so none is read.
+		const maxSelectionsMessage = utils.getAttribute(element, 'data-max-selections-message', '') || null;
+		const minSelectionsMessage = utils.getAttribute(element, 'data-min-selections-message', '') || null;
 
 		// Extract prompt (optional)
 		const promptElements = utils.getChildrenByTag(element, 'prompt');
@@ -135,7 +132,6 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 			...(interactionClasses.length > 0 ? { interactionClasses } : {}),
 			...(maxSelectionsMessage ? { maxSelectionsMessage } : {}),
 			...(minSelectionsMessage ? { minSelectionsMessage } : {}),
-			...(firstColumnHeader ? { firstColumnHeader } : {}),
 		};
 	},
 

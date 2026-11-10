@@ -109,6 +109,7 @@ None against the specification. G-03 (`format`) and G-04 (`patternMask`) are res
 | `responseIdentifier` | ✅ Full | Extracted as `responseId` |
 | `shuffle` | ✅ Full | Shuffles `choices` at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads |
 | `required` | ✅ Full | When `true`, "a choice must be selected by the candidate in order to form a valid response" (QTI 2.1; QTI 3.0 §5.74.2). Delivered as `minChoices: 1`, so response validation reports an unanswered dropdown incomplete. QTI 3.0 `min-choices` (§5.74.3) is read into the same field |
+| `data-min-selections-message` | ✅ Full | QTI 3.0 (Table on `qti-inline-choice-interaction`, the only selections message its element defines). Delivered as `minSelectionsMessage` and stated in the dropdown's description (`aria-describedby`), since an inline dropdown has no refusal of its own to attach it to. |
 
 #### Supported child elements and their attributes
 

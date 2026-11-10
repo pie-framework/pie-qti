@@ -14,7 +14,9 @@ import type {
 	MatchInteractionData,
 } from '@pie-qti/item-player';
 import { afterEach, describe, expect, test } from 'vitest';
+import AssociateInteraction from '../../src/plugins/associate/AssociateInteraction.svelte';
 import ChoiceInteraction from '../../src/plugins/choice/ChoiceInteraction.svelte';
+import GraphicOrderInteraction from '../../src/plugins/graphic-order/GraphicOrderInteraction.svelte';
 import HotspotInteraction from '../../src/plugins/hotspot/HotspotInteraction.svelte';
 import HottextInteraction from '../../src/plugins/hottext/HottextInteraction.svelte';
 import MatchInteraction from '../../src/plugins/match/MatchInteraction.svelte';
@@ -203,6 +205,141 @@ describe('match: limit message and source capacity', () => {
 		await settle();
 		expect(q(mounted, '[data-source-id="paris"]')?.getAttribute('draggable')).toBe('false');
 		expect(q(mounted, '[data-source-id="rome"]')?.getAttribute('draggable')).toBe('true');
+		cleanupInteraction(mounted);
+	});
+});
+
+/**
+ * The authored selection messages the QTI 3.0 elements define, end to end: real QTI through
+ * the extractors delivers the field under its spec name, and the component states it where the
+ * refusal or minimum shows. Interactions whose element defines no message (associate, graphic
+ * order) state their localized text even when the attribute is authored.
+ */
+import type { OrderInteractionData } from '@pie-qti/item-player';
+import OrderInteraction from '../../src/plugins/order/OrderInteraction.svelte';
+import { createAssessmentItemDefinition } from '@pie-qti/item-player';
+
+const QTI22 = 'http://www.imsglobal.org/xsd/imsqti_v2p2';
+const IMAGE = '<object type="image/png" data="i.png" width="400" height="100"/>';
+
+function delivered(declaration: string, body: string): Record<string, any> {
+	const itemXml = `<assessmentItem xmlns="${QTI22}" identifier="messages" adaptive="false" timeDependent="false">
+		<responseDeclaration identifier="RESPONSE" ${declaration}/>
+		<itemBody>${body}</itemBody>
+	</assessmentItem>`;
+	const session = createAssessmentItemDefinition({ itemXml }).openSession();
+	try {
+		const node = session.present().flow.find((entry) => entry.kind === 'interaction');
+		if (!node || node.kind !== 'interaction') throw new Error('no interaction delivered');
+		return node.mount.interaction as Record<string, any>;
+	} finally {
+		session.dispose();
+	}
+}
+
+describe('authored selection messages, end to end', () => {
+	test('order: the authored cap message is announced when an add is refused', async () => {
+		const interaction = delivered(
+			'cardinality="ordered" baseType="identifier"',
+			'<orderInteraction responseIdentifier="RESPONSE" minChoices="1" maxChoices="2" data-max-selections-message="Two stops at most."><simpleChoice identifier="C1">One</simpleChoice><simpleChoice identifier="C2">Two</simpleChoice><simpleChoice identifier="C3">Three</simpleChoice></orderInteraction>',
+		);
+		expect(interaction.maxSelectionsMessage).toBe('Two stops at most.');
+		const mounted = mountInteraction(OrderInteraction, { interaction });
+		await settle();
+		const add = (id: string) =>
+			q<HTMLButtonElement>(mounted, `button[part="pool-add"][data-id="${id}"]`)!.click();
+		add('C1');
+		await settle();
+		add('C2');
+		await settle();
+		expect(mounted.instance.response).toEqual(['C1', 'C2']);
+
+		add('C3');
+		await settle();
+		expect(mounted.instance.response).toEqual(['C1', 'C2']);
+		expect(mounted.host.querySelector('[data-subset-live]')?.textContent).toContain('Two stops at most.');
+		cleanupInteraction(mounted);
+	});
+
+	test('order: without an authored message the localized cap refusal shows', async () => {
+		const interaction = delivered(
+			'cardinality="ordered" baseType="identifier"',
+			'<orderInteraction responseIdentifier="RESPONSE" minChoices="1" maxChoices="2"><simpleChoice identifier="C1">One</simpleChoice><simpleChoice identifier="C2">Two</simpleChoice><simpleChoice identifier="C3">Three</simpleChoice></orderInteraction>',
+		);
+		expect(interaction).not.toHaveProperty('maxSelectionsMessage');
+		const mounted = mountInteraction(OrderInteraction, { interaction });
+		await settle();
+		for (const id of ['C1', 'C2', 'C3']) {
+			q<HTMLButtonElement>(mounted, `button[part="pool-add"][data-id="${id}"]`)!.click();
+			await settle();
+		}
+		expect(mounted.host.querySelector('[data-subset-live]')?.textContent).toContain(
+			'Your order can hold up to 2 items. Remove one to add another.',
+		);
+		cleanupInteraction(mounted);
+	});
+
+	test('match: the spec attribute name states the authored message at maxAssociations', async () => {
+		const interaction = delivered(
+			'cardinality="multiple" baseType="directedPair"',
+			'<matchInteraction responseIdentifier="RESPONSE" maxAssociations="1" data-max-selections-message="One match only."><simpleMatchSet><simpleAssociableChoice identifier="S" matchMax="1">s</simpleAssociableChoice></simpleMatchSet><simpleMatchSet><simpleAssociableChoice identifier="T" matchMax="1">t</simpleAssociableChoice></simpleMatchSet></matchInteraction>',
+		);
+		expect(interaction.maxSelectionsMessage).toBe('One match only.');
+		const mounted = mountInteraction(MatchInteraction, { interaction, response: ['S T'] });
+		await settle();
+		expect(q(mounted, '.qti-selection-message')?.textContent?.trim()).toBe('One match only.');
+		cleanupInteraction(mounted);
+	});
+
+	test('hottext: the authored minimum message states the badge', async () => {
+		const interaction = delivered(
+			'cardinality="multiple" baseType="identifier"',
+			'<hottextInteraction responseIdentifier="RESPONSE" maxChoices="2" minChoices="2" data-min-selections-message="Pick both names."><p><hottext identifier="A">a</hottext> <hottext identifier="B">b</hottext></p></hottextInteraction>',
+		);
+		expect(interaction.minSelectionsMessage).toBe('Pick both names.');
+		const mounted = mountInteraction(HottextInteraction, { interaction });
+		await settle();
+		// The unmet-minimum badge states the authored message instead of the localized
+		// "Select at least 2", before and between selections.
+		const footer = () => q(mounted, '.qti-hottext-footer')?.textContent ?? '';
+		expect(footer()).toContain('Pick both names.');
+		expect(footer()).not.toContain('Select at least 2');
+		qa<HTMLElement>(mounted, 'hottext')[0]!.click();
+		await settle();
+		expect(footer()).toContain('Pick both names.');
+		qa<HTMLElement>(mounted, 'hottext')[1]!.click();
+		await settle();
+		expect(footer()).not.toContain('Pick both names.');
+		expect(footer()).toContain('Minimum met');
+		cleanupInteraction(mounted);
+	});
+
+	test('associate: no message is stated from an attribute its element does not define', async () => {
+		const interaction = delivered(
+			'cardinality="multiple" baseType="pair"',
+			'<associateInteraction responseIdentifier="RESPONSE" minAssociations="2" data-min-selections-message="Make two pairs."><simpleAssociableChoice identifier="A" matchMax="1">a</simpleAssociableChoice><simpleAssociableChoice identifier="B" matchMax="1">b</simpleAssociableChoice><simpleAssociableChoice identifier="C" matchMax="1">c</simpleAssociableChoice></associateInteraction>',
+		);
+		expect(interaction).not.toHaveProperty('minSelectionsMessage');
+		const mounted = mountInteraction(AssociateInteraction, { interaction });
+		await settle();
+		// The localized minimum hint states the requirement, not the authored text.
+		expect(q(mounted, '[part="min-hint"]')?.textContent).toBe('Make at least 2 associations.');
+		cleanupInteraction(mounted);
+	});
+
+	test('graphic order: no message is stated from an attribute its element does not define', async () => {
+		const interaction = delivered(
+			'cardinality="ordered" baseType="identifier"',
+			`<graphicOrderInteraction responseIdentifier="RESPONSE" minChoices="2" data-min-selections-message="Order two stops.">${IMAGE}<hotspotChoice identifier="H1" shape="rect" coords="0,0,90,90"/><hotspotChoice identifier="H2" shape="rect" coords="100,0,190,90"/><hotspotChoice identifier="H3" shape="rect" coords="200,0,290,90"/></graphicOrderInteraction>`,
+		);
+		expect(interaction).not.toHaveProperty('minSelectionsMessage');
+		const mounted = mountInteraction(GraphicOrderInteraction, { interaction });
+		await settle();
+		// Two of three hotspots makes it a subset order, whose hint names the range;
+		// either way the localized text states the requirement, not the authored one.
+		expect(q(mounted, '[part="min-hint"]')?.textContent).toBe(
+			'Choose between 2 and 3 items and put them in order.',
+		);
 		cleanupInteraction(mounted);
 	});
 });

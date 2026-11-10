@@ -11,6 +11,8 @@
 	 * rendered, so it exists before its text changes and never re-reads the interaction's other
 	 * announcements (pick-up, placement, removal) with it.
 	 */
+	import '../styles/srOnly.js';
+
 	interface Props {
 		/** Id of the visible hint, for the answer group's `aria-describedby`. */
 		id: string;
@@ -58,16 +60,4 @@
 		color: var(--pie-qti-warning-text, #92400e);
 	}
 
-	/* Visually hidden, self-contained so it hides without Tailwind. */
-	.qti-min-hint-live {
-		position: absolute;
-		inline-size: 1px;
-		block-size: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
-	}
 </style>

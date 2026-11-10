@@ -12,10 +12,13 @@
 	import { tick, type Snippet } from 'svelte';
 	import { translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
 	import type { HtmlContent } from '@pie-qti/item-player';
+	import { limitMessage } from '../utils/capacity.js';
 	import { accessibleTextFromHtml } from '../utils/accessibleText.js';
+	import { choiceAccessibleName } from '../utils/choiceName.js';
+	import { createAnnouncer } from '../utils/announcer.svelte';
 	import { describedByIds } from '../utils/minimumRequirement.js';
 	import SortableList, { type SortableIndexLabels } from './SortableList.svelte';
-	import '../styles/shared.css';
+	import '../styles/srOnly.js';
 
 	interface Item {
 		id: string;
@@ -29,6 +32,11 @@
 		orderedIds: string[];
 		/** The most items the order may hold; adding past it is refused and announced. */
 		maxOrdered: number;
+		/**
+		 * The author's `data-max-selections-message` (QTI 3.0 orderInteraction), which states
+		 * the cap refusal instead of the localized default.
+		 */
+		capMessage?: string | null;
 		disabled?: boolean;
 		i18n?: I18nProvider;
 		/** Position badge style, from the interaction's `qti-labels-*` class. */
@@ -50,6 +58,7 @@
 		items,
 		orderedIds,
 		maxOrdered,
+		capMessage = null,
 		disabled = false,
 		i18n,
 		indexLabels = 'decimal',
@@ -68,7 +77,7 @@
 	const correctLabelId = `${uid}-correct-label`;
 
 	let root: HTMLDivElement | undefined = $state();
-	let announcement = $state('');
+	const announcer = createAnnouncer();
 
 	const ordered = $derived(new Set(orderedIds));
 	const poolItems = $derived(items.filter((item) => !ordered.has(item.id)));
@@ -81,17 +90,18 @@
 
 	function itemLabel(item: Item | undefined): string {
 		// Image alt and MathML alttext participate, matching the sortable rows' names.
-		return (item && accessibleTextFromHtml(item.text)) || translate(i18n, 'interactions.order.itemFallback', 'Item');
+		// A choice with nothing to read is named by its presented position ("Choice 3"),
+		// never by its identifier.
+		return choiceAccessibleName({
+			i18n,
+			label: item ? accessibleTextFromHtml(item.text) : '',
+			position: item ? items.indexOf(item) + 1 : 0,
+		});
 	}
 
-	/**
-	 * Announce through the polite region. Repeating the same refused attempt would leave the
-	 * live text unchanged, which assistive technology does not announce, so a repeat toggles a
-	 * trailing zero-width space (silent to screen readers) — the re-announce toggle of
-	 * MatchDragDrop's `announceRefusal` and PositionObjectInteraction's `announcePlacementRefused`.
-	 */
+	/** Announce through the polite region; the shared announcer keeps repeats announcing. */
 	function announce(message: string) {
-		announcement = announcement === message ? `${message}\u200b` : message;
+		announcer.announce(message);
 	}
 
 	/** Move keyboard focus to `id`'s control in a zone once Svelte has applied the change. */
@@ -105,17 +115,21 @@
 	function add(id: string) {
 		if (disabled || ordered.has(id)) return;
 		if (atCap) {
-			// Refused, never silent (WCAG 3.3.1 / 4.1.3): the cap is named.
+			// Refused, never silent (WCAG 3.3.1 / 4.1.3): the cap is named — the author's
+			// data-max-selections-message when authored, else the localized default.
 			announce(
-				translatePlural(
-					i18n,
-					'interactions.order.orderLimitReached',
-					{
-						one: 'Your order can hold {max} item. Remove it to add another.',
-						other: 'Your order can hold up to {max} items. Remove one to add another.',
-					},
-					maxOrdered,
-					{ max: maxOrdered },
+				limitMessage(
+					capMessage,
+					translatePlural(
+						i18n,
+						'interactions.order.orderLimitReached',
+						{
+							one: 'Your order can hold {max} item. Remove it to add another.',
+							other: 'Your order can hold up to {max} items. Remove one to add another.',
+						},
+						maxOrdered,
+						{ max: maxOrdered },
+					),
 				),
 			);
 			return;
@@ -148,7 +162,7 @@
 
 <div bind:this={root} part="subset" class="qti-order-subset" data-subset-mode="true">
 	<!-- Add, remove and refusal announcements; moves are announced by the SortableList itself. -->
-	<div aria-live="polite" aria-atomic="true" class="qti-subset-live" data-subset-live>{announcement}</div>
+	<div aria-live="polite" aria-atomic="true" class="qti-subset-live" data-subset-live>{announcer.message}</div>
 
 	<div part="ordered-zone" class="qti-subset-zone">
 		<p id={orderLabelId} part="ordered-label" class="qti-subset-label">
@@ -246,18 +260,6 @@
 {/snippet}
 
 <style>
-	/* Visually hidden live region, self-contained so it hides without Tailwind. */
-	.qti-subset-live {
-		position: absolute;
-		inline-size: 1px;
-		block-size: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
-	}
 
 	/* minmax(0, 1fr): the track never grows to a row's min-content, so nothing overflows. */
 	.qti-order-subset {

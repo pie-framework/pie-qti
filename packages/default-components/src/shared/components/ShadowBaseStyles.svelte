@@ -10,6 +10,31 @@
   - Intentionally minimal: interaction components may still add their own layout CSS.
 -->
 
+<script lang="ts">
+	import { onMount } from 'svelte';
+	// The one visually hidden rule (shared/styles/srOnly.ts). In a shadow root it is
+	// injected here — document styles do not pierce the boundary; in light DOM the
+	// module's document injection already covers it.
+	import { SR_ONLY_RULE, ensureSrOnlyStyles } from '../styles/srOnly.js';
+
+	let root: HTMLDivElement | undefined = $state();
+
+	onMount(() => {
+		const scope = root?.getRootNode();
+		if (!(scope instanceof ShadowRoot)) {
+			ensureSrOnlyStyles();
+			return;
+		}
+		if (scope.querySelector('style[data-sr-only-source]')) return;
+		const style = document.createElement('style');
+		style.setAttribute('data-sr-only-source', 'pie-qti-shadow');
+		style.textContent = SR_ONLY_RULE;
+		scope.appendChild(style);
+	});
+</script>
+
+<div bind:this={root} hidden aria-hidden="true"></div>
+
 <style>
 	/* KaTeX CSS is provided by host app bundles (avoid runtime @import 404s in nested routes). */
 
@@ -399,18 +424,6 @@
 	:global(.stroke-current) {
 		stroke: currentColor;
 	}
-	:global(.sr-only) {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border-width: 0;
-	}
-
 	/* Form inputs */
 	:global(.file-input) {
 		border-radius: 0.6rem;

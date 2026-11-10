@@ -27,4 +27,15 @@ describe('choiceAccessibleName', () => {
 	test('whitespace-only content counts as content-less', () => {
 		expect(choiceAccessibleName({ i18n: undefined, label: '   ', position: 4 })).toBe('Choice 4');
 	});
+
+	test('an interaction can keep its own localized noun for the ordinal fallback', () => {
+		expect(
+			choiceAccessibleName({
+				i18n: undefined,
+				label: '',
+				position: 2,
+				fallback: { key: 'interactions.graphicAssociate.unlabeledHotspot', text: 'Region {index}' },
+			}),
+		).toBe('Region 2');
+	});
 });

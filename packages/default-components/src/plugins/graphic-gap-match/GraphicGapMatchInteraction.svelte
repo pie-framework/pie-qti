@@ -15,6 +15,7 @@ import ImageStage from '../../shared/components/ImageStage.svelte';
 import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
 	import { normalizeCssPixelLength } from '@pie-qti/item-player/security';
 	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
+	import type { InteractionProps } from '../../shared/utils/interactionProps';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { exceedsLimit, limitMessage } from '../../shared/utils/capacity';
 	import { isCompatibleMatchGroup, matchGroupBlockedIds } from '../../shared/utils/matchGroupUtils';
@@ -22,6 +23,7 @@ import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { createPickUpPlace } from '../../shared/components/pickUpPlace.svelte';
+	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import { choicesShortOfMatchMin } from '../../shared/utils/minimumRequirement';
 	import {
 		getSourceForTarget,
@@ -31,18 +33,10 @@ import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
 	} from '../../shared/utils/pairHelpers';
 import { hitStrokeWidth, imageAltText, shapeCenter } from '../../shared/utils/graphicRegions';
 
-import '../../shared/styles/shared.css';
+import '../../shared/styles/srOnly.js';
 import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 
-interface Props {
-	interaction?: GraphicGapMatchInteractionData | string;
-	response?: string | string[] | null;
-	correctResponse?: string[] | null;
-	disabled?: boolean;
-	role?: string;
-	i18n?: I18nProvider;
-	onChange?: (value: string[]) => void;
-}
+	type Props = InteractionProps<'graphicGapMatchInteraction', string | string[] | null, string[] | null>;
 
 let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 
@@ -305,21 +299,39 @@ function placeLabel(labelId: string, hotspotId: string): boolean {
 	}
 
 /**
+ * Each palette label's 1-based position in the order the candidate sees:
+ * gap texts first, then gap images, as the palette renders them.
+ */
+const labelPositions = $derived.by(() => {
+	const positions = new Map<string, number>();
+	if (!parsedInteraction) return positions;
+	let position = 0;
+	for (const label of [...parsedInteraction.gapTexts, ...(parsedInteraction.gapImages ?? [])]) {
+		position += 1;
+		positions.set(label.identifier, position);
+	}
+	return positions;
+});
+
+/**
  * Resolve a human-readable name for a label by identifier: a gap text's text,
- * a gap image's alternative text, else a localized generic name — never the
- * identifier, which can reveal the answer key.
+ * a gap image's alternative text, else the localized ordinal of its palette
+ * position ("Choice 3" — the same fallback the text gap-match interaction
+ * uses) — never the identifier, which can reveal the answer key.
  */
 function getLabelName(labelId: string): string {
-	if (!parsedInteraction) return labelFallback();
-	const text = parsedInteraction.gapTexts.find((g) => g.identifier === labelId);
-	if (text) return text.text;
-	const img = (parsedInteraction.gapImages ?? []).find((g) => g.identifier === labelId);
-	if (img) return img.alt?.trim() || labelFallback();
-	return labelFallback();
+	return choiceAccessibleName({
+		i18n,
+		label: labelContent(labelId),
+		position: labelPositions.get(labelId) ?? 0,
+	});
 }
 
-function labelFallback(): string {
-	return translate(i18n, 'interactions.graphicGapMatch.labelFallback', 'Label');
+function labelContent(labelId: string): string {
+	const text = parsedInteraction?.gapTexts.find((g) => g.identifier === labelId);
+	if (text) return text.text;
+	const img = (parsedInteraction?.gapImages ?? []).find((g) => g.identifier === labelId);
+	return img?.alt ?? '';
 }
 
 function cancelledMessage(): string {

@@ -1,4 +1,5 @@
 import type { MediaElement, MediaElementSource, MediaElementTrack } from '@pie-qti/item-player';
+import { isAtLimit } from '../../shared/utils/capacity';
 
 /**
  * Playback helpers for the media interaction.
@@ -30,9 +31,9 @@ export function normalizePlayLimit(value: unknown): number {
 	return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
 }
 
-/** Whether another play may start under `maxPlays` (0 means unlimited). */
+/** Whether another play may start under `maxPlays`: only a positive limit restricts, so 0 and a non-numeric limit are unlimited. */
 export function canStartPlay(playCount: number, maxPlays: number): boolean {
-	return maxPlays <= 0 || playCount < maxPlays;
+	return !isAtLimit(playCount, maxPlays);
 }
 
 /** Plays still available under `maxPlays`; `null` when plays are unlimited. */

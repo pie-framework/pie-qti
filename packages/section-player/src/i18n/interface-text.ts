@@ -6,8 +6,8 @@ import { type I18nProvider, translate } from '@pie-qti/i18n';
  *
  * `translate` covers a provider that hands the default back. The `I18nProvider` contract
  * also lets a provider answer a key it cannot serve with the key itself, and a section
- * renders under whatever provider its host composes. Composed into a name, that key would
- * read as text ("Passage — assessment.collapsePassage"). A key is never a translation, so
+ * renders under whatever provider its host composes. Rendered as a label, that key would
+ * read as text (a passage headed "sectionPlayer.passage"). A key is never a translation, so
  * it counts as a miss here too, as it already does for `translatePlural`.
  */
 export function interfaceText(

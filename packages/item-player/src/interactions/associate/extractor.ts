@@ -75,7 +75,6 @@ export const standardAssociateExtractor: ElementExtractor<AssociateData> = {
 		const shuffle = utils.getBooleanAttribute(element, 'shuffle');
 		const maxAssociations = utils.getNumberAttribute(element, 'maxAssociations', 1);
 		const minAssociations = utils.getNumberAttribute(element, 'minAssociations', 0);
-		const minSelectionsMessage = utils.getAttribute(element, 'data-min-selections-message', '') || null;
 
 		// Extract prompt (optional)
 		const promptElements = utils.getChildrenByTag(element, 'prompt');
@@ -87,7 +86,6 @@ export const standardAssociateExtractor: ElementExtractor<AssociateData> = {
 			maxAssociations,
 			...(minAssociations > 0 ? { minAssociations } : {}),
 			prompt,
-			...(minSelectionsMessage ? { minSelectionsMessage } : {}),
 		};
 	},
 

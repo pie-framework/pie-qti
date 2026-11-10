@@ -2,12 +2,16 @@
 
 <script lang="ts">
 	import type { MediaInteractionData } from '@pie-qti/item-player';
+	import type { ResponseOnlyInteractionProps } from '../../shared/utils/interactionProps';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { joinSentences, translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import Icon from '../../shared/components/Icon.svelte';
+	import { ICON_INFO } from '../../shared/components/icons';
 	import { parseJsonProp, responseProp } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 	import {
 		canStartPlay,
 		defaultTextTrackIndex,
@@ -21,13 +25,7 @@
 		selectableTextTracks,
 	} from './mediaPlayback';
 
-	interface Props {
-		interaction?: MediaInteractionData | string;
-		response?: number | null;
-		disabled?: boolean;
-		i18n?: I18nProvider;
-		onChange?: (value: number) => void;
-	}
+	type Props = ResponseOnlyInteractionProps<'mediaInteraction'>;
 
 	let { interaction = $bindable(), response = $bindable(), disabled = false, i18n = $bindable(), onChange }: Props = $props();
 
@@ -53,8 +51,7 @@
 	let currentTime = $state(0);
 	let duration = $state(Number.NaN);
 	let selectedTrack: string | undefined = $state();
-	let liveMessage = $state('');
-	let liveToggle = false;
+	const liveAnnouncer = createAnnouncer();
 
 	const media = $derived(parsedInteraction?.mediaElement);
 	const isPlayable = $derived(media?.type === 'audio' || media?.type === 'video');
@@ -91,8 +88,7 @@
 
 	/** Announce through the polite live region; a repeat still changes the DOM. */
 	function announce(message: string) {
-		liveToggle = !liveToggle;
-		liveMessage = liveToggle ? message : `${message}\u00A0`;
+		liveAnnouncer.announce(message);
 	}
 
 	function countPlay() {
@@ -441,27 +437,12 @@
 
 		{#if showLimitNotice}
 			<div id={limitNoticeId} class="alert alert-info" part="limit">
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					fill="none"
-					viewBox="0 0 24 24"
-					part="limit-icon"
-					class="qti-icon stroke-current shrink-0 w-6 h-6"
-					aria-hidden="true"
-					focusable="false"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-					></path>
-				</svg>
+				<Icon d={ICON_INFO} part="limit-icon" class="qti-icon stroke-current shrink-0 w-6 h-6" focusable="false" />
 				<span>{limitMessage}</span>
 			</div>
 		{/if}
 
-		<div class="sr-only" part="announcer" role="status" aria-live="polite" aria-atomic="true">{liveMessage}</div>
+		<div class="sr-only" part="announcer" role="status" aria-live="polite" aria-atomic="true">{liveAnnouncer.message}</div>
 	{/if}
 </div>
 

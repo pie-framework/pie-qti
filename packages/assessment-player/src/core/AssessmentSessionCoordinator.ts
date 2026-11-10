@@ -76,6 +76,7 @@ export class AssessmentSessionCoordinator {
 			itemComments: this.#state.itemComments ? { ...this.#state.itemComments } : undefined,
 			itemFlags: this.#state.itemFlags ? { ...this.#state.itemFlags } : undefined,
 			branchDecisions: this.#state.branchDecisions ? { ...this.#state.branchDecisions } : undefined,
+			testOutcomes: this.#state.testOutcomes ? { ...this.#state.testOutcomes } : undefined,
 			timing: {
 				...this.#state.timing,
 				itemTimes: { ...this.#state.timing.itemTimes },
@@ -169,6 +170,10 @@ export class AssessmentSessionCoordinator {
 		// branch decision is `nextItemIdentifier`), never through a backend state update,
 		// whose position may be stale — or already overtaken by a scope expiry's move.
 		const currentItemIdentifier = this.#state.currentItemIdentifier;
+		// The test outcomes the client already mirrored into its state survive a backend
+		// snapshot that does not carry the field; a snapshot that does wins (its values are
+		// the fresher outcome processing's).
+		const testOutcomes = updatedState.testOutcomes ?? this.#state.testOutcomes;
 		this.restoreState(updatedState);
 		this.#state.currentItemIdentifier = currentItemIdentifier;
 		// Own the accepted snapshots rather than retaining the submit loop's mutable
@@ -176,6 +181,7 @@ export class AssessmentSessionCoordinator {
 		// backend request succeeds.
 		this.#state.itemResponses = { ...itemResponses };
 		this.#state.itemSessions = itemSessions ? { ...itemSessions } : undefined;
+		this.#state.testOutcomes = testOutcomes ? { ...testOutcomes } : undefined;
 	}
 
 	// ---------------------------------------------------------------------------
@@ -204,6 +210,16 @@ export class AssessmentSessionCoordinator {
 	/** Every kept decision is void: a counted submission moved the outcomes they decided on. */
 	clearBranchDecisions(): void {
 		delete this.#state.branchDecisions;
+	}
+
+	/** The test-level outcomes the backend last returned (`state.testOutcomes`), if any. */
+	getTestOutcomes(): AssessmentSessionState['testOutcomes'] {
+		return this.#state.testOutcomes;
+	}
+
+	/** Store the test-level outcomes the backend returned for its last outcome processing. */
+	setTestOutcomes(outcomes: AssessmentSessionState['testOutcomes']): void {
+		this.#state.testOutcomes = outcomes ? { ...outcomes } : undefined;
 	}
 
 	/**

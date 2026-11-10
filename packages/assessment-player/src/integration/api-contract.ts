@@ -516,6 +516,14 @@ export interface AssessmentSessionState {
 	 * just lose the kept decision across a resume.)
 	 */
 	branchDecisions?: Record<string, string>;
+	/**
+	 * The test-level outcome values the backend last returned (its outcome processing's
+	 * result, or undefined before the first submission): branch and preCondition rules read
+	 * them, so a restored session navigates identically to the live one. (Session format
+	 * addition; backends that never store it just lose the values across a resume, and the
+	 * restored rules evaluate on missing outcomes.)
+	 */
+	testOutcomes?: TestOutcomeValues;
 	/** Whether the candidate chose to hide the countdown timer (a persisted shell preference). */
 	timerHidden?: boolean;
 	/** Time tracking */

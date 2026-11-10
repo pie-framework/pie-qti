@@ -127,6 +127,27 @@ describe('standardMatchExtractor', () => {
 		expect(result.maxAssociations).toBe(0);
 	});
 
+	test('delivers no column header: no component renders a tabular match', () => {
+		// data-first-column-header (QTI 3.0) presents a tabular match; this player's match
+		// is not tabular, so the optional attribute is not delivered under any name.
+		const xml = `
+			<matchInteraction responseIdentifier="RESPONSE" data-first-column-header="Country" maxAssociations="4">
+				<simpleMatchSet>
+					<simpleAssociableChoice identifier="S1" matchMax="1">Flag</simpleAssociableChoice>
+				</simpleMatchSet>
+				<simpleMatchSet>
+					<simpleAssociableChoice identifier="T1" matchMax="1">France</simpleAssociableChoice>
+				</simpleMatchSet>
+			</matchInteraction>
+		`;
+		const element = parseQTI(xml);
+		const context = createTestContext(element, 'RESPONSE');
+
+		const result = standardMatchExtractor.extract(element, context);
+
+		expect('firstColumnHeader' in result).toBe(false);
+	});
+
 	test('extracts matchMin on source and target choices', () => {
 		const xml = `
 			<matchInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="0">

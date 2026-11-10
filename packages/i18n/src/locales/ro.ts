@@ -660,8 +660,6 @@ export default {
 		sectionDefault: 'Secțiunea {number}',
 		readingPassage: 'Pasaj de Lectură',
 		readingPassages: 'Pasaje de lectură',
-		expandPassage: 'Extinde pasajul',
-		collapsePassage: 'Restrânge pasajul',
 		closeMenu: 'Închide meniul',
 
 		attempts: {

@@ -2,6 +2,7 @@
 
 <script lang="ts">
 	import type { MatchInteractionData } from '@pie-qti/item-player';
+	import type { InteractionProps, TypesetProps } from '../../shared/utils/interactionProps';
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import { typesetAction } from '../../shared/actions/typesetAction';
@@ -16,15 +17,7 @@
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import { choicesShortOfMatchMin, minimumHint } from '../../shared/utils/minimumRequirement';
 
-	interface Props {
-		interaction?: MatchInteractionData | string;
-		response?: string[] | null;
-		correctResponse?: string[] | null;
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
-		typeset?: (element: HTMLElement) => void;
-		onChange?: (value: string[]) => void;
+	interface Props extends InteractionProps<'matchInteraction'>, TypesetProps {
 		/** PNP structured labels: the answer sets are announced as labelled groups (G-13). */
 		structuredLabelSupport?: boolean;
 	}

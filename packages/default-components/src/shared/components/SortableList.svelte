@@ -13,9 +13,10 @@ import type { HtmlContent } from '@pie-qti/item-player';
 import { touchDrag } from '@pie-qti/qti-common';
 import { tick, type Snippet } from 'svelte';
 import { accessibleTextFromHtml } from '../utils/accessibleText.js';
+import { choiceAccessibleName } from '../utils/choiceName.js';
 import DragHandle from './DragHandle.svelte';
 import { createPickUpPlace } from './pickUpPlace.svelte';
-import '../styles/shared.css';
+import '../styles/srOnly.js';
 
 interface Item {
 	id: string;
@@ -137,9 +138,15 @@ function handleKeyDown(event: KeyboardEvent, id: string) {
 		return;
 	}
 
-	// Escape: Cancel keyboard selection
+	// Escape: Cancel keyboard selection. The announcement names the grabbed item —
+	// focus may sit on another item (a Tab while the grab continues) — so the held
+	// item's name is resolved here, not the focused item's.
 	if (event.key === 'Escape' && pickUp.held) {
-		handleCancelSelection(event, itemName);
+		const grabbed = items.find((entry) => entry.id === pickUp.held);
+		handleCancelSelection(
+			event,
+			grabbed ? itemLabel(grabbed) : translate(i18n, 'interactions.order.itemFallback', 'Item'),
+		);
 		return;
 	}
 
@@ -249,8 +256,14 @@ async function moveWithButton(event: MouseEvent, id: string, offset: number) {
 }
 
 function itemLabel(item: Item): string {
-	// Image alt and MathML alttext participate, unlike raw textContent.
-	return accessibleTextFromHtml(item.text) || translate(i18n, 'interactions.order.itemFallback', 'Item');
+	// Image alt and MathML alttext participate, unlike raw textContent. A choice with
+	// nothing to read is named by its presented position ("Choice 3"), never by its
+	// identifier — the shared choice-name rule.
+	return choiceAccessibleName({
+		i18n,
+		label: accessibleTextFromHtml(item.text),
+		position: items.indexOf(item) + 1,
+	});
 }
 
 /** Position/state sentences for the row's aria-describedby target. */

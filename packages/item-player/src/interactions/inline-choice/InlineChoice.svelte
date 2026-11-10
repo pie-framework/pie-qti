@@ -31,11 +31,22 @@
 	// Ids are per instance: two items on one page commonly share a response identifier.
 	const uid = $props.id();
 	const descriptionId = `${uid}-description`;
+	const minMessageId = `${uid}-min-message`;
 	const displayValue = $derived(correctAnswer !== null ? correctAnswer : response);
 	const correctChoice = $derived(correctAnswer ? interaction.choices.find((choice) => choice.identifier === correctAnswer) : null);
 	const label = $derived(inlineInteractionLabel(i18n, interaction, position));
+	// The author's data-min-selections-message (QTI 3.0, inlineChoiceInteraction) describes the
+	// requirement a valid response must meet; a dropdown has no refusal of its own to attach it
+	// to, so it is stated in the control's description instead.
+	const minSelectionsMessage = $derived(interaction.minSelectionsMessage?.trim() || '');
 	const describedBy = $derived(
-		[interaction.accessibility?.description ? descriptionId : '', contextId ?? ''].filter(Boolean).join(' ') || undefined,
+		[
+			interaction.accessibility?.description ? descriptionId : '',
+			minSelectionsMessage ? minMessageId : '',
+			contextId ?? '',
+		]
+			.filter(Boolean)
+			.join(' ') || undefined,
 	);
 
 	function handleChange(event: Event) {
@@ -47,6 +58,9 @@
 <span class="inline-choice-wrapper">
 	{#if interaction.accessibility?.description}
 		<span id={descriptionId} hidden>{interaction.accessibility.description}</span>
+	{/if}
+	{#if minSelectionsMessage}
+		<span id={minMessageId} hidden>{minSelectionsMessage}</span>
 	{/if}
 	<select
 		class:qti-inline-select={true}

@@ -40,7 +40,8 @@ function mountExtendedText(props: Record<string, unknown>) {
 }
 
 function announcement(m: MountedInteraction): string {
-	return (q(m, '[part="announcer"]')?.textContent ?? '').trim();
+	// The re-announce toggle of a repeated message is a trailing zero-width space.
+	return (q(m, '[part="announcer"]')?.textContent ?? '').replace(/\u200b/g, '').trim();
 }
 
 async function click(element: Element) {

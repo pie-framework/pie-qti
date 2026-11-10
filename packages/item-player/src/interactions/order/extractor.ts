@@ -64,7 +64,10 @@ export const standardOrderExtractor: ElementExtractor<OrderData> = {
 		const minChoices = utils.getNumberAttribute(element, 'minChoices', 0);
 		const maxChoices = utils.getNumberAttribute(element, 'maxChoices', 0);
 		const interactionClasses = utils.getClasses(element);
+		// QTI 3.0 defines both messages on orderInteraction (XSD: data-min-selections-message,
+		// data-max-selections-message); the max one states the subset cap when an add is refused.
 		const minSelectionsMessage = utils.getAttribute(element, 'data-min-selections-message', '') || null;
+		const maxSelectionsMessage = utils.getAttribute(element, 'data-max-selections-message', '') || null;
 
 		return {
 			choices: maybeShuffle(choices, shuffle, context.shuffleRng),
@@ -75,6 +78,7 @@ export const standardOrderExtractor: ElementExtractor<OrderData> = {
 			prompt,
 			...(interactionClasses.length > 0 ? { interactionClasses } : {}),
 			...(minSelectionsMessage ? { minSelectionsMessage } : {}),
+			...(maxSelectionsMessage ? { maxSelectionsMessage } : {}),
 		};
 	},
 

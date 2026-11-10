@@ -1,6 +1,7 @@
 import { flushSync } from 'svelte';
 import { afterEach, describe, expect, test } from 'vitest';
 import type { GraphicAssociateInteractionData, GraphicOrderInteractionData, HotspotInteractionData } from '@pie-qti/item-player';
+import '../../src/plugins/choice/ChoiceInteraction.svelte';
 import '../../src/plugins/hotspot/HotspotInteraction.svelte';
 import '../../src/plugins/graphic-order/GraphicOrderInteraction.svelte';
 import '../../src/plugins/graphic-associate/GraphicAssociateInteraction.svelte';
@@ -45,6 +46,48 @@ function mount<K extends keyof HTMLElementTagNameMap>(tag: K): HTMLElementTagNam
 	document.body.appendChild(element);
 	return element;
 }
+
+describe('the shadow root hides visually hidden content through the shared rule', () => {
+	test('ShadowBaseStyles injects the one sr-only rule into the shadow root', async () => {
+		const element = mount('pie-qti-choice');
+		element.interaction = {
+			type: 'choiceInteraction',
+			responseId: 'CH',
+			shuffle: false,
+			maxChoices: 1,
+			minChoices: 0,
+			prompt: null,
+			choices: [{ identifier: 'A', text: 'a' }],
+		};
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		flushSync();
+
+		const rules = sheetRules(element.shadowRoot!)
+			.filter((rule) => rule.selectorText?.includes('.sr-only'))
+			.flatMap((rule) => Array.from(rule.selectorText!.split(',')).map((selector) => selector.trim()));
+		expect(rules).toContain('.sr-only');
+		// The rule comes from the shared source, injected as its own style element.
+		const source = element.shadowRoot!.querySelector('style[data-sr-only-source]');
+		expect(source?.textContent).toContain('clip: rect(0, 0, 0, 0)');
+	});
+
+	test('a hidden live region is not displayed', async () => {
+		const element = mount('pie-qti-hotspot');
+		element.interaction = {
+			type: 'hotspotInteraction',
+			responseId: 'HS2',
+			maxChoices: 1,
+			prompt: null,
+			imageData: { type: 'svg', width: '240', height: '120', content: '<svg xmlns="http://www.w3.org/2000/svg"/>' },
+			hotspotChoices: [{ identifier: 'A', shape: 'rect', coords: '20,20,80,40' }],
+		} satisfies HotspotInteractionData;
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		flushSync();
+
+		const live = element.shadowRoot!.querySelector('.qti-hotspot-live-region')!;
+		expect(positionFromOwnStyles(element.shadowRoot!, live)).toBe('absolute');
+	});
+});
 
 describe('graphic overlays are positioned by the components' + "'" + ' own shadow styles (no host CSS)', () => {
 	test('hotspot: svg[part="overlay"] is absolute', async () => {

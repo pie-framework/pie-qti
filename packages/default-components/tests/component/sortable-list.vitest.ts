@@ -77,6 +77,27 @@ describe('SortableList accessible naming', () => {
 		cleanupInteraction(mounted);
 	});
 
+	test('an item with nothing to read is named by its presented position, never its identifier', async () => {
+		const mounted = mountInteraction(SortableList, {
+			items: [
+				{ id: 'SILENT_ROCK', text: '<img src="rock.png" alt="">' },
+				{ id: 'I2', text: 'Moon' },
+			],
+			orderedIds: ['SILENT_ROCK', 'I2'],
+			onReorder: () => {},
+		});
+		await settle();
+
+		const buttons = qa<HTMLButtonElement>(mounted, '.qti-sortable-moves button');
+		expect(buttons.map((button) => button.getAttribute('aria-label'))).toEqual([
+			'Move Choice 1 earlier',
+			'Move Choice 1 later',
+			'Move Moon earlier',
+			'Move Moon later',
+		]);
+		cleanupInteraction(mounted);
+	});
+
 	test('move buttons are named for their item, and an image-only item still reads its alt', async () => {
 		const mounted = mountInteraction(SortableList, {
 			items: [
