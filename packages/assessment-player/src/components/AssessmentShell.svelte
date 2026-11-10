@@ -1,10 +1,8 @@
 <script lang="ts">
 	import { flushSync, onDestroy, onMount, tick, getContext } from 'svelte';
 	import { DefaultI18nProvider, interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
-	import { applyPnpToSurface, clearPnpSurface, type PnpProfile } from '@pie-qti/item-player';
-	import { sanitizeHtml } from '@pie-qti/item-player/security';
+	import { applyDisplaySettingsSurface, createDisplaySettings } from './displaySettings.svelte.js';
 	import { normalizeQtiSharedContext } from '@pie-qti/assessment-toolkit';
-	import { withDisplaySettings, type QtiCandidateDisplaySettings } from '@pie-qti/section-player';
 	import type { QtiSharedHtmlBlock } from '@pie-qti/section-player';
 	import {
 		PlayerBaseStyles,
@@ -13,12 +11,18 @@
 		SectionPlayerVertical,
 		TestFeedback as SectionTestFeedback,
 	} from '@pie-qti/section-player/components';
-	import type { BackendAssessmentPlayerConfig, SubmissionBlocker } from '../core/AssessmentPlayer.js';
-	import { AssessmentPlayer } from '../core/AssessmentPlayer.js';
+	import type {
+		AssessmentPlayer,
+		AssessmentTimeExpiryEvent,
+		BackendAssessmentPlayerConfig,
+		ScopeTimeExpiryEvent,
+		SubmissionBlocker,
+	} from '../core/AssessmentPlayer.js';
 	import type { AutosaveState } from '../core/AutosaveManager.js';
 	import { assessmentErrorDisplay, isAssessmentPlayerError, isSubmissionBlockedError } from '../core/errors.js';
 	import { formatTime } from '../core/formatTime.js';
 	import type { ReviewGroup } from './ReviewScreen.svelte';
+	import { createPlayerConnection } from './createPlayerConnection.svelte.js';
 	import type { BackendAdapter, InitSessionRequest } from '../integration/api-contract.js';
 	import { toSectionComposition } from '../integration/toSectionComposition.js';
 	import type {
@@ -32,12 +36,19 @@
 		VisibleTestFeedback,
 	} from '../types/index.js';
 	import AccessibilityAnnouncer from './AccessibilityAnnouncer.svelte';
-	import AssessmentDialog from './AssessmentDialog.svelte';
 	import AssessmentHeader from './AssessmentHeader.svelte';
 	import AssessmentTimer from './AssessmentTimer.svelte';
 	import CompletionScreen from './CompletionScreen.svelte';
+	import ExpiryNoticeDialog, { type ExpiryNotice } from './ExpiryNoticeDialog.svelte';
+	import FeedbackDialog from './FeedbackDialog.svelte';
+	import LeavePartDialog from './LeavePartDialog.svelte';
 	import NavigationBar from './NavigationBar.svelte';
+	import PauseOverlay from './PauseOverlay.svelte';
+	import ResumeDialog from './ResumeDialog.svelte';
 	import ReviewScreen from './ReviewScreen.svelte';
+	import StartOverDialog from './StartOverDialog.svelte';
+	import type { BlockerGroups, SubmitDialogItem } from './SubmitBlockerGroup.svelte';
+	import SubmitConfirmDialog, { type SubmitDialogSummary } from './SubmitConfirmDialog.svelte';
 
 	interface Props {
 		backend: BackendAdapter;
@@ -201,7 +212,51 @@
 		void Promise.resolve(typeset(node)).catch(() => {});
 	}
 
-	let player = $state<AssessmentPlayer | null>(null);
+	/**
+	 * The connection to the headless player (creation, event wiring, teardown,
+	 * retry, slow-load status) lives in the `createPlayerConnection` composable;
+	 * the shell reads its state through these aliases and hands it the session
+	 * handlers below.
+	 */
+	const connection = createPlayerConnection({
+		inputs: () => ({ backend, initSession, config, beginGate, autosave, autosaveIntervalMs }),
+		i18nProvider: playerI18n,
+		localizeError,
+		announce: (message, duration, level) => announcer?.announce(message, duration, level),
+		onPlayerError: handlePlayerError,
+		handlers: {
+			onItemChange: handleItemChanged,
+			onSectionChange: () => updateState(),
+			onTestFeedbackChange: () => {
+				if (connection.state.player) testFeedback = connection.state.player.getVisibleFeedback();
+			},
+			onResponseChange: () => {
+				// Targeted update: only the answered counts recompute; the section view
+				// renders from the live session and needs no rebuild per keystroke.
+				responseVersion += 1;
+			},
+			onBusyChange: () => updateState(),
+			onFlagChange: () => {
+				// Flag state lives in the core session state; re-render whatever shows it.
+				stateVersion += 1;
+			},
+			onAutosaveChange: (autosaveState) => {
+				saveStatus = autosaveState;
+			},
+			onComplete: handleCompleted,
+			onTimeExpired: handleTimeExpired,
+			onScopeTimeExpired: handleScopeTimeExpired,
+			onPauseChange: handlePauseChanged,
+		},
+		onSessionCreated: handleSessionCreated,
+		onSessionLive: handleSessionLive,
+	});
+	const player = $derived(connection.state.player);
+	const error = $derived(connection.state.error);
+	const initializing = $derived(connection.state.initializing);
+	const stillLoading = $derived(connection.state.stillLoading);
+	const hasFirstItem = $derived(connection.state.hasFirstItem);
+	const startPending = $derived(connection.state.startPending);
 	let navState = $state<NavigationState>({
 		currentIndex: -1,
 		totalItems: 0,
@@ -214,18 +269,46 @@
 	let currentItem = $state<any>(null);
 	let currentRubricBlocks = $state<any[]>([]);
 	let sections = $state<CandidateSectionView[]>([]);
-	let error = $state<{ message: string; supportCode: string | null } | null>(null);
 	let navError = $state<{ message: string; supportCode: string | null } | null>(null);
 	let submitError = $state<{ message: string; supportCode: string | null } | null>(null);
-	let isSubmitting = $state(false);
+	/**
+	 * The delivery's session status in one place: a submission in flight, the
+	 * terminal state (complete, how it ended, restored already finalized), a
+	 * proctor pause, and the expiry dead end that makes Submit reachable
+	 * anywhere. The derived aliases below keep the template's names.
+	 */
+	let sessionStatus = $state({
+		/** A submission transition is in flight. */
+		isSubmitting: false,
+		/** The test ended in this delivery (or was restored already finalized). */
+		isComplete: false,
+		/** A proctor pause is in force. */
+		paused: false,
+		/** The candidate-facing reason of the pause in force, if any. */
+		pauseReason: undefined as string | undefined,
+		/** An expiry left no reachable item; Submit must be offered wherever the candidate is. */
+		submitRequired: false,
+		/** A time expiry ended the test (`endReason` 'expiry'): the completion heading says so. */
+		finishedByExpiry: false,
+		/** Why the test ended in this delivery (the completion variant: a proctor's submit says so). */
+		endReason: null as AssessmentEndReason | null,
+		/** The session was restored already finalized: the terminal "already submitted" view. */
+		restoredFinalized: false,
+	});
+	const isSubmitting = $derived(sessionStatus.isSubmitting);
+	const isComplete = $derived(sessionStatus.isComplete);
+	const paused = $derived(sessionStatus.paused);
+	const pauseReason = $derived(sessionStatus.pauseReason);
+	const submitRequired = $derived(sessionStatus.submitRequired);
+	const finishedByExpiry = $derived(sessionStatus.finishedByExpiry);
+	const endReason = $derived(sessionStatus.endReason);
+	const restoredFinalized = $derived(sessionStatus.restoredFinalized);
 	let retryButton = $state<HTMLButtonElement | null>(null);
 	let contentEl = $state<HTMLElement | null>(null);
 	let itemPaneEl = $state<HTMLElement | null>(null);
 	let splitLayout = $state<SectionPlayerSplitPane | null>(null);
 	let verticalLayout = $state<SectionPlayerVertical | null>(null);
 	let testFeedback = $state<VisibleTestFeedback[]>([]);
-	let isComplete = $state(false);
-	let hasFirstItem = $state(false);
 	let announcer = $state<AccessibilityAnnouncer | null>(null);
 	/**
 	 * Two version counters keep response updates targeted (O(item), not O(assessment)):
@@ -238,9 +321,6 @@
 	let responseVersion = $state(0);
 	let compositionVersion = $state(0);
 	let stateVersion = $state(0);
-	/** Loading is taking long: a polite status, never a permanent error on its own. */
-	let stillLoading = $state(false);
-	let initializing = $state(false);
 	// Review screen + flag toggle
 	let reviewOpen = $state(false);
 	let reviewScreen = $state<ReviewScreen | null>(null);
@@ -252,10 +332,6 @@
 	// Time administration: countdown state, begin gate, proctor pause, expiry notices.
 	let timerLimited = $state(false);
 	let timerHidden = $state(false);
-	let paused = $state(false);
-	let pauseReason = $state<string | undefined>(undefined);
-	/** The begin gate holds delivery: the core was created without starting it. */
-	let startPending = $state(false);
 	let startHeadingEl = $state<HTMLElement | null>(null);
 	let pauseHeadingEl = $state<HTMLElement | null>(null);
 	let pauseOverlayEl = $state<HTMLElement | null>(null);
@@ -267,18 +343,8 @@
 	 * left no reachable item) — the dialog carries the Submit action so the candidate is
 	 * never stranded, whatever item they are on.
 	 */
-	let expiryDialog = $state<{
-		mode: 'scope' | 'submit';
-		scope: 'assessment' | 'testPart' | 'section' | 'item';
-		/**
-		 * Scope notices only: the 1-based question delivery moves to, or undefined when
-		 * the candidate was outside the closed scope and stays where they are.
-		 */
-		movingTo?: number;
-	} | null>(null);
+	let expiryDialog = $state<ExpiryNotice | null>(null);
 	let expiryDialogOpen = $state(false);
-	/** An expiry left no reachable item; Submit must be offered wherever the candidate is. */
-	let submitRequired = $state(false);
 	// Autosave: the save indicator rides the core's real save state.
 	let saveStatus = $state<AutosaveState>({ status: 'idle' });
 	/** A backend snapshot carried prior activity: the shell offers Resume / Start over. */
@@ -295,7 +361,7 @@
 	// report changes; the shell root is a PNP surface so the profile also covers the
 	// header, navigation and timer chrome around the item.
 	let shellRootEl = $state<HTMLElement | null>(null);
-	let candidateDisplaySettings = $state<QtiCandidateDisplaySettings>({});
+	const displaySettings = createDisplaySettings(() => config.pnp);
 	// Practice delivery: the item-level check control, the feedback it surfaces, and
 	// the candidate's comment for the test team (QTI allowComment).
 	let checkAnswer = $state<CheckAnswerState | null>(null);
@@ -305,14 +371,8 @@
 	let feedbackEntries = $state<ItemFeedbackEntry[]>([]);
 	let feedbackDialogOpen = $state(false);
 	// Completion: the candidate-facing finished state replaces the dead last item.
-	/** A time expiry ended the test (`endReason` 'expiry'): the completion heading says so. */
-	let finishedByExpiry = $state(false);
-	/** Why the test ended in this delivery (the completion variant: a proctor's submit says so). */
-	let endReason = $state<AssessmentEndReason | null>(null);
 	/** The host heard the results once (`onSubmit`), whichever path ended the test. */
 	let resultsDelivered = false;
-	/** The session was restored already finalized: the terminal "already submitted" view. */
-	let restoredFinalized = $state(false);
 	let resultsSummary = $state<ResultsSummary | null>(null);
 	let completionScreen = $state<CompletionScreen | null>(null);
 
@@ -321,8 +381,6 @@
 		stateVersion;
 		return player ? toSectionComposition(player, config) : null;
 	});
-	/** The PNP profile the shell chrome renders with: the host profile with the candidate's display settings applied. */
-	const shellPnp = $derived<PnpProfile>(withDisplaySettings(config.pnp, candidateDisplaySettings));
 	const hasSplitPane = $derived(sectionComposition?.layout === 'split-pane');
 	const sectionRole = $derived(config.role ?? 'candidate');
 	const titleHeadingLevel = $derived(Math.min(5, Math.max(1, Math.round(headingLevel ?? (fullViewport ? 1 : 2)))));
@@ -423,334 +481,235 @@
 			});
 	});
 
-	// Initialize the player; `retryInitialize()` runs this again after a load failure.
-	// A slow load is a polite status ("still loading"), never a permanent error: if the
-	// backend recovers later, the shell proceeds on its own.
-	let stillLoadingTimer: ReturnType<typeof setTimeout> | null = null;
-
-	function clearStillLoadingTimer() {
-		if (stillLoadingTimer) {
-			clearTimeout(stillLoadingTimer);
-			stillLoadingTimer = null;
-		}
-	}
-
-	function armStillLoadingTimer() {
-		clearStillLoadingTimer();
-		// Behind a begin gate the start screen is the expected view, not a slow load.
-		stillLoadingTimer = setTimeout(() => {
-			stillLoadingTimer = null;
-			if (!hasFirstItem && !error && !startPending) {
-				stillLoading = true;
-			}
-		}, 10000);
-	}
-
 	onMount(() => {
-		void initialize();
+		void connection.initialize();
 
 		return () => {
-			clearStillLoadingTimer();
-			teardownPlayer();
+			connection.destroy();
 		};
 	});
 
-	function teardownPlayer() {
-		const current = player;
-		player = null;
-		current?.destroy();
+	/**
+	 * The shell's part of the core's `onError` hook: a failed item entry (the
+	 * first item, or an expiry hop) additionally routes to the shell's typed
+	 * failure screen instead of an eternal bare loading state.
+	 */
+	function handlePlayerError(err: unknown) {
+		if (player?.hasEntryFailure() && !isComplete) {
+			// Assign once per distinct message: a retry that fails with the same
+			// error must not recreate the alert (and churn its focus).
+			const message = localizeError(err);
+			if (!error || error.message !== message.message) {
+				connection.state.error = message;
+				connection.state.stillLoading = false;
+				connection.clearStillLoadingTimer();
+				announcer?.announce(message.message, 3000, 'assertive');
+			}
+		}
 	}
 
-	async function initialize() {
-		if (initializing) return;
-		initializing = true;
-		error = null;
-		stillLoading = false;
-		armStillLoadingTimer();
+	/** Post-create shell sync: the restored pause, the terminal restored-finalized view, the sections. */
+	function handleSessionCreated(created: AssessmentPlayer) {
+		// A snapshot saved during a proctor pause reopens paused: no `onPauseChange`
+		// fired (the shell had no listener yet), so the overlay state syncs from the
+		// core here. The resume prompt below stays suppressed while it holds.
+		if (created.isPaused()) {
+			sessionStatus.paused = true;
+			sessionStatus.pauseReason = created.getPauseReason();
+		}
 
-		const hostOnError = config.onError;
-		const playerConfig: BackendAssessmentPlayerConfig = {
-			backend,
-			initSession,
-			showSections: config.showSections !== false,
-			allowSectionNavigation: config.allowSectionNavigation !== false,
-			showProgress: config.showProgress !== false,
-			...config,
-			// The shell prop and the core option open the same gate.
-			beginGate: beginGate || config.beginGate === true,
-			i18nProvider: playerI18n,
-			// The shell props and the core options tune the same autosave.
-			...(autosave === undefined ? {} : { autosave }),
-			...(autosaveIntervalMs === undefined ? {} : { autosaveIntervalMs }),
-			// The host's error hook stays; a failed item entry (the first item, or an
-			// expiry hop) additionally routes to the shell's typed failure screen instead
-			// of an eternal bare loading state.
-			onError: (err) => {
-				hostOnError?.(err);
-				if (player?.hasEntryFailure() && !isComplete) {
-					// Assign once per distinct message: a retry that fails with the same
-					// error must not recreate the alert (and churn its focus).
-					const message = localizeError(err);
-					if (!error || error.message !== message.message) {
-						error = message;
-						stillLoading = false;
-						clearStillLoadingTimer();
-						announcer?.announce(message.message, 3000, 'assertive');
-					}
-				}
-			},
+		// A session the backend stored as finalized is terminal: show the
+		// already-submitted completion view instead of delivery whose every action
+		// rejects, and never offer the resume prompt for it.
+		if (created.isFinalized()) {
+			sessionStatus.restoredFinalized = true;
+			sessionStatus.isComplete = true;
+			testFeedback = created.getVisibleFeedback();
+			resultsSummary = created.getResultsSummary();
+			sections = created.getAllSections();
+			announcer?.announce(
+				i18n.t('assessment.complete.alreadySubmitted', 'This test was already submitted.'),
+				4000,
+				'assertive',
+			);
+			return;
+		}
+
+		// Get sections
+		sections = created.getAllSections();
+	}
+
+	/** The session is live: enter the first item and settle the shell. */
+	async function handleSessionLive(created: AssessmentPlayer) {
+		// If backend did not restore a current item, start at index 0 — unless the
+		// begin gate holds, in which case start() enters it.
+		if (!startPending && created.getNavigationState().currentIndex < 0) {
+			await created.navigateTo(0);
+		} else {
+			updateState();
+			if (!startPending) {
+				connection.state.hasFirstItem = true;
+				connection.state.stillLoading = false;
+				connection.clearStillLoadingTimer();
+			}
+		}
+
+		// A restored snapshot with prior activity is a resume: ask the candidate
+		// whether to continue or start over. A restored-paused session stays behind
+		// the pause overlay (a proctor resumes it) — the prompt is deferred there and
+		// returns when the pause lifts; a begin gate already says "Continue" on its
+		// start screen. Without Start over (the `allowStartOver` prop) there is no
+		// choice to offer: the restored draft simply continues, announced.
+		if (!startPending && created.hasRestoredProgress()) {
+			if (!allowStartOver) {
+				announcer?.announce(
+					i18n.t('assessment.resume.resumedAnnouncement', 'Your saved answers were restored.'),
+					3000,
+					'polite',
+				);
+			} else if (paused) resumePromptDeferredByPause = true;
+			else resumeDialogOpen = true;
+		}
+
+		// The restored pause was never observed as a change: announce it like a live
+		// one. Focus lands on the overlay heading through the pause effect below (or
+		// stays on the start screen, which shows the pause behind a begin gate).
+		if (paused) {
+			announcer?.announce(
+				pauseReason
+					? i18n.t('assessment.pause.withReason', 'The assessment is paused: {reason}', { reason: pauseReason })
+					: i18n.t('assessment.pause.announcement', 'The assessment is paused.'),
+				4000,
+				'assertive',
+			);
+		}
+	}
+
+	/** A new item: refresh, reset its comment disclosure and scroll it to its top. */
+	async function handleItemChanged() {
+		updateState();
+		navError = null;
+		connection.state.hasFirstItem = true;
+		connection.state.stillLoading = false;
+		connection.clearStillLoadingTimer();
+		// The comment disclosure follows the active item's own comment.
+		commentDraft = player?.getItemComment() ?? '';
+		await tick();
+		// A new item starts at its top, whichever region scrolls.
+		contentEl?.scrollTo?.({ top: 0, behavior: 'auto' });
+		itemPaneEl?.scrollTo?.({ top: 0, behavior: 'auto' });
+	}
+
+	// Every ending finalizes the core the same way — the candidate's submit, a
+	// proctor's force-submit (during a pause or behind the begin gate too), a QTI
+	// EXIT_TEST branch, the whole-test time expiry — and the shell shows the same
+	// completed state and hands the results to the host once.
+	function handleCompleted(results: AssessmentResults) {
+		sessionStatus.isComplete = true;
+		sessionStatus.submitRequired = false;
+		// A force-submit behind the begin gate ends a test that never started: the
+		// start screen must not survive with a Begin that can do nothing.
+		connection.state.startPending = false;
+		// A proctor's forced submit can end the test during a pause: the completion
+		// view replaces the overlay too.
+		sessionStatus.paused = false;
+		sessionStatus.pauseReason = undefined;
+		sections = player?.getAllSections() ?? [];
+		// The completion view replaces delivery: nothing modal may survive it.
+		submitDialogOpen = false;
+		leavePartDialogOpen = false;
+		expiryDialog = null;
+		expiryDialogOpen = false;
+		reviewOpen = false;
+		feedbackDialogOpen = false;
+		resultsSummary = player?.getResultsSummary() ?? null;
+		sessionStatus.endReason = player?.getEndReason() ?? results.endReason ?? null;
+		if (endReason === 'expiry') sessionStatus.finishedByExpiry = true;
+		if (endReason === 'proctor') {
+			announcer?.announce(
+				i18n.t('assessment.complete.byProctorAnnouncement', 'Your proctor has submitted your test.'),
+				4000,
+				'assertive',
+			);
+		}
+		updateState();
+		deliverResults(results);
+	}
+
+	// A hard time limit ran out: the core auto-finalizes a whole-test expiry; a
+	// scope dead end leaves the candidate to submit from wherever they are.
+	function handleTimeExpired(event: AssessmentTimeExpiryEvent) {
+		updateState();
+		// What the open submit confirmation (or leave-part warning) says no longer
+		// holds — its blockers, its jumps: an expiry always closes it.
+		submitDialogOpen = false;
+		leavePartDialogOpen = false;
+		if (event.autoFinalized) {
+			// The completed view (and the results for the host) arrived through
+			// onComplete; say why it happened.
+			sessionStatus.finishedByExpiry = true;
+			announcer?.announce(i18n.t('assessment.timeExpiry.autoSubmitted'), 4000, 'assertive');
+			expiryDialogOpen = false;
+			expiryDialog = null;
+			reviewOpen = false;
+			return;
+		}
+		if (event.submissionRequired) {
+			sessionStatus.submitRequired = true;
+			expiryDialog = { mode: 'submit', scope: event.scope };
+			expiryDialogOpen = true;
+		}
+	}
+
+	// A part, section or question limit expired: its items closed and delivery
+	// moved on (or hit the dead end handled above).
+	function handleScopeTimeExpired(event: ScopeTimeExpiryEvent) {
+		updateState();
+		submitDialogOpen = false;
+		leavePartDialogOpen = false;
+		if (!event.deliveryContinues) return;
+		expiryDialog = {
+			mode: 'scope',
+			scope: event.scope,
+			...(event.nextIndex === undefined ? {} : { movingTo: event.nextIndex + 1 }),
 		};
+		expiryDialogOpen = true;
+	}
 
-		try {
-			const created = await AssessmentPlayer.create(playerConfig);
-			startPending = !created.hasStarted();
-			player = created;
-
-			// A snapshot saved during a proctor pause reopens paused: no `onPauseChange`
-			// fired (the shell had no listener yet), so the overlay state syncs from the
-			// core here. The resume prompt below stays suppressed while it holds.
-			if (created.isPaused()) {
-				paused = true;
-				pauseReason = created.getPauseReason();
+	// A proctor pause freezes the clocks and blocks the shell; the overlay says so.
+	function handlePauseChanged(isPaused: boolean, reason?: string) {
+		const wasPaused = paused;
+		sessionStatus.paused = isPaused;
+		sessionStatus.pauseReason = reason;
+		if (isPaused) {
+			if (!wasPaused) {
+				const active = document.activeElement;
+				focusBeforePause = active instanceof HTMLElement && active !== document.body ? active : null;
+				// No dialog survives a pause: a candidate must never answer or submit
+				// underneath one. The resume prompt returns when the pause lifts.
+				closeDialogsForPause();
 			}
-
-			// A session the backend stored as finalized is terminal: show the
-			// already-submitted completion view instead of delivery whose every action
-			// rejects, and never offer the resume prompt for it.
-			if (created.isFinalized()) {
-				restoredFinalized = true;
-				isComplete = true;
-				testFeedback = created.getVisibleFeedback();
-				resultsSummary = created.getResultsSummary();
-				sections = created.getAllSections();
-				announcer?.announce(
-					i18n.t('assessment.complete.alreadySubmitted', 'This test was already submitted.'),
-					4000,
-					'assertive',
-				);
-				return;
-			}
-
-			// Get sections
-			sections = player.getAllSections();
-
-			// An item entry that already failed during creation (the first item could not
-			// be entered) routes here: the typed failure screen replaces the bare loading
-			// state. Later entry failures (an expiry hop) report through onError.
-			if (created.hasEntryFailure()) {
-				error = localizeError(created.getEntryError()!);
-				stillLoading = false;
-				clearStillLoadingTimer();
-				announcer?.announce(error.message, 3000, 'assertive');
-				return;
-			}
-
-			// Set up event listeners
-			player.onItemChange(async () => {
+			const message = reason
+				? i18n.t('assessment.pause.withReason', 'The assessment is paused: {reason}', { reason })
+				: i18n.t('assessment.pause.announcement', 'The assessment is paused.');
+			announcer?.announce(message, 4000, 'assertive');
+			void tick().then(() => pauseHeadingEl?.focus());
+		} else {
+			announcer?.announce(i18n.t('assessment.pause.resumed', 'The assessment is running again.'), 3000, 'assertive');
+			// Focus returns where it was, or to the question when that element is gone.
+			const target = focusBeforePause;
+			focusBeforePause = null;
+			void tick().then(async () => {
 				updateState();
-				navError = null;
-				hasFirstItem = true;
-				stillLoading = false;
-				clearStillLoadingTimer();
-				// The comment disclosure follows the active item's own comment.
-				commentDraft = player?.getItemComment() ?? '';
 				await tick();
-				// A new item starts at its top, whichever region scrolls.
-				contentEl?.scrollTo?.({ top: 0, behavior: 'auto' });
-				itemPaneEl?.scrollTo?.({ top: 0, behavior: 'auto' });
+				if (target?.isConnected && !target.closest('[inert]')) target.focus();
+				else await manageFocusAfterNavigation();
 			});
-
-			player.onSectionChange(() => {
-				updateState();
-			});
-
-			player.onTestFeedbackChange(() => {
-				if (player) testFeedback = player.getVisibleFeedback();
-			});
-
-			player.onResponseChange(() => {
-				// Targeted update: only the answered counts recompute; the section view
-				// renders from the live session and needs no rebuild per keystroke.
-				responseVersion += 1;
-			});
-
-			player.onBusyChange(() => {
-				updateState();
-			});
-
-			player.onFlagChange(() => {
-				// Flag state lives in the core session state; re-render whatever shows it.
-				stateVersion += 1;
-			});
-
-			player.onAutosaveChange((state) => {
-				saveStatus = state;
-			});
-
-			// Every ending finalizes the core the same way — the candidate's submit, a
-			// proctor's force-submit (during a pause or behind the begin gate too), a QTI
-			// EXIT_TEST branch, the whole-test time expiry — and the shell shows the same
-			// completed state and hands the results to the host once.
-			player.onComplete((results) => {
-				isComplete = true;
-				submitRequired = false;
-				// A force-submit behind the begin gate ends a test that never started: the
-				// start screen must not survive with a Begin that can do nothing.
-				startPending = false;
-				// A proctor's forced submit can end the test during a pause: the completion
-				// view replaces the overlay too.
-				paused = false;
-				pauseReason = undefined;
-				sections = player?.getAllSections() ?? [];
-				// The completion view replaces delivery: nothing modal may survive it.
-				submitDialogOpen = false;
-				leavePartDialogOpen = false;
-				expiryDialog = null;
-				expiryDialogOpen = false;
-				reviewOpen = false;
-				feedbackDialogOpen = false;
-				resultsSummary = player?.getResultsSummary() ?? null;
-				endReason = player?.getEndReason() ?? results.endReason ?? null;
-				if (endReason === 'expiry') finishedByExpiry = true;
-				if (endReason === 'proctor') {
-					announcer?.announce(
-						i18n.t('assessment.complete.byProctorAnnouncement', 'Your proctor has submitted your test.'),
-						4000,
-						'assertive',
-					);
-				}
-				updateState();
-				deliverResults(results);
-			});
-
-			// A hard time limit ran out: the core auto-finalizes a whole-test expiry; a
-			// scope dead end leaves the candidate to submit from wherever they are.
-			player.onTimeExpired((event) => {
-				updateState();
-				// What the open submit confirmation (or leave-part warning) says no longer
-				// holds — its blockers, its jumps: an expiry always closes it.
-				submitDialogOpen = false;
-				leavePartDialogOpen = false;
-				if (event.autoFinalized) {
-					// The completed view (and the results for the host) arrived through
-					// onComplete; say why it happened.
-					finishedByExpiry = true;
-					announcer?.announce(i18n.t('assessment.timeExpiry.autoSubmitted'), 4000, 'assertive');
-					expiryDialogOpen = false;
-					expiryDialog = null;
-					reviewOpen = false;
-					return;
-				}
-				if (event.submissionRequired) {
-					submitRequired = true;
-					expiryDialog = { mode: 'submit', scope: event.scope };
-					expiryDialogOpen = true;
-				}
-			});
-
-			// A part, section or question limit expired: its items closed and delivery
-			// moved on (or hit the dead end handled above).
-			player.onScopeTimeExpired((event) => {
-				updateState();
-				submitDialogOpen = false;
-				leavePartDialogOpen = false;
-				if (!event.deliveryContinues) return;
-				expiryDialog = {
-					mode: 'scope',
-					scope: event.scope,
-					...(event.nextIndex === undefined ? {} : { movingTo: event.nextIndex + 1 }),
-				};
-				expiryDialogOpen = true;
-			});
-
-			// A proctor pause freezes the clocks and blocks the shell; the overlay says so.
-			player.onPauseChange((isPaused, reason) => {
-				const wasPaused = paused;
-				paused = isPaused;
-				pauseReason = reason;
-				if (isPaused) {
-					if (!wasPaused) {
-						const active = document.activeElement;
-						focusBeforePause = active instanceof HTMLElement && active !== document.body ? active : null;
-						// No dialog survives a pause: a candidate must never answer or submit
-						// underneath one. The resume prompt returns when the pause lifts.
-						closeDialogsForPause();
-					}
-					const message = reason
-						? i18n.t('assessment.pause.withReason', 'The assessment is paused: {reason}', { reason })
-						: i18n.t('assessment.pause.announcement', 'The assessment is paused.');
-					announcer?.announce(message, 4000, 'assertive');
-					void tick().then(() => pauseHeadingEl?.focus());
-				} else {
-					announcer?.announce(i18n.t('assessment.pause.resumed', 'The assessment is running again.'), 3000, 'assertive');
-					// Focus returns where it was, or to the question when that element is gone.
-					const target = focusBeforePause;
-					focusBeforePause = null;
-					void tick().then(async () => {
-						updateState();
-						await tick();
-						if (target?.isConnected && !target.closest('[inert]')) target.focus();
-						else await manageFocusAfterNavigation();
-					});
-					// A resume prompt the pause interrupted returns once delivery continues.
-					if (resumePromptDeferredByPause) {
-						resumePromptDeferredByPause = false;
-						if (!isComplete && allowStartOver && player?.hasRestoredProgress()) resumeDialogOpen = true;
-					}
-				}
-			});
-
-			// If backend did not restore a current item, start at index 0 — unless the
-			// begin gate holds, in which case start() enters it.
-			if (!startPending && player.getNavigationState().currentIndex < 0) {
-				await player.navigateTo(0);
-			} else {
-				updateState();
-				if (!startPending) {
-					hasFirstItem = true;
-					stillLoading = false;
-					clearStillLoadingTimer();
-				}
+			// A resume prompt the pause interrupted returns once delivery continues.
+			if (resumePromptDeferredByPause) {
+				resumePromptDeferredByPause = false;
+				if (!isComplete && allowStartOver && player?.hasRestoredProgress()) resumeDialogOpen = true;
 			}
-
-			// A restored snapshot with prior activity is a resume: ask the candidate
-			// whether to continue or start over. A restored-paused session stays behind
-			// the pause overlay (a proctor resumes it) — the prompt is deferred there and
-			// returns when the pause lifts; a begin gate already says "Continue" on its
-			// start screen. Without Start over (the `allowStartOver` prop) there is no
-			// choice to offer: the restored draft simply continues, announced.
-			if (!startPending && player.hasRestoredProgress()) {
-				if (!allowStartOver) {
-					announcer?.announce(
-						i18n.t('assessment.resume.resumedAnnouncement', 'Your saved answers were restored.'),
-						3000,
-						'polite',
-					);
-				} else if (paused) resumePromptDeferredByPause = true;
-				else resumeDialogOpen = true;
-			}
-
-			// The restored pause was never observed as a change: announce it like a live
-			// one. Focus lands on the overlay heading through the pause effect below (or
-			// stays on the start screen, which shows the pause behind a begin gate).
-			if (paused) {
-				announcer?.announce(
-					pauseReason
-						? i18n.t('assessment.pause.withReason', 'The assessment is paused: {reason}', { reason: pauseReason })
-						: i18n.t('assessment.pause.announcement', 'The assessment is paused.'),
-					4000,
-					'assertive',
-				);
-			}
-		} catch (err) {
-			console.error('Failed to initialize assessment player:', err);
-			error = localizeError(err);
-			announcer?.announce(error.message, 3000, 'assertive');
-			// The failure alert is announced; focus lands on its Retry control (the
-			// error-focus effect below).
-		} finally {
-			initializing = false;
-			clearStillLoadingTimer();
 		}
 	}
 
@@ -763,13 +722,13 @@
 	async function handleRetryInitialize() {
 		if (initializing) return;
 		if (player?.hasEntryFailure()) {
-			initializing = true;
-			error = null;
+			connection.state.initializing = true;
+			connection.state.error = null;
 			try {
 				await player.retryEntry();
 				navError = null;
-				hasFirstItem = true;
-				stillLoading = false;
+				connection.state.hasFirstItem = true;
+				connection.state.stillLoading = false;
 				updateState();
 				await manageFocusAfterNavigation();
 				announceCurrentQuestion();
@@ -778,14 +737,14 @@
 				// (the entry-failure mapping above), which owns the error state.
 				if (!isBusyRejection(err)) console.error('Retrying the failed item entry:', err);
 			} finally {
-				initializing = false;
+				connection.state.initializing = false;
 			}
 			return;
 		}
-		teardownPlayer();
-		hasFirstItem = false;
-		stillLoading = false;
-		await initialize();
+		connection.teardown();
+		connection.state.hasFirstItem = false;
+		connection.state.stillLoading = false;
+		await connection.initialize();
 	}
 
 	$effect(() => {
@@ -1168,7 +1127,7 @@
 	 */
 	async function handleBegin() {
 		if (!player || !startPending || isComplete || paused) return;
-		startPending = false;
+		connection.state.startPending = false;
 		player.start();
 		await waitForFirstItem();
 		updateState();
@@ -1364,23 +1323,14 @@
 	// PNP surface: the shell chrome follows the candidate's display settings
 	// ---------------------------------------------------------------------------
 
-	/**
-	 * The section layouts repaint their own surface when the candidate changes their
-	 * display settings; the shell root is a separate PNP surface so the header,
-	 * navigation bar and timer follow too (nested inverting filters are neutralized
-	 * by the surface mechanism, and nothing outside the shell changes).
-	 */
-	function handleDisplaySettingsChange(event: { settings: QtiCandidateDisplaySettings }) {
-		candidateDisplaySettings = event.settings;
-	}
-
-	$effect(() => {
-		const root = shellRootEl;
-		if (!root) return;
-		const pnp = shellPnp;
-		applyPnpToSurface(root, pnp);
-		return () => clearPnpSurface(root);
-	});
+	// The section layouts repaint their own surface when the candidate changes their
+	// display settings; the shell root is a separate PNP surface so the header,
+	// navigation bar and timer follow too (nested inverting filters are neutralized
+	// by the surface mechanism, and nothing outside the shell changes).
+	applyDisplaySettingsSurface(
+		() => shellRootEl,
+		() => displaySettings.shellPnp,
+	);
 
 	async function handleExpiryConfirm() {
 		if (expiryDialog?.mode !== 'submit') return;
@@ -1423,23 +1373,6 @@
 	// Submit: confirmation first (WCAG 3.3.4), then the irreversible core transition
 	// ---------------------------------------------------------------------------
 
-	interface SubmitDialogItem {
-		number: number;
-		index: number;
-		jumpAllowed: boolean;
-	}
-
-	/** A question whose answer is incomplete, with what it still owes ("select at least 2"). */
-	interface IncompleteDialogItem extends SubmitDialogItem {
-		requirement: string;
-	}
-
-	/** Blockers grouped for display: no answer at all, or an incomplete answer. */
-	interface BlockerGroups {
-		needsAnswer: SubmitDialogItem[];
-		incomplete: IncompleteDialogItem[];
-	}
-
 	/**
 	 * What an incomplete answer still owes, from the interaction's constraint the core
 	 * derived (minChoices, minStrings, minAssociations, minPlays), as an entry fragment.
@@ -1477,12 +1410,7 @@
 		};
 	}
 
-	let submitSummary = $state<({
-		answeredCount: number;
-		total: number;
-		flaggedCount: number;
-		unanswered: SubmitDialogItem[];
-	} & BlockerGroups) | null>(null);
+	let submitSummary = $state<SubmitDialogSummary | null>(null);
 
 	/** The leave-part warning's questions that still owe an answer (Continue waits for them). */
 	let leavePartBlockers = $state<BlockerGroups>({ needsAnswer: [], incomplete: [] });
@@ -1611,7 +1539,7 @@
 		if (!player || isSubmitting || isComplete) return false;
 
 		submitError = null;
-		isSubmitting = true;
+		sessionStatus.isSubmitting = true;
 		let results: AssessmentResults;
 		try {
 			results = await player.submit();
@@ -1629,12 +1557,12 @@
 			}
 			return false;
 		} finally {
-			isSubmitting = false;
+			sessionStatus.isSubmitting = false;
 		}
 
 		testFeedback = player.getVisibleFeedback();
 		sections = player.getAllSections();
-		isComplete = true;
+		sessionStatus.isComplete = true;
 		// onComplete already delivered them; this covers a host core without listeners.
 		deliverResults(results);
 		return true;
@@ -1759,57 +1687,6 @@
 </script>
 
 <PlayerBaseStyles />
-
-<!--
-	One group of questions a dialog holds the candidate on (the submit confirmation, the
-	leave-part warning): a heading naming the count and why, then each question — a jump
-	where navigation allows, else its position. An incomplete answer's entry adds what it
-	still owes ("Question 2: select at least 2").
--->
-{#snippet blockerGroup(group: {
-	heading: string;
-	headingId: string;
-	testId: string;
-	jumpPrefix: string;
-	items: Array<SubmitDialogItem & { requirement?: string }>;
-	total: number;
-	onJump: (index: number) => void;
-})}
-	<p class="submit-dialog-line submit-dialog-needs-answer" id={group.headingId} data-testid={group.testId}>
-		{group.heading}
-	</p>
-	<ul class="submit-dialog-items" aria-labelledby={group.headingId}>
-		{#each group.items as item (item.index)}
-			<li>
-				{#if item.jumpAllowed}
-					<button
-						type="button"
-						class="submit-dialog-jump"
-						data-testid={`${group.jumpPrefix}-${item.number}`}
-						disabled={isSubmitting}
-						onclick={() => void group.onJump(item.index)}
-					>
-						{item.requirement === undefined
-							? i18n.t('assessment.review.goToItem', 'Go to question {number}', { number: item.number })
-							: i18n.t('assessment.submit.incompleteJump', 'Go to question {number}: {requirement}', {
-								number: item.number,
-								requirement: item.requirement,
-							})}
-					</button>
-				{:else}
-					<span class="submit-dialog-static">
-						{item.requirement === undefined
-							? i18n.t('assessment.question', 'Question {current} of {total}', { current: item.number, total: group.total })
-							: i18n.t('assessment.submit.incompleteEntry', 'Question {number}: {requirement}', {
-								number: item.number,
-								requirement: item.requirement,
-							})}
-					</span>
-				{/if}
-			</li>
-		{/each}
-	</ul>
-{/snippet}
 
 <!--
 	Page lifecycle: an immediate, best-effort autosave when the tab is hidden or the
@@ -2128,7 +2005,7 @@
 							{typeset}
 							headingLevel={titleHeadingLevel + 1}
 							onItemPaneReady={(el) => (itemPaneEl = el)}
-							onDisplaySettingsChange={handleDisplaySettingsChange}
+							onDisplaySettingsChange={displaySettings.handleChange}
 						/>
 					{:else}
 						<SectionPlayerVertical
@@ -2141,7 +2018,7 @@
 							{typeset}
 							headingLevel={titleHeadingLevel + 1}
 							onItemPaneReady={(el) => (itemPaneEl = el)}
-							onDisplaySettingsChange={handleDisplaySettingsChange}
+							onDisplaySettingsChange={displaySettings.handleChange}
 						/>
 					{/if}
 				{/if}
@@ -2280,60 +2157,19 @@
 				cannot be undone (WCAG 3.3.4) — deletes the saved draft and starts over.
 			-->
 				{#if resumeDialogOpen}
-					<AssessmentDialog
+					<ResumeDialog
 						bind:open={resumeDialogOpen}
-						title={i18n.t('assessment.resume.title', 'Resume your test?')}
 						description={resumeSavedAtLine}
+						allowStartOver={allowStartOver}
 						{i18n}
-						// Escape keeps the saved answers and continues — it must never be one
-						// step away from the irreversible deletion.
-						onCancel={handleResume}
-					>
-						{#snippet actions({ close })}
-							{#if allowStartOver}
-								<!-- svelte-ignore a11y_autofocus -->
-								<button
-									type="button"
-									class="submit-dialog-action"
-									data-testid="assessment-resume-start-over"
-									autofocus
-									onclick={() => {
-										close('cancel');
-										handleStartOverRequested();
-									}}
-								>
-									{i18n.t('assessment.resume.startOver', 'Start over')}
-								</button>
-							{/if}
-							<!-- svelte-ignore a11y_autofocus -->
-							<button
-								type="button"
-								class="submit-dialog-action primary"
-								data-testid="assessment-resume-continue"
-								autofocus={!allowStartOver}
-								onclick={() => {
-									close('confirm');
-									handleResume();
-								}}
-							>
-								{i18n.t('assessment.resume.resumeAction', 'Resume where you left off')}
-							</button>
-						{/snippet}
-					</AssessmentDialog>
+						onResume={handleResume}
+						onStartOver={handleStartOverRequested}
+					/>
 				{/if}
 
 			{#if startOverConfirmOpen}
-				<AssessmentDialog
+				<StartOverDialog
 					bind:open={startOverConfirmOpen}
-					title={i18n.t('assessment.resume.confirmTitle', 'Start over and delete your saved answers?')}
-					description={i18n.t(
-						'assessment.resume.confirmDescription',
-						'Your saved answers will be deleted and the test starts from the beginning. This cannot be undone.',
-					)}
-					confirmLabel={i18n.t('assessment.resume.confirmAction', 'Delete and start over')}
-					cancelLabel={i18n.t('assessment.resume.cancel', 'Keep my saved answers')}
-					tone="danger"
-					dismissible={false}
 					busy={startOverBusy}
 					{i18n}
 					onConfirm={handleStartOverConfirmed}
@@ -2346,204 +2182,42 @@
 				them when the navigation rules allow, and requires an explicit confirm. Focus
 				returns to the Submit control on cancel.
 			-->
-			<AssessmentDialog
+			<SubmitConfirmDialog
 				bind:open={submitDialogOpen}
-			title={submitTranslations.dialogTitle}
-			description={submitTranslations.dialogDescription}
-			tone="danger"
-			closeOnConfirm={false}
-			busy={isSubmitting}
-			{i18n}
-			onConfirm={handleDialogSubmit}
-		>
-			{#snippet children()}
-				<p class="submit-dialog-summary" data-testid="submit-dialog-summary">
-					<strong>{submitTranslations.answeredLine}</strong>
-				</p>
-				{#if submitTranslations.flaggedLine}
-					<p class="submit-dialog-line">{submitTranslations.flaggedLine}</p>
-				{/if}
-				{#if submitTranslations.needsAnswerHeading && submitSummary}
-					<!--
-						Items the end of the test would refuse: QTI allowSkipping=false without an
-						answer, named first, with a jump where navigation allows. Submit is
-						unavailable until they are answered.
-					-->
-					{@render blockerGroup({
-						heading: submitTranslations.needsAnswerHeading,
-						headingId: `${uid}-needs-answer-heading`,
-						testId: 'submit-dialog-needs-answer',
-						jumpPrefix: 'submit-dialog-needs-answer-jump',
-						items: submitSummary.needsAnswer,
-						total: submitSummary.total,
-						onJump: (index) => void handleDialogJump(index),
-					})}
-				{/if}
-				{#if submitTranslations.incompleteHeading && submitSummary}
-					<!--
-						validateResponses=true with an incomplete answer: a distinct group — the
-						answer exists but does not meet its interaction's minimum — whose entries
-						say what each still owes.
-					-->
-					{@render blockerGroup({
-						heading: submitTranslations.incompleteHeading,
-						headingId: `${uid}-incomplete-heading`,
-						testId: 'submit-dialog-incomplete',
-						jumpPrefix: 'submit-dialog-incomplete-jump',
-						items: submitSummary.incomplete,
-						total: submitSummary.total,
-						onJump: (index) => void handleDialogJump(index),
-					})}
-				{/if}
-				{#if submitTranslations.unansweredHeading && submitSummary}
-					<p class="submit-dialog-line" id={`${uid}-unanswered-heading`}>{submitTranslations.unansweredHeading}</p>
-					<ul class="submit-dialog-items" aria-labelledby={`${uid}-unanswered-heading`}>
-						{#each submitSummary.unanswered as item (item.index)}
-							<li>
-								{#if item.jumpAllowed}
-									<button
-										type="button"
-										class="submit-dialog-jump"
-										data-testid={`submit-dialog-jump-${item.number}`}
-										disabled={isSubmitting}
-										onclick={() => void handleDialogJump(item.index)}
-									>
-										{i18n.t('assessment.review.goToItem', 'Go to question {number}', { number: item.number })}
-									</button>
-								{:else}
-									<span class="submit-dialog-static">
-										{i18n.t('assessment.question', 'Question {current} of {total}', {
-											current: item.number,
-											total: submitSummary?.total ?? 0,
-										})}
-									</span>
-								{/if}
-							</li>
-						{/each}
-					</ul>
-				{:else if !submitBlocked}
-					<p class="submit-dialog-line">{submitTranslations.allAnswered}</p>
-				{/if}
-			{/snippet}
-			{#snippet actions({ close })}
-				<button
-					type="button"
-					class="submit-dialog-action"
-					data-testid="submit-dialog-review"
-					aria-disabled={isSubmitting ? 'true' : undefined}
-					onclick={() => {
-						// Unavailable while the submission runs: it must not act under it.
-						if (isSubmitting) return;
-						close('cancel');
-						void handleDialogReview();
-					}}
-				>
-					{submitTranslations.reviewAction}
-				</button>
-				<!-- svelte-ignore a11y_autofocus -->
-				<button
-					type="button"
-					class="submit-dialog-action"
-					data-testid="assessment-dialog-cancel"
-					autofocus
-					aria-disabled={isSubmitting ? 'true' : undefined}
-					onclick={() => close('cancel')}
-				>
-					{submitTranslations.cancel}
-				</button>
-				<button
-					type="button"
-					class="submit-dialog-action danger"
-					data-testid="assessment-dialog-confirm"
-					aria-disabled={isSubmitting || submitBlocked ? 'true' : undefined}
-					aria-describedby={submitBlocked
-						? [
-							submitTranslations.needsAnswerHeading ? `${uid}-needs-answer-heading` : null,
-							submitTranslations.incompleteHeading ? `${uid}-incomplete-heading` : null,
-						]
-							.filter(Boolean)
-							.join(' ')
-						: undefined}
-					onclick={() => {
-						if (submitBlocked) return;
-						close('confirm');
-					}}
-				>
-					{submitTranslations.confirm}
-				</button>
-			{/snippet}
-		</AssessmentDialog>
+				summary={submitSummary}
+				busy={isSubmitting}
+				blocked={submitBlocked}
+				translations={submitTranslations}
+				headingIds={{
+					needsAnswer: `${uid}-needs-answer-heading`,
+					incomplete: `${uid}-incomplete-heading`,
+					unanswered: `${uid}-unanswered-heading`,
+				}}
+				{i18n}
+				onJump={(index) => void handleDialogJump(index)}
+				onReview={handleDialogReview}
+				onConfirm={handleDialogSubmit}
+			/>
 
-		<!--
-			Leaving a test part is irreversible: confirm with a clear "cannot return". The
-			part's questions that still owe an answer are named with jumps, and Continue waits
-			for them — a left part can never be revisited (the core refuses the step too).
-		-->
-		<AssessmentDialog
-			bind:open={leavePartDialogOpen}
-			title={i18n.t('assessment.leavePart.title', 'Leave this part?')}
-			description={i18n.t('assessment.leavePart.description', 'After you continue, you cannot return to the questions in this part.')}
-			dismissible={false}
-			{i18n}
-			onConfirm={handleLeavePartConfirm}
-		>
-			{#snippet children()}
-				{#if leavePartTranslations.needsAnswerHeading}
-					{@render blockerGroup({
-						heading: leavePartTranslations.needsAnswerHeading,
-						headingId: `${uid}-leave-needs-answer-heading`,
-						testId: 'leave-part-needs-answer',
-						jumpPrefix: 'leave-part-needs-answer-jump',
-						items: leavePartBlockers.needsAnswer,
-						total: navState.totalItems,
-						onJump: (index) => void handleLeavePartJump(index),
-					})}
-				{/if}
-				{#if leavePartTranslations.incompleteHeading}
-					{@render blockerGroup({
-						heading: leavePartTranslations.incompleteHeading,
-						headingId: `${uid}-leave-incomplete-heading`,
-						testId: 'leave-part-incomplete',
-						jumpPrefix: 'leave-part-incomplete-jump',
-						items: leavePartBlockers.incomplete,
-						total: navState.totalItems,
-						onJump: (index) => void handleLeavePartJump(index),
-					})}
-				{/if}
-			{/snippet}
-			{#snippet actions({ close })}
-				<!-- svelte-ignore a11y_autofocus -->
-				<button
-					type="button"
-					class="submit-dialog-action"
-					data-testid="assessment-dialog-cancel"
-					autofocus={leavePartBlocked}
-					onclick={() => close('cancel')}
-				>
-					{i18n.t('assessment.leavePart.cancel', 'Stay on this part')}
-				</button>
-				<button
-					type="button"
-					class="submit-dialog-action primary"
-					data-testid="assessment-dialog-confirm"
-					aria-disabled={leavePartBlocked ? 'true' : undefined}
-					aria-describedby={leavePartBlocked
-						? [
-							leavePartTranslations.needsAnswerHeading ? `${uid}-leave-needs-answer-heading` : null,
-							leavePartTranslations.incompleteHeading ? `${uid}-leave-incomplete-heading` : null,
-						]
-							.filter(Boolean)
-							.join(' ')
-						: undefined}
-					onclick={() => {
-						if (leavePartBlocked) return;
-						close('confirm');
-					}}
-				>
-					{i18n.t('assessment.leavePart.confirm', 'Continue')}
-				</button>
-			{/snippet}
-		</AssessmentDialog>
+			<!--
+				Leaving a test part is irreversible: confirm with a clear "cannot return". The
+				part's questions that still owe an answer are named with jumps, and Continue waits
+				for them — a left part can never be revisited (the core refuses the step too).
+			-->
+			<LeavePartDialog
+				bind:open={leavePartDialogOpen}
+				blockers={leavePartBlockers}
+				total={navState.totalItems}
+				translations={leavePartTranslations}
+				headingIds={{
+					needsAnswer: `${uid}-leave-needs-answer-heading`,
+					incomplete: `${uid}-leave-incomplete-heading`,
+				}}
+				busy={isSubmitting}
+				{i18n}
+				onJump={(index) => void handleLeavePartJump(index)}
+				onConfirm={handleLeavePartConfirm}
+			/>
 
 		<!--
 			Item feedback from a check-answer (or a submit-on-move with single-attempt
@@ -2551,27 +2225,14 @@
 			shown with the shell's dialog semantics (focus in, Escape/Continue to close).
 		-->
 		{#if feedbackDialogOpen}
-			<AssessmentDialog
+			<FeedbackDialog
 				bind:open={feedbackDialogOpen}
-				title={i18n.t('assessment.feedback.title', 'Feedback')}
-				confirmLabel={i18n.t('common.continue', 'Continue')}
-				showCancel={false}
+				entries={feedbackEntries}
+				security={config.security}
+				{typeset}
 				{i18n}
 				onClose={() => handleFeedbackDialogClose()}
-			>
-				{#snippet children()}
-					<div class="feedback-dialog-body pie-qti-content" data-testid="assessment-item-feedback" use:typesetNode>
-						{#each feedbackEntries as entry, index (`${entry.identifier}:${index}`)}
-							<div class="feedback-dialog-entry">
-								{#if entry.title}
-									<p class="feedback-dialog-entry-title">{entry.title}</p>
-								{/if}
-								{@html sanitizeHtml(entry.content, { security: config.security })}
-							</div>
-						{/each}
-					</div>
-				{/snippet}
-			</AssessmentDialog>
+			/>
 		{/if}
 
 		<!--
@@ -2582,37 +2243,9 @@
 			stays in the navigation bar and takes focus.
 		-->
 		{#if expiryDialog}
-			{@const scopeTitle = expiryDialog.scope === 'testPart'
-				? i18n.t('assessment.timeExpiry.partTitle', 'The time for this part is over')
-				: expiryDialog.scope === 'section'
-					? i18n.t('assessment.timeExpiry.sectionTitle', 'The time for this section is over')
-					: expiryDialog.scope === 'item'
-						? i18n.t('assessment.timeExpiry.questionTitle', 'The time for this question is over')
-						: i18n.t('assessment.timeExpiry.submitTitle', 'The time for this test is over')}
-			<AssessmentDialog
+			<ExpiryNoticeDialog
 				bind:open={expiryDialogOpen}
-				title={scopeTitle}
-				description={
-					expiryDialog.mode === 'submit'
-						? i18n.t('assessment.timeExpiry.submitDescription', 'You can no longer change your answers. Submit your test to finish.')
-						: expiryDialog.movingTo === undefined
-							? i18n.t('assessment.timeExpiry.closedDescription', 'You can no longer change your answers to its questions.')
-							: expiryDialog.scope === 'testPart'
-								? i18n.t('assessment.timeExpiry.scopeDescription', 'You are moving on to the next part of the test.')
-								: i18n.t('assessment.timeExpiry.movingToQuestion', 'You are moving on to question {number}.', {
-									number: i18n.formatNumber?.(expiryDialog.movingTo) ?? String(expiryDialog.movingTo),
-								})
-				}
-				confirmLabel={
-					expiryDialog.mode === 'submit'
-						? i18n.t('assessment.navigation.submit', 'Submit')
-						: i18n.t('assessment.timeExpiry.continue', 'Continue')
-				}
-				tone={expiryDialog.mode === 'submit' ? 'danger' : 'primary'}
-				// Acknowledge-only: there is nothing to cancel — delivery already moved on (or
-				// only the submission remains). Escape still dismisses, through the same path.
-				showCancel={false}
-				closeOnConfirm={expiryDialog.mode !== 'submit'}
+				notice={expiryDialog}
 				busy={isSubmitting}
 				{i18n}
 				onConfirm={handleExpiryConfirm}
@@ -2638,22 +2271,13 @@
 		<!-- Proctor pause: an overlay replaces the blocked shell, naming the reason.
 		     It sits OUTSIDE the inert chrome wrapper, so it stays operable. -->
 		{#if paused}
-			<div class="pause-overlay" data-testid="assessment-pause-overlay" bind:this={pauseOverlayEl}>
-				<div class="pause-card" role="status" aria-live="assertive">
-					<!-- One level below the shell title, like the passage and item titles. -->
-					<svelte:element
-						this={`h${Math.min(6, titleHeadingLevel + 1)}`}
-						class="pause-title"
-						tabindex="-1"
-						bind:this={pauseHeadingEl}
-					>
-						{i18n.t('assessment.pause.title', 'Assessment paused')}
-					</svelte:element>
-					<p class="pause-reason">
-						{pauseReason ?? i18n.t('assessment.pause.message', 'Your test has been paused. Please wait until it resumes.')}
-					</p>
-				</div>
-			</div>
+			<PauseOverlay
+				headingLevel={titleHeadingLevel}
+				reason={pauseReason}
+				{i18n}
+				bind:headingElement={pauseHeadingEl}
+				bind:overlayElement={pauseOverlayEl}
+			/>
 		{/if}
 	</svelte:element>
 {/if}
@@ -2933,11 +2557,6 @@
 		padding-inline: var(--pie-qti-space-4, 1rem);
 	}
 
-	/* The refused end of the test reads as a warning naming questions, not a failure alert. */
-	.submit-dialog-needs-answer {
-		font-weight: 600;
-	}
-
 	/*
 	 * Candidate comments (QTI allowComment): a native disclosure above the navigation
 	 * bar. The summary is a ≥44px target with a visible focus ring; the textarea takes
@@ -2993,135 +2612,6 @@
 	.item-comments-input:focus-visible {
 		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
-	}
-
-	/* Item feedback inside the shell dialog (snippet content keeps the shell's CSS scope). */
-	.feedback-dialog-body {
-		display: flex;
-		flex-direction: column;
-		gap: var(--pie-qti-space-3, 0.75rem);
-		overflow-wrap: anywhere;
-	}
-
-	.feedback-dialog-entry + .feedback-dialog-entry {
-		padding-block-start: var(--pie-qti-space-3, 0.75rem);
-		border-block-start: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
-	}
-
-	.feedback-dialog-entry-title {
-		margin: 0 0 var(--pie-qti-space-2, 0.5rem);
-		font-weight: 700;
-	}
-
-	.feedback-dialog-entry :global(> :first-child) {
-		margin-block-start: 0;
-	}
-
-	.feedback-dialog-entry :global(> :last-child) {
-		margin-block-end: 0;
-	}
-
-	/* Submit-confirmation dialog body */
-	.submit-dialog-summary {
-		margin: 0 0 var(--pie-qti-space-2, 0.5rem);
-		font-size: 1.0625em;
-	}
-
-	.submit-dialog-line {
-		margin: 0 0 var(--pie-qti-space-2, 0.5rem);
-	}
-
-	.submit-dialog-items {
-		margin: 0 0 var(--pie-qti-space-2, 0.5rem);
-		padding: 0;
-		list-style: none;
-		display: flex;
-		flex-direction: column;
-		gap: var(--pie-qti-space-2, 0.5rem);
-		max-block-size: 12rem;
-		overflow-y: auto;
-	}
-
-	.submit-dialog-jump {
-		box-sizing: border-box;
-		display: inline-flex;
-		align-items: center;
-		min-inline-size: var(--pie-qti-control-min-size, 2.75rem);
-		min-block-size: var(--pie-qti-control-min-size, 2.75rem);
-		padding-block: var(--pie-qti-space-2, 0.5rem);
-		padding-inline: var(--pie-qti-space-4, 1rem);
-		border: 1px solid var(--pie-qti-border-strong, #767676);
-		border-radius: var(--pie-qti-radius, 0.5rem);
-		background: var(--pie-qti-base-100, oklch(100% 0 0));
-		color: var(--pie-qti-base-content, oklch(21% 0 0));
-		font: inherit;
-		font-weight: 600;
-		line-height: 1.25;
-		text-align: start;
-		cursor: pointer;
-	}
-
-	.submit-dialog-jump:hover:not(:disabled) {
-		background: var(--pie-qti-base-200, oklch(98% 0 0));
-	}
-
-	.submit-dialog-jump:focus-visible {
-		outline: 2px solid var(--pie-qti-focus, #4338ca);
-		outline-offset: 2px;
-	}
-
-	.submit-dialog-jump:disabled {
-		cursor: not-allowed;
-		opacity: 0.55;
-	}
-
-	.submit-dialog-static {
-		font-weight: 600;
-	}
-
-	/* The dialog's action buttons (the actions snippet keeps the shell's CSS scope). */
-	.submit-dialog-action {
-		box-sizing: border-box;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		min-inline-size: var(--pie-qti-control-min-size, 2.75rem);
-		min-block-size: var(--pie-qti-control-min-size, 2.75rem);
-		padding-block: var(--pie-qti-space-2, 0.5rem);
-		padding-inline: var(--pie-qti-space-4, 1rem);
-		border: 1px solid var(--pie-qti-border-strong, #767676);
-		border-radius: var(--pie-qti-radius, 0.5rem);
-		background: var(--pie-qti-base-100, oklch(100% 0 0));
-		color: var(--pie-qti-base-content, oklch(21% 0 0));
-		font: inherit;
-		font-weight: 600;
-		line-height: 1.25;
-		text-align: center;
-		cursor: pointer;
-	}
-
-	.submit-dialog-action:hover:not([aria-disabled='true']) {
-		background: var(--pie-qti-base-200, oklch(98% 0 0));
-	}
-
-	.submit-dialog-action.danger {
-		border-color: var(--pie-qti-error-text, #b91c1c);
-		background: var(--pie-qti-error-text, #b91c1c);
-		color: oklch(98% 0.01 277);
-	}
-
-	.submit-dialog-action.danger:hover:not([aria-disabled='true']) {
-		background: color-mix(in oklab, var(--pie-qti-error-text, #b91c1c) 85%, black);
-	}
-
-	.submit-dialog-action:focus-visible {
-		outline: 2px solid var(--pie-qti-focus, #4338ca);
-		outline-offset: 2px;
-	}
-
-	.submit-dialog-action[aria-disabled='true'] {
-		cursor: not-allowed;
-		opacity: 0.6;
 	}
 
 	.support-code {
@@ -3217,16 +2707,6 @@
 	.dialog-fallback p {
 		margin: 0;
 		overflow-wrap: anywhere;
-	}
-
-	.submit-dialog-action.primary {
-		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));
-		background: var(--pie-qti-primary, oklch(45% 0.24 277));
-		color: var(--pie-qti-primary-content, oklch(98% 0.01 277));
-	}
-
-	.submit-dialog-action.primary:hover:not([aria-disabled='true']) {
-		background: color-mix(in oklab, var(--pie-qti-primary, oklch(45% 0.24 277)) 85%, black);
 	}
 
 	/* Begin gate: the start screen before the clocks run. */
@@ -3332,46 +2812,6 @@
 
 	.assessment-start-paused-reason {
 		margin: var(--pie-qti-space-1, 0.25rem) 0 0;
-		overflow-wrap: anywhere;
-	}
-
-	/* Proctor pause: blocks the shell and names the reason. */
-	.pause-overlay {
-		position: absolute;
-		inset: 0;
-		z-index: 30;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: var(--pie-qti-space-4, 1rem);
-		background: color-mix(in oklab, var(--pie-qti-base-100, oklch(100% 0 0)) 92%, black);
-	}
-
-	.pause-card {
-		box-sizing: border-box;
-		inline-size: min(28rem, 100%);
-		padding: var(--pie-qti-space-6, 2rem);
-		border: 1px solid var(--pie-qti-border-strong, #767676);
-		border-radius: var(--pie-qti-radius, 0.5rem);
-		background: var(--pie-qti-base-100, oklch(100% 0 0));
-		color: var(--pie-qti-base-content, oklch(21% 0 0));
-		box-shadow: 0 1.25rem 2.75rem rgb(0 0 0 / 0.25);
-	}
-
-	.pause-title {
-		margin: 0 0 var(--pie-qti-space-3, 0.75rem);
-		font-size: 1.25em;
-		font-weight: 700;
-		line-height: 1.3;
-	}
-
-	.pause-title:focus-visible {
-		outline: 2px solid var(--pie-qti-focus, #4338ca);
-		outline-offset: 2px;
-	}
-
-	.pause-reason {
-		margin: 0;
 		overflow-wrap: anywhere;
 	}
 
