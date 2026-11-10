@@ -29,6 +29,9 @@ spec-defined replacements:
   put the `matchTable`/`interpolationTable` on the outcome declaration, as the spec paths it.
 - `record` (the constructor) — no replacement: records are a declaration cardinality; deliver the
   record value with the session and read its fields with `fieldValue`.
+- `preCondition` (as an expression) — no replacement: no QTI version defines it outside test
+  structure (`assessmentItemRef`/`sectionPart` conditions, which the assessment player owns); the
+  fixture that exercised it is deleted. A test pins that every removed name now throws.
 
 The conformance fixtures that exercised the removed elements are rewritten to the spec spellings
 with unchanged cases and outcomes (three renamed: `isNull_not`,

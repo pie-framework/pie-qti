@@ -631,11 +631,6 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 				values: kids.map((k) => buildExpression(k, options)),
 			};
 		}
-		case 'precondition': {
-			const exprEl = kids[0];
-			if (!exprEl) throw new Error('<preCondition> missing expression');
-			return { kind: 'expr.preCondition', id, expr: buildExpression(exprEl, options) };
-		}
 		case 'match': {
 			return { kind: 'expr.match', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}

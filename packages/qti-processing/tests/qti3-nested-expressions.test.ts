@@ -124,10 +124,9 @@ const TEST_LEVEL = new Set([
 
 /**
  * One row per `buildExpression` switch case: [canonical tag, attributes, body]. `mapper.toNative`
- * spells the QTI 3.0 element name; for the one tag the builder supports beyond the QTI 3.0 schema
- * (preCondition) it yields the bare canonical name, which the QTI 3 mapper passes through
- * unchanged — the same spelling the 2 → 3 conversion leaves such elements with. Every child
- * expression is spelled kebab-case, so a nested call that drops `options` throws.
+ * spells the QTI 3.0 element name of every tag the builder supports — the builder accepts no
+ * element beyond the three schemas' element inventories. Every child expression is spelled
+ * kebab-case, so a nested call that drops `options` throws.
  */
 const GUARD: ReadonlyArray<readonly [tag: string, attrs: string, body: string]> = [
 	['and', '', TWO],
@@ -179,7 +178,6 @@ const GUARD: ReadonlyArray<readonly [tag: string, attrs: string, body: string]> 
 	['outcomeminimum', 'outcome-identifier="SCORE"', ''],
 	['patternmatch', 'pattern=".*"', ONE],
 	['power', '', TWO],
-	['precondition', '', ONE],
 	['product', '', TWO],
 	['random', '', ONE],
 	['randomfloat', 'max="1.0"', ''],

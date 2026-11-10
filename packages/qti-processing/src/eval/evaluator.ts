@@ -555,11 +555,6 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 				return qtiNull();
 			}
 		}
-		case 'expr.preCondition': {
-			// A boolean-context wrapper: a NULL or invalid condition is not true.
-			const v = evalExpr(env, expr.expr);
-			return qtiValue('boolean', 'single', toBoolean(v));
-		}
 		case 'expr.isNull': {
 			const v = evalExpr(env, expr.expr);
 			return qtiValue('boolean', 'single', isNullValue(v));

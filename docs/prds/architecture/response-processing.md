@@ -131,9 +131,6 @@ The QTI processing model is inherently stateful: `setOutcomeValue` and `setTempl
 **Math**  
 `gcd`, `lcm`
 
-**Conditionals (expression form)**  
-`preCondition`
-
 **Extension**  
 `customOperator` (dispatches to `EvalEnv.customOperators` registry)
 
@@ -143,7 +140,7 @@ The QTI processing model is inherently stateful: `setOutcomeValue` and `setTempl
 
 ### Deliberately omitted
 
-- `preCondition` / `branchRule` at the test level: these are `testPart`- and `assessmentSection`-level QTI constructs controlled by the assessment player, not by the processing engine.
+- `preCondition` / `branchRule` at the test level: these are `testPart`- and `assessmentSection`-level QTI constructs controlled by the assessment player, not by the processing engine. No QTI version defines either as a processing expression; the engine never accepted one.
 
 ### Known divergences from spec
 

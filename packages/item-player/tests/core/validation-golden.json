@@ -5855,61 +5855,6 @@
       },
       "qti30": "same as qti22"
     },
-    "responseProcessing_preCondition": {
-      "qti22": {
-        "probes": {
-          "(no responses)": {
-            "engine": {
-              "attempted": false,
-              "entries": {},
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "(wrong cardinality)": {
-            "engine": {
-              "attempted": false,
-              "entries": {},
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "preCondition_true_false_null_and_variable": {
-            "engine": {
-              "attempted": false,
-              "entries": {},
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "preCondition_variable_nonzero_is_true": {
-            "engine": {
-              "attempted": false,
-              "entries": {},
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          }
-        }
-      },
-      "qti30": "same as qti22"
-    },
     "responseProcessing_random_lookupOutcomeValue": {
       "qti22": {
         "probes": {

@@ -35,7 +35,6 @@ export type ExpressionNode =
 	| NumberRespondedExpr
 	| NumberSelectedExpr
 	| CustomOperatorExpr
-	| PreConditionExpr
 	| RandomExpr
 	| MatchExpr
 	| EqualExpr
@@ -251,15 +250,6 @@ export type CustomOperatorExpr = {
 	values: ExpressionNode[];
 };
 
-/**
- * preCondition is a LogicSingle wrapper used by the QTI spec.
- * We treat it as a boolean-context wrapper around its child expression.
- */
-export type PreConditionExpr = {
-	kind: 'expr.preCondition';
-	id: AstNodeId;
-	expr: ExpressionNode;
-};
 
 export type RandomExpr = {
 	kind: 'expr.random';

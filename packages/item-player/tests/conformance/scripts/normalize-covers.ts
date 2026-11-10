@@ -81,7 +81,6 @@ const CANONICAL: Record<string, string> = {
   random: 'expr.random',
   randominteger: 'expr.randomInteger',
   randomfloat: 'expr.randomFloat',
-  precondition: 'expr.preCondition',
   customoperator: 'expr.customOperator',
   fieldvalue: 'expr.fieldValue',
 };
