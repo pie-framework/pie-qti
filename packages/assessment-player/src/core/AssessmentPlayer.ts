@@ -88,6 +88,16 @@ import {
 } from './sessionRecords.js';
 import { TypedEventEmitter, type AssessmentPlayerEventMap } from './playerEvents.js';
 import {
+	flattenItems,
+	partOrderOf,
+	presentedSectionOf,
+	presentedSections,
+	type CurrentItemView,
+	type FlatItem,
+	type PresentationPolicy,
+	type SectionItemRefView,
+} from './deliveryStructure.js';
+import {
 	interactionRequirementFromXml,
 	interactionResponseIdentifiers,
 	itemAnswerStatus,
@@ -230,37 +240,6 @@ export interface BackendAssessmentPlayerConfig {
 	onError?: (error: Error) => void;
 }
 
-type FlatItem = {
-	identifier: string;
-	item: SecureItemRef;
-	/** Innermost enclosing section. */
-	section: SecureSection;
-	/** Enclosing sections, outermost first. */
-	sections: SecureSection[];
-	/** Outermost enclosing section the candidate is actually shown (QTI visible="false" merges content into the parent). */
-	presentedSection: SecureSection | undefined;
-	testPart: SecureTestPart;
-	index: number;
-	/** Index of `presentedSection` in the candidate-facing section list; -1 when none is visible. */
-	sectionIndex: number;
-};
-
-type CurrentItemView = {
-	identifier: string;
-	title?: string;
-	required?: boolean;
-	itemXml: string;
-	deliveryContext?: SecureItemRef['deliveryContext'];
-};
-
-type SectionItemRefView = {
-	identifier: string;
-	href?: string;
-	title?: string;
-	itemXml: string;
-	deliveryContext?: SecureItemRef['deliveryContext'];
-};
-
 /** What a shell's start screen shows before delivery begins (opt-in begin gate). */
 export interface AssessmentStartInfo {
 	/** The assessmentTest title; shells fall back to a localized generic title. */
@@ -364,9 +343,6 @@ export interface SubmissionBlocker {
 	 */
 	requirement?: { kind: 'minChoices' | 'minStrings' | 'minAssociations' | 'minPlays' | 'incomplete'; count?: number };
 }
-
-/** What the presentation of an item session shows: QTI showFeedback / showSolution, resolved. */
-type PresentationPolicy = { showFeedback: boolean; showSolution: boolean };
 
 /** What a shell's countdown shows for the active scope right now. */
 export interface AssessmentTimeState {
@@ -524,7 +500,7 @@ export class AssessmentPlayer {
 				timing: { startedAt: Date.now(), itemTimes: {}, totalTime: 0 },
 			} as AssessmentSessionState);
 
-		this.items = this.flattenItems(this.assessment);
+		this.items = flattenItems(this.assessment);
 		this.deliveredForRules = this.items.map(({ item, testPart, sections }) => ({ item, testPart, sections }));
 		for (const q of this.items) this.indexByIdentifier.set(q.identifier, q.index);
 		const ruled = (holder: { preConditions?: string[]; branchRule?: unknown[] }) =>
@@ -921,9 +897,9 @@ export class AssessmentPlayer {
 			// follows; questions of parts already left stay closed exactly as they stand
 			// (the end of the test collects them so), visited marks included.
 			const reachedIndex = Math.max(this.currentItemIndex, ...this.navigationManager.getVisited(), 0);
-			const reachedPart = this.partOrder(this.items[reachedIndex]);
+			const reachedPart = partOrderOf(this.assessment, this.items[reachedIndex]);
 			const left = new Set(
-				this.items.filter((q) => this.partOrder(q) < reachedPart).map((q) => q.identifier),
+				this.items.filter((q) => partOrderOf(this.assessment, q) < reachedPart).map((q) => q.identifier),
 			);
 			// Accepted items keep their recorded state; everything else is the draft.
 			const accepted = new Set(
@@ -967,10 +943,10 @@ export class AssessmentPlayer {
 			// Delivery repositions to the first open item of the furthest part reached (else
 			// the first open item after it); with none left, the expiry dead end: the
 			// candidate's way out is the submission.
-			const inReach = (q: FlatItem) => this.partOrder(q) >= reachedPart;
-			const inPart = this.items.findIndex((q) => this.partOrder(q) === reachedPart && this.isOpenTarget(q));
+			const inReach = (q: FlatItem) => partOrderOf(this.assessment, q) >= reachedPart;
+			const inPart = this.items.findIndex((q) => partOrderOf(this.assessment, q) === reachedPart && this.isOpenTarget(q));
 			const firstOpen =
-				inPart >= 0 ? inPart : this.items.findIndex((q) => this.partOrder(q) > reachedPart && !this.isItemLocked(q));
+				inPart >= 0 ? inPart : this.items.findIndex((q) => partOrderOf(this.assessment, q) > reachedPart && !this.isItemLocked(q));
 			const target = firstOpen >= 0 ? firstOpen : Math.max(0, this.items.findIndex(inReach));
 			if (this.items[target]) {
 				this.state.currentItemIdentifier = this.items[target]!.identifier;
@@ -980,12 +956,6 @@ export class AssessmentPlayer {
 			// Persist the blank draft now so a refresh cannot resurrect the discarded answers.
 			await this.autosave?.flushImmediate();
 		});
-	}
-
-	/** Delivery order of the item's test part (parts are delivered in sequence). */
-	private partOrder(q: FlatItem | undefined): number {
-		if (!q) return 0;
-		return (this.assessment.testParts ?? []).findIndex((part) => part.identifier === q.testPart.identifier);
 	}
 
 	private getEffectiveItemTimeLimits(flat: FlatItem): EffectiveItemTimeLimits {
@@ -1422,26 +1392,6 @@ export class AssessmentPlayer {
 		});
 	}
 
-	private flattenItems(assessment: SecureAssessment): FlatItem[] {
-		const sectionIndexes = new Map(
-			this.presentedSectionList().map((section, index) => [section.identifier, index]),
-		);
-		return deliveredItems(assessment).map(({ item, testPart, sections }, index) => {
-			const section = sections[sections.length - 1];
-			const presentedSection = this.presentedSectionOf(sections);
-			return {
-				identifier: item.identifier,
-				item,
-				section,
-				sections,
-				presentedSection,
-				testPart,
-				index,
-				sectionIndex: presentedSection ? (sectionIndexes.get(presentedSection.identifier) ?? -1) : -1,
-			};
-		});
-	}
-
 	/**
 	 * Sections presented to the candidate: visible themselves and under visible ancestors.
 	 * A QTI `visible="false"` section is not presented as a section — its content appears as
@@ -1449,35 +1399,7 @@ export class AssessmentPlayer {
 	 * inside keep being delivered in order.
 	 */
 	private presentedSectionList(): SecureSection[] {
-		const out: SecureSection[] = [];
-		const seen = new Set<string>();
-		const visit = (section: SecureSection, underInvisible: boolean): void => {
-			const hidden = underInvisible || section.visible === false;
-			if (!hidden && !seen.has(section.identifier)) {
-				seen.add(section.identifier);
-				out.push(section);
-			}
-			for (const component of sectionComponents(section)) {
-				if (component.type === 'section') visit(component.section, hidden);
-			}
-		};
-		for (const tp of this.assessment.testParts || []) {
-			for (const section of tp.sections || []) visit(section, false);
-		}
-		return out;
-	}
-
-	/** Outermost enclosing section of an item that the candidate is shown, if any. */
-	private presentedSectionOf(sections: readonly SecureSection[]): SecureSection | undefined {
-		let underInvisible = false;
-		for (const section of sections) {
-			if (section.visible === false) {
-				underInvisible = true;
-				continue;
-			}
-			if (!underInvisible) return section;
-		}
-		return undefined;
+		return presentedSections(this.assessment);
 	}
 
 	/**
@@ -1698,7 +1620,7 @@ export class AssessmentPlayer {
 		const sectionIndexes = new Map(presented.map((section, index) => [section.identifier, index]));
 		const total = this.items.length;
 		const q = this.items[this.currentItemIndex];
-		const presentedSection = q ? this.presentedSectionOf(q.sections) : undefined;
+		const presentedSection = q ? presentedSectionOf(q.sections) : undefined;
 		return {
 			currentIndex: this.currentItemIndex,
 			totalItems: total,
@@ -3133,7 +3055,7 @@ export class AssessmentPlayer {
 		const targetIndex = this.items.findIndex((item) => item.identifier === target);
 		const standing = this.items[this.currentItemIndex] ?? q;
 		// A test part delivery already left is never re-entered, whatever the decision says.
-		if (targetIndex >= 0 && this.partOrder(this.items[targetIndex]) < this.partOrder(standing)) {
+		if (targetIndex >= 0 && partOrderOf(this.assessment, this.items[targetIndex]) < partOrderOf(this.assessment, standing)) {
 			this.clearKeptBranchDecisions();
 			return;
 		}
