@@ -36,6 +36,7 @@
 	import AssessmentHeader from './AssessmentHeader.svelte';
 	import AssessmentTimer from './AssessmentTimer.svelte';
 	import CompletionScreen from './CompletionScreen.svelte';
+	import ExpiryNoticeDialog, { type ExpiryNotice } from './ExpiryNoticeDialog.svelte';
 	import LeavePartDialog from './LeavePartDialog.svelte';
 	import NavigationBar from './NavigationBar.svelte';
 	import PauseOverlay from './PauseOverlay.svelte';
@@ -271,15 +272,7 @@
 	 * left no reachable item) — the dialog carries the Submit action so the candidate is
 	 * never stranded, whatever item they are on.
 	 */
-	let expiryDialog = $state<{
-		mode: 'scope' | 'submit';
-		scope: 'assessment' | 'testPart' | 'section' | 'item';
-		/**
-		 * Scope notices only: the 1-based question delivery moves to, or undefined when
-		 * the candidate was outside the closed scope and stays where they are.
-		 */
-		movingTo?: number;
-	} | null>(null);
+	let expiryDialog = $state<ExpiryNotice | null>(null);
 	let expiryDialogOpen = $state(false);
 	/** An expiry left no reachable item; Submit must be offered wherever the candidate is. */
 	let submitRequired = $state(false);
@@ -2351,37 +2344,9 @@
 			stays in the navigation bar and takes focus.
 		-->
 		{#if expiryDialog}
-			{@const scopeTitle = expiryDialog.scope === 'testPart'
-				? i18n.t('assessment.timeExpiry.partTitle', 'The time for this part is over')
-				: expiryDialog.scope === 'section'
-					? i18n.t('assessment.timeExpiry.sectionTitle', 'The time for this section is over')
-					: expiryDialog.scope === 'item'
-						? i18n.t('assessment.timeExpiry.questionTitle', 'The time for this question is over')
-						: i18n.t('assessment.timeExpiry.submitTitle', 'The time for this test is over')}
-			<AssessmentDialog
+			<ExpiryNoticeDialog
 				bind:open={expiryDialogOpen}
-				title={scopeTitle}
-				description={
-					expiryDialog.mode === 'submit'
-						? i18n.t('assessment.timeExpiry.submitDescription', 'You can no longer change your answers. Submit your test to finish.')
-						: expiryDialog.movingTo === undefined
-							? i18n.t('assessment.timeExpiry.closedDescription', 'You can no longer change your answers to its questions.')
-							: expiryDialog.scope === 'testPart'
-								? i18n.t('assessment.timeExpiry.scopeDescription', 'You are moving on to the next part of the test.')
-								: i18n.t('assessment.timeExpiry.movingToQuestion', 'You are moving on to question {number}.', {
-									number: i18n.formatNumber?.(expiryDialog.movingTo) ?? String(expiryDialog.movingTo),
-								})
-				}
-				confirmLabel={
-					expiryDialog.mode === 'submit'
-						? i18n.t('assessment.navigation.submit', 'Submit')
-						: i18n.t('assessment.timeExpiry.continue', 'Continue')
-				}
-				tone={expiryDialog.mode === 'submit' ? 'danger' : 'primary'}
-				// Acknowledge-only: there is nothing to cancel — delivery already moved on (or
-				// only the submission remains). Escape still dismisses, through the same path.
-				showCancel={false}
-				closeOnConfirm={expiryDialog.mode !== 'submit'}
+				notice={expiryDialog}
 				busy={isSubmitting}
 				{i18n}
 				onConfirm={handleExpiryConfirm}
