@@ -14,6 +14,7 @@ import { touchDrag } from '@pie-qti/qti-common';
 import { tick, type Snippet } from 'svelte';
 import { accessibleTextFromHtml } from '../utils/accessibleText.js';
 import DragHandle from './DragHandle.svelte';
+import { createPickUpPlace } from './pickUpPlace.svelte';
 import '../styles/shared.css';
 
 interface Item {
@@ -76,15 +77,15 @@ function formatIndex(index: number): string {
 	return `${indexLabels === 'upper-alpha' ? letters.toUpperCase() : letters}${indexSuffix}`;
 }
 
-let draggedId = $state<string | null>(null);
+// The item picked up via keyboard (held), and the item a pointer drag carries.
+const pickUp = createPickUpPlace();
 let dragOverId = $state<string | null>(null);
-let keyboardSelectedId = $state<string | null>(null); // Item picked up via keyboard
 let announceText = $state<string>(''); // For screen reader announcements
 
 // Mouse drag handlers
 function handleDragStart(id: string) {
 	if (disabled) return;
-	draggedId = id;
+	pickUp.startDrag(id);
 }
 
 function handleDragOver(event: DragEvent, id: string) {
@@ -98,6 +99,7 @@ function handleDragLeave() {
 }
 
 function handleDrop(event: DragEvent, dropId: string) {
+	const draggedId = pickUp.dragged;
 	if (disabled || !draggedId) return;
 	event.preventDefault();
 
@@ -112,12 +114,12 @@ function handleDrop(event: DragEvent, dropId: string) {
 		onReorder(newOrder);
 	}
 
-	draggedId = null;
+	pickUp.endDrag();
 	dragOverId = null;
 }
 
 function handleDragEnd() {
-	draggedId = null;
+	pickUp.endDrag();
 	dragOverId = null;
 }
 
@@ -136,13 +138,13 @@ function handleKeyDown(event: KeyboardEvent, id: string) {
 	}
 
 	// Escape: Cancel keyboard selection
-	if (event.key === 'Escape' && keyboardSelectedId) {
+	if (event.key === 'Escape' && pickUp.held) {
 		handleCancelSelection(event, itemName);
 		return;
 	}
 
 	// Arrow keys: Move item or change focus
-	if (keyboardSelectedId === id) {
+	if (pickUp.isHeld(id)) {
 		handleArrowKeyMovement(event, itemName, currentIndex);
 	}
 }
@@ -155,28 +157,24 @@ function handlePickupOrDrop(
 ) {
 	event.preventDefault();
 
-	if (keyboardSelectedId === id) {
-		// Drop item
-		keyboardSelectedId = null;
-		announceText = translate(i18n, 'interactions.order.itemDropped', '{item} dropped at position {position} of {total}', {
-			item: itemName, position: currentIndex + 1, total: orderedIds.length,
-		});
-	} else {
-		// Pick up item
-		keyboardSelectedId = id;
-		announceText = translate(
-			i18n,
-			'interactions.order.itemGrabbed',
-			'{item} grabbed. Current position {position} of {total}. Use arrow keys to move, Space or Enter to drop.',
-			{ item: itemName, position: currentIndex + 1, total: orderedIds.length },
-		);
-	}
+	announceText = pickUp.toggle(id)
+		? // Picked up
+			translate(
+				i18n,
+				'interactions.order.itemGrabbed',
+				'{item} grabbed. Current position {position} of {total}. Use arrow keys to move, Space or Enter to drop.',
+				{ item: itemName, position: currentIndex + 1, total: orderedIds.length },
+			)
+		: // Dropped
+			translate(i18n, 'interactions.order.itemDropped', '{item} dropped at position {position} of {total}', {
+				item: itemName, position: currentIndex + 1, total: orderedIds.length,
+			});
 }
 
 function handleCancelSelection(event: KeyboardEvent, itemName: string) {
 	event.preventDefault();
 	announceText = translate(i18n, 'interactions.order.selectionCancelled', '{item} selection cancelled', { item: itemName });
-	keyboardSelectedId = null;
+	pickUp.release();
 }
 
 function announceMoved(itemName: string, position: number): string {
@@ -238,7 +236,7 @@ async function moveWithButton(event: MouseEvent, id: string, offset: number) {
 	const button = event.currentTarget as HTMLButtonElement;
 	const row = button.closest('[role="listitem"]');
 	const item = items.find((entry) => entry.id === orderedIds[index]);
-	keyboardSelectedId = null;
+	pickUp.release();
 	moveItem(index, index + offset);
 	announceText = announceMoved(
 		item ? itemLabel(item) : translate(i18n, 'interactions.order.itemFallback', 'Item'),
@@ -296,7 +294,7 @@ function itemState(index: number, isGrabbed: boolean, isCorrect: boolean): strin
 	{#each orderedIds as id, index (id)}
 		{@const item = items.find((i) => i.id === id)}
 		{#if item}
-			{@const isGrabbed = keyboardSelectedId === id}
+			{@const isGrabbed = pickUp.isHeld(id)}
 			{@const correctIndex = correctOrder.indexOf(id)}
 			{@const isCorrect = correctIndex !== -1 && correctIndex === index}
 			{@const label = itemLabel(item)}
@@ -323,9 +321,9 @@ function itemState(index: number, isGrabbed: boolean, isCorrect: boolean): strin
 					class="qti-sortable-item flex items-center gap-2 p-3 bg-base-200 rounded select-none transition-all text-start"
 					class:cursor-grab={!disabled && !isGrabbed}
 					class:cursor-not-allowed={disabled}
-					class:opacity-50={disabled || draggedId === id}
-					class:ring-2={(dragOverId === id && draggedId !== id) || isGrabbed}
-					class:ring-primary={(dragOverId === id && draggedId !== id) || isGrabbed}
+					class:opacity-50={disabled || pickUp.dragged === id}
+					class:ring-2={(dragOverId === id && pickUp.dragged !== id) || isGrabbed}
+					class:ring-primary={(dragOverId === id && pickUp.dragged !== id) || isGrabbed}
 					class:bg-primary={isGrabbed}
 					class:bg-opacity-20={isGrabbed || isCorrect}
 					class:bg-success={isCorrect}

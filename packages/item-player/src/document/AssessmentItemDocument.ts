@@ -68,6 +68,7 @@ export class AssessmentItemDocument {
 	private readonly extractionSource: string;
 	/** textEntryInteraction number bases by response identifier, read on first use. */
 	private textEntryBases?: ReadonlyMap<string, number>;
+	private extendedTextBases?: ReadonlyMap<string, number>;
 
 	constructor({
 		itemXml,
@@ -147,13 +148,24 @@ export class AssessmentItemDocument {
 		});
 	}
 
+	/**
+	 * The number base the extendedTextInteraction bound to `responseIdentifier` reads typed
+	 * numeric text in (QTI ASI stringInteraction `base`, default 10), or undefined when no
+	 * extendedTextInteraction is bound to it. Read once, per interaction identifier, into a
+	 * map of numbers: the item body source is immutable, and caching the base avoids
+	 * re-parsing the (mutable) extraction view on every value coercion.
+	 */
 	getExtendedTextBase(responseIdentifier: string): number | undefined {
-		const interaction = this.findExtractionElements(['extendedTextInteraction']).find(
-			(candidate) => candidate.responseIdentifier === responseIdentifier,
-		);
-		if (!interaction) return undefined;
-		const base = Number(interaction.element.getAttribute?.('base') ?? 10);
-		return Number.isInteger(base) && base >= 2 && base <= 36 ? base : 10;
+		if (!this.extendedTextBases) {
+			const bases = new Map<string, number>();
+			for (const { responseIdentifier: id, element } of this.findExtractionElements(['extendedTextInteraction'])) {
+				if (bases.has(id)) continue;
+				const base = Number(element.getAttribute?.('base') ?? 10);
+				bases.set(id, Number.isInteger(base) && base >= 2 && base <= 36 ? base : 10);
+			}
+			this.extendedTextBases = bases;
+		}
+		return this.extendedTextBases.get(responseIdentifier);
 	}
 
 	/**

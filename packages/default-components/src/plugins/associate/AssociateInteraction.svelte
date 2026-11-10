@@ -7,10 +7,11 @@
 	import { formatList, joinSentences, translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
+	import { exceedsLimit, isAtLimit, isLimited } from '../../shared/utils/capacity';
 	import { accessibleTextFromHtml } from '../../shared/utils/accessibleText.js';
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
-	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
-	import { countPairsWithId, pairIncludesId } from '../../shared/utils/pairHelpers';
+	import { matchGroupBlockedIds } from '../../shared/utils/matchGroupUtils';
+	import { countPairsWithId, hasUnorderedPair, pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
@@ -124,20 +125,21 @@
 	}
 
 	// Choices that cannot be paired with the currently selected choice due to matchGroup constraints
+	// (the selected choice itself is never shown as blocked: display-only, as a choice paired
+	// with itself never breaks matchGroup)
 	const blockedChoices = $derived.by(() => {
 		if (!selectedForPairing || !parsedInteraction) return new Set<string>();
-		const src = parsedInteraction.choices.find((c) => c.identifier === selectedForPairing);
-		return new Set(
-			parsedInteraction.choices
-				.filter((c) => c.identifier !== selectedForPairing && !isCompatibleMatchGroup(src, c))
-				.map((c) => c.identifier)
+		const choices = parsedInteraction.choices;
+		return matchGroupBlockedIds(
+			choices.find((c) => c.identifier === selectedForPairing),
+			choices.filter((c) => c.identifier !== selectedForPairing),
 		);
 	});
 
 	// The interaction's association cap (QTI maxAssociations): 0 means unlimited, as every
 	// spec version that defines the attribute reads it.
 	const maxAssociations = $derived(parsedInteraction ? Math.max(0, Math.trunc(Number(parsedInteraction.maxAssociations) || 0)) : 0);
-	const associationCapReached = $derived(maxAssociations > 0 && pairs.length >= maxAssociations);
+	const associationCapReached = $derived(isAtLimit(pairs.length, maxAssociations));
 
 	function usesOf(choiceId: string): number {
 		return countPairsWithId(pairs, choiceId);
@@ -148,7 +150,7 @@
 	 * or the interaction's maxAssociations cap is reached (then no choice can).
 	 */
 	function isChoiceMaxed(choice: { identifier: string; matchMax: number }): boolean {
-		return (choice.matchMax > 0 && usesOf(choice.identifier) >= choice.matchMax) || associationCapReached;
+		return isAtLimit(usesOf(choice.identifier), choice.matchMax) || associationCapReached;
 	}
 
 	function announceAssociationLimit() {
@@ -180,7 +182,7 @@
 		// Capacity refusals (QTI matchMax per choice and maxAssociations per interaction),
 		// announced: the same maxima response validation enforces, refused here so an
 		// over-limit response never reaches the submit that would reject it.
-		if (clicked && clicked.matchMax > 0 && usesOf(choiceId) >= clicked.matchMax) {
+		if (clicked && isAtLimit(usesOf(choiceId), clicked.matchMax)) {
 			announceChoiceLimit(clicked);
 			return;
 		}
@@ -206,13 +208,13 @@
 		}
 		const newPair = `${selectedForPairing} ${choiceId}`;
 		const newPairs = [...pairs, newPair];
-		if (maxAssociations > 0 && newPairs.length > maxAssociations) {
+		if (exceedsLimit(newPairs.length, maxAssociations)) {
 			announceAssociationLimit();
 			return;
 		}
 		const pending = parsedInteraction.choices.find((c) => c.identifier === selectedForPairing);
 		for (const choice of [pending, clicked]) {
-			if (choice && choice.matchMax > 0 && countPairsWithId(newPairs, choice.identifier) > choice.matchMax) {
+			if (choice && exceedsLimit(countPairsWithId(newPairs, choice.identifier), choice.matchMax)) {
 				announceChoiceLimit(choice);
 				return;
 			}
@@ -267,9 +269,8 @@
 
 	function isCorrectPairMatch(id1: string, id2: string): boolean {
 		if (!isShowingCorrect || !parsedCorrectResponse) return false;
-		return parsedCorrectResponse.some(
-			(p) => p === `${id1} ${id2}` || p === `${id2} ${id1}`
-		);
+		// A QTI pair is unordered: the key's "B A" is the candidate's "A B".
+		return hasUnorderedPair(parsedCorrectResponse, id1, id2);
 	}
 
 	// 1-based position of each choice as presented to the candidate (after shuffle):
@@ -383,7 +384,6 @@
 				{@const [id1, id2] = pair.split(' ')}
 				{@const choice1 = parsedInteraction.choices.find((c: any) => c.identifier === id1)}
 				{@const choice2 = parsedInteraction.choices.find((c: any) => c.identifier === id2)}
-				{@const isInUserPairs = pairs.some((p) => p === pair || p === `${id2} ${id1}`)}
 				{#if choice1 && choice2}
 					<div
 						part="correct-pair"
@@ -455,7 +455,7 @@
 								'Select two items to create an association between them. Keyboard users can tab to each item and press Enter or Space.'),
 						// The interaction's cap, named up front (WCAG 3.3.2) so the limit is known
 						// before the first refusal announces it.
-						maxAssociations > 0 &&
+						isLimited(maxAssociations) &&
 							translatePlural(
 								i18n,
 								'interactions.associate.maxAssociationsHint',

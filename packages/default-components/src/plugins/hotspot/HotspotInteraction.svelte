@@ -8,6 +8,7 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import ImageStage from '../../shared/components/ImageStage.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
+	import { isAtLimit, isLimitMessageShown, limitMessage } from '../../shared/utils/capacity';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import { radioArrowStep, wrapIndex } from '../../shared/utils/radioGroup';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
@@ -193,16 +194,16 @@
 	// hottext show. It is stated at the cap, by the same rule as theirs: an authored message for
 	// any cardinality, the default only where a selection can be refused. A refusal announces it.
 	const maxChoices = $derived(parsedInteraction?.maxChoices ?? 0);
-	const atLimit = $derived(!isSingle && maxChoices > 0 && selectedIds.length >= maxChoices);
+	const atLimit = $derived(!isSingle && isAtLimit(selectedIds.length, maxChoices));
 	const maxMessage = $derived(
-		parsedInteraction?.maxSelectionsMessage ||
+		limitMessage(
+			parsedInteraction?.maxSelectionsMessage,
 			translate(i18n, 'interactions.hotspot.maxChoicesReached', 'You can select up to {max}. Deselect one to choose another.', {
 				max: maxChoices,
-			})
+			}),
+		),
 	);
-	const showMaxMessage = $derived(
-		maxChoices > 0 && selectedIds.length >= maxChoices && (!!parsedInteraction?.maxSelectionsMessage || maxChoices > 1)
-	);
+	const showMaxMessage = $derived(isLimitMessageShown(selectedIds.length, maxChoices, parsedInteraction?.maxSelectionsMessage));
 
 	// Polite status messages (a refused selection) for the always-rendered live region.
 	let statusAnnouncement = $state('');

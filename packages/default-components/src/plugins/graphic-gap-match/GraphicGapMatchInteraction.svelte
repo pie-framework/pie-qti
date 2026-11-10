@@ -16,11 +16,19 @@ import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
 	import { normalizeCssPixelLength } from '@pie-qti/item-player/security';
 	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
-	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
+	import { exceedsLimit, limitMessage } from '../../shared/utils/capacity';
+	import { isCompatibleMatchGroup, matchGroupBlockedIds } from '../../shared/utils/matchGroupUtils';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
+	import { createPickUpPlace } from '../../shared/components/pickUpPlace.svelte';
 	import { choicesShortOfMatchMin } from '../../shared/utils/minimumRequirement';
+	import {
+		getSourceForTarget,
+		getTargetForSource,
+		placeSourceOnTarget,
+		removePairBySource,
+	} from '../../shared/utils/pairHelpers';
 import { hitStrokeWidth, imageAltText, shapeCenter } from '../../shared/utils/graphicRegions';
 
 import '../../shared/styles/shared.css';
@@ -101,10 +109,9 @@ function warnImageFailed(src: string) {
 }
 
 let pairs = $state<string[]>([]);
-let draggedTextId = $state<string | null>(null);
 let hoveredHotspotId = $state<string | null>(null);
-/** Identifier of the label currently "held" via keyboard (two-phase pick-up/drop). */
-let pickedUpLabel = $state<string | null>(null);
+/** The label "held" via the keyboard (two-phase pick-up/drop), and the label a pointer drag carries. */
+const pickUp = createPickUpPlace();
 /** Text announced to screen readers via the aria-live region. */
 let liveMessage = $state<string>('');
 
@@ -141,30 +148,31 @@ function canPlaceLabel(labelId: string, hotspotId: string): boolean {
  * hotspot, so a placement never raises either side's count above 1.
  */
 function exceedsMaxAssociations(candidatePairs: string[]): boolean {
-	const max = Number(parsedInteraction?.maxAssociations ?? 0);
-	return max > 0 && candidatePairs.length > max;
+	return exceedsLimit(candidatePairs.length, Number(parsedInteraction?.maxAssociations ?? 0));
 }
 
 /** Announce a refused placement: the author's data-max-selections-message wins. */
 function announceAssociationLimit() {
-	liveMessage =
-		parsedInteraction?.maxSelectionsMessage?.trim() ||
+	liveMessage = limitMessage(
+		parsedInteraction?.maxSelectionsMessage,
 		translate(
 			i18n,
 			'interactions.graphicGapMatch.associationLimitReached',
 			'Association not possible: the limit of {max} is reached.',
 			{ max: Number(parsedInteraction?.maxAssociations ?? 0) },
-		);
+		),
+	);
 }
 
 // Hotspots the label being placed may not go on, due to matchGroup: the dragged label during a
 // drag (what a drop would place), else the held one.
 const blockedHotspotIds = $derived.by(() => {
-	const labelId = draggedTextId ?? pickedUpLabel;
+	const labelId = pickUp.active;
 	if (!labelId || !parsedInteraction) return new Set<string>();
-	return new Set(
-		parsedInteraction.hotspots.filter((h) => !canPlaceLabel(labelId, h.identifier)).map((h) => h.identifier),
-	);
+	const label = findLabel(labelId);
+	// A label the palette does not have goes on no hotspot.
+	if (!label) return new Set(parsedInteraction.hotspots.map((h) => h.identifier));
+	return matchGroupBlockedIds(label, parsedInteraction.hotspots);
 });
 
 $effect(() => {
@@ -178,8 +186,7 @@ $effect(() => {
 
 // Get the hotspot matched to a gap text
 function getMatchedHotspot(gapTextId: string): string | null {
-	const pair = pairs.find((p) => p.startsWith(`${gapTextId} `));
-	return pair ? pair.split(' ')[1] : null;
+	return getTargetForSource(pairs, gapTextId);
 }
 
 /**
@@ -205,14 +212,12 @@ const minHint = $derived.by(() => {
 
 // Get the gap text matched to a hotspot
 function getMatchedGapText(hotspotId: string): string | null {
-	const pair = pairs.find((p) => p.endsWith(` ${hotspotId}`));
-	return pair ? pair.split(' ')[0] : null;
+	return getSourceForTarget(pairs, hotspotId);
 }
 
 // Get the correct gap text for a hotspot
 function getCorrectGapText(hotspotId: string): string | null {
-	const pair = correctPairs.find((p) => p.endsWith(` ${hotspotId}`));
-	return pair ? pair.split(' ')[0] : null;
+	return getSourceForTarget(correctPairs, hotspotId);
 }
 
 // Check if a hotspot has a correct answer
@@ -222,16 +227,16 @@ function isCorrectHotspot(hotspotId: string): boolean {
 
 function handleDragStart(gapTextId: string) {
 	if (disabled) return;
-	draggedTextId = gapTextId;
+	pickUp.startDrag(gapTextId);
 }
 
 function handleDragEnd() {
-	draggedTextId = null;
+	pickUp.endDrag();
 	hoveredHotspotId = null;
 }
 
 function handleHotspotDragOver(event: DragEvent, hotspotId: string) {
-	if (disabled || !draggedTextId) return;
+	if (disabled || !pickUp.dragged) return;
 	// Not a drop target for this label (matchGroup): leave the default "no drop" feedback.
 	if (blockedHotspotIds.has(hotspotId)) return;
 	event.preventDefault();
@@ -243,33 +248,30 @@ function handleHotspotDragLeave() {
 }
 
 function handleHotspotDrop(event: DragEvent, hotspotId: string) {
+	const draggedTextId = pickUp.dragged;
 	if (disabled || !draggedTextId || !parsedInteraction) return;
 	event.preventDefault();
 
-	// matchGroup: refuse a placement the hotspot does not accept.
-	if (!canPlaceLabel(draggedTextId, hotspotId)) {
-		draggedTextId = null;
-		hoveredHotspotId = null;
-		return;
-	}
+	// matchGroup: refuse a placement the hotspot does not accept; placeLabel refuses (and
+	// announces) one past maxAssociations.
+	if (canPlaceLabel(draggedTextId, hotspotId)) placeLabel(draggedTextId, hotspotId);
 
-	// Remove any existing pair for this gapText
-	let newPairs = pairs.filter((p) => !p.startsWith(`${draggedTextId} `));
+	pickUp.endDrag();
+	hoveredHotspotId = null;
+}
 
-	// Remove any existing pair for this hotspot
-	newPairs = newPairs.filter((p) => !p.endsWith(` ${hotspotId}`));
-
-	// Add new pair
-	newPairs.push(`${draggedTextId} ${hotspotId}`);
-
-	// maxAssociations: refuse a placement that would exceed the interaction's cap — the
-	// same maxima response validation enforces, announced here so an over-limit response
-	// never reaches the submit that would reject it.
+/**
+ * Place `labelId` on `hotspotId`: the hotspot's previous label is replaced, and a placed label
+ * moves — the palette retires a placed label, so each label holds one hotspot whatever its
+ * matchMax (capacity 1). A placement past maxAssociations is refused and announced — the same
+ * maxima response validation enforces — so an over-limit response never reaches the submit
+ * that would reject it. Returns whether the response changed.
+ */
+function placeLabel(labelId: string, hotspotId: string): boolean {
+	const newPairs = placeSourceOnTarget(pairs, labelId, hotspotId, 1);
 	if (exceedsMaxAssociations(newPairs)) {
 		announceAssociationLimit();
-		draggedTextId = null;
-		hoveredHotspotId = null;
-		return;
+		return false;
 	}
 
 	isInternalUpdate = true; // Mark as internal update to prevent sync effect from overwriting
@@ -277,9 +279,7 @@ function handleHotspotDrop(event: DragEvent, hotspotId: string) {
 	response = pairs;
 	// Call onChange callback if provided (for Svelte component usage)
 	emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: pairs, onChange });
-
-	draggedTextId = null;
-	hoveredHotspotId = null;
+	return true;
 }
 
 	async function clearMatch(labelId: string, event?: MouseEvent) {
@@ -289,7 +289,7 @@ function handleHotspotDrop(event: DragEvent, hotspotId: string) {
 		// wrapper (and that label button) survive the removal.
 		const wrapper = (event?.currentTarget as HTMLElement | null)?.parentElement ?? null;
 
-		const newPairs = pairs.filter((p) => !p.startsWith(`${labelId} `));
+		const newPairs = removePairBySource(pairs, labelId);
 		isInternalUpdate = true; // Mark as internal update
 		pairs = newPairs;
 		response = pairs;
@@ -376,15 +376,12 @@ function hotspotAriaLabel(
 function handleLabelActivate(labelId: string) {
 	if (disabled || getMatchedHotspot(labelId)) return;
 
-	if (pickedUpLabel === labelId) {
-		// Second press on the same label cancels the pick-up
-		pickedUpLabel = null;
-		liveMessage = cancelledMessage();
-	} else {
-		pickedUpLabel = labelId;
-		const name = getLabelName(labelId);
-		liveMessage = translate(i18n, 'interactions.graphicGapMatch.pickedUp', 'Picked up: {label}. Tab to a hotspot and press Enter to place it.', { label: name });
-	}
+	// A second press on the same label cancels the pick-up; another label switches to it.
+	liveMessage = pickUp.toggle(labelId)
+		? translate(i18n, 'interactions.graphicGapMatch.pickedUp', 'Picked up: {label}. Tab to a hotspot and press Enter to place it.', {
+				label: getLabelName(labelId),
+			})
+		: cancelledMessage();
 }
 
 function handleLabelKeyDown(event: KeyboardEvent, labelId: string) {
@@ -393,53 +390,41 @@ function handleLabelKeyDown(event: KeyboardEvent, labelId: string) {
 	if (event.key === ' ' || event.key === 'Enter') {
 		event.preventDefault();
 		handleLabelActivate(labelId);
-	} else if (event.key === 'Escape' && pickedUpLabel) {
+	} else if (event.key === 'Escape' && pickUp.held) {
 		event.preventDefault();
-		pickedUpLabel = null;
+		pickUp.release();
 		liveMessage = cancelledMessage();
 	}
 }
 
 // Phase-2 handler: drop the held label onto a hotspot.
 function placePickedUpLabelOnHotspot(hotspotId: string) {
-	if (disabled || !pickedUpLabel || !parsedInteraction) return;
-
-	// matchGroup: this hotspot does not accept the held label; it stays held.
-	if (!canPlaceLabel(pickedUpLabel, hotspotId)) {
-		liveMessage = translate(i18n, 'interactions.graphicGapMatch.unavailableSentence', 'Not available due to a match group restriction.');
-		return;
-	}
-
+	if (disabled || !pickUp.held || !parsedInteraction) return;
 	const hotspotIndex = parsedInteraction.hotspots.findIndex((h) => h.identifier === hotspotId);
-	const labelName = getLabelName(pickedUpLabel);
 
-	// Create match
-	let newPairs = pairs.filter((p) => !p.startsWith(`${pickedUpLabel} `));
-	newPairs = newPairs.filter((p) => !p.endsWith(` ${hotspotId}`));
-	newPairs.push(`${pickedUpLabel} ${hotspotId}`);
+	// A refused placement keeps the label held, so the candidate can place it elsewhere or cancel.
+	const placed = pickUp.place(hotspotId, (labelId) => {
+		// matchGroup: this hotspot does not accept the held label.
+		if (!canPlaceLabel(labelId, hotspotId)) {
+			liveMessage = translate(i18n, 'interactions.graphicGapMatch.unavailableSentence', 'Not available due to a match group restriction.');
+			return false;
+		}
+		// maxAssociations: placeLabel refuses (and announces) a placement past the cap.
+		return placeLabel(labelId, hotspotId);
+	});
+	if (placed === null) return;
 
-	// maxAssociations: refuse a placement that would exceed the interaction's cap; the
-	// label stays held so the candidate can place it elsewhere or cancel.
-	if (exceedsMaxAssociations(newPairs)) {
-		announceAssociationLimit();
-		return;
-	}
-
-	isInternalUpdate = true; // Mark as internal update
-	pairs = newPairs;
-	response = pairs;
-	// Call onChange callback if provided (for Svelte component usage)
-	emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: pairs, onChange });
-
-	liveMessage = translate(i18n, 'interactions.graphicGapMatch.labelPlaced', '{label} placed on hotspot {hotspot}', { label: labelName, hotspot: hotspotIndex + 1 });
-	pickedUpLabel = null;
+	liveMessage = translate(i18n, 'interactions.graphicGapMatch.labelPlaced', '{label} placed on hotspot {hotspot}', {
+		label: getLabelName(placed),
+		hotspot: hotspotIndex + 1,
+	});
 }
 
 function handleHotspotKeyDown(event: KeyboardEvent, hotspotId: string) {
 	if (disabled || !parsedInteraction) return;
 
 	if (event.key === ' ' || event.key === 'Enter') {
-		if (pickedUpLabel) {
+		if (pickUp.held) {
 			event.preventDefault();
 			placePickedUpLabelOnHotspot(hotspotId);
 		}
@@ -448,9 +433,9 @@ function handleHotspotKeyDown(event: KeyboardEvent, hotspotId: string) {
 
 // Global Escape on root element cancels any active pick-up
 function handleRootKeyDown(event: KeyboardEvent) {
-	if (event.key === 'Escape' && pickedUpLabel) {
+	if (event.key === 'Escape' && pickUp.held) {
 		event.preventDefault();
-		pickedUpLabel = null;
+		pickUp.release();
 		liveMessage = cancelledMessage();
 	}
 }
@@ -518,8 +503,8 @@ function handleRootKeyDown(event: KeyboardEvent) {
 					</div>
 					{#each parsedInteraction.gapTexts as gapText, textIndex (gapText.identifier)}
 						{@const matchedHotspot = getMatchedHotspot(gapText.identifier)}
-						{@const isDragged = draggedTextId === gapText.identifier}
-						{@const isHeld = pickedUpLabel === gapText.identifier}
+						{@const isDragged = pickUp.dragged === gapText.identifier}
+						{@const isHeld = pickUp.isHeld(gapText.identifier)}
 
 						<div class="inline-flex items-center gap-1">
 							<button
@@ -564,8 +549,8 @@ function handleRootKeyDown(event: KeyboardEvent) {
 
 					{#each (parsedInteraction.gapImages ?? []) as gapImage, imageIndex (gapImage.identifier)}
 						{@const matchedHotspot = getMatchedHotspot(gapImage.identifier)}
-						{@const isDragged = draggedTextId === gapImage.identifier}
-						{@const isHeld = pickedUpLabel === gapImage.identifier}
+						{@const isDragged = pickUp.dragged === gapImage.identifier}
+						{@const isHeld = pickUp.isHeld(gapImage.identifier)}
 						{@const gapImageName = getLabelName(gapImage.identifier)}
 
 						<div class="inline-flex items-center gap-1">
@@ -659,7 +644,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 								{@const correctLabelName = correctGapText ? getLabelName(correctGapText) : undefined}
 								{@const isCorrect = isCorrectHotspot(hotspot.identifier)}
 								{@const isBlocked = blockedHotspotIds.has(hotspot.identifier)}
-								{@const hotspotReady = !!pickedUpLabel && !disabled && !isBlocked}
+								{@const hotspotReady = !!pickUp.held && !disabled && !isBlocked}
 								{@const center = shapeCenter(hotspot.shape, hotspot.coords)}
 								<g
 									class="qti-ggm-zone qti-ggm-backdrop qti-graphic-region"
@@ -710,8 +695,8 @@ function handleRootKeyDown(event: KeyboardEvent) {
 							{@const correctLabelName = correctGapText ? getLabelName(correctGapText) : undefined}
 							{@const isCorrect = isCorrectHotspot(hotspot.identifier)}
 							{@const isBlocked = blockedHotspotIds.has(hotspot.identifier)}
-							{@const hotspotReady = !!pickedUpLabel && !disabled && !isBlocked}
-							{@const pickedUpLabelName = pickedUpLabel ? getLabelName(pickedUpLabel) : ''}
+							{@const hotspotReady = !!pickUp.held && !disabled && !isBlocked}
+							{@const pickedUpLabelName = pickUp.held ? getLabelName(pickUp.held) : ''}
 							{@const center = shapeCenter(hotspot.shape, hotspot.coords)}
 
 							<!-- One drop zone: light halo + state outline (visible on any image), the

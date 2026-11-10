@@ -802,11 +802,13 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		}
 		case 'record': {
 			// QTI record: children are <fieldValue fieldIdentifier="...">VALUE</fieldValue>
+			// Member recognition goes through the mapper so QTI 3 spelling (qti-field-value,
+			// as the 2 → 3 conversion emits it) is accepted beside the QTI 2.x one.
 			const fields = childElements(el)
-				.filter((c) => (localName(c) || '').toLowerCase() === 'fieldvalue')
+				.filter((c) => mapper.toCanonical(localName(c) || '') === 'fieldvalue')
 				.map((c) => ({
 					fieldIdentifier: getAttr(c, 'fieldIdentifier') || '',
-					value: buildExpression(childElements(c)[0] ?? c),
+					value: buildExpression(childElements(c)[0] ?? c, options),
 				}))
 				.filter((f) => Boolean(f.fieldIdentifier));
 			return { kind: 'expr.record', id, fields };
@@ -821,7 +823,7 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 				id,
 				value: buildExpression(kids[0]!, options),
 				start: buildExpression(kids[1]!, options),
-				length: kids[2] ? buildExpression(kids[2]) : undefined,
+				length: kids[2] ? buildExpression(kids[2], options) : undefined,
 			};
 		}
 		case 'lookuptable': {
@@ -1065,11 +1067,11 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		}
 		case 'integermodulus': {
 			if (!kids[0] || !kids[1]) throw new Error('<integerModulus> requires 2 child expressions');
-			return { kind: 'expr.integerModulus', id, a: buildExpression(kids[0]), b: buildExpression(kids[1]) };
+			return { kind: 'expr.integerModulus', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
 		case 'integertofloat': {
 			if (!kids[0]) throw new Error('<integerToFloat> requires 1 child expression');
-			return { kind: 'expr.integerToFloat', id, value: buildExpression(kids[0]) };
+			return { kind: 'expr.integerToFloat', id, value: buildExpression(kids[0]!, options) };
 		}
 		case 'gcd': {
 			if (kids.length < 1) throw new Error('<gcd> requires at least one child expression');
@@ -1089,7 +1091,7 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			const figuresAttr = attrAsExpr('figures', 'integer');
 			if (!figuresAttr) throw new Error('<roundTo> requires figures attribute');
 			if (!kids[0]) throw new Error('<roundTo> requires a single child expression');
-			return { kind: 'expr.roundTo', id, value: buildExpression(kids[0]), roundingMode, figures: figuresAttr };
+			return { kind: 'expr.roundTo', id, value: buildExpression(kids[0]!, options), roundingMode, figures: figuresAttr };
 		}
 		default: {
 			// Unknown expression tags in processing are almost always a correctness bug.
