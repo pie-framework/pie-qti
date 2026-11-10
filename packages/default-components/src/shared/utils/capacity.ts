@@ -30,3 +30,12 @@ export function exceedsLimit(count: number, limit: number): boolean {
 export function limitMessage(authored: string | null | undefined, fallback: string): string {
 	return authored?.trim() || fallback;
 }
+
+/**
+ * Whether a selection interaction states its limit message: at a positive limit, an authored
+ * message at any cardinality, and the default only where a further selection is refused (a
+ * limit above 1; a single selection switches instead).
+ */
+export function isLimitMessageShown(count: number, limit: number, authored: string | null | undefined): boolean {
+	return isAtLimit(count, limit) && (!!authored?.trim() || limit > 1);
+}

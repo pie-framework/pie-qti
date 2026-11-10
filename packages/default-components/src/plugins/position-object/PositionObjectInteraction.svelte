@@ -182,9 +182,8 @@
 	let liveMessage = $state('');
 
 	const canInteract = $derived(!disabled);
-	const canAddMore = $derived(
-		!parsedInteraction || parsedInteraction.maxChoices === 0 || positions.length < parsedInteraction.maxChoices
-	);
+	// The interaction's maxChoices: 0 means unlimited, as does anything but a positive number.
+	const canAddMore = $derived(!parsedInteraction || !isAtLimit(positions.length, parsedInteraction.maxChoices));
 
 	/** Map a QTI point string ("x y") to a stage, by response order (QTI points carry no object identity). */
 	function parsePositions(value: unknown): Position[] {

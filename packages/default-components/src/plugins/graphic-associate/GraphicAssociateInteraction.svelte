@@ -103,9 +103,7 @@
 	// The interaction's association cap (QTI maxAssociations): 0 means unlimited, as the
 	// sibling pairing surfaces (AssociateInteraction, MatchDragDrop) and the delivery
 	// engine read it.
-	const canAddMore = $derived(
-		!parsedInteraction || parsedInteraction.maxAssociations <= 0 || pairs.length < parsedInteraction.maxAssociations,
-	);
+	const canAddMore = $derived(!parsedInteraction || !isAtLimit(pairs.length, parsedInteraction.maxAssociations));
 
 	// Hotspots incompatible with the currently selected hotspot due to matchGroup constraints
 	// (the selected hotspot itself is never shown as blocked: display-only, as a hotspot paired

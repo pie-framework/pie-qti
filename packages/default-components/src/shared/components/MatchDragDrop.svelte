@@ -10,7 +10,7 @@ import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qt
 import { touchDrag } from '@pie-qti/qti-common';
 import { tick } from 'svelte';
 import { accessibleTextFromHtml } from '../utils/accessibleText.js';
-import { exceedsLimit } from '../utils/capacity.js';
+import { exceedsLimit, isAtLimit } from '../utils/capacity.js';
 import { choiceAccessibleName } from '../utils/choiceName.js';
 import { createOrUpdatePair, getSourceForTarget, getTargetsForSource, removePairBySource } from '../utils/pairHelpers.js';
 import { isCompatibleMatchGroup, matchGroupBlockedIds } from '../utils/matchGroupUtils.js';
@@ -250,7 +250,7 @@ async function clearMatch(sourceId: string) {
 			{@const isSelected = pickUp.isHeld(source.identifier)}
 			{@const correctTargets = getTargetsForSource(correctPairs, source.identifier)}
 			{@const isCorrect = correctTargets.length > 0}
-			{@const canDragMore = source.matchMax === 0 || matchedTargets.length < (source.matchMax ?? 1)}
+			{@const canDragMore = !isAtLimit(matchedTargets.length, source.matchMax ?? 1)}
 			{@const sourceTextId = `${uid}-source-${source.identifier}-text`}
 			{@const sourceStateId = `${uid}-source-${source.identifier}-state`}
 

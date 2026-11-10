@@ -7,7 +7,7 @@
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
-	import { isAtLimit } from '../../shared/utils/capacity';
+	import { isAtLimit, isLimitMessageShown, limitMessage } from '../../shared/utils/capacity';
 	import { HOTTEXT_SELECTOR } from './hottextSelector';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import { radioArrowStep, wrapIndex } from '../../shared/utils/radioGroup';
@@ -81,12 +81,8 @@
 	/**
 	 * Check if selection limit has been reached
 	 */
-	// maxChoices=0 means unlimited per QTI spec
-	const canSelectMore = $derived(
-		parsedInteraction
-			? parsedInteraction.maxChoices === 0 || selectedIds.length < parsedInteraction.maxChoices
-			: false
-	);
+	// maxChoices=0 means unlimited per QTI spec, as does anything but a positive number
+	const canSelectMore = $derived(parsedInteraction ? !isAtLimit(selectedIds.length, parsedInteraction.maxChoices) : false);
 
 	// Single cardinality (maxChoices=1) is a radio group: one checked hottext, which another
 	// one replaces and which activating it again never unchecks. Multiple selection keeps
@@ -392,19 +388,15 @@
 	// (maxChoices>1). Single selection switches instead of refusing, so it needs no default.
 	// Same rule as ChoiceInteraction (WCAG 3.3.1 / 4.1.3).
 	const maxChoices = $derived(parsedInteraction?.maxChoices ?? 0);
-	const maxMessage = $derived.by(() => {
-		const authored = parsedInteraction?.maxSelectionsMessage;
-		if (authored) return authored;
-		return translate(
-			i18n,
-			'interactions.hottext.maxChoicesReached',
-			'You can select up to {max}. Deselect one to choose another.',
-			{ max: maxChoices }
-		);
-	});
-	const showMaxMessage = $derived(
-		isAtLimit(selectedIds.length, maxChoices) && (!!parsedInteraction?.maxSelectionsMessage || maxChoices > 1)
+	const maxMessage = $derived(
+		limitMessage(
+			parsedInteraction?.maxSelectionsMessage,
+			translate(i18n, 'interactions.hottext.maxChoicesReached', 'You can select up to {max}. Deselect one to choose another.', {
+				max: maxChoices,
+			}),
+		),
 	);
+	const showMaxMessage = $derived(isLimitMessageShown(selectedIds.length, maxChoices, parsedInteraction?.maxSelectionsMessage));
 </script>
 
 <ShadowBaseStyles />

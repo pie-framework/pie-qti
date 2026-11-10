@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { exceedsLimit, isAtLimit, isLimited, limitMessage } from '../../../src/shared/utils/capacity';
+import { exceedsLimit, isAtLimit, isLimited, isLimitMessageShown, limitMessage } from '../../../src/shared/utils/capacity';
 
 describe('capacity limits: a positive limit restricts, 0 is no restriction', () => {
 	test('isLimited', () => {
@@ -42,5 +42,19 @@ describe('limitMessage: the author’s message when it has text, else the defaul
 		expect(limitMessage(null, 'default')).toBe('default');
 		expect(limitMessage('', 'default')).toBe('default');
 		expect(limitMessage('   ', 'default')).toBe('default');
+	});
+});
+
+describe('isLimitMessageShown: at the cap, an authored message always, the default only above 1', () => {
+	test('below the cap, or without a limit, nothing is stated', () => {
+		expect(isLimitMessageShown(1, 2, 'Two at most.')).toBe(false);
+		expect(isLimitMessageShown(5, 0, 'Unused.')).toBe(false);
+	});
+
+	test('at the cap', () => {
+		expect(isLimitMessageShown(2, 2, undefined)).toBe(true);
+		expect(isLimitMessageShown(1, 1, undefined)).toBe(false);
+		expect(isLimitMessageShown(1, 1, 'One only.')).toBe(true);
+		expect(isLimitMessageShown(1, 1, '  ')).toBe(false);
 	});
 });
