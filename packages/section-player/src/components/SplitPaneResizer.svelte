@@ -57,6 +57,7 @@
 	const itemTabId = `${uid}-item-tab`;
 
 	let splitContainerEl = $state<HTMLDivElement | null>(null);
+	let contextPaneEl = $state<HTMLElement | null>(null);
 	let rightPaneEl = $state<HTMLElement | null>(null);
 	let reportedRightPaneEl = $state<HTMLElement | null>(null);
 	let contextTabEl = $state<HTMLButtonElement | null>(null);
@@ -183,8 +184,12 @@
 		// A single-column accommodation stacks the panes whatever the width.
 		const effective = singleColumn || next;
 		if (effective === isStacked) return;
-		// Keep a focused control visible: stacking hides the pane that is not selected.
-		if (effective && rightPaneEl?.contains(document.activeElement)) selectedPane = 'item';
+		if (effective) {
+			// Keep a focused control visible: stacking hides the pane that is not
+			// selected, so whichever pane holds focus wins the tab.
+			if (contextPaneEl?.contains(document.activeElement)) selectedPane = 'context';
+			else if (rightPaneEl?.contains(document.activeElement)) selectedPane = 'item';
+		}
 		isStacked = effective;
 	}
 
@@ -343,6 +348,7 @@
 	<section
 		id={contextPaneId}
 		class="pane pane-left"
+		bind:this={contextPaneEl}
 		role={isStacked ? 'tabpanel' : undefined}
 		aria-labelledby={isStacked ? contextTabId : undefined}
 		aria-label={isStacked ? undefined : passageLabel}
