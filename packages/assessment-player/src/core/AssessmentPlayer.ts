@@ -119,6 +119,7 @@ import {
 	throwForBlockers,
 	type SubmissionBlocker,
 } from './submissionPolicy.js';
+import { ReviewInfoCache, resultsSummaryOf, reviewItemRow } from './reviewViews.js';
 import {
 	interactionRequirementFromXml,
 	interactionResponseIdentifiers,
@@ -485,7 +486,7 @@ export class AssessmentPlayer {
 	// Event listeners (typed emitter; the host-config callbacks stay in the notify helpers)
 	private readonly events = new TypedEventEmitter<AssessmentPlayerEventMap>();
 	/** Item XML–derived review facts (interaction response ids, item title) per item identifier. */
-	private readonly reviewInfoCache = new Map<string, { responseIds: string[]; title?: string }>();
+	private reviewInfoCache: ReviewInfoCache;
 	/** Declared response default values per item (QTI: a response equal to its default is no response). */
 	private readonly responseDefaultsCache = new Map<string, Record<string, unknown>>();
 
@@ -509,6 +510,7 @@ export class AssessmentPlayer {
 		this.items = flattenItems(this.assessment);
 		this.deliveredForRules = this.items.map(({ item, testPart, sections }) => ({ item, testPart, sections }));
 		for (const q of this.items) this.indexByIdentifier.set(q.identifier, q.index);
+		this.reviewInfoCache = new ReviewInfoCache(this.items);
 		const ruled = (holder: { preConditions?: string[]; branchRule?: unknown[] }) =>
 			(holder.preConditions?.length ?? 0) > 0 || (holder.branchRule?.length ?? 0) > 0;
 		this.hasDeliveryRules = this.items.some(
@@ -1440,17 +1442,7 @@ export class AssessmentPlayer {
 	}
 
 	private reviewInfoFor(itemIdentifier: string): { responseIds: string[]; title?: string } {
-		const cached = this.reviewInfoCache.get(itemIdentifier);
-		if (cached) return cached;
-		const flat = this.items.find((item) => item.identifier === itemIdentifier);
-		const info = flat
-			? {
-				responseIds: interactionResponseIdentifiers(flat.item.itemXml),
-				title: itemTitleFromXml(flat.item.itemXml),
-			}
-			: { responseIds: [] };
-		this.reviewInfoCache.set(itemIdentifier, info);
-		return info;
+		return this.reviewInfoCache.for(itemIdentifier);
 	}
 
 	/**
@@ -1471,18 +1463,16 @@ export class AssessmentPlayer {
 	/** Every delivered item as the review screen lists it: status, flag, visited, jump legality. */
 	public getReviewItems(): ReviewItemView[] {
 		const forward = this.lazyForward();
-		return this.items.map((item) => ({
-			identifier: item.identifier,
-			index: item.index,
-			number: item.index + 1,
-			sectionId: item.presentedSection?.identifier ?? null,
-			title: this.reviewInfoFor(item.identifier).title,
-			status: this.getItemAnswerStatus(item.identifier),
-			flagged: this.sessionCoordinator.isItemFlagged(item.identifier),
-			visited: this.navigationManager.isVisited(item.index) || item.index === this.currentItemIndex,
-			jumpAllowed: this.isNavigationTargetLegalWith(item.index, forward),
-			isCurrent: item.index === this.currentItemIndex,
-		}));
+		return this.items.map((item) =>
+			reviewItemRow(item, {
+				title: this.reviewInfoFor(item.identifier).title,
+				status: this.getItemAnswerStatus(item.identifier),
+				flagged: this.sessionCoordinator.isItemFlagged(item.identifier),
+				visited: this.navigationManager.isVisited(item.index) || item.index === this.currentItemIndex,
+				jumpAllowed: this.isNavigationTargetLegalWith(item.index, forward),
+				isCurrent: item.index === this.currentItemIndex,
+			}),
+		);
 	}
 
 	/**
@@ -1493,21 +1483,12 @@ export class AssessmentPlayer {
 	 */
 	public getResultsSummary(): ResultsSummary | null {
 		if (!this.finalized || !this.finalResults) return null;
-		const scoreByItem = new Map(this.finalResults.itemResults.map((result) => [result.itemIdentifier, result]));
-		return {
-			totalScore: this.finalResults.totalScore,
-			maxScore: this.finalResults.maxScore,
-			items: this.items.map((item) => {
-				const result = scoreByItem.get(item.identifier);
-				return {
-					identifier: item.identifier,
-					number: item.index + 1,
-					title: this.reviewInfoFor(item.identifier).title,
-					status: this.getItemAnswerStatus(item.identifier),
-					...(result ? { score: result.score, maxScore: result.maxScore } : {}),
-				};
-			}),
-		};
+		return resultsSummaryOf({
+			items: this.items,
+			results: this.finalResults,
+			titleOf: (itemIdentifier) => this.reviewInfoFor(itemIdentifier).title,
+			statusOf: (itemIdentifier) => this.getItemAnswerStatus(itemIdentifier),
+		});
 	}
 
 	/**
