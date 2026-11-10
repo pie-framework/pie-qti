@@ -199,7 +199,10 @@ export interface BackendAssessmentPlayerConfig {
 	allowSectionNavigation?: boolean;
 	showProgress?: boolean;
 	// Time management
-	/** Seconds before a limit expires at which a warning fires. Default 60. */
+	/**
+	 * Seconds before a limit expires at which a warning fires. Default 60 when unset;
+	 * `0` turns this default warning off (`timeWarningThresholds` still fire).
+	 */
 	timeWarningThreshold?: number;
 	/**
 	 * Additional warning thresholds in seconds (for example `[300, 60]` for 5-minute
@@ -549,8 +552,9 @@ export class AssessmentPlayer {
 
 		this.timeManager = new TimeManager({
 			assessmentTimeLimits: this.assessment.timeLimits,
-			// The default warning (60 s unless the host moves it), then any additional ones.
-			warningThresholds: [config.timeWarningThreshold || 60, ...(config.timeWarningThresholds ?? [])],
+			// The default warning (60 s unless the host moves it; 0 turns it off — a 0 threshold
+			// never fires), then any additional ones.
+			warningThresholds: [config.timeWarningThreshold ?? 60, ...(config.timeWarningThresholds ?? [])],
 			now: config.now,
 			extendedTime: config.pnp?.content?.extendedTime,
 			onWarning: (remainingSeconds) => this.notifyTimeWarning(remainingSeconds),

@@ -380,7 +380,6 @@ recorded, not scheduled:
   preCondition rules that read them evaluate on missing values. Branch decisions persist, so the
   decision path lands like the live session.
 - A hint (uncounted) submission after a check on a reopened item leaves that item session closed.
-- `timeWarningThreshold: 0` still means 60 seconds (an `||` fallback).
 - Toggle controls in the shell whose visible label flips while `aria-expanded` also changes: the
   timer show/hide control and the review button.
 - The scope-expiry hop (`leaveExpiredScope`) runs outside the transition lock; downstream guards
