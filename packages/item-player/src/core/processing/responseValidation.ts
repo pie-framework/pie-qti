@@ -2,10 +2,13 @@
  * Response validation: the field checks every interaction's response must satisfy, and
  * the end-attempt gate that additionally rejects incomplete required responses.
  *
- * The generic checks run for every interaction, keyed on the delivered interaction type
- * (the extractor's output type — a vendor extractor may deliver its own type with its own
- * data); interaction-shaped fields (minChoices, matchMin, requiredGaps, patternMask,
- * matchGroup) are read generically from the interaction data.
+ * The generic checks run for every interaction, reading the interaction-shaped fields
+ * (minChoices, matchMin, requiredGaps, patternMask, matchGroup) from the delivered
+ * interaction data. The per-type entries below (TYPE_VALIDATION_ENTRIES) only restate
+ * today's special cases — media minPlays, endAttempt never-required, extendedText
+ * maxStrings — keyed on the delivered interaction type (the extractor's output type, so
+ * vendor overrides such as acme-likert delivering `choiceInteraction` keep the generic
+ * checks); no entry adds a constraint.
  */
 import { type DeclarationMap, xsdPatternToRegExp } from '@pie-qti/qti-processing';
 import type { MatchGroupConstraints } from '../matchGroups.js';
@@ -20,6 +23,71 @@ export interface ResponseValidationHost {
 	readonly matchGroupConstraints: ReadonlyMap<string, MatchGroupConstraints>;
 	getInteractions(): Array<{ type: string; responseIdentifier: string } & Record<string, any>>;
 	getResponseInteractions(): Array<{ type: string; responseIdentifier: string } & Record<string, any>>;
+}
+
+/**
+ * The interaction-shaped data validation reads generically (whatever fields an interaction's
+ * delivered data carries).
+ */
+type InteractionData = { type: string; responseIdentifier: string } & Record<string, any>;
+
+/**
+ * Per-type validation entries. Keyed on the delivered interaction `type` — the extractor's
+ * output type, so a vendor override that delivers its own type (or a standard type with its
+ * own data, such as acme-likert delivering `choiceInteraction`) gets exactly the entry its
+ * delivered type names, and the generic field checks either way.
+ *
+ * Each entry only RESTATES a special case today's validation applies: an end-attempt
+ * interaction is never required, a media interaction's required response completes at
+ * `minPlays`, and an extended-text response over `maxStrings` is a shape error. An entry adds
+ * no constraint of its own; a type with no entry runs the generic checks only.
+ */
+interface TypeValidationEntry {
+	/** True makes the interaction never required, whatever its data carries. */
+	neverRequired?: boolean;
+	/**
+	 * Completeness of a REQUIRED response; absent means the generic container/record/scalar
+	 * rule (a meaningful entry, at least the minimums, at least every matchMin).
+	 */
+	completeWhenRequired?(value: unknown, interaction: InteractionData): boolean;
+	/** Extra shape errors the delivered data adds, before the matchGroup check. */
+	shapeErrors?(
+		responseId: string,
+		value: unknown,
+		interaction: InteractionData,
+		isMeaningfulEntry: (entry: unknown) => boolean,
+	): string[];
+	/** Attempted-state reading for this interaction; absent means the generic rule. */
+	attemptedValue?(value: unknown): boolean;
+}
+
+const TYPE_VALIDATION_ENTRIES: Readonly<Record<string, TypeValidationEntry>> = {
+	endAttemptInteraction: {
+		// An end-attempt interaction invokes response processing; it carries no candidate
+		// answer to require (QTI 3.0 §5.45).
+		neverRequired: true,
+	},
+	mediaInteraction: {
+		// A media interaction is answered at minPlays plays, not by any non-null value:
+		// its response is the play count (QTI 3.0 §5.69).
+		completeWhenRequired: (value, interaction) =>
+			Number(value || 0) >= Number(interaction.minPlays || 0),
+		attemptedValue: (value) => Number(value || 0) > 0,
+	},
+	extendedTextInteraction: {
+		// maxStrings caps the strings of a multiple-cardinality extended-text response
+		// (QTI 2.1 §5.8; QTI 3.0 §5.81).
+		shapeErrors: (responseId, value, interaction, isMeaningfulEntry) =>
+			Array.isArray(value) &&
+			Number(interaction.maxStrings ?? 0) > 0 &&
+			value.filter(isMeaningfulEntry).length > Number(interaction.maxStrings)
+				? [`Response '${responseId}' exceeds maxStrings=${interaction.maxStrings}`]
+				: [],
+	},
+};
+
+function typeValidationEntryOf(interaction: InteractionData): TypeValidationEntry | undefined {
+	return TYPE_VALIDATION_ENTRIES[interaction.type];
 }
 
 export function validateResponses(host: ResponseValidationHost, responses: Record<string, any>): ResponseValidationResult {
@@ -51,16 +119,16 @@ export function validateResponses(host: ResponseValidationHost, responses: Recor
 		// gap `required` (QTI 2.1 gap; QTI 3.0 §5.55.5): "this gap must be filled by the candidate
 		// in order to form a valid response to the interaction".
 		const requiredGaps: string[] = Array.isArray(i.requiredGaps) ? i.requiredGaps : [];
+		const typeEntry = typeValidationEntryOf(i);
 		const required =
-			i.type !== 'endAttemptInteraction' &&
+			!typeEntry?.neverRequired &&
 			(minimum > 0 ||
 				requiredGaps.length > 0 ||
 				constrainedChoices.some((choice) => Number(choice.matchMin ?? 0) > 0));
 
 		let complete = !required;
-		if (i.type === 'mediaInteraction' && required) {
-			const minPlays = Number(i.minPlays || 0);
-			complete = Number(value || 0) >= minPlays;
+		if (required && typeEntry?.completeWhenRequired) {
+			complete = typeEntry.completeWhenRequired(value, i);
 		} else if (required) {
 			if (Array.isArray(value)) {
 				const nonEmptyValues = value.filter(isMeaningfulEntry);
@@ -136,13 +204,8 @@ export function validateResponses(host: ResponseValidationHost, responses: Recor
 				}
 			}
 		}
-		if (
-			i.type === 'extendedTextInteraction' &&
-			Array.isArray(value) &&
-			Number(i.maxStrings ?? 0) > 0 &&
-			value.filter(isMeaningfulEntry).length > Number(i.maxStrings)
-		) {
-			errors.push(`Response '${responseId}' exceeds maxStrings=${i.maxStrings}`);
+		if (typeEntry?.shapeErrors) {
+			errors.push(...typeEntry.shapeErrors(responseId, value, i, isMeaningfulEntry));
 		}
 		// patternMask (QTI 2.1; QTI 3.0 §5.48.4, §5.162.5): "a regular expression that the
 		// candidate's response must match in order to be considered valid", in XSD syntax. A string
@@ -251,8 +314,9 @@ export function isAttempted(host: ResponseValidationHost, responses: Record<stri
 		const id = i.responseIdentifier;
 		const v = responses[id];
 		const isMeaningful = (entry: unknown): boolean => isMeaningfulResponseEntry(entry, i);
-		if (i.type === 'mediaInteraction') {
-			if (Number(v || 0) > 0) return true;
+		const attemptedValue = typeValidationEntryOf(i)?.attemptedValue;
+		if (attemptedValue) {
+			if (attemptedValue(v)) return true;
 			continue;
 		}
 		if (Array.isArray(v)) {
