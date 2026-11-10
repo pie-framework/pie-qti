@@ -1302,7 +1302,7 @@ export class QtiToPiePlugin implements TransformPlugin {
 
 interface CustomInteractionEvidence {
   responseIdentifier?: string;
-  customInteractionIdentifierType?: string;
+  customInteractionTypeIdentifier?: string;
   moduleRefs: string[];
 }
 
@@ -1517,15 +1517,15 @@ function hasAncestorLocalName(element: HTMLElement, localName: string): boolean 
 }
 
 /**
- * A portable custom interaction's type identifier, in the spellings the item player reads: QTI
- * 2.2's, then QTI 3.0's kebab-case, which normalization leaves as authored, then a variant seen
- * in exported content.
+ * A portable custom interaction's type identifier, in the schema-defined spellings the item
+ * player reads: QTI 2.2's, then QTI 3.0's kebab-case, which normalization leaves as authored.
+ * No QTI or PCI version defines another spelling.
  */
 function pciTypeIdentifier(pci: HTMLElement | undefined): string | undefined {
   return (
     pci?.getAttribute('customInteractionTypeIdentifier') ??
     pci?.getAttribute('custom-interaction-type-identifier') ??
-    pci?.getAttribute('customInteractionIdentifierType')
+    undefined
   );
 }
 
@@ -1539,9 +1539,7 @@ function customInteractionEvidence(customInteraction: HTMLElement): CustomIntera
   ].filter((value): value is string => Boolean(value));
   return {
     responseIdentifier: customInteraction.getAttribute('responseIdentifier'),
-    customInteractionIdentifierType:
-      customInteraction.getAttribute('customInteractionIdentifierType') ??
-      pciTypeIdentifier(nestedPortable),
+    customInteractionTypeIdentifier: pciTypeIdentifier(nestedPortable),
     moduleRefs: [...new Set(moduleRefs)],
   };
 }
@@ -1556,7 +1554,7 @@ function portableCustomInteractionEvidence(pci: HTMLElement): CustomInteractionE
   ].filter((value): value is string => Boolean(value));
   return {
     responseIdentifier: pci.getAttribute('responseIdentifier'),
-    customInteractionIdentifierType: pciTypeIdentifier(pci),
+    customInteractionTypeIdentifier: pciTypeIdentifier(pci),
     moduleRefs: [...new Set(moduleRefs)],
   };
 }
@@ -1578,8 +1576,8 @@ function formatCustomInteractionEvidence(
   const parts = [
     sourcePath ? `sourcePath: ${sourcePath}` : undefined,
     first.responseIdentifier ? `responseIdentifier: ${first.responseIdentifier}` : undefined,
-    first.customInteractionIdentifierType
-      ? `customInteractionIdentifierType: ${first.customInteractionIdentifierType}`
+    first.customInteractionTypeIdentifier
+      ? `customInteractionTypeIdentifier: ${first.customInteractionTypeIdentifier}`
       : undefined,
     first.moduleRefs.length > 0 ? `moduleRefs: ${first.moduleRefs.join(', ')}` : undefined,
   ].filter(Boolean);

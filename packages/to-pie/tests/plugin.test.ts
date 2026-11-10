@@ -813,7 +813,7 @@ describe('QtiToPiePlugin', () => {
     );
 
     await expect(promise).rejects.toThrow(/Unsupported customInteraction with standard interaction\(s\): choiceInteraction/);
-    await expect(promise).rejects.toThrow(/customInteractionIdentifierType: urn:vendor:graph/);
+    await expect(promise).rejects.toThrow(/customInteractionTypeIdentifier: urn:vendor:graph/);
   });
 
   test('should reject a namespace-prefixed interaction beside a choiceInteraction', async () => {

@@ -93,7 +93,7 @@ Extracted by `portableCustomExtractor` (priority 20) into `ExtractedPci`. `PciHo
 | Attribute / child | Support | Notes |
 | ----------------- | ------- | ----- |
 | Outer `customInteraction@responseIdentifier` | Supported | Retained as the response-variable binding |
-| Inner `pci:portableCustomInteraction@customInteractionIdentifierType` | Supported | Stored as `customInteractionTypeIdentifier` |
+| Inner PCI type identifier — `customInteractionTypeIdentifier` (2.x) / `custom-interaction-type-identifier` (3.0) | Supported | Stored as `customInteractionTypeIdentifier`; the invented `customInteractionIdentifierType` spelling is no longer read |
 | `<pci:instance>` | Supported | Script elements are removed from the mounted scaffold before it reaches `innerHTML` |
 | First external `<script src>` in `<pci:instance>` | Supported | Passed as an authored path to the host resolver; inline scripts are never executed |
 

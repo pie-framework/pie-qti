@@ -1,6 +1,7 @@
 ---
 '@pie-qti/item-player': patch
 '@pie-qti/default-components': patch
+'@pie-qti/to-pie': patch
 ---
 
 QTI spec-conformance fixes for interaction extraction and delivery data.
@@ -14,5 +15,5 @@ QTI spec-conformance fixes for interaction extraction and delivery data.
 **Booleans and shuffle.** Interaction boolean attributes now read the full xs:boolean lexical space, so `shuffle="1"`, `fixed="1"`, `required="1"`, `count-attempt="1"`, `step-label="1"` and `reverse="1"` extract as on. `fixed` is now read on match and associate `simpleAssociableChoice` (and on QTI 2.1 `gapText`/`gapImg`, read for QTI 2.1 content only — 2.2/3.0 define none), so authored fixed choices keep their position under `shuffle="true"` instead of being shuffled.
 
 **Removed surfaces (previously tolerated inputs stop working):**
-- The PCI extractor reads only the schema-defined `customInteractionTypeIdentifier` / `custom-interaction-type-identifier`. The never-standardized `customInteractionIdentifierType` / `custom-interaction-identifier-type` spellings it also accepted are no longer read; hosts passing those must use the schema name. (`packages/to-pie` still reads the invented spelling; a separate change will cover it.)
+- The PCI extractor reads only the schema-defined `customInteractionTypeIdentifier` / `custom-interaction-type-identifier`. The never-standardized `customInteractionIdentifierType` / `custom-interaction-identifier-type` spellings it also accepted are no longer read; hosts passing those must use the schema name. `@pie-qti/to-pie` follows: its PCI type-identifier read is the same two schema names, and its unsupported-interaction diagnostic names the field `customInteractionTypeIdentifier`.
 - Three dead delivered-type members are deleted: `AssociateData.minSelectionsMessage`, `GraphicOrderData.minSelectionsMessage` (attributes no QTI version defines; never populated) and `GapMatchInteractionData.gapTexts[].inputWidth` (never populated; the `qti-input-width-*` class reaches the renderer via `classes`). Plugin authors reading them must switch to the delivered `classes` (input width) or drop the read (the messages).
