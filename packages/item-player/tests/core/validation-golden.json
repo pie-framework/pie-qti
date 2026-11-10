@@ -6004,7 +6004,7 @@
               "issues": []
             }
           },
-          "extracts fields from constructed record": {
+          "extracts fields from the session's record response": {
             "engine": {
               "attempted": false,
               "entries": {},

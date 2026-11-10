@@ -1021,13 +1021,6 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			if (expr.name === 'sampleVariance' || expr.name === 'popVariance') return qtiValue('float', 'single', variance);
 			return qtiValue('float', 'single', Math.sqrt(variance));
 		}
-		case 'expr.record': {
-			const record: Record<string, QtiValue> = {};
-			for (const f of expr.fields) {
-				record[f.fieldIdentifier] = evalExpr(env, f.value);
-			}
-			return qtiValue(undefined, 'record', record);
-		}
 		case 'expr.fieldValue': {
 			const rec = evalExpr(env, expr.record);
 			if (rec.kind !== 'value' || rec.cardinality !== 'record') return qtiNull();

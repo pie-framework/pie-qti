@@ -52,7 +52,6 @@ export type ExpressionNode =
 	| DurationLTExpr
 	| DurationGTEExpr
 	| StatsOperatorExpr
-	| RecordExpr
 	| FieldValueExpr
 	| SubstringExpr
 	| PowerExpr
@@ -393,12 +392,6 @@ export type StatsOperatorExpr = {
 	id: AstNodeId;
 	name: 'mean' | 'sampleVariance' | 'sampleSD' | 'popVariance' | 'popSD';
 	values: ExpressionNode;
-};
-
-export type RecordExpr = {
-	kind: 'expr.record';
-	id: AstNodeId;
-	fields: Array<{ fieldIdentifier: string; value: ExpressionNode }>;
 };
 
 export type FieldValueExpr = {

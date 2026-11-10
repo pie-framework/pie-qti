@@ -86,14 +86,19 @@ describe('affected operators with QTI 3.0 kebab-case children', () => {
 		).toEqual(qtiValue('string', 'single', 'BCDE'));
 	});
 
-	it('record builds qti-field-value member values as the item player compiles them', () => {
-		// The QTI 2 → 3 conversion keeps the record element itself unprefixed, while its
-		// fieldValue members become qti-field-value; their member value is a nested expression.
+	it('qti-field-value reads a record variable field, the way a record value reaches expressions', () => {
+		// Records are a declaration cardinality, not a constructible container: a record value
+		// reaches processing through a record-typed variable (host-delivered), never through an
+		// authored element — no QTI version defines a <record> constructor, and the builder
+		// rejects it like any unknown element.
+		const rec = qtiValue(undefined, 'record', {
+			x: qtiValue('integer', 'single', 42),
+			y: qtiValue('string', 'single', 'B'),
+		});
 		expect(
-			evaluate(
-				'<qti-field-value field-identifier="x"><record><qti-field-value field-identifier="x"><qti-variable identifier="A"/></qti-field-value><qti-field-value field-identifier="y"><qti-base-value base-type="string">B</qti-base-value></qti-field-value></record></qti-field-value>',
-				declared('A', 'integer', 42),
-			),
+			evaluate('<qti-field-value field-identifier="x"><qti-variable identifier="REC"/></qti-field-value>', {
+				REC: { identifier: 'REC', cardinality: 'record', value: rec },
+			}),
 		).toEqual(qtiValue('integer', 'single', 42));
 	});
 });
@@ -179,7 +184,6 @@ const GUARD: ReadonlyArray<readonly [tag: string, attrs: string, body: string]> 
 	['random', '', ONE],
 	['randomfloat', 'max="1.0"', ''],
 	['randominteger', 'max="10"', ''],
-	['record', '', `<qti-field-value field-identifier="x">${ONE}</qti-field-value>`],
 	['repeat', 'number-repeats="2"', ONE],
 	['round', '', ONE],
 	['roundto', 'rounding-mode="decimalPlaces" figures="2"', ONE],

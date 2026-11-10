@@ -777,19 +777,6 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			if (kids.length !== 1) throw new Error('<statsOperator> requires exactly one child expression');
 			return { kind: 'expr.statsOperator', id, name, values: buildExpression(kids[0]!, options) };
 		}
-		case 'record': {
-			// QTI record: children are <fieldValue fieldIdentifier="...">VALUE</fieldValue>
-			// Member recognition goes through the mapper so QTI 3 spelling (qti-field-value,
-			// as the 2 → 3 conversion emits it) is accepted beside the QTI 2.x one.
-			const fields = childElements(el)
-				.filter((c) => mapper.toCanonical(localName(c) || '') === 'fieldvalue')
-				.map((c) => ({
-					fieldIdentifier: getAttr(c, 'fieldIdentifier') || '',
-					value: buildExpression(childElements(c)[0] ?? c, options),
-				}))
-				.filter((f) => Boolean(f.fieldIdentifier));
-			return { kind: 'expr.record', id, fields };
-		}
 		case 'fieldvalue': {
 			const fieldIdentifier = getAttr(el, 'fieldIdentifier') || '';
 			return { kind: 'expr.fieldValue', id, fieldIdentifier, record: buildExpression(kids[0]!, options) };
