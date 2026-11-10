@@ -101,8 +101,9 @@ response re-submits and the fresh decision replaces it.
 
 A move with no backend decision on record — a nonlinear jump into the next test part, a move on from
 a simultaneous part, a session resumed after a reload, a backend that returns no decision — is
-decided by the player with the reference backend's own rules (`test-navigation.ts`:
-`nextItemIdentifier`, `firstEligibleItem`), against the test outcomes the backend last returned and
+decided by the player with the reference backend's own rules (`testStructure.ts`:
+`nextItemIdentifier`, `firstEligibleItem`, shared with the reference backend's
+`integration/test-navigation.ts`), against the test outcomes the backend last returned and
 the item results it recorded (its `result.outcomeValues` over the accepted item session). The same
 forward step feeds `next()`, `canNext`, `getForwardTransitionInfo()`, `navigateTo()` legality, the
 review screen's jumps and the scope-expiry hop, so a test part whose precondition fails is never
@@ -115,7 +116,11 @@ nothing and moves to the adjacent open item, as before.
 In individual submission mode `next()` submits before advancing, so navigation and submission share
 one backend round-trip. The core runs every public navigation/submit call through a transition lock:
 while one transition is in flight, further navigation or submit calls reject with a typed
-`navigationInFlight` error instead of racing it. `getNavigationState().isLoading` exposes the real
+`navigationInFlight` error instead of racing it. Transitions the player starts itself take the same
+lock or wait for it: a proctor's forced submit and a requested pause queue behind the transition in
+flight, and so does a scope expiry's move — the timer can fire while a navigation or submission is
+running, the scope closes at once, and the hop takes the lock once the player is idle again instead
+of racing it. `getNavigationState().isLoading` exposes the real
 in-flight flag (also via `onBusyChange` and `isBusy()`), so shells disable Previous/Next/Submit and
 set `aria-busy` while busy. A failed submit restores the candidate to the same item with the
 response intact and retryable.
@@ -358,7 +363,7 @@ None of these contradicts a clear QTI rule. The first is a test-coverage note; t
   that item that submits nothing follows it (its minimum times checked). A move without a backend
   decision (a nonlinear jump into the next test part, a move on from a simultaneous part, a resumed
   session, a backend that returns none) lands on the item the reference rules
-  (`test-navigation.ts`) deliver, evaluated against the backend's last test outcomes and the
+  (`testStructure.ts`) deliver, evaluated against the backend's last test outcomes and the
   recorded item results: a test part whose precondition fails is never entered (a jump into it is
   a coded `navigationNotAllowed`; the forward step lands past it), and in a linear part a section
   or item whose precondition fails is skipped. `next()`, `canNext`, `getForwardTransitionInfo()`,
@@ -476,10 +481,13 @@ nothing depends on host CSS frameworks.
   it — Continue or Escape — moves focus to that question and announces its position like a
   navigation (`onScopeTimeExpired` event: `deliveryContinues`, `nextIndex`). An expiry also closes
   a submit confirmation or leave-part warning that was open (its blockers and jumps no longer
-  hold). The move is never undone: a branch decision returned by a submission that was in flight
-  when the expiry moved delivery is not followed, and no branch decision re-enters a test part
-  already left. A scope that expires while the end of the test runs closes at once (its items go
-  out as they stand); delivery moves off it only if that end does not finalize. Expiries are not part of a snapshot: a restored session recomputes them from its clocks
+  hold). The move is serialized with the transitions it could race and is never undone: an expiry
+  that fires while a navigation or submission is in flight closes the scope at once and moves
+  delivery once that transition settles, so it never lands mid-move or moves delivery twice; the
+  branch decision returned by the submission it raced is not followed, and no branch decision
+  re-enters a test part already left. A scope that expires while the end of the test runs closes at
+  once (its items go out as they stand); delivery moves off it only if that end does not finalize.
+  Expiries are not part of a snapshot: a restored session recomputes them from its clocks
   before entering any item, so a scope that ran out while the candidate was away is locked at once
   (never editable until the next tick) and delivery lands on an open question the same way — or,
   with none, shows the closed item read-only and reports the dead end below.
@@ -821,7 +829,7 @@ Key types are in `packages/assessment-player/src/integration/api-contract.ts`. I
 - **`AssessmentSessionState.itemResponses`** is keyed by item identifier, then by response variable identifier. The inner value type is `Record<string, ResponseValue>`. A missing outer key means the item has never been visited; an empty inner object means the item was visited but no response was entered.
 - **`AssessmentSessionState.itemSessions`** contains serialized handoff values for inactive/restorable items. It never contains or represents a second live session. `getCurrentItemSession()` is the sole live reference and is not persistence data.
 - **`AssessmentSessionState.branchDecisions`** carries the kept branching decision per item (see `nextItemIdentifier` below): item identifier → target, at most the freshest counted submission's. It is what makes a restored session land identically to the live one; backends that never store it just lose the kept decision across a resume.
-- **`SubmitResponsesResponse.nextItemIdentifier`** is the server's branching decision. When present, the client must navigate to that item — on a candidate's move. A submission that stays on the item (a practice check, a counted end-attempt) keeps it, and the next move on from the item that submits nothing follows it; any later counted submission voids the kept decision (the outcomes it was decided on have moved), so stale testPart rules cannot redirect a nonlinear part. Leaving a simultaneous test part on Next commits the part's pending responses first and then follows the decision the flush returned for the part's last item — a target inside the part that is ending is rejected — while the end of the test never navigates (a decision returned for its own collection is kept on record and followed by the next `next()` only if the end does not complete), a decision that arrives after a scope expiry moved delivery is not followed, and no decision re-enters a test part already left. When absent — and for a move without any backend decision — the client moves to the next item the test's branch rules and preconditions deliver, evaluating them itself with the reference rules (for a test without any: `currentIndex + 1`). Servers that do not implement branching should omit this field entirely.
+- **`SubmitResponsesResponse.nextItemIdentifier`** is the server's branching decision. When present, the client must navigate to that item — on a candidate's move. A submission that stays on the item (a practice check, a counted end-attempt) keeps it, and the next move on from the item that submits nothing follows it; any later counted submission voids the kept decision (the outcomes it was decided on have moved), so stale testPart rules cannot redirect a nonlinear part. Leaving a simultaneous test part on Next commits the part's pending responses first and then follows the decision the flush returned for the part's last item — a target inside the part that is ending is rejected — while the end of the test never navigates (a decision returned for its own collection is kept on record and followed by the next `next()` only if the end does not complete), a decision returned by a submission a scope expiry raced is not followed (the scope closed while the submission was in flight; the expiry's hop is serialized behind it and moves delivery), and no decision re-enters a test part already left. When absent — and for a move without any backend decision — the client moves to the next item the test's branch rules and preconditions deliver, evaluating them itself with the reference rules (for a test without any: `currentIndex + 1`). Servers that do not implement branching should omit this field entirely.
 - **`SubmitResponsesResponse.updatedState`** carries the backend's scores and attempt records; it never moves the candidate. The client keeps its own `currentItemIdentifier` across the replacement (delivery moves through `nextItemIdentifier` only), so a stale backend position cannot redirect responses or the next snapshot.
 - **`BackendAdapter.canSaveState`** (default `true`) is the autosave capability flag: the core debounces drafts through `saveState` unless the adapter reports `false` or the config disables autosave. Adapters that cannot store drafts must say so rather than silently accepting saves.
 - **`BackendAdapter.requiresItemSession`** (default unset) declares a backend that scores from `SubmitResponsesRequest.itemSession`; the core then sends it on every submission whatever `sendItemSessionToBackend` says. The reference adapter declares it.
@@ -980,10 +988,13 @@ AC-21: The end of the test never navigates
   When: finalizeAssessment fails
   Then: The candidate is still on q1, a retry finalizes, and a next() follows the kept decision
 
-AC-22: A scope expiry's move is not undone by an in-flight submission
-  Given: A section limit that expires while next() submits q1, moving delivery into the next part
-  When: The submission then returns nextItemIdentifier 'q2' (in the part delivery left)
-  Then: Delivery stays where the expiry moved it, and getState() records that item as current
+AC-22: A scope expiry's move is serialized with an in-flight submission and not undone by it
+  Given: A section limit that expires while next() submits q1 (the section closes at once; the
+         move waits for the submission instead of racing it)
+  When: The submission then returns nextItemIdentifier 'q2' (inside the section that closed)
+  Then: Nothing moves and no scope expiry is reported until the submission settles; the decision
+        is not followed, the expiry's move then takes delivery into the next part exactly once,
+        and getState() records that item as current
 
 AC-23: Only reachable questions hold the way out of a part
   Given: A restored session on q2 of a linear part with q1 behind it unanswered (allowSkipping=false)

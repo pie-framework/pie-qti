@@ -107,7 +107,7 @@ rejecting hard-limit submissions from assessment elapsed time or submitted timin
 | `testPart.navigationMode=linear` | Implemented | Current item or the next item the delivery rules deliver only; no backward navigation |
 | `testPart.navigationMode=nonlinear` | Implemented | Arbitrary in-bounds navigation within the current test part |
 | Sequential test-part delivery | Implemented | Only the forward step out of a part (its first item the rules deliver) may be entered; completed parts cannot be revisited |
-| `preCondition` / `branchRule` | Implemented | The backend decides the moves that submit (`nextItemIdentifier`); a practice check or counted end-attempt keeps its decision for the move on (a later counted submission voids it; the decision is persisted with the session state, so a restored session lands identically); a simultaneous part's crossing follows the decision its flush returned for the part's last item; a move without a backend decision applies the same rules in the player (`test-navigation.ts`), so a part whose precondition fails is never entered |
+| `preCondition` / `branchRule` | Implemented | The backend decides the moves that submit (`nextItemIdentifier`); a practice check or counted end-attempt keeps its decision for the move on (a later counted submission voids it; the decision is persisted with the session state, so a restored session lands identically); a simultaneous part's crossing follows the decision its flush returned for the part's last item; a move without a backend decision applies the same rules in the player (`testStructure.ts`, shared with the backend's `test-navigation.ts`), so a part whose precondition fails is never entered |
 | Per-test-part `submissionMode=individual` | Implemented during `next()` | The current item is submitted before advancing; backend branching may choose the next item |
 | Per-test-part `submissionMode=simultaneous` | Partial | Navigation defers item submission, but flushing is assessment-final rather than test-part-final |
 | `timeLimits.minTime` | Implemented with limitations | Item transition, section/test-part exit, and final assessment submission are guarded; see Remaining gaps |
@@ -193,7 +193,8 @@ first test part. New code must treat `SecureTestPart.navigationMode` and
   one at a time, replaced by any later counted submission — and the next forward move from the item
   that submits nothing follows it. A move without a backend decision (a nonlinear jump into the
   next part, a move on from a simultaneous part, a resumed session, a backend that returns none)
-  applies the reference rules (`test-navigation.ts`) in the player against the backend's last test
+  applies the reference rules (`testStructure.ts`, shared with the backend's `test-navigation.ts`)
+  in the player against the backend's last test
   outcomes and the recorded item results. `next()`, `canNext`, the forward-transition info, jump
   legality and the scope-expiry hop share that forward step; with nothing eligible after the item,
   `canNext` is false and Submit is the way on.
