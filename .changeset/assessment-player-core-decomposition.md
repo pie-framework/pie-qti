@@ -1,0 +1,5 @@
+---
+'@pie-qti/assessment-player': patch
+---
+
+Internal restructuring of the assessment player core; no behaviour change. `AssessmentPlayer` becomes an orchestrator that keeps the public façade, the transition lock, the current item and the terminal state, while the pure policy moves into its own `core/` modules (delivery structure, scope locks, navigation legality, exit-boundary resolution, submission gate, review views, time policy, template defaults) and the independent pieces are extracted (a typed event emitter behind the unchanged `on*` subscriptions, a `PauseController`, and the autosave wiring around the existing `AutosaveManager`). `AssessmentSessionCoordinator` is now the only writer of session state, through one commit method per submit-path combination (individual/simultaneous × backend returns/omits `updatedState`) — the state shape sent to backends and snapshots is unchanged, and no public export moves (`SubmissionBlocker` and `EffectiveItemTimeLimits` are re-exported from `AssessmentPlayer` as before).

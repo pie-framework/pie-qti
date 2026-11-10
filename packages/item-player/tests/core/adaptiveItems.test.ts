@@ -661,16 +661,20 @@ describe('Adaptive outcome retention (QTI ASI §5.2)', () => {
 	});
 
 	test('newTemplate restarts an adaptive item from its outcome defaults', () => {
-		const player = new Player({ itemXml: ADAPTIVE_PARTIAL_CREDIT_ITEM });
-		player.setResponses({ RESPONSE: 'A' });
-		submitAdaptiveAttempt(player);
-		player.newTemplate();
-		expect(player.getSessionState().TRIES).toBe(0);
-		expect(player.getNumAttempts()).toBe(0);
+		const session = createAssessmentItemDefinition({ itemXml: ADAPTIVE_PARTIAL_CREDIT_ITEM }).openSession();
+		try {
+			session.dispatch({ action: 'setResponse', responseIdentifier: 'RESPONSE', value: 'A' });
+			session.dispatch({ action: 'submitAttempt' });
+			const restarted = session.dispatch({ action: 'newTemplate' }).current;
+			expect(restarted.outcomes.TRIES).toBe(0);
+			expect(restarted.numAttempts).toBe(0);
 
-		player.setResponses({ RESPONSE: 'C' });
-		const fresh = submitAdaptiveAttempt(player);
-		expect(fresh.outcomeValues.TRIES).toBe(1);
-		expect(fresh.score).toBe(1);
+			session.dispatch({ action: 'setResponse', responseIdentifier: 'RESPONSE', value: 'C' });
+			const fresh = session.dispatch({ action: 'submitAttempt' }).result?.scoring;
+			expect(fresh?.outcomeValues.TRIES).toBe(1);
+			expect(fresh?.score).toBe(1);
+		} finally {
+			session.dispose();
+		}
 	});
 });

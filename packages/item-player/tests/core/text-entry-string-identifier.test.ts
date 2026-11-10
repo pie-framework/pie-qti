@@ -192,12 +192,13 @@ describe('textEntryInteraction stringIdentifier', () => {
 	});
 
 	test('a stringIdentifier naming a declared outcome is ignored safely', () => {
-		const player = new Player({ itemXml: OUTCOME_COMPANION });
-		player.setResponses({ NUM: '3.50' });
-		expect(player.getResponses().NUM).toBe(3.5);
-		// The outcome is not written as though it were the companion response.
-		expect(player.getSessionState().SCORE).toBe(0);
-		expect(player.processResponses().outcomeValues.SCORE).toBe(1);
+		withSession(createAssessmentItemDefinition({ itemXml: OUTCOME_COMPANION }).openSession(), (session) => {
+			session.dispatch({ action: 'setResponse', responseIdentifier: 'NUM', value: '3.50' });
+			expect(session.state().responses.NUM).toBe(3.5);
+			// The outcome is not written as though it were the companion response.
+			expect(session.state().outcomes.SCORE).toBe(0);
+			expect(session.dispatch({ action: 'scoreAttempt' }).result?.scoring?.outcomeValues.SCORE).toBe(1);
+		});
 	});
 
 	test('completion and validation key off the main response, never the companion', () => {

@@ -78,6 +78,59 @@ import {
 import { firstEligibleItem, nextItemIdentifier } from '../integration/test-navigation.js';
 import { extendTimeLimit, TimeManager } from './TimeManager.js';
 import {
+	asResponseValues,
+	cloneData,
+	cloneResponseRecord,
+	closedItemSession,
+	isWritableItemLifecycle,
+	responseDefaultsOf,
+	responseValuesEqual,
+	valuesFromItemSession,
+} from './sessionRecords.js';
+import { TypedEventEmitter, type AssessmentPlayerEventMap } from './playerEvents.js';
+import {
+	flattenItems,
+	partOrderOf,
+	presentedSectionOf,
+	presentedSections,
+	type CurrentItemView,
+	type FlatItem,
+	type PresentationPolicy,
+	type SectionItemRefView,
+} from './deliveryStructure.js';
+import {
+	ScopeLocks,
+	isItemLocked,
+	lockingScopeOf,
+	scopeKey,
+	scopeLimitRanOut,
+	type TimeScope,
+} from './scopeLocks.js';
+import { canNavigateByTestPart, isLegalSectionTarget } from './navigationPolicy.js';
+import {
+	branchExitLeavesPart,
+	branchTargetIndex,
+	endedEnclosingSection,
+	resolveExitBoundary,
+} from './exitBoundaries.js';
+import {
+	effectiveSubmissionMode,
+	submissionBlockerFor,
+	submissionGate as submissionGatePolicy,
+	throwForBlockers,
+	type SubmissionBlocker,
+} from './submissionPolicy.js';
+import { ReviewInfoCache, resultsSummaryOf, reviewItemRow } from './reviewViews.js';
+import {
+	assertMinTimeElapsed,
+	effectiveItemTimeLimits,
+	submitTimingEvidence,
+	type EffectiveItemTimeLimits,
+} from './timePolicy.js';
+import { templateDefaultsFor } from './templateDefaults.js';
+import { PauseController } from './pause.js';
+import { createSessionAutosave } from './autosave.js';
+import {
 	interactionRequirementFromXml,
 	interactionResponseIdentifiers,
 	itemAnswerStatus,
@@ -220,37 +273,6 @@ export interface BackendAssessmentPlayerConfig {
 	onError?: (error: Error) => void;
 }
 
-type FlatItem = {
-	identifier: string;
-	item: SecureItemRef;
-	/** Innermost enclosing section. */
-	section: SecureSection;
-	/** Enclosing sections, outermost first. */
-	sections: SecureSection[];
-	/** Outermost enclosing section the candidate is actually shown (QTI visible="false" merges content into the parent). */
-	presentedSection: SecureSection | undefined;
-	testPart: SecureTestPart;
-	index: number;
-	/** Index of `presentedSection` in the candidate-facing section list; -1 when none is visible. */
-	sectionIndex: number;
-};
-
-type CurrentItemView = {
-	identifier: string;
-	title?: string;
-	required?: boolean;
-	itemXml: string;
-	deliveryContext?: SecureItemRef['deliveryContext'];
-};
-
-type SectionItemRefView = {
-	identifier: string;
-	href?: string;
-	title?: string;
-	itemXml: string;
-	deliveryContext?: SecureItemRef['deliveryContext'];
-};
-
 /** What a shell's start screen shows before delivery begins (opt-in begin gate). */
 export interface AssessmentStartInfo {
 	/** The assessmentTest title; shells fall back to a localized generic title. */
@@ -273,16 +295,6 @@ export interface AssessmentStartInfo {
 	 * ("You have answers saved from {time}"); undefined for a fresh session.
 	 */
 	savedAt?: number;
-}
-
-export interface EffectiveItemTimeLimits {
-	timeLimits?: TimeLimits;
-	source?: 'item' | 'section' | 'testPart' | 'assessment';
-	/**
-	 * Identifier of the scope that supplied the binding maximum (the section among the
-	 * enclosing chain when a section limit binds; undefined for the assessment scope).
-	 */
-	scopeIdentifier?: string;
 }
 
 /**
@@ -329,34 +341,16 @@ export interface AssessmentFinalizedEvent {
 }
 
 export type { AssessmentEndReason };
+export type { EffectiveItemTimeLimits } from './timePolicy.js';
 
 /**
  * An item a candidate-initiated end of the test would refuse to submit
  * (`getSubmissionBlockers()`): QTI `allowSkipping=false` with no response (`required`),
  * or `validateResponses=true` with responses that do not satisfy the interactions
  * (`invalid`). Both apply only to items in individual submission parts.
+ * Defined in `submissionPolicy.ts` with the gate that produces it.
  */
-export interface SubmissionBlocker {
-	identifier: string;
-	/** Flat delivery index (for `navigateTo`). */
-	index: number;
-	/** 1-based position shown to the candidate. */
-	number: number;
-	reason: 'required' | 'invalid';
-	/** Whether the navigation rules let the candidate jump to it now. */
-	jumpAllowed: boolean;
-	/** False when the candidate can no longer reach the question (its part was left). */
-	reachable: boolean;
-	/**
-	 * What the response still owes, when derivable from the item's interaction constraints
-	 * (a minimum number of selections, strings, associations or plays); absent when the
-	 * item only needs an answer. The shell localizes it into the entry text.
-	 */
-	requirement?: { kind: 'minChoices' | 'minStrings' | 'minAssociations' | 'minPlays' | 'incomplete'; count?: number };
-}
-
-/** What the presentation of an item session shows: QTI showFeedback / showSolution, resolved. */
-type PresentationPolicy = { showFeedback: boolean; showSolution: boolean };
+export type { SubmissionBlocker } from './submissionPolicy.js';
 
 /** What a shell's countdown shows for the active scope right now. */
 export interface AssessmentTimeState {
@@ -416,7 +410,7 @@ export class AssessmentPlayer {
 	/** Results produced by the finalization; returned when submit() is called again after the end. */
 	private finalResults: AssessmentResults | null = null;
 	/** Scopes whose time limit expired without late submission, keyed `scope:identifier`. */
-	private readonly lockedScopes = new Set<string>();
+	private readonly scopeLocks = new ScopeLocks();
 	/**
 	 * Navigation serialization: exactly one navigation or submission transition may run at
 	 * a time. While set, further navigation and submit calls are rejected as busy.
@@ -427,8 +421,7 @@ export class AssessmentPlayer {
 	/** False while an opt-in begin gate holds delivery: no item is entered and no clock runs. */
 	private started = true;
 	/** A proctor pause: every clock is frozen and candidate actions are rejected. */
-	private paused = false;
-	private pauseReason: string | undefined;
+	private readonly pauseControl: PauseController;
 	/** The whole-test hard limit expired (no late submission); delivery collects and ends. */
 	private assessmentExpired = false;
 	/** The live attempt was suspended by a pause; resume() reopens it from its pause snapshot. */
@@ -490,26 +483,30 @@ export class AssessmentPlayer {
 	/** A restored whole-test expiry's automatic finalize is scheduled (or ran). */
 	private restoredExpiryFinalizeScheduled = false;
 
-	// Event listeners
-	private itemChangeListeners = new Set<(index: number, total: number) => void>();
-	private sectionChangeListeners = new Set<(index: number, total: number) => void>();
-	private responseChangeListeners = new Set<(responses: Record<string, unknown>) => void>();
-	private completeListeners = new Set<(results: AssessmentResults) => void>();
-	private busyChangeListeners = new Set<(busy: boolean) => void>();
-	private testFeedbackChangeListeners = new Set<() => void>();
-	private timeWarningListeners = new Set<(remainingSeconds: number) => void>();
-	private timeExpiredListeners = new Set<(event: AssessmentTimeExpiryEvent) => void>();
-	private scopeTimeExpiredListeners = new Set<(event: ScopeTimeExpiryEvent) => void>();
-	private pauseChangeListeners = new Set<(paused: boolean, reason?: string) => void>();
-	private timeTickListeners = new Set<(remainingSeconds: number, elapsedSeconds: number) => void>();
-	private flagChangeListeners = new Set<(itemIdentifier: string, flagged: boolean) => void>();
-	private autosaveChangeListeners = new Set<(state: AutosaveState) => void>();
+	// Event listeners (typed emitter; the host-config callbacks stay in the notify helpers)
+	private readonly events = new TypedEventEmitter<AssessmentPlayerEventMap>();
 	/** Item XML–derived review facts (interaction response ids, item title) per item identifier. */
-	private readonly reviewInfoCache = new Map<string, { responseIds: string[]; title?: string }>();
+	private reviewInfoCache: ReviewInfoCache;
 	/** Declared response default values per item (QTI: a response equal to its default is no response). */
 	private readonly responseDefaultsCache = new Map<string, Record<string, unknown>>();
 
 	private constructor(private config: BackendAssessmentPlayerConfig, init: InitSessionResponse) {
+		this.pauseControl = new PauseController({
+			isBusy: () => this.transitionInFlight,
+			onTransitionActivity: (listener) => this.onBusyChange(listener),
+			freeze: () => {
+				this.timeManager?.pause();
+				this.suspendLiveSessionForPause();
+			},
+			unfreeze: () => {
+				this.timeManager?.resume();
+				this.reopenLiveSessionAfterPause();
+			},
+			unfreezeAllowed: () => this.started && !this.finalized,
+			changed: () => this.notifyPauseChange(),
+			afterResume: () => this.finalizeRestoredExpiryWhenRunning(),
+			isDestroyed: () => this.destroyed,
+		});
 		this.backend = config.backend;
 		this.sessionId = init.sessionId;
 		this.assessment = init.assessment;
@@ -526,9 +523,10 @@ export class AssessmentPlayer {
 				timing: { startedAt: Date.now(), itemTimes: {}, totalTime: 0 },
 			} as AssessmentSessionState);
 
-		this.items = this.flattenItems(this.assessment);
+		this.items = flattenItems(this.assessment);
 		this.deliveredForRules = this.items.map(({ item, testPart, sections }) => ({ item, testPart, sections }));
 		for (const q of this.items) this.indexByIdentifier.set(q.identifier, q.index);
+		this.reviewInfoCache = new ReviewInfoCache(this.items);
 		const ruled = (holder: { preConditions?: string[]; branchRule?: unknown[] }) =>
 			(holder.preConditions?.length ?? 0) > 0 || (holder.branchRule?.length ?? 0) > 0;
 		this.hasDeliveryRules = this.items.some(
@@ -571,8 +569,10 @@ export class AssessmentPlayer {
 			this.lockExpiredScopesFromClocks(init.restoredState.timing);
 		}
 		// A session saved during a proctor pause reopens paused, its clocks frozen.
-		this.paused = init.restoredState?.timing?.isPaused === true;
-		this.pauseReason = this.paused ? init.restoredState?.timing?.pauseReason : undefined;
+		this.pauseControl.setFromRestore(
+			init.restoredState?.timing?.isPaused === true,
+			init.restoredState?.timing?.pauseReason,
+		);
 
 		this.restoredFromSnapshot = init.restoredState !== undefined;
 		this.restoredSavedAt = init.restoredState?.timing?.savedAt;
@@ -657,25 +657,20 @@ export class AssessmentPlayer {
 	private lockExpiredScopesFromClocks(timing: AssessmentSessionState['timing'] | undefined): void {
 		if (!timing) return;
 		const extended = this.config.pnp?.content?.extendedTime;
-		const ranOut = (limits: TimeLimits | undefined, elapsedMs: number | undefined): boolean => {
-			if (limits?.maxTime === undefined || limits.allowLateSubmission === true) return false;
-			const maxSeconds = extendTimeLimit(limits.maxTime, extended);
-			return maxSeconds !== undefined && (Number(elapsedMs) || 0) >= maxSeconds * 1000;
-		};
+		const ranOut = (limits: TimeLimits | undefined, elapsedMs: number | undefined): boolean =>
+			scopeLimitRanOut(limits, elapsedMs, extended);
 		const expired: string[] = [];
-		const lock = (key: string): void => {
-			if (this.lockedScopes.has(key)) return;
-			this.lockedScopes.add(key);
-			expired.push(key);
+		const lock = (scope: TimeScope, identifier: string): void => {
+			if (this.scopeLocks.lock(scope, identifier)) expired.push(scopeKey(scope, identifier));
 		};
 		for (const q of this.items) {
 			if (ranOut(q.testPart.timeLimits, timing.testPartTimes?.[q.testPart.identifier])) {
-				lock(`testPart:${q.testPart.identifier}`);
+				lock('testPart', q.testPart.identifier);
 			}
 			for (const section of q.sections) {
-				if (ranOut(section.timeLimits, timing.sectionTimes?.[section.identifier])) lock(`section:${section.identifier}`);
+				if (ranOut(section.timeLimits, timing.sectionTimes?.[section.identifier])) lock('section', section.identifier);
 			}
-			if (ranOut(q.item.timeLimits, timing.itemTimes?.[q.identifier])) lock(`item:${q.identifier}`);
+			if (ranOut(q.item.timeLimits, timing.itemTimes?.[q.identifier])) lock('item', q.identifier);
 		}
 		if (ranOut(this.assessment.timeLimits, timing.totalTime)) {
 			this.assessmentExpired = true;
@@ -748,10 +743,6 @@ export class AssessmentPlayer {
 		return this.sessionCoordinator.state;
 	}
 
-	private set state(state: AssessmentSessionState) {
-		this.sessionCoordinator.restoreState(state);
-	}
-
 	/**
 	 * Whether a navigation or submission transition is currently in flight. Shells must
 	 * disable navigation controls while this is set.
@@ -796,6 +787,16 @@ export class AssessmentPlayer {
 		return this.runExclusive(operation);
 	}
 
+	/** Whether a proctor pause is in force (owned by `PauseController`). */
+	private get paused(): boolean {
+		return this.pauseControl.paused;
+	}
+
+	/** The candidate-facing reason given for the current pause, if any. */
+	private get pauseReason(): string | undefined {
+		return this.pauseControl.reason;
+	}
+
 	private assertCandidateActionAllowed(): void {
 		if (this.paused) {
 			throw new AssessmentPlayerError('assessmentPaused', 'The assessment is paused.');
@@ -815,27 +816,16 @@ export class AssessmentPlayer {
 	 * for hosts that persist state themselves.
 	 */
 	private createAutosave(): void {
-		const enabled = this.config.autosave !== false && this.backend.canSaveState !== false;
-		if (!enabled) return;
-		this.autosave = new AutosaveManager({
-			enabled: true,
-			intervalMs: this.config.autosaveIntervalMs ?? 1500,
-			collect: () => {
-				const snapshot = this.getState({ includeItemSessions: true });
-				if (this.snapshotsCloseItemSessions && snapshot.itemSessions) {
-					snapshot.itemSessions = Object.fromEntries(
-						Object.entries(snapshot.itemSessions).map(([identifier, session]) => [
-							identifier,
-							closedItemSession(session),
-						]),
-					);
-				}
-				snapshot.timing = { ...snapshot.timing, savedAt: Date.now() };
-				return { sessionId: this.sessionId, state: snapshot };
-			},
-			save: (request) => this.backend.saveState(request as never),
+		this.autosave = createSessionAutosave({
+			autosave: this.config.autosave,
+			autosaveIntervalMs: this.config.autosaveIntervalMs,
+			canSaveState: this.backend.canSaveState,
+			sessionId: this.sessionId,
+			getSnapshot: () => this.getState({ includeItemSessions: true }),
+			snapshotsCloseItemSessions: () => this.snapshotsCloseItemSessions,
 			isBlocked: () => this.transitionInFlight,
 			isStopped: () => this.destroyed || this.finalized,
+			saveState: (request) => this.backend.saveState(request as never),
 			onStateChange: (state) => this.notifyAutosaveChange(state),
 			onError: (error) => this.config.onAutosaveFailed?.(error),
 		});
@@ -868,12 +858,11 @@ export class AssessmentPlayer {
 
 	/** Fires on every save-indicator state change. */
 	public onAutosaveChange(listener: (state: AutosaveState) => void): () => void {
-		this.autosaveChangeListeners.add(listener);
-		return () => this.autosaveChangeListeners.delete(listener);
+		return this.events.on('autosaveChange', listener);
 	}
 
 	private notifyAutosaveChange(state: AutosaveState): void {
-		for (const listener of this.autosaveChangeListeners) listener(state);
+		this.events.emit('autosaveChange', state);
 		this.config.onAutosaveChange?.(state);
 	}
 
@@ -924,9 +913,9 @@ export class AssessmentPlayer {
 			// follows; questions of parts already left stay closed exactly as they stand
 			// (the end of the test collects them so), visited marks included.
 			const reachedIndex = Math.max(this.currentItemIndex, ...this.navigationManager.getVisited(), 0);
-			const reachedPart = this.partOrder(this.items[reachedIndex]);
+			const reachedPart = partOrderOf(this.assessment, this.items[reachedIndex]);
 			const left = new Set(
-				this.items.filter((q) => this.partOrder(q) < reachedPart).map((q) => q.identifier),
+				this.items.filter((q) => partOrderOf(this.assessment, q) < reachedPart).map((q) => q.identifier),
 			);
 			// Accepted items keep their recorded state; everything else is the draft.
 			const accepted = new Set(
@@ -954,7 +943,7 @@ export class AssessmentPlayer {
 			// Replaces coordinator state (responses, sessions, results, flags) and clears
 			// visited/navigation state beyond the left parts. Locked scopes, the whole-test
 			// expiry and the timer's fired-limit record stay as they are.
-			this.state = fresh;
+			this.sessionCoordinator.restoreState(fresh);
 			this.navigationManager.restoreState(this.visitedIndexes(fresh.visitedItems));
 			// (A pause cannot be in force here: startOver is a candidate transition, and a
 			// pause requested while it runs applies once it settles.)
@@ -970,13 +959,13 @@ export class AssessmentPlayer {
 			// Delivery repositions to the first open item of the furthest part reached (else
 			// the first open item after it); with none left, the expiry dead end: the
 			// candidate's way out is the submission.
-			const inReach = (q: FlatItem) => this.partOrder(q) >= reachedPart;
-			const inPart = this.items.findIndex((q) => this.partOrder(q) === reachedPart && this.isOpenTarget(q));
+			const inReach = (q: FlatItem) => partOrderOf(this.assessment, q) >= reachedPart;
+			const inPart = this.items.findIndex((q) => partOrderOf(this.assessment, q) === reachedPart && this.isOpenTarget(q));
 			const firstOpen =
-				inPart >= 0 ? inPart : this.items.findIndex((q) => this.partOrder(q) > reachedPart && !this.isItemLocked(q));
+				inPart >= 0 ? inPart : this.items.findIndex((q) => partOrderOf(this.assessment, q) > reachedPart && !this.isItemLocked(q));
 			const target = firstOpen >= 0 ? firstOpen : Math.max(0, this.items.findIndex(inReach));
 			if (this.items[target]) {
-				this.state.currentItemIdentifier = this.items[target]!.identifier;
+				this.sessionCoordinator.setCurrentItem(this.items[target]!.identifier);
 				await this.performNavigateTo(target, { restoring: true });
 				if (firstOpen < 0) this.notifyExpiryDeadEnd();
 			}
@@ -985,57 +974,8 @@ export class AssessmentPlayer {
 		});
 	}
 
-	/** Delivery order of the item's test part (parts are delivered in sequence). */
-	private partOrder(q: FlatItem | undefined): number {
-		if (!q) return 0;
-		return (this.assessment.testParts ?? []).findIndex((part) => part.identifier === q.testPart.identifier);
-	}
-
 	private getEffectiveItemTimeLimits(flat: FlatItem): EffectiveItemTimeLimits {
-		const scopes: Array<{
-			source: EffectiveItemTimeLimits['source'];
-			identifier?: string;
-			limits?: TimeLimits;
-		}> = [
-			{ source: 'assessment', limits: this.assessment.timeLimits },
-			{ source: 'testPart', identifier: flat.testPart.identifier, limits: flat.testPart.timeLimits },
-			// Every enclosing section limits the item, not only the innermost one.
-			...flat.sections.map((section) => ({
-				source: 'section' as const,
-				identifier: section.identifier,
-				limits: section.timeLimits,
-			})),
-			{ source: 'item', identifier: flat.identifier, limits: flat.item.timeLimits },
-		];
-		let source: EffectiveItemTimeLimits['source'];
-		let scopeIdentifier: string | undefined;
-		let minTime: number | undefined;
-		let maxTime: number | undefined;
-		let allowLateSubmission: boolean | undefined;
-		for (const scope of scopes) {
-			if (!scope.limits) continue;
-			if (scope.limits.minTime !== undefined) {
-				minTime = minTime === undefined ? scope.limits.minTime : Math.max(minTime, scope.limits.minTime);
-			}
-			if (scope.limits.maxTime !== undefined) {
-				const scopedMaxTime = extendTimeLimit(scope.limits.maxTime, this.config.pnp?.content?.extendedTime);
-				if (scopedMaxTime !== undefined && (maxTime === undefined || scopedMaxTime < maxTime)) {
-					maxTime = scopedMaxTime;
-					source = scope.source;
-					scopeIdentifier = scope.identifier;
-					allowLateSubmission = scope.limits.allowLateSubmission;
-				}
-			} else if (scope.limits.allowLateSubmission !== undefined && maxTime === undefined) {
-				allowLateSubmission = scope.limits.allowLateSubmission;
-				source = scope.source;
-				scopeIdentifier = scope.identifier;
-			}
-		}
-
-		if (maxTime === undefined && minTime === undefined && allowLateSubmission === undefined) {
-			return {};
-		}
-		return { source, scopeIdentifier, timeLimits: { minTime, maxTime, allowLateSubmission } };
+		return effectiveItemTimeLimits(flat, this.assessment.timeLimits, this.config.pnp?.content?.extendedTime);
 	}
 
 	public getCurrentEffectiveTimeLimits(): EffectiveItemTimeLimits {
@@ -1048,48 +988,17 @@ export class AssessmentPlayer {
 		elapsedMs: number,
 		submissionReason?: SubmitTimingEvidence['submissionReason'],
 	): SubmitTimingEvidence | undefined {
-		const effective = this.getEffectiveItemTimeLimits(q);
-		const limitSeconds = effective.timeLimits?.maxTime;
-		if (!effective.source || limitSeconds === undefined) {
-			// An administrative collection (a proctor's forced end) reports its reason even
-			// when nothing is timed.
-			return submissionReason
-				? {
-					scope: 'assessment',
-					elapsedMs: this.timeManager?.getScopeElapsedMs('assessment') ?? elapsedMs,
-					submissionReason,
-				}
-				: undefined;
-		}
-		const scopeIdentifier = effective.source === 'assessment'
-			? undefined
-			: (effective.scopeIdentifier ??
-				(effective.source === 'item'
-					? q.identifier
-					: effective.source === 'section'
-						? q.section.identifier
-						: q.testPart.identifier));
-		const tracked = this.timeManager?.getScopeElapsedMs(effective.source, scopeIdentifier);
-		const scopedElapsedMs = tracked ?? elapsedMs;
-		const assessmentLimitSeconds = this.assessment.timeLimits?.maxTime === undefined
-			? undefined
-			: extendTimeLimit(this.assessment.timeLimits.maxTime, this.config.pnp?.content?.extendedTime);
-		return {
-			scope: effective.source,
-			elapsedMs: scopedElapsedMs,
-			limitSeconds,
-			expired: scopedElapsedMs >= limitSeconds * 1000,
-			allowLateSubmission: effective.timeLimits?.allowLateSubmission,
-			// The candidate's own test clock: it excludes begin-gate and proctor-pause time,
-			// which a backend wall clock measured from session creation would count.
-			...(assessmentLimitSeconds !== undefined && this.timeManager
-				? {
-					assessmentElapsedMs: this.timeManager.getScopeElapsedMs('assessment'),
-					assessmentLimitSeconds,
-				}
-				: {}),
-			...(submissionReason ? { submissionReason } : {}),
-		};
+		return submitTimingEvidence({
+			q,
+			effective: this.getEffectiveItemTimeLimits(q),
+			elapsedMs,
+			scopeElapsedMs: (scope, identifier) => this.timeManager?.getScopeElapsedMs(scope, identifier),
+			assessmentLimitSeconds: this.assessment.timeLimits?.maxTime === undefined
+				? undefined
+				: extendTimeLimit(this.assessment.timeLimits.maxTime, this.config.pnp?.content?.extendedTime),
+			assessmentElapsedMs: this.timeManager ? this.timeManager.getScopeElapsedMs('assessment') : undefined,
+			submissionReason,
+		});
 	}
 
 	private assertMinimumTime(
@@ -1112,15 +1021,7 @@ export class AssessmentPlayer {
 				: scope === 'item'
 					? q.identifier
 					: undefined;
-		const elapsedMs = this.timeManager?.getScopeElapsedMs(scope, identifier) ?? 0;
-		if (elapsedMs < limits.minTime * 1000) {
-			const remaining = Math.ceil(limits.minTime - elapsedMs / 1000);
-			throw new AssessmentPlayerError(
-				'minTimeNotElapsed',
-				`The ${scope} minimum time has not elapsed (${remaining}s remaining).`,
-				{ scope, remaining },
-			);
-		}
+		assertMinTimeElapsed(scope, limits, this.timeManager?.getScopeElapsedMs(scope, identifier) ?? 0);
 	}
 
 	/**
@@ -1155,7 +1056,7 @@ export class AssessmentPlayer {
 	}
 
 	private isIndividual(q: FlatItem): boolean {
-		return (q.testPart.submissionMode ?? this.assessment.submissionMode) === 'individual';
+		return effectiveSubmissionMode(q.testPart, this.assessment) === 'individual';
 	}
 
 	/**
@@ -1184,13 +1085,12 @@ export class AssessmentPlayer {
 	 * and is then not validated; an answered item validates when the item asks for it.
 	 */
 	private submissionGate(q: FlatItem, responses: Record<string, unknown>): { mustAnswer: boolean; validate: boolean } {
-		if (!this.isIndividual(q)) return { mustAnswer: false, validate: false };
-		const settings = this.sessionCoordinator.getItemSettings(q.identifier);
-		const skipped = isSkippedResponseSet(responses, this.responseDefaultsFor(q));
-		return {
-			mustAnswer: skipped && settings.allowSkipping === false,
-			validate: !skipped && settings.validateResponses === true,
-		};
+		return submissionGatePolicy({
+			individual: this.isIndividual(q),
+			settings: this.sessionCoordinator.getItemSettings(q.identifier),
+			responses,
+			defaults: this.responseDefaultsFor(q),
+		});
 	}
 
 	/**
@@ -1293,16 +1193,7 @@ export class AssessmentPlayer {
 			}
 		}
 		if (!reason) return null;
-		const jumpAllowed = this.isNavigationTargetLegal(q.index);
-		return {
-			identifier: q.identifier,
-			index: q.index,
-			number: q.index + 1,
-			reason,
-			jumpAllowed,
-			reachable: jumpAllowed,
-			...(requirement ? { requirement } : {}),
-		};
+		return submissionBlockerFor(q, reason, requirement, this.isNavigationTargetLegal(q.index));
 	}
 
 	/** Every item the end of the test would collect against its submission controls, reachable or not. */
@@ -1382,30 +1273,7 @@ export class AssessmentPlayer {
 	}
 
 	private throwForBlockers(blockers: SubmissionBlocker[], context: 'finalize' | 'leavePart'): void {
-		const required = blockers.filter((blocker) => blocker.reason === 'required');
-		const named = required.length > 0 ? required : blockers;
-		if (named.length === 0) return;
-		const code: AssessmentPlayerErrorCode =
-			context === 'finalize'
-				? required.length > 0
-					? 'finalizeResponseRequired'
-					: 'finalizeResponseInvalid'
-				: required.length > 0
-					? 'leavePartResponseRequired'
-					: 'leavePartResponseInvalid';
-		const identifiers = named.map((blocker) => blocker.identifier);
-		const what = context === 'finalize' ? 'the test can end' : 'leaving this test part';
-		throw new AssessmentPlayerError(
-			code,
-			required.length > 0
-				? `These items need a response before ${what}: ${identifiers.join(', ')}`
-				: `These items have responses that do not satisfy their interactions (before ${what}): ${identifiers.join(', ')}`,
-			{
-				items: named.map((blocker) => blocker.number).join(', '),
-				itemIdentifiers: identifiers.join(','),
-				count: named.length,
-			},
-		);
+		throwForBlockers(blockers, context);
 	}
 
 	/**
@@ -1425,26 +1293,6 @@ export class AssessmentPlayer {
 		});
 	}
 
-	private flattenItems(assessment: SecureAssessment): FlatItem[] {
-		const sectionIndexes = new Map(
-			this.presentedSectionList().map((section, index) => [section.identifier, index]),
-		);
-		return deliveredItems(assessment).map(({ item, testPart, sections }, index) => {
-			const section = sections[sections.length - 1];
-			const presentedSection = this.presentedSectionOf(sections);
-			return {
-				identifier: item.identifier,
-				item,
-				section,
-				sections,
-				presentedSection,
-				testPart,
-				index,
-				sectionIndex: presentedSection ? (sectionIndexes.get(presentedSection.identifier) ?? -1) : -1,
-			};
-		});
-	}
-
 	/**
 	 * Sections presented to the candidate: visible themselves and under visible ancestors.
 	 * A QTI `visible="false"` section is not presented as a section — its content appears as
@@ -1452,35 +1300,7 @@ export class AssessmentPlayer {
 	 * inside keep being delivered in order.
 	 */
 	private presentedSectionList(): SecureSection[] {
-		const out: SecureSection[] = [];
-		const seen = new Set<string>();
-		const visit = (section: SecureSection, underInvisible: boolean): void => {
-			const hidden = underInvisible || section.visible === false;
-			if (!hidden && !seen.has(section.identifier)) {
-				seen.add(section.identifier);
-				out.push(section);
-			}
-			for (const component of sectionComponents(section)) {
-				if (component.type === 'section') visit(component.section, hidden);
-			}
-		};
-		for (const tp of this.assessment.testParts || []) {
-			for (const section of tp.sections || []) visit(section, false);
-		}
-		return out;
-	}
-
-	/** Outermost enclosing section of an item that the candidate is shown, if any. */
-	private presentedSectionOf(sections: readonly SecureSection[]): SecureSection | undefined {
-		let underInvisible = false;
-		for (const section of sections) {
-			if (section.visible === false) {
-				underInvisible = true;
-				continue;
-			}
-			if (!underInvisible) return section;
-		}
-		return undefined;
+		return presentedSections(this.assessment);
 	}
 
 	/**
@@ -1490,23 +1310,15 @@ export class AssessmentPlayer {
 	 * legal targets.
 	 */
 	private isLegalSectionTarget(section: SecureSection): boolean {
-		if (this.finalized) return false;
-		const current = this.items[this.currentItemIndex];
-		if (!current) return false;
-		const members = this.items.filter((q) =>
-			q.sections.some((s) => s.identifier === section.identifier),
-		);
-		if (members.length === 0) return false;
-		const mode = current.testPart.navigationMode ?? this.assessment.navigationMode ?? 'nonlinear';
-		if (mode === 'linear') {
-			return members.some((q) => q === current);
-		}
-		return members.some(
-			(q) =>
-				q.testPart === current.testPart &&
-				!this.isItemLocked(q) &&
-				this.canReviewItem(q),
-		);
+		return isLegalSectionTarget({
+			section,
+			items: this.items,
+			assessment: this.assessment,
+			finalized: this.finalized,
+			currentIndex: this.currentItemIndex,
+			isItemLocked: (q) => this.isItemLocked(q),
+			canReviewItem: (q) => this.canReviewItem(q),
+		});
 	}
 
 	// ---------------------------------------------------------------------------
@@ -1561,17 +1373,7 @@ export class AssessmentPlayer {
 	}
 
 	private reviewInfoFor(itemIdentifier: string): { responseIds: string[]; title?: string } {
-		const cached = this.reviewInfoCache.get(itemIdentifier);
-		if (cached) return cached;
-		const flat = this.items.find((item) => item.identifier === itemIdentifier);
-		const info = flat
-			? {
-				responseIds: interactionResponseIdentifiers(flat.item.itemXml),
-				title: itemTitleFromXml(flat.item.itemXml),
-			}
-			: { responseIds: [] };
-		this.reviewInfoCache.set(itemIdentifier, info);
-		return info;
+		return this.reviewInfoCache.for(itemIdentifier);
 	}
 
 	/**
@@ -1592,18 +1394,16 @@ export class AssessmentPlayer {
 	/** Every delivered item as the review screen lists it: status, flag, visited, jump legality. */
 	public getReviewItems(): ReviewItemView[] {
 		const forward = this.lazyForward();
-		return this.items.map((item) => ({
-			identifier: item.identifier,
-			index: item.index,
-			number: item.index + 1,
-			sectionId: item.presentedSection?.identifier ?? null,
-			title: this.reviewInfoFor(item.identifier).title,
-			status: this.getItemAnswerStatus(item.identifier),
-			flagged: this.sessionCoordinator.isItemFlagged(item.identifier),
-			visited: this.navigationManager.isVisited(item.index) || item.index === this.currentItemIndex,
-			jumpAllowed: this.isNavigationTargetLegalWith(item.index, forward),
-			isCurrent: item.index === this.currentItemIndex,
-		}));
+		return this.items.map((item) =>
+			reviewItemRow(item, {
+				title: this.reviewInfoFor(item.identifier).title,
+				status: this.getItemAnswerStatus(item.identifier),
+				flagged: this.sessionCoordinator.isItemFlagged(item.identifier),
+				visited: this.navigationManager.isVisited(item.index) || item.index === this.currentItemIndex,
+				jumpAllowed: this.isNavigationTargetLegalWith(item.index, forward),
+				isCurrent: item.index === this.currentItemIndex,
+			}),
+		);
 	}
 
 	/**
@@ -1614,21 +1414,12 @@ export class AssessmentPlayer {
 	 */
 	public getResultsSummary(): ResultsSummary | null {
 		if (!this.finalized || !this.finalResults) return null;
-		const scoreByItem = new Map(this.finalResults.itemResults.map((result) => [result.itemIdentifier, result]));
-		return {
-			totalScore: this.finalResults.totalScore,
-			maxScore: this.finalResults.maxScore,
-			items: this.items.map((item) => {
-				const result = scoreByItem.get(item.identifier);
-				return {
-					identifier: item.identifier,
-					number: item.index + 1,
-					title: this.reviewInfoFor(item.identifier).title,
-					status: this.getItemAnswerStatus(item.identifier),
-					...(result ? { score: result.score, maxScore: result.maxScore } : {}),
-				};
-			}),
-		};
+		return resultsSummaryOf({
+			items: this.items,
+			results: this.finalResults,
+			titleOf: (itemIdentifier) => this.reviewInfoFor(itemIdentifier).title,
+			statusOf: (itemIdentifier) => this.getItemAnswerStatus(itemIdentifier),
+		});
 	}
 
 	/**
@@ -1667,7 +1458,7 @@ export class AssessmentPlayer {
 		const id = itemIdentifier ?? this.items[this.currentItemIndex]?.identifier;
 		if (!id) return;
 		this.sessionCoordinator.setItemFlag(id, flagged);
-		for (const listener of this.flagChangeListeners) listener(id, flagged);
+		this.events.emit('flagChange', id, flagged);
 		// Flags are part of the persisted draft.
 		this.notifyAutosaveActivity();
 	}
@@ -1693,8 +1484,7 @@ export class AssessmentPlayer {
 
 	/** Fires when an item's flag-for-review state changes. */
 	public onFlagChange(listener: (itemIdentifier: string, flagged: boolean) => void): () => void {
-		this.flagChangeListeners.add(listener);
-		return () => this.flagChangeListeners.delete(listener);
+		return this.events.on('flagChange', listener);
 	}
 
 	public getNavigationState(): NavigationState {
@@ -1702,7 +1492,7 @@ export class AssessmentPlayer {
 		const sectionIndexes = new Map(presented.map((section, index) => [section.identifier, index]));
 		const total = this.items.length;
 		const q = this.items[this.currentItemIndex];
-		const presentedSection = q ? this.presentedSectionOf(q.sections) : undefined;
+		const presentedSection = q ? presentedSectionOf(q.sections) : undefined;
 		return {
 			currentIndex: this.currentItemIndex,
 			totalItems: total,
@@ -2045,13 +1835,7 @@ export class AssessmentPlayer {
 		itemIdentifier: string,
 		responses: Readonly<Record<string, unknown>>,
 	): boolean {
-		const current = this.sessionCoordinator.getResponses(itemIdentifier);
-		if (responseValuesEqual(current, responses)) return false;
-
-		const snapshot = cloneResponseRecord(responses);
-		this.state.itemResponses[itemIdentifier] = snapshot as any;
-		this.sessionCoordinator.markAnswered(itemIdentifier, snapshot);
-		return true;
+		return this.sessionCoordinator.mirrorResponses(itemIdentifier, responses);
 	}
 
 	private attachCurrentItemSession(q: FlatItem, session: ItemSession, presentation?: PresentationPolicy): void {
@@ -2097,7 +1881,7 @@ export class AssessmentPlayer {
 		}
 		const countAttempt = this.endAttemptResponseMap(q).get(responseId);
 		if (countAttempt === undefined) return;
-		if ((q.testPart.submissionMode ?? this.assessment.submissionMode) !== 'individual') return;
+		if (effectiveSubmissionMode(q.testPart, this.assessment) !== 'individual') return;
 
 		queueMicrotask(() => {
 			void this.runExclusive(async () => {
@@ -2212,13 +1996,13 @@ export class AssessmentPlayer {
 	 */
 	public restoreState(state: AssessmentSessionState): Promise<void> {
 		return this.runExclusive(async () => {
-			this.state = state;
+			this.sessionCoordinator.restoreState(state);
 			this.seedSubmittedResponses(state);
 			this.restoreTimeTracking(state.timing);
 			// The snapshot's clocks are the time accounting from here on: expiries are
 			// recomputed from them before any item is entered, so a scope that already ran
 			// out never reopens editable (and one that has not is not held locked).
-			this.lockedScopes.clear();
+			this.scopeLocks.clear();
 			this.assessmentExpired = false;
 			this.restoredExpiryFinalizeScheduled = false;
 			this.timeManager?.resetExpiryRecord();
@@ -2228,9 +2012,7 @@ export class AssessmentPlayer {
 			// session lands identically (a snapshot from before the feature simply carries
 			// none). The snapshot carries the proctor pause; the begin gate keeps holding the
 			// clocks.
-			const wasPaused = this.paused;
-			this.paused = state.timing?.isPaused === true;
-			this.pauseReason = this.paused ? state.timing?.pauseReason : undefined;
+			const pauseChanged = this.pauseControl.setFromRestore(state.timing?.isPaused === true, state.timing?.pauseReason);
 			if (!this.started) this.timeManager?.pause();
 
 			// Restore visited state for UI navigation hints.
@@ -2251,7 +2033,7 @@ export class AssessmentPlayer {
 				this.entryError = null;
 				this.pendingEntryIndex = null;
 			}
-			if (wasPaused !== this.paused) this.notifyPauseChange();
+			if (pauseChanged) this.notifyPauseChange();
 			if (deadEnd) this.notifyExpiryDeadEnd();
 			this.finalizeRestoredExpiryWhenRunning();
 			// A host-restored snapshot is the new draft; the save runs once this settles.
@@ -2324,10 +2106,7 @@ export class AssessmentPlayer {
 			// questions as they stand). The move's own submission already ran for next();
 			// a direct jump leaves the current item behind, so it is included here.
 			if (target.testPart !== currentItem.testPart) this.assertCanLeaveScope(currentItem);
-			if (
-				target.testPart !== currentItem.testPart &&
-				(currentItem.testPart.submissionMode ?? this.assessment.submissionMode) === 'simultaneous'
-			) {
+			if (target.testPart !== currentItem.testPart && effectiveSubmissionMode(currentItem.testPart, this.assessment) === 'simultaneous') {
 				// Commit this part before leaving it; a failed request keeps the learner
 				// in the current part so its remaining answers can be retried.
 				await this.submitSimultaneousItems(this.items.filter((q) => q.testPart === currentItem.testPart));
@@ -2355,7 +2134,7 @@ export class AssessmentPlayer {
 		this.currentItemIndex = index;
 		this.navigationManager.markVisited(index);
 		const q = this.items[index]!;
-		this.state.currentItemIdentifier = q.identifier;
+		this.sessionCoordinator.setCurrentItem(q.identifier);
 		this.timeManager?.activateScopes({
 			testPart: { identifier: q.testPart.identifier, timeLimits: q.testPart.timeLimits },
 			section: { identifier: q.section.identifier, timeLimits: q.section.timeLimits },
@@ -2546,7 +2325,7 @@ export class AssessmentPlayer {
 
 	/** The part's effective QTI submission mode. */
 	private isSimultaneousSubmission(q: FlatItem): boolean {
-		return (q.testPart.submissionMode ?? this.assessment.submissionMode) === 'simultaneous';
+		return effectiveSubmissionMode(q.testPart, this.assessment) === 'simultaneous';
 	}
 
 	/**
@@ -2579,18 +2358,17 @@ export class AssessmentPlayer {
 
 	/** The backend decision kept for `q` that delivery has not followed yet (its target). */
 	private keptDecisionTarget(q: FlatItem): string | null {
-		const target = this.state.branchDecisions?.[q.identifier];
-		return target ?? null;
+		return this.sessionCoordinator.getBranchDecision(q.identifier) ?? null;
 	}
 
 	/** Keep `target` as the one decision delivery may still follow — the item's freshest. */
 	private keepBranchDecision(q: FlatItem, target: string): void {
-		this.state.branchDecisions = { [q.identifier]: target };
+		this.sessionCoordinator.keepBranchDecision(q.identifier, target);
 	}
 
 	/** Every kept decision is void: a counted submission moved the outcomes they decided on. */
 	private clearKeptBranchDecisions(): void {
-		delete this.state.branchDecisions;
+		this.sessionCoordinator.clearBranchDecisions();
 	}
 
 	/**
@@ -2773,7 +2551,7 @@ export class AssessmentPlayer {
 		const q = this.items[this.currentItemIndex];
 		if (!q) return null;
 		const id = q.identifier;
-		const mode = q.testPart.submissionMode ?? this.assessment.submissionMode;
+		const mode = effectiveSubmissionMode(q.testPart, this.assessment);
 		const adaptive = isAdaptiveItemXml(q.item.itemXml);
 		if (mode !== 'individual') {
 			return {
@@ -2972,7 +2750,7 @@ export class AssessmentPlayer {
 			res = await this.backend.submitResponses({
 				sessionId: this.sessionId,
 				itemIdentifier: q.identifier,
-				responses: responses as any,
+				responses: asResponseValues(responses),
 				submittedAt,
 				countAttempt,
 				timeSpent: itemSession?.duration,
@@ -3038,22 +2816,10 @@ export class AssessmentPlayer {
 			// authoritative count (`itemSessionStates`), which must not be counted twice.
 			const attemptsBefore = this.sessionCoordinator.getItemSessionInfo(q.identifier).attemptCount;
 			if (res.updatedState) {
-				const localResponses = cloneData(this.state.itemResponses || {})!;
-				localResponses[q.identifier] = cloneResponseRecord(responses) as any;
-				this.sessionCoordinator.replaceStatePreservingResponsesAndSessions(
-					res.updatedState,
-					localResponses,
-					cloneData(this.state.itemSessions || {})!,
-				);
+				this.sessionCoordinator.recordSubmittedItemInUpdatedState(q.identifier, responses, res.updatedState);
 			} else {
 				// Minimal state update when backend doesn't return full state.
-				this.state.itemScores = this.state.itemScores || {};
-				this.state.itemScores[q.identifier] = res.result;
-				this.sessionCoordinator.markVisited(q.identifier);
-				this.state.itemResponses[q.identifier] = responses as any;
-				if (itemSession) {
-					this.sessionCoordinator.setItemSession(q.identifier, itemSession);
-				}
+				this.sessionCoordinator.recordIndividualSubmission(q.identifier, responses, itemSession, res.result);
 			}
 
 			const itemResult: ItemResult = {
@@ -3070,13 +2836,7 @@ export class AssessmentPlayer {
 			// Track item session rules (review/attempts) and visited items for navigation hints.
 			// The backend already counted this attempt when its `updatedState` restored a
 			// higher count; only a backend without state updates records locally.
-			try {
-				if (this.sessionCoordinator.getItemSessionInfo(q.identifier).attemptCount <= attemptsBefore) {
-					this.sessionCoordinator.recordAttempt(q.identifier);
-				}
-			} catch {
-				// ignore
-			}
+			this.sessionCoordinator.recordAttemptIfUncounted(q.identifier, attemptsBefore);
 			this.sessionCoordinator.markAnswered(q.identifier, responses);
 			// The submitted item, not wherever delivery stands now (a scope expiry may have
 			// moved the candidate while the submission was in flight).
@@ -3137,7 +2897,7 @@ export class AssessmentPlayer {
 		const targetIndex = this.items.findIndex((item) => item.identifier === target);
 		const standing = this.items[this.currentItemIndex] ?? q;
 		// A test part delivery already left is never re-entered, whatever the decision says.
-		if (targetIndex >= 0 && this.partOrder(this.items[targetIndex]) < this.partOrder(standing)) {
+		if (targetIndex >= 0 && partOrderOf(this.assessment, this.items[targetIndex]) < partOrderOf(this.assessment, standing)) {
 			this.clearKeptBranchDecisions();
 			return;
 		}
@@ -3180,24 +2940,12 @@ export class AssessmentPlayer {
 
 	/** Where a branch decision lands: an item index, or -1 when it ends the test. */
 	private branchTargetIndex(q: FlatItem, target: string): number {
-		if (target === 'EXIT_TEST') return -1;
-		if (target === 'EXIT_TESTPART') {
-			return this.items.findIndex((item, i) => i > q.index && item.testPart !== q.testPart);
-		}
-		if (target === 'EXIT_SECTION') {
-			const exited = this.endedEnclosingSection(q);
-			const inside = this.items.findIndex(
-				(item, i) => i > q.index && !item.sections.some((section) => section.identifier === exited.identifier),
-			);
-			return inside >= 0 ? inside : this.items.findIndex((item, i) => i > q.index && item.testPart !== q.testPart);
-		}
-		return this.items.findIndex((item) => item.identifier === target);
+		return branchTargetIndex(q, target, this.items, this.currentItemIndex);
 	}
 
 	/** Whether a branch decision takes delivery out of the item's test part (or ends the test). */
 	private branchExitLeavesPart(q: FlatItem, target: string): boolean {
-		const index = this.branchTargetIndex(q, target);
-		return index < 0 || this.items[index]!.testPart !== q.testPart;
+		return branchExitLeavesPart(q, target, this.items, this.currentItemIndex);
 	}
 
 	/**
@@ -3213,19 +2961,7 @@ export class AssessmentPlayer {
 		special: 'EXIT_TESTPART' | 'EXIT_SECTION',
 		current: FlatItem,
 	): Promise<void> {
-		const exitedSection = special === 'EXIT_SECTION' ? this.endedEnclosingSection(current) : undefined;
-		let nextIdx = this.items.findIndex((item, i) =>
-			i > this.currentItemIndex &&
-			(exitedSection
-				? !item.sections.some((section) => section.identifier === exitedSection.identifier)
-				: item.testPart.identifier !== current.testPart.identifier),
-		);
-		if (exitedSection && nextIdx < 0) {
-			// Nothing follows the section inside this test part: the part ends too.
-			nextIdx = this.items.findIndex(
-				(item, i) => i > this.currentItemIndex && item.testPart !== current.testPart,
-			);
-		}
+		const nextIdx = resolveExitBoundary(special, current, this.items, this.currentItemIndex);
 		const partEnded = nextIdx < 0 || this.items[nextIdx]!.testPart !== current.testPart;
 		if (partEnded) {
 			// The part's pending simultaneous-mode responses are due when it ends.
@@ -3233,7 +2969,7 @@ export class AssessmentPlayer {
 				this.items.filter(
 					(item) =>
 						item.testPart === current.testPart &&
-						(item.testPart.submissionMode ?? this.assessment.submissionMode) === 'simultaneous',
+						effectiveSubmissionMode(item.testPart, this.assessment) === 'simultaneous',
 				),
 			);
 		}
@@ -3246,22 +2982,11 @@ export class AssessmentPlayer {
 	}
 
 	/**
-	 * The enclosing section a literal EXIT_SECTION leaves: the innermost section, walked
-	 * outward while the next enclosing one also ends with the current item — a branch rule
-	 * on an outer section fires at its last item, where the whole outer boundary closes, so
-	 * the EXIT lands outside the entire outer section, not just outside the innermost one.
+	 * The enclosing section a literal EXIT_SECTION leaves (see
+	 * `exitBoundaries.endedEnclosingSection`).
 	 */
 	private endedEnclosingSection(current: FlatItem): FlatItem['section'] {
-		let ended = current.section;
-		for (let level = current.sections.length - 2; level >= 0; level--) {
-			const section = current.sections[level]!;
-			const continues = this.items.some(
-				(item, i) => i > this.currentItemIndex && item.sections.some((s) => s.identifier === section.identifier),
-			);
-			if (continues) break;
-			ended = section;
-		}
-		return ended;
+		return endedEnclosingSection(current, this.items, this.currentItemIndex);
 	}
 
 	private canPrevious(): boolean {
@@ -3304,12 +3029,7 @@ export class AssessmentPlayer {
 
 	/**
 	 * Whether a candidate-initiated move from `currentIndex` to `targetIndex` follows the
-	 * navigation rules. Within a nonlinear test part any item is reachable. Otherwise the only
-	 * forward move is the forward step itself — `forward`, the item the backend's decision kept
-	 * for the current item or the delivery rules (branch rules, preconditions) deliver next,
-	 * passing over items an expired limit closed: in a linear part no item is skipped or
-	 * revisited, and test parts are entered in sequence — never a jump across a part, never
-	 * one back, never into a part whose precondition fails.
+	 * navigation rules (see `navigationPolicy.canNavigateByTestPart`).
 	 */
 	private canNavigateByTestPart(
 		targetIndex: number,
@@ -3319,15 +3039,13 @@ export class AssessmentPlayer {
 			return current ? this.unsubmittedForwardIndex(current) : -1;
 		},
 	): boolean {
-		if (targetIndex < 0 || targetIndex >= this.items.length) return false;
-		const current = this.items[currentIndex];
-		const target = this.items[targetIndex];
-		if (!current || !target) return false;
-		if (targetIndex === currentIndex) return true;
-		const mode = current.testPart.navigationMode ?? this.assessment.navigationMode ?? 'nonlinear';
-		if (current.testPart === target.testPart && mode === 'nonlinear') return true;
-		if (targetIndex < currentIndex) return false;
-		return targetIndex === forward();
+		return canNavigateByTestPart({
+			targetIndex,
+			currentIndex,
+			items: this.items,
+			assessment: this.assessment,
+			forward,
+		});
 	}
 
 	private async submitSimultaneousItems(items: readonly FlatItem[]): Promise<void> {
@@ -3348,13 +3066,13 @@ export class AssessmentPlayer {
 			// Some backend adapters return an updatedState snapshot that may only include
 			// responses for items that have been submitted so far, which would otherwise
 			// wipe out responses for later items during this loop.
-			const allItemResponses = cloneData(this.state.itemResponses || {}) as any;
-			allItemSessions = cloneData(this.state.itemSessions || {})!;
+			const allItemResponses = cloneData(this.state.itemResponses) ?? {};
+			allItemSessions = cloneData(this.state.itemSessions) ?? {};
 
 			for (const q of items) {
 				if (!this.itemNeedsSubmission(q)) continue;
 				const submittedAt = Date.now();
-				const responsesForItem = (allItemResponses?.[q.identifier] || {}) as any;
+				const responsesForItem = allItemResponses[q.identifier] || {};
 				// An item an expired limit closed (or a proctor's end of the test) submits its
 				// responses as they stand. Response validation is an individual-part control
 				// (QTI), and a candidate's end of the test checked those items already.
@@ -3389,20 +3107,15 @@ export class AssessmentPlayer {
 						allItemResponses,
 						allItemSessions,
 					);
+					this.sessionCoordinator.setItemResult({
+						itemIdentifier: q.identifier,
+						score: res.result.score,
+						maxScore: res.result.maxScore,
+						responses: this.state.itemResponses[q.identifier] || {},
+					});
 				} else {
-					this.state.itemScores = this.state.itemScores || {};
-					this.state.itemScores[q.identifier] = res.result;
-					this.sessionCoordinator.markVisited(q.identifier);
-					this.state.itemResponses[q.identifier] = responsesForItem;
-					this.sessionCoordinator.setItemSession(q.identifier, itemSession);
-					this.sessionCoordinator.recordAttempt(q.identifier);
+					this.sessionCoordinator.recordSimultaneousSubmission(q.identifier, responsesForItem, itemSession, res.result);
 				}
-				this.sessionCoordinator.setItemResult({
-					itemIdentifier: q.identifier,
-					score: res.result.score,
-					maxScore: res.result.maxScore,
-					responses: this.state.itemResponses[q.identifier] || {},
-				});
 				// The accepted response set: a retry, a later collection pass, or finalize
 				// must not re-submit identical responses for this item.
 				this.lastSubmittedResponses.set(q.identifier, cloneResponseRecord(responsesForItem));
@@ -3635,9 +3348,7 @@ export class AssessmentPlayer {
 		// Submission modes belong to test parts. The assessment-level field is only
 		// a fallback for older hosts that do not supply a mode on each part.
 		await this.submitSimultaneousItems(
-			this.items.filter((q) =>
-				(q.testPart.submissionMode ?? this.assessment.submissionMode) === 'simultaneous',
-			),
+			this.items.filter((q) => effectiveSubmissionMode(q.testPart, this.assessment) === 'simultaneous'),
 		);
 		if (this.finalized && this.finalResults) return this.finalResults;
 		await this.submitSimultaneousItems(
@@ -3719,8 +3430,7 @@ export class AssessmentPlayer {
 		this.finalized = true;
 		// A proctor's forced end of the test may land during a pause: the session is over,
 		// so the pause no longer holds anything (no pause event — the end of the test is it).
-		this.paused = false;
-		this.pauseReason = undefined;
+		this.pauseControl.clearSilently();
 		this.suspendedForPause = false;
 		// The test ended through its real submission: draft autosave has nothing left to do.
 		this.autosave?.stop();
@@ -3777,12 +3487,7 @@ export class AssessmentPlayer {
 	 * navigates).
 	 */
 	private closeItemSessionsForEnd(): void {
-		const sessions = this.state.itemSessions;
-		if (sessions) {
-			this.state.itemSessions = Object.fromEntries(
-				Object.entries(sessions).map(([identifier, session]) => [identifier, closedItemSession(session)]),
-			);
-		}
+		this.sessionCoordinator.closeAllItemSessions();
 		const q = this.items[this.currentItemIndex];
 		const live = this.currentItemSession;
 		if (!q || !live || live.state().lifecycleStatus === 'closed') return;
@@ -3898,40 +3603,12 @@ export class AssessmentPlayer {
 	 */
 	public pause(reason?: string): void {
 		if (this.finalized || this.destroyed) return;
-		const nextReason = reason?.trim() || undefined;
-		if (this.paused) {
-			if (nextReason !== this.pauseReason) {
-				this.pauseReason = nextReason;
-				this.notifyPauseChange();
-			}
-			return;
-		}
-		if (this.transitionInFlight) {
-			const off = this.onBusyChange((busy) => {
-				if (busy) return;
-				off();
-				this.pause(reason);
-			});
-			return;
-		}
-		this.paused = true;
-		this.pauseReason = nextReason;
-		this.timeManager?.pause();
-		this.suspendLiveSessionForPause();
-		this.notifyPauseChange();
+		this.pauseControl.pause(reason);
 	}
 
 	/** End a proctor pause: the clocks continue and the live attempt reopens where it stood. */
 	public resume(): void {
-		if (!this.paused || this.destroyed) return;
-		this.paused = false;
-		this.pauseReason = undefined;
-		if (this.started && !this.finalized) {
-			this.timeManager?.resume();
-			this.reopenLiveSessionAfterPause();
-		}
-		this.notifyPauseChange();
-		this.finalizeRestoredExpiryWhenRunning();
+		this.pauseControl.resume();
 	}
 
 	public isPaused(): boolean {
@@ -4019,7 +3696,7 @@ export class AssessmentPlayer {
 	}
 
 	public setTimerHidden(hidden: boolean): void {
-		this.state.timerHidden = hidden;
+		this.sessionCoordinator.setTimerHidden(hidden);
 		// The preference rides the persisted snapshot, like flags.
 		this.notifyAutosaveActivity();
 	}
@@ -4029,18 +3706,15 @@ export class AssessmentPlayer {
 	// ---------------------------------------------------------------------------
 
 	public onItemChange(listener: (index: number, total: number) => void): () => void {
-		this.itemChangeListeners.add(listener);
-		return () => this.itemChangeListeners.delete(listener);
+		return this.events.on('itemChange', listener);
 	}
 
 	public onSectionChange(listener: (index: number, total: number) => void): () => void {
-		this.sectionChangeListeners.add(listener);
-		return () => this.sectionChangeListeners.delete(listener);
+		return this.events.on('sectionChange', listener);
 	}
 
 	public onResponseChange(listener: (responses: Record<string, unknown>) => void): () => void {
-		this.responseChangeListeners.add(listener);
-		return () => this.responseChangeListeners.delete(listener);
+		return this.events.on('responseChange', listener);
 	}
 
 	/**
@@ -4048,25 +3722,21 @@ export class AssessmentPlayer {
 	 * force-submit, a QTI EXIT_TEST branch, a whole-test expiry — with its results.
 	 */
 	public onComplete(listener: (results: AssessmentResults) => void): () => void {
-		this.completeListeners.add(listener);
-		return () => this.completeListeners.delete(listener);
+		return this.events.on('complete', listener);
 	}
 
 	/** Fires when a navigation/submission transition starts or ends (`getNavigationState().isLoading` mirrors this). */
 	public onBusyChange(listener: (busy: boolean) => void): () => void {
-		this.busyChangeListeners.add(listener);
-		return () => this.busyChangeListeners.delete(listener);
+		return this.events.on('busyChange', listener);
 	}
 
 	/** Called when `getVisibleFeedback()` may have changed: new outcomes, a new test part, or the end. */
 	public onTestFeedbackChange(listener: () => void): () => void {
-		this.testFeedbackChangeListeners.add(listener);
-		return () => this.testFeedbackChangeListeners.delete(listener);
+		return this.events.on('testFeedbackChange', listener);
 	}
 
 	public onTimeWarning(listener: (remainingSeconds: number) => void): () => void {
-		this.timeWarningListeners.add(listener);
-		return () => this.timeWarningListeners.delete(listener);
+		return this.events.on('timeWarning', listener);
 	}
 
 	/**
@@ -4076,25 +3746,21 @@ export class AssessmentPlayer {
 	 * unlocked (`submissionRequired`: the candidate must submit now).
 	 */
 	public onTimeExpired(listener: (event: AssessmentTimeExpiryEvent) => void): () => void {
-		this.timeExpiredListeners.add(listener);
-		return () => this.timeExpiredListeners.delete(listener);
+		return this.events.on('timeExpired', listener);
 	}
 
 	/** A test part, section or item limit expired: its items closed, delivery moved on if it could. */
 	public onScopeTimeExpired(listener: (event: ScopeTimeExpiryEvent) => void): () => void {
-		this.scopeTimeExpiredListeners.add(listener);
-		return () => this.scopeTimeExpiredListeners.delete(listener);
+		return this.events.on('scopeTimeExpired', listener);
 	}
 
 	/** Fires when a proctor pause starts (with its reason) or ends. */
 	public onPauseChange(listener: (paused: boolean, reason?: string) => void): () => void {
-		this.pauseChangeListeners.add(listener);
-		return () => this.pauseChangeListeners.delete(listener);
+		return this.events.on('pauseChange', listener);
 	}
 
 	public onTimeTick(listener: (remainingSeconds: number, elapsedSeconds: number) => void): () => void {
-		this.timeTickListeners.add(listener);
-		return () => this.timeTickListeners.delete(listener);
+		return this.events.on('timeTick', listener);
 	}
 
 	public destroy(): void {
@@ -4110,19 +3776,7 @@ export class AssessmentPlayer {
 		this.lastItemFeedback = null;
 		this.clearKeptBranchDecisions();
 		this.itemDefinitions.clear();
-		this.itemChangeListeners.clear();
-		this.sectionChangeListeners.clear();
-		this.responseChangeListeners.clear();
-		this.completeListeners.clear();
-		this.busyChangeListeners.clear();
-		this.testFeedbackChangeListeners.clear();
-		this.timeWarningListeners.clear();
-		this.timeExpiredListeners.clear();
-		this.scopeTimeExpiredListeners.clear();
-		this.pauseChangeListeners.clear();
-		this.timeTickListeners.clear();
-		this.flagChangeListeners.clear();
-		this.autosaveChangeListeners.clear();
+		this.events.clear();
 		this.reviewInfoCache.clear();
 	}
 
@@ -4131,7 +3785,7 @@ export class AssessmentPlayer {
 	// ---------------------------------------------------------------------------
 
 	private notifyItemChange(): void {
-		for (const l of this.itemChangeListeners) l(this.currentItemIndex, this.items.length);
+		this.events.emit('itemChange', this.currentItemIndex, this.items.length);
 		this.config.onItemChange?.(this.currentItemIndex, this.items.length);
 		// A navigation settles into a new draft worth persisting.
 		this.notifyAutosaveActivity();
@@ -4141,115 +3795,64 @@ export class AssessmentPlayer {
 		const q = this.items[this.currentItemIndex];
 		const sectionIndex = q?.sectionIndex ?? -1;
 		const totalSections = this.presentedSectionList().length;
-		for (const l of this.sectionChangeListeners) l(sectionIndex, totalSections);
+		this.events.emit('sectionChange', sectionIndex, totalSections);
 		this.config.onSectionChange?.(sectionIndex, totalSections);
 	}
 
 	private notifyResponseChange(): void {
 		const responses = this.sessionCoordinator.getActiveResponses();
-		for (const l of this.responseChangeListeners) l(responses);
+		this.events.emit('responseChange', responses);
 		this.config.onResponseChange?.(responses);
 		// Candidate input happened: restart the autosave debounce.
 		this.notifyAutosaveActivity();
 	}
 
 	private notifyComplete(results: AssessmentResults): void {
-		for (const l of this.completeListeners) l(results);
+		this.events.emit('complete', results);
 	}
 
 	private notifyBusyChange(busy: boolean): void {
-		for (const l of this.busyChangeListeners) l(busy);
+		this.events.emit('busyChange', busy);
 	}
 
 	private notifyTestFeedbackChange(): void {
-		for (const l of this.testFeedbackChangeListeners) l();
+		this.events.emit('testFeedbackChange');
 	}
 
 	private notifyTimeWarning(remainingSeconds: number): void {
-		for (const l of this.timeWarningListeners) l(remainingSeconds);
+		this.events.emit('timeWarning', remainingSeconds);
 	}
 
 	private notifyPauseChange(): void {
 		const reason = this.pauseReason;
-		for (const l of this.pauseChangeListeners) l(this.paused, reason);
+		this.events.emit('pauseChange', this.paused, reason);
 		this.config.onPauseChange?.(this.paused, reason);
 		// The pause rides the snapshot (`timing.isPaused`), so persist it too.
 		this.notifyAutosaveActivity();
 	}
 
 	/**
-	 * The template defaults an item's new session starts from (QTI `templateDefault`).
-	 * In a nonlinear test part they are evaluated once, at the start of the part, for
-	 * every item ref in it — with the test outcomes and the other items' variables
-	 * (`ITEM.VARIABLE`, as persisted so far; NULL for an item not instantiated yet) in
-	 * scope — and cached for the part. Linear parts evaluate each item's defaults on
-	 * entering it, against the test outcomes.
+	 * The template defaults an item's new session starts from (QTI `templateDefault`;
+	 * see `templateDefaults.templateDefaultsFor`). The part cache is the player's.
 	 */
 	private templateDefaultsFor(q: FlatItem): Record<string, unknown> | undefined {
-		const mode = q.testPart.navigationMode ?? this.assessment.navigationMode ?? 'nonlinear';
-		if (mode !== 'nonlinear') {
-			if (!q.item.templateDefaults?.length) return undefined;
-			return this.evaluateTemplateDefaults(q, testOutcomeDeclarations(this.assessment, this.testOutcomes ?? undefined));
-		}
-		let defaults = this.templateDefaultsByPart.get(q.testPart.identifier);
-		if (!defaults) {
-			const declarations = addItemVariableDeclarations(
-				testOutcomeDeclarations(this.assessment, this.testOutcomes ?? undefined),
-				this.persistedItemVariables(),
-			);
-			defaults = new Map(
-				this.items
-					.filter((item) => item.testPart === q.testPart)
-					.map((item) => [item.identifier, this.evaluateTemplateDefaults(item, declarations)]),
-			);
-			this.templateDefaultsByPart.set(q.testPart.identifier, defaults);
-		}
-		return defaults.get(q.identifier);
-	}
-
-	/** Every item's variables from its persisted session, as test-scope expressions read them. */
-	private persistedItemVariables(): Record<string, Record<string, QtiValue>> {
-		const out: Record<string, Record<string, QtiValue>> = {};
-		for (const item of this.items) {
-			const serialized = this.state.itemSessions?.[item.identifier];
-			if (!serialized) continue;
-			out[item.identifier] = applyVariableMappings(itemSessionVariableValues(serialized), item.item.variableMappings);
-		}
-		return out;
-	}
-
-	private evaluateTemplateDefaults(q: FlatItem, declarations: DeclarationMap): Record<string, unknown> | undefined {
-		const defaults = q.item.templateDefaults;
-		if (!defaults?.length) return undefined;
-		const out: Record<string, unknown> = {};
-		for (const { templateIdentifier, expressionXml } of defaults) {
-			out[templateIdentifier] = plainQtiValue(evaluateTestExpression(expressionXml, declarations, Math.random));
-		}
-		return out;
+		return templateDefaultsFor({
+			q,
+			items: this.items,
+			assessment: this.assessment,
+			outcomes: this.testOutcomes,
+			persistedSessions: this.state.itemSessions,
+			byPart: this.templateDefaultsByPart,
+		});
 	}
 
 	private isItemLocked(q: FlatItem): boolean {
-		// A whole-test expiry closes every item: the collection of the test is all that remains.
-		if (this.assessmentExpired) return true;
-		return (
-			this.lockedScopes.has(`item:${q.identifier}`) ||
-			this.lockedScopes.has(`testPart:${q.testPart.identifier}`) ||
-			q.sections.some((section) => this.lockedScopes.has(`section:${section.identifier}`))
-		);
+		return isItemLocked(q, this.scopeLocks, this.assessmentExpired);
 	}
 
 	/** The expired scope that closes an item (outermost first); the assessment for a whole-test expiry. */
 	private lockingScopeOf(q: FlatItem | undefined): Pick<AssessmentTimeExpiryEvent, 'scope' | 'identifier'> {
-		if (this.assessmentExpired || !q) return { scope: 'assessment' };
-		if (this.lockedScopes.has(`testPart:${q.testPart.identifier}`)) {
-			return { scope: 'testPart', identifier: q.testPart.identifier };
-		}
-		for (const section of q.sections) {
-			if (this.lockedScopes.has(`section:${section.identifier}`)) {
-				return { scope: 'section', identifier: section.identifier };
-			}
-		}
-		return { scope: 'item', identifier: q.identifier };
+		return lockingScopeOf(q, this.scopeLocks, this.assessmentExpired);
 	}
 
 	/**
@@ -4325,7 +3928,7 @@ export class AssessmentPlayer {
 	 * and its report — waits for that end, and is moot once the end finalized.
 	 */
 	private handleScopeExpired(scope: 'testPart' | 'section' | 'item', identifier: string): void {
-		this.lockedScopes.add(`${scope}:${identifier}`);
+		this.scopeLocks.lock(scope, identifier);
 		if (this.endReason !== null) {
 			this.expiriesDuringEnd.push({ scope, identifier });
 			return;
@@ -4411,7 +4014,7 @@ export class AssessmentPlayer {
 	}
 
 	private notifyTimeExpired(event: AssessmentTimeExpiryEvent): void {
-		for (const l of this.timeExpiredListeners) l(event);
+		this.events.emit('timeExpired', event);
 		this.config.onTimeExpired?.(event);
 	}
 
@@ -4427,12 +4030,12 @@ export class AssessmentPlayer {
 			deliveryContinues,
 			...(nextIndex === undefined ? {} : { nextIndex }),
 		};
-		for (const l of this.scopeTimeExpiredListeners) l(event);
+		this.events.emit('scopeTimeExpired', event);
 		this.config.onScopeTimeExpired?.(event);
 	}
 
 	private notifyTimeTick(remainingSeconds: number, elapsedSeconds: number): void {
-		for (const l of this.timeTickListeners) l(remainingSeconds, elapsedSeconds);
+		this.events.emit('timeTick', remainingSeconds, elapsedSeconds);
 	}
 
 	/**
@@ -4450,75 +4053,4 @@ export class AssessmentPlayer {
 	private createDefaultI18nProvider(): I18nProvider {
 		return new DefaultI18nProvider('en-US');
 	}
-}
-
-function cloneData<T>(value: T | undefined): T | undefined {
-	return value === undefined ? undefined : structuredClone(value);
-}
-
-function cloneResponseRecord(
-	responses: Readonly<Record<string, unknown>>,
-): Record<string, unknown> {
-	return structuredClone(responses) as Record<string, unknown>;
-}
-
-function valuesFromItemSession(
-	state: SerializedItemSessionState,
-): Record<string, unknown> {
-	return Object.fromEntries(
-		Object.entries(state.responseVariables).map(([identifier, variable]) => [
-			identifier,
-			cloneData(variable.value),
-		]),
-	);
-}
-
-/**
- * Each response variable's declared default from a serialized session (QTI: a response
- * still equal to its default is no response — the `numberResponded` test). Variables
- * without a declared default carry none, so NULL/empty stays the only skipped shape.
- */
-function responseDefaultsOf(
-	state: Pick<SerializedItemSessionState, 'responseVariables'>,
-): Record<string, ResponseDefault> {
-	const out: Record<string, ResponseDefault> = {};
-	for (const [identifier, variable] of Object.entries(state.responseVariables)) {
-		if (variable.defaultValue === null || variable.defaultValue === undefined) continue;
-		out[identifier] = { value: variable.defaultValue, cardinality: variable.cardinality };
-	}
-	return out;
-}
-
-function responseValuesEqual(left: unknown, right: unknown): boolean {
-	if (Object.is(left, right)) return true;
-	if (Array.isArray(left) || Array.isArray(right)) {
-		if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
-		return left.every((value, index) => responseValuesEqual(value, right[index]));
-	}
-	if (!isRecord(left) || !isRecord(right)) return false;
-
-	const leftKeys = Object.keys(left);
-	const rightKeys = Object.keys(right);
-	if (leftKeys.length !== rightKeys.length) return false;
-	const rightKeySet = new Set(rightKeys);
-	return leftKeys.every(
-		(key) => rightKeySet.has(key) && responseValuesEqual(left[key], right[key]),
-	);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return value !== null && typeof value === 'object';
-}
-
-function isWritableItemLifecycle(lifecycleStatus: SerializedItemSessionState['lifecycleStatus']): boolean {
-	return lifecycleStatus === 'initial' || lifecycleStatus === 'interacting';
-}
-
-/** A serialized item session as the end of the test leaves it: an open or suspended one is closed. */
-function closedItemSession(session: SerializedItemSessionState): SerializedItemSessionState {
-	const open =
-		session.lifecycleStatus === 'initial' ||
-		session.lifecycleStatus === 'interacting' ||
-		session.lifecycleStatus === 'suspended';
-	return open ? { ...session, lifecycleStatus: 'closed' } : session;
 }

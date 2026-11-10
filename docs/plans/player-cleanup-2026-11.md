@@ -367,6 +367,30 @@ composable; display settings move to a module; flags derive from one status obje
 - `TimeManager` tick restructuring; hottext's imperative DOM manipulation.
 - qti-processing's possibly non-QTI `<lookupTable>` expression (outside this scope).
 
+### Assessment player: parked (2026-11-10)
+
+Work on the assessment player stops after Phase 5. Most integrators build their own shell on the
+section and item players, so the remaining effort goes to those layers. These findings are
+recorded, not scheduled:
+
+- At a simultaneous part's end, `canNext` / `getForwardTransitionInfo` report the rule result from
+  before the part's responses are flushed, so the shell can show Next disabled when the only way
+  forward is a backend `EXIT_TEST` decision (driving `next()` directly works).
+- Test-level outcomes are not part of `AssessmentSessionState`, so after a restore, branch and
+  preCondition rules that read them evaluate on missing values. Branch decisions persist, so the
+  decision path lands like the live session.
+- A hint (uncounted) submission after a check on a reopened item leaves that item session closed.
+- `timeWarningThreshold: 0` still means 60 seconds (an `||` fallback).
+- Toggle controls in the shell whose visible label flips while `aria-expanded` also changes: the
+  timer show/hide control and the review button.
+- The scope-expiry hop (`leaveExpiredScope`) runs outside the transition lock; downstream guards
+  compensate and no test shows a race.
+- `core/AssessmentPlayer.ts` still imports `integration/test-navigation.ts` for the client's
+  delivery-rules walk.
+- The shared `.submit-dialog-action` styles are repeated in three dialog components.
+- About 7.9 KB of assessment- and section-player modules still ship twice in player-elements (the
+  error class identity is safe through its brand).
+
 ## Existing code to reuse
 
 - default-components: `pairHelpers.ts`, `createInteractionShell`,
