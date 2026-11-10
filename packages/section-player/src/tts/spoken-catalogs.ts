@@ -158,3 +158,55 @@ export function extractItemSpeech(itemXml?: string, options: ItemSpeechOptions =
 	const language = contentLanguageOf(document);
 	return { catalogs, ...(language ? { language } : {}) };
 }
+
+/** The outcome of `tryExtractItemSpeech`: the speech, or the reported failure. */
+export type ItemSpeechOutcome =
+	| { ok: true; speech: ItemSpeech }
+	| { ok: false; message: string; cause: unknown };
+
+/**
+ * `extractItemSpeech` for section shells: a security rejection (a `<!DOCTYPE>`, an
+ * item over the parsing limit) comes back as a failure instead of a throw, so a
+ * section layout can report it and keep rendering the item — the item player
+ * degrades to its own per-item alert for the same item — simply without
+ * read-aloud catalogs.
+ */
+export function tryExtractItemSpeech(itemXml?: string, options: ItemSpeechOptions = {}): ItemSpeechOutcome {
+	try {
+		return { ok: true, speech: extractItemSpeech(itemXml, options) };
+	} catch (error) {
+		return {
+			ok: false,
+			message: error instanceof Error ? error.message : 'Unable to prepare the item for read-aloud.',
+			cause: error,
+		};
+	}
+}
+
+/** The outcome of `tryPrepareReadableBlock`: the readable markup, or `rawHtml` with the failure. */
+export type ReadableBlockOutcome =
+	| { ok: true; html: string; catalogs: SpokenCatalog[] }
+	| { ok: false; html: string; message: string; cause: unknown };
+
+/**
+ * `prepareReadableBlock` for section shells: markup a safe preparer rejects comes
+ * back as authored (no catalogs) with the failure reported, so a passage, rubric
+ * or feedback block degrades instead of taking the section layout's render down.
+ * `prepare` is the preparation to run; it defaults to `prepareReadableBlock`.
+ */
+export function tryPrepareReadableBlock(
+	rawHtml: string,
+	language?: string,
+	prepare: typeof prepareReadableBlock = prepareReadableBlock,
+): ReadableBlockOutcome {
+	try {
+		return { ok: true, ...prepare(rawHtml, language) };
+	} catch (error) {
+		return {
+			ok: false,
+			html: rawHtml,
+			message: error instanceof Error ? error.message : 'Unable to prepare the block for read-aloud.',
+			cause: error,
+		};
+	}
+}

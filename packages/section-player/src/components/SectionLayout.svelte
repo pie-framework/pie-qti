@@ -10,7 +10,7 @@
 		ResolvedQtiSectionComposition,
 	} from '../contracts/index.js';
 	import { notifyActiveItemChange, notifyDisplaySettingsChange, notifyFrameworkError, notifyResponseDelta, notifySnapshotChange } from '../runtime/notifyRuntimeHost.js';
-	import { type QtiCandidateDisplaySettings, readSessionDisplaySettings, withDisplaySettings, writeSessionDisplaySettings } from '../tools/display-settings.js';
+	import { type QtiCandidateDisplaySettings, displaySettingsOf, readSessionDisplaySettings, withDisplaySettings, writeSessionDisplaySettings } from '../tools/display-settings.js';
 	import ItemRenderer from './ItemRenderer.svelte';
 	import PlayerBaseStyles from './PlayerBaseStyles.svelte';
 	import RubricDisplay from './RubricDisplay.svelte';
@@ -84,9 +84,13 @@
 	// The profile the section renders with: the host's PNP with the candidate's own
 	// display settings applied. A `pnp` prop wins over the composition's.
 	const hostPnp = $derived(pnp ?? composition.pnp);
-	// Read once, at mount: later changes come from the candidate, not the props.
+	// Read once, at mount: later changes come from the candidate, not the props. A
+	// profile a host persisted from an earlier session (the documented resume
+	// contract) carries the candidate's previous choices as its fingerprints, so the
+	// tool starts where they left them; `withDisplaySettings` subtracts those
+	// fingerprints from the profile before applying.
 	let candidateSettings = $state<QtiCandidateDisplaySettings>(
-		untrack(() => initialDisplaySettings ?? readSessionDisplaySettings(assessmentId) ?? {}),
+		untrack(() => initialDisplaySettings ?? readSessionDisplaySettings(assessmentId) ?? displaySettingsOf(hostPnp)),
 	);
 	const effectivePnp = $derived(withDisplaySettings(hostPnp, candidateSettings));
 	// Identifies the presented item for the split pane's tab switch.

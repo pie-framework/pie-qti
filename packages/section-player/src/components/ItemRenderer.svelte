@@ -4,7 +4,7 @@
 	import { assignProps } from '@pie-qti/qti-common';
 	import type { QtiSectionFrameworkError, QtiSectionItemRef, QtiSectionRole, QtiSectionToolConfig } from '../contracts/index.js';
 	import { interfaceText } from '../i18n/interface-text.js';
-	import { extractItemSpeech } from '../tts/spoken-catalogs.js';
+	import { tryExtractItemSpeech } from '../tts/spoken-catalogs.js';
 	import type { QtiDisplaySettingsControls } from '../tools/display-settings.js';
 	import QtiToolButtonBar from './QtiToolButtonBar.svelte';
 
@@ -61,7 +61,12 @@
 	const headerTools = $derived(tools ?? itemRef.tools);
 	const hasHeaderTools = $derived((headerTools?.length ?? 0) > 0);
 	const showHeader = $derived(Boolean(itemRef.title?.trim()) || hasHeaderTools || displaySettingsControls !== null);
-	const itemSpeech = $derived(extractItemSpeech(itemRef.itemXml, { security }));
+	// A rejected item (a `<!DOCTYPE>`, an item over the parsing limits) keeps rendering
+	// without read-aloud: the failure goes to `onFrameworkError` below, never into the
+	// layout's render, and the item player shows its own per-item alert if the XML
+	// breaks it too.
+	const itemSpeechOutcome = $derived(tryExtractItemSpeech(itemRef.itemXml, { security }));
+	const itemSpeech = $derived(itemSpeechOutcome.ok ? itemSpeechOutcome.speech : { catalogs: [] });
 	const headingTag = $derived(`h${Math.min(6, Math.max(1, Math.round(headingLevel)))}`);
 
 	async function loadItemPlayerElement() {
@@ -102,6 +107,17 @@
 	function handleResponseChange(responseIdentifier: string, value: unknown) {
 		onResponseChange?.(itemRef.identifier, responseIdentifier, value);
 	}
+
+	$effect(() => {
+		if (itemSpeechOutcome.ok) return;
+		const failure = itemSpeechOutcome;
+		onFrameworkError?.({
+			itemIdentifier: itemRef.identifier,
+			code: 'item-speech-extraction-failed',
+			message: failure.message,
+			cause: failure.cause,
+		});
+	});
 
 	function itemPlayerProps(node: HTMLElement, props: Record<string, unknown>) {
 		const handleItemPlayerResponseChange = (event: Event) => {

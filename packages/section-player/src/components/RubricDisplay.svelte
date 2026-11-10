@@ -2,13 +2,14 @@
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import type { PlayerSecurityConfig, PnpProfile } from '@pie-qti/item-player';
 	import type {
+		QtiSectionFrameworkError,
 		QtiSectionRole,
 		QtiSectionRuntimeHostContract,
 		QtiSharedHtmlBlock,
 		QtiSharedHtmlSanitizeContext,
 	} from '../contracts/index.js';
 	import { interfaceText } from '../i18n/interface-text.js';
-	import { prepareReadableBlock } from '../tts/spoken-catalogs.js';
+	import { tryPrepareReadableBlock, type ReadableBlockOutcome, type SpokenCatalog } from '../tts/spoken-catalogs.js';
 	import { isQtiViewVisibleForRole } from '../visibility/role-view.js';
 	import QtiToolButtonBar from './QtiToolButtonBar.svelte';
 	import SanitizedHtml from './SanitizedHtml.svelte';
@@ -28,6 +29,7 @@
 		assessmentId?: string;
 		/** The candidate's PNP; its tool supports refine what the passages' tool bars show. */
 		pnp?: PnpProfile;
+		onFrameworkError?: (error: QtiSectionFrameworkError) => void;
 	}
 
 	const {
@@ -42,6 +44,7 @@
 		headingLevel = 3,
 		assessmentId,
 		pnp,
+		onFrameworkError,
 	}: Props = $props();
 
 	const uid = $props.id();
@@ -54,14 +57,15 @@
 	const visiblePassages = $derived(passages.filter(isVisibleForRole));
 	const visibleRubricBlocks = $derived(rubricBlocks.filter(isVisibleForRole));
 	// Prepared markup docks the passages' SSML and restates their `xml:lang` as `lang`; a
-	// host-supplied `html` renders as given.
+	// host-supplied `html` renders as given. A block whose preparation throws renders as
+	// authored, and the failure goes to `onFrameworkError` below.
 	const readablePassages = $derived(
-		new Map(
+		new Map<string, ReadableBlockOutcome>(
 			visiblePassages.map((passage) => [
 				passage.identifier,
 				passage.html === undefined && passage.rawHtml
-					? prepareReadableBlock(passage.rawHtml, passage.language)
-					: { html: passage.rawHtml ?? '', catalogs: [] },
+					? tryPrepareReadableBlock(passage.rawHtml, passage.language)
+					: { ok: true as const, html: passage.rawHtml ?? '', catalogs: [] },
 			]),
 		),
 	);
@@ -71,16 +75,44 @@
 	// in its own language (HTML ignores `xml:lang`). They have no tool bar to dock spoken
 	// catalogs on, so only the markup is kept; a host-supplied `html` renders as given.
 	const readableRubricHtml = $derived(
-		new Map(
+		new Map<string, ReadableBlockOutcome>(
 			visibleRubricBlocks.map((block) => [
 				block.identifier,
 				block.html === undefined && block.rawHtml
-					? prepareReadableBlock(block.rawHtml, block.language).html
-					: block.rawHtml,
+					? tryPrepareReadableBlock(block.rawHtml, block.language)
+					: { ok: true as const, html: block.rawHtml ?? '', catalogs: [] },
 			]),
 		),
 	);
 	const headingTag = $derived(`h${Math.min(6, Math.max(1, Math.round(headingLevel)))}`);
+
+	// One report per failing block; the set clears while nothing fails, so a block that
+	// goes away and comes back broken reports again.
+	type ReadableBlockFailure = Extract<ReadableBlockOutcome, { ok: false }>;
+	const isReadableBlockFailure = (outcome: ReadableBlockOutcome): outcome is ReadableBlockFailure => !outcome.ok;
+	/** The spoken catalogs a prepared block docks; none while its preparation failed. */
+	const catalogsOf = (outcome: ReadableBlockOutcome | undefined): SpokenCatalog[] | undefined =>
+		outcome?.ok ? outcome.catalogs : undefined;
+	let reportedReadableFailures = new Set<string>();
+	$effect(() => {
+		const failures = [...readablePassages, ...readableRubricHtml].filter(([, outcome]) =>
+			isReadableBlockFailure(outcome),
+		) as Array<[string, ReadableBlockFailure]>;
+		if (failures.length === 0) {
+			reportedReadableFailures.clear();
+			return;
+		}
+		for (const [identifier, failure] of failures) {
+			const key = `${identifier}:${failure.message}`;
+			if (reportedReadableFailures.has(key)) continue;
+			reportedReadableFailures.add(key);
+			onFrameworkError?.({
+				code: 'readable-block-failed',
+				message: `${identifier}: ${failure.message}`,
+				cause: failure.cause,
+			});
+		}
+	});
 
 	$effect(() => {
 		// A new default from the host applies to every passage again.
@@ -140,7 +172,7 @@
 									scopeId={passage.identifier}
 									scopeLabel="passage"
 									sourceText={readablePassages.get(passage.identifier)?.html ?? passage.rawHtml}
-									accessibilityCatalogs={readablePassages.get(passage.identifier)?.catalogs}
+									accessibilityCatalogs={catalogsOf(readablePassages.get(passage.identifier))}
 									language={passage.language}
 									scopeElement={passageScopeElements[passage.identifier] ?? null}
 									{i18n}
@@ -211,7 +243,7 @@
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
 						</svg>
 						<SanitizedHtml
-							rawHtml={readableRubricHtml.get(instruction.identifier) ?? instruction.rawHtml}
+							rawHtml={readableRubricHtml.get(instruction.identifier)?.html ?? instruction.rawHtml}
 							html={instruction.html}
 							{security}
 							{host}
@@ -228,8 +260,8 @@
 		{#if visibleRubrics.length > 0}
 			<section class="rubric-section" aria-label={interfaceText(i18n, 'assessment.rubrics', 'Rubrics')}>
 				{#each visibleRubrics as rubric (rubric.identifier)}
-					<SanitizedHtml
-						rawHtml={readableRubricHtml.get(rubric.identifier) ?? rubric.rawHtml}
+						<SanitizedHtml
+							rawHtml={readableRubricHtml.get(rubric.identifier)?.html ?? rubric.rawHtml}
 						html={rubric.html}
 						{security}
 						{host}
