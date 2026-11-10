@@ -34,6 +34,12 @@ async function renderSplit(props: Record<string, unknown> = {}) {
 	return { m, state };
 }
 
+/** A passage toggle's accessible name: the text of the heading it is labelled by. */
+function toggleName(toggle: Element): string | undefined {
+	const headingId = toggle.getAttribute('aria-labelledby');
+	return headingId ? document.getElementById(headingId)?.textContent?.trim() : undefined;
+}
+
 beforeEach(() => {
 	localStorage.clear();
 });
@@ -211,7 +217,7 @@ describe('RubricDisplay passage headings', () => {
 		expect(m.host.querySelectorAll('.passage-content')).toHaveLength(1);
 	});
 
-	test('every passage toggle is named for its own passage', async () => {
+	test('every passage toggle is named for its own passage, whatever its state', async () => {
 		const several = mountInto(RubricDisplay, {
 			passages: [passage('p1', { title: 'The Water Cycle' }), passage('p2')],
 		});
@@ -219,27 +225,29 @@ describe('RubricDisplay passage headings', () => {
 		await settle();
 
 		const toggles = Array.from(several.host.querySelectorAll<HTMLButtonElement>('.passage-toggle'));
-		const names = toggles.map((toggle) => toggle.getAttribute('aria-label'));
-		expect(names).toEqual(['The Water Cycle — Collapse passage', 'Passage 2 — Collapse passage']);
+		const names = toggles.map(toggleName);
+		expect(names).toEqual(['The Water Cycle', 'Passage 2']);
 		expect(new Set(names).size).toBe(names.length);
+		// The heading is the one name source: no label of the toggle's own competes with it.
+		for (const toggle of toggles) expect(toggle.hasAttribute('aria-label')).toBe(false);
 
-		// The name follows the state: a collapsed passage offers to expand again.
+		// The name stays put when the passage collapses: aria-expanded alone carries the state.
 		toggles[0]!.click();
 		await settle();
 		expect(toggles[0]!.getAttribute('aria-expanded')).toBe('false');
-		expect(toggles[0]!.getAttribute('aria-label')).toBe('The Water Cycle — Expand passage');
+		expect(toggleName(toggles[0]!)).toBe('The Water Cycle');
 
 		// A lone untitled passage still gets a sensible name from its neutral heading.
 		const single = mountInto(RubricDisplay, { passages: [passage('p1')] });
 		mounted.push(single);
 		await settle();
-		expect(single.host.querySelector('.passage-toggle')?.getAttribute('aria-label')).toBe('Passage — Collapse passage');
+		expect(toggleName(single.host.querySelector('.passage-toggle')!)).toBe('Passage');
 	});
 
 	test('a provider that answers a missing key with the key never leaks it into a name', async () => {
 		// Hosts hand the section its provider; one that only holds a narrow catalog
-		// answers a lookup it cannot serve with the key itself. The toggle's name
-		// composes heading plus verb, so a raw key there would read as the verb.
+		// answers a lookup it cannot serve with the key itself. The toggle takes its name
+		// from the passage heading, so a raw key there would read as the name.
 		const keyEchoing = {
 			getLocale: () => 'nl-NL',
 			setLocale: () => {},
@@ -250,8 +258,8 @@ describe('RubricDisplay passage headings', () => {
 		await settle();
 
 		const toggle = m.host.querySelector('.passage-toggle')!;
-		expect(toggle.getAttribute('aria-label')).toBe('Passage — Collapse passage');
-		expect(m.host.textContent).not.toContain('assessment.collapsePassage');
+		expect(toggleName(toggle)).toBe('Passage');
+		expect(m.host.textContent).not.toContain('sectionPlayer.passage');
 	});
 
 	test('passage and rubric content carry the normalized content base', async () => {

@@ -640,8 +640,6 @@ export default {
 		sectionDefault: 'Sectie {number}',
 		readingPassage: 'Leestekst',
 		readingPassages: 'Leesteksten',
-		expandPassage: 'Tekst uitvouwen',
-		collapsePassage: 'Tekst samenvouwen',
 		closeMenu: 'Menu sluiten',
 
 		attempts: {

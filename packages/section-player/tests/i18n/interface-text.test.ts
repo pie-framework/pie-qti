@@ -13,13 +13,13 @@ function provider(catalog: Record<string, string>, onMiss: (key: string, fallbac
 
 describe('interfaceText', () => {
 	test('a translation the provider holds wins', () => {
-		const i18n = provider({ 'assessment.collapsePassage': 'Tekst inklappen' }, (key) => key);
-		expect(interfaceText(i18n, 'assessment.collapsePassage', 'Collapse passage')).toBe('Tekst inklappen');
+		const i18n = provider({ 'assessment.instructions': 'Instructies' }, (key) => key);
+		expect(interfaceText(i18n, 'assessment.instructions', 'Instructions')).toBe('Instructies');
 	});
 
 	test('a provider that answers a miss with the key gives the English default, never the key', () => {
 		const i18n = provider({}, (key) => key);
-		expect(interfaceText(i18n, 'assessment.collapsePassage', 'Collapse passage')).toBe('Collapse passage');
+		expect(interfaceText(i18n, 'assessment.instructions', 'Instructions')).toBe('Instructions');
 	});
 
 	test('a provider that hands the default back gives it interpolated', () => {
@@ -37,6 +37,6 @@ describe('interfaceText', () => {
 	});
 
 	test('the framework provider resolves its own catalog', () => {
-		expect(interfaceText(new DefaultI18nProvider('en-US'), 'assessment.collapsePassage', 'unused')).toBe('Collapse passage');
+		expect(interfaceText(new DefaultI18nProvider('en-US'), 'assessment.instructions', 'unused')).toBe('Instructions');
 	});
 });

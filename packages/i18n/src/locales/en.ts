@@ -658,8 +658,6 @@ export default {
 		closeMenu: 'Close menu',
 		readingPassage: 'Reading Passage',
 		readingPassages: 'Reading passages',
-		expandPassage: 'Expand passage',
-		collapsePassage: 'Collapse passage',
 
 		attempts: {
 			remaining: '{count} attempts remaining',
