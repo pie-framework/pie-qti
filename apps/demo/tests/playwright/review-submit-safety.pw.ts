@@ -110,9 +110,16 @@ test('flag for review shows in the palette, survives jumps, per item (375px)', a
 
 	// The review palette lists all delivered items with text + icon statuses.
 	const review = page.getByTestId('assessment-review');
+	// A view switch, not a disclosure (WCAG 4.1.2): the label names the action this
+	// press performs and alone carries which view is current — no state attribute
+	// announcing the same fact a second time.
+	await expect(review).toHaveAccessibleName('Review questions');
+	await expect(review).not.toHaveAttribute('aria-expanded');
 	await review.click();
 	const screen = page.locator('.review-screen');
 	await expect(screen).toBeVisible();
+	await expect(review).toHaveAccessibleName('Back to question');
+	await expect(review).not.toHaveAttribute('aria-expanded');
 	await expect(screen).toContainText('Review your answers');
 	await expect(screen).toContainText('Alphabet');
 	await expect(screen).toContainText('Flagged');
