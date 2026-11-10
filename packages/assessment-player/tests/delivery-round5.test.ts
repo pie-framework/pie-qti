@@ -6,7 +6,8 @@
  *   expiry while the end runs moves delivery only if that end does not complete;
  * - the leave-part gate holds only on questions the candidate can still reach;
  * - a scope expiry's move is never undone by the branch decision of a submission that was in
- *   flight when it happened, and a branch never re-enters a test part already left;
+ *   flight when the scope ran out (the move waits for that submission, then stands), and a
+ *   branch never re-enters a test part already left;
  * - an ending that collects a delivery the time closed is an `expiry` ending.
  */
 
@@ -428,7 +429,7 @@ describe('the leave-part gate holds only on questions the candidate can still re
 });
 
 describe('a scope expiry\'s move is not undone by an in-flight submission (3)', () => {
-	it('I1: delivery stays in the next part although the in-flight submission returns next=q2', async () => {
+	it('I1: the expiry moves delivery to the next part once the in-flight submission settles; its next=q2 is not followed', async () => {
 		let now = 1_000;
 		let release!: () => void;
 		const held = new Promise<void>((resolve) => {
@@ -459,13 +460,16 @@ describe('a scope expiry\'s move is not undone by an in-flight submission (3)', 
 		now += 4_000;
 		await realTick();
 		await settle();
-		// s1 ran out while q1's submission was in flight: delivery moved on to part 2.
-		expect(scopes).toEqual([{ scope: 'section', identifier: 's1', deliveryContinues: true, nextIndex: 2 }]);
-		expect(player.getCurrentItem()?.identifier).toBe('q3');
+		// s1 ran out while q1's submission was in flight: the section closed at once, but
+		// the move waits for the submission (the hop is serialized behind the transition).
+		expect(scopes).toEqual([]);
+		expect(player.getCurrentItem()?.identifier).toBe('q1');
 
 		release();
 		await moving;
-		// The submission's next=q2 would re-enter the part the expiry closed: not followed.
+		// The submission's next=q2 would enter the section the expiry closed: not followed.
+		// The expiry's hop moved delivery on to part 2 instead.
+		expect(scopes).toEqual([{ scope: 'section', identifier: 's1', deliveryContinues: true, nextIndex: 2 }]);
 		expect(player.getCurrentItem()?.identifier).toBe('q3');
 		expect(player.isNavigationTargetLegal(1)).toBe(false);
 		// The snapshot records where the candidate is, not the backend's stale position.

@@ -419,6 +419,12 @@ export class AssessmentPlayer {
 	 * a time. While set, further navigation and submit calls are rejected as busy.
 	 */
 	private transitionInFlight = false;
+	/**
+	 * Scope-expiry hops waiting for the transition in flight to settle (the timer fired
+	 * while it ran). The transition checks this to leave the move to the hop, the way it
+	 * previously detected the move an unlocked hop had already made mid-flight.
+	 */
+	private queuedExpiryHops = 0;
 	/** Last reported test-level outcome-processing failure, so hosts hear about each new one once. */
 	private reportedOutcomeProcessingError: OutcomeProcessingError | null = null;
 	/** False while an opt-in begin gate holds delivery: no item is entered and no clock runs. */
@@ -481,8 +487,8 @@ export class AssessmentPlayer {
 	private hasDeliveryRules = false;
 	/** Set while the end of the test persists its final snapshot: every item session in it is closed. */
 	private snapshotsCloseItemSessions = false;
-	/** Rejections for force-submits queued behind a transition, settled on destroy(). */
-	private readonly queuedForceSubmits = new Set<(error: Error) => void>();
+	/** Rejections for transitions queued behind a transition (`runWhenIdle`), settled on destroy(). */
+	private readonly queuedIdleTransitions = new Set<(error: Error) => void>();
 	/** A restored whole-test expiry's automatic finalize is scheduled (or ran). */
 	private restoredExpiryFinalizeScheduled = false;
 
@@ -2275,8 +2281,10 @@ export class AssessmentPlayer {
 			this.clearKeptBranchDecisions();
 			await this.submitCurrentItemInternal();
 			// The submission may branch, navigate, or finalize the test (EXIT_TEST); in those
-			// cases navigation stops here.
-			if (this.currentItemIndex !== before || this.finalized) return;
+			// cases navigation stops here. So does a scope expiry that fired while the
+			// submission was in flight: its hop is queued behind this transition and moves
+			// delivery (its routing decides where an open question is).
+			if (this.currentItemIndex !== before || this.finalized || this.queuedExpiryHops > 0) return;
 		} else if (kept) {
 			// The decision the backend made for this item's accepted submission is followed now.
 			// The move submits nothing, so its minimum times are checked here (an end of the
@@ -2669,8 +2677,8 @@ export class AssessmentPlayer {
 	 */
 	private reopenForRemainingAttempts(q: FlatItem): void {
 		if (isAdaptiveItemXml(q.item.itemXml)) return;
-		// Only the item delivery stands on (a scope expiry may have moved the candidate away
-		// while its submission was in flight): another item's live session is never replaced.
+		// Only the item delivery stands on: this swaps the live session, and another
+		// item's is never replaced.
 		if (this.items[this.currentItemIndex] !== q) return;
 		// An item an expired time limit closed stays closed.
 		if (this.isItemLocked(q)) return;
@@ -2876,8 +2884,8 @@ export class AssessmentPlayer {
 			// higher count; only a backend without state updates records locally.
 			this.sessionCoordinator.recordAttemptIfUncounted(q.identifier, attemptsBefore);
 			this.sessionCoordinator.markAnswered(q.identifier, responses);
-			// The submitted item, not wherever delivery stands now (a scope expiry may have
-			// moved the candidate while the submission was in flight).
+			// The submitted item: delivery stands on it for the whole submission (a scope
+			// expiry in flight only queues its hop behind this transition).
 			this.navigationManager.markVisited(q.index);
 
 			// Apply the backend's branching decision, if any. QTI branchRule semantics:
@@ -2935,10 +2943,11 @@ export class AssessmentPlayer {
 	 * response re-submits and replaces it).
 	 *
 	 * The end of the test never navigates: a decision its own submission returns is kept
-	 * the same way and the collection runs where the candidate stands. A decision that
-	 * arrives after delivery moved on (a scope expiry closed the item while its submission
-	 * was in flight and moved the candidate) is not followed — it would undo that move —
-	 * and a test part delivery already left is never re-entered.
+	 * the same way and the collection runs where the candidate stands. A decision whose
+	 * submission a scope expiry raced (the item's scope ran out while the submission was in
+	 * flight) is not followed — the expiry's queued hop moves delivery, and the decision
+	 * would undo that move or land in the closed scope — and a test part delivery already
+	 * left is never re-entered.
 	 */
 	private async followBranch(q: FlatItem, target: string): Promise<void> {
 		const targetIndex = this.items.findIndex((item) => item.identifier === target);
@@ -2953,8 +2962,10 @@ export class AssessmentPlayer {
 			this.keepBranchDecision(q, target);
 			return;
 		}
-		// Delivery moved on while the submission was in flight: the decision no longer applies.
-		if (standing !== q) return;
+		// A scope expiry fired while the submission was in flight: its hop is queued behind
+		// this transition and moves delivery, so the decision is not followed — the same
+		// outcome as a decision that arrived after delivery moved on.
+		if (this.queuedExpiryHops > 0) return;
 		try {
 			if (target === 'EXIT_TEST') this.assertNoSubmissionBlockers();
 			else if (this.branchExitLeavesPart(q, target)) this.assertCanLeaveScope(q, { exclude: q });
@@ -3264,9 +3275,10 @@ export class AssessmentPlayer {
 
 	/**
 	 * Run an administrative transition exclusively as soon as the lock is free: queued
-	 * behind the transition in flight (like a pause) instead of rejecting as busy. The
-	 * lock is taken synchronously when the in-flight transition releases it, so no
-	 * candidate action can slip in between. Rejects only when the player is destroyed.
+	 * behind the transition in flight (a pause, a force submit, an expiry hop) instead of
+	 * rejecting as busy. The lock is taken synchronously when the in-flight transition
+	 * releases it, so no candidate action can slip in between. Rejects only when the
+	 * player is destroyed.
 	 */
 	private runWhenIdle<T>(operation: () => Promise<T>): Promise<T> {
 		if (this.destroyed) {
@@ -3281,10 +3293,10 @@ export class AssessmentPlayer {
 			const off = this.onBusyChange((busy) => {
 				if (busy || this.transitionInFlight) return;
 				off();
-				this.queuedForceSubmits.delete(cancel);
+				this.queuedIdleTransitions.delete(cancel);
 				this.runWhenIdle(operation).then(resolve, reject);
 			});
-			this.queuedForceSubmits.add(cancel);
+			this.queuedIdleTransitions.add(cancel);
 		});
 	}
 
@@ -3362,9 +3374,10 @@ export class AssessmentPlayer {
 				const heldExpiries = this.expiriesDuringEnd.splice(0);
 				if (!this.finalized) {
 					// A refused or failed end leaves the test running: no reason is pending,
-					// and delivery now leaves the scopes that expired while it ran.
+					// and delivery now leaves the scopes that expired while it ran — inline,
+					// under the lock the end still holds.
 					this.endReason = null;
-					for (const expiry of heldExpiries) this.leaveExpiredScope(expiry.scope, expiry.identifier);
+					for (const expiry of heldExpiries) void this.leaveExpiredScopeLocked(expiry.scope, expiry.identifier);
 				}
 			}
 		}
@@ -3814,11 +3827,11 @@ export class AssessmentPlayer {
 
 	public destroy(): void {
 		this.destroyed = true;
-		// A force-submit still queued behind a transition can no longer run.
-		for (const cancel of [...this.queuedForceSubmits]) {
+		// A transition queued behind the one in flight can no longer run.
+		for (const cancel of [...this.queuedIdleTransitions]) {
 			cancel(new AssessmentPlayerError('navigationNotAllowed', 'The assessment player was destroyed.'));
 		}
-		this.queuedForceSubmits.clear();
+		this.queuedIdleTransitions.clear();
 		this.autosave?.stop();
 		this.timeManager?.destroy();
 		this.releaseCurrentItemSession();
@@ -3985,8 +3998,28 @@ export class AssessmentPlayer {
 		this.leaveExpiredScope(scope, identifier);
 	}
 
-	/** Close an expired scope for the candidate: move delivery off it, or report the dead end. */
+	/**
+	 * Close an expired scope for the candidate: move delivery off it, or report the dead
+	 * end. Called from the timer's expiry (`handleScopeExpired`), so the hop is a
+	 * state-changing transition like any other: it queues behind the navigation or
+	 * submission transition in flight and takes the transition lock once that settles,
+	 * instead of racing the in-flight backend request.
+	 */
 	private leaveExpiredScope(scope: 'testPart' | 'section' | 'item', identifier: string): void {
+		this.queuedExpiryHops += 1;
+		this.runWhenIdle(async () => {
+			this.queuedExpiryHops -= 1;
+			// An end of the test finalized while the hop waited: the move is moot.
+			if (this.finalized) return;
+			await this.leaveExpiredScopeLocked(scope, identifier);
+		}).catch(() => {
+			// Only reachable when the player was destroyed while the hop waited behind a
+			// transition: nothing left to close.
+		});
+	}
+
+	/** The hop itself, run under the transition lock (or inline while the end holds it). */
+	private async leaveExpiredScopeLocked(scope: 'testPart' | 'section' | 'item', identifier: string): Promise<void> {
 		const current = this.items[this.currentItemIndex];
 		if (!current || !this.isItemLocked(current)) {
 			// Delivery is already outside the expired scope; the shell still learns it closed.
@@ -4010,11 +4043,13 @@ export class AssessmentPlayer {
 		}
 		this.notifyScopeTimeExpired(scope, identifier, true, nextIndex);
 		this.pendingEntryIndex = nextIndex;
-		this.performNavigateTo(nextIndex, { restoring: true }).catch((error) => {
+		try {
+			await this.performNavigateTo(nextIndex, { restoring: true });
+		} catch (error) {
 			// The expiry's hop failed: the shell's typed failure screen (localized, with
 			// Retry) replaces the "moving on" flow instead of a silently stuck delivery.
 			this.recordEntryFailure(error);
-		});
+		}
 	}
 
 	/**
