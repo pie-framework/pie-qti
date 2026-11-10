@@ -119,7 +119,6 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 			utils.getAttribute(element, 'data-qti-min-selections-message', '') ||
 			utils.getAttribute(element, 'data-min-selections-message', '') ||
 			null;
-		const firstColumnHeader = utils.getAttribute(element, 'data-qti-first-column-header', '') || null;
 
 		// Extract prompt (optional)
 		const promptElements = utils.getChildrenByTag(element, 'prompt');
@@ -135,7 +134,6 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 			...(interactionClasses.length > 0 ? { interactionClasses } : {}),
 			...(maxSelectionsMessage ? { maxSelectionsMessage } : {}),
 			...(minSelectionsMessage ? { minSelectionsMessage } : {}),
-			...(firstColumnHeader ? { firstColumnHeader } : {}),
 		};
 	},
 

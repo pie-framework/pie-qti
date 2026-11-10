@@ -166,8 +166,6 @@ export interface MatchInteractionData extends BaseInteractionData<'matchInteract
 	maxSelectionsMessage?: string | null;
 	/** Message shown when candidate submits below minAssociations */
 	minSelectionsMessage?: string | null;
-	/** Label for first column header in tabular mode (data-qti-first-column-header) */
-	firstColumnHeader?: string | null;
 }
 
 export interface AssociateInteractionData extends BaseInteractionData<'associateInteraction'> {
