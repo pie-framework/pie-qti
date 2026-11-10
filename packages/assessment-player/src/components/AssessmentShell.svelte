@@ -40,7 +40,9 @@
 	import LeavePartDialog from './LeavePartDialog.svelte';
 	import NavigationBar from './NavigationBar.svelte';
 	import PauseOverlay from './PauseOverlay.svelte';
+	import ResumeDialog from './ResumeDialog.svelte';
 	import ReviewScreen from './ReviewScreen.svelte';
+	import StartOverDialog from './StartOverDialog.svelte';
 	import SubmitBlockerGroup, { type BlockerGroups, type SubmitDialogItem } from './SubmitBlockerGroup.svelte';
 	import SubmitConfirmDialog, { type SubmitDialogSummary } from './SubmitConfirmDialog.svelte';
 
@@ -2204,60 +2206,19 @@
 				cannot be undone (WCAG 3.3.4) — deletes the saved draft and starts over.
 			-->
 				{#if resumeDialogOpen}
-					<AssessmentDialog
+					<ResumeDialog
 						bind:open={resumeDialogOpen}
-						title={i18n.t('assessment.resume.title', 'Resume your test?')}
 						description={resumeSavedAtLine}
+						allowStartOver={allowStartOver}
 						{i18n}
-						// Escape keeps the saved answers and continues — it must never be one
-						// step away from the irreversible deletion.
-						onCancel={handleResume}
-					>
-						{#snippet actions({ close })}
-							{#if allowStartOver}
-								<!-- svelte-ignore a11y_autofocus -->
-								<button
-									type="button"
-									class="submit-dialog-action"
-									data-testid="assessment-resume-start-over"
-									autofocus
-									onclick={() => {
-										close('cancel');
-										handleStartOverRequested();
-									}}
-								>
-									{i18n.t('assessment.resume.startOver', 'Start over')}
-								</button>
-							{/if}
-							<!-- svelte-ignore a11y_autofocus -->
-							<button
-								type="button"
-								class="submit-dialog-action primary"
-								data-testid="assessment-resume-continue"
-								autofocus={!allowStartOver}
-								onclick={() => {
-									close('confirm');
-									handleResume();
-								}}
-							>
-								{i18n.t('assessment.resume.resumeAction', 'Resume where you left off')}
-							</button>
-						{/snippet}
-					</AssessmentDialog>
+						onResume={handleResume}
+						onStartOver={handleStartOverRequested}
+					/>
 				{/if}
 
 			{#if startOverConfirmOpen}
-				<AssessmentDialog
+				<StartOverDialog
 					bind:open={startOverConfirmOpen}
-					title={i18n.t('assessment.resume.confirmTitle', 'Start over and delete your saved answers?')}
-					description={i18n.t(
-						'assessment.resume.confirmDescription',
-						'Your saved answers will be deleted and the test starts from the beginning. This cannot be undone.',
-					)}
-					confirmLabel={i18n.t('assessment.resume.confirmAction', 'Delete and start over')}
-					cancelLabel={i18n.t('assessment.resume.cancel', 'Keep my saved answers')}
-					tone="danger"
-					dismissible={false}
 					busy={startOverBusy}
 					{i18n}
 					onConfirm={handleStartOverConfirmed}
@@ -2741,36 +2702,6 @@
 		margin-block-end: 0;
 	}
 
-	/* The leave-part warning's action buttons (the actions snippet keeps the shell's CSS scope). */
-	.submit-dialog-action {
-		box-sizing: border-box;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		min-inline-size: var(--pie-qti-control-min-size, 2.75rem);
-		min-block-size: var(--pie-qti-control-min-size, 2.75rem);
-		padding-block: var(--pie-qti-space-2, 0.5rem);
-		padding-inline: var(--pie-qti-space-4, 1rem);
-		border: 1px solid var(--pie-qti-border-strong, #767676);
-		border-radius: var(--pie-qti-radius, 0.5rem);
-		background: var(--pie-qti-base-100, oklch(100% 0 0));
-		color: var(--pie-qti-base-content, oklch(21% 0 0));
-		font: inherit;
-		font-weight: 600;
-		line-height: 1.25;
-		text-align: center;
-		cursor: pointer;
-	}
-
-	.submit-dialog-action:hover:not([aria-disabled='true']) {
-		background: var(--pie-qti-base-200, oklch(98% 0 0));
-	}
-
-	.submit-dialog-action:focus-visible {
-		outline: 2px solid var(--pie-qti-focus, #4338ca);
-		outline-offset: 2px;
-	}
-
 	.support-code {
 		padding-inline-start: var(--pie-qti-space-2, 0.5rem);
 		font-size: 0.85em;
@@ -2864,16 +2795,6 @@
 	.dialog-fallback p {
 		margin: 0;
 		overflow-wrap: anywhere;
-	}
-
-	.submit-dialog-action.primary {
-		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));
-		background: var(--pie-qti-primary, oklch(45% 0.24 277));
-		color: var(--pie-qti-primary-content, oklch(98% 0.01 277));
-	}
-
-	.submit-dialog-action.primary:hover:not([aria-disabled='true']) {
-		background: color-mix(in oklab, var(--pie-qti-primary, oklch(45% 0.24 277)) 85%, black);
 	}
 
 	/* Begin gate: the start screen before the clocks run. */
