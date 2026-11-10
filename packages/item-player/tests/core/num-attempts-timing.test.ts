@@ -9,7 +9,6 @@
 import { describe, expect, test } from 'bun:test';
 import { convertQti2ToQti3 } from '@pie-qti/qti-common';
 import { createAssessmentItemDefinition } from '../../src/core/AssessmentItemDefinition.js';
-import { Player } from '../../src/core/Player.js';
 import type { SerializedItemSessionState } from '../../src/types/index.js';
 
 const NS = 'xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"';
@@ -175,31 +174,39 @@ describe.each([
 	});
 
 	test('an uncounted submitAttempt on a non-adaptive item does not count either', () => {
-		const player = new Player({ itemXml });
-		player.setResponses({ RESPONSE: 'A', HINT: true });
-		const hint = player.runItemSessionAction({ action: 'submitAttempt', countAttempt: false });
-		expect(hint.scoring?.outcomeValues.SEEN).toBe(0);
-		expect(hint.numAttempts).toBe(0);
-		const counted = player.runItemSessionAction({ action: 'submitAttempt' });
-		expect(counted.scoring?.outcomeValues.SEEN).toBe(1);
-		expect(counted.numAttempts).toBe(1);
+		const session = definition.openSession({ responses: { RESPONSE: 'A', HINT: true } });
+		try {
+			const hint = session.dispatch({ action: 'submitAttempt', countAttempt: false }).result;
+			expect(hint?.scoring?.outcomeValues.SEEN).toBe(0);
+			expect(hint?.numAttempts).toBe(0);
+			const counted = session.dispatch({ action: 'submitAttempt' }).result;
+			expect(counted?.scoring?.outcomeValues.SEEN).toBe(1);
+			expect(counted?.numAttempts).toBe(1);
+		} finally {
+			session.dispose();
+		}
 	});
 });
 
 describe('numAttempts during response processing of an adaptive item (parity)', () => {
 	test('counted attempts are numbered before response processing; hints are not', () => {
-		const player = new Player({ itemXml: ADAPTIVE_ITEM });
-		player.setResponses({ RESPONSE: 'B', HINT: true });
-		const hint = player.runItemSessionAction({ action: 'submitAttempt', countAttempt: false });
-		expect(hint.scoring?.outcomeValues.SEEN).toBe(0);
-		expect(hint.numAttempts).toBe(0);
-		player.setResponses({ HINT: false });
-		const first = player.runItemSessionAction({ action: 'submitAttempt' });
-		expect(first.scoring?.outcomeValues.SEEN).toBe(1);
-		player.setResponses({ RESPONSE: 'A' });
-		const second = player.endAttempt();
-		expect(second.scoring?.outcomeValues.SEEN).toBe(2);
-		expect(second.scoring?.score).toBe(0.5);
-		expect(second.numAttempts).toBe(2);
+		const session = createAssessmentItemDefinition({ itemXml: ADAPTIVE_ITEM }).openSession({
+			responses: { RESPONSE: 'B', HINT: true },
+		});
+		try {
+			const hint = session.dispatch({ action: 'submitAttempt', countAttempt: false }).result;
+			expect(hint?.scoring?.outcomeValues.SEEN).toBe(0);
+			expect(hint?.numAttempts).toBe(0);
+			session.dispatch({ action: 'setResponse', responseIdentifier: 'HINT', value: false });
+			const first = session.dispatch({ action: 'submitAttempt' }).result;
+			expect(first?.scoring?.outcomeValues.SEEN).toBe(1);
+			session.dispatch({ action: 'setResponse', responseIdentifier: 'RESPONSE', value: 'A' });
+			const second = session.dispatch({ action: 'endAttempt' }).result;
+			expect(second?.scoring?.outcomeValues.SEEN).toBe(2);
+			expect(second?.scoring?.score).toBe(0.5);
+			expect(second?.numAttempts).toBe(2);
+		} finally {
+			session.dispose();
+		}
 	});
 });

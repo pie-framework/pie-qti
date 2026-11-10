@@ -219,15 +219,15 @@ describe('QTI compliance diagnostics', () => {
 		expect(silent.warns.join('\n')).not.toContain('unknown-element');
 	});
 
-	test('session diagnostics come from the definition, and a Player reports them through getDiagnostics()', () => {
+	test('a definition reports its findings once, and a clean item reports none', () => {
 		const itemXml = CLEAN_QTI22.replace('<p>Choose.</p>', '<p>Choose.</p><vendorWidget/>');
-		const definition = createAssessmentItemDefinition({ itemXml });
+		const definition = createAssessmentItemDefinition({ itemXml, strictQtiCompliance: { logDeviations: false } });
 		const session = definition.openSession();
 		expect(session.state().disposed).toBe(false);
 		session.dispose();
 
-		expect(new Player({ itemXml }).getDiagnostics()).toHaveLength(1);
-		expect(new Player({ itemXml: CLEAN_QTI22 }).getDiagnostics()).toEqual([]);
+		expect(codes(definition.diagnostics)).toEqual(['unknown-element']);
+		expect(createAssessmentItemDefinition({ itemXml: CLEAN_QTI22 }).diagnostics).toEqual([]);
 	});
 
 	test('without strict mode a 3.0 item with an unregistered interaction still opens sessions', () => {

@@ -8,6 +8,7 @@
 
 import { describe, expect, test } from 'bun:test';
 import { convertQti2ToQti3 } from '@pie-qti/qti-common';
+import { createAssessmentItemDefinition } from '../../src/core/AssessmentItemDefinition.js';
 import { Player } from '../../src/core/Player.js';
 
 const NS = 'xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"';
@@ -107,17 +108,18 @@ describe('templateDeclaration@paramVariable delivery', () => {
 		['QTI 2.2', PARAM_ITEM],
 		['QTI 3.0 (converted)', QTI30],
 	])('%s: the param value names the variable, delivery carries its value', (_version, itemXml) => {
-		const player = makePlayer(itemXml);
-		expect(player.getSessionState()).toMatchObject({ PLUGIN: 5, PLAIN: 9 });
+		const session = createAssessmentItemDefinition({ itemXml, security: { allowObjectEmbeds: true } }).openSession();
+		expect(session.state().templates).toMatchObject({ PLUGIN: 5, PLAIN: 9 });
 
-		const params = paramMarkup(player.getItemBodyHtml());
+		const body = session.present().flow.find((node) => node.kind === 'html');
+		const params = paramMarkup(body?.kind === 'html' ? String(body.html) : '');
 		expect(params.some((p) => p.includes('name="count"') && p.includes('value="5"'))).toBe(true);
 
 		// A template without paramVariable and an undeclared name deliver literally.
 		expect(params.some((p) => p.includes('name="plain"') && p.includes('value="PLAIN"'))).toBe(true);
 		expect(params.some((p) => p.includes('name="ghost"') && p.includes('value="UNDECLARED"'))).toBe(true);
 		expect(params.some((p) => p.includes('value="PLUGIN"'))).toBe(false);
-		player.destroy();
+		session.dispose();
 	});
 
 	test('the substituted value tracks setTemplateVariables without re-parsing', () => {
