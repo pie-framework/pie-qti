@@ -113,6 +113,13 @@ import {
 	resolveExitBoundary,
 } from './exitBoundaries.js';
 import {
+	effectiveSubmissionMode,
+	submissionBlockerFor,
+	submissionGate as submissionGatePolicy,
+	throwForBlockers,
+	type SubmissionBlocker,
+} from './submissionPolicy.js';
+import {
 	interactionRequirementFromXml,
 	interactionResponseIdentifiers,
 	itemAnswerStatus,
@@ -339,25 +346,9 @@ export type { AssessmentEndReason };
  * (`getSubmissionBlockers()`): QTI `allowSkipping=false` with no response (`required`),
  * or `validateResponses=true` with responses that do not satisfy the interactions
  * (`invalid`). Both apply only to items in individual submission parts.
+ * Defined in `submissionPolicy.ts` with the gate that produces it.
  */
-export interface SubmissionBlocker {
-	identifier: string;
-	/** Flat delivery index (for `navigateTo`). */
-	index: number;
-	/** 1-based position shown to the candidate. */
-	number: number;
-	reason: 'required' | 'invalid';
-	/** Whether the navigation rules let the candidate jump to it now. */
-	jumpAllowed: boolean;
-	/** False when the candidate can no longer reach the question (its part was left). */
-	reachable: boolean;
-	/**
-	 * What the response still owes, when derivable from the item's interaction constraints
-	 * (a minimum number of selections, strings, associations or plays); absent when the
-	 * item only needs an answer. The shell localizes it into the entry text.
-	 */
-	requirement?: { kind: 'minChoices' | 'minStrings' | 'minAssociations' | 'minPlays' | 'incomplete'; count?: number };
-}
+export type { SubmissionBlocker } from './submissionPolicy.js';
 
 /** What a shell's countdown shows for the active scope right now. */
 export interface AssessmentTimeState {
@@ -1132,7 +1123,7 @@ export class AssessmentPlayer {
 	}
 
 	private isIndividual(q: FlatItem): boolean {
-		return (q.testPart.submissionMode ?? this.assessment.submissionMode) === 'individual';
+		return effectiveSubmissionMode(q.testPart, this.assessment) === 'individual';
 	}
 
 	/**
@@ -1161,13 +1152,12 @@ export class AssessmentPlayer {
 	 * and is then not validated; an answered item validates when the item asks for it.
 	 */
 	private submissionGate(q: FlatItem, responses: Record<string, unknown>): { mustAnswer: boolean; validate: boolean } {
-		if (!this.isIndividual(q)) return { mustAnswer: false, validate: false };
-		const settings = this.sessionCoordinator.getItemSettings(q.identifier);
-		const skipped = isSkippedResponseSet(responses, this.responseDefaultsFor(q));
-		return {
-			mustAnswer: skipped && settings.allowSkipping === false,
-			validate: !skipped && settings.validateResponses === true,
-		};
+		return submissionGatePolicy({
+			individual: this.isIndividual(q),
+			settings: this.sessionCoordinator.getItemSettings(q.identifier),
+			responses,
+			defaults: this.responseDefaultsFor(q),
+		});
 	}
 
 	/**
@@ -1270,16 +1260,7 @@ export class AssessmentPlayer {
 			}
 		}
 		if (!reason) return null;
-		const jumpAllowed = this.isNavigationTargetLegal(q.index);
-		return {
-			identifier: q.identifier,
-			index: q.index,
-			number: q.index + 1,
-			reason,
-			jumpAllowed,
-			reachable: jumpAllowed,
-			...(requirement ? { requirement } : {}),
-		};
+		return submissionBlockerFor(q, reason, requirement, this.isNavigationTargetLegal(q.index));
 	}
 
 	/** Every item the end of the test would collect against its submission controls, reachable or not. */
@@ -1359,30 +1340,7 @@ export class AssessmentPlayer {
 	}
 
 	private throwForBlockers(blockers: SubmissionBlocker[], context: 'finalize' | 'leavePart'): void {
-		const required = blockers.filter((blocker) => blocker.reason === 'required');
-		const named = required.length > 0 ? required : blockers;
-		if (named.length === 0) return;
-		const code: AssessmentPlayerErrorCode =
-			context === 'finalize'
-				? required.length > 0
-					? 'finalizeResponseRequired'
-					: 'finalizeResponseInvalid'
-				: required.length > 0
-					? 'leavePartResponseRequired'
-					: 'leavePartResponseInvalid';
-		const identifiers = named.map((blocker) => blocker.identifier);
-		const what = context === 'finalize' ? 'the test can end' : 'leaving this test part';
-		throw new AssessmentPlayerError(
-			code,
-			required.length > 0
-				? `These items need a response before ${what}: ${identifiers.join(', ')}`
-				: `These items have responses that do not satisfy their interactions (before ${what}): ${identifiers.join(', ')}`,
-			{
-				items: named.map((blocker) => blocker.number).join(', '),
-				itemIdentifiers: identifiers.join(','),
-				count: named.length,
-			},
-		);
+		throwForBlockers(blockers, context);
 	}
 
 	/**
@@ -2017,7 +1975,7 @@ export class AssessmentPlayer {
 		}
 		const countAttempt = this.endAttemptResponseMap(q).get(responseId);
 		if (countAttempt === undefined) return;
-		if ((q.testPart.submissionMode ?? this.assessment.submissionMode) !== 'individual') return;
+		if (effectiveSubmissionMode(q.testPart, this.assessment) !== 'individual') return;
 
 		queueMicrotask(() => {
 			void this.runExclusive(async () => {
@@ -2244,10 +2202,7 @@ export class AssessmentPlayer {
 			// questions as they stand). The move's own submission already ran for next();
 			// a direct jump leaves the current item behind, so it is included here.
 			if (target.testPart !== currentItem.testPart) this.assertCanLeaveScope(currentItem);
-			if (
-				target.testPart !== currentItem.testPart &&
-				(currentItem.testPart.submissionMode ?? this.assessment.submissionMode) === 'simultaneous'
-			) {
+			if (target.testPart !== currentItem.testPart && effectiveSubmissionMode(currentItem.testPart, this.assessment) === 'simultaneous') {
 				// Commit this part before leaving it; a failed request keeps the learner
 				// in the current part so its remaining answers can be retried.
 				await this.submitSimultaneousItems(this.items.filter((q) => q.testPart === currentItem.testPart));
@@ -2466,7 +2421,7 @@ export class AssessmentPlayer {
 
 	/** The part's effective QTI submission mode. */
 	private isSimultaneousSubmission(q: FlatItem): boolean {
-		return (q.testPart.submissionMode ?? this.assessment.submissionMode) === 'simultaneous';
+		return effectiveSubmissionMode(q.testPart, this.assessment) === 'simultaneous';
 	}
 
 	/**
@@ -2693,7 +2648,7 @@ export class AssessmentPlayer {
 		const q = this.items[this.currentItemIndex];
 		if (!q) return null;
 		const id = q.identifier;
-		const mode = q.testPart.submissionMode ?? this.assessment.submissionMode;
+		const mode = effectiveSubmissionMode(q.testPart, this.assessment);
 		const adaptive = isAdaptiveItemXml(q.item.itemXml);
 		if (mode !== 'individual') {
 			return {
@@ -3129,7 +3084,7 @@ export class AssessmentPlayer {
 				this.items.filter(
 					(item) =>
 						item.testPart === current.testPart &&
-						(item.testPart.submissionMode ?? this.assessment.submissionMode) === 'simultaneous',
+						effectiveSubmissionMode(item.testPart, this.assessment) === 'simultaneous',
 				),
 			);
 		}
@@ -3513,9 +3468,7 @@ export class AssessmentPlayer {
 		// Submission modes belong to test parts. The assessment-level field is only
 		// a fallback for older hosts that do not supply a mode on each part.
 		await this.submitSimultaneousItems(
-			this.items.filter((q) =>
-				(q.testPart.submissionMode ?? this.assessment.submissionMode) === 'simultaneous',
-			),
+			this.items.filter((q) => effectiveSubmissionMode(q.testPart, this.assessment) === 'simultaneous'),
 		);
 		if (this.finalized && this.finalResults) return this.finalResults;
 		await this.submitSimultaneousItems(
