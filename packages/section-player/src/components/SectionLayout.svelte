@@ -15,6 +15,7 @@
 	import PlayerBaseStyles from './PlayerBaseStyles.svelte';
 	import RubricDisplay from './RubricDisplay.svelte';
 	import SectionDisplaySettings from './SectionDisplaySettings.svelte';
+	import TestFeedback from './TestFeedback.svelte';
 
 	/**
 	 * The pieces a section layout places in its own frame: the shared content snippets and
@@ -159,10 +160,23 @@
 		{headingLevel}
 		{assessmentId}
 		pnp={hostPnp}
+		onFrameworkError={handleFrameworkError}
 	/>
 {/snippet}
 
 {#snippet question()}
+	<!-- The test feedback the host resolved for this section: rendered like the rubric
+	     and instruction blocks, ahead of the item. The live region persists while empty,
+	     so feedback that appears after processing still announces. -->
+	<TestFeedback
+		feedback={composition.sharedContext.testFeedback}
+		{role}
+		{i18n}
+		security={effectiveSecurity}
+		host={composition.host}
+		{typeset}
+		onFrameworkError={handleFrameworkError}
+	/>
 	<RubricDisplay
 		rubricBlocks={composition.sharedContext.rubricBlocks}
 		{role}
@@ -171,6 +185,7 @@
 		host={composition.host}
 		{typeset}
 		{headingLevel}
+		onFrameworkError={handleFrameworkError}
 	/>
 	<ItemRenderer
 		itemRef={composition.activeItem}
