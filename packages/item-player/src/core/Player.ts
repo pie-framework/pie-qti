@@ -6,7 +6,6 @@ import {
 	type Cardinality,
 	DeclarationContext,
 	type DeclarationMap,
-	durationSecondsFromMilliseconds,
 	findAssessmentItem,
 	OperatorRegistry,
 	parseXml,
@@ -80,6 +79,13 @@ import { cloneValue } from '../utils/cloneFreeze.js';
 import { attributeNameMapperForVersion, elementNameMapperForVersion } from './nameMappers.js';
 import { contentHandlers } from './rendering/contentPass.js';
 import { itemBodyHtml, modalFeedbackOf, rubricsOf } from './rendering/htmlRender.js';
+import {
+	applySerializedVariables,
+	freezeDuration,
+	serializeItemSession,
+	updateDuration,
+} from './serialization/sessionState.js';
+import { qtiValueToPci, qtiValueToPublic } from './serialization/valueForms.js';
 import {
 	buildDeclarationMap,
 	ensureBuiltinDeclarations,
@@ -194,8 +200,10 @@ export class Player {
 	private _stimulusCatalogIndexes: Map<string, CatalogIndex> = new Map();
 	private _pciHosts: Map<string, PciHost> = new Map();
 	private _pnpChangeListeners = new Set<(pnp: PnpProfile | undefined) => void>();
-	private sessionGuid: string;
-	private lifecycleStatus: ItemLifecycleStatus = 'initial';
+	/** @internal The shuffle seed, persisted in saved state and restored. */
+	sessionGuid: string;
+	/** @internal The item-session lifecycle stage; action orchestration mutates it. */
+	lifecycleStatus: ItemLifecycleStatus = 'initial';
 	/**
 	 * End-attempt responses the candidate turned true since the attempt last ended: the
 	 * interactions that invoke the next response processing (see settleEndAttemptResponses).
@@ -205,10 +213,12 @@ export class Player {
 	private diagnostics: readonly QtiItemDiagnostic[] = [];
 	/** @internal matchGroup constraints of the item's pairing interactions, by response identifier. */
 	matchGroupConstraints: ReadonlyMap<string, MatchGroupConstraints> = new Map();
-	private sessionStartedAt: number;
-	private accumulatedDurationMs = 0;
-	/** Time on task at the last duration update, in milliseconds. */
-	private durationMs = 0;
+	/** @internal When the current duration clock window started. */
+	sessionStartedAt: number;
+	/** @internal Time on task accumulated before the current clock window. */
+	accumulatedDurationMs = 0;
+	/** Time on task at the last duration update, in milliseconds. @internal */
+	durationMs = 0;
 
 	constructor(config: ItemSessionEngineConfig);
 	/** @internal Definition-backed sessions use the module-local factory above. */
@@ -1184,152 +1194,30 @@ export class Player {
 	}
 
 	private applySerializedVariables(vars: Record<string, SerializedItemSessionVariable>): void {
-		for (const v of Object.values(vars)) {
-			const d = this.decls[v.identifier];
-			if (!d) continue;
-			// Restore the declaration's default value first: template processing is
-			// skipped on restore (QTI ASI §10.3 fixes its effects for the session), so
-			// a default changed by setDefaultValue — including to NULL — must come from
-			// the snapshot. defaultValue is always serialized, so it applies as-is:
-			// null restores the NULL default a setDefaultValue rule set, never the
-			// default parsed from the item XML. Later resets (attempt starts, outcome
-			// resets at response-processing start, templateConstraint restarts) then
-			// use the restored default; a new template instance (newTemplate) starts
-			// from the declarations instead.
-			d.defaultValue = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.defaultValue, d.identifier);
-			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.value, d.identifier);
-			if ((d as any).__kind === 'response') {
-				// A correctResponse computed by setCorrectResponse is also a fixed
-				// template-rule effect; restoring it keeps a resumed session scoring
-				// identically to the session that was saved. The snapshot writes the
-				// field whenever the variable has or had a correct response, so it
-				// applies as-is: null restores the NULL correct response a
-				// setCorrectResponse rule set. When the field is absent the variable
-				// has no correct response, and the fresh declaration (parsed from the
-				// same item XML) has none either.
-				if (v.correctResponse !== undefined) {
-					d.correctResponse = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.correctResponse, d.identifier);
-				}
-				this.restorePciResponse(d.identifier, this.qtiValueToPci(d.value));
-			}
-		}
+		applySerializedVariables(this, vars);
 	}
 
 	private serializeItemSession(): SerializedItemSessionState {
-		const responseVariables: Record<string, SerializedItemSessionVariable> = {};
-		const outcomeVariables: Record<string, SerializedItemSessionVariable> = {};
-		const templateVariables: Record<string, SerializedItemSessionVariable> = {};
-		const contextVariables: Record<string, SerializedItemSessionVariable> = {};
-		const contextIds = new Set(['completionStatus', 'numAttempts', 'duration']);
-
-		for (const d of Object.values(this.decls)) {
-			const variable = this.serializeVariable(d);
-			if (d.isTemplate) {
-				templateVariables[d.identifier] = { ...variable, kind: 'template' };
-			} else if (contextIds.has(d.identifier) || (d as any).__kind === 'context') {
-				contextVariables[d.identifier] = { ...variable, kind: 'context' };
-			} else if ((d as any).__kind === 'response') {
-				responseVariables[d.identifier] = { ...variable, kind: 'response' };
-			} else if ((d as any).__kind === 'outcome') {
-				outcomeVariables[d.identifier] = { ...variable, kind: 'outcome' };
-			}
-		}
-
-		const validation = this.validateResponses(this.getResponses());
-		return {
-			itemIdentifier: this.itemDocument.getAssessmentItemAttribute('identifier') ?? undefined,
-			sessionGuid: this.sessionGuid,
-			lifecycleStatus: this.lifecycleStatus,
-			completionStatus: this.getCompletionStatus(),
-			numAttempts: this.getNumAttempts(),
-			duration: this.getDuration(),
-			responseVariables,
-			outcomeVariables,
-			templateVariables,
-			contextVariables,
-			validationMessages: validation.issues,
-			savedAt: new Date().toISOString(),
-		};
+		return serializeItemSession(this);
 	}
 
-	private serializeVariable(d: DeclarationMap[string]): SerializedItemSessionVariable {
-		const variable: SerializedItemSessionVariable = {
-			identifier: d.identifier,
-			kind: ((d as any).__kind ?? (d.isTemplate ? 'template' : 'context')) as SerializedItemSessionVariable['kind'],
-			...(d.baseType ? { baseType: d.baseType } : {}),
-			cardinality: d.cardinality,
-			value: this.qtiValueToSerializable(d.value),
-			defaultValue: this.qtiValueToSerializable(d.defaultValue),
-		};
-		// A correctResponse is part of the session state a template rule
-		// (setCorrectResponse, QTI ASI §10.3) can compute, so it must survive a
-		// snapshot for the restored session to score identically. Written whenever
-		// the variable has or had a correct response — from the XML or from template
-		// processing — with null for a NULL correct response, so restore can tell
-		// "no correct response" (field absent) from "its correct response is NULL".
-		if ((d as any).__kind === 'response' && d.correctResponse !== undefined) {
-			variable.correctResponse = this.qtiValueToSerializable(d.correctResponse);
-		}
-		return variable;
-	}
-
-	private qtiValueToSerializable(value: QtiValue | undefined): any {
-		if (!value || value.kind !== 'value') return null;
-		if (value.cardinality !== 'record') return cloneValue(value.value);
-
-		const serialized: Record<string, unknown> = {};
-		for (const [fieldIdentifier, fieldValue] of Object.entries(value.value as Record<string, QtiValue>)) {
-			serialized[fieldIdentifier] = {
-				...(fieldValue.baseType ? { baseType: fieldValue.baseType } : {}),
-				cardinality: fieldValue.cardinality ?? 'single',
-				value: this.qtiValueToSerializable(fieldValue),
-			};
-		}
-		return serialized;
-	}
-
-	/**
-	 * A value as a PCI host receives it: the public value, except that a record keeps each field's
-	 * base type and cardinality (its serialized form). A record declaration types none of its
-	 * fields, so the host could not write them into QTI variable JSON otherwise.
-	 */
 	/** @internal Value forms shared with PCI hosts and the serializer. */
 	qtiValueToPci(value: QtiValue | undefined): unknown {
-		return value?.kind === 'value' && value.cardinality === 'record'
-			? this.qtiValueToSerializable(value)
-			: this.qtiValueToPublic(value);
+		return qtiValueToPci(value);
 	}
 
 	/** @internal */
 	qtiValueToPublic(value: QtiValue | undefined): any {
-		if (!value || value.kind !== 'value') return null;
-		if (value.cardinality !== 'record') return cloneValue(value.value);
-
-		const record: Record<string, unknown> = {};
-		for (const [fieldIdentifier, fieldValue] of Object.entries(value.value as Record<string, QtiValue>)) {
-			record[fieldIdentifier] = this.qtiValueToPublic(fieldValue);
-		}
-		return record;
+		return qtiValueToPublic(value);
 	}
 
 	/** @internal Response processing runs start by bringing the duration variable current. */
 	updateDuration(): void {
-		const elapsedMs = Math.max(0, Date.now() - this.sessionStartedAt);
-		this.durationMs = Math.max(0, Math.floor(this.accumulatedDurationMs + elapsedMs));
-		// QTI 2.2/3.0: the built-in `duration` response variable is a float of seconds, truncated.
-		// The host-facing `duration` fields of serialized sessions and action results stay in
-		// milliseconds (see getDuration).
-		this.ctx.setValue(
-			'duration',
-			qtiValue('duration', 'single', durationSecondsFromMilliseconds(this.durationMs)),
-		);
+		updateDuration(this);
 	}
 
 	private freezeDuration(): number {
-		this.updateDuration();
-		this.accumulatedDurationMs = this.durationMs;
-		this.sessionStartedAt = Date.now();
-		return this.durationMs;
+		return freezeDuration(this);
 	}
 
 	/** Time on task in whole milliseconds, as the host-facing session fields report it. */
