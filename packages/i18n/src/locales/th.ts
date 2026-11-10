@@ -614,6 +614,7 @@ export default {
 		loadError: 'ข้อผิดพลาดในการโหลดรายการ: {error}',
 		parsingError: 'แยกวิเคราะห์ QTI XML ไม่สำเร็จ',
 		processingError: 'ประมวลผลคำตอบไม่สำเร็จ',
+		submitError: 'ส่งคำตอบของคุณไม่สำเร็จ โปรดลองอีกครั้ง',
 		submit: 'ส่ง',
 		complete: 'เสร็จสมบูรณ์',
 		completed: 'เสร็จสมบูรณ์แล้ว',

@@ -634,6 +634,7 @@ export default {
 		loadError: 'Error al cargar elemento: {error}',
 		parsingError: 'Error al analizar QTI XML',
 		processingError: 'Error al procesar respuestas',
+		submitError: 'No se pudo enviar tu respuesta. Inténtalo de nuevo.',
 		submit: 'Enviar',
 		complete: 'Completar',
 		completed: 'Completado',

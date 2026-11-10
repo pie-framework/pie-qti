@@ -738,6 +738,7 @@ export default {
 		loadError: 'خطأ في تحميل العنصر: {error}',
 		parsingError: 'فشل تحليل QTI XML',
 		processingError: 'فشل معالجة الإجابات',
+		submitError: 'تعذّر إرسال إجابتك. يرجى المحاولة مرة أخرى.',
 		submit: 'إرسال',
 		complete: 'إكمال',
 		completed: 'مكتمل',

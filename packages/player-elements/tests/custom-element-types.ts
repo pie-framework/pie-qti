@@ -5,6 +5,7 @@ import type {
 	QtiAssessmentSessionFinalizedDetail,
 	QtiAssessmentSubmitDetail,
 	QtiItemPlayerCompleteDetail,
+	QtiItemPlayerErrorDetail,
 	QtiItemPlayerResponseChangeDetail,
 	QtiItemPlayerSubmitDetail,
 	QtiSectionResponseDeltaDetail,
@@ -31,6 +32,13 @@ export function assertItemCustomElementTypes(element: HTMLElementTagNameMap['pie
 	element.addEventListener('complete', (event) => {
 		const detail: QtiItemPlayerCompleteDetail = event.detail;
 		void detail.result.numAttempts;
+	});
+
+	element.addEventListener('error', (event) => {
+		const detail: QtiItemPlayerErrorDetail = event.detail;
+		void detail.code;
+		void detail.message;
+		void detail.itemIdentifier;
 	});
 
 	// @ts-expect-error item-player notifications are exposed only as DOM events

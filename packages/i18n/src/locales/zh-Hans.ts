@@ -626,6 +626,7 @@ export default {
 		loadError: '加载项目时出错:{error}',
 		parsingError: '解析 QTI XML 失败',
 		processingError: '处理响应失败',
+		submitError: '无法提交你的答案，请重试。',
 		submit: '提交',
 		complete: '完成',
 		completed: '已完成',

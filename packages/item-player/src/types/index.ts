@@ -233,6 +233,24 @@ export interface AdaptiveAttemptResult extends ScoringResult {
  */
 export type QTIRole = 'candidate' | 'scorer' | 'proctor' | 'testConstructor' | 'tutor' | 'author';
 
+/**
+ * Why an item player reported a failure, as `error.code`. The `message` is raw engine or
+ * parser text for host logs only — never render it to candidates.
+ */
+export type ItemPlayerErrorCode =
+	| 'item-load-failed'
+	| 'response-processing-failed'
+	| 'submission-failed'
+	| 'render-failed';
+
+/** A player failure as hosts receive it: a stable `code`, the raw `message`, and the item when known. */
+export interface ItemPlayerErrorDetail {
+	code: ItemPlayerErrorCode;
+	/** Raw message, for logs and host diagnostics — never render it to candidates. */
+	message: string;
+	itemIdentifier?: string;
+}
+
 export type RubricBlockScope = 'direct' | 'itemBody';
 
 /** @internal Private engine rubric query. */

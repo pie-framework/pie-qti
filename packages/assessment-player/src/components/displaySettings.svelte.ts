@@ -5,10 +5,13 @@
  */
 import type { PnpProfile } from '@pie-qti/item-player';
 import { applyPnpToSurface, clearPnpSurface } from '@pie-qti/item-player';
-import { withDisplaySettings, type QtiCandidateDisplaySettings } from '@pie-qti/section-player';
+import { displaySettingsOf, withDisplaySettings, type QtiCandidateDisplaySettings } from '@pie-qti/section-player';
 
 export function createDisplaySettings(getHostPnp: () => PnpProfile | undefined) {
-	let candidate = $state<QtiCandidateDisplaySettings>({});
+	// Seeded from the host profile: a persisted effective PNP carries the settings'
+	// fingerprints, and the chrome surface must start from the same choices the
+	// section layouts read out of it, or a resume loses its enlargements.
+	let candidate = $state<QtiCandidateDisplaySettings>(displaySettingsOf(getHostPnp()));
 
 	/** The profile the shell chrome renders with: the host profile with the candidate's display settings applied. */
 	const shellPnp = $derived<PnpProfile>(withDisplaySettings(getHostPnp(), candidate));

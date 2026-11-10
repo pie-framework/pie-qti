@@ -4,7 +4,7 @@
 	import { assignProps } from '@pie-qti/qti-common';
 	import type { QtiSectionFrameworkError, QtiSectionItemRef, QtiSectionRole, QtiSectionToolConfig } from '../contracts/index.js';
 	import { interfaceText } from '../i18n/interface-text.js';
-	import { extractItemSpeech } from '../tts/spoken-catalogs.js';
+	import { tryExtractItemSpeech } from '../tts/spoken-catalogs.js';
 	import type { QtiDisplaySettingsControls } from '../tools/display-settings.js';
 	import QtiToolButtonBar from './QtiToolButtonBar.svelte';
 
@@ -54,14 +54,23 @@
 	const titleId = `${uid}-title`;
 
 	let playerLoaded = $state(false);
-	/** The item player failed to load; the detail goes to `onFrameworkError`, never to the candidate. */
-	let loadFailed = $state(false);
+	/**
+	 * The item whose element load failed; the detail goes to `onFrameworkError`, never
+	 * to the candidate. Another item presented afterwards retries the load — a chunk
+	 * failure is about one item's presentation, not the rest of the section's.
+	 */
+	let loadFailedFor = $state<string | null>(null);
 	let itemScopeElement = $state<HTMLElement | null>(null);
 	const itemTitle = $derived(itemRef.title?.trim() || interfaceText(i18n, 'sectionPlayer.question', 'Question'));
 	const headerTools = $derived(tools ?? itemRef.tools);
 	const hasHeaderTools = $derived((headerTools?.length ?? 0) > 0);
 	const showHeader = $derived(Boolean(itemRef.title?.trim()) || hasHeaderTools || displaySettingsControls !== null);
-	const itemSpeech = $derived(extractItemSpeech(itemRef.itemXml, { security }));
+	// A rejected item (a `<!DOCTYPE>`, an item over the parsing limits) keeps rendering
+	// without read-aloud: the failure goes to `onFrameworkError` below, never into the
+	// layout's render, and the item player shows its own per-item alert if the XML
+	// breaks it too.
+	const itemSpeechOutcome = $derived(tryExtractItemSpeech(itemRef.itemXml, { security }));
+	const itemSpeech = $derived(itemSpeechOutcome.ok ? itemSpeechOutcome.speech : { catalogs: [] });
 	const headingTag = $derived(`h${Math.min(6, Math.max(1, Math.round(headingLevel)))}`);
 
 	async function loadItemPlayerElement() {
@@ -74,7 +83,7 @@
 	// An item with no XML renders the alert straight away; the element load can wait
 	// until there is one to present.
 	$effect(() => {
-		if (playerLoaded || loadFailed || !itemRef.itemXml) return;
+		if (playerLoaded || loadFailedFor === itemRef.identifier || !itemRef.itemXml) return;
 		let cancelled = false;
 		void loadItemPlayerElement()
 			.then(() => {
@@ -85,7 +94,7 @@
 			.catch((error) => {
 				if (!cancelled) {
 					const message = error instanceof Error ? error.message : 'Unable to load the QTI item player.';
-					loadFailed = true;
+					loadFailedFor = itemRef.identifier;
 					onFrameworkError?.({
 						itemIdentifier: itemRef.identifier,
 						code: 'item-player-load-failed',
@@ -102,6 +111,17 @@
 	function handleResponseChange(responseIdentifier: string, value: unknown) {
 		onResponseChange?.(itemRef.identifier, responseIdentifier, value);
 	}
+
+	$effect(() => {
+		if (itemSpeechOutcome.ok) return;
+		const failure = itemSpeechOutcome;
+		onFrameworkError?.({
+			itemIdentifier: itemRef.identifier,
+			code: 'item-speech-extraction-failed',
+			message: failure.message,
+			cause: failure.cause,
+		});
+	});
 
 	function itemPlayerProps(node: HTMLElement, props: Record<string, unknown>) {
 		const handleItemPlayerResponseChange = (event: Event) => {
@@ -124,7 +144,7 @@
 
 </script>
 
-{#if loadFailed || !itemRef.itemXml}
+{#if loadFailedFor === itemRef.identifier || !itemRef.itemXml}
 	<div class="item-alert" role="alert">
 		<svg class="item-alert-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />

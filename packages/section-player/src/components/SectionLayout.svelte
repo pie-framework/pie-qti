@@ -10,11 +10,12 @@
 		ResolvedQtiSectionComposition,
 	} from '../contracts/index.js';
 	import { notifyActiveItemChange, notifyDisplaySettingsChange, notifyFrameworkError, notifyResponseDelta, notifySnapshotChange } from '../runtime/notifyRuntimeHost.js';
-	import { type QtiCandidateDisplaySettings, readSessionDisplaySettings, withDisplaySettings, writeSessionDisplaySettings } from '../tools/display-settings.js';
+	import { type QtiCandidateDisplaySettings, displaySettingsOf, readSessionDisplaySettings, withDisplaySettings, writeSessionDisplaySettings } from '../tools/display-settings.js';
 	import ItemRenderer from './ItemRenderer.svelte';
 	import PlayerBaseStyles from './PlayerBaseStyles.svelte';
 	import RubricDisplay from './RubricDisplay.svelte';
 	import SectionDisplaySettings from './SectionDisplaySettings.svelte';
+	import TestFeedback from './TestFeedback.svelte';
 
 	/**
 	 * The pieces a section layout places in its own frame: the shared content snippets and
@@ -84,9 +85,13 @@
 	// The profile the section renders with: the host's PNP with the candidate's own
 	// display settings applied. A `pnp` prop wins over the composition's.
 	const hostPnp = $derived(pnp ?? composition.pnp);
-	// Read once, at mount: later changes come from the candidate, not the props.
+	// Read once, at mount: later changes come from the candidate, not the props. A
+	// profile a host persisted from an earlier session (the documented resume
+	// contract) carries the candidate's previous choices as its fingerprints, so the
+	// tool starts where they left them; `withDisplaySettings` subtracts those
+	// fingerprints from the profile before applying.
 	let candidateSettings = $state<QtiCandidateDisplaySettings>(
-		untrack(() => initialDisplaySettings ?? readSessionDisplaySettings(assessmentId) ?? {}),
+		untrack(() => initialDisplaySettings ?? readSessionDisplaySettings(assessmentId) ?? displaySettingsOf(hostPnp)),
 	);
 	const effectivePnp = $derived(withDisplaySettings(hostPnp, candidateSettings));
 	// Identifies the presented item for the split pane's tab switch.
@@ -155,10 +160,23 @@
 		{headingLevel}
 		{assessmentId}
 		pnp={hostPnp}
+		onFrameworkError={handleFrameworkError}
 	/>
 {/snippet}
 
 {#snippet question()}
+	<!-- The test feedback the host resolved for this section: rendered like the rubric
+	     and instruction blocks, ahead of the item. The live region persists while empty,
+	     so feedback that appears after processing still announces. -->
+	<TestFeedback
+		feedback={composition.sharedContext.testFeedback}
+		{role}
+		{i18n}
+		security={effectiveSecurity}
+		host={composition.host}
+		{typeset}
+		onFrameworkError={handleFrameworkError}
+	/>
 	<RubricDisplay
 		rubricBlocks={composition.sharedContext.rubricBlocks}
 		{role}
@@ -167,6 +185,7 @@
 		host={composition.host}
 		{typeset}
 		{headingLevel}
+		onFrameworkError={handleFrameworkError}
 	/>
 	<ItemRenderer
 		itemRef={composition.activeItem}

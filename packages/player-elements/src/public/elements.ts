@@ -23,6 +23,8 @@ export type {
 	QtiHtmlContent,
 	QtiModalFeedback,
 	QtiItemPlayerCompleteDetail,
+	QtiItemPlayerErrorCode,
+	QtiItemPlayerErrorDetail,
 	QtiItemPlayerEventMap,
 	QtiItemPlayerResponseChangeDetail,
 	QtiItemPlayerResponseMap,

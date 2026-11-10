@@ -127,7 +127,9 @@ describe('feedback live region', () => {
 
 describe('announcing shown feedback', () => {
 	test('a standalone submit announces the shown feedback', async () => {
-		const m = await render({ itemXml: item(), responses: { RESPONSE: 'B' } });
+		// Standalone delivery hides integrated feedback by default (QTI showFeedback=false);
+		// the host that wants it opts in.
+		const m = await render({ itemXml: item(), responses: { RESPONSE: 'B' }, showFeedback: true });
 		expect(announcer(m.host)?.textContent).toBe('');
 
 		(m.instance.submit as (countAttempt?: boolean) => unknown)();
@@ -197,7 +199,7 @@ describe('announcing shown feedback', () => {
 
 	test('the standalone adaptive submit announces each attempt', async () => {
 		const xml = item({ adaptive: true });
-		const m = await render({ itemXml: xml, responses: { RESPONSE: 'B' } });
+		const m = await render({ itemXml: xml, responses: { RESPONSE: 'B' }, showFeedback: true });
 
 		(m.instance.submit as (countAttempt?: boolean) => unknown)();
 		await settle();

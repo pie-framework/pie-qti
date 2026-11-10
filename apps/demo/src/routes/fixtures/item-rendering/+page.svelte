@@ -26,7 +26,9 @@
 <h1 class="text-xl font-semibold mb-4">Item rendering</h1>
 <main class="bg-base-100 p-4" data-testid="item-rendering-fixture">
 	{#key fixtureId}
-		<ItemPlayer {itemXml} {plugins} onSubmit={() => (submissions += 1)} />
+		<!-- The adaptive fixture's hint is integrated feedback. Standalone delivery hides it
+		     unless the host opts in: QTI itemSessionControl@showFeedback defaults to false. -->
+		<ItemPlayer {itemXml} {plugins} showFeedback onSubmit={() => (submissions += 1)} />
 	{/key}
 </main>
 <p class="mt-4">Submissions: <span data-testid="submission-count">{submissions}</span></p>

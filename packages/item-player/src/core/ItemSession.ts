@@ -44,10 +44,28 @@ export interface OpenItemSessionOptions {
 }
 
 export interface ItemSessionPresentationPolicy {
-	/** False hides integrated feedback (`showFeedback="false"`). Defaults to true. */
+	/**
+	 * False hides integrated feedback (`feedbackInline` / `feedbackBlock`), as
+	 * `itemSessionControl@showFeedback="false"` requires. An assessment host passes the test's
+	 * item session control here; standalone delivery through `ItemPlayer` defaults to the QTI
+	 * default (hidden) unless the host opts in.
+	 */
 	showFeedback?: boolean;
 	/** True shows correct responses once the attempt has ended (`showSolution="true"`). */
 	showSolution?: boolean;
+}
+
+/**
+ * Opening a session with responses the item does not declare. Hosts that re-use an item
+ * element across items can catch this to drop responses that belonged to the previous item.
+ */
+export class UnknownResponseIdentifierError extends Error {
+	readonly identifier: string;
+	constructor(identifier: string) {
+		super(`Unknown response identifier '${identifier}'`);
+		this.name = 'UnknownResponseIdentifierError';
+		this.identifier = identifier;
+	}
 }
 
 export type ItemSessionCommand =
@@ -418,7 +436,7 @@ export class LiveItemSession implements ItemSession {
 	private assertKnownResponseIdentifiers(responseIdentifiers: readonly string[]): void {
 		const knownIdentifiers = new Set(Object.keys(this.player.getResponses()));
 		const unknown = responseIdentifiers.find((identifier) => !knownIdentifiers.has(identifier));
-		if (unknown) throw new Error(`Unknown response identifier '${unknown}'`);
+		if (unknown) throw new UnknownResponseIdentifierError(unknown);
 	}
 }
 
