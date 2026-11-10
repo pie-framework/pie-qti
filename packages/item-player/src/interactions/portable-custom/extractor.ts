@@ -54,11 +54,13 @@ export const portableCustomExtractor: ElementExtractor<
 			context.responseId ||
 			'';
 
+		// The schema-defined name only: `customInteractionTypeIdentifier` (QTI 2.x
+		// camelCase) and its QTI 3.0 kebab form. No QTI or PCI version defines the
+		// `customInteractionIdentifierType` spellings some earlier content used;
+		// hosts passing those must use the schema name.
 		const customInteractionTypeIdentifier =
 			utils.getAttribute(pciElement, 'customInteractionTypeIdentifier') ||
 			utils.getAttribute(pciElement, 'custom-interaction-type-identifier') ||
-			utils.getAttribute(pciElement, 'customInteractionIdentifierType') ||
-			utils.getAttribute(pciElement, 'custom-interaction-identifier-type') ||
 			'';
 
 		// --- Module paths from <qti-interaction-modules>/<qti-interaction-module> ---

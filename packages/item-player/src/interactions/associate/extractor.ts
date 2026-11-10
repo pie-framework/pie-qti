@@ -24,8 +24,6 @@ export interface AssociateData {
 	maxAssociations: number;
 	minAssociations?: number;
 	prompt: string | null;
-	/** Message shown while the response has fewer than minAssociations (data-min-selections-message) */
-	minSelectionsMessage?: string;
 }
 
 /**

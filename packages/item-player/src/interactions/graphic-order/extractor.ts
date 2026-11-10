@@ -49,8 +49,6 @@ export interface GraphicOrderData {
 	minChoices?: number;
 	/** Maximum number of hotspots the response may order (QTI maxChoices); omitted when 0. */
 	maxChoices?: number;
-	/** Message shown while the response orders fewer than minChoices (data-min-selections-message) */
-	minSelectionsMessage?: string;
 }
 
 /**

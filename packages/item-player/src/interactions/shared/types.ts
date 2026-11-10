@@ -194,7 +194,6 @@ export interface GapMatchInteractionData extends BaseInteractionData<'gapMatchIn
 		matchGroup?: string[];
 		/** Authored `fixed` (a QTI 2.1 attribute on gapText): pins the choice under shuffle. */
 		fixed?: boolean;
-		inputWidth?: number;
 	}>;
 	/**
 	 * Image choices from gapImg (QTI 2.x) / qti-gap-img (QTI 3.0); optional so
