@@ -2389,13 +2389,30 @@ export class AssessmentPlayer {
 	}
 
 	/**
-	 * Where the candidate's Next goes from `q`: when it submits the item, the backend decides
-	 * once the submission is accepted (the adjacent open item stands for that decision until
-	 * then); otherwise the destination is known now (`unsubmittedForwardIndex`). -1 when
-	 * nothing follows — Submit is the way on.
+	 * Where the candidate's Next goes from `q`: when it submits the item — or crosses out of
+	 * a simultaneous part whose responses still have to go out (`crossingFlushDue`) — the
+	 * backend decides once the submissions are accepted (the adjacent open item stands for
+	 * that decision until then; the pre-flush rules read uncommitted state); otherwise the
+	 * destination is known now (`unsubmittedForwardIndex`). -1 when nothing follows — Submit
+	 * is the way on.
 	 */
 	private forwardStepIndex(q: FlatItem): number {
-		return this.nextSubmits(q) ? this.nextUnlockedIndex(q.index) : this.unsubmittedForwardIndex(q);
+		return this.nextSubmits(q) || this.crossingFlushDue(q)
+			? this.nextUnlockedIndex(q.index)
+			: this.unsubmittedForwardIndex(q);
+	}
+
+	/**
+	 * Whether `next()` from `q` crosses out of its simultaneous part with some of the part's
+	 * responses not yet accepted: the crossing flushes them, and that flush decides the landing.
+	 */
+	private crossingFlushDue(q: FlatItem): boolean {
+		return (
+			this.endsTestPart(q) &&
+			this.isSimultaneousSubmission(q) &&
+			!this.keptBranchDecisionFor(q) &&
+			this.items.some((item) => item.testPart === q.testPart && this.itemNeedsSubmission(item))
+		);
 	}
 
 	/**

@@ -373,9 +373,6 @@ Work on the assessment player stops after Phase 5. Most integrators build their 
 section and item players, so the remaining effort goes to those layers. These findings are
 recorded, not scheduled:
 
-- At a simultaneous part's end, `canNext` / `getForwardTransitionInfo` report the rule result from
-  before the part's responses are flushed, so the shell can show Next disabled when the only way
-  forward is a backend `EXIT_TEST` decision (driving `next()` directly works).
 - Test-level outcomes are not part of `AssessmentSessionState`, so after a restore, branch and
   preCondition rules that read them evaluate on missing values. Branch decisions persist, so the
   decision path lands like the live session.
