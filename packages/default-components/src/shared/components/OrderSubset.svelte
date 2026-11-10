@@ -17,7 +17,7 @@
 	import { choiceAccessibleName } from '../utils/choiceName.js';
 	import { describedByIds } from '../utils/minimumRequirement.js';
 	import SortableList, { type SortableIndexLabels } from './SortableList.svelte';
-	import '../styles/shared.css';
+	import '../styles/srOnly.js';
 
 	interface Item {
 		id: string;
@@ -264,18 +264,6 @@
 {/snippet}
 
 <style>
-	/* Visually hidden live region, self-contained so it hides without Tailwind. */
-	.qti-subset-live {
-		position: absolute;
-		inline-size: 1px;
-		block-size: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
-	}
 
 	/* minmax(0, 1fr): the track never grows to a row's min-content, so nothing overflows. */
 	.qti-order-subset {

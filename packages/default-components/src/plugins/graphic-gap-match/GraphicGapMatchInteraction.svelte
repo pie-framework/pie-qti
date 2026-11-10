@@ -32,7 +32,7 @@ import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
 	} from '../../shared/utils/pairHelpers';
 import { hitStrokeWidth, imageAltText, shapeCenter } from '../../shared/utils/graphicRegions';
 
-import '../../shared/styles/shared.css';
+import '../../shared/styles/srOnly.js';
 import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 
 interface Props {

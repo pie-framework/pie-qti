@@ -16,7 +16,7 @@ import { accessibleTextFromHtml } from '../utils/accessibleText.js';
 import { choiceAccessibleName } from '../utils/choiceName.js';
 import DragHandle from './DragHandle.svelte';
 import { createPickUpPlace } from './pickUpPlace.svelte';
-import '../styles/shared.css';
+import '../styles/srOnly.js';
 
 interface Item {
 	id: string;

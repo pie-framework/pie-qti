@@ -820,18 +820,6 @@
 		opacity: 0.6;
 	}
 
-	/* Visually hidden live region, self-contained so it hides without Tailwind. */
-	.qti-ga-live-region {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
-	}
 	/* Above the hit-area SVG in the button; takes no pointer input (inherited). */
 	.qti-ga-hotspot-label {
 		position: relative;
@@ -884,16 +872,5 @@
 	.qti-ga-remove:focus-visible {
 		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
-	}
-	.qti-ga-sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
 	}
 </style>

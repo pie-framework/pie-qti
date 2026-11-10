@@ -642,18 +642,6 @@
 		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		background: var(--pie-qti-base-100, oklch(100% 0 0));
 	}
-	/* K-02: visually hidden live region */
-	.qti-gm-live-region {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
-	}
 	:global(.qti-gm-gap-target) {
 		display: inline-flex;
 		align-items: center;

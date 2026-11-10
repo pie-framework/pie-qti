@@ -668,16 +668,4 @@
 		/* halos, focus rings and grown hit areas may extend past the image edge */
 		overflow: visible;
 	}
-	.qti-hotspot-sr-only,
-	.qti-hotspot-live-region {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
-	}
 </style>

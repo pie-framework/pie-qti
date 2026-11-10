@@ -16,7 +16,7 @@ import { createOrUpdatePair, getSourceForTarget, getTargetsForSource, removePair
 import { isCompatibleMatchGroup, matchGroupBlockedIds } from '../utils/matchGroupUtils.js';
 import DragHandle from './DragHandle.svelte';
 import { createPickUpPlace } from './pickUpPlace.svelte';
-import '../styles/shared.css';
+import '../styles/srOnly.js';
 
 interface Props {
 	sourceSet: AssociableChoice[];
