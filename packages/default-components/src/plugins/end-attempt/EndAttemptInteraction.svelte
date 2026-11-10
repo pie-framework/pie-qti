@@ -6,6 +6,8 @@
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import { tick } from 'svelte';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import Icon from '../../shared/components/Icon.svelte';
+	import { ICON_CHECK, ICON_CLOSE } from '../../shared/components/icons';
 	import { parseJsonProp, responseProp } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
@@ -117,42 +119,12 @@
 				disabled={!canInteract || hasEnded}
 			>
 				{#if hasEnded}
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						part="icon"
-						class="qti-icon"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-						aria-hidden="true"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M5 13l4 4L19 7"
-						/>
-					</svg>
+					<Icon d={ICON_CHECK} part="icon" class="qti-icon" stroke="currentColor" />
 					{parsedInteraction.countAttempt
 						? translate(i18n, 'interactions.endAttempt.ended', 'Attempt Ended')
 						: translate(i18n, 'interactions.endAttempt.requested', 'Requested')}
 				{:else}
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						part="icon"
-						class="qti-icon"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-						aria-hidden="true"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M6 18L18 6M6 6l12 12"
-						/>
-					</svg>
+					<Icon d={ICON_CLOSE} part="icon" class="qti-icon" stroke="currentColor" />
 					{parsedInteraction.title}
 				{/if}
 			</button>

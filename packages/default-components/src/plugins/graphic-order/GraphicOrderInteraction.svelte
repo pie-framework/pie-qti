@@ -7,6 +7,8 @@
 	import { createConfirmationFlow } from '../../shared/utils/confirmationFlow.svelte';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import Icon from '../../shared/components/Icon.svelte';
+	import { ICON_CHECK } from '../../shared/components/icons';
 	import ImageStage from '../../shared/components/ImageStage.svelte';
 	import SortableList from '../../shared/components/SortableList.svelte';
 	import OrderSubset from '../../shared/components/OrderSubset.svelte';
@@ -381,21 +383,7 @@
 										: (i18n?.t('interactions.graphicOrder.confirmAria') ?? 'Confirm this order as your answer')}
 								>
 									{#if confirmation.hasConfirmed}
-										<svg
-											xmlns="http://www.w3.org/2000/svg"
-											fill="none"
-											viewBox="0 0 24 24"
-											part="confirmed-icon"
-											class="qti-icon qti-go-confirmed stroke-current shrink-0 w-5 h-5"
-											aria-hidden="true"
-										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M5 13l4 4L19 7"
-											></path>
-										</svg>
+										<Icon d={ICON_CHECK} part="confirmed-icon" class="qti-icon qti-go-confirmed stroke-current shrink-0 w-5 h-5" />
 										<span class="text-sm">{translate(i18n, 'interactions.order.orderConfirmed', 'Order confirmed')}</span>
 									{:else}
 										{confirmation.hasReordered

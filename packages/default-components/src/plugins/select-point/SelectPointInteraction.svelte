@@ -6,6 +6,8 @@
 	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 		import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import Icon from '../../shared/components/Icon.svelte';
+	import { ICON_INFO } from '../../shared/components/icons';
 	import ImageStage from '../../shared/components/ImageStage.svelte';
 	import { createKeyboardCrosshair } from '../../shared/components/keyboardCrosshair.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
@@ -490,21 +492,7 @@
 
 			{#if !canSelectMore}
 				<div class="alert alert-info">
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
-						part="limit-icon"
-						class="qti-icon stroke-current shrink-0 w-6 h-6"
-						aria-hidden="true"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-						></path>
-					</svg>
+					<Icon d={ICON_INFO} part="limit-icon" class="qti-icon stroke-current shrink-0 w-6 h-6" />
 					<span>{translate(i18n, 'interactions.selectPoint.maxPointsReached', 'Maximum points reached. Remove a point to add a new one.')}</span>
 				</div>
 			{/if}

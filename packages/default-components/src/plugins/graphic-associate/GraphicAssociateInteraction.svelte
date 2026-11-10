@@ -7,6 +7,8 @@
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import Icon from '../../shared/components/Icon.svelte';
+	import { ICON_CLOSE, ICON_INFO } from '../../shared/components/icons';
 	import ImageStage from '../../shared/components/ImageStage.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { isAtLimit } from '../../shared/utils/capacity';
@@ -537,21 +539,7 @@
 
 				{#if selectedHotspot}
 					<div class="alert alert-info mt-2" role="status">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							fill="none"
-							viewBox="0 0 24 24"
-							part="selected-icon"
-							class="qti-icon stroke-current shrink-0 w-6 h-6"
-							aria-hidden="true"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-							></path>
-						</svg>
+						<Icon d={ICON_INFO} part="selected-icon" class="qti-icon stroke-current shrink-0 w-6 h-6" />
 						<span>{translate(i18n, 'interactions.graphicAssociate.selectAnotherHotspot', 'Selected: {label}. Select another hotspot to create an association.', {
 							label: hotspotNameById(selectedHotspot),
 						})}</span>
@@ -617,22 +605,7 @@
 												onclick={() => removePair(index)}
 												aria-label={translate(i18n, 'interactions.graphicAssociate.removeAssociation', 'Remove association between {first} and {second}', { first, second })}
 											>
-												<svg
-													xmlns="http://www.w3.org/2000/svg"
-													part="remove-icon"
-													class="qti-icon-sm h-4 w-4"
-													fill="none"
-													viewBox="0 0 24 24"
-													stroke="currentColor"
-													aria-hidden="true"
-												>
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M6 18L18 6M6 6l12 12"
-													/>
-												</svg>
+												<Icon d={ICON_CLOSE} part="remove-icon" class="qti-icon-sm h-4 w-4" stroke="currentColor" />
 											</button>
 										{/if}
 									</li>

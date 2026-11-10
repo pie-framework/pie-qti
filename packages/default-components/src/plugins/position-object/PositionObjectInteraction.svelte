@@ -57,6 +57,8 @@
 	import { normalizePixelDimension } from '@pie-qti/item-player/security';
 	import { joinSentences, translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import Icon from '../../shared/components/Icon.svelte';
+	import { ICON_CLOSE } from '../../shared/components/icons';
 	import ImageStage from '../../shared/components/ImageStage.svelte';
 	import { createKeyboardCrosshair } from '../../shared/components/keyboardCrosshair.svelte';
 	import DragHandle from '../../shared/components/DragHandle.svelte';
@@ -718,22 +720,7 @@
 											}}
 											aria-label={translate(i18n, 'interactions.positionObject.removeObject', 'Remove {object}', { object: stageName(stage) })}
 										>
-											<svg
-												xmlns="http://www.w3.org/2000/svg"
-												part="remove-icon"
-												class="qti-icon-xs h-3 w-3"
-												fill="none"
-												viewBox="0 0 24 24"
-												stroke="currentColor"
-												aria-hidden="true"
-											>
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M6 18L18 6M6 6l12 12"
-												/>
-											</svg>
+											<Icon d={ICON_CLOSE} part="remove-icon" class="qti-icon-xs h-3 w-3" stroke="currentColor" />
 										</button>
 									{/if}
 								</div>
