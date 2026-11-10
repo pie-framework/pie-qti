@@ -103,6 +103,18 @@ function versions(itemXml: string): Array<[string, string]> {
 	];
 }
 
+const TWO_BASES_EXTENDED = `<assessmentItem ${NS} identifier="two-bases-extended" title="Two bases" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="HEX" cardinality="single" baseType="integer">
+    <correctResponse><value>255</value></correctResponse>
+  </responseDeclaration>
+  <responseDeclaration identifier="BIN" cardinality="single" baseType="integer">
+    <correctResponse><value>5</value></correctResponse>
+  </responseDeclaration>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+  <itemBody><p>Hex: <extendedTextInteraction responseIdentifier="HEX" base="16"/></p><p>Binary: <extendedTextInteraction responseIdentifier="BIN" base="2"/></p></itemBody>
+  <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
+</assessmentItem>`;
+
 describe('extendedTextInteraction base', () => {
 	describe.each(versions(HEX_EXTENDED))('base 16, integer (%s)', (_version, itemXml) => {
 		const definition = createAssessmentItemDefinition({ itemXml, role: 'scorer' });
@@ -251,6 +263,20 @@ describe('textEntryInteraction base', () => {
 				.flow.find((entry) => entry.kind === 'interaction' && entry.mount.interaction.type === 'textEntryInteraction');
 			expect(node?.kind).toBe('interaction');
 			expect((node as { mount: { interaction: { base?: number } } }).mount.interaction.base).toBe(2);
+		});
+	});
+
+	test.each(versions(TWO_BASES_EXTENDED))('two extended-text interactions in one item keep their own bases (%s)', (_version, itemXml) => {
+		// The bases are cached per interaction identifier: each response reads its own
+		// interaction's base, whichever is looked up first.
+		const definition = createAssessmentItemDefinition({ itemXml, role: 'scorer' });
+		withSession(definition.openSession({ responses: { HEX: 'ff', BIN: '101' } }), (session) => {
+			expect(session.state().responses.HEX).toBe(255);
+			expect(session.state().responses.BIN).toBe(5);
+		});
+		withSession(definition.openSession({ responses: { BIN: '101', HEX: 'ff' } }), (session) => {
+			expect(session.state().responses.BIN).toBe(5);
+			expect(session.state().responses.HEX).toBe(255);
 		});
 	});
 });
