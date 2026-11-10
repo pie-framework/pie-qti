@@ -57,6 +57,11 @@ export interface GapMatchImage {
 	 * the image itself carries no text alternative.
 	 */
 	objectLabel?: string;
+	/**
+	 * Authored `fixed` (a QTI 2.1 attribute on gapImg): pins the choice at its
+	 * authored position when `shuffle` is true.
+	 */
+	fixed?: boolean;
 	classes?: string[];
 	width?: number;
 	height?: number;
@@ -72,6 +77,8 @@ export interface GapMatchData {
 		matchMax: number;
 		matchMin?: number;
 		matchGroup?: string[];
+		/** Authored `fixed` (a QTI 2.1 attribute on gapText): pins the choice under shuffle. */
+		fixed?: boolean;
 		classes?: string[];
 	}>;
 	gapImages: GapMatchImage[];
@@ -100,13 +107,34 @@ const DELIVERED_MATCHES_CONTRACT: DeliveredInteraction<'gapMatchInteraction', Ga
 void DELIVERED_MATCHES_CONTRACT;
 
 /**
+ * Put each fixed choice back at its authored index; the others keep the order
+ * the (combined) shuffle left them in. No authored `fixed` means no repair and
+ * the shuffle result stands unchanged.
+ */
+function restoreFixedPositions<T extends { fixed?: boolean }>(shuffled: readonly T[], authored: readonly T[]): T[] {
+	if (!authored.some((choice) => choice.fixed)) return [...shuffled];
+	const movable = shuffled.filter((choice) => !choice.fixed);
+	const restored: T[] = [];
+	let next = 0;
+	for (const choice of authored) {
+		restored.push(choice.fixed ? choice : movable[next++]);
+	}
+	return restored;
+}
+
+/**
  * Extracts one draggable image choice from gapImg/qti-gap-img content.
  */
 function extractGapImage(
 	gapImg: QTIElement,
 	utils: Pick<
 		ExtractionUtils,
-		'getClasses' | 'getNumberAttribute' | 'getAttribute' | 'getChildrenByTag' | 'getTextContent'
+		| 'getClasses'
+		| 'getNumberAttribute'
+		| 'getBooleanAttribute'
+		| 'getAttribute'
+		| 'getChildrenByTag'
+		| 'getTextContent'
 	>,
 ): GapMatchImage {
 	const classes = utils.getClasses(gapImg);
@@ -115,6 +143,9 @@ function extractGapImage(
 	const matchGroupRaw = utils.getAttribute(gapImg, 'matchGroup', '');
 	const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
 	const objectLabel = utils.getAttribute(gapImg, 'objectLabel', '').trim();
+	// `fixed` exists on gapImg in QTI 2.1 (fixed.GapImg.Attr); an authored value
+	// is honoured in every version as leniency, as with maxAssociations.
+	const fixed = utils.getBooleanAttribute(gapImg, 'fixed');
 
 	let src = '';
 	let alt = '';
@@ -151,6 +182,7 @@ function extractGapImage(
 		...(matchMin > 0 ? { matchMin } : {}),
 		...(matchGroup.length > 0 ? { matchGroup } : {}),
 		...(objectLabel ? { objectLabel } : {}),
+		...(fixed ? { fixed } : {}),
 		...(classes.length > 0 ? { classes } : {}),
 		...(width !== undefined ? { width } : {}),
 		...(height !== undefined ? { height } : {}),
@@ -184,6 +216,9 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 			const matchMin = utils.getNumberAttribute(gapText, 'matchMin', 0);
 			const matchGroupRaw = utils.getAttribute(gapText, 'matchGroup', '');
 			const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
+			// `fixed` exists on gapText in QTI 2.1 (fixed.GapText.Attr); an authored
+			// value is honoured in every version as leniency, as with maxAssociations.
+			const fixed = utils.getBooleanAttribute(gapText, 'fixed');
 
 			return {
 				identifier: utils.getAttribute(gapText, 'identifier', ''),
@@ -191,6 +226,7 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 				matchMax,
 				...(matchMin > 0 ? { matchMin } : {}),
 				...(matchGroup.length > 0 ? { matchGroup } : {}),
+				...(fixed ? { fixed } : {}),
 				...(classes.length > 0 ? { classes } : {}),
 			};
 		});
@@ -212,6 +248,8 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 		// Shuffle the combined choice pool so words and images interleave, then
 		// restore the split view the renderer consumes.
 		if (gapTexts.length > 0 || gapImages.length > 0) {
+			const authoredTexts = [...gapTexts];
+			const authoredImages = [...gapImages];
 			const combined: Array<
 				{ type: 'text'; choice: (typeof gapTexts)[number] } | { type: 'image'; choice: GapMatchImage }
 			> = [...gapTexts.map((choice) => ({ type: 'text' as const, choice })), ...gapImages.map((choice) => ({ type: 'image' as const, choice }))];
@@ -222,6 +260,11 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 				if (entry.type === 'text') gapTexts.push(entry.choice);
 				else gapImages.push(entry.choice);
 			}
+			// A fixed choice keeps the position it has unshuffled. The pool is
+			// presented words first, then images, so that position is its authored
+			// index among the choices of its kind.
+			gapTexts.splice(0, gapTexts.length, ...restoreFixedPositions(gapTexts, authoredTexts));
+			gapImages.splice(0, gapImages.length, ...restoreFixedPositions(gapImages, authoredImages));
 		}
 
 		// Extract prompt (optional) and process gap placeholders.

@@ -153,6 +153,8 @@ export interface AssociableChoice {
 	 * with; content also uses the tokens as shared group labels). Empty/absent: unrestricted.
 	 */
 	matchGroup?: string[];
+	/** Authored `fixed` (QTI fixed.SimpleAssociableChoice.Attr): pins the choice under shuffle. */
+	fixed?: boolean;
 	/** CSS classes from the choice element for custom renderer detection */
 	classes?: string[];
 }
@@ -190,6 +192,8 @@ export interface GapMatchInteractionData extends BaseInteractionData<'gapMatchIn
 		/** Minimum number of gaps this choice must fill (QTI matchMin); absent means 0. */
 		matchMin?: number;
 		matchGroup?: string[];
+		/** Authored `fixed` (a QTI 2.1 attribute on gapText): pins the choice under shuffle. */
+		fixed?: boolean;
 		inputWidth?: number;
 	}>;
 	/**
@@ -211,6 +215,8 @@ export interface GapMatchInteractionData extends BaseInteractionData<'gapMatchIn
 		 * the image itself carries no text alternative.
 		 */
 		objectLabel?: string;
+		/** Authored `fixed` (a QTI 2.1 attribute on gapImg): pins the choice under shuffle. */
+		fixed?: boolean;
 		width?: number;
 		height?: number;
 	}>;

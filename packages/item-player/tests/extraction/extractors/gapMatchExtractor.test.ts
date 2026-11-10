@@ -9,6 +9,58 @@ import { type GapMatchData, standardGapMatchExtractor } from '../../../src/inter
 import type { ItemSessionEngineConfig } from '../../../src/types/index.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
+describe('standardGapMatchExtractor authored fixed (QTI 2.1 fixed.GapText.Attr / fixed.GapImg.Attr)', () => {
+	const FIXED_GAP_MATCH_ITEM = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" identifier="g1"
+  title="Gap match fixed" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair"/>
+  <itemBody>
+    <gapMatchInteraction responseIdentifier="RESPONSE" shuffle="true">
+      <prompt>Fill: <gap identifier="G1"/> and <gap identifier="G2"/></prompt>
+      <gapText identifier="T1" matchMax="1" fixed="true">cat</gapText>
+      <gapText identifier="T2" matchMax="1">dog</gapText>
+      <gapImg identifier="I1" matchMax="1" fixed="true"><object data="sun.png" type="image/png">Sun</object></gapImg>
+      <gapImg identifier="I2" matchMax="1"><object data="moon.png" type="image/png">Moon</object></gapImg>
+    </gapMatchInteraction>
+  </itemBody>
+</assessmentItem>`;
+
+	test('delivers fixed on the gapText and gapImg choices that author it', () => {
+		const element = parseQTI(`
+			<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+				<prompt>Fill: <gap identifier="G1" /></prompt>
+				<gapText identifier="T1" matchMax="1" fixed="true">cat</gapText>
+				<gapText identifier="T2" matchMax="1">dog</gapText>
+				<gapImg identifier="I1" matchMax="1" fixed="true"><object data="sun.png" type="image/png">Sun</object></gapImg>
+				<gapImg identifier="I2" matchMax="1"><object data="moon.png" type="image/png">Moon</object></gapImg>
+			</gapMatchInteraction>
+		`);
+		const result = standardGapMatchExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+		expect(result.gapTexts.find((g) => g.identifier === 'T1')?.fixed).toBe(true);
+		expect(result.gapTexts.find((g) => g.identifier === 'T2')?.fixed).toBeUndefined();
+		expect(result.gapImages.find((g) => g.identifier === 'I1')?.fixed).toBe(true);
+		expect(result.gapImages.find((g) => g.identifier === 'I2')?.fixed).toBeUndefined();
+	});
+
+	test('a fixed gapText and gapImg keep their pool position in every shuffle session', () => {
+		// The shuffle pool is texts first, then images, so the fixed gapText pins
+		// the first text slot and the fixed gapImg the first image slot, in every
+		// session (each Player gets its own shuffle seed).
+		let moved = 0;
+		for (let session = 0; session < 30; session++) {
+			const player = new Player({ itemXml: FIXED_GAP_MATCH_ITEM });
+			const data = player.getInteractionData()[0] as {
+				gapTexts: Array<{ identifier: string }>;
+				gapImages: Array<{ identifier: string }>;
+			};
+			if (data.gapTexts[0]?.identifier !== 'T1') moved += 1;
+			if (data.gapImages[0]?.identifier !== 'I1') moved += 1;
+		}
+		expect(moved).toBe(0);
+	});
+});
+
 describe('standardGapMatchExtractor', () => {
 	test('extracts basic gap match interaction', () => {
 		const xml = `

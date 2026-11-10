@@ -37,7 +37,7 @@ This is distinct from `matchInteraction` (a grid of row-column pairings) and `as
 
 **Why gaps are `<button>` elements and not `<input>` or `<select>`**: Gaps receive drop events (drag-and-drop) and click events (click-to-clear). A native `<select>` dropdown would be more accessible in some respects but would not support drop events without additional scripting, and its visual appearance inside prose text is harder to control cross-browser. A `<button>` can receive both pointer and keyboard events, can be styled to match the surrounding text flow, and allows precise ARIA labelling. The keyboard interaction model (Tab to reach, Enter/Space to clear, focus-visible ring) follows the button pattern from the ARIA Authoring Practices Guide.
 
-**Why gapImg shares the palette with gapText**: The QTI spec defines both `<gapText>` (text labels) and `<gapImg>` (image labels) as valid gap choices for `gapMatchInteraction`. The extractor delivers `<gapImg>` choices as `gapImages`, and the component renders them as image tiles named by their alt text in the same palette, with the same placement rules as words. Image labels placed on a background image instead of into prose are `graphicGapMatchInteraction` (see its PRD).
+**Why gapImg shares the palette with gapText**: The QTI spec defines both `<gapText>` (text labels) and `<gapImg>` (image labels) as valid gap choices for `gapMatchInteraction`. The extractor delivers `<gapImg>` choices as `gapImages`, and the component renders them as image tiles named by their image's alt text, else by the gapImg's authored `objectLabel` (QTI 2.1 `objectLabel.GapImg.Attr`, QTI 3.0 `object-label`; delivered as `objectLabel`), in the same palette, with the same placement rules as words. QTI 3.0 authors the label image as `object`, `img` or `picture` (delivered through its `<img>` fallback). Image labels placed on a background image instead of into prose are `graphicGapMatchInteraction` (see its PRD).
 
 ---
 
@@ -51,7 +51,7 @@ This is distinct from `matchInteraction` (a grid of row-column pairings) and `as
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `responseIdentifier` | ✅ Full | Extracted as `responseId`; used in `qti-change` event payload |
-| `shuffle` | ✅ Full | Shuffles the `gapTexts` palette order at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads |
+| `shuffle` | ✅ Full | Shuffles the `gapTexts` palette order at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads. A `gapText` or `gapImg` authored `fixed="true"` (a QTI 2.1 attribute, `fixed.GapText.Attr` / `fixed.GapImg.Attr`; honoured in every version as leniency) keeps the palette position it has unshuffled; delivered as `fixed` |
 | `maxAssociations` | ✅ Full | Delivered as `maxAssociations` (0 = no restriction). An absent attribute takes the per-version spec default: 1 in QTI 2.2 (Table 5.38.3) and 3.0 (Table 5.57.3); no cap in QTI 2.1, which has no such attribute. The component refuses and announces a placement past the cap (the author's `data-max-selections-message` wins; a held word stays held), and response validation rejects an over-limit response |
 
 ### Supported attributes on `gapText`

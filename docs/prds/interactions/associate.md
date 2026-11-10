@@ -65,7 +65,7 @@ The response array stored in `player.declarations` is NOT canonicalized when the
 | Attribute | Default | Behavior |
 |-----------|---------|----------|
 | `responseIdentifier` | — | Required. Binds to `responseDeclaration` with `baseType="pair"` `cardinality="multiple"`. |
-| `shuffle` | `false` | When `true`, choice order is randomized at extraction time by a PRNG seeded from the item session GUID, so the order is fixed for the session (including across reloads). |
+| `shuffle` | `false` | When `true`, choice order is randomized at extraction time by a PRNG seeded from the item session GUID, so the order is fixed for the session (including across reloads). A `simpleAssociableChoice` authored `fixed="true"` keeps its authored position (QTI `fixed.SimpleAssociableChoice.Attr`; delivered as `fixed`). |
 | `maxAssociations` | `1` | Maximum number of pairs the candidate may form. `0` means unlimited. |
 | `minAssociations` | `0` | Minimum number of pairs required for a complete response. Enforced by `Player.validateResponses()`: a response with fewer pairs is incomplete. The component states the same minimum with its localized hint; `associateInteraction` defines no `data-*-selections-message` attribute in any QTI version, so an authored one is ignored. |
 

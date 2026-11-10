@@ -11,8 +11,8 @@ import { maybeShuffle } from '../../core/shuffle.js';
  * Match data extracted from matchInteraction elements
  */
 export interface MatchData {
-	sourceSet: Array<{ identifier: string; text: string; matchMax: number; matchMin?: number; matchGroup?: string[]; classes?: string[] }>;
-	targetSet: Array<{ identifier: string; text: string; matchMax: number; matchMin?: number; matchGroup?: string[]; classes?: string[] }>;
+	sourceSet: Array<{ identifier: string; text: string; matchMax: number; matchMin?: number; matchGroup?: string[]; fixed?: boolean; classes?: string[] }>;
+	targetSet: Array<{ identifier: string; text: string; matchMax: number; matchMin?: number; matchGroup?: string[]; fixed?: boolean; classes?: string[] }>;
 	shuffle: boolean;
 	maxAssociations: number;
 	minAssociations?: number;
@@ -45,8 +45,8 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 		// In QTI, matchInteraction can have two simpleMatchSet elements
 		const matchSets = utils.getChildrenByTag(element, 'simpleMatchSet');
 
-		let sourceSet: Array<{ identifier: string; text: string; matchMax: number; matchMin?: number; matchGroup?: string[]; classes?: string[] }> = [];
-		let targetSet: Array<{ identifier: string; text: string; matchMax: number; matchMin?: number; matchGroup?: string[]; classes?: string[] }> = [];
+		let sourceSet: Array<{ identifier: string; text: string; matchMax: number; matchMin?: number; matchGroup?: string[]; fixed?: boolean; classes?: string[] }> = [];
+		let targetSet: Array<{ identifier: string; text: string; matchMax: number; matchMin?: number; matchGroup?: string[]; fixed?: boolean; classes?: string[] }> = [];
 
 		if (matchSets.length >= 2) {
 			// Extract choices from first matchSet (source)
@@ -58,12 +58,15 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 				const matchMin = utils.getNumberAttribute(choice, 'matchMin', 0);
 				const matchGroupRaw = utils.getAttribute(choice, 'matchGroup', '');
 				const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
+				const fixed = utils.getBooleanAttribute(choice, 'fixed');
 				return {
 					identifier: utils.getAttribute(choice, 'identifier', ''),
 					text: utils.getHtmlContent(choice),
 					matchMax,
 					...(matchMin > 0 ? { matchMin } : {}),
 					...(matchGroup.length > 0 ? { matchGroup } : {}),
+					// Authored fixed pins the choice under shuffle (QTI fixed.SimpleAssociableChoice.Attr).
+					...(fixed ? { fixed } : {}),
 					...(classes.length > 0 ? { classes } : {}),
 				};
 			});
@@ -77,12 +80,14 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 				const matchMin = utils.getNumberAttribute(choice, 'matchMin', 0);
 				const matchGroupRaw = utils.getAttribute(choice, 'matchGroup', '');
 				const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
+				const fixed = utils.getBooleanAttribute(choice, 'fixed');
 				return {
 					identifier: utils.getAttribute(choice, 'identifier', ''),
 					text: utils.getHtmlContent(choice),
 					matchMax,
 					...(matchMin > 0 ? { matchMin } : {}),
 					...(matchGroup.length > 0 ? { matchGroup } : {}),
+					...(fixed ? { fixed } : {}),
 					...(classes.length > 0 ? { classes } : {}),
 				};
 			});
@@ -94,12 +99,14 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 				const matchMin = utils.getNumberAttribute(choice, 'matchMin', 0);
 				const matchGroupRaw = utils.getAttribute(choice, 'matchGroup', '');
 				const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
+				const fixed = utils.getBooleanAttribute(choice, 'fixed');
 				return {
 					identifier: utils.getAttribute(choice, 'identifier', ''),
 					text: utils.getHtmlContent(choice),
 					matchMax,
 					...(matchMin > 0 ? { matchMin } : {}),
 					...(matchGroup.length > 0 ? { matchGroup } : {}),
+					...(fixed ? { fixed } : {}),
 					...(classes.length > 0 ? { classes } : {}),
 				};
 			});

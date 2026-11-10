@@ -3,6 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
+import { Player } from '../../../src/core/Player.js';
 import { standardMatchExtractor } from '../../../src/interactions/match/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
@@ -358,6 +359,64 @@ describe('standardMatchExtractor', () => {
 
 			expect(validation.valid).toBe(false);
 			expect(validation.errors).toContain('Duplicate target identifier: T1');
+		});
+	});
+
+	describe('authored fixed (QTI fixed.SimpleAssociableChoice.Attr)', () => {
+		const FIXED_ITEM = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="m1"
+  title="Match fixed" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair"/>
+  <itemBody>
+    <matchInteraction responseIdentifier="RESPONSE" shuffle="true">
+      <simpleMatchSet>
+        <simpleAssociableChoice identifier="S1" matchMax="1" fixed="true">Source one</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="S2" matchMax="1">Source two</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="S3" matchMax="1">Source three</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="S4" matchMax="1">Source four</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="S5" matchMax="1">Source five</simpleAssociableChoice>
+      </simpleMatchSet>
+      <simpleMatchSet>
+        <simpleAssociableChoice identifier="T1" matchMax="1" fixed="true">Target one</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="T2" matchMax="1">Target two</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="T3" matchMax="1">Target three</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="T4" matchMax="1">Target four</simpleAssociableChoice>
+        <simpleAssociableChoice identifier="T5" matchMax="1">Target five</simpleAssociableChoice>
+      </simpleMatchSet>
+    </matchInteraction>
+  </itemBody>
+</assessmentItem>`;
+
+		test('delivers fixed on the choices that author it', () => {
+			const element = parseQTI(`
+				<matchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<simpleMatchSet>
+						<simpleAssociableChoice identifier="S1" matchMax="1" fixed="true">Source one</simpleAssociableChoice>
+						<simpleAssociableChoice identifier="S2" matchMax="1">Source two</simpleAssociableChoice>
+					</simpleMatchSet>
+					<simpleMatchSet>
+						<simpleAssociableChoice identifier="T1" matchMax="1">Target one</simpleAssociableChoice>
+					</simpleMatchSet>
+				</matchInteraction>
+			`);
+			const result = standardMatchExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+			expect(result.sourceSet.find((c) => c.identifier === 'S1')?.fixed).toBe(true);
+			expect(result.sourceSet.find((c) => c.identifier === 'S2')?.fixed).toBeUndefined();
+			expect(result.targetSet[0].fixed).toBeUndefined();
+		});
+
+		test('a fixed choice keeps its authored position in every shuffle session', () => {
+			// Sessions differ (each Player gets its own shuffle seed); the fixed
+			// first source and target stay first in all of them.
+			let moved = 0;
+			for (let session = 0; session < 30; session++) {
+				const player = new Player({ itemXml: FIXED_ITEM });
+				const data = player.getInteractionData()[0] as { sourceSet: Array<{ identifier: string }>; targetSet: Array<{ identifier: string }> };
+				if (data.sourceSet[0]?.identifier !== 'S1') moved += 1;
+				if (data.targetSet[0]?.identifier !== 'T1') moved += 1;
+			}
+			expect(moved).toBe(0);
 		});
 	});
 });
