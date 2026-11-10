@@ -8,9 +8,6 @@ import {
 	type DeclarationMap,
 	durationSecondsFromMilliseconds,
 	findAssessmentItem,
-	getAttr,
-	isElement,
-	localName,
 	OperatorRegistry,
 	parseXml,
 	type ProcessingProgram,
@@ -28,7 +25,6 @@ import { DefaultI18nProvider, type I18nProvider } from '@pie-qti/i18n';
 import {
 	detectQtiVersion,
 	detectQtiVersionDetailed,
-	isShownByIdentifier,
 	type QtiVersionDetection,
 } from '@pie-qti/qti-common';
 import type {
@@ -36,8 +32,7 @@ import type {
 	ResponseProcessingDescriptor,
 } from '../document/AssessmentItemDocument.js';
 import { parseAssessmentItemDocument } from '../document/AssessmentItemDocument.js';
-import type { ContentHandler, ContentHandlers } from '../document/contentPass.js';
-import { printVariable, readPrintedVariableOptions } from '../document/printedVariable.js';
+import type { ContentHandlers } from '../document/contentPass.js';
 import {
 	createExtractionRegistry,
 	registerFrameworkDeliveryFields,
@@ -83,6 +78,8 @@ import { getCatalogEntryWithAliases } from '../catalog/catalogLookup.js';
 import { PciHost } from '../pci/PciHost.js';
 import { cloneValue } from '../utils/cloneFreeze.js';
 import { attributeNameMapperForVersion, elementNameMapperForVersion } from './nameMappers.js';
+import { contentHandlers } from './rendering/contentPass.js';
+import { itemBodyHtml, modalFeedbackOf, rubricsOf } from './rendering/htmlRender.js';
 import {
 	buildDeclarationMap,
 	ensureBuiltinDeclarations,
@@ -104,19 +101,6 @@ import {
 } from './processing/responseProcessing.js';
 import type { ExtractedPci, PciInteractionStatus } from '../pci/types.js';
 import { createTextEntryStringResponse, textEntryStringIdentifier } from '../interactions/text-entry/response.js';
-
-/** Choices a template variable can show or hide, by canonical name. */
-const TEMPLATE_CHOICES = [
-	'simplechoice',
-	'simpleassociablechoice',
-	'gaptext',
-	'gapimg',
-	'gap',
-	'hottext',
-	'inlinechoice',
-	'hotspotchoice',
-	'associablehotspot',
-] as const;
 
 /** Immutable source-derived artifacts shared by sessions from one definition. */
 interface PreparedPlayerDefinition {
@@ -164,7 +148,8 @@ export function createPlayerFromPreparedInternal(
 }
 
 export class Player {
-	private role: QTIRole;
+	/** @internal Rendering resolves rubric views against the session's role. */
+	role: QTIRole;
 	/** @internal Engine modules read the resolved configuration through the host. */
 	config: ItemSessionEngineConfig;
 	private itemXml: string;
@@ -182,13 +167,14 @@ export class Player {
 	ops: OperatorRegistry;
 	private extractionRegistry: ExtractionRegistry;
 	private interactionDataCache: readonly BaseInteractionData[] | null = null;
-	/** Template variables declared with `mathVariable`, substituted into MathML. */
-	private mathVariableIds: ReadonlySet<string> | null = null;
-	/** Template variables declared with `paramVariable`, substituted into `<param>` values. */
-	private paramVariableIds: ReadonlySet<string> | null = null;
+	/** Template variables declared with `mathVariable`, substituted into MathML. @internal */
+	mathVariableIds: ReadonlySet<string> | null = null;
+	/** Template variables declared with `paramVariable`, substituted into `<param>` values. @internal */
+	paramVariableIds: ReadonlySet<string> | null = null;
 	private componentRegistry: ComponentRegistry;
 	private i18nProvider: I18nProvider;
-	private mapper: ElementNameMapper;
+	/** @internal Engine modules resolve canonical element names through the host. */
+	mapper: ElementNameMapper;
 	/** The item's detected QTI version ('unknown' when nothing identified it). */
 	private qtiVersion: QtiVersion;
 
@@ -897,10 +883,7 @@ export class Player {
 	}
 
 	public getItemBodyHtml(): HtmlContent {
-		const inner = this.itemDocument.serializeItemBodyChildren(this.contentHandlers({ feedback: false }));
-		if (!inner) return '';
-
-		return this.renderHtmlContent(inner);
+		return itemBodyHtml(this, this.contentHandlers({ feedback: false }));
 	}
 
 	/**
@@ -912,26 +895,7 @@ export class Player {
 	 * the rendered item body flow.
 	 */
 	public getRubrics(options: RubricBlockOptions = {}): RubricBlock[] {
-		const role = this.role;
-		const rubrics = this.itemDocument.readRubricBlocks(this.contentHandlers());
-		if (rubrics.length === 0) return [];
-
-		const blocks: RubricBlock[] = [];
-		for (const rubric of rubrics) {
-			const { scope } = rubric;
-			if (options.scope && options.scope !== 'all' && scope !== options.scope) continue;
-
-			const view = [...rubric.view];
-
-			// If view is specified, show only when it includes the current role.
-			if (view.length > 0 && role && !view.includes(role)) continue;
-
-			const html = this.renderHtmlContent(rubric.content);
-
-			blocks.push({ view, html, scope, use: rubric.use });
-		}
-
-		return blocks;
+		return rubricsOf(this, this.contentHandlers(), options);
 	}
 
 	public getComponentRegistry(): ComponentRegistry {
@@ -1388,164 +1352,13 @@ export class Player {
 	// Item content pass: printedVariable, feedback, templates
 	// ----------------------------------------------------------------------------
 
-	/**
-	 * The item content pass's handlers, reading the session's current variable values. QTI 3 wraps
-	 * rubric content in `qti-content-body`, which is unwrapped so a rubric renders as in QTI 2.2.
-	 * Feedback resolves here for rubric and modal feedback content; item body and choice feedback
-	 * resolve in presentation, which takes the outcome values to present as input.
-	 */
 	private contentHandlers({ feedback = true }: { feedback?: boolean } = {}): ContentHandlers {
-		const conditional = (variable: string) => (element: Element) =>
-			this.isShownByVariable(element, variable, getAttr(element, 'identifier')) ? Array.from(element.childNodes) : [];
-		const handlers = new Map<string, ContentHandler>([
-			['printedvariable', (element) => this.printedVariableNodes(element)],
-			['contentbody', (element) => Array.from(element.childNodes)],
-			['templateinline', conditional('templateIdentifier')],
-			['templateblock', conditional('templateIdentifier')],
-			['param', (element) => this.expandParamVariable(element)],
-		]);
-		for (const choice of TEMPLATE_CHOICES) {
-			handlers.set(choice, (element) =>
-				!getAttr(element, 'templateIdentifier') ||
-				this.isShownByVariable(element, 'templateIdentifier', getAttr(element, 'identifier'))
-					? undefined
-					: [],
-			);
-		}
-		if (this.mathVariables().size > 0) {
-			handlers.set('mi', (element) => this.mathVariableNodes(element, 'mn'));
-			handlers.set('ci', (element) => this.mathVariableNodes(element, 'cn'));
-		}
-		if (feedback) {
-			handlers.set('feedbackinline', conditional('outcomeIdentifier'));
-			handlers.set('feedbackblock', conditional('outcomeIdentifier'));
-		}
-		return handlers;
-	}
-
-	/**
-	 * Whether `element` shows: the variable named by its `variableAttribute` against `identifier`,
-	 * by the shared visibility rule. A missing variable or identifier hides it.
-	 */
-	private isShownByVariable(element: Element, variableAttribute: string, identifier: string | null): boolean {
-		const variable = (getAttr(element, variableAttribute) || '').trim();
-		const id = (identifier || '').trim();
-		if (!variable || !id) return false;
-		const current = this.ctx.getValue(variable);
-		return isShownByIdentifier(current.kind === 'value' ? current.value : null, id, getAttr(element, 'showHide'));
-	}
-
-	private mathVariables(): ReadonlySet<string> {
-		this.mathVariableIds ??= new Set(
-			this.itemDocument
-				.findDeclarationElements('template')
-				.filter((el) => getAttr(el, 'mathVariable')?.trim() === 'true')
-				.map((el) => (getAttr(el, 'identifier') || '').trim()),
-		);
-		return this.mathVariableIds;
-	}
-
-	private paramVariables(): ReadonlySet<string> {
-		this.paramVariableIds ??= new Set(
-			this.itemDocument
-				.findDeclarationElements('template')
-				.filter((el) => getAttr(el, 'paramVariable')?.trim() === 'true')
-				.map((el) => (getAttr(el, 'identifier') || '').trim()),
-		);
-		return this.paramVariableIds;
-	}
-
-	/**
-	 * templateDeclaration@paramVariable (QTI 2.2 ASI TemplateDeclaration, `paramVariable`
-	 * characteristic; QTI 3.0 `param-variable`): a `<param>` inside an `<object>` whose `value`
-	 * names such a template variable is delivered with the variable's current value in place of
-	 * the variable's name, so a plugin-style object receives its computed parameter instead of a
-	 * literal.
-	 *
-	 * This resolves in the content pass — not in `prepareContentMarkup` (which runs once on the
-	 * raw XML, before template variables exist) and not on a stored copy — because template
-	 * variables change during the session (`setTemplateVariables`, `newTemplate`, restore).
-	 * Resolving with the pass means every (re)render, like printedVariable, delivers the value
-	 * the session holds at that moment.
-	 *
-	 * The spec defines substitution for a param value naming a declared `paramVariable`
-	 * variable. It is silent on a value naming an undeclared variable or one without the flag:
-	 * those, and NULL or container (multiple/ordered/record) values — a param carries one
-	 * opaque string, and joining container values would be invented semantics — deliver the
-	 * authored value unchanged, which is also the safe reading.
-	 */
-	private expandParamVariable(element: Element): undefined {
-		const value = getAttr(element, 'value')?.trim();
-		if (!value || !this.paramVariables().has(value)) return undefined;
-		const parent = element.parentNode;
-		if (
-			!isElement(parent) ||
-			this.mapper.toCanonical(localName(parent) ?? '') !== 'object'
-		) {
-			return undefined;
-		}
-		const current = this.ctx.getValue(value);
-		if (current.kind !== 'value' || current.cardinality !== 'single') return undefined;
-		// The pass resolves a clone, so this rewrite cannot touch the parsed source.
-		element.setAttribute('value', String(current.value));
-		return undefined;
-	}
-
-	/**
-	 * A MathML `mi` or `ci` naming a math variable, with the variable's single value in its place:
-	 * a number as `mn` or `cn` (`numberName`), any other value as the element's text. NULL and
-	 * container values leave the element as authored.
-	 */
-	private mathVariableNodes(element: Element, numberName: string): Node[] | undefined {
-		const identifier = (element.textContent || '').trim();
-		const document = element.ownerDocument;
-		if (!document || !this.mathVariables().has(identifier)) return undefined;
-		const value = this.ctx.getValue(identifier);
-		if (value.kind !== 'value' || value.cardinality !== 'single') return undefined;
-		const text = String(value.value);
-		if (value.baseType !== 'integer' && value.baseType !== 'float') {
-			// The pass resolves a copy, and the element is not walked again, so this cannot cycle.
-			element.textContent = text;
-			return undefined;
-		}
-		const name = element.prefix ? `${element.prefix}:${numberName}` : numberName;
-		const replacement = document.createElementNS(element.namespaceURI, name);
-		replacement.appendChild(document.createTextNode(text));
-		return [replacement];
-	}
-
-	private printedVariableNodes(element: Element): Node[] {
-		const identifier = (getAttr(element, 'identifier') || '').trim();
-		const document = element.ownerDocument;
-		if (!identifier || !document) return [];
-		const variable = (id: string): QtiValue => this.ctx.getValue(id);
-		const printed = printVariable(variable(identifier), readPrintedVariableOptions(element, variable));
-		return printed.map((segment) => {
-			if (typeof segment === 'string') return document.createTextNode(segment);
-			const sup = document.createElementNS(element.namespaceURI, 'sup');
-			sup.appendChild(document.createTextNode(segment.superscript));
-			return sup;
-		});
-	}
-
-	private renderHtmlContent(html: string): HtmlContent {
-		const sanitized = sanitizeHtml(html, { security: this.config.security });
-		return toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
+		return contentHandlers(this, { feedback });
 	}
 
 	/** @internal Scoring resolves the attempt's active modal feedback. */
 	getModalFeedback(outcomes: Record<string, any>): ModalFeedback[] {
-		const active: ModalFeedback[] = [];
-
-		for (const feedback of this.itemDocument.readModalFeedback(this.contentHandlers())) {
-			const { identifier, outcomeIdentifier, showHide, title } = feedback;
-			const content = this.renderHtmlContent(feedback.content);
-
-			if (isShownByIdentifier(outcomes[outcomeIdentifier], identifier, showHide) && content) {
-				active.push({ identifier, outcomeIdentifier, showHide, content, title });
-			}
-		}
-		return active;
+		return modalFeedbackOf(this, this.contentHandlers(), outcomes);
 	}
 }
 
