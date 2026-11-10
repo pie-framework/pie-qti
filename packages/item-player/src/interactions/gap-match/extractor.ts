@@ -8,6 +8,7 @@ import type { ElementExtractor, ExtractionUtils } from '../../extraction/types.j
 import type { DeliveredInteraction, GapMatchInteractionData, QTIElement } from '../../interactions/shared/types.js';
 import { maybeShuffle } from '../../core/shuffle.js';
 import { normalizeCssPixelLength, normalizePixelDimension } from '../../security/styleValues.js';
+import { findInteractionImage } from '../shared/interactionImage.js';
 import { predatesQti22 } from '../shared/specDefaults.js';
 
 const GAP_ELEMENT_PATTERN = /<(?:qti-gap|gap)(?=[\s/>])([^>]*)\/?>/gi;
@@ -113,22 +114,20 @@ function extractGapImage(
 	let width: number | undefined;
 	let height: number | undefined;
 
-	// QTI 2.x: <gapImg><object data="…" width height>alt text</object></gapImg>
-	const objectChildren = utils.getChildrenByTag(gapImg, 'object');
-	if (objectChildren.length > 0) {
-		const obj = objectChildren[0];
+	// QTI 2.x: <gapImg><object data="…" width height>alt text</object></gapImg>.
+	// QTI 3.0 allows an <img> or a <picture> (delivered via its <img> fallback):
+	// <qti-gap-img><img src="…" alt="…" /></qti-gap-img>
+	const image = findInteractionImage(gapImg, utils);
+	if (image?.kind === 'object') {
+		const obj = image.element;
 		src = utils.getAttribute(obj, 'data', '');
 		alt = utils.getTextContent(obj);
 		const w = normalizePixelDimension(utils.getAttribute(obj, 'width', ''));
 		const h = normalizePixelDimension(utils.getAttribute(obj, 'height', ''));
 		if (w) width = Number(w);
 		if (h) height = Number(h);
-	}
-
-	// QTI 3.0: <qti-gap-img><img src="…" alt="…" /></qti-gap-img>
-	const imgChildren = utils.getChildrenByTag(gapImg, 'img');
-	if (imgChildren.length > 0 && !src) {
-		const img = imgChildren[0];
+	} else if (image) {
+		const img = image.element;
 		src = utils.getAttribute(img, 'src', '');
 		alt = utils.getAttribute(img, 'alt', '');
 		const w = normalizePixelDimension(utils.getAttribute(img, 'width', ''));

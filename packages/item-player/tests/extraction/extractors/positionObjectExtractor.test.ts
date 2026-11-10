@@ -65,6 +65,43 @@ describe('standardPositionObjectExtractor', () => {
 		expect(result.maxChoices).toBe(3);
 	});
 
+	test('reads the QTI 3.0 <img> form of both stage background and draggable', () => {
+		// QTI 3.0 PositionObjectInteractionDType/PositionObjectStageDType allow
+		// object|img|picture; an <img>-authored stage used to fail extraction.
+		const result = extract(`
+			<positionObjectStage>
+				<img src="map.png" alt="Map" width="600" height="400"/>
+				<positionObjectInteraction responseIdentifier="CITY">
+					<img src="city.png" alt="City marker" width="30" height="30"/>
+				</positionObjectInteraction>
+			</positionObjectStage>
+		`, 'CITY');
+
+		expect(result.imageData).toMatchObject({ type: 'image', src: 'map.png', alt: 'Map', width: '600', height: '400' });
+		expect(result.positionObjectStages[0].objectData).toMatchObject({
+			type: 'image',
+			src: 'city.png',
+			alt: 'City marker',
+			width: '30',
+			height: '30',
+		});
+		expect(result.positionObjectStages[0].label).toBe('City marker');
+	});
+
+	test('reads a <picture> stage background and draggable through their <img> fallbacks', () => {
+		const result = extract(`
+			<positionObjectStage>
+				<picture><source srcset="map-2x.png 2x"/><img src="map.png" alt="Map" width="600" height="400"/></picture>
+				<positionObjectInteraction responseIdentifier="CITY">
+					<picture><img src="city.png" alt="City marker" width="30" height="30"/></picture>
+				</positionObjectInteraction>
+			</positionObjectStage>
+		`, 'CITY');
+
+		expect(result.imageData).toMatchObject({ type: 'image', src: 'map.png', alt: 'Map' });
+		expect(result.positionObjectStages[0].objectData).toMatchObject({ type: 'image', src: 'city.png', alt: 'City marker' });
+	});
+
 	test('never names the draggable object by its response identifier', () => {
 		// Identifiers can reveal the answer key to assistive technology; the
 		// renderer substitutes a localized generic name for an unnamed object.
@@ -231,9 +268,9 @@ describe('standardPositionObjectExtractor', () => {
 
 		expect(validation.valid).toBe(false);
 		expect(validation.errors).toContain(
-			'positionObjectInteraction must have a parent positionObjectStage with a background object',
+			'positionObjectInteraction must have a parent positionObjectStage with a background image',
 		);
-		expect(validation.errors).toContain('positionObjectInteraction must contain one draggable object');
+		expect(validation.errors).toContain('positionObjectInteraction must contain one draggable image');
 	});
 
 	test('does not treat an arbitrary parent with an object as a positionObjectStage', () => {
@@ -249,7 +286,7 @@ describe('standardPositionObjectExtractor', () => {
 
 		expect(validation.valid).toBe(false);
 		expect(validation.errors).toContain(
-			'positionObjectInteraction must have a parent positionObjectStage with a background object',
+			'positionObjectInteraction must have a parent positionObjectStage with a background image',
 		);
 	});
 

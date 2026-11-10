@@ -467,6 +467,41 @@ describe('standardGapMatchExtractor', () => {
 			});
 		});
 
+		test('extracts QTI 3.0 gapImg labels authored as <img> and as <picture>', () => {
+			// QTI 3.0 GapImgDType allows object|img|picture; a <picture> delivers
+			// its <img> fallback (the content that renders).
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>Fill: <gap identifier="G1" /></prompt>
+					<gapImg identifier="I1" matchMax="1">
+						<img src="images/sun.png" alt="Sun" width="40" height="30"/>
+					</gapImg>
+					<gapImg identifier="I2" matchMax="1">
+						<picture><source srcset="moon-2x.png 2x"/><img src="images/moon.png" alt="Moon" width="40" height="30"/></picture>
+					</gapImg>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGapMatchExtractor.extract(element, context);
+
+			expect(result.gapImages[0]).toMatchObject({
+				identifier: 'I1',
+				src: 'images/sun.png',
+				alt: 'Sun',
+				width: 40,
+				height: 30,
+			});
+			expect(result.gapImages[1]).toMatchObject({
+				identifier: 'I2',
+				src: 'images/moon.png',
+				alt: 'Moon',
+				width: 40,
+				height: 30,
+			});
+		});
+
 		test('extracts image choices with matchGroup and matchMax', () => {
 			const xml = `
 				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
