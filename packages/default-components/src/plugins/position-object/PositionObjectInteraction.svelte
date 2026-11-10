@@ -834,6 +834,17 @@
 								{@const usageCount = getStageUsageCount(stage.identifier)}
 								{@const canDrag = canDragStage(stage.identifier)}
 								{@const name = stageName(stage)}
+								<!-- The usage line the palette shows: the same text the accessible name
+								     carries, so the visible label is in the name (WCAG 2.5.3). -->
+								{@const usageText = stage.matchMax > 0
+									? translate(i18n, 'interactions.positionObject.used', '{usageCount}/{matchMax} used', {
+											usageCount,
+											matchMax: stage.matchMax,
+										})
+									: translate(i18n, 'interactions.positionObject.usedUnlimited', '{usageCount} used, unlimited', { usageCount })}
+								<!-- A palette object is named by what it shows: its label, then the usage
+								     line. The name used to wrap the usage in parentheses, which kept the
+								     visible text out of the name for label-in-name matching. -->
 								<div
 									part="palette-item"
 									class="qti-po-palette-item flex items-center gap-3 p-3 rounded-lg bg-base-200 border border-base-300 {canInteract && canDrag ? 'cursor-move hover:border-primary' : 'opacity-50 cursor-not-allowed'} {selectedStageId === stage.identifier ? 'qti-po-palette-item-selected' : ''}"
@@ -849,19 +860,8 @@
 									tabindex={canInteract && canDrag ? 0 : -1}
 									aria-disabled={!canInteract || !canDrag ? 'true' : undefined}
 									aria-label={joinSentences(
-										translate(i18n, 'accessibility.sentence', '{text}.', {
-											text:
-												stage.matchMax > 0
-													? translate(i18n, 'interactions.positionObject.objectUsage', '{label} ({usageCount}/{matchMax} used)', {
-															label: name,
-															usageCount,
-															matchMax: stage.matchMax,
-														})
-													: translate(i18n, 'interactions.positionObject.objectUsageUnlimited', '{label} ({usageCount} used, unlimited)', {
-															label: name,
-															usageCount,
-														}),
-										}),
+										translate(i18n, 'accessibility.sentence', '{text}.', { text: name }),
+										translate(i18n, 'accessibility.sentence', '{text}.', { text: usageText }),
 									)}
 									aria-pressed={selectedStageId === stage.identifier}
 								>
@@ -890,14 +890,7 @@
 									<!-- Label and Usage -->
 									<div class="flex-1 min-w-0" aria-hidden="true">
 										<div class="font-medium text-sm truncate">{name}</div>
-										<div class="text-xs text-base-content/60">
-											{stage.matchMax > 0
-												? translate(i18n, 'interactions.positionObject.used', '{usageCount}/{matchMax} used', {
-														usageCount,
-														matchMax: stage.matchMax,
-													})
-												: translate(i18n, 'interactions.positionObject.usedUnlimited', '{usageCount} used, unlimited', { usageCount })}
-										</div>
+										<div class="text-xs text-base-content/60">{usageText}</div>
 									</div>
 
 									<!-- Drag Indicator -->
