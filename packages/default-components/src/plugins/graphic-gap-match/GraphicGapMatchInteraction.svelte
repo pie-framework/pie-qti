@@ -22,6 +22,7 @@ import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { createPickUpPlace } from '../../shared/components/pickUpPlace.svelte';
+	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import { choicesShortOfMatchMin } from '../../shared/utils/minimumRequirement';
 	import {
 		getSourceForTarget,
@@ -305,21 +306,39 @@ function placeLabel(labelId: string, hotspotId: string): boolean {
 	}
 
 /**
+ * Each palette label's 1-based position in the order the candidate sees:
+ * gap texts first, then gap images, as the palette renders them.
+ */
+const labelPositions = $derived.by(() => {
+	const positions = new Map<string, number>();
+	if (!parsedInteraction) return positions;
+	let position = 0;
+	for (const label of [...parsedInteraction.gapTexts, ...(parsedInteraction.gapImages ?? [])]) {
+		position += 1;
+		positions.set(label.identifier, position);
+	}
+	return positions;
+});
+
+/**
  * Resolve a human-readable name for a label by identifier: a gap text's text,
- * a gap image's alternative text, else a localized generic name — never the
- * identifier, which can reveal the answer key.
+ * a gap image's alternative text, else the localized ordinal of its palette
+ * position ("Choice 3" — the same fallback the text gap-match interaction
+ * uses) — never the identifier, which can reveal the answer key.
  */
 function getLabelName(labelId: string): string {
-	if (!parsedInteraction) return labelFallback();
-	const text = parsedInteraction.gapTexts.find((g) => g.identifier === labelId);
-	if (text) return text.text;
-	const img = (parsedInteraction.gapImages ?? []).find((g) => g.identifier === labelId);
-	if (img) return img.alt?.trim() || labelFallback();
-	return labelFallback();
+	return choiceAccessibleName({
+		i18n,
+		label: labelContent(labelId),
+		position: labelPositions.get(labelId) ?? 0,
+	});
 }
 
-function labelFallback(): string {
-	return translate(i18n, 'interactions.graphicGapMatch.labelFallback', 'Label');
+function labelContent(labelId: string): string {
+	const text = parsedInteraction?.gapTexts.find((g) => g.identifier === labelId);
+	if (text) return text.text;
+	const img = (parsedInteraction?.gapImages ?? []).find((g) => g.identifier === labelId);
+	return img?.alt ?? '';
 }
 
 function cancelledMessage(): string {

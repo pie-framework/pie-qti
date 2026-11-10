@@ -69,13 +69,15 @@ describe('GraphicGapMatchInteraction (pie-qti-graphic-gap-match)', () => {
 		}
 	});
 
-	test('a gap image without alt text is named generically, never by its identifier', async () => {
+	test('a gap image without alt text is named by its palette position, never by its identifier', async () => {
 		const mounted = mountInteraction(GraphicGapMatchInteraction, { interaction: ggmData() });
 		await settle();
 
 		const imageLabel = qa<HTMLButtonElement>(mounted, '[part="labels"] button').find((button) => button.querySelector('img'));
-		expect(imageLabel?.getAttribute('aria-label')).toBe('Label');
-		expect(imageLabel?.querySelector('img')?.getAttribute('alt')).toBe('Label');
+		// Third palette label (after the two gap texts), so the ordinal fallback is 3 —
+		// the same "Choice {index}" fallback the text gap-match interaction uses.
+		expect(imageLabel?.getAttribute('aria-label')).toBe('Choice 3');
+		expect(imageLabel?.querySelector('img')?.getAttribute('alt')).toBe('Choice 3');
 		expect(mounted.host.innerHTML).not.toContain('CLOUD_IS_TOP_RIGHT');
 	});
 

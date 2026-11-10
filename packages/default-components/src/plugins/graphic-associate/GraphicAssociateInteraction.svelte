@@ -11,6 +11,7 @@
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { isAtLimit } from '../../shared/utils/capacity';
 	import { matchGroupBlockedIds } from '../../shared/utils/matchGroupUtils';
+	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import { countPairsWithId, hasUnorderedPair, pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
@@ -204,10 +205,13 @@
 	function hotspotName(hotspot: GraphicAssociateHotspot | undefined): string {
 		if (!hotspot) return '';
 		const index = parsedInteraction?.associableHotspots.indexOf(hotspot) ?? -1;
-		return (
-			hotspot.label?.trim() ||
-			translate(i18n, 'interactions.graphicAssociate.unlabeledHotspot', 'Region {index}', { index: index + 1 })
-		);
+		return choiceAccessibleName({
+			i18n,
+			label: hotspot.label,
+			position: index + 1,
+			// The interaction's own noun for an unlabeled hotspot ("Region 3").
+			fallback: { key: 'interactions.graphicAssociate.unlabeledHotspot', text: 'Region {index}' },
+		});
 	}
 
 	function hotspotNameById(id: string): string {

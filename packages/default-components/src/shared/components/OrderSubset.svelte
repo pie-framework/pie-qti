@@ -14,6 +14,7 @@
 	import type { HtmlContent } from '@pie-qti/item-player';
 	import { limitMessage } from '../utils/capacity.js';
 	import { accessibleTextFromHtml } from '../utils/accessibleText.js';
+	import { choiceAccessibleName } from '../utils/choiceName.js';
 	import { describedByIds } from '../utils/minimumRequirement.js';
 	import SortableList, { type SortableIndexLabels } from './SortableList.svelte';
 	import '../styles/shared.css';
@@ -88,7 +89,13 @@
 
 	function itemLabel(item: Item | undefined): string {
 		// Image alt and MathML alttext participate, matching the sortable rows' names.
-		return (item && accessibleTextFromHtml(item.text)) || translate(i18n, 'interactions.order.itemFallback', 'Item');
+		// A choice with nothing to read is named by its presented position ("Choice 3"),
+		// never by its identifier.
+		return choiceAccessibleName({
+			i18n,
+			label: item ? accessibleTextFromHtml(item.text) : '',
+			position: item ? items.indexOf(item) + 1 : 0,
+		});
 	}
 
 	/**

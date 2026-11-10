@@ -18,6 +18,7 @@
 	import { minimumHint, subsetOrderHint } from '../../shared/utils/minimumRequirement';
 	import { orderChoiceLimits } from '@pie-qti/item-player';
 	import { escapeHtml, imageAltText, regionMarkerPoint } from '../../shared/utils/graphicRegions';
+	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 
 	interface Props {
 		interaction?: GraphicOrderInteractionData | string;
@@ -128,8 +129,13 @@
 		(parsedInteraction?.hotspotChoices ?? []).map((choice, index) => ({
 			id: choice.identifier,
 			text: escapeHtml(
-				choice.label?.trim() ||
-					translate(i18n, 'interactions.graphicOrder.unlabeledItem', 'Item {index}', { index: index + 1 }),
+				choiceAccessibleName({
+					i18n,
+					label: choice.label,
+					position: index + 1,
+					// The interaction's own noun for an unlabeled hotspot ("Item 3").
+					fallback: { key: 'interactions.graphicOrder.unlabeledItem', text: 'Item {index}' },
+				}),
 			),
 		})),
 	);

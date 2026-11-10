@@ -62,6 +62,7 @@
 	import DragHandle from '../../shared/components/DragHandle.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { isAtLimit } from '../../shared/utils/capacity';
+	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import { clientToImagePoint, imageAltText } from '../../shared/utils/graphicRegions';
@@ -237,10 +238,13 @@
 	function stageName(stage: PositionObjectStage | undefined): string {
 		if (!stage) return '';
 		const index = parsedInteraction?.positionObjectStages.indexOf(stage) ?? -1;
-		return (
-			stage.label?.trim() ||
-			translate(i18n, 'interactions.positionObject.objectFallback', 'Object {index}', { index: index + 1 })
-		);
+		return choiceAccessibleName({
+			i18n,
+			label: stage.label,
+			position: index + 1,
+			// The interaction's own noun for an unnamed object ("Object 3").
+			fallback: { key: 'interactions.positionObject.objectFallback', text: 'Object {index}' },
+		});
 	}
 
 	function getStageUsageCount(id: string): number {

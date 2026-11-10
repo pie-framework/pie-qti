@@ -13,6 +13,7 @@ import type { HtmlContent } from '@pie-qti/item-player';
 import { touchDrag } from '@pie-qti/qti-common';
 import { tick, type Snippet } from 'svelte';
 import { accessibleTextFromHtml } from '../utils/accessibleText.js';
+import { choiceAccessibleName } from '../utils/choiceName.js';
 import DragHandle from './DragHandle.svelte';
 import { createPickUpPlace } from './pickUpPlace.svelte';
 import '../styles/shared.css';
@@ -255,8 +256,14 @@ async function moveWithButton(event: MouseEvent, id: string, offset: number) {
 }
 
 function itemLabel(item: Item): string {
-	// Image alt and MathML alttext participate, unlike raw textContent.
-	return accessibleTextFromHtml(item.text) || translate(i18n, 'interactions.order.itemFallback', 'Item');
+	// Image alt and MathML alttext participate, unlike raw textContent. A choice with
+	// nothing to read is named by its presented position ("Choice 3"), never by its
+	// identifier — the shared choice-name rule.
+	return choiceAccessibleName({
+		i18n,
+		label: accessibleTextFromHtml(item.text),
+		position: items.indexOf(item) + 1,
+	});
 }
 
 /** Position/state sentences for the row's aria-describedby target. */
