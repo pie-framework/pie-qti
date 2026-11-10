@@ -5,6 +5,7 @@ import { normalizeParsingLimits } from '../../src/core/parsingLimits.js';
 import { sanitizeHtml } from '../../src/core/sanitizer.js';
 import { parseAssessmentItemDocument } from '../../src/document/AssessmentItemDocument.js';
 import { createAssessmentItemDefinition as createServerDefinition } from '../../src/server.js';
+import { createAssessmentItemDefinition } from '../../src/core/AssessmentItemDefinition.js';
 import type { PlayerSecurityConfig } from '../../src/types/index.js';
 
 const NS = 'xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"';
@@ -60,6 +61,19 @@ describe('DoS parsing limits (on unless parsingLimits.enabled is false)', () => 
 	test('with no security config, the item document and the server entry reject <!DOCTYPE>', () => {
 		expect(() => parseDocument(doctypeItemXml())).toThrow(/DOCTYPE/);
 		expect(() => createServerDefinition({ itemXml: doctypeItemXml() })).toThrow(/DOCTYPE/);
+	});
+
+	test('with no security config, the definition entry enforces the limits at compile time', () => {
+		// The earliest limit runs when the definition compiles, before any session opens:
+		// enforceItemXmlLimits sits on the shared compile path of the direct player and both
+		// definition entries.
+		expect(() => createAssessmentItemDefinition({ itemXml: doctypeItemXml() })).toThrow(/DOCTYPE/);
+		expect(() => createAssessmentItemDefinition({ itemXml: minimalItemXml(), security: { parsingLimits: { maxItemXmlBytes: 1 } } })).toThrow(
+			/maxItemXmlBytes/,
+		);
+		expect(() => createServerDefinition({ itemXml: minimalItemXml(), security: { parsingLimits: { maxItemXmlBytes: 1 } } })).toThrow(
+			/maxItemXmlBytes/,
+		);
 	});
 
 	test('with no security config, sanitizeHtml enforces the default maxHtmlBytes (fails closed)', () => {

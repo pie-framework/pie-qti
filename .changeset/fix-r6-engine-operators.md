@@ -15,4 +15,4 @@ Spec-compliance fixes for the container operators, NULL operands, `round`/`trunc
 
 **Validation change:**
 
-- Response validation now enforces a graphicGapMatchInteraction's `maxAssociations` and the `matchMax` of each gap choice (`gapText`, `gapImg`) and each hotspot (0 means no restriction). A response over a limit is invalid with an `invalid_shape` issue, as an extended-text response over `maxStrings` is: `endAttempt({ validateResponses: true })` rejects it and the session cannot submit it until it is corrected.
+- Response validation now enforces a graphicGapMatchInteraction's `maxAssociations` and the `matchMax` of each gap choice (`gapText`, `gapImg`) and each hotspot (0 means no restriction). A response over a limit is invalid with an `invalid_shape` issue, as an extended-text response over `maxStrings` is: `dispatch({ action: 'endAttempt', validateResponses: true })` rejects it and the session cannot submit it until it is corrected.

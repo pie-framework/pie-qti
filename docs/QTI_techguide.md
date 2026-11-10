@@ -210,8 +210,8 @@ submission mode:
   fewer selections, associations, strings or plays than `minChoices`, `minAssociations`,
   `matchMin`, `minStrings` or `minPlays` require.
 
-In the item player, `endAttempt({ validateResponses: true })` rejects such a response. The result's
-`validation.valid` is `false`, with one issue per offending response (`incomplete`,
+In the item player, a session's `dispatch({ action: 'endAttempt', validateResponses: true })`
+rejects such a response. The result's `validation.valid` is `false`, with one issue per offending response (`incomplete`,
 `invalid_shape` or `match_group`). The attempt is not counted, no response processing runs, and the
 session stays writable for the candidate to correct it. An item with no response at all is a skip,
 which `allowSkipping` governs; the item cannot see that control, so it leaves a skip to the caller
