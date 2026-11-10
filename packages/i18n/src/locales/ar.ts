@@ -766,8 +766,6 @@ export default {
 		closeMenu: 'إغلاق القائمة',
 		readingPassage: 'فقرة القراءة',
 		readingPassages: 'فقرات القراءة',
-		expandPassage: 'توسيع الفقرة',
-		collapsePassage: 'طي الفقرة',
 
 		attempts: {
 			remaining: '{count} محاولات متبقية',

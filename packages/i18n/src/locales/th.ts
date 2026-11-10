@@ -641,8 +641,6 @@ export default {
 		sectionDefault: 'ส่วนที่ {number}',
 		readingPassage: 'ข้อความสำหรับอ่าน',
 		readingPassages: 'ข้อความสำหรับอ่าน',
-		expandPassage: 'ขยายข้อความ',
-		collapsePassage: 'ย่อข้อความ',
 		closeMenu: 'ปิดเมนู',
 
 		attempts: {
