@@ -186,6 +186,9 @@
 	// the limits are known up front (WCAG 3.3.2). It describes the list. Only while the
 	// candidate can still answer.
 	const minHintId = `${uid}-min-hint`;
+	// The confirm button is named by its visible label, so a voice-control user saying that
+	// label reaches it (WCAG 2.5.3 Label in Name); the fuller sentence describes it.
+	const confirmDescriptionId = `${uid}-confirm-description`;
 	const orderedCount = $derived(
 		subsetMode
 			? (Array.isArray(parsedResponse) ? parsedResponse.filter((id) => initialOrder.includes(id)).length : 0)
@@ -356,7 +359,9 @@
 						     element flips between the actionable control and an inert "Order
 						     confirmed" state (aria-disabled, tabindex=-1 — never removed), so the
 						     focus that pressed it keeps a home; the always-present polite region
-						     below announces the confirmation. -->
+						     below announces the confirmation. Its visible label is its accessible
+						     name (WCAG 2.5.3): the sentence saying what confirming means is its
+						     description, not a name that hides the label. -->
 						<div part="confirm" class="qti-go-confirm mt-4 pt-3 border-t border-base-300">
 							{#if !subsetMode && (confirmation.needsConfirmation || confirmation.hasConfirmed)}
 								<button
@@ -366,9 +371,7 @@
 									onclick={confirmFromButton}
 									aria-disabled={confirmation.hasConfirmed ? 'true' : undefined}
 									tabindex={confirmation.hasConfirmed ? -1 : undefined}
-									aria-label={confirmation.hasConfirmed
-										? undefined
-										: (i18n?.t('interactions.graphicOrder.confirmAria') ?? 'Confirm this order as your answer')}
+									aria-describedby={confirmation.hasConfirmed ? undefined : confirmDescriptionId}
 								>
 									{#if confirmation.hasConfirmed}
 										<Icon d={ICON_CHECK} part="confirmed-icon" class="qti-icon qti-go-confirmed stroke-current shrink-0 w-5 h-5" />
@@ -380,6 +383,9 @@
 									{/if}
 								</button>
 								{#if !confirmation.hasConfirmed}
+									<span id={confirmDescriptionId} class="sr-only">
+										{i18n?.t('interactions.graphicOrder.confirmAria') ?? 'Confirm this order as your answer'}
+									</span>
 									<p class="text-xs text-base-content/60 mt-2 text-center">
 										{i18n?.t('interactions.graphicOrder.instruction') ?? 'Drag to reorder, or click to confirm'}
 									</p>

@@ -163,6 +163,9 @@
 	// can still answer.
 	const uid = $props.id();
 	const minHintId = `${uid}-min-hint`;
+	// The confirm button is named by its visible label, so a voice-control user saying that
+	// label reaches it (WCAG 2.5.3 Label in Name); the fuller sentence describes it.
+	const confirmDescriptionId = `${uid}-confirm-description`;
 	const orderedCount = $derived(
 		subsetMode
 			? (Array.isArray(parsedResponse) ? parsedResponse.filter((id) => shuffledChoiceIds.includes(id)).length : 0)
@@ -273,7 +276,9 @@
 		<!-- Confirmation control for WCAG 2.2 SC 3.3.4 compliance. One persistent element
 		     flips between the actionable control and an inert "Order confirmed" state
 		     (aria-disabled, tabindex=-1 — never removed), so the focus that pressed it keeps
-		     a home; the always-present polite region below announces the confirmation. -->
+		     a home; the always-present polite region below announces the confirmation.
+		     Its visible label is its accessible name (WCAG 2.5.3): the sentence saying what
+		     confirming means is its description, not a name that hides the label. -->
 		<div class="mt-4 flex items-center gap-3">
 			{#if !subsetMode && (confirmation.needsConfirmation || confirmation.hasConfirmed)}
 				<button
@@ -283,9 +288,7 @@
 					onclick={confirmFromButton}
 					aria-disabled={confirmation.hasConfirmed ? 'true' : undefined}
 					tabindex={confirmation.hasConfirmed ? -1 : undefined}
-					aria-label={confirmation.hasConfirmed
-						? undefined
-						: (i18n?.t('interactions.order.confirmAria') ?? 'Confirm this order as your answer')}
+					aria-describedby={confirmation.hasConfirmed ? undefined : confirmDescriptionId}
 				>
 					{#if confirmation.hasConfirmed}
 						<Icon d={ICON_CHECK} part="confirmed-icon" class="qti-icon-sm inline-block w-4 h-4 stroke-current" />
@@ -297,6 +300,9 @@
 					{/if}
 				</button>
 				{#if !confirmation.hasConfirmed}
+					<span id={confirmDescriptionId} class="sr-only">
+						{i18n?.t('interactions.order.confirmAria') ?? 'Confirm this order as your answer'}
+					</span>
 					<span class="text-xs text-base-content/60">
 						{i18n?.t('interactions.order.instruction') ?? 'Drag items to reorder, or click to confirm the current order'}
 					</span>
