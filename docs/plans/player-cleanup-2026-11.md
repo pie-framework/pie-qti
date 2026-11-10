@@ -129,9 +129,12 @@ WCAG 2.2 AA + UX in a real browser; section/item shells), 37 findings, all confi
 
 Recorded in this file's history and the plan's parked sections, summarized:
 
-- **Assessment player: parked** (work stopped by decision after Phase 5; five findings recorded, not
-  scheduled — toggle labels, the scope-expiry hop outside the lock, the `test-navigation.ts` import,
-  the repeated dialog styles, the ~7.9 KB double-shipped modules).
+- **Assessment player: parked, then finished** (work stopped by decision after Phase 5; the five
+  recorded findings were scheduled and fixed on 2026-11-10: the timer/review toggle states are
+  announced exactly once, the scope-expiry hop and the whole-test expiry both serialize behind
+  in-flight transitions, core no longer imports `integration/test-navigation.ts` (the delivery-rules
+  walk moved to `core/testStructure.ts`, pinned), the dialog action styles have one injected source,
+  and the players' modules ship once in player-elements' bundle).
 - **Accepted limits** (2026-11-10): object-typed element options compare by reference (rebuilding an
   equal `security`/`pnp` each render re-opens the session); a permanently removed element keeps its
   session until page unload; section elements have no `showFeedback` pass-through; persisted-display
