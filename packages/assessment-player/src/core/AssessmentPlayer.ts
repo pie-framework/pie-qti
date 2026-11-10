@@ -105,6 +105,7 @@ import {
 	scopeLimitRanOut,
 	type TimeScope,
 } from './scopeLocks.js';
+import { canNavigateByTestPart, isLegalSectionTarget } from './navigationPolicy.js';
 import {
 	interactionRequirementFromXml,
 	interactionResponseIdentifiers,
@@ -1412,23 +1413,15 @@ export class AssessmentPlayer {
 	 * legal targets.
 	 */
 	private isLegalSectionTarget(section: SecureSection): boolean {
-		if (this.finalized) return false;
-		const current = this.items[this.currentItemIndex];
-		if (!current) return false;
-		const members = this.items.filter((q) =>
-			q.sections.some((s) => s.identifier === section.identifier),
-		);
-		if (members.length === 0) return false;
-		const mode = current.testPart.navigationMode ?? this.assessment.navigationMode ?? 'nonlinear';
-		if (mode === 'linear') {
-			return members.some((q) => q === current);
-		}
-		return members.some(
-			(q) =>
-				q.testPart === current.testPart &&
-				!this.isItemLocked(q) &&
-				this.canReviewItem(q),
-		);
+		return isLegalSectionTarget({
+			section,
+			items: this.items,
+			assessment: this.assessment,
+			finalized: this.finalized,
+			currentIndex: this.currentItemIndex,
+			isItemLocked: (q) => this.isItemLocked(q),
+			canReviewItem: (q) => this.canReviewItem(q),
+		});
 	}
 
 	// ---------------------------------------------------------------------------
@@ -3225,12 +3218,7 @@ export class AssessmentPlayer {
 
 	/**
 	 * Whether a candidate-initiated move from `currentIndex` to `targetIndex` follows the
-	 * navigation rules. Within a nonlinear test part any item is reachable. Otherwise the only
-	 * forward move is the forward step itself — `forward`, the item the backend's decision kept
-	 * for the current item or the delivery rules (branch rules, preconditions) deliver next,
-	 * passing over items an expired limit closed: in a linear part no item is skipped or
-	 * revisited, and test parts are entered in sequence — never a jump across a part, never
-	 * one back, never into a part whose precondition fails.
+	 * navigation rules (see `navigationPolicy.canNavigateByTestPart`).
 	 */
 	private canNavigateByTestPart(
 		targetIndex: number,
@@ -3240,15 +3228,13 @@ export class AssessmentPlayer {
 			return current ? this.unsubmittedForwardIndex(current) : -1;
 		},
 	): boolean {
-		if (targetIndex < 0 || targetIndex >= this.items.length) return false;
-		const current = this.items[currentIndex];
-		const target = this.items[targetIndex];
-		if (!current || !target) return false;
-		if (targetIndex === currentIndex) return true;
-		const mode = current.testPart.navigationMode ?? this.assessment.navigationMode ?? 'nonlinear';
-		if (current.testPart === target.testPart && mode === 'nonlinear') return true;
-		if (targetIndex < currentIndex) return false;
-		return targetIndex === forward();
+		return canNavigateByTestPart({
+			targetIndex,
+			currentIndex,
+			items: this.items,
+			assessment: this.assessment,
+			forward,
+		});
 	}
 
 	private async submitSimultaneousItems(items: readonly FlatItem[]): Promise<void> {
