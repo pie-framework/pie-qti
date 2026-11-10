@@ -340,12 +340,14 @@ describe('AssociateInteraction minimum (minAssociations)', () => {
 		expect(qa(mounted, '[part="choice"]').some((choice) => describedByHint(mounted, choice))).toBe(false);
 	});
 
-	test('the author’s message wins', async () => {
+	test('the localized default states the requirement; the element defines no authored message', async () => {
+		// No QTI version defines a selections message on associateInteraction, so hand-built
+		// data carrying one is ignored and the localized hint states the minimum.
 		const mounted = mountInteraction(AssociateInteraction, {
 			interaction: associateData({ minSelectionsMessage: 'Make two pairs.' }),
 		});
 		await settle();
-		expect(hint(mounted)?.textContent).toBe('Make two pairs.');
+		expect(hint(mounted)?.textContent).toBe('Make at least 2 associations.');
 	});
 
 	test('names the choices short of their matchMin alongside the association minimum', async () => {
@@ -563,13 +565,15 @@ describe('GraphicOrderInteraction minimum (minChoices)', () => {
 		expect(hint(mounted)).toBeNull();
 	});
 
-	test('the author’s message wins; the localized default follows the catalog', async () => {
+	test('the localized default states the requirement and follows the catalog', async () => {
+		// No QTI version defines a selections message on graphicOrderInteraction, so hand-built
+		// data carrying one is ignored and the localized hint states the minimum.
 		const authored = mountInteraction(GraphicOrderInteraction, {
 			interaction: orderData({ minSelectionsMessage: 'Order the layers.' }),
 		});
 		const dutch = mountInteraction(GraphicOrderInteraction, { interaction: orderData(), i18n: nl });
 		await settle();
-		expect(hint(authored)?.textContent).toBe('Order the layers.');
+		expect(hint(authored)?.textContent).toBe('Put at least 2 items in order.');
 		expect(hint(dutch)?.textContent).toBe('Zet minimaal 2 items in volgorde.');
 	});
 });

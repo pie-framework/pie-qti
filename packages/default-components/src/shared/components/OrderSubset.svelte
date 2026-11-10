@@ -12,6 +12,7 @@
 	import { tick, type Snippet } from 'svelte';
 	import { translate, translatePlural, type I18nProvider } from '@pie-qti/i18n';
 	import type { HtmlContent } from '@pie-qti/item-player';
+	import { limitMessage } from '../utils/capacity.js';
 	import { accessibleTextFromHtml } from '../utils/accessibleText.js';
 	import { describedByIds } from '../utils/minimumRequirement.js';
 	import SortableList, { type SortableIndexLabels } from './SortableList.svelte';
@@ -29,6 +30,11 @@
 		orderedIds: string[];
 		/** The most items the order may hold; adding past it is refused and announced. */
 		maxOrdered: number;
+		/**
+		 * The author's `data-max-selections-message` (QTI 3.0 orderInteraction), which states
+		 * the cap refusal instead of the localized default.
+		 */
+		capMessage?: string | null;
 		disabled?: boolean;
 		i18n?: I18nProvider;
 		/** Position badge style, from the interaction's `qti-labels-*` class. */
@@ -50,6 +56,7 @@
 		items,
 		orderedIds,
 		maxOrdered,
+		capMessage = null,
 		disabled = false,
 		i18n,
 		indexLabels = 'decimal',
@@ -105,17 +112,21 @@
 	function add(id: string) {
 		if (disabled || ordered.has(id)) return;
 		if (atCap) {
-			// Refused, never silent (WCAG 3.3.1 / 4.1.3): the cap is named.
+			// Refused, never silent (WCAG 3.3.1 / 4.1.3): the cap is named — the author's
+			// data-max-selections-message when authored, else the localized default.
 			announce(
-				translatePlural(
-					i18n,
-					'interactions.order.orderLimitReached',
-					{
-						one: 'Your order can hold {max} item. Remove it to add another.',
-						other: 'Your order can hold up to {max} items. Remove one to add another.',
-					},
-					maxOrdered,
-					{ max: maxOrdered },
+				limitMessage(
+					capMessage,
+					translatePlural(
+						i18n,
+						'interactions.order.orderLimitReached',
+						{
+							one: 'Your order can hold {max} item. Remove it to add another.',
+							other: 'Your order can hold up to {max} items. Remove one to add another.',
+						},
+						maxOrdered,
+						{ max: maxOrdered },
+					),
 				),
 			);
 			return;

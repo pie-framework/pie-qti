@@ -189,6 +189,8 @@
 			? (Array.isArray(parsedResponse) ? parsedResponse.filter((id) => initialOrder.includes(id)).length : 0)
 			: (Array.isArray(parsedResponse) ? parsedResponse.filter(Boolean).length : 0),
 	);
+	// No QTI version defines a selections message on graphicOrderInteraction, so the hint is
+	// always the localized text.
 	const minHint = $derived.by(() => {
 		if (subsetMode && !disabled && role === 'candidate') {
 			return subsetOrderHint({
@@ -196,7 +198,6 @@
 				min: limits.minOrdered,
 				max: limits.maxOrdered,
 				count: orderedCount,
-				authored: parsedInteraction?.minSelectionsMessage,
 				namespace: 'interactions.graphicOrder',
 			});
 		}
@@ -204,7 +205,6 @@
 			i18n,
 			minimum: !disabled && role === 'candidate' && !subsetMode ? parsedInteraction?.minChoices : 0,
 			count: orderedCount,
-			authored: parsedInteraction?.minSelectionsMessage,
 			key: 'interactions.graphicOrder.minChoicesHint',
 			fallback: { one: 'Put at least {count} item in order.', other: 'Put at least {count} items in order.' },
 		});

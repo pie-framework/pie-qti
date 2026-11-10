@@ -119,6 +119,8 @@ export interface InlineChoiceInteractionData extends BaseInteractionData<'inline
 	 * interaction is `required` (QTI 2.1; QTI 3.0 §5.74.2). Omitted when no choice is required.
 	 */
 	minChoices?: number;
+	/** The author's `data-min-selections-message` (QTI 3.0); omitted when none is authored. */
+	minSelectionsMessage?: string | null;
 	choices: Array<{ identifier: string; text: string; fixed?: boolean }>;
 	/** CSS classes from the inlineChoiceInteraction element (e.g. qti-input-width-N) */
 	interactionClasses?: string[];
@@ -136,6 +138,8 @@ export interface OrderInteractionData extends BaseInteractionData<'orderInteract
 	interactionClasses?: string[];
 	/** Message shown while the response orders fewer than minChoices (data-min-selections-message) */
 	minSelectionsMessage?: string | null;
+	/** Message shown when an add is refused at the subset cap (data-max-selections-message) */
+	maxSelectionsMessage?: string | null;
 }
 
 export interface AssociableChoice {
@@ -176,8 +180,6 @@ export interface AssociateInteractionData extends BaseInteractionData<'associate
 	minAssociations?: number;
 	prompt: HtmlContent | null;
 	choices: AssociableChoice[];
-	/** Message shown while the response has fewer than minAssociations (data-min-selections-message) */
-	minSelectionsMessage?: string | null;
 }
 
 export interface GapMatchInteractionData extends BaseInteractionData<'gapMatchInteraction'> {
@@ -444,8 +446,6 @@ export interface GraphicOrderInteractionData extends BaseInteractionData<'graphi
 	minChoices?: number;
 	/** Maximum number of hotspots the response may order (QTI maxChoices); absent means 0, no limit. */
 	maxChoices?: number;
-	/** Message shown while the response orders fewer than minChoices (data-min-selections-message) */
-	minSelectionsMessage?: string | null;
 }
 
 export interface GraphicAssociateHotspot {

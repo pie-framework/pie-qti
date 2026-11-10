@@ -56,7 +56,7 @@ describe('minimum-response requirements in extracted interaction data', () => {
 		expect(interaction).not.toHaveProperty('minSelectionsMessage');
 	});
 
-	it('associateInteraction: minAssociations and its authored message (QTI 2.2)', () => {
+	it('associateInteraction: minAssociations is read; it defines no selections message', () => {
 		const interaction = firstInteraction(
 			qti2Item(
 				'associate-min',
@@ -71,7 +71,9 @@ describe('minimum-response requirements in extracted interaction data', () => {
 			),
 		);
 		expect(interaction.minAssociations).toBe(2);
-		expect(interaction.minSelectionsMessage).toBe('Make at least two pairs.');
+		// No QTI version defines a selections message on associateInteraction, so one is
+		// never delivered — the component states the minimum with its localized hint.
+		expect(interaction).not.toHaveProperty('minSelectionsMessage');
 	});
 
 	it('graphicOrderInteraction: minChoices and its authored message (QTI 2.2 and 3.0)', () => {
@@ -89,7 +91,8 @@ describe('minimum-response requirements in extracted interaction data', () => {
 			),
 		);
 		expect(qti2.minChoices).toBe(2);
-		expect(qti2.minSelectionsMessage).toBe('Order at least two stops.');
+		// No QTI version defines a selections message on graphicOrderInteraction.
+		expect(qti2).not.toHaveProperty('minSelectionsMessage');
 
 		const qti3 = firstInteraction(
 			qti3Item(
@@ -160,7 +163,7 @@ describe('minimum-response requirements in extracted interaction data', () => {
 		expect(standard.minAssociations).toBe(2);
 		expect(standard.minSelectionsMessage).toBe('Match both.');
 
-		// The data-qti- spelling the extractor already read still wins.
+		// The data-qti- spelling no QTI version defines is not read: only the spec name is.
 		const both = firstInteraction(
 			qti3Item(
 				'match-min-both',
@@ -168,7 +171,7 @@ describe('minimum-response requirements in extracted interaction data', () => {
 				declaration,
 			),
 		);
-		expect(both.minSelectionsMessage).toBe('Prefixed.');
+		expect(both.minSelectionsMessage).toBe('Standard.');
 	});
 
 	it('gapMatchInteraction: each choice carries its matchMin', () => {

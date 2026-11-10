@@ -148,7 +148,6 @@ export const standardGraphicOrderExtractor: ElementExtractor<GraphicOrderData> =
 
 		const minChoices = utils.getNumberAttribute(element, 'minChoices', 0);
 		const maxChoices = utils.getNumberAttribute(element, 'maxChoices', 0);
-		const minSelectionsMessage = utils.getAttribute(element, 'data-min-selections-message', '') || null;
 
 		return {
 			imageData,
@@ -156,7 +155,6 @@ export const standardGraphicOrderExtractor: ElementExtractor<GraphicOrderData> =
 			prompt,
 			...(minChoices > 0 ? { minChoices } : {}),
 			...(maxChoices > 0 ? { maxChoices } : {}),
-			...(minSelectionsMessage ? { minSelectionsMessage } : {}),
 		};
 	},
 

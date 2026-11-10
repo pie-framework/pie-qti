@@ -432,7 +432,7 @@
 					{#if selectedIds.length >= parsedInteraction.minChoices}
 						<span class="badge badge-success badge-sm ms-2">✓ {translate(i18n, 'interactions.hottext.minimumMet', 'Minimum met')}</span>
 					{:else}
-						<span class="badge badge-warning badge-sm ms-2">{translate(i18n, 'interactions.hottext.selectAtLeast', `Select at least ${parsedInteraction.minChoices}`, { minChoices: parsedInteraction.minChoices })}</span>
+						<span class="badge badge-warning badge-sm ms-2">{limitMessage(parsedInteraction.minSelectionsMessage, translate(i18n, 'interactions.hottext.selectAtLeast', `Select at least ${parsedInteraction.minChoices}`, { minChoices: parsedInteraction.minChoices }))}</span>
 					{/if}
 				{/if}
 			</div>

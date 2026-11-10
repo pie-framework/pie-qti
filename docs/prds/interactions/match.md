@@ -70,6 +70,8 @@ When `shuffle=true`, the extractor returns `sourceSet` and `targetSet` shuffled 
 | `shuffle` | ✅ Full | Shuffles each set independently at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads |
 | `maxAssociations` | ✅ Full | Limits total pairs that can be formed; `0` = unlimited per spec; defaults to `1`; enforced in the UI via `matchMax` per source choice |
 | `minAssociations` | ✅ Full | Minimum total pairs; extracted when `> 0` and enforced by `Player.validateResponses()` (incomplete below it) |
+| `data-max-selections-message` | ✅ Full | QTI 3.0 (Table on `qti-match-interaction`): "rendered upon violation of the max-associations constraint". Stated at `maxAssociations` through one `role="alert"` when authored, and named in the refusal announcements; the extractor reads exactly the spec attribute name — the `data-qti-max-selections-message` spelling it once read (and no QTI version defines) is no longer recognised. |
+| `data-min-selections-message` | ✅ Full | Replaces the localized minimum hint (interaction minimum and per-choice `matchMin`) while the pairs fall short of it, and wins over the localized refusal text. Only the spec attribute name is read. |
 
 ### Supported attributes on `simpleAssociableChoice`
 

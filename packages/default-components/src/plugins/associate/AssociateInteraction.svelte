@@ -97,10 +97,11 @@
 			key: 'interactions.associate.minAssociationsHint',
 			fallback: { one: 'Make at least {count} association.', other: 'Make at least {count} associations.' },
 		});
+		// No QTI version defines a selections message on associateInteraction, so the hint is
+		// always the localized text.
 		const shortChoices = choicesShortOfMatchMin(parsedInteraction.choices, pairs);
 		if (!fewerAssociations && shortChoices.length === 0) return '';
 		return (
-			parsedInteraction.minSelectionsMessage?.trim() ||
 			joinSentences(
 				fewerAssociations,
 				shortChoices.length > 0 &&

@@ -252,6 +252,7 @@
 					items={parsedInteraction.choices.map(c => ({ id: c.identifier, text: c.text }))}
 					orderedIds={subsetOrderedIds}
 					maxOrdered={limits.maxOrdered}
+					capMessage={parsedInteraction?.maxSelectionsMessage}
 					{i18n}
 					correctOrder={isShowingCorrect ? (parsedCorrectResponse || []) : []}
 					{orientation}

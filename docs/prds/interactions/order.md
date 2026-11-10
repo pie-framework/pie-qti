@@ -55,6 +55,8 @@
 | `orientation` | Partial | Extracted by `standardOrderExtractor` as `orientation` (`'vertical'` \| `'horizontal'`); defaults to `'vertical'`. Reached component via runtime spread but not in `OrderInteractionData` TypeScript type. The `SortableList` component reads `orientation` and adjusts arrow-key axis and flex layout direction accordingly. |
 | `minChoices` | ✅ Full | Extracted as `minChoices` (0 when unspecified). From 1 up to fewer than the choices it requests subset ordering (two-zone UI); unspecified, or at or above the number of choices, every choice is ordered. Response validation enforces the same minimum. |
 | `maxChoices` | ✅ Full | Extracted as `maxChoices` (0 when unspecified). Caps subset ordering (clamped to the number of choices; 0 = up to all); adding past it is refused and announced, and validation rejects a longer response. Ignored when `minChoices` is unspecified, as the spec requires. |
+| `data-min-selections-message` | ✅ Full | QTI 3.0 (Table on `qti-order-interaction`). Replaces the localized minimum hint, and the range statement of subset mode, while the order holds fewer items than `minChoices` requires. |
+| `data-max-selections-message` | ✅ Full | QTI 3.0 (Table on `qti-order-interaction`). Announced when an add is refused at the subset cap, instead of the localized "Your order can hold up to {max} items…". |
 
 ### Supported attributes on `simpleChoice`
 
