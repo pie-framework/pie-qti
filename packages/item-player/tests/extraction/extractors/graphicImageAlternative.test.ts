@@ -19,7 +19,7 @@ import { standardSelectPointExtractor } from '../../../src/interactions/select-p
 import type { QTIElement } from '../../../src/interactions/shared/types.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
-type ImageLike = { alt?: string; altDescription?: string; decorative?: boolean; src?: string; type?: string } | null;
+type ImageLike = { alt?: string; altDescription?: string; decorative?: boolean; src?: string; type?: string; width?: string | number; height?: string | number } | null;
 
 /** One graphic interaction element wrapping `image`, plus the extractor reading it. */
 const GRAPHIC_INTERACTIONS: Array<{
