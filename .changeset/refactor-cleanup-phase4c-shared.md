@@ -1,0 +1,21 @@
+---
+'@pie-qti/default-components': patch
+'@pie-qti/item-player': patch
+---
+
+Phase 4c of the player cleanup: the last shared-module slice for the default components, plus the QTI 3.0 selection messages read exactly as each interaction element defines them.
+
+**Behaviour fixes (each landed test-first):**
+
+- **QTI 3.0 selection messages.** The spec defines `data-max-selections-message` and `data-min-selections-message` on eight interaction elements (choice, gap match, graphic gap match, hotspot, hottext, match, order; min only on inline choice) and on no others. Match read `data-qti-max-selections-message` — a name no QTI version defines — so an authored max message was ignored; it now reads the spec names only. Order and inline choice ignored the messages their elements define: order now delivers `maxSelectionsMessage`, and the two-zone subset order announces it when an add is refused at the cap; inline choice delivers `minSelectionsMessage`, stated in the dropdown's description (`aria-describedby`). Associate and graphic order delivered a message their elements never defined; they no longer do, so their minimum hints are always the localized text. Hottext delivered the authored minimum message but the unmet-minimum badge ignored it; the badge now states it. A new test freezes the defines-map for all ten interactions over real QTI 3, and the component tests walk the choice-family cases end to end through the extractors.
+- **Only a positive limit restricts — the last three comparisons.** Select point refused every placement when `maxChoices` was delivered as NaN, and extended text hid its add-response button when `maxStrings` was NaN (hand-built delivery data only: the extractor refuses to deliver a malformed `maxStrings`); both now apply the one capacity rule from phase 4b. Media already read a non-numeric `maxPlays` as unlimited; that is pinned, and `canStartPlay` states the rule through the shared capacity helper.
+- **Sortable list: Escape announces the released item.** With a keyboard grab under way, Tab can move focus to another item; Escape there put the grabbed item down but announced the focused item's name. The cancellation now names the grabbed item.
+
+**Deduplication (move-only; the two deliberate accessibility alignments are noted):**
+
+- One readable-name rule: graphic order's items, graphic associate's hotspots and position object's objects keep their localized ordinal nouns ("Item 3", "Region 3", "Object 3") through one helper instead of three copies; graphic gap match's textless labels and the textless order items of the sortable list and order subset, which every textless choice previously named alike ("Label", "Item"), now take the shared "Choice {index}" by presented position — never an identifier.
+- One `.sr-only` source: every visually hidden element — the shared class and each interaction's own live-region hook, names unchanged — is hidden by one rule injected into the document and into each shadow root, replacing twelve private copies (and the `shared.css` duplicate). The host-facing `./shared.css` export no longer carries the rule for hosts that load it without running the components.
+- One announcer: the polite live-region repeat rule (a repeated message must still change the region's text) lives in one helper used by eleven components; media and extended text now mark a repeat with a trailing zero-width space instead of a trailing NBSP — nothing a screen reader reads.
+- One icon set and one props type: the check, close and info stroke icons (each previously inlined three times) render through a shared icon component with each site's own part name and classes; every plugin derives its props from one `InteractionProps` type keyed by the interaction's QTI type, so `onChange` is typed by `InteractionValueMap` where a hand-written signature was narrower (choice, order and graphic order also pass null on clear). Types only: no prop a component exposes changed.
+
+`@pie-qti/item-player`: the extractor changes above, `InlineChoiceInteractionData.minSelectionsMessage`, `OrderInteractionData.maxSelectionsMessage`, and the removal of the never-spec `minSelectionsMessage` from `AssociateInteractionData` and `GraphicOrderInteractionData`.
