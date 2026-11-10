@@ -10,10 +10,12 @@ import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qt
 import { touchDrag } from '@pie-qti/qti-common';
 import { tick } from 'svelte';
 import { accessibleTextFromHtml } from '../utils/accessibleText.js';
+import { exceedsLimit, isAtLimit } from '../utils/capacity.js';
 import { choiceAccessibleName } from '../utils/choiceName.js';
 import { createOrUpdatePair, getSourceForTarget, getTargetsForSource, removePairBySource } from '../utils/pairHelpers.js';
-import { isCompatibleMatchGroup } from '../utils/matchGroupUtils.js';
+import { isCompatibleMatchGroup, matchGroupBlockedIds } from '../utils/matchGroupUtils.js';
 import DragHandle from './DragHandle.svelte';
+import { createPickUpPlace } from './pickUpPlace.svelte';
 import '../styles/shared.css';
 
 interface Props {
@@ -33,21 +35,20 @@ interface Props {
 
 const { sourceSet, targetSet, pairs, maxAssociations = 0, correctPairs = [], disabled = false, i18n, structuredLabels = false, describedBy, onPairsChange }: Props = $props();
 
+// The source selected by pointer or keyboard (held), and the source a pointer drag carries.
+const pickUp = createPickUpPlace();
+
 // Targets incompatible with the active source due to matchGroup constraints
 const blockedTargetIds = $derived.by(() => {
-	const activeSourceId = draggedSourceId ?? selectedSourceId;
+	const activeSourceId = pickUp.active;
 	if (!activeSourceId) return new Set<string>();
-	const src = sourceSet.find((s) => s.identifier === activeSourceId);
-	return new Set(
-		targetSet
-			.filter((t) => !isCompatibleMatchGroup(src, t))
-			.map((t) => t.identifier)
+	return matchGroupBlockedIds(
+		sourceSet.find((s) => s.identifier === activeSourceId),
+		targetSet,
 	);
 });
 
 let gridElement = $state<HTMLDivElement>();
-let draggedSourceId = $state<string | null>(null);
-let selectedSourceId = $state<string | null>(null); // Source selected by pointer or keyboard
 let announceText = $state<string>(''); // For screen reader announcements
 
 // Unique id prefix so aria-labelledby/describedby survive several interactions in one document.
@@ -85,7 +86,7 @@ function choiceLabel(choice: AssociableChoice | null | undefined): string {
 // Mouse drag handlers
 function handleDragStart(sourceId: string) {
 	if (disabled) return;
-	draggedSourceId = sourceId;
+	pickUp.startDrag(sourceId);
 }
 
 function handleDragOver(event: DragEvent) {
@@ -94,29 +95,30 @@ function handleDragOver(event: DragEvent) {
 }
 
 function handleDrop(event: DragEvent, targetId: string) {
+	const draggedSourceId = pickUp.dragged;
 	if (disabled || !draggedSourceId) return;
 	event.preventDefault();
 
 	if (blockedTargetIds.has(targetId)) {
-		draggedSourceId = null;
+		pickUp.endDrag();
 		return;
 	}
 
 
 	createMatch(draggedSourceId, targetId);
-	draggedSourceId = null;
+	pickUp.endDrag();
 }
 
 function handleDragEnd() {
-	draggedSourceId = null;
+	pickUp.endDrag();
 }
 
 // Native button activation serves mouse, touch, and Enter/Space equally.
 function selectSource(sourceId: string) {
 	if (disabled) return;
-	selectedSourceId = selectedSourceId === sourceId ? null : sourceId;
+	pickUp.toggle(sourceId);
 	const item = choiceLabel(sourceSet.find((source) => source.identifier === sourceId));
-	announceText = selectedSourceId
+	announceText = pickUp.held
 		? (i18n?.t('interactions.match.selected', { item }) ?? `${item} selected`)
 		: (i18n?.t('interactions.match.deselected', { item }) ?? `${item} deselected`);
 }
@@ -124,11 +126,11 @@ function selectSource(sourceId: string) {
 // Escape cancels a held/selected source and returns focus to it: after the
 // selection clears, the targets disable again and would otherwise swallow focus.
 function cancelSelection(event: KeyboardEvent) {
-	if (event.key !== 'Escape' || !selectedSourceId) return;
+	const sourceId = pickUp.held;
+	if (event.key !== 'Escape' || !sourceId) return;
 	event.preventDefault();
-	const sourceId = selectedSourceId;
 	const item = choiceLabel(sourceSet.find((source) => source.identifier === sourceId));
-	selectedSourceId = null;
+	pickUp.release();
 	announceText = translate(i18n, 'interactions.match.selectionCancelledItem', 'Selection of {item} cancelled.', { item });
 	void tick().then(() => {
 		const source = Array.from(gridElement?.querySelectorAll<HTMLButtonElement>('[data-source-id]') ?? [])
@@ -138,10 +140,10 @@ function cancelSelection(event: KeyboardEvent) {
 }
 
 async function selectTarget(targetId: string) {
-	if (disabled || !selectedSourceId) return;
-	const sourceId = selectedSourceId;
-	if (!createMatch(sourceId, targetId)) return;
-	selectedSourceId = null;
+	if (disabled || !pickUp.held) return;
+	// A refused match keeps the source selected; a match puts it down.
+	const sourceId = pickUp.place(targetId, createMatch);
+	if (sourceId === null) return;
 	await tick();
 	// The target becomes disabled after placement. Return focus to the source
 	// instead of dropping keyboard users back to the document body.
@@ -170,11 +172,11 @@ function createMatch(sourceId: string, targetId: string): boolean {
 	const matchMax = source.matchMax ?? 1;
 	// The two caps are refused separately and named (WCAG 3.3.1): the interaction's
 	// maxAssociations names the limit, the source's own matchMax names the choice.
-	if (maxAssociations > 0 && newPairs.length > maxAssociations) {
+	if (exceedsLimit(newPairs.length, maxAssociations)) {
 		announceRefusal(translate(i18n, 'interactions.match.associationLimitReached', 'Association not possible: the limit of {max} is reached.', { max: maxAssociations }));
 		return false;
 	}
-	if (matchMax > 0 && sourceCount > matchMax) {
+	if (exceedsLimit(sourceCount, matchMax)) {
 		announceRefusal(
 			translate(i18n, 'interactions.match.sourceLimitReached', 'Not possible: {label} cannot be in more associations.', {
 				label: choiceLabel(source),
@@ -245,10 +247,10 @@ async function clearMatch(sourceId: string) {
 			{@const sourceHasLabel = hasAuthoredLabel(source)}
 			{@const matchedTargets = getTargetsForSource(pairs, source.identifier)}
 			{@const targetItems = matchedTargets.map((tid) => targetSet.find((t) => t.identifier === tid)).filter(Boolean)}
-			{@const isSelected = selectedSourceId === source.identifier}
+			{@const isSelected = pickUp.isHeld(source.identifier)}
 			{@const correctTargets = getTargetsForSource(correctPairs, source.identifier)}
 			{@const isCorrect = correctTargets.length > 0}
-			{@const canDragMore = source.matchMax === 0 || matchedTargets.length < (source.matchMax ?? 1)}
+			{@const canDragMore = !isAtLimit(matchedTargets.length, source.matchMax ?? 1)}
 			{@const sourceTextId = `${uid}-source-${source.identifier}-text`}
 			{@const sourceStateId = `${uid}-source-${source.identifier}-state`}
 
@@ -271,7 +273,7 @@ async function clearMatch(sourceId: string) {
 					data-matched={matchedTargets.length > 0}
 					data-selected={isSelected}
 					data-correct={isCorrect}
-					data-dragging={draggedSourceId === source.identifier}
+					data-dragging={pickUp.dragged === source.identifier}
 					part="source-item"
 					data-source-id={source.identifier}
 					class="qti-match-source p-3 rounded-lg border-2 transition-all w-full"
@@ -286,7 +288,7 @@ async function clearMatch(sourceId: string) {
 					class:ring-primary={isSelected}
 					class:cursor-grab={!disabled && canDragMore && !isSelected}
 					class:cursor-not-allowed={disabled}
-					class:opacity-50={disabled || draggedSourceId === source.identifier}
+					class:opacity-50={disabled || pickUp.dragged === source.identifier}
 				>
 					<div class="qti-match-source-content flex items-center justify-between gap-2">
 						<div class="qti-match-source-text flex-1">
@@ -349,7 +351,7 @@ async function clearMatch(sourceId: string) {
 			{@const targetHasLabel = hasAuthoredLabel(target)}
 			{@const matchedSource = getSourceForTarget(pairs, target.identifier)}
 			{@const sourceItem = matchedSource ? sourceSet.find((s) => s.identifier === matchedSource) : null}
-			{@const isHighlight = (draggedSourceId && !matchedSource) || (selectedSourceId && !matchedSource)}
+			{@const isHighlight = (pickUp.dragged && !matchedSource) || (pickUp.held && !matchedSource)}
 			{@const correctSource = getSourceForTarget(correctPairs, target.identifier)}
 			{@const isCorrect = correctSource !== null}
 			{@const isBlocked = blockedTargetIds.has(target.identifier)}
@@ -364,7 +366,7 @@ async function clearMatch(sourceId: string) {
 				ondrop={(e) => handleDrop(e, target.identifier)}
 				onclick={() => selectTarget(target.identifier)}
 				onkeydown={cancelSelection}
-				disabled={disabled || (!selectedSourceId && !draggedSourceId)}
+				disabled={disabled || (!pickUp.held && !pickUp.dragged)}
 				aria-disabled={isBlocked ? 'true' : undefined}
 				aria-labelledby={targetHasLabel ? targetTextId : undefined}
 				aria-label={targetHasLabel ? undefined : choiceLabel(target)}
@@ -382,9 +384,9 @@ async function clearMatch(sourceId: string) {
 				class:border-base-300={!matchedSource && !isCorrect}
 				class:border-primary={matchedSource}
 				class:border-success={isCorrect && !matchedSource}
-				class:border-accent={draggedSourceId && !matchedSource || (selectedSourceId && !matchedSource)}
-				class:bg-accent={draggedSourceId && !matchedSource || (selectedSourceId && !matchedSource)}
-				class:bg-opacity-5={draggedSourceId && !matchedSource || (selectedSourceId && !matchedSource)}
+				class:border-accent={pickUp.dragged && !matchedSource || (pickUp.held && !matchedSource)}
+				class:bg-accent={pickUp.dragged && !matchedSource || (pickUp.held && !matchedSource)}
+				class:bg-opacity-5={pickUp.dragged && !matchedSource || (pickUp.held && !matchedSource)}
 				class:opacity-40={isBlocked}
 				class:cursor-not-allowed={isBlocked}
 			>
@@ -401,7 +403,7 @@ async function clearMatch(sourceId: string) {
 					{:else if !disabled}
 						<div
 							aria-hidden="true"
-							data-text={selectedSourceId
+							data-text={pickUp.held
 								? (i18n?.t('interactions.match.selectTarget') ?? 'Select to match')
 								: (i18n?.t('interactions.match.dropTarget') ?? 'Drop item here')}
 							class="qti-match-target-hint text-xs text-base-content/70 italic"
