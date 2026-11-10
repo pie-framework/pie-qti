@@ -12,6 +12,7 @@
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import { clientToImagePoint, imageAltText } from '../../shared/utils/graphicRegions';
+	import { isLimited } from '../../shared/utils/capacity';
 
 	interface Props {
 		interaction?: SelectPointInteractionData | string;
@@ -132,10 +133,10 @@
 		selectedPoints = parsePoints(parsedResponse);
 	});
 
-	// maxChoices=0 means unlimited per QTI spec
+	// Only a positive maxChoices restricts; 0 and a non-numeric limit are no restriction.
 	const canSelectMore = $derived(
 		!parsedInteraction ||
-		parsedInteraction.maxChoices === 0 ||
+		!isLimited(parsedInteraction.maxChoices) ||
 		selectedPoints.length < parsedInteraction.maxChoices
 	);
 

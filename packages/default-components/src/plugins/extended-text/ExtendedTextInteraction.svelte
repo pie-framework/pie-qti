@@ -19,6 +19,7 @@
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createInteractionShell, parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { isLimited } from '../../shared/utils/capacity';
 	import {
 		characterCount,
 		isSpellcheckAllowed,
@@ -131,7 +132,7 @@
 			parsedInteraction.cardinality === 'multiple' || parsedInteraction.cardinality === 'ordered'
 				? Math.max(1, parsedInteraction.minStrings)
 				: 1;
-		const editorCount = parsedInteraction.maxStrings > 0
+		const editorCount = isLimited(parsedInteraction.maxStrings)
 			? Math.min(Math.max(values.length, minimumEditors), parsedInteraction.maxStrings)
 			: Math.max(values.length, minimumEditors);
 		editorValues = Array.from({ length: editorCount }, (_, index) => values[index] ?? '');
@@ -212,7 +213,7 @@
 
 	function addString() {
 		if (!parsedInteraction) return;
-		if (parsedInteraction.maxStrings > 0 && editorValues.length >= parsedInteraction.maxStrings) return;
+		if (isLimited(parsedInteraction.maxStrings) && editorValues.length >= parsedInteraction.maxStrings) return;
 		editorValues = [...editorValues, ''];
 		void focusField(editorValues.length - 1);
 	}
@@ -265,7 +266,8 @@
 	);
 	const canAddString = $derived(
 		isContainer &&
-		(parsedInteraction?.maxStrings === 0 || editorValues.length < (parsedInteraction?.maxStrings ?? 0))
+		!!parsedInteraction &&
+		(!isLimited(parsedInteraction.maxStrings) || editorValues.length < parsedInteraction.maxStrings)
 	);
 	const correctResponseStrings = $derived(
 		parsedInteraction ? extendedTextResponseToStrings(parsedCorrectResponse, parsedInteraction) : []

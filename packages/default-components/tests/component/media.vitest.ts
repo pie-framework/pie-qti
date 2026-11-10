@@ -318,6 +318,28 @@ describe('MediaInteraction (pie-qti-media) without a play limit', () => {
 });
 
 describe('MediaInteraction (pie-qti-media) with maxPlays', () => {
+	test('a limit that is not a number restricts nothing', async () => {
+		const m = mountMedia({ interaction: mediaData({ maxPlays: Number.NaN }) });
+		await settle();
+		const audio = q<HTMLAudioElement>(m, 'audio')!;
+
+		// A non-numeric limit is no limit: plays keep counting, native controls
+		// stay, and no limit notice or plays-left figure renders.
+		await audio.play();
+		await settle();
+		finish(audio);
+		await audio.play();
+		await settle();
+		finish(audio);
+		await audio.play();
+		await settle();
+
+		expect(m.instance.response).toBe(3);
+		expect(audio.hasAttribute('controls')).toBe(true);
+		expect(q(m, '[part="limit"]')).toBeNull();
+		expect(q(m, '[part="plays-left"]')).toBeNull();
+	});
+
 	test('replaces native controls with its own labelled controls', async () => {
 		const m = mountMedia({ interaction: mediaData({ maxPlays: 2 }) });
 		await settle();
