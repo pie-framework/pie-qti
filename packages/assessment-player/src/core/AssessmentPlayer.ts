@@ -121,6 +121,12 @@ import {
 } from './submissionPolicy.js';
 import { ReviewInfoCache, resultsSummaryOf, reviewItemRow } from './reviewViews.js';
 import {
+	assertMinTimeElapsed,
+	effectiveItemTimeLimits,
+	submitTimingEvidence,
+	type EffectiveItemTimeLimits,
+} from './timePolicy.js';
+import {
 	interactionRequirementFromXml,
 	interactionResponseIdentifiers,
 	itemAnswerStatus,
@@ -287,16 +293,6 @@ export interface AssessmentStartInfo {
 	savedAt?: number;
 }
 
-export interface EffectiveItemTimeLimits {
-	timeLimits?: TimeLimits;
-	source?: 'item' | 'section' | 'testPart' | 'assessment';
-	/**
-	 * Identifier of the scope that supplied the binding maximum (the section among the
-	 * enclosing chain when a section limit binds; undefined for the assessment scope).
-	 */
-	scopeIdentifier?: string;
-}
-
 /**
  * Fired through `onTimeExpired` (and the element's `time-expired` event) when a hard
  * time limit runs out with no late submission: the whole-test limit, or a scope whose
@@ -341,6 +337,7 @@ export interface AssessmentFinalizedEvent {
 }
 
 export type { AssessmentEndReason };
+export type { EffectiveItemTimeLimits } from './timePolicy.js';
 
 /**
  * An item a candidate-initiated end of the test would refuse to submit
@@ -962,50 +959,7 @@ export class AssessmentPlayer {
 	}
 
 	private getEffectiveItemTimeLimits(flat: FlatItem): EffectiveItemTimeLimits {
-		const scopes: Array<{
-			source: EffectiveItemTimeLimits['source'];
-			identifier?: string;
-			limits?: TimeLimits;
-		}> = [
-			{ source: 'assessment', limits: this.assessment.timeLimits },
-			{ source: 'testPart', identifier: flat.testPart.identifier, limits: flat.testPart.timeLimits },
-			// Every enclosing section limits the item, not only the innermost one.
-			...flat.sections.map((section) => ({
-				source: 'section' as const,
-				identifier: section.identifier,
-				limits: section.timeLimits,
-			})),
-			{ source: 'item', identifier: flat.identifier, limits: flat.item.timeLimits },
-		];
-		let source: EffectiveItemTimeLimits['source'];
-		let scopeIdentifier: string | undefined;
-		let minTime: number | undefined;
-		let maxTime: number | undefined;
-		let allowLateSubmission: boolean | undefined;
-		for (const scope of scopes) {
-			if (!scope.limits) continue;
-			if (scope.limits.minTime !== undefined) {
-				minTime = minTime === undefined ? scope.limits.minTime : Math.max(minTime, scope.limits.minTime);
-			}
-			if (scope.limits.maxTime !== undefined) {
-				const scopedMaxTime = extendTimeLimit(scope.limits.maxTime, this.config.pnp?.content?.extendedTime);
-				if (scopedMaxTime !== undefined && (maxTime === undefined || scopedMaxTime < maxTime)) {
-					maxTime = scopedMaxTime;
-					source = scope.source;
-					scopeIdentifier = scope.identifier;
-					allowLateSubmission = scope.limits.allowLateSubmission;
-				}
-			} else if (scope.limits.allowLateSubmission !== undefined && maxTime === undefined) {
-				allowLateSubmission = scope.limits.allowLateSubmission;
-				source = scope.source;
-				scopeIdentifier = scope.identifier;
-			}
-		}
-
-		if (maxTime === undefined && minTime === undefined && allowLateSubmission === undefined) {
-			return {};
-		}
-		return { source, scopeIdentifier, timeLimits: { minTime, maxTime, allowLateSubmission } };
+		return effectiveItemTimeLimits(flat, this.assessment.timeLimits, this.config.pnp?.content?.extendedTime);
 	}
 
 	public getCurrentEffectiveTimeLimits(): EffectiveItemTimeLimits {
@@ -1018,48 +972,17 @@ export class AssessmentPlayer {
 		elapsedMs: number,
 		submissionReason?: SubmitTimingEvidence['submissionReason'],
 	): SubmitTimingEvidence | undefined {
-		const effective = this.getEffectiveItemTimeLimits(q);
-		const limitSeconds = effective.timeLimits?.maxTime;
-		if (!effective.source || limitSeconds === undefined) {
-			// An administrative collection (a proctor's forced end) reports its reason even
-			// when nothing is timed.
-			return submissionReason
-				? {
-					scope: 'assessment',
-					elapsedMs: this.timeManager?.getScopeElapsedMs('assessment') ?? elapsedMs,
-					submissionReason,
-				}
-				: undefined;
-		}
-		const scopeIdentifier = effective.source === 'assessment'
-			? undefined
-			: (effective.scopeIdentifier ??
-				(effective.source === 'item'
-					? q.identifier
-					: effective.source === 'section'
-						? q.section.identifier
-						: q.testPart.identifier));
-		const tracked = this.timeManager?.getScopeElapsedMs(effective.source, scopeIdentifier);
-		const scopedElapsedMs = tracked ?? elapsedMs;
-		const assessmentLimitSeconds = this.assessment.timeLimits?.maxTime === undefined
-			? undefined
-			: extendTimeLimit(this.assessment.timeLimits.maxTime, this.config.pnp?.content?.extendedTime);
-		return {
-			scope: effective.source,
-			elapsedMs: scopedElapsedMs,
-			limitSeconds,
-			expired: scopedElapsedMs >= limitSeconds * 1000,
-			allowLateSubmission: effective.timeLimits?.allowLateSubmission,
-			// The candidate's own test clock: it excludes begin-gate and proctor-pause time,
-			// which a backend wall clock measured from session creation would count.
-			...(assessmentLimitSeconds !== undefined && this.timeManager
-				? {
-					assessmentElapsedMs: this.timeManager.getScopeElapsedMs('assessment'),
-					assessmentLimitSeconds,
-				}
-				: {}),
-			...(submissionReason ? { submissionReason } : {}),
-		};
+		return submitTimingEvidence({
+			q,
+			effective: this.getEffectiveItemTimeLimits(q),
+			elapsedMs,
+			scopeElapsedMs: (scope, identifier) => this.timeManager?.getScopeElapsedMs(scope, identifier),
+			assessmentLimitSeconds: this.assessment.timeLimits?.maxTime === undefined
+				? undefined
+				: extendTimeLimit(this.assessment.timeLimits.maxTime, this.config.pnp?.content?.extendedTime),
+			assessmentElapsedMs: this.timeManager ? this.timeManager.getScopeElapsedMs('assessment') : undefined,
+			submissionReason,
+		});
 	}
 
 	private assertMinimumTime(
@@ -1082,15 +1005,7 @@ export class AssessmentPlayer {
 				: scope === 'item'
 					? q.identifier
 					: undefined;
-		const elapsedMs = this.timeManager?.getScopeElapsedMs(scope, identifier) ?? 0;
-		if (elapsedMs < limits.minTime * 1000) {
-			const remaining = Math.ceil(limits.minTime - elapsedMs / 1000);
-			throw new AssessmentPlayerError(
-				'minTimeNotElapsed',
-				`The ${scope} minimum time has not elapsed (${remaining}s remaining).`,
-				{ scope, remaining },
-			);
-		}
+		assertMinTimeElapsed(scope, limits, this.timeManager?.getScopeElapsedMs(scope, identifier) ?? 0);
 	}
 
 	/**
