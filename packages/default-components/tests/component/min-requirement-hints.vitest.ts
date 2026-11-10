@@ -409,7 +409,7 @@ describe('OrderInteraction minimum (minChoices)', () => {
 		expect(hint(mounted)?.textContent).toBe('Put at least 2 items in order.');
 		expect(describedByHint(mounted, q(mounted, '[role="list"]'))).toBe(true);
 
-		clickButton(q(mounted, 'button[aria-label="Confirm this order as your answer"]'));
+		clickButton(q(mounted, 'button[part="confirm"]'));
 		await settle();
 
 		expect(mounted.instance.response).toEqual(['S1', 'S2']);
@@ -558,7 +558,7 @@ describe('GraphicOrderInteraction minimum (minChoices)', () => {
 		expect(hint(mounted)?.textContent).toBe('Put at least 2 items in order.');
 		expect(describedByHint(mounted, q(mounted, '[role="list"]'))).toBe(true);
 
-		clickButton(q(mounted, 'button[aria-label="Confirm this order as your answer"]'));
+		clickButton(q(mounted, 'button[part="confirm-button"]'));
 		await settle();
 
 		expect(mounted.instance.response).toEqual(['A', 'B']);

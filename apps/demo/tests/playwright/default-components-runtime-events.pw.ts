@@ -45,7 +45,9 @@ test.describe('default component runtime response events', () => {
 		await openItemDemo(page, 'order-interaction');
 		await startRecordingQtiChangeEvents(page);
 
-		await clickInShadowRoot(page, 'pie-qti-order', 'button[aria-label="Confirm this order as your answer"]');
+		// The confirm button is named by its visible label ("Confirm Order (No Changes)"); its
+		// part selects it here.
+		await clickInShadowRoot(page, 'pie-qti-order', 'button[part="confirm"]');
 
 		const events = await waitForQtiChangeEvents(page, 1);
 		expect(events).toHaveLength(1);

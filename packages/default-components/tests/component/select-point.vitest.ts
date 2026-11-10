@@ -26,7 +26,8 @@ function surface(mounted: { host: HTMLElement }): HTMLElement {
 }
 
 function liveRegion(mounted: { host: HTMLElement }): string {
-	return q(mounted, '[aria-live="polite"]')?.textContent?.trim() ?? '';
+	// The shared announcer marks a repeated message with a trailing zero-width space.
+	return (q(mounted, '[aria-live="polite"]')?.textContent ?? '').replace(/\u200b/g, '').trim();
 }
 
 /** Pretend the image is rendered at `width`×`height` CSS px at (left, top). */
@@ -170,6 +171,67 @@ describe('SelectPointInteraction (pie-qti-select-point)', () => {
 		expect(mounted.instance.response).toEqual(['400 240']);
 		expect(liveRegion(mounted)).toBe('Point 1 removed.');
 		expect(qa(mounted, '[part="points"] li')).toHaveLength(1);
+	});
+
+	// The removal message is a status message (WCAG 4.1.3). Removing the last point, and clearing
+	// all of them, move focus back to the selection area, whose focus handler writes the crosshair
+	// position into the same live region: the message has to be what the region ends up holding.
+	test('removing the last point is announced, though focus returns to the selection area', async () => {
+		const mounted = mountInteraction(SelectPointInteraction, {
+			interaction: selectPointData({ maxChoices: 2 }),
+			response: ['100 60'],
+		});
+		await settle();
+
+		const remove = q<HTMLButtonElement>(mounted, '[part="remove-point"]')!;
+		remove.focus();
+		remove.click();
+		await settle();
+
+		expect(mounted.instance.response).toEqual([]);
+		// Focus went back to the selection area (no remove buttons remain)…
+		expect(document.activeElement).toBe(surface(mounted));
+		// …and the region still says what happened, not where the crosshair is.
+		expect(liveRegion(mounted)).toBe('Point 1 removed.');
+	});
+
+	test('clearing the answer is announced, though focus returns to the selection area', async () => {
+		const mounted = mountInteraction(SelectPointInteraction, {
+			interaction: selectPointData({ maxChoices: 2 }),
+			response: ['100 100', '200 150'],
+		});
+		await settle();
+
+		const clear = qa<HTMLButtonElement>(mounted, 'button').find((button) => button.textContent?.trim() === 'Clear answer')!;
+		clear.focus();
+		clear.click();
+		await settle();
+
+		expect(mounted.instance.response).toEqual([]);
+		expect(document.activeElement).toBe(surface(mounted));
+		expect(liveRegion(mounted)).toBe('All points removed.');
+	});
+
+	test('removing "point 1" twice in a row is announced both times', async () => {
+		const mounted = mountInteraction(SelectPointInteraction, {
+			interaction: selectPointData({ maxChoices: 3 }),
+			response: ['100 60', '200 120', '400 240'],
+		});
+		await settle();
+		const region = q(mounted, '[aria-live="polite"]')!;
+
+		qa<HTMLButtonElement>(mounted, '[part="remove-point"]')[0]!.click();
+		await settle();
+		expect(liveRegion(mounted)).toBe('Point 1 removed.');
+		const first = region.textContent;
+
+		// The next point moved up to number 1: removing it says the same sentence, and a live
+		// region only announces a change of its text.
+		qa<HTMLButtonElement>(mounted, '[part="remove-point"]')[0]!.click();
+		await settle();
+		expect(mounted.instance.response).toEqual(['400 240']);
+		expect(liveRegion(mounted)).toBe('Point 1 removed.');
+		expect(region.textContent).not.toBe(first);
 	});
 
 	test('a response is read only in the QTI "x y" point form', async () => {

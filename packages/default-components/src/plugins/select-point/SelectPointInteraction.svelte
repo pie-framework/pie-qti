@@ -16,6 +16,7 @@
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import { clientToImagePoint, imageAltText } from '../../shared/utils/graphicRegions';
 	import { isLimited } from '../../shared/utils/capacity';
+	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 
 	// QTI point responses are typically represented as a single "x y" string
 	// (cardinality=single), or an array of "x y" strings (cardinality=multiple/ordered).
@@ -79,7 +80,9 @@
 	// Keyboard crosshair state (K-01): the shared crosshair's normalized position
 	// and the live region that reports it.
 	const crosshair = createKeyboardCrosshair();
-	let liveRegionText = $state('');
+	// One polite live region carries the crosshair position (stated, never re-announced) and the
+	// outcome of an action (announced, also when the same sentence repeats).
+	const liveAnnouncer = createAnnouncer();
 
 	/**
 	 * Parse response or correct-response points, in the QTI point form: "x y" strings.
@@ -169,16 +172,16 @@
 	function addPoint(point: Point) {
 		if (disabled || !parsedInteraction?.imageData || !hasImageDimensions) return;
 		if (!canSelectMore) {
-			liveRegionText = translate(i18n, 'interactions.selectPoint.maxPointsReached', 'Maximum points reached. Remove a point to add a new one.');
+			liveAnnouncer.set(translate(i18n, 'interactions.selectPoint.maxPointsReached', 'Maximum points reached. Remove a point to add a new one.'));
 			return;
 		}
 		const points = [...selectedPoints, point];
 		commit(points);
-		liveRegionText = translate(i18n, 'interactions.selectPoint.pointPlaced', 'Point {index} placed at {x}%, {y}%.', {
+		liveAnnouncer.set(translate(i18n, 'interactions.selectPoint.pointPlaced', 'Point {index} placed at {x}%, {y}%.', {
 			index: points.length,
 			x: percent(point.x, imageWidth ?? 0),
 			y: percent(point.y, imageHeight ?? 0),
-		});
+		}));
 	}
 
 	/**
@@ -200,22 +203,29 @@
 	/**
 	 * Remove a selected point; focus moves to the next remaining remove button,
 	 * or back to the selection area when none remain.
+	 *
+	 * The removal is announced after the focus move (WCAG 4.1.3): focusing the selection area
+	 * writes the crosshair position into the same live region, which would replace a message
+	 * written before it. The next point takes the removed one's number, so the same sentence can
+	 * follow itself: `announce` makes a repeat a change of the region's text too.
 	 */
 	async function removePoint(index: number) {
 		if (disabled) return;
 		commit(selectedPoints.filter((_, i) => i !== index));
-		liveRegionText = translate(i18n, 'interactions.selectPoint.pointRemoved', 'Point {index} removed.', { index: index + 1 });
+		const removed = translate(i18n, 'interactions.selectPoint.pointRemoved', 'Point {index} removed.', { index: index + 1 });
 		await tick();
 		const buttons = pointsList?.querySelectorAll<HTMLButtonElement>('button') ?? [];
 		const next = buttons[Math.min(index, buttons.length - 1)];
 		(next ?? surfaceElement)?.focus();
+		liveAnnouncer.announce(removed);
 	}
 
+	/** Clear every point; announced after focus returns to the selection area, as a removal is. */
 	function clearAllPoints() {
 		if (disabled) return;
 		commit([]);
-		liveRegionText = translate(i18n, 'interactions.selectPoint.allPointsRemoved', 'All points removed.');
 		surfaceElement?.focus();
+		liveAnnouncer.announce(translate(i18n, 'interactions.selectPoint.allPointsRemoved', 'All points removed.'));
 	}
 
 	/**
@@ -243,10 +253,10 @@
 				e.preventDefault();
 				crosshair.activate();
 				if (!crosshair.move(e.key, e.shiftKey)) return;
-				liveRegionText = translate(i18n, 'accessibility.positionPercent', 'Position: {x}%, {y}%.', {
+				liveAnnouncer.set(translate(i18n, 'accessibility.positionPercent', 'Position: {x}%, {y}%.', {
 					x: Math.round(crosshair.x * 100),
 					y: Math.round(crosshair.y * 100),
-				});
+				}));
 				break;
 			}
 			case 'Enter':
@@ -268,7 +278,7 @@
 		}
 		if (keyboardFocus) crosshair.activate();
 		else crosshair.deactivate();
-		liveRegionText = translate(i18n, 'accessibility.positionPercent', 'Position: {x}%, {y}%.', { x: 50, y: 50 });
+		liveAnnouncer.set(translate(i18n, 'accessibility.positionPercent', 'Position: {x}%, {y}%.', { x: 50, y: 50 }));
 	}
 
 	function handleBlur() {
@@ -301,7 +311,7 @@
 
 		<div class="qti-sp-body space-y-3">
 			<!-- Visually-hidden live region: crosshair position, placement and removal -->
-			<div class="qti-sp-sr-only" aria-live="polite" aria-atomic="true">{liveRegionText}</div>
+			<div class="qti-sp-sr-only" aria-live="polite" aria-atomic="true">{liveAnnouncer.message}</div>
 
 			<p id={instructionsId} part="instructions" class="qti-sp-instructions">
 				{translate(

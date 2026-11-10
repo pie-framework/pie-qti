@@ -83,9 +83,42 @@ describe('PositionObjectInteraction (pie-qti-position-object)', () => {
 		});
 		await settle();
 
-		expect(paletteItem(mounted).getAttribute('aria-label')).toMatch(/^Object 1 \(1\/2 used\)\./);
+		expect(paletteItem(mounted).getAttribute('aria-label')).toBe('Object 1. 1/2 used.');
 		expect(q(mounted, '[part="placed"]')?.getAttribute('aria-label')).toBe('Object 1 at 50%, 50%.');
 		expect(mounted.host.innerHTML).not.toContain('AIRPORT_SITE_RESPONSE');
+	});
+
+	// WCAG 2.5.3 Label in Name: the palette object shows its label and a usage line ("Austin",
+	// "0/1 used"). Its name wrapped the usage in parentheses — "Austin (0/1 used)." — and a
+	// parenthetical is dropped when the name is matched against the visible label, so the visible
+	// text was not found in the name. The name is the two visible lines, each a sentence.
+	test('a palette object is named by its visible text: the label, then the usage line', async () => {
+		const mounted = mountInteraction(PositionObjectInteraction, {
+			interaction: positionData({
+				positionObjectStages: [
+					{
+						identifier: 'CITY',
+						label: 'Austin',
+						matchMax: 1,
+						objectData: { type: 'image', src: 'pin.png', width: '40', height: '40' },
+					},
+				],
+			}),
+		});
+		await settle();
+
+		const item = paletteItem(mounted);
+		const [label, usage] = Array.from(item.querySelectorAll('[aria-hidden="true"] > div')).map(
+			(line) => line.textContent?.trim() ?? '',
+		);
+		expect([label, usage]).toEqual(['Austin', '0/1 used']);
+
+		const name = item.getAttribute('aria-label') ?? '';
+		expect(name).toBe('Austin. 0/1 used.');
+		// The name starts with the visible label and carries the visible usage line verbatim.
+		expect(name.startsWith(label!)).toBe(true);
+		expect(name).toContain(usage!);
+		expect(name).not.toMatch(/[()]/);
 	});
 
 	test('keyboard: select in the palette, move the crosshair, Enter records the object centre point', async () => {
@@ -495,7 +528,7 @@ describe('PositionObjectInteraction (pie-qti-position-object)', () => {
 
 		expect(mounted.instance.response).toHaveLength(3);
 		// The usage label states unlimited, never "/0".
-		expect(paletteItem(mounted).getAttribute('aria-label')).toBe('Airport (3 used, unlimited).');
+		expect(paletteItem(mounted).getAttribute('aria-label')).toBe('Airport. 3 used, unlimited.');
 		expect(paletteItem(mounted).getAttribute('aria-label')).not.toContain('/0');
 		expect(paletteItem(mounted).textContent).toContain('3 used, unlimited');
 		expect(paletteItem(mounted).textContent).not.toContain('/0');
@@ -526,7 +559,7 @@ describe('PositionObjectInteraction (pie-qti-position-object)', () => {
 			'Pin at 30%, 30%.',
 		]);
 		const [pin] = qa<HTMLElement>(mounted, '[part="palette-item"]');
-		expect(pin!.getAttribute('aria-label')).toBe('Pin (3 used, unlimited).');
+		expect(pin!.getAttribute('aria-label')).toBe('Pin. 3 used, unlimited.');
 		cleanupInteraction(mounted);
 	});
 });

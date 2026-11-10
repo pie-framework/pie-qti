@@ -82,7 +82,8 @@ function coerceSingleValue(
 	raw: unknown,
 	inputBase: number | undefined,
 ): QtiValue {
-	const t = String(raw ?? '').trim();
+	const text = String(raw ?? '');
+	const t = text.trim();
 	if (t.length === 0) return qtiNull(baseType, 'single');
 	const typed = !(typeof raw === 'number' && Number.isFinite(raw));
 	if (inputBase !== undefined && typed && (baseType === 'integer' || baseType === 'float')) {
@@ -90,6 +91,12 @@ function coerceSingleValue(
 		const value = baseType === 'integer' ? numeric.integerValue : numeric.floatValue;
 		return value === null ? qtiNull(baseType, 'single') : qtiValue(baseType, 'single', value);
 	}
+	// A string response is the candidate's text, spaces included: the text fields are controlled
+	// by the stored response — the extended text rebuilds its fields from what the session holds
+	// after every keystroke — so a value trimmed here echoes back into the field and deletes the
+	// space the candidate just typed, corrupting every multi-word typed answer. Comparisons that
+	// need the trimmed form trim at the point of comparison instead.
+	if (baseType === 'string') return qtiValue('string', 'single', text);
 	return coerceBaseValue(baseType, t, contentLanguage(input));
 }
 
@@ -179,6 +186,11 @@ function coerceRecordValue(input: DeclarationValueInput, raw: unknown, base: num
 			fields[fieldIdentifier] = qtiValue(containerBaseType, fieldCardinality, items);
 		} else if (fieldBaseType === 'file' && typeof fieldValue === 'object') {
 			fields[fieldIdentifier] = qtiValue('file', 'single', fieldValue);
+		} else if (fieldBaseType === 'string') {
+			// A string field is text as typed, spaces included (a numeric record's `stringValue`
+			// keeps the input as typed): the same at-rest rule as the single-value coercion.
+			const fieldText = String(fieldValue);
+			fields[fieldIdentifier] = qtiValue('string', 'single', fieldText.trim() ? fieldText : '');
 		} else {
 			fields[fieldIdentifier] = coerceBaseValue(fieldBaseType, String(fieldValue), contentLanguage(input));
 		}

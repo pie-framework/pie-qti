@@ -154,6 +154,31 @@ describe('OrderInteraction (pie-qti-order)', () => {
 		cleanupInteraction(mounted);
 	});
 
+	test('the confirm button is named by its visible label, the sentence is a description (WCAG 2.5.3)', async () => {
+		const mounted = mountInteraction(OrderInteraction, { interaction: orderData() });
+		await settle();
+
+		const confirm = q<HTMLButtonElement>(mounted, 'button[part="confirm"]')!;
+		expect(confirm).not.toBeNull();
+		// A voice-control user says the visible label: it must name the control (label in name).
+		// The aria-label used to override the visible text with a different sentence entirely.
+		expect(confirm.getAttribute('aria-label')).toBeNull();
+		expect(confirm.textContent?.trim()).toBe('Confirm Order (No Changes)');
+		// The extra sentence ("Confirm this order as your answer") stays, as the description.
+		const describedBy = confirm.getAttribute('aria-describedby') ?? '';
+		expect(describedBy).not.toBe('');
+		expect(document.getElementById(describedBy)?.textContent?.trim()).toBe('Confirm this order as your answer');
+
+		// The confirmed state is inert and named by its visible badge.
+		confirm.focus();
+		confirm.click();
+		await settle();
+		const confirmed = q<HTMLButtonElement>(mounted, 'button[part="confirmed"]')!;
+		expect(confirmed.getAttribute('aria-label')).toBeNull();
+		expect(confirmed.textContent?.trim()).toBe('Order confirmed');
+		cleanupInteraction(mounted);
+	});
+
 	test('confirm keeps its control mounted, focused, and announced (round 6)', async () => {
 		const mounted = mountInteraction(OrderInteraction, { interaction: orderData() });
 		await settle();

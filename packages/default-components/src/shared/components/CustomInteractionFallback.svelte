@@ -7,6 +7,7 @@
 
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import type { HtmlContent } from '@pie-qti/item-player';
+	import { untrack } from 'svelte';
 
 	interface Props {
 		responseId: string;
@@ -41,7 +42,14 @@
 	let manualValue = $state('');
 
 	$effect(() => {
-		manualValue = value ?? '';
+		const stored = value ?? '';
+		// The stored response comes back after every keystroke. When it is the field's own text
+		// less its surrounding white space — a session stores white-space-only text as no
+		// response, and a host may normalize what it stores — the field keeps what the candidate
+		// typed: replacing it would delete the space they just typed. Any other value (a restored
+		// or emptied response) is the host's, and shows.
+		if (stored.trim() === untrack(() => manualValue).trim()) return;
+		manualValue = stored;
 	});
 
 	function handleInput(e: Event) {

@@ -163,6 +163,9 @@
 	// can still answer.
 	const uid = $props.id();
 	const minHintId = `${uid}-min-hint`;
+	// The confirm button is named by its visible label, so a voice-control user saying that
+	// label reaches it (WCAG 2.5.3 Label in Name); the fuller sentence describes it.
+	const confirmDescriptionId = `${uid}-confirm-description`;
 	const orderedCount = $derived(
 		subsetMode
 			? (Array.isArray(parsedResponse) ? parsedResponse.filter((id) => shuffledChoiceIds.includes(id)).length : 0)
@@ -273,7 +276,9 @@
 		<!-- Confirmation control for WCAG 2.2 SC 3.3.4 compliance. One persistent element
 		     flips between the actionable control and an inert "Order confirmed" state
 		     (aria-disabled, tabindex=-1 — never removed), so the focus that pressed it keeps
-		     a home; the always-present polite region below announces the confirmation. -->
+		     a home; the always-present polite region below announces the confirmation.
+		     Its visible label is its accessible name (WCAG 2.5.3): the sentence saying what
+		     confirming means is its description, not a name that hides the label. -->
 		<div class="mt-4 flex items-center gap-3">
 			{#if !subsetMode && (confirmation.needsConfirmation || confirmation.hasConfirmed)}
 				<button
@@ -283,9 +288,7 @@
 					onclick={confirmFromButton}
 					aria-disabled={confirmation.hasConfirmed ? 'true' : undefined}
 					tabindex={confirmation.hasConfirmed ? -1 : undefined}
-					aria-label={confirmation.hasConfirmed
-						? undefined
-						: (i18n?.t('interactions.order.confirmAria') ?? 'Confirm this order as your answer')}
+					aria-describedby={confirmation.hasConfirmed ? undefined : confirmDescriptionId}
 				>
 					{#if confirmation.hasConfirmed}
 						<Icon d={ICON_CHECK} part="confirmed-icon" class="qti-icon-sm inline-block w-4 h-4 stroke-current" />
@@ -297,6 +300,9 @@
 					{/if}
 				</button>
 				{#if !confirmation.hasConfirmed}
+					<span id={confirmDescriptionId} class="sr-only">
+						{i18n?.t('interactions.order.confirmAria') ?? 'Confirm this order as your answer'}
+					</span>
 					<span class="text-xs text-base-content/60">
 						{i18n?.t('interactions.order.instruction') ?? 'Drag items to reorder, or click to confirm the current order'}
 					</span>
@@ -332,21 +338,24 @@
 		position: relative;
 	}
 
-	/* K-12 target size: each toggle is a primary control in its item's row. */
+	/* K-12 target size: each toggle is a primary control in its item's row. Its boundary and
+	   ✕ glyph are the control's identifying features: both at full strength (the boundary on
+	   the strong-border token, 3:1 or more against the row — WCAG 1.4.11), as choice's toggle
+	   with the same function is. Dimming the idle state below 3:1 would hide the control. */
 	.qti-eliminate-btn {
 		background: none;
-		border: 1px solid currentColor;
+		border: 1px solid var(--pie-qti-border-strong, #767676);
 		border-radius: 50%;
 		width: 2.75rem;
 		height: 2.75rem;
 		font-size: 0.875rem;
 		cursor: pointer;
-		opacity: 0.4;
 		padding: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		flex: 0 0 auto;
+		color: inherit;
 	}
 
 	.qti-eliminate-btn:focus-visible {
@@ -354,9 +363,17 @@
 		outline-offset: 2px;
 	}
 
-	.qti-eliminate-btn:hover,
+	.qti-eliminate-btn:hover {
+		background-color: color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 8%, transparent);
+	}
+
+	/* Eliminated: the same treatment choice gives its toggle — the error *text* token on glyph
+	   and boundary, plus a tinted fill and a heavier boundary, so the state is told apart by
+	   fill and weight, not by colour alone (WCAG 1.4.1). */
 	.qti-eliminate-btn[data-eliminated] {
-		opacity: 1;
-		color: var(--pie-qti-error, oklch(63% 0.237 25.331));
+		color: var(--pie-qti-error-text, #b91c1c);
+		border-color: var(--pie-qti-error-text, #b91c1c);
+		border-width: 2px;
+		background-color: color-mix(in oklch, var(--pie-qti-error, oklch(63% 0.237 25.331)) 12%, transparent);
 	}
 </style>

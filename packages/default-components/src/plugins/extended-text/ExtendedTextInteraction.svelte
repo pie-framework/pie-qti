@@ -103,6 +103,18 @@
 		}
 	}
 
+	/**
+	 * Whether `values` are the fields' own text, give or take the surrounding white space: the
+	 * stored response coming back after the candidate's own keystrokes. The fields keep what they
+	 * hold then — rebuilding them from an echo that only differs by white space would delete the
+	 * space the candidate just typed.
+	 */
+	function isOwnTextEcho(values: string[]): boolean {
+		const own = untrack(() => editorValues).map((value) => value.trim()).filter(Boolean);
+		const echoed = values.map((value) => value.trim()).filter(Boolean);
+		return own.length > 0 && own.length === echoed.length && own.every((value, index) => value === echoed[index]);
+	}
+
 	$effect(() => {
 		if (!parsedInteraction) return;
 		const editorResponse = parsedInteraction.stringIdentifier && stringResponse != null
@@ -118,9 +130,15 @@
 			interactionShape === lastInteractionShape &&
 			sameResponse(editorResponse, lastRenderedResponse)
 		) return;
+		const values = extendedTextResponseToStrings(editorResponse, parsedInteraction);
+		if (interactionShape === lastInteractionShape && isOwnTextEcho(values)) {
+			// An echo of the fields' own text (a host may normalize what it stores): keep the
+			// fields, and remember the stored form so the next equal echo skips here again.
+			lastRenderedResponse = editorResponse;
+			return;
+		}
 		lastInteractionShape = interactionShape;
 		lastRenderedResponse = editorResponse;
-		const values = extendedTextResponseToStrings(editorResponse, parsedInteraction);
 		const minimumEditors =
 			parsedInteraction.cardinality === 'multiple' || parsedInteraction.cardinality === 'ordered'
 				? Math.max(1, parsedInteraction.minStrings)

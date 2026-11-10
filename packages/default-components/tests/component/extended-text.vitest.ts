@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, test } from 'vitest';
-import type { ExtendedTextInteractionData } from '@pie-qti/item-player';
+import { createAssessmentItemDefinition, type ExtendedTextInteractionData } from '@pie-qti/item-player';
 import ExtendedTextInteraction from '../../src/plugins/extended-text/ExtendedTextInteraction.svelte';
 import {
 	cleanupInteraction,
 	type MountedInteraction,
 	mountInteraction,
+	pressCharacter,
 	qa,
 	q,
 	settle,
@@ -824,5 +825,131 @@ describe('ExtendedTextInteraction with an invalid base', () => {
 		await settle();
 		expect(m.events[0]!.detail.value).toBe(42);
 		expect(textarea.value).toBe('42');
+	});
+});
+
+// The fields are controlled by the stored response: the player stores what a keystroke reported
+// and sets it back on the element at once. A response trimmed at rest echoed the trimmed text
+// into the focused field and deleted the space the candidate had just typed, so no multi-word
+// answer could be typed with the keyboard ("a b c" came out "abc"; paste was unaffected, which
+// hid the bug from fill()-based tests).
+describe('ExtendedTextInteraction typed spaces survive the session round trip', () => {
+	const SESSION_ITEM = `<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+	  identifier="spaces" title="Spaces" adaptive="false" timeDependent="false">
+	  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="string"/>
+	  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+	    <defaultValue><value>0</value></defaultValue>
+	  </outcomeDeclaration>
+	  <itemBody><p>Answer: <extendedTextInteraction responseIdentifier="RESPONSE"/></p></itemBody>
+	</assessmentItem>`;
+
+	const fieldData = () => extendedTextData({ prompt: null, placeholderText: '' });
+
+	/** The player's loop around the field: store what a keystroke reported, set it back. */
+	function playerRoundTrip(
+		session: ReturnType<ReturnType<typeof createAssessmentItemDefinition>['openSession']>,
+		m: MountedInteraction,
+	) {
+		const reported = m.events.at(-1)!.detail.value as unknown;
+		session.dispatch({ action: 'setResponse', responseIdentifier: 'RESPONSE', value: reported });
+		m.instance.response = session.state().responses.RESPONSE;
+		m.instance.interaction = fieldData();
+	}
+
+	/** The player's loop when the host normalizes what it stores (here: trims it). */
+	function trimmingHostRoundTrip(m: MountedInteraction) {
+		const reported = m.events.at(-1)!.detail.value as unknown;
+		m.instance.response = typeof reported === 'string' ? reported.trim() : reported;
+		m.instance.interaction = fieldData();
+	}
+
+	test('typing "a b c" key by key keeps every space in the field and in the stored response', async () => {
+		const session = createAssessmentItemDefinition({ itemXml: SESSION_ITEM, role: 'candidate' }).openSession();
+		const m = mountExtendedText({ interaction: fieldData() });
+		await settle();
+
+		try {
+			const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
+			textarea.focus();
+			let typed = '';
+			for (const character of 'a b c') {
+				typed += character;
+				pressCharacter(textarea, character);
+				await settle();
+				playerRoundTrip(session, m);
+				await settle();
+				// The field holds exactly what was typed; the session stores the same.
+				expect(textarea.value).toBe(typed);
+				expect(session.state().responses.RESPONSE).toBe(typed);
+			}
+			expect(m.events.map((event) => event.detail.value)).toEqual(['a', 'a ', 'a b', 'a b ', 'a b c']);
+		} finally {
+			session.dispose();
+		}
+	});
+
+	test('pasted text with spaces followed by typing keeps the boundary space', async () => {
+		const session = createAssessmentItemDefinition({ itemXml: SESSION_ITEM, role: 'candidate' }).openSession();
+		const m = mountExtendedText({ interaction: fieldData() });
+		await settle();
+
+		try {
+			const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
+			textarea.focus();
+			// A paste fills the field in one step; the host stores it verbatim and sets it back.
+			type(textarea, 'x y z');
+			await settle();
+			playerRoundTrip(session, m);
+			await settle();
+			expect(textarea.value).toBe('x y z');
+
+			// Typing on from the pasted text, key by key.
+			let expected = 'x y z';
+			for (const character of ' tail') {
+				expected += character;
+				pressCharacter(textarea, character);
+				await settle();
+				playerRoundTrip(session, m);
+				await settle();
+				expect(textarea.value).toBe(expected);
+				expect(session.state().responses.RESPONSE).toBe(expected);
+			}
+			expect(session.state().responses.RESPONSE).toBe('x y z tail');
+		} finally {
+			session.dispose();
+		}
+	});
+
+	test('a host that trims what it stores does not rewrite the field under the candidate', async () => {
+		const m = mountExtendedText({ interaction: fieldData() });
+		await settle();
+
+		const textarea = q<HTMLTextAreaElement>(m, 'textarea')!;
+		textarea.focus();
+		let typed = '';
+		// A trailing space is exactly what a trimming host stores without: typing it must not
+		// bring the trimmed text back into the field.
+		for (const character of 'a b c ') {
+			typed += character;
+			pressCharacter(textarea, character);
+			await settle();
+			trimmingHostRoundTrip(m);
+			await settle();
+			expect(textarea.value).toBe(typed);
+		}
+		expect(textarea.value).toBe('a b c ');
+		expect(m.instance.response).toBe('a b c');
+
+		// A response the host sets deliberately still reaches the field: an emptied one clears it…
+		m.instance.response = null;
+		m.instance.interaction = fieldData();
+		await settle();
+		expect(textarea.value).toBe('');
+
+		// …and a restored one shows.
+		m.instance.response = 'restored text';
+		m.instance.interaction = fieldData();
+		await settle();
+		expect(textarea.value).toBe('restored text');
 	});
 });
