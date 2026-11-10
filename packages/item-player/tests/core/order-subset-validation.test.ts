@@ -8,6 +8,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
+import { createAssessmentItemDefinition } from '../../src/core/AssessmentItemDefinition.js';
 import { Player } from '../../src/core/Player.js';
 import type {
 	GraphicOrderInteractionData,
@@ -109,14 +110,22 @@ describe('orderInteraction subset response validation (Player.validateResponses)
 	});
 
 	test('an incomplete full-mode order fails endAttempt validation, a complete one passes', () => {
-		const player = new Player({ itemXml: orderItem('') });
-		player.setResponses({ RESPONSE: ['a', 'b'] });
-		const refused = player.endAttempt({ validateResponses: true });
-		expect(refused.validation?.valid).toBe(false);
-		expect(refused.validation?.issues.map((issue) => issue.code)).toContain('incomplete');
+		const session = createAssessmentItemDefinition({ itemXml: orderItem('') }).openSession();
+		try {
+			session.dispatch({ action: 'setResponse', responseIdentifier: 'RESPONSE', value: ['a', 'b'] });
+			const refused = session.dispatch({ action: 'endAttempt', validateResponses: true });
+			expect(refused.result?.validation?.valid).toBe(false);
+			expect(refused.result?.validation?.issues.map((issue) => issue.code)).toContain('incomplete');
+			// A refused attempt does not end: the candidate keeps working.
+			expect(refused.current.numAttempts).toBe(0);
 
-		player.setResponses({ RESPONSE: ['e', 'd', 'c', 'b', 'a'] });
-		expect(player.endAttempt({ validateResponses: true }).validation?.valid).toBe(true);
+			session.dispatch({ action: 'setResponse', responseIdentifier: 'RESPONSE', value: ['e', 'd', 'c', 'b', 'a'] });
+			const accepted = session.dispatch({ action: 'endAttempt', validateResponses: true });
+			expect(accepted.result?.validation?.valid).toBe(true);
+			expect(accepted.current.numAttempts).toBe(1);
+		} finally {
+			session.dispose();
+		}
 	});
 
 	test('minChoices >= N is effectively full: all N ordered', () => {

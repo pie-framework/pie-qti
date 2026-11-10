@@ -14,6 +14,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
+import { createAssessmentItemDefinition } from '../../src/core/AssessmentItemDefinition.js';
 import { Player } from '../../src/core/Player.js';
 
 const NS = 'xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"';
@@ -496,19 +497,19 @@ describe('XSS Prevention - User Response Storage', () => {
 			</itemBody>
 		</assessmentItem>`;
 
-		const player = new Player({ itemXml: qtiXml });
+		const session = createAssessmentItemDefinition({ itemXml: qtiXml }).openSession();
 
 		// User provides malicious content as response
 		const maliciousResponse = '<img src=x onerror="alert(\'XSS\')">';
-		player.setResponses({ RESPONSE: maliciousResponse });
+		session.dispatch({ action: 'setResponse', responseIdentifier: 'RESPONSE', value: maliciousResponse });
 
-		const state = player.getSessionState();
-		const responseValue = state.RESPONSE;
+		const responseValue = session.state().responses.RESPONSE;
 
 		// Response should be stored (data layer doesn't sanitize)
 		// But renderers must escape when displaying
 		expect(responseValue).toBeDefined();
 		expect(responseValue).toBe(maliciousResponse);
+		session.dispose();
 	});
 
 	test('should handle script injection attempts in string responses', () => {
@@ -520,7 +521,7 @@ describe('XSS Prevention - User Response Storage', () => {
 			</itemBody>
 		</assessmentItem>`;
 
-		const player = new Player({ itemXml: qtiXml });
+		const session = createAssessmentItemDefinition({ itemXml: qtiXml }).openSession();
 
 		const scriptAttempts = [
 			'<script>alert("XSS")</script>',
@@ -532,13 +533,13 @@ describe('XSS Prevention - User Response Storage', () => {
 		];
 
 		for (const attempt of scriptAttempts) {
-			player.setResponses({ RESPONSE: attempt });
-			const state = player.getSessionState();
-			const stored = state.RESPONSE;
+			session.dispatch({ action: 'setResponse', responseIdentifier: 'RESPONSE', value: attempt });
+			const stored = session.state().responses.RESPONSE;
 
 			// Data is stored as-is (no sanitization at storage layer)
 			// Renderers must escape when displaying
 			expect(stored).toBe(attempt);
 		}
+		session.dispose();
 	});
 });

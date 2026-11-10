@@ -1,5 +1,16 @@
 import { describe, expect, test } from 'bun:test';
+import { createAssessmentItemDefinition } from '../../src/core/AssessmentItemDefinition.js';
 import { Player } from '../../src/core/Player.js';
+
+/** The correct response a scorer-role presentation of `itemXml` carries for RESPONSE. */
+function presentedCorrectResponse(itemXml: string): unknown {
+	const session = createAssessmentItemDefinition({ itemXml, role: 'scorer' }).openSession();
+	try {
+		return session.present().correctResponses.RESPONSE;
+	} finally {
+		session.dispose();
+	}
+}
 
 const qti22RecordItem = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
@@ -85,7 +96,7 @@ describe('record cardinality', () => {
 			ndp: 0,
 			nsf: 2,
 		});
-		expect(player.getCorrectResponse('RESPONSE')).toEqual({
+		expect(presentedCorrectResponse(qti22RecordItem)).toEqual({
 			stringValue: '12.5',
 			floatValue: 12.5,
 			leftDigits: 2,
@@ -120,7 +131,7 @@ describe('record cardinality', () => {
 			ndp: 0,
 			nsf: 1,
 		});
-		expect(player.getCorrectResponse('RESPONSE')).toEqual({
+		expect(presentedCorrectResponse(qti30RecordItem)).toEqual({
 			stringValue: 'F',
 			floatValue: 15,
 			integerValue: 15,

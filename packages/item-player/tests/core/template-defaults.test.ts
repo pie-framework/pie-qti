@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { convertQti2ToQti3 } from '@pie-qti/qti-common';
 import { createAssessmentItemDefinition } from '../../src/core/AssessmentItemDefinition.js';
-import { Player } from '../../src/core/Player.js';
 
 const ITEM_QTI22 = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="template-defaults" adaptive="false" timeDependent="false">
@@ -26,10 +25,15 @@ describe('templateDefaults', () => {
 		['QTI 3.0', convertQti2ToQti3(ITEM_QTI22)],
 	] as const) {
 		test(`${version}: replaces a template variable's default before template processing`, () => {
-			expect(new Player({ itemXml }).getTemplateVariables()).toMatchObject({ N: 1, DOUBLE: 2 });
-			const player = new Player({ itemXml, templateDefaults: { N: 5, UNKNOWN: 3 } });
-			expect(player.getTemplateVariables()).toMatchObject({ N: 5, DOUBLE: 10 });
-			expect(player.getTemplateVariables()).not.toHaveProperty('UNKNOWN');
+			const definition = createAssessmentItemDefinition({ itemXml });
+			const declared = definition.openSession();
+			expect(declared.state().templates).toMatchObject({ N: 1, DOUBLE: 2 });
+			declared.dispose();
+
+			const session = definition.openSession({ templateDefaults: { N: 5, UNKNOWN: 3 } });
+			expect(session.state().templates).toMatchObject({ N: 5, DOUBLE: 10 });
+			expect(session.state().templates).not.toHaveProperty('UNKNOWN');
+			session.dispose();
 		});
 
 		test(`${version}: an item session passes template defaults to its player`, () => {

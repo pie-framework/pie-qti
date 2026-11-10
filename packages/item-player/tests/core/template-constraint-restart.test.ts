@@ -7,7 +7,7 @@
 
 import { describe, expect, test } from 'bun:test';
 import { convertQti2ToQti3 } from '@pie-qti/qti-common';
-import { Player } from '../../src/core/Player.js';
+import { createAssessmentItemDefinition } from '../../src/core/AssessmentItemDefinition.js';
 
 const ITEM = `<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="constraint-restart" title="Constraint restart" adaptive="false" timeDependent="false">
   <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
@@ -62,12 +62,16 @@ describe.each([
 	['QTI 3.0', convertQti2ToQti3(ITEM)],
 ])('templateConstraint restart (%s)', (_version, itemXml) => {
 	test('a correct response set by the rejected pass does not survive the restart', () => {
-		const player = new Player({ itemXml, rng: rejectThenAccept() });
+		const definition = createAssessmentItemDefinition({ itemXml, role: 'scorer', rngFactory: rejectThenAccept });
+		const session = definition.openSession();
+		try {
+			expect(session.state().templates.T).toBe(2);
+			expect(session.present().correctResponses.RESPONSE).toBe('A');
 
-		expect(player.getTemplateVariables().T).toBe(2);
-		expect(player.getCorrectResponse('RESPONSE')).toBe('A');
-
-		player.setResponses({ RESPONSE: 'A' });
-		expect(player.processResponses().score).toBe(1);
+			session.dispatch({ action: 'setResponse', responseIdentifier: 'RESPONSE', value: 'A' });
+			expect(session.dispatch({ action: 'endAttempt' }).result?.scoring?.score).toBe(1);
+		} finally {
+			session.dispose();
+		}
 	});
 });
