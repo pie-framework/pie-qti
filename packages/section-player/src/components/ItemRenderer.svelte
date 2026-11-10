@@ -54,8 +54,12 @@
 	const titleId = `${uid}-title`;
 
 	let playerLoaded = $state(false);
-	/** The item player failed to load; the detail goes to `onFrameworkError`, never to the candidate. */
-	let loadFailed = $state(false);
+	/**
+	 * The item whose element load failed; the detail goes to `onFrameworkError`, never
+	 * to the candidate. Another item presented afterwards retries the load — a chunk
+	 * failure is about one item's presentation, not the rest of the section's.
+	 */
+	let loadFailedFor = $state<string | null>(null);
 	let itemScopeElement = $state<HTMLElement | null>(null);
 	const itemTitle = $derived(itemRef.title?.trim() || interfaceText(i18n, 'sectionPlayer.question', 'Question'));
 	const headerTools = $derived(tools ?? itemRef.tools);
@@ -79,7 +83,7 @@
 	// An item with no XML renders the alert straight away; the element load can wait
 	// until there is one to present.
 	$effect(() => {
-		if (playerLoaded || loadFailed || !itemRef.itemXml) return;
+		if (playerLoaded || loadFailedFor === itemRef.identifier || !itemRef.itemXml) return;
 		let cancelled = false;
 		void loadItemPlayerElement()
 			.then(() => {
@@ -90,7 +94,7 @@
 			.catch((error) => {
 				if (!cancelled) {
 					const message = error instanceof Error ? error.message : 'Unable to load the QTI item player.';
-					loadFailed = true;
+					loadFailedFor = itemRef.identifier;
 					onFrameworkError?.({
 						itemIdentifier: itemRef.identifier,
 						code: 'item-player-load-failed',
@@ -140,7 +144,7 @@
 
 </script>
 
-{#if loadFailed || !itemRef.itemXml}
+{#if loadFailedFor === itemRef.identifier || !itemRef.itemXml}
 	<div class="item-alert" role="alert">
 		<svg class="item-alert-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
