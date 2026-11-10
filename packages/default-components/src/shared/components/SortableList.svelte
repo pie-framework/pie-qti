@@ -137,9 +137,15 @@ function handleKeyDown(event: KeyboardEvent, id: string) {
 		return;
 	}
 
-	// Escape: Cancel keyboard selection
+	// Escape: Cancel keyboard selection. The announcement names the grabbed item —
+	// focus may sit on another item (a Tab while the grab continues) — so the held
+	// item's name is resolved here, not the focused item's.
 	if (event.key === 'Escape' && pickUp.held) {
-		handleCancelSelection(event, itemName);
+		const grabbed = items.find((entry) => entry.id === pickUp.held);
+		handleCancelSelection(
+			event,
+			grabbed ? itemLabel(grabbed) : translate(i18n, 'interactions.order.itemFallback', 'Item'),
+		);
 		return;
 	}
 
