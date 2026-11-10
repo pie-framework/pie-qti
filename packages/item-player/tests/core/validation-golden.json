@@ -4736,7 +4736,7 @@
           },
           "default ignores current value changes (response + outcome)": {
             "engine": {
-              "attempted": false,
+              "attempted": true,
               "entries": {
                 "R": "textEntryInteraction, optional, complete, valid"
               },
@@ -4750,9 +4750,7 @@
           }
         }
       },
-      "qti30": {
-        "error": "Unknown processing statement tag: <setResponseValue> (mode=response)"
-      }
+      "qti30": "same as qti22"
     },
     "responseProcessing_deleteValue_repeat": {
       "qti22": {
@@ -4831,9 +4829,7 @@
           }
         }
       },
-      "qti30": {
-        "error": "Unknown processing statement tag: <setResponseValue> (mode=response)"
-      }
+      "qti30": "same as qti22"
     },
     "responseProcessing_equalRounded_tolerance": {
       "qti22": {
@@ -6180,90 +6176,6 @@
         }
       },
       "qti30": "same as qti22"
-    },
-    "responseProcessing_setResponseValue": {
-      "qti22": {
-        "probes": {
-          "(no responses)": {
-            "engine": {
-              "attempted": false,
-              "entries": {
-                "R": "choiceInteraction, optional, complete, valid"
-              },
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "(wrong cardinality)": {
-            "engine": {
-              "attempted": true,
-              "entries": {
-                "R": [
-                  "choiceInteraction, optional, complete, invalid",
-                  "error: Expected a single value for response 'R'"
-                ]
-              },
-              "issues": [
-                "R invalid_shape"
-              ]
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "A -> SCORE 1": {
-            "engine": {
-              "attempted": true,
-              "entries": {
-                "R": "choiceInteraction, optional, complete, valid"
-              },
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "B -> setResponseValue rewrites to A -> SCORE 1": {
-            "engine": {
-              "attempted": true,
-              "entries": {
-                "R": "choiceInteraction, optional, complete, valid"
-              },
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "C -> SCORE 0": {
-            "engine": {
-              "attempted": true,
-              "entries": {
-                "R": "choiceInteraction, optional, complete, valid"
-              },
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          }
-        }
-      },
-      "qti30": {
-        "error": "Unknown processing statement tag: <setResponseValue> (mode=response)"
-      }
     },
     "responseProcessing_subtract_divide": {
       "qti22": {

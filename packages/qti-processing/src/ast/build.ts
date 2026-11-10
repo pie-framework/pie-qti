@@ -181,19 +181,6 @@ function buildStatements(
 				});
 				break;
 			}
-			case 'setresponsevalue': {
-				if (mode !== 'response') break;
-				const identifier = getAttr(el, 'identifier');
-				const exprEl = firstChildElement(el);
-				if (!identifier || !exprEl) break;
-				out.push({
-					kind: 'stmt.setResponseValue',
-					id: newAstId('stmt'),
-					identifier,
-					expr: buildExpression(exprEl, options),
-				});
-				break;
-			}
 			case 'settemplatevalue': {
 				const identifier = getAttr(el, 'identifier');
 				const exprEl = firstChildElement(el);

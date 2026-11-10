@@ -18,7 +18,6 @@ export type StatementNode =
 	| SetDefaultValueStmt
 	| LookupOutcomeValueStmt
 	| SetOutcomeValueStmt
-	| SetResponseValueStmt
 	| SetTemplateValueStmt
 	| SetCorrectResponseStmt
 	| TemplateConditionStmt;
@@ -126,13 +125,6 @@ export type SetOutcomeValueStmt = {
 
 export type LookupOutcomeValueStmt = {
 	kind: 'stmt.lookupOutcomeValue';
-	id: AstNodeId;
-	identifier: string;
-	expr: ExpressionNode;
-};
-
-export type SetResponseValueStmt = {
-	kind: 'stmt.setResponseValue';
 	id: AstNodeId;
 	identifier: string;
 	expr: ExpressionNode;
