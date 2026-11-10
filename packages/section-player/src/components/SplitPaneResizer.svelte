@@ -49,6 +49,9 @@
 	const stackBelowRem = 48;
 	/** Extra room required before re-splitting, so a scrollbar at the boundary cannot flip the layout. */
 	const resplitHysteresisPx = 16;
+	/** The grid's smallest pane and the splitter: together they bound the achievable split. */
+	const minPaneRem = 18;
+	const splitterRem = 1.5;
 
 	const uid = $props.id();
 	const contextPaneId = `${uid}-context`;
@@ -68,12 +71,17 @@
 	let isStacked = $state(false);
 	let selectedPane = $state<Pane>('context');
 	let lastActiveItemKey: string | undefined;
+	/** The split percentages the grid can actually take at the current width. */
+	let achievableMinPct = $state(minLeftPct);
+	let achievableMaxPct = $state(maxLeftPct);
 
 	const passageLabel = $derived(interfaceText(i18n, 'sectionPlayer.passage', 'Passage'));
 	const questionLabel = $derived(interfaceText(i18n, 'sectionPlayer.question', 'Question'));
 	const tablistLabel = $derived(interfaceText(i18n, 'sectionPlayer.passageAndQuestion', 'Passage and question'));
 	/** The profile's single-column need: the panes stack behind their tabs at any width. */
 	const singleColumn = $derived(pnp?.display?.singleColumn === true);
+	/** The split the grid actually takes: the request clamped into the achievable range. */
+	const effectiveSplitPct = $derived(Math.max(achievableMinPct, Math.min(achievableMaxPct, splitLeftPct)));
 
 	function clampPct(pct: number) {
 		return Math.min(maxLeftPct, Math.max(minLeftPct, pct));
@@ -138,23 +146,25 @@
 	function onSplitterKeyDown(e: KeyboardEvent) {
 		// The arrows move the splitter where they point, which grows the first pane
 		// towards the inline end: rightwards left-to-right, leftwards right-to-left.
+		// Stepping and the ends work within the achievable range, so every press moves
+		// the splitter where the layout can follow.
 		const grow = isRtl() ? 'ArrowLeft' : 'ArrowRight';
 		const shrink = isRtl() ? 'ArrowRight' : 'ArrowLeft';
 		if (e.key === shrink) {
 			e.preventDefault();
-			splitLeftPct = clampPct(splitLeftPct - 2);
+			splitLeftPct = clampPct(effectiveSplitPct - 2);
 			saveSplitPct(splitLeftPct);
 		} else if (e.key === grow) {
 			e.preventDefault();
-			splitLeftPct = clampPct(splitLeftPct + 2);
+			splitLeftPct = clampPct(effectiveSplitPct + 2);
 			saveSplitPct(splitLeftPct);
 		} else if (e.key === 'Home') {
 			e.preventDefault();
-			splitLeftPct = minLeftPct;
+			splitLeftPct = achievableMinPct;
 			saveSplitPct(splitLeftPct);
 		} else if (e.key === 'End') {
 			e.preventDefault();
-			splitLeftPct = maxLeftPct;
+			splitLeftPct = achievableMaxPct;
 			saveSplitPct(splitLeftPct);
 		}
 	}
@@ -175,9 +185,33 @@
 	}
 
 	function stackThresholdPx(): number {
+		return stackBelowRem * rootFontSizePx();
+	}
+
+	function rootFontSizePx(): number {
 		const rootFontSize =
 			typeof document === 'undefined' ? 16 : Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
-		return stackBelowRem * (Number.isFinite(rootFontSize) && rootFontSize > 0 ? rootFontSize : 16);
+		return Number.isFinite(rootFontSize) && rootFontSize > 0 ? rootFontSize : 16;
+	}
+
+	/**
+	 * The percentages the grid can actually take: below ~72rem containers its
+	 * `minmax(18rem, …)` tracks clamp the left track, so a requested 75% renders
+	 * narrower. Reported against the content box (the grid resolves percentages
+	 * against it), so the value the separator announces is the position it holds.
+	 */
+	function updateAchievableRange(width: number) {
+		if (!(width > 0)) return;
+		const paddingX =
+			(Number.parseFloat(getComputedStyle(splitContainerEl!).paddingLeft) || 0) +
+			(Number.parseFloat(getComputedStyle(splitContainerEl!).paddingRight) || 0);
+		const contentWidth = width - paddingX;
+		if (!(contentWidth > 0)) return;
+		const remPx = rootFontSizePx();
+		const min = clampPct((minPaneRem * remPx * 100) / contentWidth);
+		const max = clampPct(((contentWidth - (minPaneRem + splitterRem) * remPx) * 100) / contentWidth);
+		achievableMinPct = Math.max(minLeftPct, min);
+		achievableMaxPct = Math.max(achievableMinPct, Math.min(maxLeftPct, max));
 	}
 
 	function applyStacked(next: boolean) {
@@ -197,6 +231,7 @@
 	function evaluateWidth(width: number) {
 		if (!(width > 0)) return; // not rendered (hidden, detached, or no layout engine)
 		const threshold = stackThresholdPx();
+		updateAchievableRange(width);
 		applyStacked(isStacked ? width < threshold + resplitHysteresisPx : width < threshold);
 	}
 
@@ -215,7 +250,11 @@
 			// No layout observer (older engines, jsdom): follow the viewport instead.
 			const query = typeof window !== 'undefined' ? window.matchMedia?.(`(max-width: ${stackBelowRem}rem)`) : undefined;
 			if (!query) return;
-			const sync = () => untrack(() => applyStacked(query.matches));
+			const sync = () =>
+				untrack(() => {
+					updateAchievableRange(el.getBoundingClientRect().width);
+					applyStacked(query.matches);
+				});
 			sync();
 			query.addEventListener?.('change', sync);
 			return () => query.removeEventListener?.('change', sync);
@@ -307,10 +346,10 @@
 	data-layout={isStacked ? 'stacked' : 'split'}
 	lang={interfaceAttributes?.lang}
 	dir={interfaceAttributes?.dir}
-	bind:this={splitContainerEl}
-	use:pnpSurface={pnp}
-	style={`--split-left: ${splitLeftPct}%;`}
->
+		bind:this={splitContainerEl}
+		use:pnpSurface={pnp}
+		style={`--split-left: ${effectiveSplitPct}%;`}
+	>
 	{#if isStacked}
 		<div class="pane-tabs" role="tablist" aria-label={tablistLabel}>
 			<button
@@ -368,9 +407,9 @@
 			aria-orientation="vertical"
 			aria-label={interfaceText(i18n, 'accessibility.resizer', 'Resize passage and question panels')}
 			aria-controls={`${contextPaneId} ${itemPaneId}`}
-			aria-valuemin={minLeftPct}
-			aria-valuemax={maxLeftPct}
-			aria-valuenow={Math.round(splitLeftPct)}
+			aria-valuemin={Math.round(achievableMinPct)}
+			aria-valuemax={Math.round(achievableMaxPct)}
+			aria-valuenow={Math.round(effectiveSplitPct)}
 			tabindex="0"
 			use:splitterInteractions
 		>

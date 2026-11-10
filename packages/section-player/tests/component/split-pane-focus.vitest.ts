@@ -1,8 +1,8 @@
-import { createRawSnippet } from 'svelte';
+import { createRawSnippet, flushSync } from 'svelte';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import SplitPaneResizer from '../../src/components/SplitPaneResizer.svelte';
-import { mountInto, settle, type Mounted } from './helpers';
+import { mountInto, press, settle, type Mounted } from './helpers';
 import { reactiveProps } from './reactive-props.svelte';
 
 const mounted: Mounted[] = [];
@@ -127,5 +127,29 @@ describe('stacking with focus in a pane', () => {
 		await narrowViewportNow();
 		const [passageTab] = tabs();
 		expect(passageTab.getAttribute('aria-selected')).toBe('true');
+	});
+});
+
+describe('splitter value reporting', () => {
+	test('without layout the reported range is the configured 25–75 and stepping works', async () => {
+		const state = reactiveProps({ leftPane: passageSnippet, children: questionSnippet });
+		const m = mountInto(SplitPaneResizer, state);
+		mounted.push(m);
+		current = m.host;
+		await settle();
+
+		const splitter = m.host.querySelector<HTMLElement>('[role="separator"]')!;
+		expect(splitter.getAttribute('aria-valuemin')).toBe('25');
+		expect(splitter.getAttribute('aria-valuemax')).toBe('75');
+		expect(Number(splitter.getAttribute('aria-valuenow'))).toBe(50);
+		press(splitter, 'ArrowRight');
+		flushSync();
+		expect(Number(splitter.getAttribute('aria-valuenow'))).toBe(52);
+		press(splitter, 'End');
+		flushSync();
+		expect(Number(splitter.getAttribute('aria-valuenow'))).toBe(75);
+		press(splitter, 'Home');
+		flushSync();
+		expect(Number(splitter.getAttribute('aria-valuenow'))).toBe(25);
 	});
 });
