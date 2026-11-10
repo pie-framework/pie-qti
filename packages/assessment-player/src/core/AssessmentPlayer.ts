@@ -107,6 +107,12 @@ import {
 } from './scopeLocks.js';
 import { canNavigateByTestPart, isLegalSectionTarget } from './navigationPolicy.js';
 import {
+	branchExitLeavesPart,
+	branchTargetIndex,
+	endedEnclosingSection,
+	resolveExitBoundary,
+} from './exitBoundaries.js';
+import {
 	interactionRequirementFromXml,
 	interactionResponseIdentifiers,
 	itemAnswerStatus,
@@ -3094,24 +3100,12 @@ export class AssessmentPlayer {
 
 	/** Where a branch decision lands: an item index, or -1 when it ends the test. */
 	private branchTargetIndex(q: FlatItem, target: string): number {
-		if (target === 'EXIT_TEST') return -1;
-		if (target === 'EXIT_TESTPART') {
-			return this.items.findIndex((item, i) => i > q.index && item.testPart !== q.testPart);
-		}
-		if (target === 'EXIT_SECTION') {
-			const exited = this.endedEnclosingSection(q);
-			const inside = this.items.findIndex(
-				(item, i) => i > q.index && !item.sections.some((section) => section.identifier === exited.identifier),
-			);
-			return inside >= 0 ? inside : this.items.findIndex((item, i) => i > q.index && item.testPart !== q.testPart);
-		}
-		return this.items.findIndex((item) => item.identifier === target);
+		return branchTargetIndex(q, target, this.items, this.currentItemIndex);
 	}
 
 	/** Whether a branch decision takes delivery out of the item's test part (or ends the test). */
 	private branchExitLeavesPart(q: FlatItem, target: string): boolean {
-		const index = this.branchTargetIndex(q, target);
-		return index < 0 || this.items[index]!.testPart !== q.testPart;
+		return branchExitLeavesPart(q, target, this.items, this.currentItemIndex);
 	}
 
 	/**
@@ -3127,19 +3121,7 @@ export class AssessmentPlayer {
 		special: 'EXIT_TESTPART' | 'EXIT_SECTION',
 		current: FlatItem,
 	): Promise<void> {
-		const exitedSection = special === 'EXIT_SECTION' ? this.endedEnclosingSection(current) : undefined;
-		let nextIdx = this.items.findIndex((item, i) =>
-			i > this.currentItemIndex &&
-			(exitedSection
-				? !item.sections.some((section) => section.identifier === exitedSection.identifier)
-				: item.testPart.identifier !== current.testPart.identifier),
-		);
-		if (exitedSection && nextIdx < 0) {
-			// Nothing follows the section inside this test part: the part ends too.
-			nextIdx = this.items.findIndex(
-				(item, i) => i > this.currentItemIndex && item.testPart !== current.testPart,
-			);
-		}
+		const nextIdx = resolveExitBoundary(special, current, this.items, this.currentItemIndex);
 		const partEnded = nextIdx < 0 || this.items[nextIdx]!.testPart !== current.testPart;
 		if (partEnded) {
 			// The part's pending simultaneous-mode responses are due when it ends.
@@ -3160,22 +3142,11 @@ export class AssessmentPlayer {
 	}
 
 	/**
-	 * The enclosing section a literal EXIT_SECTION leaves: the innermost section, walked
-	 * outward while the next enclosing one also ends with the current item — a branch rule
-	 * on an outer section fires at its last item, where the whole outer boundary closes, so
-	 * the EXIT lands outside the entire outer section, not just outside the innermost one.
+	 * The enclosing section a literal EXIT_SECTION leaves (see
+	 * `exitBoundaries.endedEnclosingSection`).
 	 */
 	private endedEnclosingSection(current: FlatItem): FlatItem['section'] {
-		let ended = current.section;
-		for (let level = current.sections.length - 2; level >= 0; level--) {
-			const section = current.sections[level]!;
-			const continues = this.items.some(
-				(item, i) => i > this.currentItemIndex && item.sections.some((s) => s.identifier === section.identifier),
-			);
-			if (continues) break;
-			ended = section;
-		}
-		return ended;
+		return endedEnclosingSection(current, this.items, this.currentItemIndex);
 	}
 
 	private canPrevious(): boolean {
