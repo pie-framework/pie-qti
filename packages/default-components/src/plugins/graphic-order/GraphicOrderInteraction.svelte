@@ -21,6 +21,7 @@
 	import { orderChoiceLimits } from '@pie-qti/item-player';
 	import { escapeHtml, imageAltText, regionMarkerPoint } from '../../shared/utils/graphicRegions';
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
+	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 
 	interface Props {
 		interaction?: GraphicOrderInteractionData | string;
@@ -168,12 +169,12 @@
 	// becomes an inert "Order confirmed" state instead of being swapped for an alert), so
 	// the focus that pressed it keeps a home, and the always-present polite region below
 	// announces the confirmation to assistive technology.
-	let confirmationAnnouncement = $state('');
+	const confirmationAnnouncer = createAnnouncer();
 
+	/** Announce the confirmation; the shared announcer keeps repeats announcing. */
 	function announceConfirmation(message: string) {
-		confirmationAnnouncement = confirmationAnnouncement === message ? `${message}\u200b` : message;
+		confirmationAnnouncer.announce(message);
 	}
-
 	async function confirmFromButton(event: MouseEvent) {
 		const button = event.currentTarget as HTMLButtonElement | null;
 		const wasNeedy = confirmation.needsConfirmation;
@@ -397,7 +398,7 @@
 									</p>
 								{/if}
 							{/if}
-							<div aria-live="polite" aria-atomic="true" class="qti-go-confirmation-live">{confirmationAnnouncement}</div>
+							<div aria-live="polite" aria-atomic="true" class="qti-go-confirmation-live">{confirmationAnnouncer.message}</div>
 						</div>
 					</div>
 				</div>

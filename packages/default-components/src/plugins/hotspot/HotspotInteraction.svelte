@@ -16,6 +16,7 @@
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { minimumHint } from '../../shared/utils/minimumRequirement';
 	import { hitStrokeWidth, imageAltText, regionMarkerPoint, type Point } from '../../shared/utils/graphicRegions';
+	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 
 	interface Props {
 		interaction?: HotspotInteractionData | string;
@@ -206,15 +207,11 @@
 	const showMaxMessage = $derived(isLimitMessageShown(selectedIds.length, maxChoices, parsedInteraction?.maxSelectionsMessage));
 
 	// Polite status messages (a refused selection) for the always-rendered live region.
-	let statusAnnouncement = $state('');
+	const statusAnnouncer = createAnnouncer();
 
-	/**
-	 * Put `message` in the live region. Announcing the same message again would leave the text
-	 * unchanged, which assistive technology does not announce, so a repeat toggles a trailing
-	 * zero-width space (silent to screen readers) to make it a change.
-	 */
+	/** Put `message` in the live region; the shared announcer keeps repeats announcing. */
 	function announce(message: string) {
-		statusAnnouncement = statusAnnouncement === message ? `${message}\u200b` : message;
+		statusAnnouncer.announce(message);
 	}
 
 	// The radio group is named by the prompt, else by a generic localized label.
@@ -328,7 +325,7 @@
 	<InteractionDescription interaction={parsedInteraction} />
 	<!-- Polite announcements (a refused selection). Always rendered, before any conditional
 	     content, so the region exists before its text changes. -->
-	<div aria-live="polite" aria-atomic="true" class="qti-hotspot-live-region">{statusAnnouncement}</div>
+	<div aria-live="polite" aria-atomic="true" class="qti-hotspot-live-region">{statusAnnouncer.message}</div>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}

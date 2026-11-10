@@ -10,6 +10,7 @@
 	import { parseJsonProp, responseProp } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 	import {
 		canStartPlay,
 		defaultTextTrackIndex,
@@ -55,8 +56,7 @@
 	let currentTime = $state(0);
 	let duration = $state(Number.NaN);
 	let selectedTrack: string | undefined = $state();
-	let liveMessage = $state('');
-	let liveToggle = false;
+	const liveAnnouncer = createAnnouncer();
 
 	const media = $derived(parsedInteraction?.mediaElement);
 	const isPlayable = $derived(media?.type === 'audio' || media?.type === 'video');
@@ -93,8 +93,7 @@
 
 	/** Announce through the polite live region; a repeat still changes the DOM. */
 	function announce(message: string) {
-		liveToggle = !liveToggle;
-		liveMessage = liveToggle ? message : `${message}\u00A0`;
+		liveAnnouncer.announce(message);
 	}
 
 	function countPlay() {
@@ -448,7 +447,7 @@
 			</div>
 		{/if}
 
-		<div class="sr-only" part="announcer" role="status" aria-live="polite" aria-atomic="true">{liveMessage}</div>
+		<div class="sr-only" part="announcer" role="status" aria-live="polite" aria-atomic="true">{liveAnnouncer.message}</div>
 	{/if}
 </div>
 

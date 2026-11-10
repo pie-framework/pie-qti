@@ -65,6 +65,7 @@
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { isAtLimit } from '../../shared/utils/capacity';
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
+	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import { clientToImagePoint, imageAltText } from '../../shared/utils/graphicRegions';
@@ -182,7 +183,7 @@
 	// region that reports selection, movement, placement and refusals.
 	let selectedStageId: string | null = $state(null);
 	const crosshair = createKeyboardCrosshair();
-	let liveMessage = $state('');
+	const liveAnnouncer = createAnnouncer();
 
 	const canInteract = $derived(!disabled);
 	// The interaction's maxChoices: 0 means unlimited, as does anything but a positive number.
@@ -319,7 +320,7 @@
 				: translate(i18n, 'interactions.positionObject.objectLimitReached', 'Not possible: {object} cannot be placed again.', {
 						object: stageName(stage),
 					});
-		liveMessage = liveMessage === message ? `${message}\u200b` : message;
+		liveAnnouncer.announce(message);
 	}
 
 	function handleDragStart(event: DragEvent, stageId: string, existingIndex?: number) {
@@ -409,9 +410,11 @@
 		positions = positions.filter((_, i) => i !== index);
 		emitPositions();
 		if (removed) {
-			liveMessage = translate(i18n, 'interactions.positionObject.objectRemoved', '{object} removed.', {
-				object: stageName(getStageById(removed.stageId)),
-			});
+			liveAnnouncer.set(
+				translate(i18n, 'interactions.positionObject.objectRemoved', '{object} removed.', {
+					object: stageName(getStageById(removed.stageId)),
+				}),
+			);
 		}
 		// The removed object's button is gone, which would drop keyboard focus to the
 		// document. The canvas is the interaction's persistent surface (tabindex="-1"),
@@ -494,11 +497,13 @@
 			crosshair.centre();
 		}
 
-		liveMessage = translate(
-			i18n,
-			'interactions.positionObject.objectSelected',
-			'{object} selected. Tab to the canvas, then use the arrow keys to position it. Press Enter to place it or Escape to cancel.',
-			{ object: stageName(stage) },
+		liveAnnouncer.set(
+			translate(
+				i18n,
+				'interactions.positionObject.objectSelected',
+				'{object} selected. Tab to the canvas, then use the arrow keys to position it. Press Enter to place it or Escape to cancel.',
+				{ object: stageName(stage) },
+			),
 		);
 
 		// Move focus to the canvas so arrow keys work immediately
@@ -525,11 +530,13 @@
 			announcePlacementRefused(stage);
 			return;
 		}
-		liveMessage = translate(i18n, 'interactions.positionObject.objectPlacedAt', '{object} placed at {x}%, {y}%.', {
-			object: stageName(stage),
-			x: percent(x, imageWidth ?? 0),
-			y: percent(y, imageHeight ?? 0),
-		});
+		liveAnnouncer.set(
+			translate(i18n, 'interactions.positionObject.objectPlacedAt', '{object} placed at {x}%, {y}%.', {
+				object: stageName(stage),
+				x: percent(x, imageWidth ?? 0),
+				y: percent(y, imageHeight ?? 0),
+			}),
+		);
 		selectedStageId = null;
 		crosshair.deactivate();
 	}
@@ -573,17 +580,19 @@
 				event.preventDefault();
 				selectedStageId = null;
 				crosshair.deactivate();
-				liveMessage = translate(i18n, 'interactions.positionObject.placementCancelled', 'Placement cancelled.');
+				liveAnnouncer.set(translate(i18n, 'interactions.positionObject.placementCancelled', 'Placement cancelled.'));
 				return;
 			default:
 				return;
 		}
 
 		// Announce updated position after arrow movement
-		liveMessage = translate(i18n, 'accessibility.positionPercent', 'Position: {x}%, {y}%.', {
-			x: Math.round(crosshair.x * 100),
-			y: Math.round(crosshair.y * 100),
-		});
+		liveAnnouncer.set(
+			translate(i18n, 'accessibility.positionPercent', 'Position: {x}%, {y}%.', {
+				x: Math.round(crosshair.x * 100),
+				y: Math.round(crosshair.y * 100),
+			}),
+		);
 	}
 </script>
 
@@ -911,7 +920,7 @@
 	{/if}
 
 	<!-- Visually-hidden live region for placement announcements (K-04) -->
-	<div aria-live="polite" aria-atomic="true" class="qti-po-sr-only">{liveMessage}</div>
+	<div aria-live="polite" aria-atomic="true" class="qti-po-sr-only">{liveAnnouncer.message}</div>
 </div>
 
 <style>

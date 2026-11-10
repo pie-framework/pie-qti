@@ -162,7 +162,8 @@ function playButton(m: MountedInteraction) {
 }
 
 function announcement(m: MountedInteraction) {
-	return (q(m, '[part="announcer"]')?.textContent ?? '').trim();
+	// The re-announce toggle of a repeated message is a trailing zero-width space.
+	return (q(m, '[part="announcer"]')?.textContent ?? '').replace(/\u200b/g, '').trim();
 }
 
 async function click(element: HTMLElement) {

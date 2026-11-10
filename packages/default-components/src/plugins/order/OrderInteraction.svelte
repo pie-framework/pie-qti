@@ -8,6 +8,7 @@
 	import { createEliminationTool } from '../../shared/utils/eliminationTool.svelte';
 	import { accessibleTextFromHtml } from '../../shared/utils/accessibleText.js';
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
+	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
@@ -151,12 +152,12 @@
 	// becomes an inert "Order confirmed" state instead of being swapped for a badge), so
 	// the focus that pressed it keeps a home, and the always-present polite region below
 	// announces the confirmation to assistive technology.
-	let confirmationAnnouncement = $state('');
+	const confirmationAnnouncer = createAnnouncer();
 
+	/** Announce the confirmation; the shared announcer keeps repeats announcing. */
 	function announceConfirmation(message: string) {
-		confirmationAnnouncement = confirmationAnnouncement === message ? `${message}\u200b` : message;
+		confirmationAnnouncer.announce(message);
 	}
-
 	async function confirmFromButton(event: MouseEvent) {
 		const button = event.currentTarget as HTMLButtonElement | null;
 		const wasNeedy = confirmation.needsConfirmation;
@@ -316,7 +317,7 @@
 				{/if}
 			{/if}
 		</div>
-		<div aria-live="polite" aria-atomic="true" class="qti-order-confirmation-live">{confirmationAnnouncement}</div>
+		<div aria-live="polite" aria-atomic="true" class="qti-order-confirmation-live">{confirmationAnnouncer.message}</div>
 	{/if}
 </div>
 

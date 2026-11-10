@@ -14,6 +14,7 @@
 	import { isAtLimit } from '../../shared/utils/capacity';
 	import { matchGroupBlockedIds } from '../../shared/utils/matchGroupUtils';
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
+	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 	import { countPairsWithId, hasUnorderedPair, pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
@@ -96,10 +97,11 @@
 
 	// Polite announcements of associations made, removed, and refused, for the
 	// always-rendered live region below the description.
-	let statusAnnouncement = $state('');
+	const statusAnnouncer = createAnnouncer();
 
+	/** Announce through the polite live region; the shared announcer keeps repeats announcing. */
 	function announce(message: string) {
-		statusAnnouncement = statusAnnouncement === message ? `${message}\u200b` : message;
+		statusAnnouncer.announce(message);
 	}
 
 	const canInteract = $derived(!disabled);
@@ -352,7 +354,7 @@
 	<InteractionDescription interaction={parsedInteraction} />
 	<!-- Polite announcements (association made, removed, refused) that survive the changed
 	     or focused controls themselves. Always rendered, before any conditional content. -->
-	<div aria-live="polite" aria-atomic="true" class="qti-ga-live-region">{statusAnnouncement}</div>
+	<div aria-live="polite" aria-atomic="true" class="qti-ga-live-region">{statusAnnouncer.message}</div>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}

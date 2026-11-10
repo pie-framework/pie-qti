@@ -15,6 +15,7 @@
 	import { limitMessage } from '../utils/capacity.js';
 	import { accessibleTextFromHtml } from '../utils/accessibleText.js';
 	import { choiceAccessibleName } from '../utils/choiceName.js';
+	import { createAnnouncer } from '../utils/announcer.svelte';
 	import { describedByIds } from '../utils/minimumRequirement.js';
 	import SortableList, { type SortableIndexLabels } from './SortableList.svelte';
 	import '../styles/srOnly.js';
@@ -76,7 +77,7 @@
 	const correctLabelId = `${uid}-correct-label`;
 
 	let root: HTMLDivElement | undefined = $state();
-	let announcement = $state('');
+	const announcer = createAnnouncer();
 
 	const ordered = $derived(new Set(orderedIds));
 	const poolItems = $derived(items.filter((item) => !ordered.has(item.id)));
@@ -98,14 +99,9 @@
 		});
 	}
 
-	/**
-	 * Announce through the polite region. Repeating the same refused attempt would leave the
-	 * live text unchanged, which assistive technology does not announce, so a repeat toggles a
-	 * trailing zero-width space (silent to screen readers) — the re-announce toggle of
-	 * MatchDragDrop's `announceRefusal` and PositionObjectInteraction's `announcePlacementRefused`.
-	 */
+	/** Announce through the polite region; the shared announcer keeps repeats announcing. */
 	function announce(message: string) {
-		announcement = announcement === message ? `${message}\u200b` : message;
+		announcer.announce(message);
 	}
 
 	/** Move keyboard focus to `id`'s control in a zone once Svelte has applied the change. */
@@ -166,7 +162,7 @@
 
 <div bind:this={root} part="subset" class="qti-order-subset" data-subset-mode="true">
 	<!-- Add, remove and refusal announcements; moves are announced by the SortableList itself. -->
-	<div aria-live="polite" aria-atomic="true" class="qti-subset-live" data-subset-live>{announcement}</div>
+	<div aria-live="polite" aria-atomic="true" class="qti-subset-live" data-subset-live>{announcer.message}</div>
 
 	<div part="ordered-zone" class="qti-subset-zone">
 		<p id={orderLabelId} part="ordered-label" class="qti-subset-label">

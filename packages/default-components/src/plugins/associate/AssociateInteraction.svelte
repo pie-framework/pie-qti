@@ -10,6 +10,7 @@
 	import { exceedsLimit, isAtLimit, isLimited } from '../../shared/utils/capacity';
 	import { accessibleTextFromHtml } from '../../shared/utils/accessibleText.js';
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
+	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 	import { matchGroupBlockedIds } from '../../shared/utils/matchGroupUtils';
 	import { countPairsWithId, hasUnorderedPair, pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
@@ -60,17 +61,12 @@
 
 	// Polite announcements of pair removals and refused pairings, for the screen-reader
 	// live region below.
-	let statusAnnouncement = $state('');
+	const statusAnnouncer = createAnnouncer();
 
-	/**
-	 * Put `message` in the live region. Announcing the same message again would leave the
-	 * text unchanged, which assistive technology does not announce, so a repeated message
-	 * toggles a trailing zero-width space (silent to screen readers) to make it a change.
-	 */
+	/** Announce through the polite live region; the shared announcer keeps repeats announcing. */
 	function announce(message: string) {
-		statusAnnouncement = statusAnnouncement === message ? `${message}\u200b` : message;
+		statusAnnouncer.announce(message);
 	}
-
 	// Use external selection state if provided, otherwise use internal state
 	let internalSelectedForPairing = $state<string | null>(null);
 	const selectedForPairing = $derived(externalSelectedForPairing ?? internalSelectedForPairing);
@@ -318,7 +314,7 @@
 <div bind:this={rootElement} {...interactionAria(parsedInteraction)} part="root" class="qti-associate-interaction space-y-3">
 	<InteractionDescription interaction={parsedInteraction} />
 	<!-- Polite announcements (pair removal, refused pairing) that survive the changed/focused controls themselves. -->
-	<div aria-live="polite" aria-atomic="true" class="qti-associate-live-region">{statusAnnouncement}</div>
+	<div aria-live="polite" aria-atomic="true" class="qti-associate-live-region">{statusAnnouncer.message}</div>
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}

@@ -12,6 +12,7 @@ import { tick } from 'svelte';
 import { accessibleTextFromHtml } from '../utils/accessibleText.js';
 import { exceedsLimit, isAtLimit } from '../utils/capacity.js';
 import { choiceAccessibleName } from '../utils/choiceName.js';
+import { createAnnouncer } from '../utils/announcer.svelte';
 import { createOrUpdatePair, getSourceForTarget, getTargetsForSource, removePairBySource } from '../utils/pairHelpers.js';
 import { isCompatibleMatchGroup, matchGroupBlockedIds } from '../utils/matchGroupUtils.js';
 import DragHandle from './DragHandle.svelte';
@@ -49,7 +50,7 @@ const blockedTargetIds = $derived.by(() => {
 });
 
 let gridElement = $state<HTMLDivElement>();
-let announceText = $state<string>(''); // For screen reader announcements
+const announcer = createAnnouncer(); // For screen reader announcements
 
 // Unique id prefix so aria-labelledby/describedby survive several interactions in one document.
 const uid = $props.id();
@@ -118,9 +119,11 @@ function selectSource(sourceId: string) {
 	if (disabled) return;
 	pickUp.toggle(sourceId);
 	const item = choiceLabel(sourceSet.find((source) => source.identifier === sourceId));
-	announceText = pickUp.held
-		? (i18n?.t('interactions.match.selected', { item }) ?? `${item} selected`)
-		: (i18n?.t('interactions.match.deselected', { item }) ?? `${item} deselected`);
+	announcer.set(
+		pickUp.held
+			? (i18n?.t('interactions.match.selected', { item }) ?? `${item} selected`)
+			: (i18n?.t('interactions.match.deselected', { item }) ?? `${item} deselected`),
+	);
 }
 
 // Escape cancels a held/selected source and returns focus to it: after the
@@ -131,7 +134,7 @@ function cancelSelection(event: KeyboardEvent) {
 	event.preventDefault();
 	const item = choiceLabel(sourceSet.find((source) => source.identifier === sourceId));
 	pickUp.release();
-	announceText = translate(i18n, 'interactions.match.selectionCancelledItem', 'Selection of {item} cancelled.', { item });
+	announcer.set(translate(i18n, 'interactions.match.selectionCancelledItem', 'Selection of {item} cancelled.', { item }));
 	void tick().then(() => {
 		const source = Array.from(gridElement?.querySelectorAll<HTMLButtonElement>('[data-source-id]') ?? [])
 			.find((button) => button.dataset.sourceId === sourceId);
@@ -152,13 +155,9 @@ async function selectTarget(targetId: string) {
 	if (source?.isConnected) source.focus();
 }
 
-/**
- * Announce a refusal. Repeating the same refused attempt would leave the live text
- * unchanged, which assistive technology does not announce, so a repeat toggles a
- * trailing zero-width space (silent to screen readers) to make it a change.
- */
+/** Announce a refusal; the shared announcer keeps a repeated refusal announcing. */
 function announceRefusal(message: string) {
-	announceText = announceText === message ? `${message}\u200b` : message;
+	announcer.announce(message);
 }
 
 // Enforce the same capacity and compatibility rules for every input method.
@@ -185,10 +184,12 @@ function createMatch(sourceId: string, targetId: string): boolean {
 		return false;
 	}
 	onPairsChange(newPairs);
-	announceText = translate(i18n, 'interactions.match.pairCreated', '{source} matched with {target}.', {
-		source: choiceLabel(source),
-		target: choiceLabel(target),
-	});
+	announcer.set(
+		translate(i18n, 'interactions.match.pairCreated', '{source} matched with {target}.', {
+			source: choiceLabel(source),
+			target: choiceLabel(target),
+		}),
+	);
 	return true;
 }
 
@@ -200,7 +201,7 @@ async function clearMatch(sourceId: string) {
 	const newPairs = removePairBySource(pairs, sourceId);
 	onPairsChange(newPairs);
 
-	announceText = translate(i18n, 'interactions.match.matchCleared', 'Match cleared for {item}', { item: sourceName });
+	announcer.set(translate(i18n, 'interactions.match.matchCleared', 'Match cleared for {item}', { item: sourceName }));
 
 	// The clear button is removed with the match, which would drop keyboard focus to
 	// the document. Focus returns to the now-enabled source button instead.
@@ -214,7 +215,7 @@ async function clearMatch(sourceId: string) {
 
 <!-- Screen reader announcements -->
 <div aria-live="polite" aria-atomic="true" class="sr-only">
-	{announceText}
+	{announcer.message}
 </div>
 
 <p class="qti-match-pointer-instructions">{i18n?.t('interactions.match.pointerInstructions') ?? 'Select a source item, then select its target. You can also drag and drop.'}</p>

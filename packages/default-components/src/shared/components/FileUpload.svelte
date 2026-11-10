@@ -8,6 +8,7 @@
 
 	import type { QTIFileResponse } from '@pie-qti/item-player';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
+	import { createAnnouncer } from '../utils/announcer.svelte';
 
 	const DEFAULT_MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 
@@ -79,7 +80,7 @@
 
 	// Polite announcement of a removal, for the live region below: the remove button
 	// deletes itself with the response, so the region is what reports what happened.
-	let removalAnnouncement = $state('');
+	const removalAnnouncer = createAnnouncer();
 
 	const acceptAttr = $derived(fileTypes.length > 0 ? fileTypes.join(',') : undefined);
 	const allowedTypesId = $derived(fileTypes.length > 0 ? `upload-${responseId}-allowed-types` : undefined);
@@ -152,7 +153,7 @@
 		// interaction's shadow root, where a document lookup cannot see the input.
 		// Resetting the value also lets the candidate re-choose the same file.
 		if (inputElement) inputElement.value = '';
-		removalAnnouncement = removalAnnouncement === translations.fileRemoved ? `${translations.fileRemoved}\u200b` : translations.fileRemoved;
+		removalAnnouncer.announce(translations.fileRemoved);
 	}
 </script>
 
@@ -175,7 +176,7 @@
 	/>
 
 	<!-- Polite removal announcements that survive the removed control itself. -->
-	<div aria-live="polite" aria-atomic="true" class="qti-upload-live-region">{removalAnnouncement}</div>
+	<div aria-live="polite" aria-atomic="true" class="qti-upload-live-region">{removalAnnouncer.message}</div>
 
 	{#if fileTypes.length > 0}
 		<div id={allowedTypesId} class="text-xs text-base-content/70">
