@@ -78,6 +78,7 @@ import {
 import { firstEligibleItem, nextItemIdentifier } from '../integration/test-navigation.js';
 import { extendTimeLimit, TimeManager } from './TimeManager.js';
 import {
+	asResponseValues,
 	cloneData,
 	cloneResponseRecord,
 	closedItemSession,
@@ -742,10 +743,6 @@ export class AssessmentPlayer {
 		return this.sessionCoordinator.state;
 	}
 
-	private set state(state: AssessmentSessionState) {
-		this.sessionCoordinator.restoreState(state);
-	}
-
 	/**
 	 * Whether a navigation or submission transition is currently in flight. Shells must
 	 * disable navigation controls while this is set.
@@ -946,7 +943,7 @@ export class AssessmentPlayer {
 			// Replaces coordinator state (responses, sessions, results, flags) and clears
 			// visited/navigation state beyond the left parts. Locked scopes, the whole-test
 			// expiry and the timer's fired-limit record stay as they are.
-			this.state = fresh;
+			this.sessionCoordinator.restoreState(fresh);
 			this.navigationManager.restoreState(this.visitedIndexes(fresh.visitedItems));
 			// (A pause cannot be in force here: startOver is a candidate transition, and a
 			// pause requested while it runs applies once it settles.)
@@ -968,7 +965,7 @@ export class AssessmentPlayer {
 				inPart >= 0 ? inPart : this.items.findIndex((q) => partOrderOf(this.assessment, q) > reachedPart && !this.isItemLocked(q));
 			const target = firstOpen >= 0 ? firstOpen : Math.max(0, this.items.findIndex(inReach));
 			if (this.items[target]) {
-				this.state.currentItemIdentifier = this.items[target]!.identifier;
+				this.sessionCoordinator.setCurrentItem(this.items[target]!.identifier);
 				await this.performNavigateTo(target, { restoring: true });
 				if (firstOpen < 0) this.notifyExpiryDeadEnd();
 			}
@@ -1838,13 +1835,7 @@ export class AssessmentPlayer {
 		itemIdentifier: string,
 		responses: Readonly<Record<string, unknown>>,
 	): boolean {
-		const current = this.sessionCoordinator.getResponses(itemIdentifier);
-		if (responseValuesEqual(current, responses)) return false;
-
-		const snapshot = cloneResponseRecord(responses);
-		this.state.itemResponses[itemIdentifier] = snapshot as any;
-		this.sessionCoordinator.markAnswered(itemIdentifier, snapshot);
-		return true;
+		return this.sessionCoordinator.mirrorResponses(itemIdentifier, responses);
 	}
 
 	private attachCurrentItemSession(q: FlatItem, session: ItemSession, presentation?: PresentationPolicy): void {
@@ -2005,7 +1996,7 @@ export class AssessmentPlayer {
 	 */
 	public restoreState(state: AssessmentSessionState): Promise<void> {
 		return this.runExclusive(async () => {
-			this.state = state;
+			this.sessionCoordinator.restoreState(state);
 			this.seedSubmittedResponses(state);
 			this.restoreTimeTracking(state.timing);
 			// The snapshot's clocks are the time accounting from here on: expiries are
@@ -2143,7 +2134,7 @@ export class AssessmentPlayer {
 		this.currentItemIndex = index;
 		this.navigationManager.markVisited(index);
 		const q = this.items[index]!;
-		this.state.currentItemIdentifier = q.identifier;
+		this.sessionCoordinator.setCurrentItem(q.identifier);
 		this.timeManager?.activateScopes({
 			testPart: { identifier: q.testPart.identifier, timeLimits: q.testPart.timeLimits },
 			section: { identifier: q.section.identifier, timeLimits: q.section.timeLimits },
@@ -2367,18 +2358,17 @@ export class AssessmentPlayer {
 
 	/** The backend decision kept for `q` that delivery has not followed yet (its target). */
 	private keptDecisionTarget(q: FlatItem): string | null {
-		const target = this.state.branchDecisions?.[q.identifier];
-		return target ?? null;
+		return this.sessionCoordinator.getBranchDecision(q.identifier) ?? null;
 	}
 
 	/** Keep `target` as the one decision delivery may still follow — the item's freshest. */
 	private keepBranchDecision(q: FlatItem, target: string): void {
-		this.state.branchDecisions = { [q.identifier]: target };
+		this.sessionCoordinator.keepBranchDecision(q.identifier, target);
 	}
 
 	/** Every kept decision is void: a counted submission moved the outcomes they decided on. */
 	private clearKeptBranchDecisions(): void {
-		delete this.state.branchDecisions;
+		this.sessionCoordinator.clearBranchDecisions();
 	}
 
 	/**
@@ -2760,7 +2750,7 @@ export class AssessmentPlayer {
 			res = await this.backend.submitResponses({
 				sessionId: this.sessionId,
 				itemIdentifier: q.identifier,
-				responses: responses as any,
+				responses: asResponseValues(responses),
 				submittedAt,
 				countAttempt,
 				timeSpent: itemSession?.duration,
@@ -2826,22 +2816,10 @@ export class AssessmentPlayer {
 			// authoritative count (`itemSessionStates`), which must not be counted twice.
 			const attemptsBefore = this.sessionCoordinator.getItemSessionInfo(q.identifier).attemptCount;
 			if (res.updatedState) {
-				const localResponses = cloneData(this.state.itemResponses || {})!;
-				localResponses[q.identifier] = cloneResponseRecord(responses) as any;
-				this.sessionCoordinator.replaceStatePreservingResponsesAndSessions(
-					res.updatedState,
-					localResponses,
-					cloneData(this.state.itemSessions || {})!,
-				);
+				this.sessionCoordinator.recordSubmittedItemInUpdatedState(q.identifier, responses, res.updatedState);
 			} else {
 				// Minimal state update when backend doesn't return full state.
-				this.state.itemScores = this.state.itemScores || {};
-				this.state.itemScores[q.identifier] = res.result;
-				this.sessionCoordinator.markVisited(q.identifier);
-				this.state.itemResponses[q.identifier] = responses as any;
-				if (itemSession) {
-					this.sessionCoordinator.setItemSession(q.identifier, itemSession);
-				}
+				this.sessionCoordinator.recordIndividualSubmission(q.identifier, responses, itemSession, res.result);
 			}
 
 			const itemResult: ItemResult = {
@@ -2858,13 +2836,7 @@ export class AssessmentPlayer {
 			// Track item session rules (review/attempts) and visited items for navigation hints.
 			// The backend already counted this attempt when its `updatedState` restored a
 			// higher count; only a backend without state updates records locally.
-			try {
-				if (this.sessionCoordinator.getItemSessionInfo(q.identifier).attemptCount <= attemptsBefore) {
-					this.sessionCoordinator.recordAttempt(q.identifier);
-				}
-			} catch {
-				// ignore
-			}
+			this.sessionCoordinator.recordAttemptIfUncounted(q.identifier, attemptsBefore);
 			this.sessionCoordinator.markAnswered(q.identifier, responses);
 			// The submitted item, not wherever delivery stands now (a scope expiry may have
 			// moved the candidate while the submission was in flight).
@@ -3094,13 +3066,13 @@ export class AssessmentPlayer {
 			// Some backend adapters return an updatedState snapshot that may only include
 			// responses for items that have been submitted so far, which would otherwise
 			// wipe out responses for later items during this loop.
-			const allItemResponses = cloneData(this.state.itemResponses || {}) as any;
-			allItemSessions = cloneData(this.state.itemSessions || {})!;
+			const allItemResponses = cloneData(this.state.itemResponses) ?? {};
+			allItemSessions = cloneData(this.state.itemSessions) ?? {};
 
 			for (const q of items) {
 				if (!this.itemNeedsSubmission(q)) continue;
 				const submittedAt = Date.now();
-				const responsesForItem = (allItemResponses?.[q.identifier] || {}) as any;
+				const responsesForItem = allItemResponses[q.identifier] || {};
 				// An item an expired limit closed (or a proctor's end of the test) submits its
 				// responses as they stand. Response validation is an individual-part control
 				// (QTI), and a candidate's end of the test checked those items already.
@@ -3135,20 +3107,15 @@ export class AssessmentPlayer {
 						allItemResponses,
 						allItemSessions,
 					);
+					this.sessionCoordinator.setItemResult({
+						itemIdentifier: q.identifier,
+						score: res.result.score,
+						maxScore: res.result.maxScore,
+						responses: this.state.itemResponses[q.identifier] || {},
+					});
 				} else {
-					this.state.itemScores = this.state.itemScores || {};
-					this.state.itemScores[q.identifier] = res.result;
-					this.sessionCoordinator.markVisited(q.identifier);
-					this.state.itemResponses[q.identifier] = responsesForItem;
-					this.sessionCoordinator.setItemSession(q.identifier, itemSession);
-					this.sessionCoordinator.recordAttempt(q.identifier);
+					this.sessionCoordinator.recordSimultaneousSubmission(q.identifier, responsesForItem, itemSession, res.result);
 				}
-				this.sessionCoordinator.setItemResult({
-					itemIdentifier: q.identifier,
-					score: res.result.score,
-					maxScore: res.result.maxScore,
-					responses: this.state.itemResponses[q.identifier] || {},
-				});
 				// The accepted response set: a retry, a later collection pass, or finalize
 				// must not re-submit identical responses for this item.
 				this.lastSubmittedResponses.set(q.identifier, cloneResponseRecord(responsesForItem));
@@ -3520,12 +3487,7 @@ export class AssessmentPlayer {
 	 * navigates).
 	 */
 	private closeItemSessionsForEnd(): void {
-		const sessions = this.state.itemSessions;
-		if (sessions) {
-			this.state.itemSessions = Object.fromEntries(
-				Object.entries(sessions).map(([identifier, session]) => [identifier, closedItemSession(session)]),
-			);
-		}
+		this.sessionCoordinator.closeAllItemSessions();
 		const q = this.items[this.currentItemIndex];
 		const live = this.currentItemSession;
 		if (!q || !live || live.state().lifecycleStatus === 'closed') return;
@@ -3734,7 +3696,7 @@ export class AssessmentPlayer {
 	}
 
 	public setTimerHidden(hidden: boolean): void {
-		this.state.timerHidden = hidden;
+		this.sessionCoordinator.setTimerHidden(hidden);
 		// The preference rides the persisted snapshot, like flags.
 		this.notifyAutosaveActivity();
 	}

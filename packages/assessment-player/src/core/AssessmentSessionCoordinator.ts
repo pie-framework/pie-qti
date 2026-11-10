@@ -1,5 +1,5 @@
 import type { SerializedItemSessionState } from '@pie-qti/item-player';
-import type { AssessmentSessionState } from '../integration/api-contract.js';
+import type { AssessmentScoringResult, AssessmentSessionState } from '../integration/api-contract.js';
 import type { ItemResult } from '../types/index.js';
 import { AssessmentPlayerError } from './errors.js';
 import {
@@ -7,6 +7,13 @@ import {
 	type ItemSessionControlSettings,
 	type ItemSessionState,
 } from './ItemSessionController.js';
+import {
+	asResponseValues,
+	cloneData,
+	cloneResponseRecord,
+	closedItemSession,
+	responseValuesEqual,
+} from './sessionRecords.js';
 
 export interface AssessmentSessionCoordinatorOptions {
 	state: AssessmentSessionState;
@@ -112,7 +119,7 @@ export class AssessmentSessionCoordinator {
 			...((this.#state.itemResponses?.[itemIdentifier] || {}) as Record<string, unknown>),
 			[responseId]: value,
 		};
-		this.#state.itemResponses[itemIdentifier] = next as any;
+		this.#state.itemResponses[itemIdentifier] = asResponseValues(next);
 		this.markAnswered(itemIdentifier, next);
 		return next;
 	}
@@ -127,7 +134,7 @@ export class AssessmentSessionCoordinator {
 			...(this.#state.itemSessions ?? {}),
 			[itemIdentifier]: sessionState,
 		};
-		this.#state.itemResponses[itemIdentifier] = responses as any;
+		this.#state.itemResponses[itemIdentifier] = asResponseValues(responses);
 		this.#state.timing.itemTimes[itemIdentifier] = duration;
 		this.markAnswered(itemIdentifier, responses);
 	}
@@ -169,6 +176,143 @@ export class AssessmentSessionCoordinator {
 		// backend request succeeds.
 		this.#state.itemResponses = { ...itemResponses };
 		this.#state.itemSessions = itemSessions ? { ...itemSessions } : undefined;
+	}
+
+	// ---------------------------------------------------------------------------
+	// Submission commits — the only writers of session state.
+	//
+	// One method per submit-path combination (individual / simultaneous × backend
+	// returns / omits `updatedState`), reproducing exactly the state writes the
+	// player's submit loops used to make inline.
+	// ---------------------------------------------------------------------------
+
+	/** Where delivery stands (navigation owns the pointer; the snapshot carries it). */
+	setCurrentItem(itemIdentifier: string): void {
+		this.#state.currentItemIdentifier = itemIdentifier;
+	}
+
+	/** The backend decision kept for the item (`state.branchDecisions`), if any. */
+	getBranchDecision(itemIdentifier: string): string | undefined {
+		return this.#state.branchDecisions?.[itemIdentifier];
+	}
+
+	/** Keep `target` as the one decision delivery may still follow — the item's freshest. */
+	keepBranchDecision(itemIdentifier: string, target: string): void {
+		this.#state.branchDecisions = { [itemIdentifier]: target };
+	}
+
+	/** Every kept decision is void: a counted submission moved the outcomes they decided on. */
+	clearBranchDecisions(): void {
+		delete this.#state.branchDecisions;
+	}
+
+	/**
+	 * The live item session's responses mirrored into the persisted record: an
+	 * equality-checked write (identical responses are not re-written or re-notified)
+	 * plus the answered mark. Returns whether the record changed.
+	 */
+	mirrorResponses(itemIdentifier: string, responses: Readonly<Record<string, unknown>>): boolean {
+		const current = this.getResponses(itemIdentifier);
+		if (responseValuesEqual(current, responses)) return false;
+
+		const snapshot = cloneResponseRecord(responses);
+		this.#state.itemResponses[itemIdentifier] = asResponseValues(snapshot);
+		this.markAnswered(itemIdentifier, snapshot);
+		return true;
+	}
+
+	/**
+	 * A counted individual submission the backend accepted WITH its `updatedState`:
+	 * replace the session state with the backend's, keeping the client-owned position
+	 * and the client-collected responses and sessions (the snapshot may only include
+	 * the items submitted so far, which would otherwise wipe later answers).
+	 */
+	recordSubmittedItemInUpdatedState(
+		itemIdentifier: string,
+		responses: Record<string, unknown>,
+		updatedState: AssessmentSessionState,
+	): void {
+		const localResponses = cloneData(this.#state.itemResponses || {})!;
+		localResponses[itemIdentifier] = asResponseValues(cloneResponseRecord(responses));
+		this.replaceStatePreservingResponsesAndSessions(
+			updatedState,
+			localResponses,
+			cloneData(this.#state.itemSessions || {})!,
+		);
+	}
+
+	/**
+	 * A counted individual submission the backend accepted WITHOUT a state update:
+	 * the minimal local commit — score, visited mark, responses, session snapshot.
+	 */
+	recordIndividualSubmission(
+		itemIdentifier: string,
+		responses: Record<string, unknown>,
+		itemSession: SerializedItemSessionState | undefined,
+		scoring: AssessmentScoringResult,
+	): void {
+		this.#state.itemScores = this.#state.itemScores || {};
+		this.#state.itemScores[itemIdentifier] = scoring;
+		this.markVisited(itemIdentifier);
+		this.#state.itemResponses[itemIdentifier] = asResponseValues(responses);
+		if (itemSession) {
+			this.setItemSession(itemIdentifier, itemSession);
+		}
+	}
+
+	/**
+	 * A counted simultaneous-flush submission the backend accepted WITHOUT a state
+	 * update: the minimal local commit plus the attempt record and the accepted
+	 * result (its responses read back from the persisted record, as the flush loop did).
+	 */
+	recordSimultaneousSubmission(
+		itemIdentifier: string,
+		responses: Record<string, unknown>,
+		itemSession: SerializedItemSessionState,
+		scoring: AssessmentScoringResult,
+	): void {
+		this.#state.itemScores = this.#state.itemScores || {};
+		this.#state.itemScores[itemIdentifier] = scoring;
+		this.markVisited(itemIdentifier);
+		this.#state.itemResponses[itemIdentifier] = asResponseValues(responses);
+		this.setItemSession(itemIdentifier, itemSession);
+		this.recordAttempt(itemIdentifier);
+		this.setItemResult({
+			itemIdentifier,
+			score: scoring.score,
+			maxScore: scoring.maxScore,
+			responses: this.#state.itemResponses[itemIdentifier] || {},
+		});
+	}
+
+	/**
+	 * Record an attempt locally only when the backend has not counted it already: a
+	 * backend `updatedState` carries its own authoritative count (`itemSessionStates`),
+	 * which must not be counted twice.
+	 */
+	recordAttemptIfUncounted(itemIdentifier: string, attemptsBefore: number): void {
+		try {
+			if (this.getItemSessionInfo(itemIdentifier).attemptCount <= attemptsBefore) {
+				this.recordAttempt(itemIdentifier);
+			}
+		} catch {
+			// ignore
+		}
+	}
+
+	/** The test ended: every delivered item session in the persisted record is closed. */
+	closeAllItemSessions(): void {
+		const sessions = this.#state.itemSessions;
+		if (sessions) {
+			this.#state.itemSessions = Object.fromEntries(
+				Object.entries(sessions).map(([identifier, session]) => [identifier, closedItemSession(session)]),
+			);
+		}
+	}
+
+	/** Whether the candidate hid the countdown (a persisted shell preference). */
+	setTimerHidden(hidden: boolean): void {
+		this.#state.timerHidden = hidden;
 	}
 
 	markVisited(itemIdentifier: string): void {

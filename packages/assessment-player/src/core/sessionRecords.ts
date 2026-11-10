@@ -8,6 +8,18 @@
 
 import type { SerializedItemSessionState } from '@pie-qti/item-player';
 import type { ResponseDefault } from './AssessmentSessionCoordinator.js';
+import type { ResponseValue } from '../integration/api-contract.js';
+
+/**
+ * The persisted response-record type (what backends receive and what snapshots
+ * carry). Item sessions hold `unknown` values; every response the player persists
+ * or submits passes through this one boundary. The runtime value is unchanged —
+ * this single documented conversion replaces the scattered `as any` writes the
+ * player used to make into session state.
+ */
+export function asResponseValues(responses: Record<string, unknown>): Record<string, ResponseValue> {
+	return responses as Record<string, ResponseValue>;
+}
 
 export function cloneData<T>(value: T | undefined): T | undefined {
 	return value === undefined ? undefined : structuredClone(value);
