@@ -36,7 +36,6 @@
 		VisibleTestFeedback,
 	} from '../types/index.js';
 	import AccessibilityAnnouncer from './AccessibilityAnnouncer.svelte';
-	import AssessmentDialog from './AssessmentDialog.svelte';
 	import AssessmentHeader from './AssessmentHeader.svelte';
 	import AssessmentTimer from './AssessmentTimer.svelte';
 	import CompletionScreen from './CompletionScreen.svelte';
@@ -48,7 +47,7 @@
 	import ResumeDialog from './ResumeDialog.svelte';
 	import ReviewScreen from './ReviewScreen.svelte';
 	import StartOverDialog from './StartOverDialog.svelte';
-	import SubmitBlockerGroup, { type BlockerGroups, type SubmitDialogItem } from './SubmitBlockerGroup.svelte';
+	import type { BlockerGroups, SubmitDialogItem } from './SubmitBlockerGroup.svelte';
 	import SubmitConfirmDialog, { type SubmitDialogSummary } from './SubmitConfirmDialog.svelte';
 
 	interface Props {
