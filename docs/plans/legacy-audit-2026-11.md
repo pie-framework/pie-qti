@@ -99,10 +99,33 @@ fails like any unknown element:
 | C7 | `packages/item-player/src/pci/amdLoader.ts`, `resolutionConfig.ts` | The `shim` here is RequireJS-style config for non-AMD third-party PCI scripts — a feature, not a legacy shim. → keep. |
 | C8 | `packages/item-player/src/core/sanitizer.ts:325` | Deprecated *HTML* background attributes in untrusted content. → keep. |
 | C9 | `packages/default-components/src/shared/utils/webComponentHelpers.ts` (`parseJsonProp`) | Web-component attributes are strings; JSON-string parsing is the attribute bridge, not back-compat. → keep. All observedAttributes lists are dash-case only — **no old attribute/event names found** in player-elements, web-component-loaders or item-player elements. |
-| C10 | `packages/item-player/src/core/Player.ts:1861-1885,1925-1942` | Serialized-state optional fields (`defaultValue`, `correctResponse`): optionality has a non-legacy reason (variables with no default / no correct response serialize without them). The "older-snapshot"/"older builds" comments can be reworded once A3-style cleanups land, but the code stays. |
+| C10 | `packages/item-player/src/core/serialization/sessionState.ts` (was `Player.ts:1861-1885,1925-1942`) | **Corrected 2026-11-10.** The optionality of `defaultValue` in the serialized state *was* legacy — a leftover tolerance for the project's own older snapshots — and is removed: `defaultValue` is now always serialized and required on the restore path, and the "older-snapshot"/"older builds" comments are gone. `correctResponse` stays optional with a non-legacy reason (variables with no correct response serialize without it). |
 | C11 | `packages/ims-cp-core/src/qti-heuristics.ts`, `packages/ims-cp-browser/src/image-resolver.ts` (lenient path resolution) | Deliberate, configurable, logged heuristics for real-world content-package path resolution (not QTI parsing). A documented feature with diagnostics → keep (revisit only with evidence of misuse). |
 | C12 | `packages/player-elements/src/public/api.ts:349-356` (`rng`) | The element-level `rng` is **functional** — it seeds `new ReferenceBackendAdapter({ rng })` (`QtiAssessmentPlayerElement.ts:689`). Only the headless assessment-player `rng` is the deprecated ignored one (Phase 1). After Phase 1 lands, reword this doc comment (it references "the deprecated, ignored rng"); the field stays. |
 | C13 | `packages/assessment-player/src/integration/api-contract.ts:289-290` (`SecureItemRef.deliveryContext`) | "Additive; itemXml remains the compatibility path" — both shapes are *current*: `itemXml` is produced by the reference adapter, `deliveryContext` by `qti-test-parser.ts:350`. Dual-shape with two live producers ≠ legacy. → keep. |
+
+## Resolution (2026-11-10)
+
+All scheduled rows are resolved. Current state:
+
+- **A1–A9: removed.** Each landed through the cleanup plan's phases with its changeset note; A3's
+  removal turned out to also cover a live-scoring path (the branch handled more than pre-beta
+  sessions), so the scorer was fixed instead of only deleting the branch (see the cleanup plan,
+  Phase 1).
+- **B1–B5: removed.** B1's mapping-level `caseSensitive`, B2's ISO-duration XML literals, B3's
+  `roundingMode` case variants, B4's randomInteger/randomFloat child-expression form and B5's
+  `<console>` statement all fail like any invalid content now, with fixtures rewritten to the
+  spec spellings.
+- **Class B addendum: done.** The 14 non-QTI processing elements (plus, in a follow-up, the
+  `preCondition` expression) are removed with a pinning test that they throw;
+  `xi:include` stays (XInclude, spec-referenced).
+- **C10: corrected** (above) — part legacy (removed), part not.
+- **C12: doc comment reworded** after Phase 1 removed the deprecated headless `rng`; the
+  functional element-level `rng` stays.
+- **C11: stays** per decision (2026-11-10): the IMS-CP path heuristics are a documented,
+  configurable feature for real-world packages.
+
+Remaining duplication work is tracked in the cleanup plan's phases (class D).
 
 ### Class D — duplication, not legacy (cross-reference the cleanup plan)
 
