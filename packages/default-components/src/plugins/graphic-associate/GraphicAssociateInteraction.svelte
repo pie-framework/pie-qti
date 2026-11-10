@@ -788,7 +788,10 @@
 		opacity: 0.6;
 	}
 
-	/* Above the hit-area SVG in the button; takes no pointer input (inherited). */
+	/* Above the hit-area SVG in the button; takes no pointer input (inherited). The label wraps
+	   inside its hotspot rather than being cut off: under increased text spacing (WCAG 1.4.12)
+	   a label such as "Gas Exchange" outgrows a one-line box, and an ellipsis would lose the
+	   words sighted candidates pick regions by. */
 	.qti-ga-hotspot-label {
 		position: relative;
 		font-size: 0.75rem;
@@ -798,10 +801,10 @@
 		background: var(--pie-qti-base-100, #fff);
 		border-radius: 0.25rem;
 		color: var(--pie-qti-base-content, #1f2937);
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
 		max-width: 100%;
+		min-width: 0;
+		overflow-wrap: anywhere;
+		text-align: center;
 	}
 	.qti-ga-hotspot-selected .qti-ga-hotspot-label {
 		background: var(--pie-qti-primary, oklch(45% 0.24 277));
@@ -810,8 +813,11 @@
 	.qti-ga-hotspot-check {
 		margin-inline-end: 0.125rem;
 	}
+	/* Beside the image at its 20rem basis where the row has room; on its own row otherwise. It
+	   may shrink below that basis, so in a container narrower than 20rem (a 320 CSS px viewport)
+	   it takes the container's width instead of running past it (WCAG 1.4.10 Reflow). */
 	.qti-ga-panel {
-		flex: 0 0 20rem;
+		flex: 0 1 20rem;
 		min-width: min(18rem, 100%);
 	}
 	.qti-ga-card {

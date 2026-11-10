@@ -338,21 +338,24 @@
 		position: relative;
 	}
 
-	/* K-12 target size: each toggle is a primary control in its item's row. */
+	/* K-12 target size: each toggle is a primary control in its item's row. Its boundary and
+	   ✕ glyph are the control's identifying features: both at full strength (the boundary on
+	   the strong-border token, 3:1 or more against the row — WCAG 1.4.11), as choice's toggle
+	   with the same function is. Dimming the idle state below 3:1 would hide the control. */
 	.qti-eliminate-btn {
 		background: none;
-		border: 1px solid currentColor;
+		border: 1px solid var(--pie-qti-border-strong, #767676);
 		border-radius: 50%;
 		width: 2.75rem;
 		height: 2.75rem;
 		font-size: 0.875rem;
 		cursor: pointer;
-		opacity: 0.4;
 		padding: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		flex: 0 0 auto;
+		color: inherit;
 	}
 
 	.qti-eliminate-btn:focus-visible {
@@ -360,9 +363,17 @@
 		outline-offset: 2px;
 	}
 
-	.qti-eliminate-btn:hover,
+	.qti-eliminate-btn:hover {
+		background-color: color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 8%, transparent);
+	}
+
+	/* Eliminated: the same treatment choice gives its toggle — the error *text* token on glyph
+	   and boundary, plus a tinted fill and a heavier boundary, so the state is told apart by
+	   fill and weight, not by colour alone (WCAG 1.4.1). */
 	.qti-eliminate-btn[data-eliminated] {
-		opacity: 1;
-		color: var(--pie-qti-error, oklch(63% 0.237 25.331));
+		color: var(--pie-qti-error-text, #b91c1c);
+		border-color: var(--pie-qti-error-text, #b91c1c);
+		border-width: 2px;
+		background-color: color-mix(in oklch, var(--pie-qti-error, oklch(63% 0.237 25.331)) 12%, transparent);
 	}
 </style>
