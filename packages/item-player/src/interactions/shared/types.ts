@@ -205,6 +205,12 @@ export interface GapMatchInteractionData extends BaseInteractionData<'gapMatchIn
 		/** Minimum number of gaps this choice must fill (QTI matchMin); absent means 0. */
 		matchMin?: number;
 		matchGroup?: string[];
+		/**
+		 * The gapImg's authored `objectLabel` (QTI 2.1 `objectLabel.GapImg.Attr`,
+		 * QTI 3.0 `object-label`). Names the label for assistive technology when
+		 * the image itself carries no text alternative.
+		 */
+		objectLabel?: string;
 		width?: number;
 		height?: number;
 	}>;
@@ -301,8 +307,15 @@ export interface AssociableHotspot {
 	shape: string;
 	coords: string;
 	matchMax: number;
+	/** Minimum number of labels this hotspot must take (QTI matchMin); absent means 0. */
+	matchMin?: number;
 	/** Authored `matchGroup`: the identifiers of the labels that may be matched with this hotspot. */
 	matchGroup?: string[];
+	/**
+	 * Authored `hotspotLabel`: the zone's name for assistive technology.
+	 * Absent when the author gave none; the renderer then names the zone generically.
+	 */
+	hotspotLabel?: string;
 }
 
 export interface GraphicGapMatchInteractionData extends BaseInteractionData<'graphicGapMatchInteraction'> {
@@ -314,9 +327,32 @@ export interface GraphicGapMatchInteractionData extends BaseInteractionData<'gra
 	 * Present only when above 0.
 	 */
 	minAssociations?: number;
-	gapTexts: Array<{ identifier: string; text: string; matchMax: number; matchGroup?: string[] }>;
+	gapTexts: Array<{
+		identifier: string;
+		text: string;
+		matchMax: number;
+		/** Minimum number of hotspots this label must fill (QTI matchMin); absent means 0. */
+		matchMin?: number;
+		matchGroup?: string[];
+	}>;
 	/** Image-based draggable labels (gapImg elements); rendered as <img> in the choice pool */
-	gapImages: Array<{ identifier: string; src: string; alt: string; matchMax: number; matchGroup?: string[]; width?: number; height?: number }>;
+	gapImages: Array<{
+		identifier: string;
+		src: string;
+		alt: string;
+		matchMax: number;
+		/** Minimum number of hotspots this label must fill (QTI matchMin); absent means 0. */
+		matchMin?: number;
+		matchGroup?: string[];
+		/**
+		 * The gapImg's authored `objectLabel` (QTI 2.1 `objectLabel.GapImg.Attr`,
+		 * QTI 3.0 `object-label`). Names the label for assistive technology when
+		 * the image itself carries no text alternative.
+		 */
+		objectLabel?: string;
+		width?: number;
+		height?: number;
+	}>;
 	hotspots: AssociableHotspot[];
 	/** CSS classes from the graphicGapMatchInteraction element (e.g. qti-choices-top, qti-selections-dark) */
 	interactionClasses?: string[];

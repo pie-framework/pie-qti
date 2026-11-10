@@ -51,6 +51,12 @@ export interface GapMatchImage {
 	matchMax: number;
 	matchMin?: number;
 	matchGroup?: string[];
+	/**
+	 * The gapImg's authored `objectLabel` (QTI 2.1 `objectLabel.GapImg.Attr`,
+	 * QTI 3.0 `object-label`). Names the label for assistive technology when
+	 * the image itself carries no text alternative.
+	 */
+	objectLabel?: string;
 	classes?: string[];
 	width?: number;
 	height?: number;
@@ -108,6 +114,7 @@ function extractGapImage(
 	const matchMin = utils.getNumberAttribute(gapImg, 'matchMin', 0);
 	const matchGroupRaw = utils.getAttribute(gapImg, 'matchGroup', '');
 	const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
+	const objectLabel = utils.getAttribute(gapImg, 'objectLabel', '').trim();
 
 	let src = '';
 	let alt = '';
@@ -143,6 +150,7 @@ function extractGapImage(
 		matchMax,
 		...(matchMin > 0 ? { matchMin } : {}),
 		...(matchGroup.length > 0 ? { matchGroup } : {}),
+		...(objectLabel ? { objectLabel } : {}),
 		...(classes.length > 0 ? { classes } : {}),
 		...(width !== undefined ? { width } : {}),
 		...(height !== undefined ? { height } : {}),

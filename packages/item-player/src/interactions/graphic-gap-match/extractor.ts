@@ -51,11 +51,29 @@ export interface GraphicGapMatchData {
 		src: string;
 		alt: string;
 		matchMax: number;
+		/** Minimum number of hotspots this label must fill; omitted when 0. */
+		matchMin?: number;
 		matchGroup?: string[];
+		/**
+		 * The gapImg's authored `objectLabel` (QTI 2.1 `objectLabel.GapImg.Attr`,
+		 * QTI 3.0 `object-label`). Names the label for assistive technology when
+		 * the image itself carries no text alternative.
+		 */
+		objectLabel?: string;
 		width?: number;
 		height?: number;
 	}>;
-	hotspots: Array<{ identifier: string; shape: string; coords: string; matchMax: number; matchGroup?: string[] }>;
+	hotspots: Array<{
+		identifier: string;
+		shape: string;
+		coords: string;
+		matchMax: number;
+		/** Minimum number of labels this hotspot must take; omitted when 0. */
+		matchMin?: number;
+		matchGroup?: string[];
+		/** The authored `hotspotLabel`; names the zone for assistive technology. */
+		hotspotLabel?: string;
+	}>;
 	prompt: string | null;
 }
 
@@ -180,8 +198,10 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 		const gapImgElements = utils.getChildrenByTag(element, 'gapImg');
 		const gapImages = gapImgElements.map((gapImg) => {
 			const matchMax = utils.getNumberAttribute(gapImg, 'matchMax', 1);
+			const matchMin = utils.getNumberAttribute(gapImg, 'matchMin', 0);
 			const matchGroupRaw = utils.getAttribute(gapImg, 'matchGroup', '');
 			const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
+			const objectLabel = utils.getAttribute(gapImg, 'objectLabel', '').trim();
 			// QTI 3.0 GapImgDType allows object, img or picture (delivered via its img fallback)
 			const image = findInteractionImage(gapImg, utils);
 			let src = '';
@@ -211,7 +231,9 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 				src,
 				alt,
 				matchMax,
+				...(matchMin > 0 ? { matchMin } : {}),
 				...(matchGroup.length > 0 ? { matchGroup } : {}),
+				...(objectLabel ? { objectLabel } : {}),
 				...(width !== undefined ? { width } : {}),
 				...(height !== undefined ? { height } : {}),
 			};
@@ -224,13 +246,19 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 				.getAttribute(hotspot, 'matchGroup', '')
 				.split(/\s+/)
 				.filter(Boolean);
+			const matchMin = utils.getNumberAttribute(hotspot, 'matchMin', 0);
+			const hotspotLabel = utils.getAttribute(hotspot, 'hotspotLabel', '').trim();
 			return {
 				identifier: utils.getAttribute(hotspot, 'identifier', ''),
 				shape: utils.getAttribute(hotspot, 'shape', 'rect'),
 				coords: utils.getAttribute(hotspot, 'coords', ''),
 				matchMax: utils.getNumberAttribute(hotspot, 'matchMax', 1),
+				...(matchMin > 0 ? { matchMin } : {}),
 				// Authored matchGroup: the identifiers of the labels that may be matched with this hotspot.
 				...(matchGroup.length > 0 ? { matchGroup } : {}),
+				// The authored zone name for assistive technology (2.1 hotspotLabel,
+				// 3.0 hotspot-label); an empty attribute never falls back to the identifier.
+				...(hotspotLabel ? { hotspotLabel } : {}),
 			};
 		});
 

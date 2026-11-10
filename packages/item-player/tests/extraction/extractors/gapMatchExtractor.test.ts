@@ -502,6 +502,30 @@ describe('standardGapMatchExtractor', () => {
 			});
 		});
 
+		test('delivers the gapImg objectLabel for naming image labels', () => {
+			// objectLabel on gapImg (2.1 XSD objectLabel.GapImg.Attr, 3.0 object-label):
+			// the label's name for assistive technology when the image carries none.
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>Fill: <gap identifier="G1" /></prompt>
+					<gapImg identifier="I1" matchMax="1" objectLabel="A red circle">
+						<object data="images/circle.png" type="image/png"/>
+					</gapImg>
+					<gapImg identifier="I2" matchMax="1">
+						<object data="images/square.png" type="image/png">Square</object>
+					</gapImg>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGapMatchExtractor.extract(element, context);
+
+			expect(result.gapImages[0].objectLabel).toBe('A red circle');
+			expect(result.gapImages[0].alt).toBe('');
+			expect(result.gapImages[1].objectLabel).toBeUndefined();
+		});
+
 		test('extracts image choices with matchGroup and matchMax', () => {
 			const xml = `
 				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
