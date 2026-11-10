@@ -36,6 +36,7 @@
 	import AssessmentHeader from './AssessmentHeader.svelte';
 	import AssessmentTimer from './AssessmentTimer.svelte';
 	import CompletionScreen from './CompletionScreen.svelte';
+	import LeavePartDialog from './LeavePartDialog.svelte';
 	import NavigationBar from './NavigationBar.svelte';
 	import ReviewScreen from './ReviewScreen.svelte';
 	import SubmitBlockerGroup, { type BlockerGroups, type SubmitDialogItem } from './SubmitBlockerGroup.svelte';
@@ -2292,80 +2293,25 @@
 				onConfirm={handleDialogSubmit}
 			/>
 
-		<!--
-			Leaving a test part is irreversible: confirm with a clear "cannot return". The
-			part's questions that still owe an answer are named with jumps, and Continue waits
-			for them — a left part can never be revisited (the core refuses the step too).
-		-->
-		<AssessmentDialog
-			bind:open={leavePartDialogOpen}
-			title={i18n.t('assessment.leavePart.title', 'Leave this part?')}
-			description={i18n.t('assessment.leavePart.description', 'After you continue, you cannot return to the questions in this part.')}
-			dismissible={false}
-			{i18n}
-			onConfirm={handleLeavePartConfirm}
-		>
-			{#snippet children()}
-				{#if leavePartTranslations.needsAnswerHeading}
-					<SubmitBlockerGroup
-						heading={leavePartTranslations.needsAnswerHeading}
-						headingId={`${uid}-leave-needs-answer-heading`}
-						testId="leave-part-needs-answer"
-						jumpPrefix="leave-part-needs-answer-jump"
-						items={leavePartBlockers.needsAnswer}
-						total={navState.totalItems}
-						busy={isSubmitting}
-						{i18n}
-						onJump={(index) => void handleLeavePartJump(index)}
-					/>
-				{/if}
-				{#if leavePartTranslations.incompleteHeading}
-					<SubmitBlockerGroup
-						heading={leavePartTranslations.incompleteHeading}
-						headingId={`${uid}-leave-incomplete-heading`}
-						testId="leave-part-incomplete"
-						jumpPrefix="leave-part-incomplete-jump"
-						items={leavePartBlockers.incomplete}
-						total={navState.totalItems}
-						busy={isSubmitting}
-						{i18n}
-						onJump={(index) => void handleLeavePartJump(index)}
-					/>
-				{/if}
-			{/snippet}
-			{#snippet actions({ close })}
-				<!-- svelte-ignore a11y_autofocus -->
-				<button
-					type="button"
-					class="submit-dialog-action"
-					data-testid="assessment-dialog-cancel"
-					autofocus={leavePartBlocked}
-					onclick={() => close('cancel')}
-				>
-					{i18n.t('assessment.leavePart.cancel', 'Stay on this part')}
-				</button>
-				<button
-					type="button"
-					class="submit-dialog-action primary"
-					data-testid="assessment-dialog-confirm"
-					aria-disabled={leavePartBlocked ? 'true' : undefined}
-					aria-describedby={leavePartBlocked
-						? [
-							leavePartTranslations.needsAnswerHeading ? `${uid}-leave-needs-answer-heading` : null,
-							leavePartTranslations.incompleteHeading ? `${uid}-leave-incomplete-heading` : null,
-						]
-							.filter(Boolean)
-							.join(' ')
-						: undefined}
-					onclick={() => {
-						if (leavePartBlocked) return;
-						close('confirm');
-					}}
-				>
-					{i18n.t('assessment.leavePart.confirm', 'Continue')}
-				</button>
-			{/snippet}
-		</AssessmentDialog>
+			<!--
+				Leaving a test part is irreversible: confirm with a clear "cannot return". The
+				part's questions that still owe an answer are named with jumps, and Continue waits
+				for them — a left part can never be revisited (the core refuses the step too).
+			-->
+			<LeavePartDialog
+				bind:open={leavePartDialogOpen}
+				blockers={leavePartBlockers}
+				total={navState.totalItems}
+				translations={leavePartTranslations}
+				headingIds={{
+					needsAnswer: `${uid}-leave-needs-answer-heading`,
+					incomplete: `${uid}-leave-incomplete-heading`,
+				}}
+				busy={isSubmitting}
+				{i18n}
+				onJump={(index) => void handleLeavePartJump(index)}
+				onConfirm={handleLeavePartConfirm}
+			/>
 
 		<!--
 			Item feedback from a check-answer (or a submit-on-move with single-attempt
@@ -2866,11 +2812,6 @@
 	.submit-dialog-action:focus-visible {
 		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
-	}
-
-	.submit-dialog-action[aria-disabled='true'] {
-		cursor: not-allowed;
-		opacity: 0.6;
 	}
 
 	.support-code {
