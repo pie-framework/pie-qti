@@ -27,40 +27,52 @@ afterEach(() => {
 	for (const element of elements.splice(0)) element.remove();
 });
 
-async function render(itemXml: string, security?: PlayerSecurityConfig): Promise<HTMLElement> {
+async function render(
+	itemXml: string,
+	security?: PlayerSecurityConfig
+): Promise<{ element: HTMLElement; errors: unknown[] }> {
 	const element = document.createElement(TAG) as PieQtiItemPlayerElement;
+	const errors: unknown[] = [];
+	element.addEventListener('error', (event) => errors.push((event as CustomEvent).detail));
 	element.itemXml = itemXml;
 	if (security) element.security = security;
 	document.body.appendChild(element);
 	elements.push(element);
 	await settle();
-	return element;
+	return { element, errors };
 }
 
 function alertText(element: HTMLElement): string {
 	return element.querySelector('[role="alert"]')?.textContent ?? '';
 }
 
+function errorMessages(errors: unknown[]): string[] {
+	return errors.map((detail) => (detail as { message: string }).message);
+}
+
 describe('<pie-qti-item-player> parsing limits', () => {
 	test('rejects a DOCTYPE item when the host configures no security', async () => {
-		const element = await render(DOCTYPE_ITEM);
-		expect(alertText(element)).toMatch(/DOCTYPE/);
+		const { element, errors } = await render(DOCTYPE_ITEM);
+		// The candidate sees a generic message; the parser's detail goes to the `error` event.
+		expect(alertText(element)).toBe('Failed to load item');
+		expect(errorMessages(errors)[0]).toMatch(/DOCTYPE/);
 		expect(element.textContent).not.toContain('Limits body');
 	});
 
 	test('applies a configured limit without enabled', async () => {
-		const element = await render(ITEM, { parsingLimits: { maxItemXmlBytes: 1 } });
-		expect(alertText(element)).toMatch(/maxItemXmlBytes/);
+		const { element, errors } = await render(ITEM, { parsingLimits: { maxItemXmlBytes: 1 } });
+		expect(errorMessages(errors)[0]).toMatch(/maxItemXmlBytes/);
 	});
 
 	test('keeps other security settings when the host configures some', async () => {
-		const element = await render(DOCTYPE_ITEM, { allowIframes: false });
-		expect(alertText(element)).toMatch(/DOCTYPE/);
+		const { element, errors } = await render(DOCTYPE_ITEM, { allowIframes: false });
+		expect(errorMessages(errors)[0]).toMatch(/DOCTYPE/);
 	});
 
 	test('renders the item when the host opts out with enabled: false', async () => {
-		const element = await render(DOCTYPE_ITEM, { parsingLimits: { enabled: false } });
+		const { element, errors } = await render(DOCTYPE_ITEM, { parsingLimits: { enabled: false } });
 		expect(alertText(element)).toBe('');
+		expect(errors).toEqual([]);
 		expect(element.textContent).toContain('Limits body');
 	});
 });

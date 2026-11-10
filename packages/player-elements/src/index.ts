@@ -16,6 +16,8 @@ export {
 	defineQtiItemPlayerElement,
 	QtiItemPlayerElement,
 	type QtiItemPlayerCompleteDetail,
+	type QtiItemPlayerErrorCode,
+	type QtiItemPlayerErrorDetail,
 	type QtiItemPlayerEventMap,
 	type QtiItemPlayerResponseChangeDetail,
 	type QtiItemPlayerResponseMap,

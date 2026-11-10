@@ -633,6 +633,7 @@ export default {
 		loadError: 'Erreur de chargement de l\'élément : {error}',
 		parsingError: 'Échec de l\'analyse QTI XML',
 		processingError: 'Échec du traitement des réponses',
+		submitError: 'Votre réponse n\'a pas pu être envoyée. Veuillez réessayer.',
 		submit: 'Soumettre',
 		complete: 'Terminer',
 		completed: 'Terminé',

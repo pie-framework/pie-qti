@@ -9,12 +9,16 @@ describe('<pie-qti-item-player> locale attribute', () => {
 		expect(PieQtiItemPlayerElement.observedAttributes).toContain('locale');
 	});
 
-	test('the previously observed attributes are still observed', () => {
+	test('the observed attributes are the documented ones', () => {
+		// `role` deliberately became `qti-role`: a bare `role` attribute is the ARIA role, and
+		// writing a QTI view name there put an invalid ARIA token on the host page.
 		expect(PieQtiItemPlayerElement.observedAttributes).toEqual([
 			'item-xml',
-			'role',
+			'qti-role',
 			'disabled',
 			'locale',
+			'show-feedback',
+			'show-solution',
 		]);
 	});
 });

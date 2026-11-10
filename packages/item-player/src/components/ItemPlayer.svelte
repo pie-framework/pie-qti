@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { createAssessmentItemDefinition } from '../core/AssessmentItemDefinition';
 	import type { AssessmentItemDefinitionConfig } from '../core/AssessmentItemDefinition';
-	import { getItemSessionBinding, type ItemSession, type ItemSessionView } from '../core/ItemSession';
+	import { getItemSessionBinding, UnknownResponseIdentifierError, type ItemSession, type ItemSessionView } from '../core/ItemSession';
 	import type { AssessmentItemDefinitionPlugin } from '../core/AssessmentItemDefinition';
 	import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
-	import type { AdaptiveAttemptResult, ModalFeedback, PlayerSecurityConfig, QTIRole, ScoringResult } from '../types';
+	import type { AdaptiveAttemptResult, ItemPlayerErrorDetail, ModalFeedback, PlayerSecurityConfig, QTIRole, ScoringResult } from '../types';
 	import type { PnpProfile } from '../pnp/types';
 	import type { InteractionResponseValue } from '../web-components';
 	import { interfaceLocaleAttributes, translate, type I18nProvider } from '@pie-qti/i18n';
@@ -49,6 +49,34 @@
 		showSubmit?: boolean;
 		/** Called when adaptive item completes (all attempts exhausted) */
 		onComplete?: (finalResult: AdaptiveAttemptResult) => void;
+		/**
+		 * Standalone presentation policy for a session the player owns, applied as QTI
+		 * `itemSessionControl` is: integrated feedback (`feedbackInline` / `feedbackBlock`)
+		 * defaults to hidden (`showFeedback="false"` is the QTI default) and correct responses
+		 * stay hidden until the attempt ends. An injected `session` keeps its own policy.
+		 */
+		showFeedback?: boolean;
+		/** Standalone opt-in: expose correct responses once the attempt has ended. */
+		showSolution?: boolean;
+		/** A session the player owns or applied rendered successfully. */
+		onReady?: () => void;
+		/** A load, response-processing, submission or render failure; the raw message never renders to candidates. */
+		onError?: (error: ItemPlayerErrorDetail) => void;
+		/**
+		 * The player's own session was opened (or replaced by a definition change). Hosts that
+		 * re-parent the element keep it alive across a detach by taking it here.
+		 */
+		onOwnedSession?: (session: ItemSession) => void;
+		/**
+		 * An owned session left the player undisposed — it is the host's to keep or close. Paired
+		 * with `onOwnedSession`; without it the player disposes its own sessions.
+		 */
+		onOwnedSessionRelease?: (session: ItemSession) => void;
+		/**
+		 * A session the host kept from a previous mount of this player (a detach/reattach), to
+		 * adopt as its own instead of opening a fresh one. Read once per effect run.
+		 */
+		resumeSession?: () => ItemSession | undefined;
 	}
 
 	let {
@@ -72,13 +100,31 @@
 		onSubmit,
 		showSubmit,
 		onComplete,
+		showFeedback,
+		showSolution,
+		onReady,
+		onError,
+		onOwnedSession,
+		onOwnedSessionRelease,
+		resumeSession,
 	}: Props = $props();
 	const shouldShowSubmit = $derived(showSubmit ?? Boolean(onSubmit));
 
 	let activeSession = $state<ItemSession | null>(null);
 	let sessionView = $state<ItemSessionView | null>(null);
-	let error = $state<string | null>(null);
+	/** Which failure the generic candidate message describes; the raw detail goes to `onError`. */
+	let errorKind = $state<'load' | 'processing' | 'submission' | null>(null);
 	let modalFeedback = $state<ModalFeedback[]>([]);
+	// The message is derived so a locale switch re-translates it; raw strings never render.
+	const errorMessage = $derived(
+		errorKind === 'load'
+			? translate(i18n, 'item.loadingError', 'Failed to load item')
+			: errorKind === 'submission'
+				? translate(i18n, 'item.submitError', 'Your answer could not be submitted. Please try again.')
+				: errorKind === 'processing'
+					? translate(i18n, 'item.processingError', 'Failed to process responses')
+					: null
+	);
 	const isAdaptive = $derived(sessionView?.adaptive ?? false);
 	const isCompleted = $derived(sessionView?.completed ?? false);
 	const numAttempts = $derived(sessionView?.numAttempts ?? 0);
@@ -89,35 +135,142 @@
 		sessionView = view;
 	}
 
-	// Reuse an externally owned session verbatim, or own one for standalone delivery.
+	// Only a change to the item's definition-fixed inputs may re-open the session: any other
+	// property write — disabled, i18n, typeset, responses, a no-op — must never re-create the
+	// item's attempt state. The element's mount bridge invalidates every prop together, so each
+	// session input is guarded by an equality-checked derived: unchanged values do not reach the
+	// session effect below.
+	const sessionItemXml = $derived(itemXml);
+	const sessionRole = $derived(role);
+	const sessionSecurity = $derived(security);
+	const sessionPnp = $derived(pnp);
+	const sessionDeliveryContext = $derived(deliveryContext);
+	const sessionResolveProcessingFragment = $derived(resolveProcessingFragment);
+	const sessionProcessingFragmentLimits = $derived(processingFragmentLimits);
+	const sessionPci = $derived(pci);
+	const sessionPlugins = $derived(plugins);
+	const sessionStringComparison = $derived(stringComparison);
+	const sessionShowFeedback = $derived(showFeedback ?? false);
+	const sessionShowSolution = $derived(showSolution ?? false);
+	const injectedSession = $derived(session);
+
+	// Stable per component instance and item text: a legitimate re-open of the same definition
+	// replays the same template-processing random layout instead of re-randomizing the
+	// candidate's view, while different items and different player instances stay independent.
+	const templateSeedSalt = Math.floor(Math.random() * 0x7fffffff);
+	function templateSeed(seedXml: string): number {
+		let hash = (templateSeedSalt ^ seedXml.length) >>> 0;
+		for (let i = 0; i < seedXml.length; i++) {
+			hash = Math.imul(hash ^ seedXml.charCodeAt(i), 0x01000193) >>> 0;
+		}
+		return hash >>> 0;
+	}
+
+	/**
+	 * Opens a session carrying the host's initial responses. Responses left over from a
+	 * previous item (an element re-used across items) would otherwise fail the whole open:
+	 * the identifiers the new item declares keep their values, the stale ones are dropped
+	 * with a diagnostic.
+	 */
+	function openOwnedSession(
+		definition: ReturnType<typeof createAssessmentItemDefinition>,
+		initialResponses: ItemResponseMap,
+		presentation: { showFeedback: boolean; showSolution: boolean }
+	): ItemSession {
+		try {
+			return definition.openSession({ responses: initialResponses, presentation });
+		} catch (error) {
+			if (!(error instanceof UnknownResponseIdentifierError)) throw error;
+			const session = definition.openSession({ presentation });
+			const carried = declaredResponsesOnly(session, initialResponses);
+			if (Object.keys(carried).length > 0) {
+				session.dispatch({ action: 'setResponses', responses: carried });
+			}
+			return session;
+		}
+	}
+
+	/**
+	 * `responses` filtered to the identifiers `session` declares; the rest are stale values
+	 * carried over from a previous item and are dropped with a diagnostic.
+	 */
+	function declaredResponsesOnly(session: ItemSession, responses: ItemResponseMap): ItemResponseMap {
+		const declared = new Set(Object.keys(session.state().responses));
+		for (const identifier of Object.keys(responses)) {
+			if (!declared.has(identifier)) {
+				warnOnce(
+					`item-player:unknown-response-${identifier}`,
+					`Dropped response '${identifier}' carried over from the previous item: this item declares no such response identifier.`
+				);
+			}
+		}
+		return Object.fromEntries(
+			Object.entries(responses).filter(([identifier]) => declared.has(identifier))
+		);
+	}
+
+	/** The item's identifier when the session can still report one; never throws. */
+	function safeItemIdentifier(known: ItemSession | null): { itemIdentifier?: string } {
+		if (!known) return {};
+		try {
+			const identifier = known.state().itemIdentifier;
+			return identifier ? { itemIdentifier: identifier } : {};
+		} catch {
+			return {};
+		}
+	}
+
+	// Reuse an externally owned session verbatim, own one for standalone delivery, or adopt the
+	// session a host kept for this player across a detach.
 	$effect(() => {
 		let nextSession: ItemSession | null = null;
 		let ownsSession = false;
+		let knownIdentifier: string | undefined;
+		// Callbacks are read untracked: only the guarded session inputs above may re-run this
+		// effect, so any host callback the run invokes must not subscribe it to prop writes.
+		const callbacks = untrack(() => ({
+			onReady,
+			onError,
+			onOwnedSession,
+			resumeSession,
+		}));
 		try {
-			if (session) {
-				nextSession = session;
+			if (injectedSession) {
+				nextSession = injectedSession;
 			} else {
-				const initialResponses = untrack(() => responseValues);
-				const definition = createAssessmentItemDefinition({
-					itemXml,
-					role,
-					security,
-					pnp,
-					deliveryContext,
-					resolveProcessingFragment,
-					processingFragmentLimits,
-					pci,
-					plugins,
-					...(stringComparison ? { stringComparison } : {}),
-				});
-				nextSession = definition.openSession({ responses: initialResponses });
+				const resumable = callbacks.resumeSession?.();
+				if (resumable && !resumable.state().disposed) {
+					nextSession = resumable;
+				} else {
+					const initialResponses = untrack(() => responseValues);
+					const definition = createAssessmentItemDefinition({
+						itemXml: sessionItemXml,
+						role: sessionRole,
+						security: sessionSecurity,
+						pnp: sessionPnp,
+						deliveryContext: sessionDeliveryContext,
+						resolveProcessingFragment: sessionResolveProcessingFragment,
+						processingFragmentLimits: sessionProcessingFragmentLimits,
+						pci: sessionPci,
+						plugins: sessionPlugins,
+						...(sessionStringComparison ? { stringComparison: sessionStringComparison } : {}),
+						seed: templateSeed(sessionItemXml),
+					});
+					knownIdentifier = definition.identifier || undefined;
+					nextSession = openOwnedSession(definition, initialResponses, {
+						showFeedback: sessionShowFeedback,
+						showSolution: sessionShowSolution,
+					});
+				}
 				ownsSession = true;
+				callbacks.onOwnedSession?.(nextSession);
 			}
 
 			activeSession = nextSession;
 			applySessionView(nextSession.state());
-			error = null;
+			errorKind = null;
 			modalFeedback = [];
+			callbacks.onReady?.();
 			const unsubscribe = nextSession.subscribe((transition) => {
 				const { command, current } = transition;
 				applySessionView(current);
@@ -147,7 +300,12 @@
 			});
 			return () => {
 				unsubscribe();
-				if (ownsSession) nextSession?.dispose();
+				if (ownsSession && nextSession) {
+					// A host keeping its element's session alive across a detach takes it here;
+					// otherwise the player owns the session and closes it.
+					if (onOwnedSessionRelease) onOwnedSessionRelease(nextSession);
+					else nextSession.dispose();
+				}
 				if (activeSession === nextSession) {
 					activeSession = null;
 					sessionView = null;
@@ -155,7 +313,12 @@
 			};
 		} catch (e) {
 			if (ownsSession) nextSession?.dispose();
-			error = e instanceof Error ? e.message : translate(i18n, 'item.parsingError', 'Failed to parse QTI XML');
+			errorKind = 'load';
+			callbacks.onError?.({
+				code: 'item-load-failed',
+				message: e instanceof Error ? e.message : String(e),
+				...(knownIdentifier ? { itemIdentifier: knownIdentifier } : {}),
+			});
 			activeSession = null;
 			sessionView = null;
 		}
@@ -166,20 +329,33 @@
 	$effect(() => {
 		const controlledResponses = responseValues;
 		const currentSession = activeSession;
-		if (!currentSession || session) return;
+		if (!currentSession || injectedSession) return;
 		const current = currentSession.state().responses;
-		const keys = new Set([...Object.keys(current), ...Object.keys(controlledResponses)]);
-		const changed = [...keys].some((key) => current[key] !== controlledResponses[key]);
+		// Only the responses this item declares apply: values carried over from a previous item
+		// (an element re-used across items) are dropped rather than failing the item.
+		const applicable = declaredResponsesOnly(currentSession, controlledResponses);
+		const keys = new Set([...Object.keys(current), ...Object.keys(applicable)]);
+		const changed = [...keys].some((key) => current[key] !== applicable[key]);
 		if (!changed) return;
 		try {
-			currentSession.dispatch({ action: 'setResponses', responses: controlledResponses });
+			currentSession.dispatch({ action: 'setResponses', responses: applicable });
 		} catch (e) {
-			error = e instanceof Error ? e.message : translate(i18n, 'item.processingError', 'Failed to process responses');
+			errorKind = 'processing';
+			onError?.({
+				code: 'response-processing-failed',
+				message: e instanceof Error ? e.message : String(e),
+				...safeItemIdentifier(currentSession),
+			});
 		}
 	});
 
 	function handleItemBodyError(cause: unknown) {
-		error = cause instanceof Error ? cause.message : translate(i18n, 'item.processingError', 'Failed to process responses');
+		errorKind = 'processing';
+		onError?.({
+			code: 'render-failed',
+			message: cause instanceof Error ? cause.message : String(cause),
+			...safeItemIdentifier(activeSession),
+		});
 	}
 
 	export function submit(countAttempt: boolean = true): ScoringResult | AdaptiveAttemptResult | undefined {
@@ -204,7 +380,12 @@
 			}
 			return result;
 		} catch (e) {
-			error = e instanceof Error ? e.message : translate(i18n, 'item.processingError', 'Failed to process responses');
+			errorKind = 'submission';
+			onError?.({
+				code: 'submission-failed',
+				message: e instanceof Error ? e.message : String(e),
+				...safeItemIdentifier(activeSession),
+			});
 		}
 	}
 
@@ -230,9 +411,9 @@
 </script>
 
 <div class="qti-item-player" lang={interfaceAttributes?.lang} dir={interfaceAttributes?.dir}>
-	{#if error}
+	{#if errorMessage}
 		<div class="qti-player-alert qti-player-alert-error" role="alert">
-			<span>{error}</span>
+			<span>{errorMessage}</span>
 		</div>
 	{:else if activeSession && sessionView}
 		<ItemBody

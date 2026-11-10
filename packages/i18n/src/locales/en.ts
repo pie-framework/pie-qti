@@ -628,6 +628,7 @@ export default {
 		loadError: 'Error loading item: {error}',
 		parsingError: 'Failed to parse QTI XML',
 		processingError: 'Failed to process responses',
+		submitError: 'Your answer could not be submitted. Please try again.',
 		submit: 'Submit',
 		complete: 'Complete',
 		completed: 'Completed',

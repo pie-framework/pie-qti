@@ -633,6 +633,7 @@ export default {
 		loadError: 'Eroare la încărcarea elementului: {error}',
 		parsingError: 'Nu s-a putut analiza QTI XML',
 		processingError: 'Nu s-au putut procesa răspunsurile',
+		submitError: 'Răspunsul tău nu a putut fi trimis. Încearcă din nou.',
 		submit: 'Trimitere',
 		complete: 'Completare',
 		completed: 'Completat',

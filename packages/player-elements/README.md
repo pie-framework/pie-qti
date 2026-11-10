@@ -70,7 +70,8 @@ document.body.append(item);
 const result = item.submit();
 ```
 
-Attribute-backed properties are `itemXml`, `role`, and `disabled`. JavaScript-only properties are:
+Attribute-backed properties are `item-xml`, `qti-role`, `disabled`, `locale`, `show-feedback`,
+and `show-solution`. JavaScript-only properties are:
 
 - `session` — an existing authoritative `ItemSession`; the element borrows it and never owns an
   injected session;
@@ -81,17 +82,56 @@ Attribute-backed properties are `itemXml`, `role`, and `disabled`. JavaScript-on
 - `renderItemBodyRubrics`, `typeset`, `i18n`, `security`, `pnp`, `deliveryContext`, `pci`,
   `resolveProcessingFragment`, `processingFragmentLimits`, and `responses`.
 
+`qti-role` (the `role` JS property) is the QTI view the item renders for: `candidate`, `scorer`,
+`proctor`, `testConstructor`, `tutor` or `author`. It is not the HTML `role` attribute — writing a
+QTI view name there would put an invalid ARIA token on your page, and since the attribute rename
+the player ignores it. Unknown `qti-role` values render as `candidate` and log a diagnostic.
+
 When `session` is supplied, its definition-fixed role and mutable state are authoritative. Do not
 create a second session for the same rendered attempt.
+
+The element keeps the session it opened across a detach and adopts it again on reattach: moving
+the element in the DOM (or hiding and re-showing it through a re-parent) resumes the attempt
+instead of restarting the item.
+
+Changing `itemXml`, `qti-role`, `security`, `pnp`, `deliveryContext`, `pci`, `stringComparison`,
+`plugins`, the processing-fragment options, `showFeedback` or `showSolution` re-opens the item
+(the response values carry over). Writing anything else — `disabled`, `i18n`, `typeset`,
+`responses`, or a no-op — never restarts the item, so the candidate's shuffle order, attempt
+count and submitted feedback survive.
+
+### Integrated feedback and correct responses
+
+Standalone delivery follows QTI's `itemSessionControl` defaults: `feedbackInline`/`feedbackBlock`
+stay hidden unless the host opts in with `showFeedback: true` (the `show-feedback` attribute), and
+correct responses stay hidden until the attempt ends unless the host opts in with
+`showSolution: true` (`show-solution`). This is a change from earlier versions, which always
+showed integrated feedback; an injected `session` keeps the presentation policy its owner passed
+to `openSession()`.
+
+```html
+<pie-qti-item-player item-xml="…" show-feedback></pie-qti-item-player>
+```
+
+The element never renders its own submit button (`showSubmit` stays `false`); hosts drive
+submission by calling `item.submit()`.
 
 Events are typed, bubbling, and composed:
 
 ```js
-item.addEventListener('ready', () => {});
+item.addEventListener('ready', () => {}); // fires once per successful mount, never on failure
 item.addEventListener('response-change', (event) => {});
 item.addEventListener('submit', (event) => {});
 item.addEventListener('complete', (event) => {});
+item.addEventListener('error', (event) => {
+  // { code, message, itemIdentifier? } — the raw message is for host logs only.
+  // The candidate sees a localized generic message; never render event.detail.message.
+  console.error(event.detail.code, event.detail.message);
+});
 ```
+
+`error` codes are `item-load-failed`, `response-processing-failed`, `submission-failed` and
+`render-failed`.
 
 Portable Custom Interaction execution is disabled until the host opts into one of two engines:
 a page-realm resolver that returns the trusted module, or the sandboxed engine
