@@ -184,14 +184,30 @@ test.describe('single-select hotspot radio group in the real custom element', ()
 		await page.keyboard.press('Shift+Tab');
 		await expect(mercury).toBeFocused();
 
-		// An arrow key moves focus and checks; the focus ring is drawn on the region outline.
+		// An arrow key moves focus and checks; the focus ring is the shared offset ring —
+		// the focused region's halo layer widens into a ring coloured with the focus token.
+		// Venus is checked (selected) and focused here, and the ring still reads: wider than
+		// the resting halo, in the focus colour, distinct from the checked outline.
 		await page.keyboard.press('ArrowRight');
 		await expect(venus).toBeFocused();
 		await expect(venus).toHaveAttribute('aria-checked', 'true');
 		await expect(venus).toHaveAttribute('tabindex', '0');
 		await expect(mercury).toHaveAttribute('tabindex', '-1');
 		expect(await venus.evaluate((element) => element.matches(':focus-visible'))).toBe(true);
-		await expect(venus).toHaveCSS('stroke-width', '3px');
+		const ring = await venus.evaluate((element: Element) => {
+			const halo = element.closest('g')?.querySelector('.qti-graphic-halo');
+			if (!halo) return null;
+			const style = getComputedStyle(halo);
+			const probe = document.createElement('div');
+			probe.style.color = 'var(--pie-qti-focus, #4338ca)';
+			element.getRootNode().querySelector('.qti-hotspot-interaction')?.appendChild(probe);
+			const focusToken = getComputedStyle(probe).color;
+			probe.remove();
+			return { stroke: style.stroke, strokeWidth: Number.parseFloat(style.strokeWidth), focusToken };
+		});
+		expect(ring).not.toBeNull();
+		expect(ring!.strokeWidth).toBeGreaterThanOrEqual(8);
+		expect(ring!.stroke).toBe(ring!.focusToken);
 		// The checked radio group is valid ARIA (radio roles, aria-checked, no stray aria-pressed).
 		const scan = await new AxeBuilder({ page }).include('pie-qti-hotspot').withTags(WCAG_AA_TAGS).analyze();
 		expect(scan.violations).toEqual([]);
