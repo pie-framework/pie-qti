@@ -1,27 +1,20 @@
 import {
-	type AreaMapEntry,
-	type AreaMapping,
 	type BaseType,
 	buildOutcomeProcessingAst,
 	buildResponseProcessingAst,
 	buildTemplateProcessingAst,
 	type Cardinality,
-	coerceBaseValue,
 	DeclarationContext,
 	type DeclarationMap,
 	durationSecondsFromMilliseconds,
 	evalExpr,
 	execProgram,
 	findAssessmentItem,
-	findDescendants,
-	findFirstDescendant,
 	getAttr,
 	isElement,
 	isNullValue,
 	localName,
 	OperatorRegistry,
-	parseInterpolationTableDeclaration,
-	parseMatchTableDeclaration,
 	parseXml,
 	type ProcessingProgram,
 	type QtiValue,
@@ -103,14 +96,14 @@ import { getCatalogEntryWithAliases } from '../catalog/catalogLookup.js';
 import { PciHost } from '../pci/PciHost.js';
 import { cloneValue } from '../utils/cloneFreeze.js';
 import { attributeNameMapperForVersion, elementNameMapperForVersion } from './nameMappers.js';
-import type { ExtractedPci, PciInteractionStatus } from '../pci/types.js';
 import {
-	createExtendedTextNumericRecord,
-	EXTENDED_TEXT_RECORD_FIELD_TYPES,
-} from '../interactions/extended-text/response.js';
+	buildDeclarationMap,
+	ensureBuiltinDeclarations,
+	type DeclKind,
+} from './declarations/declarationBuilder.js';
+import { coerceToDeclarationValue } from './declarations/declarationValues.js';
+import type { ExtractedPci, PciInteractionStatus } from '../pci/types.js';
 import { createTextEntryStringResponse, textEntryStringIdentifier } from '../interactions/text-entry/response.js';
-
-type DeclKind = 'response' | 'outcome' | 'template' | 'context';
 
 /** Choices a template variable can show or hide, by canonical name. */
 const TEMPLATE_CHOICES = [
@@ -271,8 +264,12 @@ export class Player {
 				attributeNameMapper: attributeMapper as AttributeNameMapper,
 				security: this.config.security,
 			});
-			this.decls = this.buildDeclarations();
-			this.ensureBuiltinDeclarations(this.decls);
+			this.decls = buildDeclarationMap({
+				itemDocument: this.itemDocument,
+				mapper: this.mapper,
+				attributeMapper: this.config.attributeNameMapper,
+			});
+			ensureBuiltinDeclarations(this.decls);
 		}
 		this.applyContextVariables(config.contextVariables);
 		this.applyTemplateDefaults(config.templateDefaults);
@@ -818,24 +815,6 @@ export class Player {
 	 */
 	public getI18nProvider(): I18nProvider {
 		return this.i18nProvider;
-	}
-
-	/**
-	 * Get attribute value with QTI version support.
-	 * Tries the attribute mapper's native form first, then falls back to direct lookup.
-	 * @param el - Element to get attribute from
-	 * @param canonicalName - Canonical (lowercase) attribute name
-	 * @returns Attribute value or null
-	 */
-	private getAttrMapped(el: Element, canonicalName: string): string | null {
-		// Try mapped attribute name first (e.g., 'mapkey' -> 'map-key' for QTI 3.0)
-		if (this.config.attributeNameMapper) {
-			const nativeName = this.config.attributeNameMapper.toNative(canonicalName);
-			const value = el.getAttribute(nativeName);
-			if (value !== null) return value;
-		}
-		// Fallback to canonical name (for QTI 2.x compatibility)
-		return getAttr(el, canonicalName);
 	}
 
 	/**
@@ -1717,73 +1696,6 @@ export class Player {
 	// Declarations
 	// ----------------------------------------------------------------------------
 
-	private buildDeclarations(): DeclarationMap {
-		const decls: DeclarationMap = {};
-
-		const addDecl = (kind: DeclKind, el: Element) => {
-			const identifier = this.getAttrMapped(el, 'identifier');
-			const cardinality = (this.getAttrMapped(el, 'cardinality') || 'single') as Cardinality;
-			const baseType = cardinality === 'record'
-				? undefined
-				: (this.getAttrMapped(el, 'baseType') || 'string') as BaseType;
-			if (!identifier) return;
-
-			const declaredDefault = this.parseDefaultValue(el, baseType, cardinality);
-			const impliedNumericDefault = !declaredDefault && this.hasImpliedNumericDefault(kind, baseType, cardinality);
-			const defaultValue = declaredDefault ?? this.impliedDefaultValue(kind, baseType, cardinality);
-			decls[identifier] = {
-				identifier,
-				...(baseType ? { baseType } : {}),
-				cardinality,
-				defaultValue,
-				value: defaultValue,
-				isTemplate: kind === 'template',
-				impliedNumericDefault,
-				// @ts-expect-error internal marker for templates
-				__kind: kind,
-			};
-
-			// Response + outcome declarations may define mappings used by mapResponse/mapOutcome.
-			// (Templates do not participate in mapping.)
-			if (kind === 'response' || kind === 'outcome') {
-				const mappingEl = findFirstDescendant(el, this.mapper.toNative('mapping'));
-				if (mappingEl && baseType) {
-					decls[identifier].mapping = this.parseMapping(mappingEl, baseType);
-				}
-			}
-
-			// Outcome declarations may define a lookup table (matchTable or interpolationTable)
-			// used by the lookupOutcomeValue rule.
-			if (kind === 'outcome') {
-				const matchTableEl = findFirstDescendant(el, this.mapper.toNative('matchtable'));
-				const interpolationTableEl = findFirstDescendant(el, this.mapper.toNative('interpolationtable'));
-				if (matchTableEl) {
-					decls[identifier].lookupTable = parseMatchTableDeclaration(matchTableEl, this.mapper);
-				} else if (interpolationTableEl) {
-					decls[identifier].lookupTable = parseInterpolationTableDeclaration(interpolationTableEl, this.mapper);
-				}
-			}
-
-			if (kind === 'response') {
-				const correctEl = findFirstDescendant(el, this.mapper.toNative('correctresponse'));
-				if (correctEl) {
-					decls[identifier].correctResponse = this.parseCorrectResponse(correctEl, baseType, cardinality);
-				}
-				const areaMappingEl = findFirstDescendant(el, this.mapper.toNative('areamapping'));
-				if (areaMappingEl) {
-					decls[identifier].areaMapping = this.parseAreaMapping(areaMappingEl);
-				}
-			}
-		};
-
-		for (const el of this.itemDocument.findDeclarationElements('response')) addDecl('response', el);
-		for (const el of this.itemDocument.findDeclarationElements('outcome')) addDecl('outcome', el);
-		for (const el of this.itemDocument.findDeclarationElements('template')) addDecl('template', el);
-		for (const el of this.itemDocument.findDeclarationElements('context')) addDecl('context', el);
-
-		return decls;
-	}
-
 	/** Host-supplied context values, e.g. `QTI_CONTEXT`; identifiers that are not context variables are ignored. */
 	private applyContextVariables(values: Readonly<Record<string, unknown>> | undefined): void {
 		for (const [id, raw] of Object.entries(values ?? {})) {
@@ -1800,85 +1712,6 @@ export class Player {
 			if (!d?.isTemplate) continue;
 			d.defaultValue = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
 			d.value = d.defaultValue;
-		}
-	}
-
-	private ensureBuiltinDeclarations(decls: DeclarationMap): void {
-		// completionStatus + numAttempts are defined in QTI (esp. adaptive items) and commonly used
-		// without explicit outcomeDeclaration in authoring content.
-		if (!decls.completionStatus) {
-			decls.completionStatus = {
-				identifier: 'completionStatus',
-				baseType: 'identifier',
-				cardinality: 'single',
-				value: qtiValue('identifier', 'single', 'not_attempted'),
-				isTemplate: false,
-				// @ts-expect-error internal marker
-				__kind: 'outcome',
-			};
-		}
-
-		if (!decls.numAttempts) {
-			decls.numAttempts = {
-				identifier: 'numAttempts',
-				baseType: 'integer',
-				cardinality: 'single',
-				defaultValue: qtiValue('integer', 'single', 0),
-				value: qtiValue('integer', 'single', 0),
-				isTemplate: false,
-				// @ts-expect-error internal marker
-				__kind: 'outcome',
-			};
-		}
-
-		if (!decls.duration) {
-			decls.duration = {
-				identifier: 'duration',
-				baseType: 'duration',
-				cardinality: 'single',
-				defaultValue: qtiValue('duration', 'single', 0),
-				value: qtiValue('duration', 'single', 0),
-				isTemplate: false,
-				// @ts-expect-error internal marker
-				__kind: 'outcome',
-			};
-		}
-
-		// QTI 3 built-in context variable, set by the delivery system.
-		if (!decls.QTI_CONTEXT) {
-			decls.QTI_CONTEXT = {
-				identifier: 'QTI_CONTEXT',
-				cardinality: 'record',
-				defaultValue: qtiNull(undefined, 'record'),
-				value: qtiNull(undefined, 'record'),
-				isTemplate: false,
-				// @ts-expect-error internal marker
-				__kind: 'context',
-			};
-		}
-
-		// Common scoring defaults
-		if (!decls.SCORE) {
-			decls.SCORE = {
-				identifier: 'SCORE',
-				baseType: 'float',
-				cardinality: 'single',
-				value: qtiValue('float', 'single', 0),
-				isTemplate: false,
-				// @ts-expect-error internal marker
-				__kind: 'outcome',
-			};
-		}
-		if (!decls.MAXSCORE) {
-			decls.MAXSCORE = {
-				identifier: 'MAXSCORE',
-				baseType: 'float',
-				cardinality: 'single',
-				value: qtiValue('float', 'single', 1),
-				isTemplate: false,
-				// @ts-expect-error internal marker
-				__kind: 'outcome',
-			};
 		}
 	}
 
@@ -2033,316 +1866,14 @@ export class Player {
 		return this.durationMs;
 	}
 
-	/**
-	 * QTI 2.1 §5.2, carried into 2.2 and 3.0: an outcome variable with no declared default is
-	 * initialized to NULL unless it is of a numeric type, in which case it is initialized to 0.
-	 * Response and template variables keep NULL — an unanswered numeric response must stay
-	 * distinguishable from an answered zero.
-	 */
-	private hasImpliedNumericDefault(
-		kind: DeclKind,
-		baseType: BaseType | undefined,
-		cardinality: Cardinality,
-	): boolean {
-		if (kind !== 'outcome' || cardinality !== 'single') return false;
-		return baseType === 'integer' || baseType === 'float';
-	}
-
-	private impliedDefaultValue(
-		kind: DeclKind,
-		baseType: BaseType | undefined,
-		cardinality: Cardinality,
-	): QtiValue {
-		if (this.hasImpliedNumericDefault(kind, baseType, cardinality)) {
-			return qtiValue(baseType as 'integer' | 'float', 'single', 0);
-		}
-		return qtiNull(baseType, cardinality);
-	}
-
-	/** Returns undefined when the declaration carries no <defaultValue> at all. */
-	private parseDefaultValue(
-		declEl: Element,
-		baseType: BaseType | undefined,
-		cardinality: Cardinality,
-	): QtiValue | undefined {
-		const defaultEl = findFirstDescendant(declEl, this.mapper.toNative('defaultvalue'));
-		if (!defaultEl) return undefined;
-		return this.parseDeclarationValues(defaultEl, baseType, cardinality);
-	}
-
-	private parseCorrectResponse(
-		correctEl: Element,
-		baseType: BaseType | undefined,
-		cardinality: Cardinality,
-	): QtiValue {
-		return this.parseDeclarationValues(correctEl, baseType, cardinality);
-	}
-
-	private parseDeclarationValues(
-		container: Element,
-		baseType: BaseType | undefined,
-		cardinality: Cardinality,
-	): QtiValue {
-		const valueElements = findDescendants(container, this.mapper.toNative('value'));
-		if (cardinality === 'record') {
-			const record: Record<string, QtiValue> = {};
-			for (const valueElement of valueElements) {
-				const fieldIdentifier = this.getAttrMapped(valueElement, 'fieldIdentifier');
-				const fieldBaseType = this.getAttrMapped(valueElement, 'baseType') as BaseType | null;
-				if (!fieldIdentifier || !fieldBaseType) continue;
-				record[fieldIdentifier] = coerceBaseValue(fieldBaseType, valueElement.textContent || '', this.getContentLanguage());
-			}
-			return Object.keys(record).length > 0
-				? qtiValue(undefined, 'record', record)
-				: qtiNull(undefined, 'record');
-		}
-
-		if (!baseType) return qtiNull(undefined, cardinality);
-		const values = valueElements.map((value) => (value.textContent || '').trim());
-		if (cardinality === 'multiple' || cardinality === 'ordered') {
-			return qtiValue(
-				baseType,
-				cardinality,
-				values.map((t) => {
-					const v = coerceBaseValue(baseType, t, this.getContentLanguage());
-					return v.kind === 'value' ? v.value : null;
-				})
-			);
-		}
-		return coerceBaseValue(baseType, values[0] ?? '', this.getContentLanguage());
-	}
-
-	private parseMapping(mappingEl: Element, baseType: BaseType) {
-		const defaultValue = Number(this.getAttrMapped(mappingEl, 'defaultValue') || 0);
-		const lowerBound = this.getAttrMapped(mappingEl, 'lowerBound') ? Number(this.getAttrMapped(mappingEl, 'lowerBound')) : undefined;
-		const upperBound = this.getAttrMapped(mappingEl, 'upperBound') ? Number(this.getAttrMapped(mappingEl, 'upperBound')) : undefined;
-		// mapEntry@caseSensitive defaults to "false" (QTI 2.2 XSD, optional, default "false"):
-		// string entries match case-insensitively unless authored "true". The mapping element
-		// itself defines no caseSensitive attribute in any QTI version, so none is read.
-		const entries: Record<string, any> = {};
-
-		const normalizePairKey = (k: string): string => {
-			const parts = k.trim().split(/\s+/).filter(Boolean);
-			if (parts.length === 2) return [...parts].sort().join(' ');
-			return k.trim();
-		};
-
-		const normalizeDirectedPairKey = (k: string): string => {
-			const parts = k.trim().split(/\s+/).filter(Boolean);
-			if (parts.length >= 2) return `${parts[0]} ${parts[1]}`;
-			return k.trim();
-		};
-
-		for (const e of findDescendants(mappingEl, this.mapper.toNative('mapentry'))) {
-			const mapKey = this.getAttrMapped(e, 'mapKey');
-			const mappedValue = this.getAttrMapped(e, 'mappedValue');
-			if (!mapKey || mappedValue === null) continue;
-			// Only string values fold case: identifier and the other base types always match
-			// exactly (QTI ASI §17), whatever the entry says.
-			const effectiveCaseSensitive = baseType === 'string' ? this.getAttrMapped(e, 'caseSensitive') || 'false' : 'true';
-			const storedKey =
-				baseType === 'pair'
-					? normalizePairKey(mapKey)
-					: baseType === 'directedPair'
-						? normalizeDirectedPairKey(mapKey)
-						: mapKey;
-			entries[storedKey] = { mapKey: storedKey, mappedValue: Number(mappedValue), caseSensitive: effectiveCaseSensitive };
-			if (effectiveCaseSensitive !== 'true') {
-				const lowerKey = storedKey.toLowerCase();
-				entries[lowerKey] = {
-					mapKey: lowerKey,
-					mappedValue: Number(mappedValue),
-					caseSensitive: effectiveCaseSensitive,
-				};
-			}
-		}
-
-		return { defaultValue, lowerBound, upperBound, entries };
-	}
-
-	private parseAreaMapping(areaMappingEl: Element): AreaMapping {
-		const defaultValue = Number(getAttr(areaMappingEl, 'defaultValue') || 0);
-		const lowerBound = getAttr(areaMappingEl, 'lowerBound')
-			? Number(getAttr(areaMappingEl, 'lowerBound'))
-			: undefined;
-		const upperBound = getAttr(areaMappingEl, 'upperBound')
-			? Number(getAttr(areaMappingEl, 'upperBound'))
-			: undefined;
-
-		const entries: AreaMapEntry[] = [];
-		for (const e of findDescendants(areaMappingEl, this.mapper.toNative('areamapentry'))) {
-			const shape = (getAttr(e, 'shape') || 'default') as AreaMapEntry['shape'];
-			const coords = String(getAttr(e, 'coords') || '');
-			const mappedValue = Number(getAttr(e, 'mappedValue') || 0);
-			entries.push({ shape, coords, mappedValue });
-		}
-
-		return { defaultValue, lowerBound, upperBound, entries };
-	}
-
+	/** Raw values read as a declaration's QTI base type and cardinality; see declarations/declarationValues. */
 	private coerceToDeclarationValue(
 		baseType: BaseType | undefined,
 		cardinality: Cardinality,
 		raw: unknown,
 		identifier?: string,
 	): QtiValue {
-		if (raw === null || raw === undefined) return qtiNull(baseType, cardinality);
-
-		// Allow callers to pass fully-formed QtiValue (e.g. session restore).
-		if (typeof raw === 'object' && raw && 'kind' in raw) {
-			return cloneValue(raw as QtiValue);
-		}
-
-		const inputBase = identifier ? this.getNumericInputBase(identifier) : undefined;
-		if (cardinality === 'record') {
-			return this.coerceRecordValue(raw, inputBase ?? 10);
-		}
-
-		if (!baseType) return qtiNull(undefined, cardinality);
-
-		// For file types, preserve QTIFileResponse objects directly
-		if (baseType === 'file') {
-			if (cardinality === 'multiple' || cardinality === 'ordered') {
-				const arr = Array.isArray(raw) ? raw : [raw];
-				return qtiValue(
-					baseType,
-					cardinality,
-					cloneValue(arr.filter((v) => v !== null && v !== undefined)),
-				);
-			}
-			return qtiValue(baseType, cardinality, cloneValue(raw));
-		}
-
-		if (cardinality === 'multiple' || cardinality === 'ordered') {
-			const arr = Array.isArray(raw) ? raw : [raw];
-			const coerced = arr
-				.map((entry) => this.coerceSingleValue(baseType, entry, inputBase))
-				.filter((v): v is Extract<QtiValue, { kind: 'value' }> => v.kind === 'value')
-				.map((v) => v.value);
-			// Multiple/ordered can legitimately be an empty container (distinct from null).
-			return qtiValue(baseType, cardinality, coerced);
-		}
-
-		return this.coerceSingleValue(baseType, raw, inputBase);
-	}
-
-	/**
-	 * One value of a response, read as its base type. Typed numeric text reads in the number base
-	 * of the string interaction bound to the response (QTI ASI stringInteraction `base`). The base
-	 * applies to typed text only: a finite number already is the variable's value — a restored
-	 * session, a correct response or default, a value read back from the session — and reading
-	 * its decimal digits in the base again would change it on every round trip.
-	 */
-	private coerceSingleValue(baseType: BaseType, raw: unknown, inputBase: number | undefined): QtiValue {
-		const t = String(raw ?? '').trim();
-		if (t.length === 0) return qtiNull(baseType, 'single');
-		const typed = !(typeof raw === 'number' && Number.isFinite(raw));
-		if (inputBase !== undefined && typed && (baseType === 'integer' || baseType === 'float')) {
-			const numeric = createExtendedTextNumericRecord(t, inputBase, this.getContentLanguage());
-			const value = baseType === 'integer' ? numeric.integerValue : numeric.floatValue;
-			return value === null ? qtiNull(baseType, 'single') : qtiValue(baseType, 'single', value);
-		}
-		return coerceBaseValue(baseType, t, this.getContentLanguage());
-	}
-
-	/**
-	 * The number base typed numeric text for `responseIdentifier` reads in (QTI ASI
-	 * stringInteraction `base`): the bound extendedTextInteraction's, decimal included (its
-	 * lexical reading also fills the numeric record fields), or the bound textEntryInteraction's
-	 * when it is not decimal. Undefined otherwise: decimal text entry keeps the content-language
-	 * number reading.
-	 */
-	private getNumericInputBase(responseIdentifier: string): number | undefined {
-		const extendedTextBase = this.getExtendedTextBase(responseIdentifier);
-		if (extendedTextBase !== undefined) return extendedTextBase;
-		const textEntryBase = this.itemDocument.getTextEntryBase(responseIdentifier);
-		return textEntryBase !== undefined && textEntryBase !== 10 ? textEntryBase : undefined;
-	}
-
-	private getExtendedTextBase(responseIdentifier: string): number | undefined {
-		return this.itemDocument.getExtendedTextBase(responseIdentifier);
-	}
-
-	private coerceRecordValue(raw: unknown, base: number): QtiValue {
-		let source = raw;
-		if (typeof source === 'string') {
-			const stringSource = source;
-			if (stringSource.trim().length === 0) return qtiNull(undefined, 'record');
-			if (stringSource.trimStart().startsWith('{')) {
-				try {
-					source = JSON.parse(stringSource);
-				} catch {
-					return qtiNull(undefined, 'record');
-				}
-			} else {
-				source = createExtendedTextNumericRecord(stringSource, base, this.getContentLanguage());
-			}
-		}
-		if (!source || typeof source !== 'object' || Array.isArray(source)) {
-			return qtiNull(undefined, 'record');
-		}
-
-		const fields: Record<string, QtiValue> = {};
-		for (const [fieldIdentifier, rawField] of Object.entries(source)) {
-			if (rawField && typeof rawField === 'object' && 'kind' in rawField) {
-				fields[fieldIdentifier] = rawField as QtiValue;
-				continue;
-			}
-
-			let fieldBaseType = EXTENDED_TEXT_RECORD_FIELD_TYPES[
-				fieldIdentifier as keyof typeof EXTENDED_TEXT_RECORD_FIELD_TYPES
-			] as BaseType | undefined;
-			let fieldValue = rawField;
-			let fieldCardinality: Cardinality = Array.isArray(rawField) ? 'multiple' : 'single';
-			if (rawField && typeof rawField === 'object' && !Array.isArray(rawField) && 'value' in rawField) {
-				const serializedField = rawField as {
-					baseType?: BaseType;
-					cardinality?: Cardinality;
-					value: unknown;
-				};
-				fieldBaseType = serializedField.baseType ?? fieldBaseType;
-				fieldValue = serializedField.value;
-				fieldCardinality =
-					serializedField.cardinality === 'multiple' || serializedField.cardinality === 'ordered'
-						? serializedField.cardinality
-						: Array.isArray(fieldValue) ? 'multiple' : 'single';
-			}
-
-			if (!fieldBaseType) {
-				const sample = Array.isArray(fieldValue)
-					? fieldValue.find((item) => item !== null && item !== undefined)
-					: fieldValue;
-				fieldBaseType = typeof sample === 'boolean'
-					? 'boolean'
-					: typeof sample === 'number'
-						? (Number.isInteger(sample) ? 'integer' : 'float')
-						: 'string';
-			}
-			if (fieldValue === null || fieldValue === undefined) {
-				fields[fieldIdentifier] = qtiNull(fieldBaseType, fieldCardinality);
-			} else if (fieldCardinality !== 'single') {
-				// A container field, such as a PCI record member written as `list`: each value
-				// is coerced, rather than the whole array as one string.
-				const containerBaseType = fieldBaseType;
-				const items = (Array.isArray(fieldValue) ? fieldValue : [fieldValue])
-					.filter((item) => item !== null && item !== undefined)
-					.map((item) => {
-						if (containerBaseType === 'file' && typeof item === 'object') return item;
-						const coerced = coerceBaseValue(containerBaseType, String(item), this.getContentLanguage());
-						return coerced.kind === 'value' ? coerced.value : null;
-					})
-					.filter((item) => item !== null);
-				fields[fieldIdentifier] = qtiValue(containerBaseType, fieldCardinality, items);
-			} else if (fieldBaseType === 'file' && typeof fieldValue === 'object') {
-				fields[fieldIdentifier] = qtiValue('file', 'single', fieldValue);
-			} else {
-				fields[fieldIdentifier] = coerceBaseValue(fieldBaseType, String(fieldValue), this.getContentLanguage());
-			}
-		}
-
-		return Object.keys(fields).length > 0
-			? qtiValue(undefined, 'record', fields)
-			: qtiNull(undefined, 'record');
+		return coerceToDeclarationValue({ itemDocument: this.itemDocument }, baseType, cardinality, raw, identifier);
 	}
 
 	private collectOutcomes(): Record<string, unknown> {
