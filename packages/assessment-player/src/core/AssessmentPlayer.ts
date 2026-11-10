@@ -711,7 +711,7 @@ export class AssessmentPlayer {
 				this.restoredExpiryFinalizeScheduled = false;
 				return;
 			}
-			this.autoFinalizeForTimeExpiry(0);
+			this.autoFinalizeForTimeExpiry();
 		}, 0);
 	}
 
@@ -4065,32 +4065,28 @@ export class AssessmentPlayer {
 			this.notifyTimeExpired({ scope: 'assessment', autoFinalized: false, submissionRequired: false });
 			return;
 		}
-		void this.autoFinalizeForTimeExpiry(0);
+		void this.autoFinalizeForTimeExpiry();
 	}
 
-	private autoFinalizeForTimeExpiry(attempt: number): void {
+	private autoFinalizeForTimeExpiry(): void {
 		if (this.destroyed || this.finalized) return;
-		void this.runExclusive(() => this.endTestInternal({ reason: 'expiry' }))
-			.then(() => {
-				if (this.destroyed || !this.finalized) return;
+		// Queued behind a candidate transition in flight, however many administrative
+		// transitions (queued expiry hops, a force submit, a host acting on idle) take the
+		// lock before it: `runWhenIdle` takes the lock the moment it settles, so the end is
+		// never starved and no candidate action slips in first.
+		void this.runWhenIdle(async () => {
+			// The transition in flight ended the test itself: nothing left to finalize, and
+			// (as before) no expiry notice on top of its own ending.
+			if (this.finalized) return false;
+			await this.endTestInternal({ reason: 'expiry' });
+			return true;
+		})
+			.then((ended) => {
+				if (!ended || this.destroyed || !this.finalized) return;
 				this.notifyTimeExpired({ scope: 'assessment', autoFinalized: true, submissionRequired: false });
 			})
 			.catch((error) => {
-				if (
-					!this.destroyed &&
-					!this.finalized &&
-					isAssessmentPlayerError(error) &&
-					error.code === 'navigationInFlight' &&
-					attempt < 4
-				) {
-					// A candidate transition owns the lock; retry once it settles.
-					const off = this.onBusyChange((busy) => {
-						if (busy) return;
-						off();
-						this.autoFinalizeForTimeExpiry(attempt + 1);
-					});
-					return;
-				}
+				if (this.destroyed) return;
 				// Finalization failed: the shell's expiry notice with a Submit action and the
 				// host's error surface keep the candidate unstuck and the host informed.
 				this.config.onError?.(error instanceof Error ? error : new Error(String(error)));

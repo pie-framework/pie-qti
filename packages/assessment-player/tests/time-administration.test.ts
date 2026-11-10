@@ -290,6 +290,59 @@ describe('whole-test expiry', () => {
 		expect(finalizeCalls()).toBe(1);
 	});
 
+	test('auto-finalizes behind every transition that takes the lock first, without a retry budget', async () => {
+		// The limit runs out while a submission is in flight, and twenty-five more transitions take
+		// the lock back-to-back the moment each one before settles (a host acting on idle,
+		// queued expiry hops, a force submit). The end waits for the lock as long as it
+		// takes: it used to give up after five misses and leave the candidate to submit.
+		const xml = testXml({ testLimits: '<timeLimits maxTime="5"/>' });
+		const expiries: AssessmentTimeExpiryEvent[] = [];
+		const errors: Error[] = [];
+		let release!: () => void;
+		const held = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const { player, advance, finalizeCalls } = await deliver(
+			xml,
+			items('i1', 'i2'),
+			{ onError: (error) => errors.push(error) },
+			(backend) => {
+				const submit = backend.submitResponses.bind(backend);
+				let first = true;
+				backend.submitResponses = async (request) => {
+					if (first) {
+						first = false;
+						await held;
+					}
+					return submit(request);
+				};
+			},
+		);
+		player.onTimeExpired((event) => expiries.push(event));
+
+		// Registered before the expiry: runs first whenever the player goes idle.
+		let slipIns = 0;
+		player.onBusyChange((busy) => {
+			if (busy || slipIns >= 25 || player.getNavigationState().isComplete) return;
+			slipIns += 1;
+			void player.navigateTo(slipIns % 2).catch(() => {});
+		});
+
+		player.updateResponse('RESPONSE', 'A');
+		const moving = player.next().catch(() => {});
+		advance(6_000);
+		await tick();
+		release();
+		await moving;
+		await new Promise((resolve) => setTimeout(resolve, 200));
+
+		expect(slipIns).toBe(25);
+		expect(errors).toEqual([]);
+		expect(player.getNavigationState().isComplete).toBe(true);
+		expect(finalizeCalls()).toBe(1);
+		expect(expiries).toEqual([{ scope: 'assessment', autoFinalized: true, submissionRequired: false }]);
+	});
+
 	test('allowLateSubmission keeps the test open past its limit', async () => {
 		const xml = testXml({ testLimits: '<timeLimits maxTime="2" allowLateSubmission="true"/>' });
 		const expiries: AssessmentTimeExpiryEvent[] = [];
