@@ -38,6 +38,8 @@
 	import CompletionScreen from './CompletionScreen.svelte';
 	import NavigationBar from './NavigationBar.svelte';
 	import ReviewScreen from './ReviewScreen.svelte';
+	import SubmitBlockerGroup, { type BlockerGroups, type SubmitDialogItem } from './SubmitBlockerGroup.svelte';
+	import SubmitConfirmDialog, { type SubmitDialogSummary } from './SubmitConfirmDialog.svelte';
 
 	interface Props {
 		backend: BackendAdapter;
@@ -1423,23 +1425,6 @@
 	// Submit: confirmation first (WCAG 3.3.4), then the irreversible core transition
 	// ---------------------------------------------------------------------------
 
-	interface SubmitDialogItem {
-		number: number;
-		index: number;
-		jumpAllowed: boolean;
-	}
-
-	/** A question whose answer is incomplete, with what it still owes ("select at least 2"). */
-	interface IncompleteDialogItem extends SubmitDialogItem {
-		requirement: string;
-	}
-
-	/** Blockers grouped for display: no answer at all, or an incomplete answer. */
-	interface BlockerGroups {
-		needsAnswer: SubmitDialogItem[];
-		incomplete: IncompleteDialogItem[];
-	}
-
 	/**
 	 * What an incomplete answer still owes, from the interaction's constraint the core
 	 * derived (minChoices, minStrings, minAssociations, minPlays), as an entry fragment.
@@ -1477,12 +1462,7 @@
 		};
 	}
 
-	let submitSummary = $state<({
-		answeredCount: number;
-		total: number;
-		flaggedCount: number;
-		unanswered: SubmitDialogItem[];
-	} & BlockerGroups) | null>(null);
+	let submitSummary = $state<SubmitDialogSummary | null>(null);
 
 	/** The leave-part warning's questions that still owe an answer (Continue waits for them). */
 	let leavePartBlockers = $state<BlockerGroups>({ needsAnswer: [], incomplete: [] });
@@ -1759,57 +1739,6 @@
 </script>
 
 <PlayerBaseStyles />
-
-<!--
-	One group of questions a dialog holds the candidate on (the submit confirmation, the
-	leave-part warning): a heading naming the count and why, then each question — a jump
-	where navigation allows, else its position. An incomplete answer's entry adds what it
-	still owes ("Question 2: select at least 2").
--->
-{#snippet blockerGroup(group: {
-	heading: string;
-	headingId: string;
-	testId: string;
-	jumpPrefix: string;
-	items: Array<SubmitDialogItem & { requirement?: string }>;
-	total: number;
-	onJump: (index: number) => void;
-})}
-	<p class="submit-dialog-line submit-dialog-needs-answer" id={group.headingId} data-testid={group.testId}>
-		{group.heading}
-	</p>
-	<ul class="submit-dialog-items" aria-labelledby={group.headingId}>
-		{#each group.items as item (item.index)}
-			<li>
-				{#if item.jumpAllowed}
-					<button
-						type="button"
-						class="submit-dialog-jump"
-						data-testid={`${group.jumpPrefix}-${item.number}`}
-						disabled={isSubmitting}
-						onclick={() => void group.onJump(item.index)}
-					>
-						{item.requirement === undefined
-							? i18n.t('assessment.review.goToItem', 'Go to question {number}', { number: item.number })
-							: i18n.t('assessment.submit.incompleteJump', 'Go to question {number}: {requirement}', {
-								number: item.number,
-								requirement: item.requirement,
-							})}
-					</button>
-				{:else}
-					<span class="submit-dialog-static">
-						{item.requirement === undefined
-							? i18n.t('assessment.question', 'Question {current} of {total}', { current: item.number, total: group.total })
-							: i18n.t('assessment.submit.incompleteEntry', 'Question {number}: {requirement}', {
-								number: item.number,
-								requirement: item.requirement,
-							})}
-					</span>
-				{/if}
-			</li>
-		{/each}
-	</ul>
-{/snippet}
 
 <!--
 	Page lifecycle: an immediate, best-effort autosave when the tab is hidden or the
@@ -2346,133 +2275,22 @@
 				them when the navigation rules allow, and requires an explicit confirm. Focus
 				returns to the Submit control on cancel.
 			-->
-			<AssessmentDialog
+			<SubmitConfirmDialog
 				bind:open={submitDialogOpen}
-			title={submitTranslations.dialogTitle}
-			description={submitTranslations.dialogDescription}
-			tone="danger"
-			closeOnConfirm={false}
-			busy={isSubmitting}
-			{i18n}
-			onConfirm={handleDialogSubmit}
-		>
-			{#snippet children()}
-				<p class="submit-dialog-summary" data-testid="submit-dialog-summary">
-					<strong>{submitTranslations.answeredLine}</strong>
-				</p>
-				{#if submitTranslations.flaggedLine}
-					<p class="submit-dialog-line">{submitTranslations.flaggedLine}</p>
-				{/if}
-				{#if submitTranslations.needsAnswerHeading && submitSummary}
-					<!--
-						Items the end of the test would refuse: QTI allowSkipping=false without an
-						answer, named first, with a jump where navigation allows. Submit is
-						unavailable until they are answered.
-					-->
-					{@render blockerGroup({
-						heading: submitTranslations.needsAnswerHeading,
-						headingId: `${uid}-needs-answer-heading`,
-						testId: 'submit-dialog-needs-answer',
-						jumpPrefix: 'submit-dialog-needs-answer-jump',
-						items: submitSummary.needsAnswer,
-						total: submitSummary.total,
-						onJump: (index) => void handleDialogJump(index),
-					})}
-				{/if}
-				{#if submitTranslations.incompleteHeading && submitSummary}
-					<!--
-						validateResponses=true with an incomplete answer: a distinct group — the
-						answer exists but does not meet its interaction's minimum — whose entries
-						say what each still owes.
-					-->
-					{@render blockerGroup({
-						heading: submitTranslations.incompleteHeading,
-						headingId: `${uid}-incomplete-heading`,
-						testId: 'submit-dialog-incomplete',
-						jumpPrefix: 'submit-dialog-incomplete-jump',
-						items: submitSummary.incomplete,
-						total: submitSummary.total,
-						onJump: (index) => void handleDialogJump(index),
-					})}
-				{/if}
-				{#if submitTranslations.unansweredHeading && submitSummary}
-					<p class="submit-dialog-line" id={`${uid}-unanswered-heading`}>{submitTranslations.unansweredHeading}</p>
-					<ul class="submit-dialog-items" aria-labelledby={`${uid}-unanswered-heading`}>
-						{#each submitSummary.unanswered as item (item.index)}
-							<li>
-								{#if item.jumpAllowed}
-									<button
-										type="button"
-										class="submit-dialog-jump"
-										data-testid={`submit-dialog-jump-${item.number}`}
-										disabled={isSubmitting}
-										onclick={() => void handleDialogJump(item.index)}
-									>
-										{i18n.t('assessment.review.goToItem', 'Go to question {number}', { number: item.number })}
-									</button>
-								{:else}
-									<span class="submit-dialog-static">
-										{i18n.t('assessment.question', 'Question {current} of {total}', {
-											current: item.number,
-											total: submitSummary?.total ?? 0,
-										})}
-									</span>
-								{/if}
-							</li>
-						{/each}
-					</ul>
-				{:else if !submitBlocked}
-					<p class="submit-dialog-line">{submitTranslations.allAnswered}</p>
-				{/if}
-			{/snippet}
-			{#snippet actions({ close })}
-				<button
-					type="button"
-					class="submit-dialog-action"
-					data-testid="submit-dialog-review"
-					aria-disabled={isSubmitting ? 'true' : undefined}
-					onclick={() => {
-						// Unavailable while the submission runs: it must not act under it.
-						if (isSubmitting) return;
-						close('cancel');
-						void handleDialogReview();
-					}}
-				>
-					{submitTranslations.reviewAction}
-				</button>
-				<!-- svelte-ignore a11y_autofocus -->
-				<button
-					type="button"
-					class="submit-dialog-action"
-					data-testid="assessment-dialog-cancel"
-					autofocus
-					aria-disabled={isSubmitting ? 'true' : undefined}
-					onclick={() => close('cancel')}
-				>
-					{submitTranslations.cancel}
-				</button>
-				<button
-					type="button"
-					class="submit-dialog-action danger"
-					data-testid="assessment-dialog-confirm"
-					aria-disabled={isSubmitting || submitBlocked ? 'true' : undefined}
-					aria-describedby={submitBlocked
-						? [
-							submitTranslations.needsAnswerHeading ? `${uid}-needs-answer-heading` : null,
-							submitTranslations.incompleteHeading ? `${uid}-incomplete-heading` : null,
-						]
-							.filter(Boolean)
-							.join(' ')
-						: undefined}
-					onclick={() => {
-						if (submitBlocked) return;
-						close('confirm');
-					}}
-				>
-					{submitTranslations.confirm}
-				</button>
-			{/snippet}
-		</AssessmentDialog>
+				summary={submitSummary}
+				busy={isSubmitting}
+				blocked={submitBlocked}
+				translations={submitTranslations}
+				headingIds={{
+					needsAnswer: `${uid}-needs-answer-heading`,
+					incomplete: `${uid}-incomplete-heading`,
+					unanswered: `${uid}-unanswered-heading`,
+				}}
+				{i18n}
+				onJump={(index) => void handleDialogJump(index)}
+				onReview={handleDialogReview}
+				onConfirm={handleDialogSubmit}
+			/>
 
 		<!--
 			Leaving a test part is irreversible: confirm with a clear "cannot return". The
@@ -2489,26 +2307,30 @@
 		>
 			{#snippet children()}
 				{#if leavePartTranslations.needsAnswerHeading}
-					{@render blockerGroup({
-						heading: leavePartTranslations.needsAnswerHeading,
-						headingId: `${uid}-leave-needs-answer-heading`,
-						testId: 'leave-part-needs-answer',
-						jumpPrefix: 'leave-part-needs-answer-jump',
-						items: leavePartBlockers.needsAnswer,
-						total: navState.totalItems,
-						onJump: (index) => void handleLeavePartJump(index),
-					})}
+					<SubmitBlockerGroup
+						heading={leavePartTranslations.needsAnswerHeading}
+						headingId={`${uid}-leave-needs-answer-heading`}
+						testId="leave-part-needs-answer"
+						jumpPrefix="leave-part-needs-answer-jump"
+						items={leavePartBlockers.needsAnswer}
+						total={navState.totalItems}
+						busy={isSubmitting}
+						{i18n}
+						onJump={(index) => void handleLeavePartJump(index)}
+					/>
 				{/if}
 				{#if leavePartTranslations.incompleteHeading}
-					{@render blockerGroup({
-						heading: leavePartTranslations.incompleteHeading,
-						headingId: `${uid}-leave-incomplete-heading`,
-						testId: 'leave-part-incomplete',
-						jumpPrefix: 'leave-part-incomplete-jump',
-						items: leavePartBlockers.incomplete,
-						total: navState.totalItems,
-						onJump: (index) => void handleLeavePartJump(index),
-					})}
+					<SubmitBlockerGroup
+						heading={leavePartTranslations.incompleteHeading}
+						headingId={`${uid}-leave-incomplete-heading`}
+						testId="leave-part-incomplete"
+						jumpPrefix="leave-part-incomplete-jump"
+						items={leavePartBlockers.incomplete}
+						total={navState.totalItems}
+						busy={isSubmitting}
+						{i18n}
+						onJump={(index) => void handleLeavePartJump(index)}
+					/>
 				{/if}
 			{/snippet}
 			{#snippet actions({ close })}
@@ -2933,11 +2755,6 @@
 		padding-inline: var(--pie-qti-space-4, 1rem);
 	}
 
-	/* The refused end of the test reads as a warning naming questions, not a failure alert. */
-	.submit-dialog-needs-answer {
-		font-weight: 600;
-	}
-
 	/*
 	 * Candidate comments (QTI allowComment): a native disclosure above the navigation
 	 * bar. The summary is a ≥44px target with a visible focus ring; the textarea takes
@@ -3021,65 +2838,7 @@
 		margin-block-end: 0;
 	}
 
-	/* Submit-confirmation dialog body */
-	.submit-dialog-summary {
-		margin: 0 0 var(--pie-qti-space-2, 0.5rem);
-		font-size: 1.0625em;
-	}
-
-	.submit-dialog-line {
-		margin: 0 0 var(--pie-qti-space-2, 0.5rem);
-	}
-
-	.submit-dialog-items {
-		margin: 0 0 var(--pie-qti-space-2, 0.5rem);
-		padding: 0;
-		list-style: none;
-		display: flex;
-		flex-direction: column;
-		gap: var(--pie-qti-space-2, 0.5rem);
-		max-block-size: 12rem;
-		overflow-y: auto;
-	}
-
-	.submit-dialog-jump {
-		box-sizing: border-box;
-		display: inline-flex;
-		align-items: center;
-		min-inline-size: var(--pie-qti-control-min-size, 2.75rem);
-		min-block-size: var(--pie-qti-control-min-size, 2.75rem);
-		padding-block: var(--pie-qti-space-2, 0.5rem);
-		padding-inline: var(--pie-qti-space-4, 1rem);
-		border: 1px solid var(--pie-qti-border-strong, #767676);
-		border-radius: var(--pie-qti-radius, 0.5rem);
-		background: var(--pie-qti-base-100, oklch(100% 0 0));
-		color: var(--pie-qti-base-content, oklch(21% 0 0));
-		font: inherit;
-		font-weight: 600;
-		line-height: 1.25;
-		text-align: start;
-		cursor: pointer;
-	}
-
-	.submit-dialog-jump:hover:not(:disabled) {
-		background: var(--pie-qti-base-200, oklch(98% 0 0));
-	}
-
-	.submit-dialog-jump:focus-visible {
-		outline: 2px solid var(--pie-qti-focus, #4338ca);
-		outline-offset: 2px;
-	}
-
-	.submit-dialog-jump:disabled {
-		cursor: not-allowed;
-		opacity: 0.55;
-	}
-
-	.submit-dialog-static {
-		font-weight: 600;
-	}
-
-	/* The dialog's action buttons (the actions snippet keeps the shell's CSS scope). */
+	/* The leave-part warning's action buttons (the actions snippet keeps the shell's CSS scope). */
 	.submit-dialog-action {
 		box-sizing: border-box;
 		display: inline-flex;
@@ -3102,16 +2861,6 @@
 
 	.submit-dialog-action:hover:not([aria-disabled='true']) {
 		background: var(--pie-qti-base-200, oklch(98% 0 0));
-	}
-
-	.submit-dialog-action.danger {
-		border-color: var(--pie-qti-error-text, #b91c1c);
-		background: var(--pie-qti-error-text, #b91c1c);
-		color: oklch(98% 0.01 277);
-	}
-
-	.submit-dialog-action.danger:hover:not([aria-disabled='true']) {
-		background: color-mix(in oklab, var(--pie-qti-error-text, #b91c1c) 85%, black);
 	}
 
 	.submit-dialog-action:focus-visible {
