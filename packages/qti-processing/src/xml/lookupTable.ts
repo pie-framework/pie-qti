@@ -8,10 +8,6 @@ import { findDescendants, getAttr } from './traverse.js';
  * for the item's QTI version (required — there is no version-neutral spelling),
  * with every value trimmed and kept in its lexical form. Coercion to the
  * outcome's base type happens in `lookupOutcomeValue`, not here.
- *
- * This is the declaration parser used by the item players. The `<lookupTable>`
- * *expression* parser in `ast/build.ts` is a separate path defined by the
- * processing language itself; the certification fixtures read it as authored.
  */
 
 /** Parse an outcome declaration's `<matchTable>`: exact source matches, lexical targets. */

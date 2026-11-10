@@ -1,5 +1,3 @@
-import type { InterpolationTableDef, MatchTableDef } from '../runtime/types.js';
-
 export type AstNodeId = string;
 
 export type ProcessingProgram = {
@@ -18,7 +16,6 @@ export type StatementNode =
 	| SetDefaultValueStmt
 	| LookupOutcomeValueStmt
 	| SetOutcomeValueStmt
-	| SetResponseValueStmt
 	| SetTemplateValueStmt
 	| SetCorrectResponseStmt
 	| TemplateConditionStmt;
@@ -43,7 +40,6 @@ export type ExpressionNode =
 	| MatchExpr
 	| EqualExpr
 	| EqualRoundedExpr
-	| NotEqualExpr
 	| MemberExpr
 	| ContainsExpr
 	| ContainerSizeExpr
@@ -56,23 +52,13 @@ export type ExpressionNode =
 	| DurationLTExpr
 	| DurationGTEExpr
 	| StatsOperatorExpr
-	| RecordExpr
 	| FieldValueExpr
 	| SubstringExpr
-	| LookupTableExpr
 	| PowerExpr
-	| ModExpr
 	| IntegerDivideExpr
-	| MeanExpr
-	| SampleVarianceExpr
-	| SampleSDExpr
-	| PopVarianceExpr
-	| PopSDExpr
-	| IsTypeOfExpr
 	| StringMatchExpr
 	| PatternMatchExpr
 	| IsNullExpr
-	| IsNotNullExpr
 	| LtExpr
 	| LteExpr
 	| GtExpr
@@ -81,7 +67,6 @@ export type ExpressionNode =
 	| OrExpr
 	| NotExpr
 	| AnyNExpr
-	| AllNExpr
 	| SumExpr
 	| SubtractExpr
 	| ProductExpr
@@ -91,7 +76,6 @@ export type ExpressionNode =
 	| RoundExpr
 	| TruncateExpr
 	| MapResponseExpr
-	| MapOutcomeExpr
 	| MapResponsePointExpr
 	| RandomExpr
 	| RandomIntegerExpr
@@ -137,13 +121,6 @@ export type SetOutcomeValueStmt = {
 
 export type LookupOutcomeValueStmt = {
 	kind: 'stmt.lookupOutcomeValue';
-	id: AstNodeId;
-	identifier: string;
-	expr: ExpressionNode;
-};
-
-export type SetResponseValueStmt = {
-	kind: 'stmt.setResponseValue';
 	id: AstNodeId;
 	identifier: string;
 	expr: ExpressionNode;
@@ -330,13 +307,6 @@ export type EqualRoundedExpr = {
 	figures: string;
 };
 
-export type NotEqualExpr = {
-	kind: 'expr.notEqual';
-	id: AstNodeId;
-	a: ExpressionNode;
-	b: ExpressionNode;
-};
-
 export type MemberExpr = {
 	kind: 'expr.member';
 	id: AstNodeId;
@@ -424,12 +394,6 @@ export type StatsOperatorExpr = {
 	values: ExpressionNode;
 };
 
-export type RecordExpr = {
-	kind: 'expr.record';
-	id: AstNodeId;
-	fields: Array<{ fieldIdentifier: string; value: ExpressionNode }>;
-};
-
 export type FieldValueExpr = {
 	kind: 'expr.fieldValue';
 	id: AstNodeId;
@@ -445,22 +409,8 @@ export type SubstringExpr = {
 	length?: ExpressionNode;
 };
 
-export type LookupTableExpr = {
-	kind: 'expr.lookupTable';
-	id: AstNodeId;
-	source: ExpressionNode;
-	table: MatchTableDef | InterpolationTableDef;
-};
-
 export type PowerExpr = {
 	kind: 'expr.power';
-	id: AstNodeId;
-	a: ExpressionNode;
-	b: ExpressionNode;
-};
-
-export type ModExpr = {
-	kind: 'expr.mod';
 	id: AstNodeId;
 	a: ExpressionNode;
 	b: ExpressionNode;
@@ -471,43 +421,6 @@ export type IntegerDivideExpr = {
 	id: AstNodeId;
 	a: ExpressionNode;
 	b: ExpressionNode;
-};
-
-export type MeanExpr = {
-	kind: 'expr.mean';
-	id: AstNodeId;
-	values: ExpressionNode;
-};
-
-export type SampleVarianceExpr = {
-	kind: 'expr.sampleVariance';
-	id: AstNodeId;
-	values: ExpressionNode;
-};
-
-export type SampleSDExpr = {
-	kind: 'expr.sampleSD';
-	id: AstNodeId;
-	values: ExpressionNode;
-};
-
-export type PopVarianceExpr = {
-	kind: 'expr.popVariance';
-	id: AstNodeId;
-	values: ExpressionNode;
-};
-
-export type PopSDExpr = {
-	kind: 'expr.popSD';
-	id: AstNodeId;
-	values: ExpressionNode;
-};
-
-export type IsTypeOfExpr = {
-	kind: 'expr.isTypeOf';
-	id: AstNodeId;
-	value: ExpressionNode;
-	baseType: ExpressionNode;
 };
 
 export type StringMatchExpr = {
@@ -533,12 +446,6 @@ export type IsNullExpr = {
 	expr: ExpressionNode;
 };
 
-export type IsNotNullExpr = {
-	kind: 'expr.isNotNull';
-	id: AstNodeId;
-	expr: ExpressionNode;
-};
-
 export type LtExpr = { kind: 'expr.lt'; id: AstNodeId; a: ExpressionNode; b: ExpressionNode };
 export type LteExpr = { kind: 'expr.lte'; id: AstNodeId; a: ExpressionNode; b: ExpressionNode };
 export type GtExpr = { kind: 'expr.gt'; id: AstNodeId; a: ExpressionNode; b: ExpressionNode };
@@ -560,10 +467,6 @@ export type AnyNExpr = {
 	ops: ExpressionNode[];
 };
 
-// Historical/non-standard helper used in some older QTI engines:
-// "at most max operands are true" (equivalent to anyN with min=0 and a max bound).
-export type AllNExpr = { kind: 'expr.allN'; id: AstNodeId; max: number; ops: ExpressionNode[] };
-
 export type SumExpr = { kind: 'expr.sum'; id: AstNodeId; values: ExpressionNode[] };
 export type SubtractExpr = { kind: 'expr.subtract'; id: AstNodeId; a: ExpressionNode; b: ExpressionNode };
 export type ProductExpr = { kind: 'expr.product'; id: AstNodeId; values: ExpressionNode[] };
@@ -575,8 +478,6 @@ export type RoundExpr = { kind: 'expr.round'; id: AstNodeId; value: ExpressionNo
 export type TruncateExpr = { kind: 'expr.truncate'; id: AstNodeId; value: ExpressionNode };
 
 export type MapResponseExpr = { kind: 'expr.mapResponse'; id: AstNodeId; identifier: string };
-
-export type MapOutcomeExpr = { kind: 'expr.mapOutcome'; id: AstNodeId; identifier: string };
 
 export type MapResponsePointExpr = { kind: 'expr.mapResponsePoint'; id: AstNodeId; identifier: string };
 

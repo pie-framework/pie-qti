@@ -181,19 +181,6 @@ function buildStatements(
 				});
 				break;
 			}
-			case 'setresponsevalue': {
-				if (mode !== 'response') break;
-				const identifier = getAttr(el, 'identifier');
-				const exprEl = firstChildElement(el);
-				if (!identifier || !exprEl) break;
-				out.push({
-					kind: 'stmt.setResponseValue',
-					id: newAstId('stmt'),
-					identifier,
-					expr: buildExpression(exprEl, options),
-				});
-				break;
-			}
 			case 'settemplatevalue': {
 				const identifier = getAttr(el, 'identifier');
 				const exprEl = firstChildElement(el);
@@ -510,13 +497,6 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		return defaultValue;
 	};
 
-	const numAttr = (name: string, defaultValue: number): number => {
-		const raw = (getAttr(el, name) || '').trim();
-		if (!raw) return defaultValue;
-		const n = Number(raw);
-		return Number.isFinite(n) ? n : defaultValue;
-	};
-
 	// QTI integerOrVariableRef (ASI §10.2): an integer literal, or the identifier of the variable
 	// holding the integer, kept for the evaluator to read. The braced {TEMPLATE} spelling is
 	// accepted too, as patternMatch accepts it for its StringOrVariableRef pattern.
@@ -700,9 +680,6 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 				figures,
 			};
 		}
-		case 'notequal': {
-			return { kind: 'expr.notEqual', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
-		}
 		case 'member': {
 			return {
 				kind: 'expr.member',
@@ -800,19 +777,6 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			if (kids.length !== 1) throw new Error('<statsOperator> requires exactly one child expression');
 			return { kind: 'expr.statsOperator', id, name, values: buildExpression(kids[0]!, options) };
 		}
-		case 'record': {
-			// QTI record: children are <fieldValue fieldIdentifier="...">VALUE</fieldValue>
-			// Member recognition goes through the mapper so QTI 3 spelling (qti-field-value,
-			// as the 2 → 3 conversion emits it) is accepted beside the QTI 2.x one.
-			const fields = childElements(el)
-				.filter((c) => mapper.toCanonical(localName(c) || '') === 'fieldvalue')
-				.map((c) => ({
-					fieldIdentifier: getAttr(c, 'fieldIdentifier') || '',
-					value: buildExpression(childElements(c)[0] ?? c, options),
-				}))
-				.filter((f) => Boolean(f.fieldIdentifier));
-			return { kind: 'expr.record', id, fields };
-		}
 		case 'fieldvalue': {
 			const fieldIdentifier = getAttr(el, 'fieldIdentifier') || '';
 			return { kind: 'expr.fieldValue', id, fieldIdentifier, record: buildExpression(kids[0]!, options) };
@@ -826,92 +790,11 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 				length: kids[2] ? buildExpression(kids[2], options) : undefined,
 			};
 		}
-		case 'lookuptable': {
-			const source = buildExpression(kids[0]!, options);
-			const tableEl = kids[1];
-			if (!tableEl) {
-				throw new Error('<lookupTable> is missing its table element child');
-			}
-			const canonical = (node: Element) => mapper.toCanonical(localName(node) || '').toLowerCase();
-			const tableTag = canonical(tableEl);
-			const tableKids = childElements(tableEl);
-			const defaultValue = (getAttr(tableEl, 'defaultValue') || '').trim() || undefined;
-
-			if (tableTag === 'matchtable') {
-				const entries = tableKids
-					.filter((e) => canonical(e) === 'matchtableentry')
-					.map((e) => ({
-						sourceValue: getAttr(e, 'sourceValue') || '',
-						targetValue: getAttr(e, 'targetValue') || '',
-					}));
-
-				return {
-					kind: 'expr.lookupTable',
-					id,
-					source,
-					table: {
-						kind: 'table.matchTable',
-						defaultValue,
-						entries,
-					},
-				};
-			}
-
-			if (tableTag === 'interpolationtable') {
-				const entries = tableKids
-					.filter((e) => canonical(e) === 'interpolationtableentry')
-					.map((e) => ({
-						sourceValue: Number((getAttr(e, 'sourceValue') || '').trim() || Number.NaN),
-						targetValue: (getAttr(e, 'targetValue') || '').trim(),
-						includeBoundary: (getAttr(e, 'includeBoundary') || '').trim() !== 'false',
-					}))
-					.filter((e) => Number.isFinite(e.sourceValue));
-
-				return {
-					kind: 'expr.lookupTable',
-					id,
-					source,
-					table: {
-						kind: 'table.interpolationTable',
-						defaultValue,
-						entries,
-					},
-				};
-			}
-
-			throw new Error(`<lookupTable> unsupported table element: <${tableTag}>`);
-		}
 		case 'power': {
 			return { kind: 'expr.power', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
-		case 'mod': {
-			return { kind: 'expr.mod', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
-		}
 		case 'integerdivide': {
 			return { kind: 'expr.integerDivide', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
-		}
-		case 'mean': {
-			return { kind: 'expr.mean', id, values: buildExpression(kids[0]!, options) };
-		}
-		case 'samplevariance': {
-			return { kind: 'expr.sampleVariance', id, values: buildExpression(kids[0]!, options) };
-		}
-		case 'samplesd': {
-			return { kind: 'expr.sampleSD', id, values: buildExpression(kids[0]!, options) };
-		}
-		case 'popvariance': {
-			return { kind: 'expr.popVariance', id, values: buildExpression(kids[0]!, options) };
-		}
-		case 'popsd': {
-			return { kind: 'expr.popSD', id, values: buildExpression(kids[0]!, options) };
-		}
-		case 'istypeof': {
-			return {
-				kind: 'expr.isTypeOf',
-				id,
-				value: buildExpression(kids[0]!, options),
-				baseType: buildExpression(kids[1]!, options),
-			};
 		}
 		case 'stringmatch': {
 			return {
@@ -945,9 +828,6 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		case 'isnull': {
 			return { kind: 'expr.isNull', id, expr: buildExpression(kids[0]!, options) };
 		}
-		case 'isnotnull': {
-			return { kind: 'expr.isNotNull', id, expr: buildExpression(kids[0]!, options) };
-		}
 		case 'lt': {
 			return { kind: 'expr.lt', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
@@ -979,11 +859,6 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 				ops: kids.map((k) => buildExpression(k, options)),
 			};
 		}
-		case 'alln': {
-			// Historical/non-standard: true if #true(children) <= max
-			const max = numAttr('max', kids.length);
-			return { kind: 'expr.allN', id, max, ops: kids.map((k) => buildExpression(k, options)) };
-		}
 		case 'sum': {
 			return { kind: 'expr.sum', id, values: kids.map((k) => buildExpression(k, options)) };
 		}
@@ -1014,9 +889,6 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		}
 		case 'mapresponse': {
 			return { kind: 'expr.mapResponse', id, identifier: getAttr(el, 'identifier') || '' };
-		}
-		case 'mapoutcome': {
-			return { kind: 'expr.mapOutcome', id, identifier: getAttr(el, 'identifier') || '' };
 		}
 		case 'mapresponsepoint': {
 			return { kind: 'expr.mapResponsePoint', id, identifier: getAttr(el, 'identifier') || '' };

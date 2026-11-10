@@ -341,7 +341,7 @@
       },
       "qti30": "same as qti22"
     },
-    "isNull_isNotNull": {
+    "isNull_not": {
       "qti22": {
         "probes": {
           "(no responses)": {
@@ -391,7 +391,7 @@
               "issues": []
             }
           },
-          "present response is not null": {
+          "present response is not null (not(isNull))": {
             "engine": {
               "attempted": true,
               "entries": {
@@ -407,9 +407,7 @@
           }
         }
       },
-      "qti30": {
-        "error": "Unknown processing expression tag: <isNotNull>"
-      }
+      "qti30": "same as qti22"
     },
     "mapResponse_bounds_default_duplicates": {
       "qti22": {
@@ -4356,7 +4354,7 @@
       },
       "qti30": "same as qti22"
     },
-    "responseProcessing_anyN_allN": {
+    "responseProcessing_anyN_bounds": {
       "qti22": {
         "probes": {
           "(no responses)": {
@@ -4433,9 +4431,7 @@
           }
         }
       },
-      "qti30": {
-        "error": "Unknown processing expression tag: <allN>"
-      }
+      "qti30": "same as qti22"
     },
     "responseProcessing_arithmetic_nulls": {
       "qti22": {
@@ -4740,7 +4736,7 @@
           },
           "default ignores current value changes (response + outcome)": {
             "engine": {
-              "attempted": false,
+              "attempted": true,
               "entries": {
                 "R": "textEntryInteraction, optional, complete, valid"
               },
@@ -4754,9 +4750,7 @@
           }
         }
       },
-      "qti30": {
-        "error": "Unknown processing statement tag: <setResponseValue> (mode=response)"
-      }
+      "qti30": "same as qti22"
     },
     "responseProcessing_deleteValue_repeat": {
       "qti22": {
@@ -4835,9 +4829,7 @@
           }
         }
       },
-      "qti30": {
-        "error": "Unknown processing statement tag: <setResponseValue> (mode=response)"
-      }
+      "qti30": "same as qti22"
     },
     "responseProcessing_equalRounded_tolerance": {
       "qti22": {
@@ -5090,7 +5082,7 @@
       },
       "qti30": "same as qti22"
     },
-    "responseProcessing_lookupTable_interpolationTable": {
+    "responseProcessing_lookupOutcomeValue_interpolationTable": {
       "qti22": {
         "probes": {
           "(no responses)": {
@@ -5179,176 +5171,7 @@
           }
         }
       },
-      "qti30": {
-        "error": "Unknown processing expression tag: <lookupTable>"
-      }
-    },
-    "responseProcessing_lookupTable_matchTable": {
-      "qti22": {
-        "probes": {
-          "(no responses)": {
-            "engine": {
-              "attempted": false,
-              "entries": {},
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "(wrong cardinality)": {
-            "engine": {
-              "attempted": false,
-              "entries": {},
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "R=1 -> SCORE=2": {
-            "engine": {
-              "attempted": false,
-              "entries": {},
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "R=2 -> SCORE=5": {
-            "engine": {
-              "attempted": false,
-              "entries": {},
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "R=3 -> SCORE=0 (defaultValue)": {
-            "engine": {
-              "attempted": false,
-              "entries": {},
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          }
-        }
-      },
-      "qti30": {
-        "error": "Unknown processing expression tag: <lookupTable>"
-      }
-    },
-    "responseProcessing_mapOutcome_basic": {
-      "qti22": {
-        "probes": {
-          "(no responses)": {
-            "engine": {
-              "attempted": false,
-              "entries": {
-                "R": "textEntryInteraction, optional, complete, valid"
-              },
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "(wrong cardinality)": {
-            "engine": {
-              "attempted": true,
-              "entries": {
-                "R": [
-                  "textEntryInteraction, optional, complete, invalid",
-                  "error: Expected a single value for response 'R'"
-                ]
-              },
-              "issues": [
-                "R invalid_shape"
-              ]
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "R=0 -> RAW=0 -> mapOutcome=0": {
-            "engine": {
-              "attempted": true,
-              "entries": {
-                "R": "textEntryInteraction, optional, complete, valid"
-              },
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "R=1 -> RAW=1 -> mapOutcome=0.5": {
-            "engine": {
-              "attempted": true,
-              "entries": {
-                "R": "textEntryInteraction, optional, complete, valid"
-              },
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "R=2 -> RAW=2 -> mapOutcome=1": {
-            "engine": {
-              "attempted": true,
-              "entries": {
-                "R": "textEntryInteraction, optional, complete, valid"
-              },
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "R=3 -> RAW=3 -> mapOutcome uses defaultValue=0.25": {
-            "engine": {
-              "attempted": true,
-              "entries": {
-                "R": "textEntryInteraction, optional, complete, valid"
-              },
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          }
-        }
-      },
-      "qti30": {
-        "error": "Unknown processing expression tag: <mapOutcome>"
-      }
+      "qti30": "same as qti22"
     },
     "responseProcessing_mapResponsePoint_basic": {
       "qti22": {
@@ -5760,11 +5583,9 @@
           }
         }
       },
-      "qti30": {
-        "error": "Unknown processing expression tag: <sampleVariance>"
-      }
+      "qti30": "same as qti22"
     },
-    "responseProcessing_notEqual_basic": {
+    "responseProcessing_not_equal_basic": {
       "qti22": {
         "probes": {
           "(no responses)": {
@@ -5844,9 +5665,7 @@
           }
         }
       },
-      "qti30": {
-        "error": "Unknown processing expression tag: <notEqual>"
-      }
+      "qti30": "same as qti22"
     },
     "responseProcessing_null_conditions": {
       "qti22": {
@@ -6118,6 +5937,18 @@
               "issues": []
             }
           },
+          "lookupOutcomeValue_uses_defaultValue_when_no_entry_matches": {
+            "engine": {
+              "attempted": false,
+              "entries": {},
+              "issues": []
+            },
+            "session": {
+              "canSubmit": true,
+              "gateIssues": [],
+              "issues": []
+            }
+          },
           "lookupOutcomeValue_uses_defaultValue_when_source_is_null": {
             "engine": {
               "attempted": false,
@@ -6173,7 +6004,7 @@
               "issues": []
             }
           },
-          "extracts fields from constructed record": {
+          "extracts fields from the session's record response": {
             "engine": {
               "attempted": false,
               "entries": {},
@@ -6286,90 +6117,6 @@
         }
       },
       "qti30": "same as qti22"
-    },
-    "responseProcessing_setResponseValue": {
-      "qti22": {
-        "probes": {
-          "(no responses)": {
-            "engine": {
-              "attempted": false,
-              "entries": {
-                "R": "choiceInteraction, optional, complete, valid"
-              },
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "(wrong cardinality)": {
-            "engine": {
-              "attempted": true,
-              "entries": {
-                "R": [
-                  "choiceInteraction, optional, complete, invalid",
-                  "error: Expected a single value for response 'R'"
-                ]
-              },
-              "issues": [
-                "R invalid_shape"
-              ]
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "A -> SCORE 1": {
-            "engine": {
-              "attempted": true,
-              "entries": {
-                "R": "choiceInteraction, optional, complete, valid"
-              },
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "B -> setResponseValue rewrites to A -> SCORE 1": {
-            "engine": {
-              "attempted": true,
-              "entries": {
-                "R": "choiceInteraction, optional, complete, valid"
-              },
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          },
-          "C -> SCORE 0": {
-            "engine": {
-              "attempted": true,
-              "entries": {
-                "R": "choiceInteraction, optional, complete, valid"
-              },
-              "issues": []
-            },
-            "session": {
-              "canSubmit": true,
-              "gateIssues": [],
-              "issues": []
-            }
-          }
-        }
-      },
-      "qti30": {
-        "error": "Unknown processing statement tag: <setResponseValue> (mode=response)"
-      }
     },
     "responseProcessing_subtract_divide": {
       "qti22": {

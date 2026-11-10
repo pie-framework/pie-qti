@@ -37,7 +37,7 @@ Floating-point arithmetic in JavaScript produces surprising results for rounding
 
 ### Why scope enforcement at parse time
 
-The `buildStatements` function in `build.ts` takes a `mode` parameter (`'response'`, `'outcome'`, or `'template'`). Statements and expressions that are not legal in a given processing scope (e.g. `setResponseValue` inside `<outcomeProcessing>`) are silently skipped or cause a parse-time error. This means:
+The `buildStatements` function in `build.ts` takes a `mode` parameter (`'response'`, `'outcome'`, or `'template'`). Statements and expressions that are not legal in a given processing scope (e.g. `setOutcomeValue` inside `<templateProcessing>`) are silently skipped or cause a parse-time error. This means:
 
 - Malformed content is rejected early, before execution, not mid-run.
 - The executor (`execute.ts`) does not need to check scope at runtime; it can assume the program was built with the correct mode.
@@ -74,7 +74,6 @@ The QTI processing model is inherently stateful: `setOutcomeValue` and `setTempl
 |---|---|---|
 | `setOutcomeValue` | `<setOutcomeValue>` | response, outcome |
 | `lookupOutcomeValue` | `<lookupOutcomeValue>` | response, outcome |
-| `setResponseValue` | `<setResponseValue>` | response |
 | `setTemplateValue` | `<setTemplateValue>` | template |
 | `setCorrectResponse` | `<setCorrectResponse>` | template |
 | `setDefaultValue` | `<setDefaultValue>` | template |
@@ -97,31 +96,31 @@ The QTI processing model is inherently stateful: `setOutcomeValue` and `setTempl
 `testVariables`, `outcomeMinimum`, `outcomeMaximum`, `numberCorrect`, `numberIncorrect`, `numberPresented`, `numberResponded`, `numberSelected`
 
 **Comparison**  
-`match`, `equal`, `equalRounded`, `notEqual`, `lt`, `lte`, `gt`, `gte`
+`match`, `equal`, `equalRounded`, `lt`, `lte`, `gt`, `gte` (negation is `not(...)` — QTI defines no `notEqual`)
 
 **Arithmetic**  
-`sum`, `subtract`, `product`, `divide`, `power`, `mod`, `integerDivide`, `integerModulus`, `integerToFloat`, `round`, `roundTo`, `truncate`, `mathOperator` (sin/cos/tan/asin/acos/atan/atan2/exp/ln/log/signum/floor/ceil/abs/toDegrees/toRadians), `mathConstant` (pi/e)
+`sum`, `subtract`, `product`, `divide`, `power`, `integerDivide`, `integerModulus`, `integerToFloat`, `round`, `roundTo`, `truncate`, `mathOperator` (sin/cos/tan/asin/acos/atan/atan2/exp/ln/log/signum/floor/ceil/abs/toDegrees/toRadians), `mathConstant` (pi/e)
 
 **Logic**  
-`and`, `or`, `not`, `anyN`, `allN`
+`and`, `or`, `not`, `anyN` (the at-most-N bound is `anyN` with `min="0"` — QTI defines no `allN`)
 
 **Container**  
-`ordered`, `multiple`, `containerSize`, `index`, `member`, `contains`, `deleteValue`, `repeat`, `fieldValue`, `record`
+`ordered`, `multiple`, `containerSize`, `index`, `member`, `contains`, `deleteValue`, `repeat`, `fieldValue` (over a record-valued expression, in practice a record-typed variable — QTI has no authored record constructor)
 
 **String**  
 `stringMatch`, `patternMatch`, `substring`
 
 **Statistics**  
-`mean`, `sampleVariance`, `sampleSD`, `popVariance`, `popSD`
+`statsOperator` with `name="mean|sampleVariance|sampleSD|popVariance|popSD"` — the only spelling any QTI version defines
 
 **Type utilities**  
-`isNull`, `isNotNull`, `isTypeOf`
+`isNull` (negation is `not(isNull(...))` — QTI defines no `isNotNull`)
 
 **Response mapping (QTI-specific)**  
-`mapResponse`, `mapResponsePoint`, `mapOutcome`
+`mapResponse`, `mapResponsePoint` (mappings exist on response declarations only; there is no `mapOutcome`)
 
 **Lookup tables**  
-`lookupOutcomeValue` over the outcome's `matchTable` or `interpolationTable`: an exact match, or the first entry in document order whose `sourceValue` the source exceeds (or equals, unless `includeBoundary="false"`), else `defaultValue`, else NULL, coerced to the outcome's base type. The `lookupTable` expression wrapping either table is a non-QTI extension with the same semantics.
+`lookupOutcomeValue` over the outcome's `matchTable` or `interpolationTable`: an exact match, or the first entry in document order whose `sourceValue` the source exceeds (or equals, unless `includeBoundary="false"`), else `defaultValue`, else NULL, coerced to the outcome's base type.
 
 **Random**  
 `random`, `randomInteger`, `randomFloat`

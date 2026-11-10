@@ -86,14 +86,19 @@ describe('affected operators with QTI 3.0 kebab-case children', () => {
 		).toEqual(qtiValue('string', 'single', 'BCDE'));
 	});
 
-	it('record builds qti-field-value member values as the item player compiles them', () => {
-		// The QTI 2 → 3 conversion keeps the record element itself unprefixed, while its
-		// fieldValue members become qti-field-value; their member value is a nested expression.
+	it('qti-field-value reads a record variable field, the way a record value reaches expressions', () => {
+		// Records are a declaration cardinality, not a constructible container: a record value
+		// reaches processing through a record-typed variable (host-delivered), never through an
+		// authored element — no QTI version defines a <record> constructor, and the builder
+		// rejects it like any unknown element.
+		const rec = qtiValue(undefined, 'record', {
+			x: qtiValue('integer', 'single', 42),
+			y: qtiValue('string', 'single', 'B'),
+		});
 		expect(
-			evaluate(
-				'<qti-field-value field-identifier="x"><record><qti-field-value field-identifier="x"><qti-variable identifier="A"/></qti-field-value><qti-field-value field-identifier="y"><qti-base-value base-type="string">B</qti-base-value></qti-field-value></record></qti-field-value>',
-				declared('A', 'integer', 42),
-			),
+			evaluate('<qti-field-value field-identifier="x"><qti-variable identifier="REC"/></qti-field-value>', {
+				REC: { identifier: 'REC', cardinality: 'record', value: rec },
+			}),
 		).toEqual(qtiValue('integer', 'single', 42));
 	});
 });
@@ -119,14 +124,12 @@ const TEST_LEVEL = new Set([
 
 /**
  * One row per `buildExpression` switch case: [canonical tag, attributes, body]. `mapper.toNative`
- * spells the QTI 3.0 element name; for the tags the builder supports beyond the QTI 3.0 schema
- * (allN, isNotNull, lookupTable, mapOutcome, mod, mean, the sample/pop statistics, isTypeOf,
- * preCondition, record) it yields the bare canonical name, which the QTI 3 mapper passes through
+ * spells the QTI 3.0 element name; for the one tag the builder supports beyond the QTI 3.0 schema
+ * (preCondition) it yields the bare canonical name, which the QTI 3 mapper passes through
  * unchanged — the same spelling the 2 → 3 conversion leaves such elements with. Every child
  * expression is spelled kebab-case, so a nested call that drops `options` throws.
  */
 const GUARD: ReadonlyArray<readonly [tag: string, attrs: string, body: string]> = [
-	['alln', 'max="2"', TWO],
 	['and', '', TWO],
 	['anyn', 'min="1" max="2"', TWO],
 	['basevalue', 'base-type="integer"', '1'],
@@ -150,27 +153,20 @@ const GUARD: ReadonlyArray<readonly [tag: string, attrs: string, body: string]> 
 	['integerdivide', '', TWO],
 	['integermodulus', '', TWO],
 	['integertofloat', '', ONE],
-	['isnotnull', '', ONE],
 	['isnull', '', ONE],
-	['istypeof', '', TWO],
 	['lcm', '', TWO],
-	['lookuptable', '', `${ONE}<qti-match-table/>`],
 	['lt', '', TWO],
 	['lte', '', TWO],
-	['mapoutcome', 'identifier="OUT"', ''],
 	['mapresponse', 'identifier="RESPONSE"', ''],
 	['mapresponsepoint', 'identifier="RESPONSE"', ''],
 	['match', '', TWO],
 	['mathconstant', 'name="pi"', ''],
 	['mathoperator', 'name="ln"', ONE],
 	['max', '', TWO],
-	['mean', '', ONE],
 	['member', '', TWO],
 	['min', '', TWO],
-	['mod', '', TWO],
 	['multiple', '', TWO],
 	['not', '', ONE],
-	['notequal', '', TWO],
 	['null', '', ''],
 	['numbercorrect', '', ''],
 	['numberincorrect', '', ''],
@@ -182,20 +178,15 @@ const GUARD: ReadonlyArray<readonly [tag: string, attrs: string, body: string]> 
 	['outcomemaximum', 'outcome-identifier="SCORE"', ''],
 	['outcomeminimum', 'outcome-identifier="SCORE"', ''],
 	['patternmatch', 'pattern=".*"', ONE],
-	['popsd', '', ONE],
-	['popvariance', '', ONE],
 	['power', '', TWO],
 	['precondition', '', ONE],
 	['product', '', TWO],
 	['random', '', ONE],
 	['randomfloat', 'max="1.0"', ''],
 	['randominteger', 'max="10"', ''],
-	['record', '', `<qti-field-value field-identifier="x">${ONE}</qti-field-value>`],
 	['repeat', 'number-repeats="2"', ONE],
 	['round', '', ONE],
 	['roundto', 'rounding-mode="decimalPlaces" figures="2"', ONE],
-	['samplesd', '', ONE],
-	['samplevariance', '', ONE],
 	['statsoperator', 'name="mean"', ONE],
 	['stringmatch', '', TWO],
 	['substring', '', '<qti-base-value base-type="string">ABCDE</qti-base-value><qti-base-value base-type="integer">2</qti-base-value><qti-variable identifier="LEN"/>'],

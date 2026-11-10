@@ -65,9 +65,10 @@ export function buildDeclarationMap(input: DeclarationBuildInput): DeclarationMa
 			__kind: kind,
 		};
 
-		// Response + outcome declarations may define mappings used by mapResponse/mapOutcome.
-		// (Templates do not participate in mapping.)
-		if (kind === 'response' || kind === 'outcome') {
+		// Only response declarations define a <mapping> (read by mapResponse). QTI's outcome
+		// declarations carry no mapping element in any version — their tables are the
+		// matchTable/interpolationTable below, read by lookupOutcomeValue.
+		if (kind === 'response') {
 			const mappingEl = findFirstDescendant(el, mapper.toNative('mapping'));
 			if (mappingEl && baseType) {
 				decls[identifier].mapping = parseMapping(mappingEl, baseType, mapper, attributeMapper);

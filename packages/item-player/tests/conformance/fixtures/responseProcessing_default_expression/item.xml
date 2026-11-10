@@ -27,15 +27,13 @@
   </itemBody>
 
   <responseProcessing>
-    <!-- Mutate current values... -->
+    <!-- Mutate the outcome's current value (the candidate's response is R=7)... -->
     <setOutcomeValue identifier="O">
       <baseValue baseType="float">10</baseValue>
     </setOutcomeValue>
-    <setResponseValue identifier="R">
-      <baseValue baseType="integer">3</baseValue>
-    </setResponseValue>
 
-    <!-- ...but <default> must still return the declaration's defaultValue. -->
+    <!-- ...but <default> must still return the declaration's defaultValue, for both
+         variables: a response variable's current value is what the candidate entered. -->
     <setOutcomeValue identifier="O_DEFAULT">
       <default identifier="O" />
     </setOutcomeValue>
@@ -44,5 +42,3 @@
     </setOutcomeValue>
   </responseProcessing>
 </assessmentItem>
-
-

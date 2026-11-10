@@ -470,8 +470,10 @@ type. A record declaration does not use one declaration-level base type.
 Current
 Runtime types model `record` as a cardinality with no declaration-level base type. Declaration
 parsing retains each value's `fieldIdentifier` and field-level `baseType`; public response coercion,
-default/correct values, evaluator `record`/`fieldValue`, equality, and ItemSession
-serialization/restoration preserve the typed fields across QTI 2.2 and QTI 3.0.
+default/correct values, evaluator `fieldValue` over a record variable, equality, and ItemSession
+serialization/restoration preserve the typed fields across QTI 2.2 and QTI 3.0. (The evaluator's
+authored `<record>` constructor was non-QTI and has been removed; a record value reaches
+expressions through its variable.)
 
 Action
 Done for the tracked gap. Continue adding record-shaped operator fixtures as additional processing

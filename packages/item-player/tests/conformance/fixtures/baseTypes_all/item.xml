@@ -10,6 +10,9 @@
   <responseDeclaration identifier="PT" cardinality="single" baseType="point"/>
   <responseDeclaration identifier="DUR" cardinality="single" baseType="duration"/>
   <responseDeclaration identifier="FILE" cardinality="single" baseType="file"/>
+  <!-- record is a cardinality, not a base type: the fields carry their own types, and the value
+       arrives with the session. -->
+  <responseDeclaration identifier="REC" cardinality="record"/>
 
   <outcomeDeclaration identifier="OK_B" cardinality="single" baseType="boolean" defaultValue="false"/>
   <outcomeDeclaration identifier="OK_I" cardinality="single" baseType="boolean" defaultValue="false"/>
@@ -103,26 +106,12 @@
     <!-- record + fieldValue -->
     <setOutcomeValue identifier="REC_A">
       <fieldValue fieldIdentifier="a">
-        <record>
-          <fieldValue fieldIdentifier="a">
-            <baseValue baseType="integer">7</baseValue>
-          </fieldValue>
-          <fieldValue fieldIdentifier="b">
-            <baseValue baseType="string">ok</baseValue>
-          </fieldValue>
-        </record>
+        <variable identifier="REC"/>
       </fieldValue>
     </setOutcomeValue>
     <setOutcomeValue identifier="REC_B">
       <fieldValue fieldIdentifier="b">
-        <record>
-          <fieldValue fieldIdentifier="a">
-            <baseValue baseType="integer">7</baseValue>
-          </fieldValue>
-          <fieldValue fieldIdentifier="b">
-            <baseValue baseType="string">ok</baseValue>
-          </fieldValue>
-        </record>
+        <variable identifier="REC"/>
       </fieldValue>
     </setOutcomeValue>
   </responseProcessing>

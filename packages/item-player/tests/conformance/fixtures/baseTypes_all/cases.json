@@ -14,7 +14,8 @@
         "DP": "A B",
         "PT": "10 20",
         "DUR": "3600",
-        "FILE": "file://example.txt"
+        "FILE": "file://example.txt",
+        "REC": { "a": 7, "b": "ok" }
       },
       "expect": {
         "outcomes": {

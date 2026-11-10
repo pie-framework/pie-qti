@@ -126,7 +126,7 @@ function findMappingEntry(
 }
 
 /**
- * mapResponse/mapOutcome over a declared value (QTI ASI §15.3; QTI 3.0 §6.9.47): "If a container
+ * mapResponse over a declared value (QTI ASI §15.3; QTI 3.0 §6.9.47): "If a container
  * contains multiple instances of the same value then that value is counted once only", so {B,B,C}
  * maps to 1.5, not 2.5. Deduplication uses the same comparison the mapping lookup uses — pair
  * keys ignore member order, directedPair keys keep it, and the values a case-insensitive string
@@ -564,10 +564,6 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const v = evalExpr(env, expr.expr);
 			return qtiValue('boolean', 'single', isNullValue(v));
 		}
-		case 'expr.isNotNull': {
-			const v = evalExpr(env, expr.expr);
-			return qtiValue('boolean', 'single', !isNullValue(v));
-		}
 		case 'expr.match': {
 			// QTI: "If either sub-expression is NULL then the operator results in NULL."
 			const a = evalExpr(env, expr.a);
@@ -697,14 +693,6 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			if (!Number.isFinite(rx) || !Number.isFinite(ry)) return qtiInvalid('equalRounded rounding invalid');
 
 			return qtiValue('boolean', 'single', rx === ry);
-		}
-		case 'expr.notEqual': {
-			const eq = evalExpr(env, { kind: 'expr.equal', id: expr.id, a: expr.a, b: expr.b } as any);
-			// Spec-aligned null/invalid propagation: if equality is null/invalid, notEqual is also null/invalid.
-			// This prevents missing responses (NULL) from becoming truthy via boolean negation.
-			if (eq.kind === 'null') return qtiNull();
-			if (eq.kind === 'invalid') return eq;
-			return qtiValue('boolean', 'single', !toBoolean(eq));
 		}
 		case 'expr.member': {
 			// QTI: "If either sub-expression is NULL then the result of the operator is NULL."
@@ -1033,13 +1021,6 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			if (expr.name === 'sampleVariance' || expr.name === 'popVariance') return qtiValue('float', 'single', variance);
 			return qtiValue('float', 'single', Math.sqrt(variance));
 		}
-		case 'expr.record': {
-			const record: Record<string, QtiValue> = {};
-			for (const f of expr.fields) {
-				record[f.fieldIdentifier] = evalExpr(env, f.value);
-			}
-			return qtiValue(undefined, 'record', record);
-		}
 		case 'expr.fieldValue': {
 			const rec = evalExpr(env, expr.record);
 			if (rec.kind !== 'value' || rec.cardinality !== 'record') return qtiNull();
@@ -1068,10 +1049,6 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			if (!Number.isFinite(len)) return qtiInvalid('substring length invalid');
 			return qtiValue('string', 'single', s.substring(startIdx, startIdx + len));
 		}
-		case 'expr.lookupTable': {
-			const source = evalExpr(env, expr.source);
-			return applyLookupTable(source, expr.table);
-		}
 		case 'expr.random': {
 			const v = evalExpr(env, expr.value);
 			if (v.kind !== 'value') return v;
@@ -1081,13 +1058,11 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			return qtiValue(v.baseType, 'single', (v.value as any[])[idx]);
 		}
 		case 'expr.power':
-		case 'expr.mod':
 		case 'expr.integerDivide': {
 			// QTI ASI §15.3: a NULL operand gives NULL. power "shall result in NULL" outside the float
 			// value set; integerDivide is NULL for a zero divisor, and dividing the operands as they
 			// are (no truncation of either), rounds x/y down to the greatest integer not above it
-			// (-7/2 is -4, which integerModulus's x - z*y agrees with). mod, the floating remainder,
-			// is NULL for a zero divisor as divide is.
+			// (-7/2 is -4, which integerModulus's x - z*y agrees with).
 			const name = expr.kind.slice('expr.'.length);
 			const resultBaseType: BaseType = expr.kind === 'expr.integerDivide' ? 'integer' : 'float';
 			const aV = evalExpr(env, expr.a);
@@ -1102,50 +1077,10 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			let result: number;
 			if (expr.kind === 'expr.power') result = a ** b;
 			else if (b === 0) result = Number.NaN;
-			else if (expr.kind === 'expr.mod') result = a % b;
 			else result = Math.floor(a / b);
 			if (!Number.isFinite(result)) return qtiNull(resultBaseType, 'single');
 			// No negative zero: -4 mod 2 and 0 integerDivide -5 are 0.
 			return qtiValue(resultBaseType, 'single', result === 0 ? 0 : result);
-		}
-		case 'expr.mean':
-		case 'expr.sampleVariance':
-		case 'expr.sampleSD':
-		case 'expr.popVariance':
-		case 'expr.popSD': {
-			const valuesExpr = (expr as any).values as ExpressionNode;
-			const values = evalExpr(env, valuesExpr);
-			if (values.kind === 'invalid') return qtiInvalid(`${expr.kind} invalid`);
-			if (values.kind !== 'value') return qtiInvalid(`${expr.kind} expects a container`);
-
-			const arr = Array.isArray(values.value) ? values.value : [values.value];
-			const nums = arr.map((x) => Number(x));
-			if (nums.length === 0) return qtiInvalid(`${expr.kind} empty`);
-			if (nums.some((n) => Number.isNaN(n))) return qtiInvalid(`${expr.kind} NaN`);
-
-			const mean = nums.reduce((a, b) => a + b, 0) / nums.length;
-
-			if (expr.kind === 'expr.mean') return qtiValue('float', 'single', mean);
-
-			const squared = nums.map((n) => (n - mean) * (n - mean)).reduce((a, b) => a + b, 0);
-			const denom = expr.kind === 'expr.sampleVariance' || expr.kind === 'expr.sampleSD' ? nums.length - 1 : nums.length;
-			if (denom <= 0) return qtiInvalid(`${expr.kind} requires at least 2 values`);
-			const variance = squared / denom;
-
-			if (expr.kind === 'expr.sampleVariance' || expr.kind === 'expr.popVariance') {
-				return qtiValue('float', 'single', variance);
-			}
-			return qtiValue('float', 'single', Math.sqrt(variance));
-		}
-		case 'expr.isTypeOf': {
-			const v = evalExpr(env, expr.value);
-			const baseType = toStringValue(evalExpr(env, expr.baseType)).trim();
-			if (!baseType) return qtiValue('boolean', 'single', false);
-			return qtiValue(
-				'boolean',
-				'single',
-				v.kind === 'value' && v.baseType?.toLowerCase() === baseType.toLowerCase(),
-			);
 		}
 		case 'expr.stringMatch': {
 			const a = evalExpr(env, expr.a);
@@ -1247,10 +1182,6 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			if (trueCount >= min) return qtiValue('boolean', 'single', true);
 			return unknown ?? qtiValue('boolean', 'single', false);
 		}
-		case 'expr.allN': {
-			const trueCount = expr.ops.reduce((acc, o) => acc + (toBoolean(evalExpr(env, o)) ? 1 : 0), 0);
-			return qtiValue('boolean', 'single', trueCount <= expr.max);
-		}
 		case 'expr.sum': {
 			let acc = 0;
 			let allInteger = expr.values.length > 0;
@@ -1339,17 +1270,6 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const result = expr.kind === 'expr.round' ? Math.round(n) : Math.trunc(n);
 			// No negative zero: -0.4 rounds to the integer 0.
 			return qtiValue('integer', 'single', result === 0 ? 0 : result);
-		}
-		case 'expr.mapOutcome': {
-			const decl = env.ctx.getDeclaration(expr.identifier);
-			if (!decl?.mapping) return qtiValue('float', 'single', 0);
-			let raw = mapMappedValue(decl, decl.mapping, decl.value, stringKeyComparison);
-
-			const lower = decl.mapping.lowerBound;
-			const upper = decl.mapping.upperBound;
-			if (typeof lower === 'number' && raw < lower) raw = lower;
-			if (typeof upper === 'number' && raw > upper) raw = upper;
-			return qtiValue('float', 'single', raw);
 		}
 		case 'expr.mapResponse': {
 			const decl = env.ctx.getDeclaration(expr.identifier);

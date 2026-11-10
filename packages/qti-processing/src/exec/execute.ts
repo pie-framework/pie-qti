@@ -95,11 +95,6 @@ export function execStatement(env: ExecEnv, s: StatementNode): void {
 			env.ctx.setValue(s.identifier, v);
 			return;
 		}
-		case 'stmt.setResponseValue': {
-			const v = evalExpr(env, s.expr);
-			env.ctx.setValue(s.identifier, v);
-			return;
-		}
 		case 'stmt.setTemplateValue': {
 			const v = evalExpr(env, s.expr);
 			env.ctx.setValue(s.identifier, v);

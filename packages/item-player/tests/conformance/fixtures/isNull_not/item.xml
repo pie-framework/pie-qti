@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="isNull_isNotNull" title="isNull / isNotNull" adaptive="false" timeDependent="false">
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="isNull_not" title="isNull / not(isNull)" adaptive="false" timeDependent="false">
   <responseDeclaration identifier="R" cardinality="single" baseType="string"/>
 
   <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer">
@@ -22,9 +22,12 @@
         </setOutcomeValue>
       </responseIf>
       <responseElseIf>
-        <isNotNull>
-          <variable identifier="R"/>
-        </isNotNull>
+        <!-- QTI has no isNotNull operator: negation is not(isNull(...)). -->
+        <not>
+          <isNull>
+            <variable identifier="R"/>
+          </isNull>
+        </not>
         <setOutcomeValue identifier="SCORE">
           <baseValue baseType="integer">2</baseValue>
         </setOutcomeValue>
@@ -37,5 +40,3 @@
     </responseCondition>
   </responseProcessing>
 </assessmentItem>
-
-

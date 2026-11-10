@@ -62,6 +62,30 @@ All checked against the three in-repo XSDs (QTI 2.1, 2.2, 3.0 ASI).
 | B4 | `packages/qti-processing/src/ast/build.ts:1039-1066` (`randomInteger`, `randomFloat`) | A "legacy child-expression form": 2-3 child expressions instead of `min`/`max`/`step` attributes | All three versions define them as **empty** elements: `RandomInteger.Type` extends `EmptyPrimitiveType.Type` with attribute groups (2.1 line 9317, 2.2 line 16462, 3.0 `RandomIntegerDType` line 8487); same for `RandomFloat`. | Comment says "older/variant content" but no in-repo fixture or sample uses the child form (grep of fixtures/tests: attribute form only). | Remove the child-expression branches; keep the attribute form + required-attr errors. Changeset note. | ~24 lines, 1 package | qti-processing AST tests exercise randomInteger — verify none uses the child form before removing (none found) |
 | B5 | `packages/qti-processing/src/ast/build.ts:291-299` (`<console>`); test `tests/index-and-console-processing.test.ts:94-133` | A `<console>` statement in `responseProcessing`, treated as a no-op ("Diagnostic/vendor trace marker found in legacy fixtures") | `<console>` appears in none of the three XSDs (grep: zero matches). | No fixture uses it anywhere: only the tolerance test itself. (Orchestrator check: the `pie-qti-conformance` repo has no `<console>` in any fixture; its only match is its built bundle, which embeds this repo's parser.) | Remove the `case 'console'` arm (it then throws as unknown, matching the strictness at line 301-304); delete/trim the test. Changeset note. | ~9 lines + ~40 test lines, 1 package | None |
 
+#### Class B addendum — non-QTI processing elements (removed, refactor/no-legacy-nonspec-expressions)
+
+A comparison of the builder's `case` labels in `packages/qti-processing/src/ast/build.ts` with the
+`xs:element` names of the three XSDs found 15 labels no schema declares. One is spec-defined under
+another vocabulary and stays: `include` is XInclude's `xi:include`, which
+`ResponseProcessing.Type` references (2.1, 2.2) and the builder only accepts in the XInclude
+namespace. The other 14 were element spellings no QTI version defines; none was used by an
+official fixture or by third-party content in the repo (only by the project's own conformance
+fixtures and unit tests), so each was removed with its AST node type and evaluator branch and now
+fails like any unknown element:
+
+| Removed | Spec-defined replacement |
+|---------|--------------------------|
+| `isNotNull` | `not(isNull(...))` |
+| `notEqual` | `not(equal(...))` |
+| `allN` | `anyN` with `min="0"` and the same `max` |
+| `mean`, `sampleVariance`, `sampleSD`, `popVariance`, `popSD` | `statsOperator name="..."` |
+| `mod` | `integerModulus` |
+| `isTypeOf` | none: QTI has no runtime type-inspection operator |
+| `mapOutcome` (and `<mapping>` on outcome declarations) | none: mappings exist on response declarations only (`mapResponse`) |
+| `setResponseValue` | none: response rules never write response variables; keep derived values in outcomes (`setOutcomeValue`) |
+| `lookupTable` (expression) | the `lookupOutcomeValue` rule over the outcome declaration's `matchTable`/`interpolationTable` |
+| `record` (constructor) | none: a record value reaches expressions through a record-typed variable, read with `fieldValue` |
+
 ### Class C — keep (spec-defined multi-version / third-party ecosystem)
 
 | ID | Location | Why it stays |

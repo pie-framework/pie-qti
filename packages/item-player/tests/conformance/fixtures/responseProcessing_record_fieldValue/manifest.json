@@ -1,17 +1,13 @@
 {
   "id": "responseProcessing_record_fieldValue",
   "title": "record + fieldValue",
-  "description": "Constructs a record and reads fields with fieldValue.",
+  "description": "Reads the fields of a record-typed response variable with fieldValue; the record value arrives with the session.",
   "spec": "QTI 2.x responseProcessing",
   "covers": [
-    "baseValue",
-    "expr.baseValue",
     "expr.fieldValue",
-    "expr.record",
+    "expr.variable",
     "fieldValue",
     "record",
     "stmt.setOutcomeValue"
   ]
 }
-
-

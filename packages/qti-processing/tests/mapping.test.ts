@@ -1,6 +1,6 @@
 /**
- * Mapping expressions: mapResponse, mapResponsePoint, and mapOutcome — the
- * author-facing scoring features for partially-credited and spatial items.
+ * Mapping expressions: mapResponse and mapResponsePoint — the author-facing
+ * scoring features for partially-credited and spatial items.
  */
 
 import { describe, expect, it } from 'bun:test';
@@ -36,16 +36,6 @@ function responseDecl(
 		baseType,
 		cardinality,
 		value: qtiValue(baseType, cardinality, value),
-		mapping,
-	};
-}
-
-function outcomeDecl(identifier: string, value: unknown, mapping?: DeclarationMap['OUT']['mapping']): DeclarationMap['OUT'] {
-	return {
-		identifier,
-		baseType: 'identifier',
-		cardinality: 'single',
-		value: qtiValue('identifier', 'single', value),
 		mapping,
 	};
 }
@@ -324,65 +314,6 @@ describe('mapResponsePoint', () => {
 	});
 });
 
-describe('mapOutcome', () => {
-	it('maps an outcome variable through its mapping', () => {
-		const ctx = run(
-			{
-				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
-				FEEDBACK: outcomeDecl('FEEDBACK', 'correct', {
-					defaultValue: 0,
-					entries: {
-						correct: { mapKey: 'correct', mappedValue: 1 },
-					},
-				}),
-			},
-			`<setOutcomeValue identifier="OUT"><mapOutcome identifier="FEEDBACK"/></setOutcomeValue>`,
-		);
-		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 1));
-	});
-
-	it('treats an unmapped outcome value as the mapping default', () => {
-		const ctx = run(
-			{
-				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
-				FEEDBACK: outcomeDecl('FEEDBACK', 'partial', {
-					defaultValue: 0.5,
-					entries: {
-						correct: { mapKey: 'correct', mappedValue: 1 },
-					},
-				}),
-			},
-			`<setOutcomeValue identifier="OUT"><mapOutcome identifier="FEEDBACK"/></setOutcomeValue>`,
-		);
-		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 0.5));
-	});
-
-	it('counts a repeated container value once', () => {
-		// QTI ASI §15.3: duplicate container values count once, the same rule
-		// mapResponse follows.
-		const ctx = run(
-			{
-				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
-				FEEDBACK: {
-					identifier: 'FEEDBACK',
-					baseType: 'identifier',
-					cardinality: 'multiple',
-					value: qtiValue('identifier', 'multiple', ['correct', 'correct', 'partial']),
-					mapping: {
-						defaultValue: 0,
-						entries: {
-							correct: { mapKey: 'correct', mappedValue: 1 },
-							partial: { mapKey: 'partial', mappedValue: 0.5 },
-						},
-					},
-				},
-			},
-			`<setOutcomeValue identifier="OUT"><mapOutcome identifier="FEEDBACK"/></setOutcomeValue>`,
-		);
-		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 1.5));
-	});
-});
-
 describe('mapping inside a full response condition', () => {
 	it('drives partial credit scoring end to end', () => {
 		const ctx = run(
@@ -619,23 +550,6 @@ describe('mapping a NULL response', () => {
 		expect(mapped(qtiNull('identifier', 'single'), below, 'single')).toEqual(qtiValue('float', 'single', 0));
 		const within = { ...PENALTY, defaultValue: 0.25 };
 		expect(mapped(qtiNull('identifier', 'single'), within, 'single')).toEqual(qtiValue('float', 'single', 0.25));
-	});
-
-	it('maps a NULL outcome container (mapOutcome) the same way', () => {
-		const ctx = run(
-			{
-				OUT,
-				FEEDBACK: {
-					identifier: 'FEEDBACK',
-					baseType: 'identifier',
-					cardinality: 'multiple',
-					value: qtiNull('identifier', 'multiple'),
-					mapping: PENALTY,
-				},
-			},
-			`<setOutcomeValue identifier="OUT"><mapOutcome identifier="FEEDBACK"/></setOutcomeValue>`,
-		);
-		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 0));
 	});
 
 	it('maps a NULL point container (mapResponsePoint) as the empty container, within the bounds', () => {
