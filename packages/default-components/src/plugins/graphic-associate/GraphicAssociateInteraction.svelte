@@ -9,7 +9,7 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import ImageStage from '../../shared/components/ImageStage.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
-	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
+	import { matchGroupBlockedIds } from '../../shared/utils/matchGroupUtils';
 	import { countPairsWithId, hasUnorderedPair, pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
@@ -107,14 +107,14 @@
 	);
 
 	// Hotspots incompatible with the currently selected hotspot due to matchGroup constraints
+	// (the selected hotspot itself is never shown as blocked: display-only, as a hotspot paired
+	// with itself never breaks matchGroup)
 	const blockedHotspots = $derived.by(() => {
 		if (!selectedHotspot || !parsedInteraction) return new Set<string>();
 		const hotspots = parsedInteraction.associableHotspots;
-		const src = hotspots.find((h) => h.identifier === selectedHotspot);
-		return new Set(
-			hotspots
-				.filter((h) => h.identifier !== selectedHotspot && !isCompatibleMatchGroup(src, h))
-				.map((h) => h.identifier)
+		return matchGroupBlockedIds(
+			hotspots.find((h) => h.identifier === selectedHotspot),
+			hotspots.filter((h) => h.identifier !== selectedHotspot),
 		);
 	});
 

@@ -12,7 +12,7 @@ import { tick } from 'svelte';
 import { accessibleTextFromHtml } from '../utils/accessibleText.js';
 import { choiceAccessibleName } from '../utils/choiceName.js';
 import { createOrUpdatePair, getSourceForTarget, getTargetsForSource, removePairBySource } from '../utils/pairHelpers.js';
-import { isCompatibleMatchGroup } from '../utils/matchGroupUtils.js';
+import { isCompatibleMatchGroup, matchGroupBlockedIds } from '../utils/matchGroupUtils.js';
 import DragHandle from './DragHandle.svelte';
 import { createPickUpPlace } from './pickUpPlace.svelte';
 import '../styles/shared.css';
@@ -41,11 +41,9 @@ const pickUp = createPickUpPlace();
 const blockedTargetIds = $derived.by(() => {
 	const activeSourceId = pickUp.active;
 	if (!activeSourceId) return new Set<string>();
-	const src = sourceSet.find((s) => s.identifier === activeSourceId);
-	return new Set(
-		targetSet
-			.filter((t) => !isCompatibleMatchGroup(src, t))
-			.map((t) => t.identifier)
+	return matchGroupBlockedIds(
+		sourceSet.find((s) => s.identifier === activeSourceId),
+		targetSet,
 	);
 });
 

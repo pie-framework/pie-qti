@@ -16,7 +16,7 @@ import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
 	import { normalizeCssPixelLength } from '@pie-qti/item-player/security';
 	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
-	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
+	import { isCompatibleMatchGroup, matchGroupBlockedIds } from '../../shared/utils/matchGroupUtils';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
@@ -168,9 +168,10 @@ function announceAssociationLimit() {
 const blockedHotspotIds = $derived.by(() => {
 	const labelId = pickUp.active;
 	if (!labelId || !parsedInteraction) return new Set<string>();
-	return new Set(
-		parsedInteraction.hotspots.filter((h) => !canPlaceLabel(labelId, h.identifier)).map((h) => h.identifier),
-	);
+	const label = findLabel(labelId);
+	// A label the palette does not have goes on no hotspot.
+	if (!label) return new Set(parsedInteraction.hotspots.map((h) => h.identifier));
+	return matchGroupBlockedIds(label, parsedInteraction.hotspots);
 });
 
 $effect(() => {

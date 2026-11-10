@@ -9,7 +9,7 @@
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { accessibleTextFromHtml } from '../../shared/utils/accessibleText.js';
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
-	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
+	import { matchGroupBlockedIds } from '../../shared/utils/matchGroupUtils';
 	import { countPairsWithId, hasUnorderedPair, pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
@@ -124,13 +124,14 @@
 	}
 
 	// Choices that cannot be paired with the currently selected choice due to matchGroup constraints
+	// (the selected choice itself is never shown as blocked: display-only, as a choice paired
+	// with itself never breaks matchGroup)
 	const blockedChoices = $derived.by(() => {
 		if (!selectedForPairing || !parsedInteraction) return new Set<string>();
-		const src = parsedInteraction.choices.find((c) => c.identifier === selectedForPairing);
-		return new Set(
-			parsedInteraction.choices
-				.filter((c) => c.identifier !== selectedForPairing && !isCompatibleMatchGroup(src, c))
-				.map((c) => c.identifier)
+		const choices = parsedInteraction.choices;
+		return matchGroupBlockedIds(
+			choices.find((c) => c.identifier === selectedForPairing),
+			choices.filter((c) => c.identifier !== selectedForPairing),
 		);
 	});
 

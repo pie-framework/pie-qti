@@ -8,7 +8,7 @@
 	import { tick } from 'svelte';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
-	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
+	import { isCompatibleMatchGroup, matchGroupBlockedIds, type MatchGroupBearer } from '../../shared/utils/matchGroupUtils';
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import {
@@ -198,6 +198,11 @@
 		);
 	});
 
+	/** A gap as a pairing target: its identifier and its authored matchGroup. */
+	function gapBearer(gapId: string): MatchGroupBearer {
+		return { identifier: gapId, matchGroup: parsedInteraction?.gapMatchGroups?.[gapId] };
+	}
+
 	/**
 	 * Whether `matchGroup` lets a word go into a gap: the word's `matchGroup` names the gaps
 	 * it may fill and the gap's names the words it accepts, read by the same rule response
@@ -206,7 +211,7 @@
 	function canPlaceWord(wordId: string, gapId: string): boolean {
 		const word = paletteWords.find((w) => w.identifier === wordId);
 		if (!word) return false;
-		return isCompatibleMatchGroup(word, { identifier: gapId, matchGroup: parsedInteraction?.gapMatchGroups?.[gapId] });
+		return isCompatibleMatchGroup(word, gapBearer(gapId));
 	}
 
 	// Gaps the dragged or held word may not fill (matchGroup); they stay focusable but are
@@ -214,7 +219,11 @@
 	const blockedGapIds = $derived.by(() => {
 		const wordId = pickUp.active;
 		if (wordId === null) return new Set<string>();
-		return new Set([...gapPositions.positions.keys()].filter((gapId) => !canPlaceWord(wordId, gapId)));
+		const gapIds = [...gapPositions.positions.keys()];
+		const word = paletteWords.find((w) => w.identifier === wordId);
+		// A word the palette does not have goes in no gap.
+		if (!word) return new Set(gapIds);
+		return matchGroupBlockedIds(word, gapIds.map(gapBearer));
 	});
 
 	function getMatchMax(wordId: string): number {
