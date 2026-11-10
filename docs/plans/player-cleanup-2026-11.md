@@ -382,6 +382,40 @@ recorded, not scheduled:
 - About 7.9 KB of assessment- and section-player modules still ship twice in player-elements (the
   error class identity is safe through its brand).
 
+### Item, section and interaction players: accepted after the final review (2026-11-10)
+
+The final review round (QTI spec, WCAG 2.2 AA, real-world UX) produced 37 findings; all confirmed
+ones are fixed. These remain by decision or as known limits:
+
+- **Session ownership.** Object-typed element options (`security`, `pnp`, `deliveryContext`, `pci`)
+  compare by reference, so a host that builds a new equal object on every render still re-opens
+  the item session (`plugins` and `stringComparison` compare shallowly). A permanently removed item
+  element keeps the session it owns until the page unloads: nothing distinguishes a removal from a
+  move.
+- **Section elements have no `showFeedback` / `showSolution` pass-through.** Items they own use the
+  QTI default (hidden).
+- **Display settings persist as the effective PNP.** A host profile whose own values equal a
+  settings fingerprint (14/16/20pt, `blackwhite`, the reference spacing triple) becomes the
+  candidate's starting choice, and a colour scheme that high contrast replaced cannot be recovered
+  from a persisted profile.
+- **A strict CSP `style-src` still reports the tool bar's `data:` stylesheet marker** (it now lives
+  in the tool bar's own shell, once per page).
+- **`SectionLayout` does not deep-validate a composition from a direct Svelte host**; the section
+  elements validate before mounting.
+- **String scoring is exact as stored.** A padded string answer ("Paris ") does not match the
+  authored "Paris"; numbers and identifiers still trim. This follows the exact string comparison
+  decision.
+- **Graphic-associate on-image labels break mid-word at 320 CSS px**, chosen over text spilling
+  outside its region.
+- **Not implemented, documented in the PRDs:** order's `data-choices-container-width`,
+  `mediaInteraction@coords`, tabular match (`data-first-column-header`). **Deliberate extension,
+  ledgered in `SPEC-GAPS-PLAN.md`:** `title` on textEntry and inlineChoice as a name fallback.
+- **Coverage gaps.** The portable custom interaction has no demo fixture, so the browser review did
+  not exercise it. The non-English `item.submitError` strings were written without native-speaker
+  review.
+- **Demo app chrome, outside the players:** the navbar overflows at 320 CSS px, a closed dropdown
+  keeps focusable items, and two host texts have low contrast.
+
 ## Existing code to reuse
 
 - default-components: `pairHelpers.ts`, `createInteractionShell`,
