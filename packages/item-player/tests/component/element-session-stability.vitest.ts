@@ -328,6 +328,7 @@ describe('what does and does not re-open the session', () => {
 
 		element.disabled = true;
 		element.disabled = false;
+		element.itemXml = SHUFFLE_ITEM; // the same item, re-assigned
 		element.renderItemBodyRubrics = true;
 		element.plugins = plugins; // the same list, re-assigned
 		element.stringComparison = { foldScriptInput: true }; // equal record, re-assigned
