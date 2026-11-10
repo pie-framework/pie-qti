@@ -13,6 +13,9 @@ import {
 	removePairByTarget,
 	pairIncludesId,
 	countPairsWithId,
+	countPairsForSource,
+	placeSourceOnTarget,
+	hasUnorderedPair,
 } from '../../../src/shared/utils/pairHelpers.js';
 
 describe('pairHelpers', () => {
@@ -287,6 +290,90 @@ describe('pairHelpers', () => {
 			expect(countPairsWithId(pairs, 'H1')).toBe(0);
 			expect(countPairsWithId(pairs, 'H10')).toBe(1);
 			expect(countPairsWithId(pairs, 'H11')).toBe(1);
+		});
+	});
+
+	describe('countPairsForSource', () => {
+		test('counts the pairs whose first token is the source, whole tokens only', () => {
+			const pairs = ['A T1', 'A T2', 'B A', 'AB T3'];
+			expect(countPairsForSource(pairs, 'A')).toBe(2);
+			expect(countPairsForSource(pairs, 'B')).toBe(1);
+			expect(countPairsForSource(pairs, 'T1')).toBe(0);
+		});
+	});
+
+	describe('placeSourceOnTarget (move-aware directed placement)', () => {
+		test('a single-use label dropped from H1 onto H2 moves: exactly "L H2"', () => {
+			expect(placeSourceOnTarget(['L H1'], 'L', 'H2', 1)).toEqual(['L H2']);
+			// The many-to-many helper keeps the label on its old hotspot, so the graphic gap
+			// match must not use it.
+			expect(createOrUpdatePair(['L H1'], 'L', 'H2')).toEqual(['L H1', 'L H2']);
+		});
+
+		test('a target holds one source: its previous pair is replaced', () => {
+			expect(placeSourceOnTarget(['A T1', 'B T2'], 'C', 'T1', 1)).toEqual(['B T2', 'C T1']);
+		});
+
+		test('below its capacity a source is reused; at it, it moves; 0 is no limit', () => {
+			expect(placeSourceOnTarget(['A T1'], 'A', 'T2', 2)).toEqual(['A T1', 'A T2']);
+			expect(placeSourceOnTarget(['A T1', 'A T2'], 'A', 'T3', 2)).toEqual(['A T3']);
+			expect(placeSourceOnTarget(['A T1', 'A T2'], 'A', 'T3', 0)).toEqual(['A T1', 'A T2', 'A T3']);
+		});
+
+		test('an empty source clears the target', () => {
+			expect(placeSourceOnTarget(['A T1', 'B T2'], '', 'T1', 1)).toEqual(['B T2']);
+		});
+
+		test('identifiers are whole tokens: "AB" is not a placement of "A"', () => {
+			expect(placeSourceOnTarget(['AB T1'], 'A', 'T2', 1)).toEqual(['AB T1', 'A T2']);
+		});
+
+		test('properties over random responses: "source target" order, one source per target, the capacity rule', () => {
+			let state = 20261110;
+			const next = () => {
+				state = (state * 1103515245 + 12345) & 0x7fffffff;
+				return state / 0x7fffffff;
+			};
+			const pick = <T>(values: readonly T[]): T => values[Math.floor(next() * values.length)] as T;
+			const sources = ['A', 'B', 'C', 'AB'];
+			const targets = ['T1', 'T2', 'T3', 'T11'];
+			const bySource = (pairs: readonly string[], source: string) => pairs.filter((p) => p.startsWith(`${source} `));
+
+			for (let run = 0; run < 500; run++) {
+				const pairs = Array.from({ length: Math.floor(next() * 7) }, () => `${pick(sources)} ${pick(targets)}`);
+				const source = pick(sources);
+				const target = pick(targets);
+				const capacity = pick([0, 1, 2, 3]);
+				const original = [...pairs];
+				const placed = placeSourceOnTarget(pairs, source, target, capacity);
+				const context = JSON.stringify({ pairs, source, target, capacity, placed });
+
+				// The new pair is "source target", appended, and the only pair on the target.
+				expect(placed.at(-1), context).toBe(`${source} ${target}`);
+				expect(placed.filter((p) => p.endsWith(` ${target}`)), context).toEqual([`${source} ${target}`]);
+				// Pairs of other sources on other targets are kept, in order.
+				const untouched = (list: readonly string[]) =>
+					list.filter((p) => !p.startsWith(`${source} `) && !p.endsWith(` ${target}`));
+				expect(untouched(placed), context).toEqual(untouched(pairs));
+				// The source is reused below its capacity and moves at it; it never exceeds it.
+				const rest = pairs.filter((p) => !p.endsWith(` ${target}`));
+				const moves = capacity > 0 && bySource(rest, source).length >= capacity;
+				expect(bySource(placed, source), context).toEqual(
+					moves ? [`${source} ${target}`] : [...bySource(rest, source), `${source} ${target}`],
+				);
+				if (capacity > 0) expect(bySource(placed, source).length, context).toBeLessThanOrEqual(capacity);
+				// The input is not mutated.
+				expect(pairs, context).toEqual(original);
+			}
+		});
+	});
+
+	describe('hasUnorderedPair', () => {
+		test('finds a pair in either order, whole tokens only', () => {
+			expect(hasUnorderedPair(['A B'], 'A', 'B')).toBe(true);
+			expect(hasUnorderedPair(['B A'], 'A', 'B')).toBe(true);
+			expect(hasUnorderedPair(['A BC'], 'A', 'B')).toBe(false);
+			expect(hasUnorderedPair([], 'A', 'B')).toBe(false);
 		});
 	});
 });

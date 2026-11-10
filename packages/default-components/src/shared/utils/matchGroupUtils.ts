@@ -29,3 +29,19 @@ export function isCompatibleMatchGroup(a: MatchGroupBearer | null | undefined, b
 		{ identifier: b.identifier, matchGroup: b.matchGroup ?? [] },
 	);
 }
+
+/**
+ * The identifiers of the `candidates` that `source` may not be paired with — the targets a held
+ * or dragged source marks as refusing it — by {@link isCompatibleMatchGroup}, the rule response
+ * validation applies, so the UI blocks exactly the pairs validation rejects. No source blocks
+ * nothing.
+ */
+export function matchGroupBlockedIds(
+	source: MatchGroupBearer | null | undefined,
+	candidates: readonly MatchGroupBearer[],
+): Set<string> {
+	if (!source) return new Set();
+	return new Set(
+		candidates.filter((candidate) => !isCompatibleMatchGroup(source, candidate)).map((candidate) => candidate.identifier),
+	);
+}

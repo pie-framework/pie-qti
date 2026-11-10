@@ -9,8 +9,9 @@
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import ImageStage from '../../shared/components/ImageStage.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
-	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
-	import { countPairsWithId, pairIncludesId } from '../../shared/utils/pairHelpers';
+	import { isAtLimit } from '../../shared/utils/capacity';
+	import { matchGroupBlockedIds } from '../../shared/utils/matchGroupUtils';
+	import { countPairsWithId, hasUnorderedPair, pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import HotspotShape from '../../shared/components/HotspotShape.svelte';
@@ -102,19 +103,17 @@
 	// The interaction's association cap (QTI maxAssociations): 0 means unlimited, as the
 	// sibling pairing surfaces (AssociateInteraction, MatchDragDrop) and the delivery
 	// engine read it.
-	const canAddMore = $derived(
-		!parsedInteraction || parsedInteraction.maxAssociations <= 0 || pairs.length < parsedInteraction.maxAssociations,
-	);
+	const canAddMore = $derived(!parsedInteraction || !isAtLimit(pairs.length, parsedInteraction.maxAssociations));
 
 	// Hotspots incompatible with the currently selected hotspot due to matchGroup constraints
+	// (the selected hotspot itself is never shown as blocked: display-only, as a hotspot paired
+	// with itself never breaks matchGroup)
 	const blockedHotspots = $derived.by(() => {
 		if (!selectedHotspot || !parsedInteraction) return new Set<string>();
 		const hotspots = parsedInteraction.associableHotspots;
-		const src = hotspots.find((h) => h.identifier === selectedHotspot);
-		return new Set(
-			hotspots
-				.filter((h) => h.identifier !== selectedHotspot && !isCompatibleMatchGroup(src, h))
-				.map((h) => h.identifier)
+		return matchGroupBlockedIds(
+			hotspots.find((h) => h.identifier === selectedHotspot),
+			hotspots.filter((h) => h.identifier !== selectedHotspot),
 		);
 	});
 
@@ -225,7 +224,7 @@
 
 	/** A hotspot's own cap (QTI matchMax): 0 means unlimited, as for every associable choice. */
 	function isAtMatchMax(hotspot: GraphicAssociateHotspot, usageCount: number): boolean {
-		return hotspot.matchMax > 0 && usageCount >= hotspot.matchMax;
+		return isAtLimit(usageCount, hotspot.matchMax);
 	}
 
 	function isHotspotMaxed(id: string): boolean {
@@ -258,7 +257,8 @@
 
 	function isCorrectPair(id1: string, id2: string): boolean {
 		if (!isShowingCorrect) return false;
-		return correctPairs.some((p) => p === `${id1} ${id2}` || p === `${id2} ${id1}`);
+		// A QTI pair is unordered: the key's "B A" is the candidate's "A B".
+		return hasUnorderedPair(correctPairs, id1, id2);
 	}
 
 	function isHotspotInCorrectPair(id: string): boolean {

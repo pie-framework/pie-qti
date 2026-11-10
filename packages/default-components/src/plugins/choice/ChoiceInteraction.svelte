@@ -10,6 +10,7 @@
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
+	import { isAtLimit, isLimitMessageShown, limitMessage } from '../../shared/utils/capacity';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
@@ -128,7 +129,7 @@
 		if (checked) {
 			// Enforce maxChoices (0 = unlimited)
 			const max = parsedInteraction?.maxChoices ?? 0;
-			if (max > 0 && newValues.length >= max) {
+			if (isAtLimit(newValues.length, max)) {
 				// The selection is refused, so don't leave the checkbox visually checked.
 				if (input) input.checked = false;
 				return;
@@ -175,19 +176,15 @@
 	// refused (multiple choice). Single-choice radios replace their selection instead.
 	const selectionCount = $derived(Array.isArray(parsedResponse) ? parsedResponse.length : (parsedResponse ? 1 : 0));
 	const maxChoices = $derived(parsedInteraction?.maxChoices ?? 0);
-	const maxMessage = $derived.by(() => {
-		const authored = parsedInteraction?.maxSelectionsMessage;
-		if (authored) return authored;
-		return translate(
-			i18n,
-			'interactions.choice.maxChoicesReached',
-			'You can select up to {max}. Deselect one to choose another.',
-			{ max: maxChoices }
-		);
-	});
-	const showMaxMessage = $derived(
-		maxChoices > 0 && selectionCount >= maxChoices && (!!parsedInteraction?.maxSelectionsMessage || maxChoices > 1)
+	const maxMessage = $derived(
+		limitMessage(
+			parsedInteraction?.maxSelectionsMessage,
+			translate(i18n, 'interactions.choice.maxChoicesReached', 'You can select up to {max}. Deselect one to choose another.', {
+				max: maxChoices,
+			}),
+		),
 	);
+	const showMaxMessage = $derived(isLimitMessageShown(selectionCount, maxChoices, parsedInteraction?.maxSelectionsMessage));
 
 	// Minimum requirement (minChoices): stated on the question while the response is short of it,
 	// the same minimum response validation enforces; the author's message wins. Only while the
