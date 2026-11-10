@@ -127,6 +127,8 @@ import {
 	type EffectiveItemTimeLimits,
 } from './timePolicy.js';
 import { templateDefaultsFor } from './templateDefaults.js';
+import { PauseController } from './pause.js';
+import { createSessionAutosave } from './autosave.js';
 import {
 	interactionRequirementFromXml,
 	interactionResponseIdentifiers,
@@ -418,8 +420,7 @@ export class AssessmentPlayer {
 	/** False while an opt-in begin gate holds delivery: no item is entered and no clock runs. */
 	private started = true;
 	/** A proctor pause: every clock is frozen and candidate actions are rejected. */
-	private paused = false;
-	private pauseReason: string | undefined;
+	private readonly pauseControl: PauseController;
 	/** The whole-test hard limit expired (no late submission); delivery collects and ends. */
 	private assessmentExpired = false;
 	/** The live attempt was suspended by a pause; resume() reopens it from its pause snapshot. */
@@ -489,6 +490,22 @@ export class AssessmentPlayer {
 	private readonly responseDefaultsCache = new Map<string, Record<string, unknown>>();
 
 	private constructor(private config: BackendAssessmentPlayerConfig, init: InitSessionResponse) {
+		this.pauseControl = new PauseController({
+			isBusy: () => this.transitionInFlight,
+			onTransitionActivity: (listener) => this.onBusyChange(listener),
+			freeze: () => {
+				this.timeManager?.pause();
+				this.suspendLiveSessionForPause();
+			},
+			unfreeze: () => {
+				this.timeManager?.resume();
+				this.reopenLiveSessionAfterPause();
+			},
+			unfreezeAllowed: () => this.started && !this.finalized,
+			changed: () => this.notifyPauseChange(),
+			afterResume: () => this.finalizeRestoredExpiryWhenRunning(),
+			isDestroyed: () => this.destroyed,
+		});
 		this.backend = config.backend;
 		this.sessionId = init.sessionId;
 		this.assessment = init.assessment;
@@ -551,8 +568,10 @@ export class AssessmentPlayer {
 			this.lockExpiredScopesFromClocks(init.restoredState.timing);
 		}
 		// A session saved during a proctor pause reopens paused, its clocks frozen.
-		this.paused = init.restoredState?.timing?.isPaused === true;
-		this.pauseReason = this.paused ? init.restoredState?.timing?.pauseReason : undefined;
+		this.pauseControl.setFromRestore(
+			init.restoredState?.timing?.isPaused === true,
+			init.restoredState?.timing?.pauseReason,
+		);
 
 		this.restoredFromSnapshot = init.restoredState !== undefined;
 		this.restoredSavedAt = init.restoredState?.timing?.savedAt;
@@ -771,6 +790,16 @@ export class AssessmentPlayer {
 		return this.runExclusive(operation);
 	}
 
+	/** Whether a proctor pause is in force (owned by `PauseController`). */
+	private get paused(): boolean {
+		return this.pauseControl.paused;
+	}
+
+	/** The candidate-facing reason given for the current pause, if any. */
+	private get pauseReason(): string | undefined {
+		return this.pauseControl.reason;
+	}
+
 	private assertCandidateActionAllowed(): void {
 		if (this.paused) {
 			throw new AssessmentPlayerError('assessmentPaused', 'The assessment is paused.');
@@ -790,27 +819,16 @@ export class AssessmentPlayer {
 	 * for hosts that persist state themselves.
 	 */
 	private createAutosave(): void {
-		const enabled = this.config.autosave !== false && this.backend.canSaveState !== false;
-		if (!enabled) return;
-		this.autosave = new AutosaveManager({
-			enabled: true,
-			intervalMs: this.config.autosaveIntervalMs ?? 1500,
-			collect: () => {
-				const snapshot = this.getState({ includeItemSessions: true });
-				if (this.snapshotsCloseItemSessions && snapshot.itemSessions) {
-					snapshot.itemSessions = Object.fromEntries(
-						Object.entries(snapshot.itemSessions).map(([identifier, session]) => [
-							identifier,
-							closedItemSession(session),
-						]),
-					);
-				}
-				snapshot.timing = { ...snapshot.timing, savedAt: Date.now() };
-				return { sessionId: this.sessionId, state: snapshot };
-			},
-			save: (request) => this.backend.saveState(request as never),
+		this.autosave = createSessionAutosave({
+			autosave: this.config.autosave,
+			autosaveIntervalMs: this.config.autosaveIntervalMs,
+			canSaveState: this.backend.canSaveState,
+			sessionId: this.sessionId,
+			getSnapshot: () => this.getState({ includeItemSessions: true }),
+			snapshotsCloseItemSessions: () => this.snapshotsCloseItemSessions,
 			isBlocked: () => this.transitionInFlight,
 			isStopped: () => this.destroyed || this.finalized,
+			saveState: (request) => this.backend.saveState(request as never),
 			onStateChange: (state) => this.notifyAutosaveChange(state),
 			onError: (error) => this.config.onAutosaveFailed?.(error),
 		});
@@ -2003,9 +2021,7 @@ export class AssessmentPlayer {
 			// session lands identically (a snapshot from before the feature simply carries
 			// none). The snapshot carries the proctor pause; the begin gate keeps holding the
 			// clocks.
-			const wasPaused = this.paused;
-			this.paused = state.timing?.isPaused === true;
-			this.pauseReason = this.paused ? state.timing?.pauseReason : undefined;
+			const pauseChanged = this.pauseControl.setFromRestore(state.timing?.isPaused === true, state.timing?.pauseReason);
 			if (!this.started) this.timeManager?.pause();
 
 			// Restore visited state for UI navigation hints.
@@ -2026,7 +2042,7 @@ export class AssessmentPlayer {
 				this.entryError = null;
 				this.pendingEntryIndex = null;
 			}
-			if (wasPaused !== this.paused) this.notifyPauseChange();
+			if (pauseChanged) this.notifyPauseChange();
 			if (deadEnd) this.notifyExpiryDeadEnd();
 			this.finalizeRestoredExpiryWhenRunning();
 			// A host-restored snapshot is the new draft; the save runs once this settles.
@@ -3447,8 +3463,7 @@ export class AssessmentPlayer {
 		this.finalized = true;
 		// A proctor's forced end of the test may land during a pause: the session is over,
 		// so the pause no longer holds anything (no pause event — the end of the test is it).
-		this.paused = false;
-		this.pauseReason = undefined;
+		this.pauseControl.clearSilently();
 		this.suspendedForPause = false;
 		// The test ended through its real submission: draft autosave has nothing left to do.
 		this.autosave?.stop();
@@ -3626,40 +3641,12 @@ export class AssessmentPlayer {
 	 */
 	public pause(reason?: string): void {
 		if (this.finalized || this.destroyed) return;
-		const nextReason = reason?.trim() || undefined;
-		if (this.paused) {
-			if (nextReason !== this.pauseReason) {
-				this.pauseReason = nextReason;
-				this.notifyPauseChange();
-			}
-			return;
-		}
-		if (this.transitionInFlight) {
-			const off = this.onBusyChange((busy) => {
-				if (busy) return;
-				off();
-				this.pause(reason);
-			});
-			return;
-		}
-		this.paused = true;
-		this.pauseReason = nextReason;
-		this.timeManager?.pause();
-		this.suspendLiveSessionForPause();
-		this.notifyPauseChange();
+		this.pauseControl.pause(reason);
 	}
 
 	/** End a proctor pause: the clocks continue and the live attempt reopens where it stood. */
 	public resume(): void {
-		if (!this.paused || this.destroyed) return;
-		this.paused = false;
-		this.pauseReason = undefined;
-		if (this.started && !this.finalized) {
-			this.timeManager?.resume();
-			this.reopenLiveSessionAfterPause();
-		}
-		this.notifyPauseChange();
-		this.finalizeRestoredExpiryWhenRunning();
+		this.pauseControl.resume();
 	}
 
 	public isPaused(): boolean {
