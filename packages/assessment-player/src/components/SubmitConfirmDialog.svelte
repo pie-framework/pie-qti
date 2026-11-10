@@ -1,4 +1,8 @@
 <script lang="ts" module>
+	// The actions snippet's buttons wear the one shared dialog-action rule family.
+	import { ensureSubmitDialogActionStyles } from './submitDialogAction.js';
+	ensureSubmitDialogActionStyles();
+
 	/** The localized strings the submit confirmation renders, resolved by the shell. */
 	export type SubmitDialogTranslations = {
 		dialogTitle: string;
@@ -248,50 +252,5 @@
 
 	.submit-dialog-static {
 		font-weight: 600;
-	}
-
-	/* The dialog's action buttons (the actions snippet keeps this component's CSS scope). */
-	.submit-dialog-action {
-		box-sizing: border-box;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		min-inline-size: var(--pie-qti-control-min-size, 2.75rem);
-		min-block-size: var(--pie-qti-control-min-size, 2.75rem);
-		padding-block: var(--pie-qti-space-2, 0.5rem);
-		padding-inline: var(--pie-qti-space-4, 1rem);
-		border: 1px solid var(--pie-qti-border-strong, #767676);
-		border-radius: var(--pie-qti-radius, 0.5rem);
-		background: var(--pie-qti-base-100, oklch(100% 0 0));
-		color: var(--pie-qti-base-content, oklch(21% 0 0));
-		font: inherit;
-		font-weight: 600;
-		line-height: 1.25;
-		text-align: center;
-		cursor: pointer;
-	}
-
-	.submit-dialog-action:hover:not([aria-disabled='true']) {
-		background: var(--pie-qti-base-200, oklch(98% 0 0));
-	}
-
-	.submit-dialog-action.danger {
-		border-color: var(--pie-qti-error-text, #b91c1c);
-		background: var(--pie-qti-error-text, #b91c1c);
-		color: oklch(98% 0.01 277);
-	}
-
-	.submit-dialog-action.danger:hover:not([aria-disabled='true']) {
-		background: color-mix(in oklab, var(--pie-qti-error-text, #b91c1c) 85%, black);
-	}
-
-	.submit-dialog-action:focus-visible {
-		outline: 2px solid var(--pie-qti-focus, #4338ca);
-		outline-offset: 2px;
-	}
-
-	.submit-dialog-action[aria-disabled='true'] {
-		cursor: not-allowed;
-		opacity: 0.6;
 	}
 </style>

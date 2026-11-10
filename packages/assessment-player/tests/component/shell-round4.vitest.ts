@@ -369,7 +369,12 @@ describe('"Review questions" while the submit runs (15)', () => {
 		view.action('submit-dialog-review')!.click();
 		await settle();
 		expect(view.dialog()?.textContent).toContain('Submit your test?');
-		expect(m.host.querySelector('[data-testid="assessment-review"]')?.getAttribute('aria-expanded')).not.toBe('true');
+		// The review did not open under the submit in flight: no review screen, and the
+		// navigation control does not offer the way back out of one.
+		expect(m.host.querySelector('.review-screen')).toBeNull();
+		expect(m.host.querySelector('[data-testid="assessment-review"]')?.textContent ?? '').not.toContain(
+			'Back to question',
+		);
 
 		release();
 		await until(() => view.complete());

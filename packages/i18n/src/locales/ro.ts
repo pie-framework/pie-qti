@@ -770,8 +770,7 @@ export default {
 			warningMinutes: 'Au mai rămas {count} min',
 			warningTime: 'A mai rămas: {time}',
 			paused: 'În pauză',
-			showTimer: 'Afișează cronometrul',
-			hideTimer: 'Ascunde cronometrul',
+			label: 'Cronometru',
 		},
 
 		start: {

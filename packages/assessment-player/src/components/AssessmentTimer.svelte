@@ -106,11 +106,14 @@
 		return t('assessment.timer.timeRemaining', 'Time remaining: {time}', { time });
 	});
 
-	const toggleLabel = $derived(
-		hidden
-			? t('assessment.timer.showTimer', 'Show timer')
-			: t('assessment.timer.hideTimer', 'Hide timer'),
-	);
+	/**
+	 * The control's one name in both states (WCAG 4.1.2): it names the countdown it
+	 * controls, and `aria-expanded` alone carries whether the countdown is showing.
+	 * A label that flipped with the state ("Show timer" / "Hide timer") would change
+	 * the name a voice-control user speaks on every press while `aria-expanded`
+	 * announced the same fact again.
+	 */
+	const toggleLabel = $derived(t('assessment.timer.label', 'Timer'));
 
 	function toggleHidden() {
 		onToggleHidden?.(!hidden);
@@ -122,8 +125,10 @@
 	data-testid="assessment-timer"
 	data-timer-state={expired ? 'expired' : paused ? 'paused' : warning ? 'warning' : 'running'}
 >
-	<!-- aria-controls names the readout only while it exists: removed when hidden,
-	     a dangling reference would point at nothing. -->
+	<!-- A disclosure named by what it reveals: the name stays "Timer" in both states
+	     and `aria-expanded` says which one it is in. aria-controls names the readout
+	     only while it exists: removed when hidden, a dangling reference would point
+	     at nothing. -->
 	<button
 		type="button"
 		class="timer-toggle"

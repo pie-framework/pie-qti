@@ -771,8 +771,7 @@ export default {
 			warningMinutes: 'Il reste {count} minutes',
 			warningTime: 'Il reste {time}',
 			paused: 'En pause',
-			showTimer: 'Afficher le minuteur',
-			hideTimer: 'Masquer le minuteur',
+			label: 'Minuteur',
 		},
 
 		start: {

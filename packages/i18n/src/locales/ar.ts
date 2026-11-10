@@ -875,8 +875,7 @@ export default {
 			warningMinutes: 'الوقت المتبقي بالدقائق: {count}',
 			warningTime: 'تبقّى من الوقت: {time}',
 			paused: 'متوقف مؤقتًا',
-			showTimer: 'إظهار المؤقت',
-			hideTimer: 'إخفاء المؤقت',
+			label: 'المؤقت',
 		},
 
 		start: {

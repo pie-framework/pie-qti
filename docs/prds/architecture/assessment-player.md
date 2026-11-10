@@ -460,8 +460,9 @@ nothing depends on host CSS frameworks.
   through `onTimeWarning`; the timer re-announces them through its own polite
   `role="status"` region ("5 minutes remaining"). The 2.2.1 guidance holds: candidates
   are warned before time runs out, and PNP extended time is honoured.
-- **The candidate can hide the countdown.** A ≥44px show/hide toggle (`aria-expanded`)
-  collapses the readout; the choice lives in the session state
+- **The candidate can hide the countdown.** A ≥44px disclosure named "Timer" (`aria-expanded`
+  carries the state alone; the name never flips with it) collapses the readout; the choice
+  lives in the session state
   (`AssessmentSessionState.timerHidden`, `setTimerHidden`/`isTimerHidden`) like flags,
   so it survives navigation and save/resume. Warnings and expiry still announce while
   the readout is hidden.
@@ -621,7 +622,10 @@ callbacks with a `bind:open` state.
   section, each with answered / partially answered / unanswered, flagged-for-review and
   not-yet-visited as text plus an icon (never colour alone), jump buttons where
   `AssessmentPlayer.isNavigationTargetLegal()` allows, `aria-current` on the live item, and
-  a note that explains why linear parts list status only. Reflows to 320px.
+  a note that explains why linear parts list status only. The bar control is a view switch,
+  not a disclosure: its label names the action this press performs ("Review questions" /
+  "Back to question") and alone carries which view is current, with no `aria-expanded` or
+  `aria-pressed` repeating it. Reflows to 320px.
 - **Flag for review.** The navigation bar carries a per-item toggle with a visible label and
   `aria-pressed`. Flag state lives in the core session state (`AssessmentSessionState.itemFlags`),
   survives navigation, is reported through `setItemFlag`/`toggleItemFlag`/`isItemFlagged`/
