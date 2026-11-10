@@ -1,6 +1,7 @@
 ---
 '@pie-qti/default-components': patch
 '@pie-qti/item-player': patch
+'@pie-qti/i18n': patch
 ---
 
 Typed spaces are no longer silently deleted from text answers, and a round of WCAG fixes for the interaction components.
@@ -14,3 +15,4 @@ Typed spaces are no longer silently deleted from text answers, and a round of WC
 - **The graphic-associate associations panel reflows at 320 CSS px** (WCAG 1.4.10): its fixed 20rem basis overflowed the viewport (right edge 376px); it now takes the container's width when it wraps below the image.
 - **Graphic-associate on-image hotspot labels wrap** instead of clipping to one line with an ellipsis, so nothing is lost under the WCAG 1.4.12 text-spacing tolerance ("Gas Exchange" needed 108px in a 96px box); default-spacing rendering is unchanged where labels fit.
 - **The order interaction's idle elimination toggles meet non-text contrast** (WCAG 1.4.11): the idle glyph and boundary rendered at 2.85:1 through `opacity: 0.4`; they are now full strength like choice's equivalent toggle, and the eliminated state stays distinct through the checked style (error-text glyph and boundary, heavier boundary, tinted fill), not by colour alone.
+- Position-object's palette name is built from two locale keys (`interactions.positionObject.objectUsage` / `objectUsageUnlimited`) that no component reads any more; both are removed from all locales.
