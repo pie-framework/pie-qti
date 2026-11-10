@@ -47,7 +47,6 @@ import type {
 	ItemSessionActionCommand,
 	ItemLifecycleStatus,
 	ItemSessionActionResult,
-	ItemSessionState,
 	ModalFeedback,
 	ItemSessionEngineConfig,
 	PlayerSecurityConfig,
@@ -635,18 +634,7 @@ export class Player {
 		if (this.lifecycleStatus === 'suspended') this.lifecycleStatus = 'interacting';
 	}
 
-	public suspendAttempt(): ItemSessionActionResult {
-		return this.runItemSessionAction({ action: 'suspendAttempt' });
-	}
-
-	public endAttempt(options: { countAttempt?: boolean; validateResponses?: boolean } = {}): ItemSessionActionResult {
-		return this.runItemSessionAction({ action: 'endAttempt', ...options });
-	}
-
-	public scoreAttempt(): ItemSessionActionResult {
-		return this.runItemSessionAction({ action: 'scoreAttempt' });
-	}
-
+	/** Test seam (paramVariable delivery); sessions dispatch newTemplate through ItemSession. */
 	public newTemplate(options: { resetResponses?: boolean } = {}): ItemSessionActionResult {
 		return this.runItemSessionAction({ action: 'newTemplate', ...options });
 	}
@@ -1002,20 +990,6 @@ export class Player {
 	}
 
 	/**
-	 * Get correct response for a specific response identifier
-	 * @param responseId - The response identifier
-	 * @returns The correct response value, or undefined if not available
-	 */
-	public getCorrectResponse(responseId: string): any | undefined {
-		const decl = this.decls[responseId];
-		if (!decl || (decl as any).__kind !== 'response') return undefined;
-		const respDecl = decl as any; // ResponseDeclaration from qti-processing
-		if (!respDecl.correctResponse) return undefined;
-		if (respDecl.correctResponse.kind !== 'value') return undefined;
-		return this.qtiValueToPublic(respDecl.correctResponse);
-	}
-
-	/**
 	 * Get all correct responses as a map
 	 * @returns Map of responseId to correct response value
 	 */
@@ -1030,15 +1004,6 @@ export class Player {
 		return out;
 	}
 
-	public getTemplateVariables(): Record<string, any> {
-		const out: Record<string, any> = {};
-		for (const d of Object.values(this.decls)) {
-			if (!d.isTemplate) continue;
-			out[d.identifier] = this.qtiValueToPublic(d.value);
-		}
-		return out;
-	}
-
 	public setTemplateVariables(vars: Record<string, any>): void {
 		this.interactionDataCache = null;
 		for (const [id, raw] of Object.entries(vars)) {
@@ -1048,20 +1013,13 @@ export class Player {
 		}
 	}
 
-	public getSessionState(): ItemSessionState {
-		const out: ItemSessionState = {};
-		for (const d of Object.values(this.decls)) {
-			out[d.identifier] = this.qtiValueToPublic(d.value);
-		}
-		return out;
-	}
-
 	public validateResponses(responses: Record<string, any>): ResponseValidationResult {
 		return validateResponses(this, responses);
 	}
 
 	/**
-	 * The validation `endAttempt({ validateResponses: true })` gates on (QTI ASI §4
+	 * The validation `dispatch({ action: 'endAttempt', validateResponses: true })` gates on
+	 * (QTI ASI §4
 	 * itemSessionControl validateResponses). An invalid response "does not satisfy the
 	 * constraints imposed by the interaction": beyond a malformed value or a matchGroup
 	 * pairing (`validateResponses`), an interaction that requires input — minChoices,
