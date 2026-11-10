@@ -1,4 +1,4 @@
-import type { PnpProfile } from '@pie-qti/item-player';
+import type { PnpProfile, PnpTextAppearance } from '@pie-qti/item-player';
 
 /**
  * The display settings a candidate can adjust themselves, from the section's
@@ -6,10 +6,14 @@ import type { PnpProfile } from '@pie-qti/item-player';
  * item player already renders (colour schemes, text appearance tokens), so the
  * whole player — items, passages, rubrics, tool bars — follows.
  *
- * Settings are session-scoped. A host that wants to persist them listens for
- * `qti-section-display-settings` (or the layout's `onDisplaySettingsChange`) and
- * stores `pnp`, the effective profile; it passes that profile back as the
- * candidate's PNP next session.
+ * Settings are session-scoped. A host that wants to persist them listens for the
+ * layout's `onDisplaySettingsChange` (element hosts receive the typed
+ * `qti-section-display-settings` DOM event) and stores `pnp`, the effective
+ * profile; it passes that profile back as the candidate's PNP next session.
+ * `withDisplaySettings` treats that profile like a fresh host profile again: the
+ * settings' own fingerprints are subtracted before applying, so the candidate's
+ * toggles keep working across sessions, and `displaySettingsOf` reads the
+ * previous choices back out of the profile for the tool's controls.
  */
 export interface QtiCandidateDisplaySettings {
   /**
@@ -59,39 +63,106 @@ const TEXT_SPACING = { lineHeight: 1.5, letterSpacing: 0.12, wordSpacing: 0.16 }
 const HIGH_CONTRAST_SCHEME = 'blackwhite' as const;
 
 function stepOf(settings: QtiCandidateDisplaySettings | undefined): QtiDisplayTextSizeStep {
-  const size = settings?.textSize;
-  return size === 1 || size === 2 || size === 3 ? size : 0;
+	const size = settings?.textSize;
+	return size === 1 || size === 2 || size === 3 ? size : 0;
+}
+
+/** Whether `fontSize` is one of the point sizes the text size steps write. */
+function isStepFontSize(fontSize: number | undefined): boolean {
+	return fontSize !== undefined && Object.values(TEXT_SIZE_STEPS).includes(fontSize);
+}
+
+/** Whether the appearance carries the settings' exact reference-spacing triple. */
+function isReferenceSpacing(appearance: PnpTextAppearance | undefined): boolean {
+	return (
+		appearance?.lineHeight === TEXT_SPACING.lineHeight &&
+		appearance?.letterSpacing === TEXT_SPACING.letterSpacing &&
+		appearance?.wordSpacing === TEXT_SPACING.wordSpacing
+	);
+}
+
+/**
+ * Removes the display settings' own fingerprints from a profile — a size step,
+ * the black-on-white scheme, the exact reference-spacing triple — so a profile a
+ * host persisted and passed back (the documented resume contract) applies like a
+ * fresh host profile: turning a toggle off, or choosing "Default", restores what
+ * the host delivered instead of re-baking the previous choice in. A host whose
+ * own profile legitimately uses one of these values delivers it as the
+ * candidate's starting choice (`displaySettingsOf` reads it back); only values
+ * the settings could have written are subtracted.
+ */
+function withoutDisplaySettingsFingerprints(display: PnpProfile['display']): PnpProfile['display'] {
+	if (!display) return display;
+	const appearance = display.textAppearance;
+	let textAppearance = appearance;
+	if (appearance) {
+		const stripped: PnpTextAppearance = { ...appearance };
+		if (isStepFontSize(stripped.fontSize)) delete stripped.fontSize;
+		if (isReferenceSpacing(appearance)) {
+			delete stripped.lineHeight;
+			delete stripped.letterSpacing;
+			delete stripped.wordSpacing;
+		}
+		textAppearance = Object.keys(stripped).length > 0 ? stripped : undefined;
+	}
+	return {
+		...display,
+		// An entirely stripped appearance is set to undefined rather than left out:
+		// the spread of the original display would keep the original otherwise.
+		textAppearance,
+		colorScheme: display.colorScheme === HIGH_CONTRAST_SCHEME ? undefined : display.colorScheme,
+	};
 }
 
 /**
  * The profile the section renders with: the host's PNP with the candidate's
- * display settings applied. A setting left off leaves the profile's own value,
- * so turning a toggle off restores what the host delivered. The candidate's
- * values win per field while they are on.
+ * display settings applied. The candidate's choices raise the profile's floor —
+ * a text size step below the profile's own size, or spacing tighter than the
+ * profile's own, leaves the profile's value — and higher-contrast text replaces
+ * the profile's colour scheme while it is on.
+ *
+ * The settings' fingerprints are subtracted from the incoming profile first (see
+ * `withoutDisplaySettingsFingerprints`), so the documented resume contract —
+ * persist the effective `pnp`, pass it back as the candidate's PNP — keeps the
+ * settings reversible. `displaySettingsOf` recovers the settings for the tool's
+ * controls; the layouts apply it when no session settings exist.
  */
 export function withDisplaySettings(
-  pnp: PnpProfile | undefined,
-  settings: QtiCandidateDisplaySettings | undefined,
+	pnp: PnpProfile | undefined,
+	settings: QtiCandidateDisplaySettings | undefined,
 ): PnpProfile {
-  const textSize = stepOf(settings);
-  const highContrast = settings?.highContrast === true;
-  const textSpacing = settings?.textSpacing === true;
-  const display = pnp?.display;
+	const textSize = stepOf(settings);
+	const highContrast = settings?.highContrast === true;
+	const textSpacing = settings?.textSpacing === true;
+	const baseDisplay = withoutDisplaySettingsFingerprints(pnp?.display);
+	const appearance = baseDisplay?.textAppearance;
 
-  let textAppearance = display?.textAppearance;
-  if (textSpacing) textAppearance = { ...textAppearance, ...TEXT_SPACING };
-  if (textSize !== 0) textAppearance = { ...textAppearance, fontSize: TEXT_SIZE_STEPS[textSize] };
+	// The candidate's choices never take the profile below what it already guarantees.
+	let textAppearance = appearance;
+	if (textSpacing) {
+		textAppearance = {
+			...textAppearance,
+			lineHeight: Math.max(textAppearance?.lineHeight ?? 0, TEXT_SPACING.lineHeight),
+			letterSpacing: Math.max(textAppearance?.letterSpacing ?? 0, TEXT_SPACING.letterSpacing),
+			wordSpacing: Math.max(textAppearance?.wordSpacing ?? 0, TEXT_SPACING.wordSpacing),
+		};
+	}
+	if (textSize !== 0) {
+		const stepPt = TEXT_SIZE_STEPS[textSize];
+		const current = textAppearance?.fontSize;
+		textAppearance = { ...textAppearance, fontSize: current === undefined ? stepPt : Math.max(current, stepPt) };
+	}
 
-  return {
-    ...pnp,
-    display: {
-      ...display,
-      ...(textAppearance ? { textAppearance } : {}),
-      // The candidate's own choice of higher-contrast text outranks the
-      // profile's scheme while it is on; off gives the profile's back.
-      colorScheme: highContrast ? HIGH_CONTRAST_SCHEME : display?.colorScheme,
-    },
-  };
+	return {
+		...pnp,
+		display: {
+			...baseDisplay,
+			...(textAppearance ? { textAppearance } : {}),
+			// The candidate's own choice of higher-contrast text outranks the
+			// profile's scheme while it is on; off gives the profile's back.
+			colorScheme: highContrast ? HIGH_CONTRAST_SCHEME : baseDisplay?.colorScheme,
+		},
+	};
 }
 
 /**
