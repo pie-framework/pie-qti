@@ -232,11 +232,16 @@
 		{/if}
 
 		{#if showReview}
+			<!-- A view switch, not a disclosure: each label names the action this press
+			     performs and is the accessible name, so the flip alone carries which view
+			     is current (WCAG 4.1.2). aria-expanded would announce the same fact a
+			     second time, and the whole main region it swaps is no disclosed region of
+			     this control; aria-pressed would misread the mode switch as a two-state
+			     toggle beside the flag button, which is that pattern's real user here. -->
 			<button
 				type="button"
 				class="nav-button"
 				data-testid="assessment-review"
-				aria-expanded={reviewOpen}
 				aria-disabled={busy ? 'true' : undefined}
 				onclick={() => (busy ? undefined : onToggleReview?.())}
 			>

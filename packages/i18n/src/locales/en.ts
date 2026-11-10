@@ -768,8 +768,7 @@ export default {
 			warningMinutes: '{count} minutes remaining',
 			warningTime: '{time} remaining',
 			paused: 'Paused',
-			showTimer: 'Show timer',
-			hideTimer: 'Hide timer',
+			label: 'Timer',
 		},
 
 		start: {

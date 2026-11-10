@@ -174,7 +174,10 @@ describe('AssessmentTimer', () => {
 		await settle();
 		const ui = timerIn(m.host);
 
-		expect(ui.toggle.textContent).toContain('Hide timer');
+		// One name in both states (WCAG 4.1.2): the control is named for the countdown it
+		// shows, and `aria-expanded` alone says whether the countdown is showing.
+		expect(ui.toggle.textContent?.trim()).toBe('Timer');
+		expect(ui.toggle.getAttribute('aria-label')).toBeNull();
 		expect(ui.toggle.getAttribute('aria-expanded')).toBe('true');
 		expect(ui.toggle.getAttribute('aria-controls')).toBe(ui.readout?.id);
 
@@ -189,8 +192,11 @@ describe('AssessmentTimer', () => {
 		await settle();
 		const hiddenUi = timerIn(hidden.host);
 		expect(hiddenUi.readout).toBeNull();
-		expect(hiddenUi.toggle.textContent).toContain('Show timer');
+		// The name did not change with the state; only `aria-expanded` did.
+		expect(hiddenUi.toggle.textContent?.trim()).toBe('Timer');
 		expect(hiddenUi.toggle.getAttribute('aria-expanded')).toBe('false');
+		// Nothing to point at while the readout is hidden.
+		expect(hiddenUi.toggle.getAttribute('aria-controls')).toBeNull();
 		// The announcements stay reachable even while the readout is hidden.
 		player.emit.warning(60);
 		flushSync();

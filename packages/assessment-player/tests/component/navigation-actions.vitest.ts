@@ -53,20 +53,26 @@ describe('NavigationBar answered counts and item actions', () => {
 		).toBe('true');
 	});
 
-	test('the review button toggles its label and reports open state', async () => {
+	test('the review button names its action in each view and carries no state attribute', async () => {
 		const onToggleReview = vi.fn();
 		const m = await renderNav({ showReview: true, onToggleReview });
 		const review = m.host.querySelector<HTMLButtonElement>('[data-testid="assessment-review"]')!;
-		expect(review.textContent).toContain('Review questions');
-		expect(review.getAttribute('aria-expanded')).toBe('false');
+		// The label is the action the press performs, and it is the accessible name (no
+		// aria-label over it). It alone says which view is current (WCAG 4.1.2): a state
+		// attribute on top would announce the same fact a second time.
+		expect(review.textContent?.trim()).toBe('Review questions');
+		expect(review.getAttribute('aria-label')).toBeNull();
+		expect(review.getAttribute('aria-expanded')).toBeNull();
+		expect(review.getAttribute('aria-pressed')).toBeNull();
 		review.click();
 		expect(onToggleReview).toHaveBeenCalledOnce();
 
 		const open = await renderNav({ showReview: true, onToggleReview, reviewOpen: true });
-		expect(open.host.querySelector<HTMLButtonElement>('[data-testid="assessment-review"]')!.textContent).toContain(
-			'Back to question',
-		);
-		expect(open.host.querySelector('[data-testid="assessment-review"]')!.getAttribute('aria-expanded')).toBe('true');
+		const openReview = open.host.querySelector<HTMLButtonElement>('[data-testid="assessment-review"]')!;
+		expect(openReview.textContent?.trim()).toBe('Back to question');
+		expect(openReview.getAttribute('aria-label')).toBeNull();
+		expect(openReview.getAttribute('aria-expanded')).toBeNull();
+		expect(openReview.getAttribute('aria-pressed')).toBeNull();
 	});
 
 	test('the final submit is styled apart from the primary Next and keeps its label', async () => {
