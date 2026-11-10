@@ -126,6 +126,7 @@ import {
 	submitTimingEvidence,
 	type EffectiveItemTimeLimits,
 } from './timePolicy.js';
+import { templateDefaultsFor } from './templateDefaults.js';
 import {
 	interactionRequirementFromXml,
 	interactionResponseIdentifiers,
@@ -3882,54 +3883,18 @@ export class AssessmentPlayer {
 	}
 
 	/**
-	 * The template defaults an item's new session starts from (QTI `templateDefault`).
-	 * In a nonlinear test part they are evaluated once, at the start of the part, for
-	 * every item ref in it — with the test outcomes and the other items' variables
-	 * (`ITEM.VARIABLE`, as persisted so far; NULL for an item not instantiated yet) in
-	 * scope — and cached for the part. Linear parts evaluate each item's defaults on
-	 * entering it, against the test outcomes.
+	 * The template defaults an item's new session starts from (QTI `templateDefault`;
+	 * see `templateDefaults.templateDefaultsFor`). The part cache is the player's.
 	 */
 	private templateDefaultsFor(q: FlatItem): Record<string, unknown> | undefined {
-		const mode = q.testPart.navigationMode ?? this.assessment.navigationMode ?? 'nonlinear';
-		if (mode !== 'nonlinear') {
-			if (!q.item.templateDefaults?.length) return undefined;
-			return this.evaluateTemplateDefaults(q, testOutcomeDeclarations(this.assessment, this.testOutcomes ?? undefined));
-		}
-		let defaults = this.templateDefaultsByPart.get(q.testPart.identifier);
-		if (!defaults) {
-			const declarations = addItemVariableDeclarations(
-				testOutcomeDeclarations(this.assessment, this.testOutcomes ?? undefined),
-				this.persistedItemVariables(),
-			);
-			defaults = new Map(
-				this.items
-					.filter((item) => item.testPart === q.testPart)
-					.map((item) => [item.identifier, this.evaluateTemplateDefaults(item, declarations)]),
-			);
-			this.templateDefaultsByPart.set(q.testPart.identifier, defaults);
-		}
-		return defaults.get(q.identifier);
-	}
-
-	/** Every item's variables from its persisted session, as test-scope expressions read them. */
-	private persistedItemVariables(): Record<string, Record<string, QtiValue>> {
-		const out: Record<string, Record<string, QtiValue>> = {};
-		for (const item of this.items) {
-			const serialized = this.state.itemSessions?.[item.identifier];
-			if (!serialized) continue;
-			out[item.identifier] = applyVariableMappings(itemSessionVariableValues(serialized), item.item.variableMappings);
-		}
-		return out;
-	}
-
-	private evaluateTemplateDefaults(q: FlatItem, declarations: DeclarationMap): Record<string, unknown> | undefined {
-		const defaults = q.item.templateDefaults;
-		if (!defaults?.length) return undefined;
-		const out: Record<string, unknown> = {};
-		for (const { templateIdentifier, expressionXml } of defaults) {
-			out[templateIdentifier] = plainQtiValue(evaluateTestExpression(expressionXml, declarations, Math.random));
-		}
-		return out;
+		return templateDefaultsFor({
+			q,
+			items: this.items,
+			assessment: this.assessment,
+			outcomes: this.testOutcomes,
+			persistedSessions: this.state.itemSessions,
+			byPart: this.templateDefaultsByPart,
+		});
 	}
 
 	private isItemLocked(q: FlatItem): boolean {
