@@ -33,12 +33,6 @@
 	<outcomeDeclaration identifier="PSD_MILLI" cardinality="single" baseType="float">
 		<defaultValue><value>0</value></defaultValue>
 	</outcomeDeclaration>
-	<outcomeDeclaration identifier="TYPE_INT_OK" cardinality="single" baseType="boolean">
-		<defaultValue><value>false</value></defaultValue>
-	</outcomeDeclaration>
-	<outcomeDeclaration identifier="TYPE_FLOAT_OK" cardinality="single" baseType="boolean">
-		<defaultValue><value>false</value></defaultValue>
-	</outcomeDeclaration>
 
 	<itemBody>
 		<p>Conformance: misc operators.</p>
@@ -136,20 +130,6 @@
 							<baseValue baseType="float">1000</baseValue>
 						</product>
 					</truncate>
-				</setOutcomeValue>
-
-				<setOutcomeValue identifier="TYPE_INT_OK">
-					<isTypeOf>
-						<baseValue baseType="integer">5</baseValue>
-						<baseValue baseType="string">integer</baseValue>
-					</isTypeOf>
-				</setOutcomeValue>
-
-				<setOutcomeValue identifier="TYPE_FLOAT_OK">
-					<isTypeOf>
-						<baseValue baseType="integer">5</baseValue>
-						<baseValue baseType="string">float</baseValue>
-					</isTypeOf>
 				</setOutcomeValue>
 			</responseElse>
 		</responseCondition>

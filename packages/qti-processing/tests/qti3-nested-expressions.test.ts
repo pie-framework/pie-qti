@@ -149,7 +149,6 @@ const GUARD: ReadonlyArray<readonly [tag: string, attrs: string, body: string]> 
 	['integermodulus', '', TWO],
 	['integertofloat', '', ONE],
 	['isnull', '', ONE],
-	['istypeof', '', TWO],
 	['lcm', '', TWO],
 	['lookuptable', '', `${ONE}<qti-match-table/>`],
 	['lt', '', TWO],

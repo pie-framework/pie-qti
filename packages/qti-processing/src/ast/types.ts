@@ -61,7 +61,6 @@ export type ExpressionNode =
 	| LookupTableExpr
 	| PowerExpr
 	| IntegerDivideExpr
-	| IsTypeOfExpr
 	| StringMatchExpr
 	| PatternMatchExpr
 	| IsNullExpr
@@ -448,13 +447,6 @@ export type IntegerDivideExpr = {
 	id: AstNodeId;
 	a: ExpressionNode;
 	b: ExpressionNode;
-};
-
-export type IsTypeOfExpr = {
-	kind: 'expr.isTypeOf';
-	id: AstNodeId;
-	value: ExpressionNode;
-	baseType: ExpressionNode;
 };
 
 export type StringMatchExpr = {

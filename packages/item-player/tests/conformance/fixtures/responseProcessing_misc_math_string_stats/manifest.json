@@ -1,7 +1,7 @@
 {
   "id": "responseProcessing_misc_math_string_stats",
-  "title": "responseProcessing: substring + integerDivide/mod/power + statsOperator + isTypeOf",
-  "description": "Adds coverage for several common QTI processing operators used in scoring formulas and basic type checks. Statistics go through statsOperator name=\"...\", the only spelling any QTI version defines.",
+  "title": "responseProcessing: substring + integerDivide/integerModulus/power + statsOperator",
+  "description": "Adds coverage for several common QTI processing operators used in scoring formulas. Statistics go through statsOperator name=\"...\", the only spelling any QTI version defines.",
   "spec": "custom",
   "provenance": {
     "source": "authored",
@@ -10,7 +10,6 @@
   "covers": [
     "expr.integerDivide",
     "expr.integerModulus",
-    "expr.isTypeOf",
     "expr.popSD",
     "expr.popVariance",
     "expr.power",

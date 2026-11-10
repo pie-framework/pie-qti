@@ -1093,16 +1093,6 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			// No negative zero: -4 mod 2 and 0 integerDivide -5 are 0.
 			return qtiValue(resultBaseType, 'single', result === 0 ? 0 : result);
 		}
-		case 'expr.isTypeOf': {
-			const v = evalExpr(env, expr.value);
-			const baseType = toStringValue(evalExpr(env, expr.baseType)).trim();
-			if (!baseType) return qtiValue('boolean', 'single', false);
-			return qtiValue(
-				'boolean',
-				'single',
-				v.kind === 'value' && v.baseType?.toLowerCase() === baseType.toLowerCase(),
-			);
-		}
 		case 'expr.stringMatch': {
 			const a = evalExpr(env, expr.a);
 			const b = evalExpr(env, expr.b);

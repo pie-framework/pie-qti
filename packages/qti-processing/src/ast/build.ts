@@ -877,14 +877,6 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		case 'integerdivide': {
 			return { kind: 'expr.integerDivide', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
-		case 'istypeof': {
-			return {
-				kind: 'expr.isTypeOf',
-				id,
-				value: buildExpression(kids[0]!, options),
-				baseType: buildExpression(kids[1]!, options),
-			};
-		}
 		case 'stringmatch': {
 			return {
 				kind: 'expr.stringMatch',

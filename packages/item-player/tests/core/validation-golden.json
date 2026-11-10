@@ -5756,9 +5756,7 @@
           }
         }
       },
-      "qti30": {
-        "error": "Unknown processing expression tag: <isTypeOf>"
-      }
+      "qti30": "same as qti22"
     },
     "responseProcessing_not_equal_basic": {
       "qti22": {
