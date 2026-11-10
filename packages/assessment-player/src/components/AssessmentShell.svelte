@@ -272,14 +272,44 @@
 	let sections = $state<CandidateSectionView[]>([]);
 	let navError = $state<{ message: string; supportCode: string | null } | null>(null);
 	let submitError = $state<{ message: string; supportCode: string | null } | null>(null);
-	let isSubmitting = $state(false);
+	/**
+	 * The delivery's session status in one place: a submission in flight, the
+	 * terminal state (complete, how it ended, restored already finalized), a
+	 * proctor pause, and the expiry dead end that makes Submit reachable
+	 * anywhere. The derived aliases below keep the template's names.
+	 */
+	let sessionStatus = $state({
+		/** A submission transition is in flight. */
+		isSubmitting: false,
+		/** The test ended in this delivery (or was restored already finalized). */
+		isComplete: false,
+		/** A proctor pause is in force. */
+		paused: false,
+		/** The candidate-facing reason of the pause in force, if any. */
+		pauseReason: undefined as string | undefined,
+		/** An expiry left no reachable item; Submit must be offered wherever the candidate is. */
+		submitRequired: false,
+		/** A time expiry ended the test (`endReason` 'expiry'): the completion heading says so. */
+		finishedByExpiry: false,
+		/** Why the test ended in this delivery (the completion variant: a proctor's submit says so). */
+		endReason: null as AssessmentEndReason | null,
+		/** The session was restored already finalized: the terminal "already submitted" view. */
+		restoredFinalized: false,
+	});
+	const isSubmitting = $derived(sessionStatus.isSubmitting);
+	const isComplete = $derived(sessionStatus.isComplete);
+	const paused = $derived(sessionStatus.paused);
+	const pauseReason = $derived(sessionStatus.pauseReason);
+	const submitRequired = $derived(sessionStatus.submitRequired);
+	const finishedByExpiry = $derived(sessionStatus.finishedByExpiry);
+	const endReason = $derived(sessionStatus.endReason);
+	const restoredFinalized = $derived(sessionStatus.restoredFinalized);
 	let retryButton = $state<HTMLButtonElement | null>(null);
 	let contentEl = $state<HTMLElement | null>(null);
 	let itemPaneEl = $state<HTMLElement | null>(null);
 	let splitLayout = $state<SectionPlayerSplitPane | null>(null);
 	let verticalLayout = $state<SectionPlayerVertical | null>(null);
 	let testFeedback = $state<VisibleTestFeedback[]>([]);
-	let isComplete = $state(false);
 	let announcer = $state<AccessibilityAnnouncer | null>(null);
 	/**
 	 * Two version counters keep response updates targeted (O(item), not O(assessment)):
@@ -303,8 +333,6 @@
 	// Time administration: countdown state, begin gate, proctor pause, expiry notices.
 	let timerLimited = $state(false);
 	let timerHidden = $state(false);
-	let paused = $state(false);
-	let pauseReason = $state<string | undefined>(undefined);
 	let startHeadingEl = $state<HTMLElement | null>(null);
 	let pauseHeadingEl = $state<HTMLElement | null>(null);
 	let pauseOverlayEl = $state<HTMLElement | null>(null);
@@ -318,8 +346,6 @@
 	 */
 	let expiryDialog = $state<ExpiryNotice | null>(null);
 	let expiryDialogOpen = $state(false);
-	/** An expiry left no reachable item; Submit must be offered wherever the candidate is. */
-	let submitRequired = $state(false);
 	// Autosave: the save indicator rides the core's real save state.
 	let saveStatus = $state<AutosaveState>({ status: 'idle' });
 	/** A backend snapshot carried prior activity: the shell offers Resume / Start over. */
@@ -346,14 +372,8 @@
 	let feedbackEntries = $state<ItemFeedbackEntry[]>([]);
 	let feedbackDialogOpen = $state(false);
 	// Completion: the candidate-facing finished state replaces the dead last item.
-	/** A time expiry ended the test (`endReason` 'expiry'): the completion heading says so. */
-	let finishedByExpiry = $state(false);
-	/** Why the test ended in this delivery (the completion variant: a proctor's submit says so). */
-	let endReason = $state<AssessmentEndReason | null>(null);
 	/** The host heard the results once (`onSubmit`), whichever path ended the test. */
 	let resultsDelivered = false;
-	/** The session was restored already finalized: the terminal "already submitted" view. */
-	let restoredFinalized = $state(false);
 	let resultsSummary = $state<ResultsSummary | null>(null);
 	let completionScreen = $state<CompletionScreen | null>(null);
 
@@ -495,16 +515,16 @@
 		// fired (the shell had no listener yet), so the overlay state syncs from the
 		// core here. The resume prompt below stays suppressed while it holds.
 		if (created.isPaused()) {
-			paused = true;
-			pauseReason = created.getPauseReason();
+			sessionStatus.paused = true;
+			sessionStatus.pauseReason = created.getPauseReason();
 		}
 
 		// A session the backend stored as finalized is terminal: show the
 		// already-submitted completion view instead of delivery whose every action
 		// rejects, and never offer the resume prompt for it.
 		if (created.isFinalized()) {
-			restoredFinalized = true;
-			isComplete = true;
+			sessionStatus.restoredFinalized = true;
+			sessionStatus.isComplete = true;
 			testFeedback = created.getVisibleFeedback();
 			resultsSummary = created.getResultsSummary();
 			sections = created.getAllSections();
@@ -586,15 +606,15 @@
 	// EXIT_TEST branch, the whole-test time expiry — and the shell shows the same
 	// completed state and hands the results to the host once.
 	function handleCompleted(results: AssessmentResults) {
-		isComplete = true;
-		submitRequired = false;
+		sessionStatus.isComplete = true;
+		sessionStatus.submitRequired = false;
 		// A force-submit behind the begin gate ends a test that never started: the
 		// start screen must not survive with a Begin that can do nothing.
 		connection.state.startPending = false;
 		// A proctor's forced submit can end the test during a pause: the completion
 		// view replaces the overlay too.
-		paused = false;
-		pauseReason = undefined;
+		sessionStatus.paused = false;
+		sessionStatus.pauseReason = undefined;
 		sections = player?.getAllSections() ?? [];
 		// The completion view replaces delivery: nothing modal may survive it.
 		submitDialogOpen = false;
@@ -604,8 +624,8 @@
 		reviewOpen = false;
 		feedbackDialogOpen = false;
 		resultsSummary = player?.getResultsSummary() ?? null;
-		endReason = player?.getEndReason() ?? results.endReason ?? null;
-		if (endReason === 'expiry') finishedByExpiry = true;
+		sessionStatus.endReason = player?.getEndReason() ?? results.endReason ?? null;
+		if (endReason === 'expiry') sessionStatus.finishedByExpiry = true;
 		if (endReason === 'proctor') {
 			announcer?.announce(
 				i18n.t('assessment.complete.byProctorAnnouncement', 'Your proctor has submitted your test.'),
@@ -628,7 +648,7 @@
 		if (event.autoFinalized) {
 			// The completed view (and the results for the host) arrived through
 			// onComplete; say why it happened.
-			finishedByExpiry = true;
+			sessionStatus.finishedByExpiry = true;
 			announcer?.announce(i18n.t('assessment.timeExpiry.autoSubmitted'), 4000, 'assertive');
 			expiryDialogOpen = false;
 			expiryDialog = null;
@@ -636,7 +656,7 @@
 			return;
 		}
 		if (event.submissionRequired) {
-			submitRequired = true;
+			sessionStatus.submitRequired = true;
 			expiryDialog = { mode: 'submit', scope: event.scope };
 			expiryDialogOpen = true;
 		}
@@ -660,8 +680,8 @@
 	// A proctor pause freezes the clocks and blocks the shell; the overlay says so.
 	function handlePauseChanged(isPaused: boolean, reason?: string) {
 		const wasPaused = paused;
-		paused = isPaused;
-		pauseReason = reason;
+		sessionStatus.paused = isPaused;
+		sessionStatus.pauseReason = reason;
 		if (isPaused) {
 			if (!wasPaused) {
 				const active = document.activeElement;
@@ -1520,7 +1540,7 @@
 		if (!player || isSubmitting || isComplete) return false;
 
 		submitError = null;
-		isSubmitting = true;
+		sessionStatus.isSubmitting = true;
 		let results: AssessmentResults;
 		try {
 			results = await player.submit();
@@ -1538,12 +1558,12 @@
 			}
 			return false;
 		} finally {
-			isSubmitting = false;
+			sessionStatus.isSubmitting = false;
 		}
 
 		testFeedback = player.getVisibleFeedback();
 		sections = player.getAllSections();
-		isComplete = true;
+		sessionStatus.isComplete = true;
 		// onComplete already delivered them; this covers a host core without listeners.
 		deliverResults(results);
 		return true;
