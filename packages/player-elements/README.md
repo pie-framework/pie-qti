@@ -327,15 +327,39 @@ section.typeset = typesetMath;
 section.addEventListener('qti-section-response-delta', (event) => {
   console.log(event.detail);
 });
+section.addEventListener('qti-section-framework-error', (event) => {
+  console.error(event.detail);
+});
+section.addEventListener('qti-section-display-settings', (event) => {
+  // event.detail.settings are the candidate's choices; event.detail.pnp is the
+  // profile the section now renders with. Store `pnp` and pass it back as the
+  // candidate's PNP next session to persist the settings.
+  console.log(event.detail);
+});
+section.addEventListener('qti-section-item-pane-ready', (event) => {
+  skipLink.target = event.detail.element;
+});
 document.body.append(section);
 ```
 
 Use `pie-qti-section-player-vertical` with the same `composition`, `security`, `pci`, and `typeset`
 properties for a vertical layout. The composition may carry the active item's live `session`; other
 item refs carry response snapshots. Shared passages/rubrics and direct item rubrics remain separate
-placement surfaces.
+placement surfaces, and the shared context's test feedback renders ahead of the rubric and item.
+A composition the layouts cannot render (a hand-built object missing `sharedContext` or the
+response snapshot) degrades to a `qti-section-framework-error` event with code
+`invalid-composition` instead of a blank element.
 
-## TypeScript and manual registration
+Events on both section elements: `qti-section-response-delta`, `qti-section-framework-error`,
+`qti-section-display-settings` and `qti-section-item-pane-ready` are typed, bubbling, composed
+`CustomEvent`s. `focusActiveItem(options?)` moves focus to the active item — selecting the
+question tab when the panes are stacked — so a skip link can land on the question.
+
+`display-settings="false"` (property `displaySettings`) turns the candidate's display settings
+tool off; by default it is offered. The section's tool bars suppress the assessment toolkit's
+FontAwesome injection with a `data:` stylesheet rendered inside the section's own DOM (never the
+host `<head>`); under a strict CSP `style-src` that marker is still reported, so allow `data:` in
+`style-src` or link a real FontAwesome stylesheet to avoid it.
 
 All four tags participate in `HTMLElementTagNameMap` inference:
 

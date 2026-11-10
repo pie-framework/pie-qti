@@ -1,7 +1,7 @@
 import './setup';
 import { describe, expect, test } from 'bun:test';
 import type { PciModuleResolver, PlayerSecurityConfig } from '@pie-qti/item-player';
-import type { ResolvedQtiSectionComposition } from '@pie-qti/section-player';
+import type { QtiSectionFrameworkError, ResolvedQtiSectionComposition } from '@pie-qti/section-player';
 import { QTI_SECTION_PLAYER_SPLITPANE_TAG, QTI_SECTION_PLAYER_VERTICAL_TAG } from '../src/constants.js';
 import {
 	QtiSectionPlayerSplitPaneElement,
@@ -177,5 +177,112 @@ describe('section player custom elements', () => {
 		expect(element.getAttribute('heading-level')).toBe('4');
 		element.headingLevel = undefined;
 		expect(element.hasAttribute('heading-level')).toBe(false);
+	});
+
+	test('display-settings reaches the layout as displaySettings and reflects the property', () => {
+		if (!customElements.get('test-qti-section-player-splitpane')) {
+			customElements.define('test-qti-section-player-splitpane', TestSplitPaneElement);
+		}
+		expect(QtiSectionPlayerSplitPaneElement.observedAttributes).toContain('display-settings');
+		const element = document.createElement('test-qti-section-player-splitpane') as TestSplitPaneElement;
+		element.composition = createComposition();
+		// Unset, the layout's own default (on) applies.
+		expect(element.displaySettings).toBe(true);
+		expect('displaySettings' in element.exposeProps()).toBe(false);
+
+		element.attributeChangedCallback('display-settings', null, 'false');
+		expect(element.displaySettings).toBe(false);
+		expect(element.exposeProps().displaySettings).toBe(false);
+
+		element.attributeChangedCallback('display-settings', 'false', 'true');
+		expect(element.displaySettings).toBe(true);
+		expect(element.exposeProps().displaySettings).toBe(true);
+
+		element.displaySettings = false;
+		expect(element.getAttribute('display-settings')).toBe('false');
+		element.displaySettings = true;
+		expect(element.hasAttribute('display-settings')).toBe(false);
+	});
+
+	test('framework errors, display settings changes and the item pane reach the host as typed events', () => {
+		if (!customElements.get('test-qti-section-player-splitpane')) {
+			customElements.define('test-qti-section-player-splitpane', TestSplitPaneElement);
+		}
+		const element = document.createElement('test-qti-section-player-splitpane') as TestSplitPaneElement;
+		element.composition = createComposition();
+		const received: Array<{ type: string; detail: unknown }> = [];
+		for (const type of ['qti-section-framework-error', 'qti-section-display-settings', 'qti-section-item-pane-ready'] as const) {
+			element.addEventListener(type, (event) => {
+				received.push({ type, detail: (event as CustomEvent).detail });
+			});
+		}
+		const eventOptions: Array<Pick<CustomEventInit, 'bubbles' | 'composed'>> = [];
+		const OriginalCustomEvent = globalThis.CustomEvent;
+		globalThis.CustomEvent = class extends OriginalCustomEvent {
+			constructor(type: string, init?: CustomEventInit) {
+				eventOptions.push({ bubbles: init?.bubbles, composed: init?.composed });
+				super(type, init);
+			}
+		} as typeof CustomEvent;
+
+		const props = element.exposeProps();
+		const error = { code: 'item-player-load-failed', message: 'chunk failed', itemIdentifier: 'item-1' };
+		const settingsEvent = { sectionIdentifier: 'section-1', settings: { textSize: 2 as const }, pnp: { display: {} } };
+		const pane = document.createElement('div');
+		try {
+			props.onFrameworkError?.(error);
+			props.onDisplaySettingsChange?.(settingsEvent);
+			props.onItemPaneReady?.(pane);
+		} finally {
+			globalThis.CustomEvent = OriginalCustomEvent;
+		}
+
+		expect(received).toEqual([
+			{ type: 'qti-section-framework-error', detail: error },
+			{ type: 'qti-section-display-settings', detail: settingsEvent },
+			{ type: 'qti-section-item-pane-ready', detail: { element: pane } },
+		]);
+		expect(eventOptions).toEqual([
+			{ bubbles: true, composed: true },
+			{ bubbles: true, composed: true },
+			{ bubbles: true, composed: true },
+		]);
+	});
+
+	test('a composition the layouts cannot render emits a framework error instead of throwing', () => {
+		if (!customElements.get('test-qti-section-player-splitpane')) {
+			customElements.define('test-qti-section-player-splitpane', TestSplitPaneElement);
+		}
+		const element = document.createElement('test-qti-section-player-splitpane') as TestSplitPaneElement;
+		const errors: QtiSectionFrameworkError[] = [];
+		element.addEventListener('qti-section-framework-error', (event) => {
+			errors.push((event as CustomEvent<QtiSectionFrameworkError>).detail);
+		});
+
+		// A hand-built composition without its shared context.
+		element.composition = { ...createComposition(), sharedContext: undefined } as unknown as ResolvedQtiSectionComposition;
+		expect(() => element.connectedCallback()).not.toThrow();
+		expect(errors).toEqual([
+			{
+				sectionIdentifier: 'section-1',
+				code: 'invalid-composition',
+				message: 'The composition has no shared context.',
+			},
+		]);
+
+		// The same problem is announced once, not on every update.
+		expect(() => element.connectedCallback()).not.toThrow();
+		expect(errors).toHaveLength(1);
+
+		// A different problem is a new report.
+		element.composition = { ...createComposition(), snapshot: undefined } as unknown as ResolvedQtiSectionComposition;
+		expect(() => element.connectedCallback()).not.toThrow();
+		expect(errors).toHaveLength(2);
+		expect(errors[1]).toMatchObject({ code: 'invalid-composition', message: 'The composition has no response snapshot.' });
+	});
+
+	test('focusActiveItem without a mounted layout resolves false', async () => {
+		const element = new QtiSectionPlayerVerticalElement();
+		expect(await element.focusActiveItem()).toBe(false);
 	});
 });
