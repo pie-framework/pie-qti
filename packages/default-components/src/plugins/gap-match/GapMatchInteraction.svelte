@@ -11,6 +11,12 @@
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import { interactionAria } from '../../shared/utils/interactionAria';
+	import {
+		countPairsForSource,
+		getSourceForTarget,
+		placeSourceOnTarget,
+		removePairBySource,
+	} from '../../shared/utils/pairHelpers';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { createPickUpPlace } from '../../shared/components/pickUpPlace.svelte';
@@ -176,9 +182,7 @@
 	const minHintId = `${uid}-min-hint`;
 	const wordsShortOfMinimum = $derived(
 		paletteWords.filter(
-			(word) =>
-				(word.matchMin ?? 0) > 0 &&
-				pairs.filter((p: string) => p.startsWith(`${word.identifier} `)).length < (word.matchMin ?? 0),
+			(word) => (word.matchMin ?? 0) > 0 && countPairsForSource(pairs, word.identifier) < (word.matchMin ?? 0),
 		),
 	);
 	const minHint = $derived.by(() => {
@@ -240,24 +244,10 @@
 		// matchGroup: refuse a placement the gap does not accept (clearing stays allowed).
 		if (wordId && !canPlaceWord(wordId, gapId)) return false;
 
-		// Remove any existing pair for this gap (each gap holds one word)
-		let newPairs = pairs.filter((p: string) => !p.endsWith(` ${gapId}`));
-
-		// For reusable words (matchMax=0 or >1): don't remove other placements. For matchMax=1: move the word.
-		const matchMax = getMatchMax(wordId);
-		const currentCount = newPairs.filter((p: string) => p.startsWith(`${wordId} `)).length;
-		if (matchMax === 1 || (matchMax > 0 && currentCount >= matchMax)) {
-			// Single-use or at limit: remove this word from other gaps (move)
-			newPairs = newPairs.filter((p: string) => !p.startsWith(`${wordId} `));
-		}
-
-		// Add new pair if a word was selected
-		if (wordId) {
-			const newPair = `${wordId} ${gapId}`;
-			if (!newPairs.includes(newPair)) {
-				newPairs.push(newPair);
-			}
-		}
+		// Each gap holds one word. A reusable word (matchMax=0, or below its matchMax) keeps its
+		// other placements; a single-use word, or one at its matchMax, moves. An empty wordId
+		// clears the gap.
+		const newPairs = placeSourceOnTarget(pairs, wordId, gapId, getMatchMax(wordId));
 
 		// maxAssociations: refuse a placement that would exceed the interaction's cap. Replacing
 		// a gap's word or moving a single-use word keeps the count, so it is still allowed.
@@ -273,18 +263,16 @@
 
 	function isWordUsed(wordId: string): boolean {
 		const matchMax = getMatchMax(wordId);
-		const count = pairs.filter((p: string) => p.startsWith(`${wordId} `)).length;
+		const count = countPairsForSource(pairs, wordId);
 		return matchMax > 0 ? count >= matchMax : false; // matchMax=0 means unlimited, never "used"
 	}
 
 	function getSelectedWord(gapId: string): string {
-		const pair = pairs.find((p: string) => p.endsWith(` ${gapId}`));
-		return pair ? pair.split(' ')[0] : '';
+		return getSourceForTarget(pairs, gapId) ?? '';
 	}
 
 	function getCorrectWord(gapId: string): string {
-		const pair = correctPairs.find((p: string) => p.endsWith(` ${gapId}`));
-		return pair ? pair.split(' ')[0] : '';
+		return getSourceForTarget(correctPairs, gapId) ?? '';
 	}
 
 	function isCorrectGap(gapId: string): boolean {
@@ -440,7 +428,7 @@
 	async function clearWord(wordId: string) {
 		if (disabled) return;
 		const wordName = getWordText(wordId);
-		const newPairs = pairs.filter((p: string) => !p.startsWith(`${wordId} `));
+		const newPairs = removePairBySource(pairs, wordId);
 		response = newPairs;
 		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: newPairs, onChange });
 		// The removal is announced: the focused remove button vanishes with the placements,

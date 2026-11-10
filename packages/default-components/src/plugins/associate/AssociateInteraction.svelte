@@ -10,7 +10,7 @@
 	import { accessibleTextFromHtml } from '../../shared/utils/accessibleText.js';
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
-	import { countPairsWithId, pairIncludesId } from '../../shared/utils/pairHelpers';
+	import { countPairsWithId, hasUnorderedPair, pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
@@ -267,9 +267,8 @@
 
 	function isCorrectPairMatch(id1: string, id2: string): boolean {
 		if (!isShowingCorrect || !parsedCorrectResponse) return false;
-		return parsedCorrectResponse.some(
-			(p) => p === `${id1} ${id2}` || p === `${id2} ${id1}`
-		);
+		// A QTI pair is unordered: the key's "B A" is the candidate's "A B".
+		return hasUnorderedPair(parsedCorrectResponse, id1, id2);
 	}
 
 	// 1-based position of each choice as presented to the candidate (after shuffle):
@@ -383,7 +382,6 @@
 				{@const [id1, id2] = pair.split(' ')}
 				{@const choice1 = parsedInteraction.choices.find((c: any) => c.identifier === id1)}
 				{@const choice2 = parsedInteraction.choices.find((c: any) => c.identifier === id2)}
-				{@const isInUserPairs = pairs.some((p) => p === pair || p === `${id2} ${id1}`)}
 				{#if choice1 && choice2}
 					<div
 						part="correct-pair"

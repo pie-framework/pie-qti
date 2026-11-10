@@ -22,6 +22,12 @@ import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { createPickUpPlace } from '../../shared/components/pickUpPlace.svelte';
 	import { choicesShortOfMatchMin } from '../../shared/utils/minimumRequirement';
+	import {
+		getSourceForTarget,
+		getTargetForSource,
+		placeSourceOnTarget,
+		removePairBySource,
+	} from '../../shared/utils/pairHelpers';
 import { hitStrokeWidth, imageAltText, shapeCenter } from '../../shared/utils/graphicRegions';
 
 import '../../shared/styles/shared.css';
@@ -178,8 +184,7 @@ $effect(() => {
 
 // Get the hotspot matched to a gap text
 function getMatchedHotspot(gapTextId: string): string | null {
-	const pair = pairs.find((p) => p.startsWith(`${gapTextId} `));
-	return pair ? pair.split(' ')[1] : null;
+	return getTargetForSource(pairs, gapTextId);
 }
 
 /**
@@ -205,14 +210,12 @@ const minHint = $derived.by(() => {
 
 // Get the gap text matched to a hotspot
 function getMatchedGapText(hotspotId: string): string | null {
-	const pair = pairs.find((p) => p.endsWith(` ${hotspotId}`));
-	return pair ? pair.split(' ')[0] : null;
+	return getSourceForTarget(pairs, hotspotId);
 }
 
 // Get the correct gap text for a hotspot
 function getCorrectGapText(hotspotId: string): string | null {
-	const pair = correctPairs.find((p) => p.endsWith(` ${hotspotId}`));
-	return pair ? pair.split(' ')[0] : null;
+	return getSourceForTarget(correctPairs, hotspotId);
 }
 
 // Check if a hotspot has a correct answer
@@ -247,30 +250,26 @@ function handleHotspotDrop(event: DragEvent, hotspotId: string) {
 	if (disabled || !draggedTextId || !parsedInteraction) return;
 	event.preventDefault();
 
-	// matchGroup: refuse a placement the hotspot does not accept.
-	if (!canPlaceLabel(draggedTextId, hotspotId)) {
-		pickUp.endDrag();
-		hoveredHotspotId = null;
-		return;
-	}
+	// matchGroup: refuse a placement the hotspot does not accept; placeLabel refuses (and
+	// announces) one past maxAssociations.
+	if (canPlaceLabel(draggedTextId, hotspotId)) placeLabel(draggedTextId, hotspotId);
 
-	// Remove any existing pair for this gapText
-	let newPairs = pairs.filter((p) => !p.startsWith(`${draggedTextId} `));
+	pickUp.endDrag();
+	hoveredHotspotId = null;
+}
 
-	// Remove any existing pair for this hotspot
-	newPairs = newPairs.filter((p) => !p.endsWith(` ${hotspotId}`));
-
-	// Add new pair
-	newPairs.push(`${draggedTextId} ${hotspotId}`);
-
-	// maxAssociations: refuse a placement that would exceed the interaction's cap — the
-	// same maxima response validation enforces, announced here so an over-limit response
-	// never reaches the submit that would reject it.
+/**
+ * Place `labelId` on `hotspotId`: the hotspot's previous label is replaced, and a placed label
+ * moves — the palette retires a placed label, so each label holds one hotspot whatever its
+ * matchMax (capacity 1). A placement past maxAssociations is refused and announced — the same
+ * maxima response validation enforces — so an over-limit response never reaches the submit
+ * that would reject it. Returns whether the response changed.
+ */
+function placeLabel(labelId: string, hotspotId: string): boolean {
+	const newPairs = placeSourceOnTarget(pairs, labelId, hotspotId, 1);
 	if (exceedsMaxAssociations(newPairs)) {
 		announceAssociationLimit();
-		pickUp.endDrag();
-		hoveredHotspotId = null;
-		return;
+		return false;
 	}
 
 	isInternalUpdate = true; // Mark as internal update to prevent sync effect from overwriting
@@ -278,9 +277,7 @@ function handleHotspotDrop(event: DragEvent, hotspotId: string) {
 	response = pairs;
 	// Call onChange callback if provided (for Svelte component usage)
 	emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: pairs, onChange });
-
-	pickUp.endDrag();
-	hoveredHotspotId = null;
+	return true;
 }
 
 	async function clearMatch(labelId: string, event?: MouseEvent) {
@@ -290,7 +287,7 @@ function handleHotspotDrop(event: DragEvent, hotspotId: string) {
 		// wrapper (and that label button) survive the removal.
 		const wrapper = (event?.currentTarget as HTMLElement | null)?.parentElement ?? null;
 
-		const newPairs = pairs.filter((p) => !p.startsWith(`${labelId} `));
+		const newPairs = removePairBySource(pairs, labelId);
 		isInternalUpdate = true; // Mark as internal update
 		pairs = newPairs;
 		response = pairs;
@@ -410,24 +407,8 @@ function placePickedUpLabelOnHotspot(hotspotId: string) {
 			liveMessage = translate(i18n, 'interactions.graphicGapMatch.unavailableSentence', 'Not available due to a match group restriction.');
 			return false;
 		}
-
-		// Create match
-		let newPairs = pairs.filter((p) => !p.startsWith(`${labelId} `));
-		newPairs = newPairs.filter((p) => !p.endsWith(` ${hotspotId}`));
-		newPairs.push(`${labelId} ${hotspotId}`);
-
-		// maxAssociations: refuse a placement that would exceed the interaction's cap.
-		if (exceedsMaxAssociations(newPairs)) {
-			announceAssociationLimit();
-			return false;
-		}
-
-		isInternalUpdate = true; // Mark as internal update
-		pairs = newPairs;
-		response = pairs;
-		// Call onChange callback if provided (for Svelte component usage)
-		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: pairs, onChange });
-		return true;
+		// maxAssociations: placeLabel refuses (and announces) a placement past the cap.
+		return placeLabel(labelId, hotspotId);
 	});
 	if (placed === null) return;
 
