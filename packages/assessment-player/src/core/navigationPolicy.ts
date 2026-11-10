@@ -5,9 +5,9 @@
  * versus nonlinear delivery, test-part sequencing, time locks and review policy.
  * Moved out of `AssessmentPlayer.ts` verbatim (pure code motion): pure functions
  * over the delivery structure and predicates the orchestrator supplies — they
- * never take the transition lock, and they are kept separate from the backend's
- * branch evaluation (`integration/test-navigation.ts`), which decides *where* the
- * delivery rules go, not whether a move is legal.
+ * never take the transition lock, and they are kept separate from the delivery-rules
+ * walk (`testStructure.ts`, shared with the backend's `integration/test-navigation.ts`
+ * entry), which decides *where* the rules go, not whether a move is legal.
  */
 
 import type { SecureAssessment, SecureSection, SecureTestPart } from '../integration/api-contract.js';

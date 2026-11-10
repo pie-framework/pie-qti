@@ -198,7 +198,8 @@ collection runs through the same submit path but stores no decision — it never
 
 When no decision of yours applies — you omit the field, or the candidate jumps into the next test
 part — the player applies the test's
-branch rules and preconditions itself with the reference rules (`test-navigation.ts`), against the
+branch rules and preconditions itself with the reference rules (`testStructure.ts`, the shared
+walk the reference backend's `test-navigation.ts` re-exports), against the
 test outcomes you last returned and the item results you recorded (your `result.outcomeValues` over
 the item session): a test part whose precondition fails is never entered, and in a linear part a
 section or item whose precondition fails is skipped. A test without branch rules or preconditions
@@ -207,8 +208,9 @@ moves to the adjacent item, as before.
 The end of the test never navigates: a decision you return for the end's own collection is kept,
 not followed — the player finalizes where the candidate stands, so the final snapshot never
 records an unseen item as current or visited; if your finalize fails, the candidate's next `next()`
-from that item follows the decision. A decision that arrives after a scope expiry moved the
-candidate (the submission was in flight when the limit ran out) is not followed, and no decision
+from that item follows the decision. A decision returned by a submission a scope expiry raced is
+not followed (the limit ran out while the submission was in flight: the scope closed at once and
+the expiry's move follows the submission), and no decision
 re-enters a test part the candidate already left. `updatedState` carries your scores and attempt
 records but never moves the candidate: the player keeps its own `currentItemIdentifier` across it.
 The final snapshot saved before `finalizeAssessment()` carries every item session closed — the
