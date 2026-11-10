@@ -13,12 +13,18 @@
 		SectionPlayerVertical,
 		TestFeedback as SectionTestFeedback,
 	} from '@pie-qti/section-player/components';
-	import type { BackendAssessmentPlayerConfig, SubmissionBlocker } from '../core/AssessmentPlayer.js';
-	import { AssessmentPlayer } from '../core/AssessmentPlayer.js';
+	import type {
+		AssessmentPlayer,
+		AssessmentTimeExpiryEvent,
+		BackendAssessmentPlayerConfig,
+		ScopeTimeExpiryEvent,
+		SubmissionBlocker,
+	} from '../core/AssessmentPlayer.js';
 	import type { AutosaveState } from '../core/AutosaveManager.js';
 	import { assessmentErrorDisplay, isAssessmentPlayerError, isSubmissionBlockedError } from '../core/errors.js';
 	import { formatTime } from '../core/formatTime.js';
 	import type { ReviewGroup } from './ReviewScreen.svelte';
+	import { createPlayerConnection } from './createPlayerConnection.svelte.js';
 	import type { BackendAdapter, InitSessionRequest } from '../integration/api-contract.js';
 	import { toSectionComposition } from '../integration/toSectionComposition.js';
 	import type {
@@ -209,7 +215,51 @@
 		void Promise.resolve(typeset(node)).catch(() => {});
 	}
 
-	let player = $state<AssessmentPlayer | null>(null);
+	/**
+	 * The connection to the headless player (creation, event wiring, teardown,
+	 * retry, slow-load status) lives in the `createPlayerConnection` composable;
+	 * the shell reads its state through these aliases and hands it the session
+	 * handlers below.
+	 */
+	const connection = createPlayerConnection({
+		inputs: () => ({ backend, initSession, config, beginGate, autosave, autosaveIntervalMs }),
+		i18nProvider: playerI18n,
+		localizeError,
+		announce: (message, duration, level) => announcer?.announce(message, duration, level),
+		onPlayerError: handlePlayerError,
+		handlers: {
+			onItemChange: handleItemChanged,
+			onSectionChange: () => updateState(),
+			onTestFeedbackChange: () => {
+				if (connection.state.player) testFeedback = connection.state.player.getVisibleFeedback();
+			},
+			onResponseChange: () => {
+				// Targeted update: only the answered counts recompute; the section view
+				// renders from the live session and needs no rebuild per keystroke.
+				responseVersion += 1;
+			},
+			onBusyChange: () => updateState(),
+			onFlagChange: () => {
+				// Flag state lives in the core session state; re-render whatever shows it.
+				stateVersion += 1;
+			},
+			onAutosaveChange: (autosaveState) => {
+				saveStatus = autosaveState;
+			},
+			onComplete: handleCompleted,
+			onTimeExpired: handleTimeExpired,
+			onScopeTimeExpired: handleScopeTimeExpired,
+			onPauseChange: handlePauseChanged,
+		},
+		onSessionCreated: handleSessionCreated,
+		onSessionLive: handleSessionLive,
+	});
+	const player = $derived(connection.state.player);
+	const error = $derived(connection.state.error);
+	const initializing = $derived(connection.state.initializing);
+	const stillLoading = $derived(connection.state.stillLoading);
+	const hasFirstItem = $derived(connection.state.hasFirstItem);
+	const startPending = $derived(connection.state.startPending);
 	let navState = $state<NavigationState>({
 		currentIndex: -1,
 		totalItems: 0,
@@ -222,7 +272,6 @@
 	let currentItem = $state<any>(null);
 	let currentRubricBlocks = $state<any[]>([]);
 	let sections = $state<CandidateSectionView[]>([]);
-	let error = $state<{ message: string; supportCode: string | null } | null>(null);
 	let navError = $state<{ message: string; supportCode: string | null } | null>(null);
 	let submitError = $state<{ message: string; supportCode: string | null } | null>(null);
 	let isSubmitting = $state(false);
@@ -233,7 +282,6 @@
 	let verticalLayout = $state<SectionPlayerVertical | null>(null);
 	let testFeedback = $state<VisibleTestFeedback[]>([]);
 	let isComplete = $state(false);
-	let hasFirstItem = $state(false);
 	let announcer = $state<AccessibilityAnnouncer | null>(null);
 	/**
 	 * Two version counters keep response updates targeted (O(item), not O(assessment)):
@@ -246,9 +294,6 @@
 	let responseVersion = $state(0);
 	let compositionVersion = $state(0);
 	let stateVersion = $state(0);
-	/** Loading is taking long: a polite status, never a permanent error on its own. */
-	let stillLoading = $state(false);
-	let initializing = $state(false);
 	// Review screen + flag toggle
 	let reviewOpen = $state(false);
 	let reviewScreen = $state<ReviewScreen | null>(null);
@@ -262,8 +307,6 @@
 	let timerHidden = $state(false);
 	let paused = $state(false);
 	let pauseReason = $state<string | undefined>(undefined);
-	/** The begin gate holds delivery: the core was created without starting it. */
-	let startPending = $state(false);
 	let startHeadingEl = $state<HTMLElement | null>(null);
 	let pauseHeadingEl = $state<HTMLElement | null>(null);
 	let pauseOverlayEl = $state<HTMLElement | null>(null);
@@ -423,334 +466,235 @@
 			});
 	});
 
-	// Initialize the player; `retryInitialize()` runs this again after a load failure.
-	// A slow load is a polite status ("still loading"), never a permanent error: if the
-	// backend recovers later, the shell proceeds on its own.
-	let stillLoadingTimer: ReturnType<typeof setTimeout> | null = null;
-
-	function clearStillLoadingTimer() {
-		if (stillLoadingTimer) {
-			clearTimeout(stillLoadingTimer);
-			stillLoadingTimer = null;
-		}
-	}
-
-	function armStillLoadingTimer() {
-		clearStillLoadingTimer();
-		// Behind a begin gate the start screen is the expected view, not a slow load.
-		stillLoadingTimer = setTimeout(() => {
-			stillLoadingTimer = null;
-			if (!hasFirstItem && !error && !startPending) {
-				stillLoading = true;
-			}
-		}, 10000);
-	}
-
 	onMount(() => {
-		void initialize();
+		void connection.initialize();
 
 		return () => {
-			clearStillLoadingTimer();
-			teardownPlayer();
+			connection.destroy();
 		};
 	});
 
-	function teardownPlayer() {
-		const current = player;
-		player = null;
-		current?.destroy();
+	/**
+	 * The shell's part of the core's `onError` hook: a failed item entry (the
+	 * first item, or an expiry hop) additionally routes to the shell's typed
+	 * failure screen instead of an eternal bare loading state.
+	 */
+	function handlePlayerError(err: unknown) {
+		if (player?.hasEntryFailure() && !isComplete) {
+			// Assign once per distinct message: a retry that fails with the same
+			// error must not recreate the alert (and churn its focus).
+			const message = localizeError(err);
+			if (!error || error.message !== message.message) {
+				connection.state.error = message;
+				connection.state.stillLoading = false;
+				connection.clearStillLoadingTimer();
+				announcer?.announce(message.message, 3000, 'assertive');
+			}
+		}
 	}
 
-	async function initialize() {
-		if (initializing) return;
-		initializing = true;
-		error = null;
-		stillLoading = false;
-		armStillLoadingTimer();
+	/** Post-create shell sync: the restored pause, the terminal restored-finalized view, the sections. */
+	function handleSessionCreated(created: AssessmentPlayer) {
+		// A snapshot saved during a proctor pause reopens paused: no `onPauseChange`
+		// fired (the shell had no listener yet), so the overlay state syncs from the
+		// core here. The resume prompt below stays suppressed while it holds.
+		if (created.isPaused()) {
+			paused = true;
+			pauseReason = created.getPauseReason();
+		}
 
-		const hostOnError = config.onError;
-		const playerConfig: BackendAssessmentPlayerConfig = {
-			backend,
-			initSession,
-			showSections: config.showSections !== false,
-			allowSectionNavigation: config.allowSectionNavigation !== false,
-			showProgress: config.showProgress !== false,
-			...config,
-			// The shell prop and the core option open the same gate.
-			beginGate: beginGate || config.beginGate === true,
-			i18nProvider: playerI18n,
-			// The shell props and the core options tune the same autosave.
-			...(autosave === undefined ? {} : { autosave }),
-			...(autosaveIntervalMs === undefined ? {} : { autosaveIntervalMs }),
-			// The host's error hook stays; a failed item entry (the first item, or an
-			// expiry hop) additionally routes to the shell's typed failure screen instead
-			// of an eternal bare loading state.
-			onError: (err) => {
-				hostOnError?.(err);
-				if (player?.hasEntryFailure() && !isComplete) {
-					// Assign once per distinct message: a retry that fails with the same
-					// error must not recreate the alert (and churn its focus).
-					const message = localizeError(err);
-					if (!error || error.message !== message.message) {
-						error = message;
-						stillLoading = false;
-						clearStillLoadingTimer();
-						announcer?.announce(message.message, 3000, 'assertive');
-					}
-				}
-			},
+		// A session the backend stored as finalized is terminal: show the
+		// already-submitted completion view instead of delivery whose every action
+		// rejects, and never offer the resume prompt for it.
+		if (created.isFinalized()) {
+			restoredFinalized = true;
+			isComplete = true;
+			testFeedback = created.getVisibleFeedback();
+			resultsSummary = created.getResultsSummary();
+			sections = created.getAllSections();
+			announcer?.announce(
+				i18n.t('assessment.complete.alreadySubmitted', 'This test was already submitted.'),
+				4000,
+				'assertive',
+			);
+			return;
+		}
+
+		// Get sections
+		sections = created.getAllSections();
+	}
+
+	/** The session is live: enter the first item and settle the shell. */
+	async function handleSessionLive(created: AssessmentPlayer) {
+		// If backend did not restore a current item, start at index 0 — unless the
+		// begin gate holds, in which case start() enters it.
+		if (!startPending && created.getNavigationState().currentIndex < 0) {
+			await created.navigateTo(0);
+		} else {
+			updateState();
+			if (!startPending) {
+				connection.state.hasFirstItem = true;
+				connection.state.stillLoading = false;
+				connection.clearStillLoadingTimer();
+			}
+		}
+
+		// A restored snapshot with prior activity is a resume: ask the candidate
+		// whether to continue or start over. A restored-paused session stays behind
+		// the pause overlay (a proctor resumes it) — the prompt is deferred there and
+		// returns when the pause lifts; a begin gate already says "Continue" on its
+		// start screen. Without Start over (the `allowStartOver` prop) there is no
+		// choice to offer: the restored draft simply continues, announced.
+		if (!startPending && created.hasRestoredProgress()) {
+			if (!allowStartOver) {
+				announcer?.announce(
+					i18n.t('assessment.resume.resumedAnnouncement', 'Your saved answers were restored.'),
+					3000,
+					'polite',
+				);
+			} else if (paused) resumePromptDeferredByPause = true;
+			else resumeDialogOpen = true;
+		}
+
+		// The restored pause was never observed as a change: announce it like a live
+		// one. Focus lands on the overlay heading through the pause effect below (or
+		// stays on the start screen, which shows the pause behind a begin gate).
+		if (paused) {
+			announcer?.announce(
+				pauseReason
+					? i18n.t('assessment.pause.withReason', 'The assessment is paused: {reason}', { reason: pauseReason })
+					: i18n.t('assessment.pause.announcement', 'The assessment is paused.'),
+				4000,
+				'assertive',
+			);
+		}
+	}
+
+	/** A new item: refresh, reset its comment disclosure and scroll it to its top. */
+	async function handleItemChanged() {
+		updateState();
+		navError = null;
+		connection.state.hasFirstItem = true;
+		connection.state.stillLoading = false;
+		connection.clearStillLoadingTimer();
+		// The comment disclosure follows the active item's own comment.
+		commentDraft = player?.getItemComment() ?? '';
+		await tick();
+		// A new item starts at its top, whichever region scrolls.
+		contentEl?.scrollTo?.({ top: 0, behavior: 'auto' });
+		itemPaneEl?.scrollTo?.({ top: 0, behavior: 'auto' });
+	}
+
+	// Every ending finalizes the core the same way — the candidate's submit, a
+	// proctor's force-submit (during a pause or behind the begin gate too), a QTI
+	// EXIT_TEST branch, the whole-test time expiry — and the shell shows the same
+	// completed state and hands the results to the host once.
+	function handleCompleted(results: AssessmentResults) {
+		isComplete = true;
+		submitRequired = false;
+		// A force-submit behind the begin gate ends a test that never started: the
+		// start screen must not survive with a Begin that can do nothing.
+		connection.state.startPending = false;
+		// A proctor's forced submit can end the test during a pause: the completion
+		// view replaces the overlay too.
+		paused = false;
+		pauseReason = undefined;
+		sections = player?.getAllSections() ?? [];
+		// The completion view replaces delivery: nothing modal may survive it.
+		submitDialogOpen = false;
+		leavePartDialogOpen = false;
+		expiryDialog = null;
+		expiryDialogOpen = false;
+		reviewOpen = false;
+		feedbackDialogOpen = false;
+		resultsSummary = player?.getResultsSummary() ?? null;
+		endReason = player?.getEndReason() ?? results.endReason ?? null;
+		if (endReason === 'expiry') finishedByExpiry = true;
+		if (endReason === 'proctor') {
+			announcer?.announce(
+				i18n.t('assessment.complete.byProctorAnnouncement', 'Your proctor has submitted your test.'),
+				4000,
+				'assertive',
+			);
+		}
+		updateState();
+		deliverResults(results);
+	}
+
+	// A hard time limit ran out: the core auto-finalizes a whole-test expiry; a
+	// scope dead end leaves the candidate to submit from wherever they are.
+	function handleTimeExpired(event: AssessmentTimeExpiryEvent) {
+		updateState();
+		// What the open submit confirmation (or leave-part warning) says no longer
+		// holds — its blockers, its jumps: an expiry always closes it.
+		submitDialogOpen = false;
+		leavePartDialogOpen = false;
+		if (event.autoFinalized) {
+			// The completed view (and the results for the host) arrived through
+			// onComplete; say why it happened.
+			finishedByExpiry = true;
+			announcer?.announce(i18n.t('assessment.timeExpiry.autoSubmitted'), 4000, 'assertive');
+			expiryDialogOpen = false;
+			expiryDialog = null;
+			reviewOpen = false;
+			return;
+		}
+		if (event.submissionRequired) {
+			submitRequired = true;
+			expiryDialog = { mode: 'submit', scope: event.scope };
+			expiryDialogOpen = true;
+		}
+	}
+
+	// A part, section or question limit expired: its items closed and delivery
+	// moved on (or hit the dead end handled above).
+	function handleScopeTimeExpired(event: ScopeTimeExpiryEvent) {
+		updateState();
+		submitDialogOpen = false;
+		leavePartDialogOpen = false;
+		if (!event.deliveryContinues) return;
+		expiryDialog = {
+			mode: 'scope',
+			scope: event.scope,
+			...(event.nextIndex === undefined ? {} : { movingTo: event.nextIndex + 1 }),
 		};
+		expiryDialogOpen = true;
+	}
 
-		try {
-			const created = await AssessmentPlayer.create(playerConfig);
-			startPending = !created.hasStarted();
-			player = created;
-
-			// A snapshot saved during a proctor pause reopens paused: no `onPauseChange`
-			// fired (the shell had no listener yet), so the overlay state syncs from the
-			// core here. The resume prompt below stays suppressed while it holds.
-			if (created.isPaused()) {
-				paused = true;
-				pauseReason = created.getPauseReason();
+	// A proctor pause freezes the clocks and blocks the shell; the overlay says so.
+	function handlePauseChanged(isPaused: boolean, reason?: string) {
+		const wasPaused = paused;
+		paused = isPaused;
+		pauseReason = reason;
+		if (isPaused) {
+			if (!wasPaused) {
+				const active = document.activeElement;
+				focusBeforePause = active instanceof HTMLElement && active !== document.body ? active : null;
+				// No dialog survives a pause: a candidate must never answer or submit
+				// underneath one. The resume prompt returns when the pause lifts.
+				closeDialogsForPause();
 			}
-
-			// A session the backend stored as finalized is terminal: show the
-			// already-submitted completion view instead of delivery whose every action
-			// rejects, and never offer the resume prompt for it.
-			if (created.isFinalized()) {
-				restoredFinalized = true;
-				isComplete = true;
-				testFeedback = created.getVisibleFeedback();
-				resultsSummary = created.getResultsSummary();
-				sections = created.getAllSections();
-				announcer?.announce(
-					i18n.t('assessment.complete.alreadySubmitted', 'This test was already submitted.'),
-					4000,
-					'assertive',
-				);
-				return;
-			}
-
-			// Get sections
-			sections = player.getAllSections();
-
-			// An item entry that already failed during creation (the first item could not
-			// be entered) routes here: the typed failure screen replaces the bare loading
-			// state. Later entry failures (an expiry hop) report through onError.
-			if (created.hasEntryFailure()) {
-				error = localizeError(created.getEntryError()!);
-				stillLoading = false;
-				clearStillLoadingTimer();
-				announcer?.announce(error.message, 3000, 'assertive');
-				return;
-			}
-
-			// Set up event listeners
-			player.onItemChange(async () => {
+			const message = reason
+				? i18n.t('assessment.pause.withReason', 'The assessment is paused: {reason}', { reason })
+				: i18n.t('assessment.pause.announcement', 'The assessment is paused.');
+			announcer?.announce(message, 4000, 'assertive');
+			void tick().then(() => pauseHeadingEl?.focus());
+		} else {
+			announcer?.announce(i18n.t('assessment.pause.resumed', 'The assessment is running again.'), 3000, 'assertive');
+			// Focus returns where it was, or to the question when that element is gone.
+			const target = focusBeforePause;
+			focusBeforePause = null;
+			void tick().then(async () => {
 				updateState();
-				navError = null;
-				hasFirstItem = true;
-				stillLoading = false;
-				clearStillLoadingTimer();
-				// The comment disclosure follows the active item's own comment.
-				commentDraft = player?.getItemComment() ?? '';
 				await tick();
-				// A new item starts at its top, whichever region scrolls.
-				contentEl?.scrollTo?.({ top: 0, behavior: 'auto' });
-				itemPaneEl?.scrollTo?.({ top: 0, behavior: 'auto' });
+				if (target?.isConnected && !target.closest('[inert]')) target.focus();
+				else await manageFocusAfterNavigation();
 			});
-
-			player.onSectionChange(() => {
-				updateState();
-			});
-
-			player.onTestFeedbackChange(() => {
-				if (player) testFeedback = player.getVisibleFeedback();
-			});
-
-			player.onResponseChange(() => {
-				// Targeted update: only the answered counts recompute; the section view
-				// renders from the live session and needs no rebuild per keystroke.
-				responseVersion += 1;
-			});
-
-			player.onBusyChange(() => {
-				updateState();
-			});
-
-			player.onFlagChange(() => {
-				// Flag state lives in the core session state; re-render whatever shows it.
-				stateVersion += 1;
-			});
-
-			player.onAutosaveChange((state) => {
-				saveStatus = state;
-			});
-
-			// Every ending finalizes the core the same way — the candidate's submit, a
-			// proctor's force-submit (during a pause or behind the begin gate too), a QTI
-			// EXIT_TEST branch, the whole-test time expiry — and the shell shows the same
-			// completed state and hands the results to the host once.
-			player.onComplete((results) => {
-				isComplete = true;
-				submitRequired = false;
-				// A force-submit behind the begin gate ends a test that never started: the
-				// start screen must not survive with a Begin that can do nothing.
-				startPending = false;
-				// A proctor's forced submit can end the test during a pause: the completion
-				// view replaces the overlay too.
-				paused = false;
-				pauseReason = undefined;
-				sections = player?.getAllSections() ?? [];
-				// The completion view replaces delivery: nothing modal may survive it.
-				submitDialogOpen = false;
-				leavePartDialogOpen = false;
-				expiryDialog = null;
-				expiryDialogOpen = false;
-				reviewOpen = false;
-				feedbackDialogOpen = false;
-				resultsSummary = player?.getResultsSummary() ?? null;
-				endReason = player?.getEndReason() ?? results.endReason ?? null;
-				if (endReason === 'expiry') finishedByExpiry = true;
-				if (endReason === 'proctor') {
-					announcer?.announce(
-						i18n.t('assessment.complete.byProctorAnnouncement', 'Your proctor has submitted your test.'),
-						4000,
-						'assertive',
-					);
-				}
-				updateState();
-				deliverResults(results);
-			});
-
-			// A hard time limit ran out: the core auto-finalizes a whole-test expiry; a
-			// scope dead end leaves the candidate to submit from wherever they are.
-			player.onTimeExpired((event) => {
-				updateState();
-				// What the open submit confirmation (or leave-part warning) says no longer
-				// holds — its blockers, its jumps: an expiry always closes it.
-				submitDialogOpen = false;
-				leavePartDialogOpen = false;
-				if (event.autoFinalized) {
-					// The completed view (and the results for the host) arrived through
-					// onComplete; say why it happened.
-					finishedByExpiry = true;
-					announcer?.announce(i18n.t('assessment.timeExpiry.autoSubmitted'), 4000, 'assertive');
-					expiryDialogOpen = false;
-					expiryDialog = null;
-					reviewOpen = false;
-					return;
-				}
-				if (event.submissionRequired) {
-					submitRequired = true;
-					expiryDialog = { mode: 'submit', scope: event.scope };
-					expiryDialogOpen = true;
-				}
-			});
-
-			// A part, section or question limit expired: its items closed and delivery
-			// moved on (or hit the dead end handled above).
-			player.onScopeTimeExpired((event) => {
-				updateState();
-				submitDialogOpen = false;
-				leavePartDialogOpen = false;
-				if (!event.deliveryContinues) return;
-				expiryDialog = {
-					mode: 'scope',
-					scope: event.scope,
-					...(event.nextIndex === undefined ? {} : { movingTo: event.nextIndex + 1 }),
-				};
-				expiryDialogOpen = true;
-			});
-
-			// A proctor pause freezes the clocks and blocks the shell; the overlay says so.
-			player.onPauseChange((isPaused, reason) => {
-				const wasPaused = paused;
-				paused = isPaused;
-				pauseReason = reason;
-				if (isPaused) {
-					if (!wasPaused) {
-						const active = document.activeElement;
-						focusBeforePause = active instanceof HTMLElement && active !== document.body ? active : null;
-						// No dialog survives a pause: a candidate must never answer or submit
-						// underneath one. The resume prompt returns when the pause lifts.
-						closeDialogsForPause();
-					}
-					const message = reason
-						? i18n.t('assessment.pause.withReason', 'The assessment is paused: {reason}', { reason })
-						: i18n.t('assessment.pause.announcement', 'The assessment is paused.');
-					announcer?.announce(message, 4000, 'assertive');
-					void tick().then(() => pauseHeadingEl?.focus());
-				} else {
-					announcer?.announce(i18n.t('assessment.pause.resumed', 'The assessment is running again.'), 3000, 'assertive');
-					// Focus returns where it was, or to the question when that element is gone.
-					const target = focusBeforePause;
-					focusBeforePause = null;
-					void tick().then(async () => {
-						updateState();
-						await tick();
-						if (target?.isConnected && !target.closest('[inert]')) target.focus();
-						else await manageFocusAfterNavigation();
-					});
-					// A resume prompt the pause interrupted returns once delivery continues.
-					if (resumePromptDeferredByPause) {
-						resumePromptDeferredByPause = false;
-						if (!isComplete && allowStartOver && player?.hasRestoredProgress()) resumeDialogOpen = true;
-					}
-				}
-			});
-
-			// If backend did not restore a current item, start at index 0 — unless the
-			// begin gate holds, in which case start() enters it.
-			if (!startPending && player.getNavigationState().currentIndex < 0) {
-				await player.navigateTo(0);
-			} else {
-				updateState();
-				if (!startPending) {
-					hasFirstItem = true;
-					stillLoading = false;
-					clearStillLoadingTimer();
-				}
+			// A resume prompt the pause interrupted returns once delivery continues.
+			if (resumePromptDeferredByPause) {
+				resumePromptDeferredByPause = false;
+				if (!isComplete && allowStartOver && player?.hasRestoredProgress()) resumeDialogOpen = true;
 			}
-
-			// A restored snapshot with prior activity is a resume: ask the candidate
-			// whether to continue or start over. A restored-paused session stays behind
-			// the pause overlay (a proctor resumes it) — the prompt is deferred there and
-			// returns when the pause lifts; a begin gate already says "Continue" on its
-			// start screen. Without Start over (the `allowStartOver` prop) there is no
-			// choice to offer: the restored draft simply continues, announced.
-			if (!startPending && player.hasRestoredProgress()) {
-				if (!allowStartOver) {
-					announcer?.announce(
-						i18n.t('assessment.resume.resumedAnnouncement', 'Your saved answers were restored.'),
-						3000,
-						'polite',
-					);
-				} else if (paused) resumePromptDeferredByPause = true;
-				else resumeDialogOpen = true;
-			}
-
-			// The restored pause was never observed as a change: announce it like a live
-			// one. Focus lands on the overlay heading through the pause effect below (or
-			// stays on the start screen, which shows the pause behind a begin gate).
-			if (paused) {
-				announcer?.announce(
-					pauseReason
-						? i18n.t('assessment.pause.withReason', 'The assessment is paused: {reason}', { reason: pauseReason })
-						: i18n.t('assessment.pause.announcement', 'The assessment is paused.'),
-					4000,
-					'assertive',
-				);
-			}
-		} catch (err) {
-			console.error('Failed to initialize assessment player:', err);
-			error = localizeError(err);
-			announcer?.announce(error.message, 3000, 'assertive');
-			// The failure alert is announced; focus lands on its Retry control (the
-			// error-focus effect below).
-		} finally {
-			initializing = false;
-			clearStillLoadingTimer();
 		}
 	}
 
@@ -763,13 +707,13 @@
 	async function handleRetryInitialize() {
 		if (initializing) return;
 		if (player?.hasEntryFailure()) {
-			initializing = true;
-			error = null;
+			connection.state.initializing = true;
+			connection.state.error = null;
 			try {
 				await player.retryEntry();
 				navError = null;
-				hasFirstItem = true;
-				stillLoading = false;
+				connection.state.hasFirstItem = true;
+				connection.state.stillLoading = false;
 				updateState();
 				await manageFocusAfterNavigation();
 				announceCurrentQuestion();
@@ -778,14 +722,14 @@
 				// (the entry-failure mapping above), which owns the error state.
 				if (!isBusyRejection(err)) console.error('Retrying the failed item entry:', err);
 			} finally {
-				initializing = false;
+				connection.state.initializing = false;
 			}
 			return;
 		}
-		teardownPlayer();
-		hasFirstItem = false;
-		stillLoading = false;
-		await initialize();
+		connection.teardown();
+		connection.state.hasFirstItem = false;
+		connection.state.stillLoading = false;
+		await connection.initialize();
 	}
 
 	$effect(() => {
@@ -1168,7 +1112,7 @@
 	 */
 	async function handleBegin() {
 		if (!player || !startPending || isComplete || paused) return;
-		startPending = false;
+		connection.state.startPending = false;
 		player.start();
 		await waitForFirstItem();
 		updateState();
