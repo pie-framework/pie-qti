@@ -98,6 +98,14 @@ import {
 	type SectionItemRefView,
 } from './deliveryStructure.js';
 import {
+	ScopeLocks,
+	isItemLocked,
+	lockingScopeOf,
+	scopeKey,
+	scopeLimitRanOut,
+	type TimeScope,
+} from './scopeLocks.js';
+import {
 	interactionRequirementFromXml,
 	interactionResponseIdentifiers,
 	itemAnswerStatus,
@@ -402,7 +410,7 @@ export class AssessmentPlayer {
 	/** Results produced by the finalization; returned when submit() is called again after the end. */
 	private finalResults: AssessmentResults | null = null;
 	/** Scopes whose time limit expired without late submission, keyed `scope:identifier`. */
-	private readonly lockedScopes = new Set<string>();
+	private readonly scopeLocks = new ScopeLocks();
 	/**
 	 * Navigation serialization: exactly one navigation or submission transition may run at
 	 * a time. While set, further navigation and submit calls are rejected as busy.
@@ -631,25 +639,20 @@ export class AssessmentPlayer {
 	private lockExpiredScopesFromClocks(timing: AssessmentSessionState['timing'] | undefined): void {
 		if (!timing) return;
 		const extended = this.config.pnp?.content?.extendedTime;
-		const ranOut = (limits: TimeLimits | undefined, elapsedMs: number | undefined): boolean => {
-			if (limits?.maxTime === undefined || limits.allowLateSubmission === true) return false;
-			const maxSeconds = extendTimeLimit(limits.maxTime, extended);
-			return maxSeconds !== undefined && (Number(elapsedMs) || 0) >= maxSeconds * 1000;
-		};
+		const ranOut = (limits: TimeLimits | undefined, elapsedMs: number | undefined): boolean =>
+			scopeLimitRanOut(limits, elapsedMs, extended);
 		const expired: string[] = [];
-		const lock = (key: string): void => {
-			if (this.lockedScopes.has(key)) return;
-			this.lockedScopes.add(key);
-			expired.push(key);
+		const lock = (scope: TimeScope, identifier: string): void => {
+			if (this.scopeLocks.lock(scope, identifier)) expired.push(scopeKey(scope, identifier));
 		};
 		for (const q of this.items) {
 			if (ranOut(q.testPart.timeLimits, timing.testPartTimes?.[q.testPart.identifier])) {
-				lock(`testPart:${q.testPart.identifier}`);
+				lock('testPart', q.testPart.identifier);
 			}
 			for (const section of q.sections) {
-				if (ranOut(section.timeLimits, timing.sectionTimes?.[section.identifier])) lock(`section:${section.identifier}`);
+				if (ranOut(section.timeLimits, timing.sectionTimes?.[section.identifier])) lock('section', section.identifier);
 			}
-			if (ranOut(q.item.timeLimits, timing.itemTimes?.[q.identifier])) lock(`item:${q.identifier}`);
+			if (ranOut(q.item.timeLimits, timing.itemTimes?.[q.identifier])) lock('item', q.identifier);
 		}
 		if (ranOut(this.assessment.timeLimits, timing.totalTime)) {
 			this.assessmentExpired = true;
@@ -2136,7 +2139,7 @@ export class AssessmentPlayer {
 			// The snapshot's clocks are the time accounting from here on: expiries are
 			// recomputed from them before any item is entered, so a scope that already ran
 			// out never reopens editable (and one that has not is not held locked).
-			this.lockedScopes.clear();
+			this.scopeLocks.clear();
 			this.assessmentExpired = false;
 			this.restoredExpiryFinalizeScheduled = false;
 			this.timeManager?.resetExpiryRecord();
@@ -4124,27 +4127,12 @@ export class AssessmentPlayer {
 	}
 
 	private isItemLocked(q: FlatItem): boolean {
-		// A whole-test expiry closes every item: the collection of the test is all that remains.
-		if (this.assessmentExpired) return true;
-		return (
-			this.lockedScopes.has(`item:${q.identifier}`) ||
-			this.lockedScopes.has(`testPart:${q.testPart.identifier}`) ||
-			q.sections.some((section) => this.lockedScopes.has(`section:${section.identifier}`))
-		);
+		return isItemLocked(q, this.scopeLocks, this.assessmentExpired);
 	}
 
 	/** The expired scope that closes an item (outermost first); the assessment for a whole-test expiry. */
 	private lockingScopeOf(q: FlatItem | undefined): Pick<AssessmentTimeExpiryEvent, 'scope' | 'identifier'> {
-		if (this.assessmentExpired || !q) return { scope: 'assessment' };
-		if (this.lockedScopes.has(`testPart:${q.testPart.identifier}`)) {
-			return { scope: 'testPart', identifier: q.testPart.identifier };
-		}
-		for (const section of q.sections) {
-			if (this.lockedScopes.has(`section:${section.identifier}`)) {
-				return { scope: 'section', identifier: section.identifier };
-			}
-		}
-		return { scope: 'item', identifier: q.identifier };
+		return lockingScopeOf(q, this.scopeLocks, this.assessmentExpired);
 	}
 
 	/**
@@ -4220,7 +4208,7 @@ export class AssessmentPlayer {
 	 * and its report — waits for that end, and is moot once the end finalized.
 	 */
 	private handleScopeExpired(scope: 'testPart' | 'section' | 'item', identifier: string): void {
-		this.lockedScopes.add(`${scope}:${identifier}`);
+		this.scopeLocks.lock(scope, identifier);
 		if (this.endReason !== null) {
 			this.expiriesDuringEnd.push({ scope, identifier });
 			return;
