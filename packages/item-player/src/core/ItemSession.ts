@@ -19,7 +19,7 @@ import type {
 	SerializedItemSessionVariable,
 } from '../types/index.js';
 import type { BaseInteractionData } from '../interactions/shared/types.js';
-import { frozenSnapshot } from '../utils/cloneFreeze.js';
+import { deepFreezeInPlace, frozenSnapshot, withFreshTypedArrays } from '../utils/cloneFreeze.js';
 import { createPlayerFromPreparedInternal, type Player } from './Player.js';
 
 export interface OpenItemSessionOptions {
@@ -141,6 +141,13 @@ export interface ItemSessionBinding {
 	getComponentRegistry(): ItemSessionComponentRegistry;
 	getDeliveryContext(): ResolvedItemDeliveryContext | undefined;
 	getSecurityConfig(): PlayerSecurityConfig | undefined;
+	/**
+	 * Response identifiers the item's content prints live (`printedVariable` targets declared
+	 * as responses): the part of the response state a presentation's markup actually renders.
+	 * A presentation presenter can key its caching on these — other response changes only
+	 * carry interaction values, which present() reads into mounts, not into markup.
+	 */
+	getResponseIdentifiersPrintedInContent(): ReadonlySet<string>;
 	getI18nProvider(): unknown;
 	createPciHost(data: ExtractedPci): PciHostController;
 }
@@ -256,7 +263,9 @@ export class LiveItemSession implements ItemSession {
 		this.currentView = this.captureView(result?.sessionState);
 		const transition = freezeTransition({ command, previous, current: this.currentView, result });
 		this.notify(transition);
-		return transition;
+		// The returned hand-out isolates the typed-array leaves for the caller, exactly as
+		// each listener's copy does (see notify and withFreshTypedArrays).
+		return withFreshTypedArrays(transition);
 	}
 
 	present(view: ItemPresentationView = {}): ItemPresentation {
@@ -310,7 +319,9 @@ export class LiveItemSession implements ItemSession {
 		const previous = this.currentView;
 		this.disposed = true;
 		this.revision += 1;
-		this.currentView = frozenSnapshot({
+		// The previous view is deeply frozen, so the disposed view can share its variable
+		// records; only the new shell needs freezing.
+		this.currentView = deepFreezeInPlace({
 			...previous,
 			revision: this.revision,
 			disposed: true,
@@ -326,9 +337,19 @@ export class LiveItemSession implements ItemSession {
 		this.listeners.clear();
 	}
 
+	/**
+	 * Builds the immutable view a dispatch hands out. The variable records come from the
+	 * serializer, whose values are per-call copies already independent of the engine (see
+	 * qtiValueToSerializable) — freezing them in place needs no second clone. The shell is
+	 * frozen around them, which leaves the frozen records untouched.
+	 *
+	 * `canSubmit` validates the engine's own response snapshot record: the same record the
+	 * serializer's validation step used, so within one dispatch the validation memo hits and
+	 * the responses are walked once.
+	 */
 	private captureView(serialized = this.player.saveItemSession()): ItemSessionView {
-		const responses = valuesOf(serialized.responseVariables);
-		return frozenSnapshot({
+		const responses = frozenValuesOf(serialized.responseVariables);
+		return deepFreezeInPlace({
 			revision: this.revision,
 			itemIdentifier: serialized.itemIdentifier || this.itemIdentifier || undefined,
 			role: this.defaultRole,
@@ -338,12 +359,12 @@ export class LiveItemSession implements ItemSession {
 			duration: serialized.duration,
 			adaptive: this.player.isAdaptive(),
 			completed: this.player.isCompleted(),
-			canSubmit: this.player.canSubmitResponses(responses),
+			canSubmit: this.player.canSubmitResponses(this.player.responseSnapshot()),
 			disposed: this.disposed,
 			responses,
-			outcomes: valuesOf(serialized.outcomeVariables),
-			templates: valuesOf(serialized.templateVariables),
-			context: valuesOf(serialized.contextVariables),
+			outcomes: frozenValuesOf(serialized.outcomeVariables),
+			templates: frozenValuesOf(serialized.templateVariables),
+			context: frozenValuesOf(serialized.contextVariables),
 		});
 	}
 
@@ -387,6 +408,10 @@ export class LiveItemSession implements ItemSession {
 				this.assertActive();
 				return this.player.getSecurityConfig();
 			},
+			getResponseIdentifiersPrintedInContent: () => {
+				this.assertActive();
+				return this.player.getResponseIdentifiersPrintedInContent();
+			},
 			getI18nProvider: () => {
 				this.assertActive();
 				return this.player.getI18nProvider();
@@ -419,10 +444,19 @@ export class LiveItemSession implements ItemSession {
 		});
 	}
 
+	/**
+	 * Every listener receives a deeply frozen transition, and one whose unfreezable
+	 * typed-array leaves are its own: the frozen plain structure is shared across listeners
+	 * (no listener can observe another's view of it through mutation — freezing forbids it),
+	 * while each hand-out re-copies the leaves no platform can freeze (withFreshTypedArrays).
+	 * A dispatch without such leaves — every keystroke on ordinary items — hands the same
+	 * frozen object to every listener and clones nothing. A listener that must keep an owned
+	 * copy of the whole view uses `state()`.
+	 */
 	private notify(transition: ItemSessionTransition): void {
 		for (const listener of [...this.listeners]) {
 			try {
-				listener(frozenSnapshot(transition));
+				listener(withFreshTypedArrays(transition) as ItemSessionTransition);
 			} catch (error) {
 				console.error('[QTI ItemSession] subscriber failed:', error);
 			}
@@ -458,17 +492,34 @@ function describeCommand(command: ItemSessionCommand): string {
 		: `run ${command.action}`;
 }
 
-function valuesOf(
+/**
+ * The view's variable values, frozen for hand-out. The serializer's values are per-call
+ * copies independent of the engine, so freezing them in place needs no clone of its own.
+ */
+function frozenValuesOf(
 	variables: Record<string, SerializedItemSessionVariable>
 ): Readonly<Record<string, unknown>> {
 	return Object.fromEntries(
 		Object.entries(variables).map(([identifier, variable]) => [
 			identifier,
-			frozenSnapshot(variable.value),
+			deepFreezeInPlace(variable.value),
 		])
 	);
 }
 
+/**
+ * Freezes a dispatch's transition for hand-out. The previous and current views are deeply
+ * frozen already (captureView, dispose) and freeze in place for free. The command and the
+ * action result are engine output owned by this dispatch — the command is copied (it is the
+ * caller's object and carries the candidate's submitted value), while the result's serialized
+ * session state and validation/scoring results are per-call copies that freeze in place;
+ * the memoized base-validation result is shared with the engine's memo, which never mutates
+ * a result once built. What remains unfrozen are only the leaves no platform can freeze
+ * (typed arrays), as everywhere else in the clone/freeze family.
+ */
 function freezeTransition(transition: ItemSessionTransition): ItemSessionTransition {
-	return frozenSnapshot(transition);
+	return deepFreezeInPlace({
+		...transition,
+		command: frozenSnapshot(transition.command),
+	});
 }

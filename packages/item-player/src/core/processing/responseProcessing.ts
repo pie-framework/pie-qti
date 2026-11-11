@@ -311,6 +311,14 @@ export function runResponseProcessing(
 
 	// Compatibility: processResponses() has historically finalized non-adaptive items.
 	// New scoreAttempt() uses this same engine with finalization disabled.
+	// QTI ASI §5.2.1: submitting a non-adaptive item's attempt completes it — response
+	// processing "completes" the item session, so completionStatus moves to `completed`
+	// here even when the item has no rules of its own (an unscored item still completed
+	// its attempt). An adaptive item's completionStatus is its response processing's
+	// decision; a `completed` assignment authored in rules (as above for non-adaptive)
+	// stays whatever the rules made it. `incomplete` is never engine-assigned: rules set
+	// it, or the session stays `unknown`. See Player.beginAttempt for the earlier
+	// transitions of this variable.
 	if (!host.isAdaptive() && options.finalizeNonAdaptiveAttempt) {
 		host.ctx.setValue('completionStatus', qtiValue('identifier', 'single', 'completed'));
 	}

@@ -67,3 +67,46 @@ export function deepFreezeInPlace<T>(value: T): T {
 export function frozenSnapshot<T>(value: T): T {
 	return deepFreezeInPlace(cloneValue(value));
 }
+
+/**
+ * A hand-out copy of an ALREADY deeply frozen snapshot for one recipient. The frozen plain
+ * structure is shared as-is — freezing makes it unobservable to mutation — but every
+ * typed-array leaf, which the platform cannot freeze, is re-copied, so recipients never
+ * share the snapshot's mutable unfrozen data (listeners pin that isolation, see
+ * tests/core/assessment-item-definition.test.ts "detaches drawing response data"). Non-plain
+ * leaves keep their identity, as everywhere in this family. A snapshot with nothing to
+ * isolate returns unchanged, so the common dispatch shares one frozen object with every
+ * listener and pays no copies at all.
+ *
+ * Precondition: the value was produced by frozenSnapshot/deepFreezeInPlace. A shallow-walk
+ * finding of nothing to copy returns the input; a rebuilt branch is re-frozen in place, so
+ * the result satisfies the same deep-freeze invariant as the input.
+ */
+export function withFreshTypedArrays<T>(value: T): T {
+	return isolateTypedArrays(value) as T;
+}
+
+function isolateTypedArrays(value: unknown): unknown {
+	if (Array.isArray(value)) {
+		let changed = false;
+		const copy = value.map((entry) => {
+			const next = isolateTypedArrays(entry);
+			changed ||= next !== entry;
+			return next;
+		});
+		return changed ? deepFreezeInPlace(copy) : value;
+	}
+	if (!value || typeof value !== 'object') return value;
+	if (ArrayBuffer.isView(value) || value instanceof ArrayBuffer) return structuredClone(value);
+	const prototype = Object.getPrototypeOf(value);
+	// TrustedHTML, File, Blob and other class instances are terminal leaves (see the
+	// module doc): identity preserved, nothing to isolate.
+	if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) return value;
+	let changed = false;
+	const entries = Object.entries(value as Record<string, unknown>).map(([key, entry]) => {
+		const next = isolateTypedArrays(entry);
+		changed ||= next !== entry;
+		return [key, next];
+	});
+	return changed ? deepFreezeInPlace(Object.fromEntries(entries)) : value;
+}
