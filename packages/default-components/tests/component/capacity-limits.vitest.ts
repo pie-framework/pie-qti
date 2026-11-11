@@ -291,7 +291,7 @@ describe('authored selection messages, end to end', () => {
 		cleanupInteraction(mounted);
 	});
 
-	test('hottext: the authored minimum message states the badge', async () => {
+	test('hottext: the authored minimum message states the hint', async () => {
 		const interaction = delivered(
 			'cardinality="multiple" baseType="identifier"',
 			'<hottextInteraction responseIdentifier="RESPONSE" maxChoices="2" minChoices="2" data-min-selections-message="Pick both names."><p><hottext identifier="A">a</hottext> <hottext identifier="B">b</hottext></p></hottextInteraction>',
@@ -299,18 +299,18 @@ describe('authored selection messages, end to end', () => {
 		expect(interaction.minSelectionsMessage).toBe('Pick both names.');
 		const mounted = mountInteraction(HottextInteraction, { interaction });
 		await settle();
-		// The unmet-minimum badge states the authored message instead of the localized
+		// The unmet-minimum hint states the authored message instead of the localized
 		// "Select at least 2", before and between selections.
-		const footer = () => q(mounted, '.qti-hottext-footer')?.textContent ?? '';
-		expect(footer()).toContain('Pick both names.');
-		expect(footer()).not.toContain('Select at least 2');
+		const hint = () => q(mounted, '[part="min-hint"]')?.textContent ?? '';
+		expect(hint()).toBe('Pick both names.');
+		expect(hint()).not.toContain('Select at least 2');
 		qa<HTMLElement>(mounted, 'hottext')[0]!.click();
 		await settle();
-		expect(footer()).toContain('Pick both names.');
+		expect(hint()).toBe('Pick both names.');
 		qa<HTMLElement>(mounted, 'hottext')[1]!.click();
 		await settle();
-		expect(footer()).not.toContain('Pick both names.');
-		expect(footer()).toContain('Minimum met');
+		// Met: the hint goes, as in every min-choices interaction.
+		expect(hint()).toBe('');
 		cleanupInteraction(mounted);
 	});
 
