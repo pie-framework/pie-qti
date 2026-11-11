@@ -216,3 +216,84 @@ still hand-mirrors the section data-model family (drift-pinned, not yet derived)
 `QtiDetector` copy in transform-core; `evalExpr` as a 1,600-line function with per-call closure
 rebuilding; `@pie-qti/theme` and `@pie-qti/source-profiles` have no in-repo consumers; two
 `escapeText` intra-package copies remain in qti-common.
+
+---
+
+## Round-3 review loop (2026-11-11)
+
+Round 3 swept six fresh lenses: async/lifecycle races, error-handling rot, Svelte 5 reactivity
+misuse, injection/input paths, package & infra rot, plus a hard evidence audit of the parked
+round-2 moderates. Every serious claim was re-verified at HEAD before fixing. All seven fix
+branches (`fix/r3-*`) merged one at a time, each behind a full GREEN gate (409 e2e):
+
+- **Async/lifecycle:** `createPlayerConnection.initialize()` had no staleness guard after
+  `AssessmentPlayer.create()`, so a shell unmounted mid-creation adopted an orphaned player
+  whose timer ran forever (generation counter added); the assessment element's local-backend
+  load re-checked `#loadSeq` only after the first await, so a superseded parse could still
+  register the wrong assessment, replace an injected backend and mount after disconnect
+  (second recheck added, pinned by a deliberately interleaved race test).
+- **Silent failures (the round's dominant theme):** broken QTI test conditions (branchRule/
+  preCondition) evaluated errors to `false` with only a console line, rerouting delivery —
+  now reported as coded `testConditionFailed` while NULL keeps reading false per QTI; the
+  reference backend reported autosave/submit/finalize success for localStorage writes that
+  failed (quota), leaving the whole failed/backoff/`autosave-failed` contract unreachable —
+  writes now propagate honest failures; interaction mount failures dropped the interaction
+  with a console line while `render-failed` was busy mislabelling response-dispatch failures —
+  mounts now alert (`role="alert"`) and dispatch `render-failed`, dispatch failures get
+  `response-dispatch-failed`; a manufactured 0/1 scorer result now carries `scoringError`;
+  the event emitter isolates listener exceptions and the expiry-hop/busy-flag paths can no
+  longer strand delivery; hard submit/finalize failures now also reach `config.onError`
+  (documented policy: validation refusals stay inline-only).
+- **Section-player:** the persisted splitter position was dead code (an init `$effect` ran
+  after `onMount` in the same flush and reset it to 50); the tool bar's ToolkitCoordinator
+  snapshot never applied `tools` changes and leaked per remount (update/dispose lifecycle);
+  toolkit chunk-load failures and the inner item player's documented `error` event never
+  reached `qti-section-framework-error` (bridged; `toolkit-load-failed` code; README now
+  documents the event).
+- **Injection/input:** catalog entries ending in a filename-like token bypassed `sanitizeHtml`
+  via the URL branch and reached `innerHTML` unsanitized (markup-free predicate, shared by
+  the fallback popup); the production PCI sandbox connector could never deliver a message in
+  either direction (`sandbox="allow-scripts"` makes the frame's origin opaque, which neither
+  matches a tuple-origin filter nor a tuple targetOrigin — inbound accepts the opaque
+  `"null"` origin behind the contentWindow identity check, outbound posts `'*'`; real-browser
+  handshake verification stays open, noted in the changeset); four pie-to-qti2 generators
+  interpolated raw ids into `identifier="…"` attributes (prefixed/escaped, goldens unchanged
+  for well-formed ids); to-pie re-emitted a decoded `rubricBlock/@class` unescaped; authored
+  patterns run against candidate text now stop at a documented 10,000-character subject cap
+  (`patternMatch` in qti-processing, `patternMask` validation in item-player).
+- **Facade drift:** player-elements' 16 hand-mirrored section data-model interfaces had
+  already drifted (missing `assessmentId`/`pnp`/`onDisplaySettingsChange`, plus
+  `resourceResolver` the audit caught) — fields fixed and a source-walking drift test now
+  covers the whole family; malformed `items-json`/`config-json`/`security-json` attributes
+  no longer silently keep stale values (validated, reported via `load-error`, removal clears);
+  `parseJsonProp` no longer returns truncated JSON as its object type; to-pie
+  `extractExtensions` throws on a corrupt `pie:sourceModel` instead of silently dropping the
+  author's extensions to QTI metadata — which exposed that its CDATA read had never parsed
+  successfully at all (Breaking note).
+- **Parked moderates, resolved:** the hotspot/graphic-gap-match `reportWidth` wiring is in
+  (marker scaling live, renderScale-pinned tests); the "stale QtiDetector" was reframed — it
+  is one intentional, tested detector — but the audit surfaced a real bug beside it:
+  `DetectFormatActivity` sniffed `<assessmentItem` before the QTI 3.0 namespace check, so
+  live 3.0 content misdetected as 2.2 (now delegates to qti-common's canonical
+  `detectQtiVersion`); the three byte-identical `escapeText` copies in qti-common are one
+  export; `evalExpr`'s six pure per-call closures are documented for a future hoist (the
+  1,300-line function itself stays, its call path is cold); `@pie-qti/theme` and
+  `source-profiles` confirmed intentional published integration surfaces (README-declared,
+  no in-repo consumers by design).
+- **Infra rot:** the three `tools/cli` scripts ran an undeclared `ts-node` loader against
+  deliberately non-executable modules (deleted; the real CLI commands verified by running
+  them on fixtures); `docs:preview` targeted a turbo task that did not exist (added,
+  persistent task semantics per the installed turbo docs); the three release-incident
+  regression test scripts in `scripts/` ran under nothing (root `test:scripts` + CI step);
+  the dead local-PIE-players machinery (`@pie-framework` peerDeps, postinstall script,
+  bunfig example) deleted; unused dependencies removed from apps/docs (dropping the whole
+  player build graph from docs builds), pie-to-qti2 and tools/cli (whose `help` subcommand
+  never actually worked even with the plugin installed); demo-vendor-extensions added to
+  changesets `ignore`; test-utils gained the typecheck CI skipped.
+
+Recorded, not fixed (moderate, unscheduled): concurrent multi-module PCI loads share one AMD
+global realm and can clobber each other (amdLoader/pageRealmSession); the three elements'
+error-event detail shapes still lack one documented base; ~80 raw `console.*` calls across
+delivery packages with `@pie-qti/logger` used by two files; evalExpr closure hoisting;
+per-package `clean`/`lint` script drift outside the root composition; the slack-github-action
+version split in workflows; a real-browser PCI sandbox handshake verification.
