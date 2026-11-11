@@ -355,6 +355,8 @@ export interface QtiSectionRuntimeHost {
 	onActiveItemChange?(event: QtiSectionActiveItemChangeEvent): void;
 	onSnapshotChange?(snapshot: QtiSectionSnapshot): void;
 	onFrameworkError?(error: QtiSectionFrameworkError): void;
+	/** The candidate changed their display settings; the event carries the session's `pnp`. */
+	onDisplaySettingsChange?(event: QtiSectionDisplaySettingsEvent): void;
 }
 
 export interface QtiAssessmentPlayerConfig {
@@ -672,6 +674,8 @@ export interface QtiSectionSharedContext {
 
 export interface QtiSectionModel {
 	identifier: string;
+	/** The assessment the section belongs to; names the tool bars' toolkit assessment. */
+	assessmentId?: string;
 	title?: string;
 	role?: QtiRole;
 	view?: string[];
@@ -704,6 +708,17 @@ export interface QtiSectionComposition {
 	diagnostics: QtiSectionDiagnostic[];
 	security?: QtiPlayerSecurityConfig;
 	host?: QtiSectionRuntimeHost;
+	/**
+	 * The assessment the section belongs to. It names the tool bars' toolkit
+	 * assessment and keys the candidate's session display settings; layouts fall
+	 * back to the section identifier.
+	 */
+	assessmentId?: string;
+	/**
+	 * The candidate's PNP. A layout given no `pnp` of its own applies this one: its
+	 * display needs to the whole section surface, the rest to the items.
+	 */
+	pnp?: QtiPnpProfile;
 }
 
 import type {
@@ -802,4 +817,6 @@ export interface ResolveItemsForAssessmentOptions {
 	fetchPolicy?: QtiItemFetchPolicy;
 	fetch?: typeof globalThis.fetch;
 	signal?: AbortSignal;
+	/** Shared bounded resolver, allowing callers to reuse its cache for section/assets. */
+	resourceResolver?: (href: string) => Promise<string>;
 }
