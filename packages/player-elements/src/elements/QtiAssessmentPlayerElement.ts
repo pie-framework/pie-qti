@@ -18,6 +18,7 @@ import type {
 	PlayerSecurityConfig,
 	QTIRole,
 } from '@pie-qti/item-player';
+import { parseQtiRole } from '@pie-qti/item-player';
 import { enforceItemXmlLimits, normalizeParsingLimits } from '@pie-qti/item-player/security';
 import AssessmentShell from '@pie-qti/assessment-player/components/AssessmentShell.svelte';
 import { QTI_ASSESSMENT_PLAYER_TAG } from '../constants.js';
@@ -39,17 +40,13 @@ import { BaseSvelteMountElement } from './BaseSvelteMountElement.js';
  */
 type AssessmentElementConfig = Partial<BackendAssessmentPlayerConfig> & { rng?: () => number };
 
-const QTI_ROLES: readonly QTIRole[] = ['candidate', 'scorer', 'proctor', 'testConstructor', 'tutor', 'author'];
-
-/** Unknown values never change delivery silently: the candidate view renders, with a warning. */
+/**
+ * Unknown values never change delivery silently: they render as `candidate`, warned once —
+ * the same contract as the item element, from the shared parser. `undefined` (attribute
+ * absent) stays the config-fallback state.
+ */
 function parseQtiRoleAttribute(value: string | null): QTIRole | undefined {
-	if (value === null) return undefined;
-	const role = QTI_ROLES.find((candidate) => candidate === value);
-	if (role) return role;
-	console.warn(
-		`assessment-player: unknown qti-role '${value}' ignored; the candidate view renders. Accepted values are ${QTI_ROLES.join(', ')}, set with the qti-role attribute or the role property.`,
-	);
-	return undefined;
+	return value === null ? undefined : parseQtiRole(value);
 }
 
 export type QtiAssessmentResponseChangeDetail = {

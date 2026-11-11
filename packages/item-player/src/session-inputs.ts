@@ -25,12 +25,12 @@
  */
 
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
-import { warnOnce } from '@pie-qti/qti-common';
 import type { ProcessingFragmentResolver } from '@pie-qti/qti-processing';
 import type {
 	AssessmentItemDefinitionConfig,
 	AssessmentItemDefinitionPlugin,
 } from './core/AssessmentItemDefinition.js';
+import { parseQtiRole } from './core/rolePolicy.js';
 import type { PnpProfile } from './pnp/types.js';
 import type { PlayerSecurityConfig, QTIRole } from './types/index.js';
 
@@ -105,29 +105,8 @@ export type SessionInputDescriptor = {
 	>;
 };
 
-const QTI_ROLES: readonly QTIRole[] = [
-	'candidate',
-	'scorer',
-	'proctor',
-	'testConstructor',
-	'tutor',
-	'author',
-];
-
-export function isQtiRole(value: string): value is QTIRole {
-	return (QTI_ROLES as readonly string[]).includes(value);
-}
-
-/** Unknown values never make the item silently read-only: they render as `candidate`. */
-export function parseQtiRole(value: string | null | undefined): QTIRole {
-	const role = value ?? 'candidate';
-	if (isQtiRole(role)) return role;
-	warnOnce(
-		'item-player:unknown-role',
-		`Unknown player role '${role}': the item renders as 'candidate'. Accepted values are ${QTI_ROLES.join(', ')}, set with the qti-role attribute or the role property.`,
-	);
-	return 'candidate';
-}
+// The role list and its parser live in core/rolePolicy.ts — the one copy every
+// player element shares.
 
 /** Shallow list equality, so re-assigning an equal list is not a new definition. */
 function sameList(a: readonly unknown[] | undefined, b: readonly unknown[] | undefined): boolean {

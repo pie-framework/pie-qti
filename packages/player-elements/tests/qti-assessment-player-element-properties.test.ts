@@ -147,8 +147,8 @@ describe('the qti-role attribute', () => {
 			console.warn = originalWarn;
 		}
 
-		expect(element.role).toBeNull();
-		expect(element.exposeConfig().role).toBeUndefined();
+		expect(element.role).toBe('candidate');
+		expect(element.exposeConfig().role).toBe('candidate');
 		expect(warnings).toHaveLength(1);
 		expect(warnings[0]).toContain('qti-role');
 		expect(warnings[0]).toContain('administrator');

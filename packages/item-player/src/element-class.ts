@@ -17,11 +17,10 @@ import type {
 	AssessmentItemDefinitionPlugin,
 } from './core/AssessmentItemDefinition.js';
 import type { ItemSession } from './core/ItemSession.js';
+import { isQtiRole, parseQtiRole } from './core/rolePolicy.js';
 import type { PnpProfile } from './pnp/types.js';
 import {
 	SESSION_INPUTS,
-	isQtiRole,
-	parseQtiRole,
 	type SessionInputKey,
 	type SessionInputRaw,
 	type SessionInputValues,
