@@ -312,6 +312,49 @@ describe('mapResponsePoint', () => {
 		);
 		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 2));
 	});
+
+	// Pins the ellipse and poly hit tests exactly: the area boundary counts as inside
+	// (their tests are inclusive), and a zero radius or malformed polygon holds nothing.
+	const scorePointIn = (entries: { shape: 'ellipse' | 'poly'; coords: string; mappedValue: number }[], value: string) =>
+		run(
+			{
+				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
+				RESPONSE: {
+					identifier: 'RESPONSE',
+					baseType: 'point',
+					cardinality: 'single',
+					value: qtiValue('point', 'single', value),
+					areaMapping: { defaultValue: 0, entries },
+				},
+			},
+			`<setOutcomeValue identifier="OUT"><mapResponsePoint identifier="RESPONSE"/></setOutcomeValue>`,
+		).getValue('OUT');
+
+	it('scores an ellipse area within its radii, on the boundary, not past it', () => {
+		const entries = [{ shape: 'ellipse' as const, coords: '50,50,20,10', mappedValue: 4 }];
+		expect(scorePointIn(entries, '50 55')).toEqual(qtiValue('float', 'single', 4));
+		expect(scorePointIn(entries, '30 50')).toEqual(qtiValue('float', 'single', 4));
+		expect(scorePointIn(entries, '50 65')).toEqual(qtiValue('float', 'single', 0));
+		expect(scorePointIn(entries, '75 50')).toEqual(qtiValue('float', 'single', 0));
+		// rx 0 or ry 0 would divide by zero; the area simply holds no point.
+		expect(
+			scorePointIn([{ shape: 'ellipse' as const, coords: '50,50,0,10', mappedValue: 4 }], '50 50'),
+		).toEqual(qtiValue('float', 'single', 0));
+	});
+
+	it('scores a poly area by ray casting over its vertices', () => {
+		const square = '0,0,10,0,10,10,0,10';
+		const entries = [{ shape: 'poly' as const, coords: square, mappedValue: 5 }];
+		expect(scorePointIn(entries, '5 5')).toEqual(qtiValue('float', 'single', 5));
+		expect(scorePointIn(entries, '15 5')).toEqual(qtiValue('float', 'single', 0));
+		// Fewer than six numbers, or an odd count, is no polygon at all.
+		expect(scorePointIn([{ shape: 'poly' as const, coords: '0,0,10,0,10', mappedValue: 5 }], '5 5')).toEqual(
+			qtiValue('float', 'single', 0),
+		);
+		expect(scorePointIn([{ shape: 'poly' as const, coords: '0,0,10,0,10,10,0', mappedValue: 5 }], '5 5')).toEqual(
+			qtiValue('float', 'single', 0),
+		);
+	});
 });
 
 describe('mapping inside a full response condition', () => {
