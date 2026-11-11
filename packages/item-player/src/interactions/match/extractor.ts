@@ -5,6 +5,7 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import { validateUniqueIdentifiers } from '../../extraction/utils.js';
 import { maybeShuffle } from '../../core/shuffle.js';
 
 /**
@@ -157,29 +158,11 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 
 		// Validate choice identifiers
 		if (data.sourceSet) {
-			const identifiers = new Set<string>();
-			for (const choice of data.sourceSet) {
-				if (!choice.identifier) {
-					errors.push('All source choices must have an identifier');
-				} else if (identifiers.has(choice.identifier)) {
-					errors.push(`Duplicate source identifier: ${choice.identifier}`);
-				} else {
-					identifiers.add(choice.identifier);
-				}
-			}
+			validateUniqueIdentifiers(data.sourceSet, errors, { plural: 'source choices', noun: 'source' });
 		}
 
 		if (data.targetSet) {
-			const identifiers = new Set<string>();
-			for (const choice of data.targetSet) {
-				if (!choice.identifier) {
-					errors.push('All target choices must have an identifier');
-				} else if (identifiers.has(choice.identifier)) {
-					errors.push(`Duplicate target identifier: ${choice.identifier}`);
-				} else {
-					identifiers.add(choice.identifier);
-				}
-			}
+			validateUniqueIdentifiers(data.targetSet, errors, { plural: 'target choices', noun: 'target' });
 		}
 
 		// Validate maxAssociations

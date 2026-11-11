@@ -1,4 +1,5 @@
 import { durationSeconds } from '@pie-qti/qti-processing';
+import { inferBaseType } from './inferBaseType.js';
 import type {
 	AssessmentItemResult,
 	AssessmentResultReport,
@@ -283,12 +284,6 @@ function recordValueElements(raw: unknown, where: string): ValueElement[] {
 		});
 	}
 	return values;
-}
-
-function inferBaseType(value: unknown): ResultBaseType {
-	if (typeof value === 'boolean') return 'boolean';
-	if (typeof value === 'number') return Number.isInteger(value) ? 'integer' : 'float';
-	return 'string';
 }
 
 /** A single value in its QTI lexical form, or null when there is nothing to write. */

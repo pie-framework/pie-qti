@@ -5,8 +5,10 @@
  */
 
 import type { ElementExtractor, ExtractionUtils } from '../../extraction/types.js';
+import { validateUniqueIdentifiers } from '../../extraction/utils.js';
 import type { DeliveredInteraction, GapMatchInteractionData, QTIElement } from '../../interactions/shared/types.js';
 import { maybeShuffle } from '../../core/shuffle.js';
+import { readHtmlAttribute } from '../../utils/htmlAttributes.js';
 import { normalizeCssPixelLength, normalizePixelDimension } from '../../security/styleValues.js';
 import { findInteractionImage } from '../shared/interactionImage.js';
 import { predatesQti22 } from '../shared/specDefaults.js';
@@ -19,11 +21,6 @@ const GAP_MATCH_OPEN_PATTERN = /<(?:qti-gap-match-interaction|gapMatchInteractio
 const GAP_MATCH_CLOSE_PATTERN = /<\/(?:qti-gap-match-interaction|gapMatchInteraction)>/i;
 const PROMPT_PATTERN = /<(?:qti-prompt|prompt)\b[\s\S]*?<\/(?:qti-prompt|prompt)>/gi;
 
-function extractAttribute(attrs: string, name: string): string {
-	const match = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i').exec(attrs);
-	return (match?.[1] ?? match?.[2] ?? '').trim();
-}
-
 function promptTextFromInteractionBody(interactionHtml: string): string {
 	return interactionHtml
 		.replace(GAP_MATCH_OPEN_PATTERN, '')
@@ -32,7 +29,7 @@ function promptTextFromInteractionBody(interactionHtml: string): string {
 		.replace(GAP_TEXT_PATTERN, '')
 		.replace(GAP_IMG_PATTERN, '')
 		.replace(GAP_ELEMENT_PATTERN, (_match, attrs: string) => {
-			const id = extractAttribute(attrs, 'identifier');
+			const id = readHtmlAttribute(attrs, 'identifier');
 			return id ? `[GAP:${id}]` : '';
 		})
 		.replace(GAP_CLOSE_PATTERN, '')
@@ -298,7 +295,7 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 			// getHtmlContent deliberately removed.
 			promptText = prompt
 				.replace(GAP_ELEMENT_PATTERN, (_match, attrs: string) => {
-					const id = extractAttribute(attrs, 'identifier');
+					const id = readHtmlAttribute(attrs, 'identifier');
 					return id ? `[GAP:${id}]` : '';
 				})
 				.replace(GAP_CLOSE_PATTERN, '')
@@ -312,7 +309,7 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 			const interactionHtml = utils.getHtmlContent(element);
 			const gapIdMatches = Array.from(interactionHtml.matchAll(GAP_ELEMENT_PATTERN));
 			for (const m of gapIdMatches) {
-				const id = extractAttribute(m[1] ?? '', 'identifier');
+				const id = readHtmlAttribute(m[1] ?? '', 'identifier');
 				if (id) gaps.push(id);
 			}
 
@@ -424,16 +421,7 @@ export const standardGapMatchExtractor: ElementExtractor<GapMatchData> = {
 
 		// Validate gap identifiers
 		if (data.gaps) {
-			const identifiers = new Set<string>();
-			for (const gap of data.gaps) {
-				if (!gap) {
-					errors.push('All gaps must have an identifier');
-				} else if (identifiers.has(gap)) {
-					errors.push(`Duplicate gap identifier: ${gap}`);
-				} else {
-					identifiers.add(gap);
-				}
-			}
+			validateUniqueIdentifiers(data.gaps, errors, { plural: 'gaps', noun: 'gap' });
 		}
 
 		return {

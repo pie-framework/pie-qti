@@ -147,6 +147,32 @@ function wrapsContentWithIdref(element: QTIElement, idref: string): boolean {
 }
 
 /**
+ * Validates one choice-like identifier set for an extractor: every item must carry an identifier
+ * and none may repeat, as an interaction whose response holds identifiers would otherwise be
+ * ambiguous. Items are identifiers (gapMatchInteraction's gaps are bare strings) or objects with
+ * an optional `identifier`; each failure pushes one error into `errors`, with the same wording for
+ * every extractor. `labels.plural` names the set in the missing-identifier error ("source
+ * choices"), `labels.noun` in the duplicate error ("source").
+ */
+export function validateUniqueIdentifiers(
+	items: ReadonlyArray<string | { identifier?: string } | undefined>,
+	errors: string[],
+	labels: { plural: string; noun: string }
+): void {
+	const identifiers = new Set<string>();
+	for (const item of items) {
+		const identifier = typeof item === 'string' ? item : item?.identifier;
+		if (!identifier) {
+			errors.push(`All ${labels.plural} must have an identifier`);
+		} else if (identifiers.has(identifier)) {
+			errors.push(`Duplicate ${labels.noun} identifier: ${identifier}`);
+		} else {
+			identifiers.add(identifier);
+		}
+	}
+}
+
+/**
  * Create extraction utilities instance
  * Provides standard helpers for extracting data from QTI elements.
  * Automatically handles both QTI 2.x and QTI 3.0 element and attribute naming conventions.

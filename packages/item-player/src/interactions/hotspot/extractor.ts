@@ -5,6 +5,7 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import { validateUniqueIdentifiers } from '../../extraction/utils.js';
 import { normalizePixelDimension } from '../../security/styleValues.js';
 import { extractImageAlternative, imgAlternativeSource } from '../shared/imageAlt.js';
 import { findInteractionImage } from '../shared/interactionImage.js';
@@ -184,16 +185,9 @@ export const standardHotspotExtractor: ElementExtractor<HotspotData> = {
 
 		// Validate hotspot identifiers and coords
 		if (data.hotspotChoices && data.hotspotChoices.length > 0) {
-			const identifiers = new Set<string>();
-			for (const hotspot of data.hotspotChoices) {
-				if (!hotspot.identifier) {
-					errors.push('All hotspots must have an identifier');
-				} else if (identifiers.has(hotspot.identifier)) {
-					errors.push(`Duplicate hotspot identifier: ${hotspot.identifier}`);
-				} else {
-					identifiers.add(hotspot.identifier);
-				}
+			validateUniqueIdentifiers(data.hotspotChoices, errors, { plural: 'hotspots', noun: 'hotspot' });
 
+			for (const hotspot of data.hotspotChoices) {
 				// The default shape is the whole image (QTI 3.0 §8.29 ShapeEnum), so its coords
 				// say nothing; every other shape is placed by them.
 				if (!hotspot.coords && hotspot.shape !== 'default') {

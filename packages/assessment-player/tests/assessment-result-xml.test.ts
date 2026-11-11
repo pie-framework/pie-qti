@@ -14,6 +14,7 @@ import {
 	serializeAssessmentResult,
 	toAssessmentResultXml,
 } from '../src/reporting/index.js';
+import { inferBaseType } from '../src/reporting/inferBaseType.js';
 
 const QTI22 = 'http://www.imsglobal.org/xsd/imsqti_v2p2';
 
@@ -192,6 +193,33 @@ describe('serializeAssessmentResult', () => {
 		expect(children(item).at(-1)?.localName).toBe('candidateComment');
 	});
 
+	it('infers undeclared record fields as integer or float, the one shared rule', () => {
+		const xml = serializeAssessmentResult(
+			{
+				context: {},
+				itemResults: [
+					{
+						identifier: 'Q',
+						datestamp: 0,
+						sessionStatus: 'final',
+						variables: [
+							{ kind: 'response', identifier: 'NUMERIC', cardinality: 'record', value: { whole: 3, fraction: 3.5 } },
+						],
+					},
+				],
+			},
+			{ version: '3.0' },
+		);
+		const [item] = children(parseResult(xml, '3.0'), 'itemResult') as [Element];
+		const fields = children(children(variable(item, 'NUMERIC'), 'candidateResponse')[0] as Element, 'value');
+		expect(
+			fields.map((field) => [field.getAttribute('fieldIdentifier'), field.getAttribute('baseType'), field.textContent]),
+		).toEqual([
+			['whole', 'integer', '3'],
+			['fraction', 'float', '3.5'],
+		]);
+	});
+
 	it('rejects what the target schema cannot carry', () => {
 		const withStatus = (sessionStatus: 'pendingExternalScoring') => ({
 			...REPORT,
@@ -358,6 +386,17 @@ describe('toAssessmentResultXml', () => {
 		expect(values(variable(draft, 'duration'))).toEqual(['4']);
 	});
 
+	it('infers undeclared outcome base types as integer or float, the one shared rule', () => {
+		const data = { ...resultsData(), outcomes: { WHOLE: 3, FRACTION: 3.5, LIST: [3, 4], MIXED: [3, 3.5] } };
+		const root = parseResult(toAssessmentResultXml(data, { version: '3.0', candidateSourcedId: 'cand1' }), '3.0');
+		const [test] = children(root, 'testResult') as [Element];
+		expect([variable(test, 'WHOLE').getAttribute('baseType'), values(variable(test, 'WHOLE'))]).toEqual(['integer', ['3']]);
+		expect([variable(test, 'FRACTION').getAttribute('baseType'), values(variable(test, 'FRACTION'))]).toEqual(['float', ['3.5']]);
+		// A list is integer only when every member is whole; one fraction makes it float, for every member.
+		expect([variable(test, 'LIST').getAttribute('baseType'), values(variable(test, 'LIST'))]).toEqual(['integer', ['3', '4']]);
+		expect([variable(test, 'MIXED').getAttribute('baseType'), values(variable(test, 'MIXED'))]).toEqual(['float', ['3', '3.5']]);
+	});
+
 	it('includes correct responses on request', () => {
 		const report = buildAssessmentResultReport(resultsData(), { includeCorrectResponses: true });
 		const response = report.itemResults[0]?.variables.find((v) => v.identifier === 'RESPONSE');
@@ -370,5 +409,23 @@ describe('toAssessmentResultXml', () => {
 		data.state.itemSessions = { Q1: { ...Q1, lifecycleStatus: 'interacting', savedAt: '2026-03-01T09:03:00.000Z' } };
 		const report = buildAssessmentResultReport(data);
 		expect(report.itemResults[0]).toMatchObject({ identifier: 'Q1', sessionStatus: 'pendingSubmission' });
+	});
+});
+
+describe('inferBaseType (the undeclared-value rule both writers share)', () => {
+	it('types a boolean a boolean, a whole number an integer, a fraction a float, anything else a string', () => {
+		expect(inferBaseType(true)).toBe('boolean');
+		expect(inferBaseType(3)).toBe('integer');
+		expect(inferBaseType(3.5)).toBe('float');
+		expect(inferBaseType('3')).toBe('string');
+		expect(inferBaseType(null)).toBe('string');
+	});
+
+	it('types a list by all of its members', () => {
+		expect(inferBaseType([3, 4])).toBe('integer');
+		expect(inferBaseType([3, 3.5])).toBe('float');
+		expect(inferBaseType([true, false])).toBe('boolean');
+		expect(inferBaseType(['a', 3])).toBe('string');
+		expect(inferBaseType([])).toBe('string');
 	});
 });
