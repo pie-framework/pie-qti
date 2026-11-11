@@ -1,0 +1,5 @@
+---
+'@pie-qti/pci-runner': patch
+---
+
+The runner no longer locks the opaque `"null"` origin serialization as its outbound postMessage targetOrigin. When the host page is itself sandboxed (the LTI-style embed where the player sits in an `allow-scripts`-only iframe, which serializes its origin as `"null"`), a locked `"null"` target can never match the parent window, so every runner→host message (`module-loaded`, `instance-ready`, `response-change`, …) was silently dropped and the handshake could never complete. Outbound messages to an opaque parent now post with `'*'`, bounded by the transport posting to `window.parent` alone and anchored on `event.source === window.parent` — the mirror of the frame connector's round-3 fix. Inbound messages remain locked on the parent's origin spelling, and tuple-origin parents keep the exact-origin target as before. Teardown also removes the interaction container element instead of only emptying it, so repeated instantiate/teardown cycles no longer accumulate dead wrappers in the mount.

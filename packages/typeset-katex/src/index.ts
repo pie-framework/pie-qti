@@ -1,8 +1,17 @@
 let loaded: Promise<typeof import('katex/contrib/auto-render')> | null = null;
 
-async function loadAutoRender() {
+/**
+ * Single-flight loader for the KaTeX auto-render chunk. While pending,
+ * concurrent callers share one import. A rejected import clears the cached
+ * promise: a transient chunk failure (blocked network, stale-deploy 404) must
+ * not poison the page for its lifetime — the next typeset pass retries.
+ */
+function loadAutoRender(): Promise<typeof import('katex/contrib/auto-render')> {
 	if (!loaded) {
-		loaded = import('katex/contrib/auto-render');
+		loaded = import('katex/contrib/auto-render').catch((error: unknown) => {
+			loaded = null;
+			throw error;
+		});
 	}
 	return loaded;
 }
@@ -204,20 +213,26 @@ export async function typesetMathInElement(root: HTMLElement, options: TypesetMa
 	const editable = Array.from(root.querySelectorAll<HTMLElement>('[contenteditable="true"]'));
 	for (const el of editable) el.classList.add(EDITOR_IGNORE_CLASS);
 
-	renderMathInElement(root, {
-		// Prefer explicit delimiters to avoid false positives
-		delimiters: [
-			{ left: '\\(', right: '\\)', display: false },
-			{ left: '\\[', right: '\\]', display: true },
-			{ left: '$$', right: '$$', display: true },
-			...(options.enableSingleDollar ? [{ left: '$', right: '$', display: false }] : []),
-		],
-		// Don't parse in code-ish areas or inside authored MathML
-		ignoredTags: IGNORED_TAGS,
-		// Avoid re-processing already rendered KaTeX nodes
-		ignoredClasses: ['katex', 'katex-display', EDITOR_IGNORE_CLASS],
-		throwOnError: false,
-	});
-
-	for (const el of editable) el.classList.remove(EDITOR_IGNORE_CLASS);
+	try {
+		renderMathInElement(root, {
+			// Prefer explicit delimiters to avoid false positives
+			delimiters: [
+				{ left: '\\(', right: '\\)', display: false },
+				{ left: '\\[', right: '\\]', display: true },
+				{ left: '$$', right: '$$', display: true },
+				...(options.enableSingleDollar ? [{ left: '$', right: '$', display: false }] : []),
+			],
+			// Don't parse in code-ish areas or inside authored MathML
+			ignoredTags: IGNORED_TAGS,
+			// Avoid re-processing already rendered KaTeX nodes
+			ignoredClasses: ['katex', 'katex-display', EDITOR_IGNORE_CLASS],
+			throwOnError: false,
+		});
+	} finally {
+		// The exclusion class must never outlive this pass: a render that
+		// throws (unexpected DOM shapes) would otherwise leave every editable
+		// region in `ignoredClasses` permanently — all later passes would skip
+		// them and math would silently stop rendering for the session.
+		for (const el of editable) el.classList.remove(EDITOR_IGNORE_CLASS);
+	}
 }

@@ -4,7 +4,7 @@
  * Provides structured logging for server-side PIE QTI applications with context support.
  * Supports console-based logging (development), JSON logging (production), and testing utilities.
  *
- * Compatible with the universal Logger interface (implements debug, info?, warn, error? methods),
+ * Compatible with the universal Logger interface (implements debug, info, warn, error),
  * while providing enhanced server-specific features like structured context and different output formats.
  *
  * @example

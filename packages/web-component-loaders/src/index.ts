@@ -1,31 +1,9 @@
+import { cachedImport } from './cachedImport.js';
+
 declare global {
 	// eslint-disable-next-line no-var
 	var __pieQtiWebComponentLoaders__: undefined | Record<string, Promise<void>>;
 }
-
-export const DEFAULT_INTERACTION_TAGS = [
-	'pie-qti-choice',
-	'pie-qti-slider',
-	'pie-qti-order',
-	'pie-qti-match',
-	'pie-qti-associate',
-	'pie-qti-gap-match',
-	'pie-qti-hotspot',
-	'pie-qti-hottext',
-	'pie-qti-media',
-	'pie-qti-custom',
-	'pie-qti-portable-custom',
-	'pie-qti-end-attempt',
-	'pie-qti-position-object',
-	'pie-qti-graphic-gap-match',
-	'pie-qti-graphic-order',
-	'pie-qti-graphic-associate',
-	'pie-qti-select-point',
-	'pie-qti-extended-text',
-	'pie-qti-upload',
-	'pie-qti-drawing',
-	'pie-qti-catalog-popup',
-] as const;
 
 function getStore(): Record<string, Promise<void>> {
 	const g = globalThis as typeof globalThis & {
@@ -37,25 +15,19 @@ function getStore(): Record<string, Promise<void>> {
 
 /**
  * Idempotently loads the PIE QTI player and default interaction web components.
- * Safe to call multiple times; the underlying import will only happen once.
+ * Safe to call multiple times; the underlying import happens once — and once
+ * more after a failed attempt, so a transient chunk failure is not permanent.
+ *
+ * No `customElements.whenDefined` wait on top of the import: the register
+ * module registers every element as a synchronous side effect of its module
+ * graph's evaluation, so by the time its import resolves all of the elements
+ * it defines are already defined. Awaiting a separately maintained tag
+ * inventory would add nothing when correct and could only hang forever on
+ * drift (one renamed tag would leave a `whenDefined` that never settles).
  */
-export async function loadPieQtiPlayerElements(): Promise<void> {
-	if (typeof globalThis.window === 'undefined') return;
-	const store = getStore();
-
-	store.pieQtiPlayerElements ??= import('@pie-qti/player-elements/register').then(async () => {
-		const win = globalThis.window as Window & { customElements?: CustomElementRegistry };
-		if (!win || typeof win.customElements === 'undefined') return;
-		await Promise.allSettled([
-			win.customElements.whenDefined('pie-qti-item-player'),
-			win.customElements.whenDefined('pie-qti-assessment-player'),
-			win.customElements.whenDefined('pie-qti-section-player-splitpane'),
-			win.customElements.whenDefined('pie-qti-section-player-vertical'),
-			...DEFAULT_INTERACTION_TAGS.map((tagName) => win.customElements!.whenDefined(tagName)),
-		]);
+export function loadPieQtiPlayerElements(): Promise<void> {
+	if (typeof globalThis.window === 'undefined') return Promise.resolve();
+	return cachedImport(getStore(), 'pieQtiPlayerElements', async () => {
+		await import('@pie-qti/player-elements/register');
 	});
-
-	return store.pieQtiPlayerElements;
 }
-
-export type { };
