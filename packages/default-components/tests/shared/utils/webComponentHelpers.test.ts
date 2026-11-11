@@ -1,10 +1,28 @@
-import { describe, expect, test } from 'bun:test';
+import { afterEach, describe, expect, test } from 'bun:test';
 import {
 	createInteractionShell,
 	parseJsonProp,
 	parseListResponseProp,
 	responseProp,
 } from '../../../src/shared/utils/webComponentHelpers.js';
+
+/**
+ * Capture console warnings for a test: the invalid-attribute diagnostic is once
+ * per distinct text, and the assertions read what the console was told.
+ */
+function captureWarnings(): { warnings: string[]; restore(): void } {
+	const warnings: string[] = [];
+	const original = console.warn;
+	console.warn = (...args: unknown[]) => {
+		warnings.push(args.map((arg) => String(arg)).join(' '));
+	};
+	return {
+		warnings,
+		restore() {
+			console.warn = original;
+		},
+	};
+}
 
 describe('parseJsonProp', () => {
 	test('returns undefined for null-ish values', () => {
@@ -13,12 +31,67 @@ describe('parseJsonProp', () => {
 		expect(parseJsonProp('null')).toBeUndefined();
 	});
 
-	test('parses valid JSON strings', () => {
+	test('parses valid JSON object strings', () => {
 		expect(parseJsonProp<{ a: number }>('{"a":1}')).toEqual({ a: 1 });
 	});
 
-	test('keeps plain strings as strings when JSON parse fails', () => {
-		expect(parseJsonProp<string>('response-id-1')).toBe('response-id-1');
+	test('keeps an object prop as given', () => {
+		const interaction = { responseId: 'R1' };
+		expect(parseJsonProp(interaction)).toBe(interaction);
+	});
+
+	test('reads non-object text as no value and warns once per distinct text', () => {
+		const { warnings, restore } = captureWarnings();
+		try {
+			// A truncated attribute — the text a long interaction attribute becomes when a
+			// host's templating cuts it off.
+			expect(parseJsonProp<{ choices: unknown }>('{"choices":')).toBeUndefined();
+			expect(warnings).toHaveLength(1);
+			expect(warnings[0]).toContain('not the JSON object');
+
+			// The same text again: still no value, no repeated warning.
+			expect(parseJsonProp<{ choices: unknown }>('{"choices":')).toBeUndefined();
+			expect(warnings).toHaveLength(1);
+
+			// JSON of another shape is equally not the object the prop requires.
+			expect(parseJsonProp<number>('42')).toBeUndefined();
+			expect(parseJsonProp<string>('"a plain string"')).toBeUndefined();
+			expect(parseJsonProp<unknown[]>('[1,2]')).toBeUndefined();
+			expect(warnings).toHaveLength(4);
+		} finally {
+			restore();
+		}
+	});
+
+	test('a valid object warns nothing', () => {
+		const { warnings, restore } = captureWarnings();
+		try {
+			expect(parseJsonProp('{"a":1}')).toEqual({ a: 1 });
+			expect(warnings).toHaveLength(0);
+		} finally {
+			restore();
+		}
+	});
+});
+
+describe('createInteractionShell with a broken interaction attribute', () => {
+	test('reads truncated JSON as no interaction: the component shows its no-data state', () => {
+		const { warnings, restore } = captureWarnings();
+		try {
+			const shell = createInteractionShell<{ responseId: string }, string>({
+				interaction: '{"responseId":"R1","choices":',
+				response: 'A',
+			});
+
+			expect(shell.interaction).toBeUndefined();
+			expect(shell.responseId).toBeUndefined();
+			// The response is unaffected: it is a value, not JSON text.
+			expect(shell.response).toBe('A');
+			expect(shell.isShowingCorrect).toBe(false);
+			expect(warnings).toHaveLength(1);
+		} finally {
+			restore();
+		}
 	});
 });
 

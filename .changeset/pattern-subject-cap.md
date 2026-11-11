@@ -1,0 +1,5 @@
+---
+'@pie-qti/qti-processing': patch
+---
+
+Authored XSD patterns (`patternMatch`) ran against candidate content with no subject-length cap, so a long response against a pattern with a nested quantifier (`(a+)+`) could take exponential time and hang the delivery tab. Subjects now skip the pattern beyond a documented cap — `MAX_PATTERN_SUBJECT_LENGTH` (10,000 UTF-16 code units), exported with the `isPatternSubjectWithinCap` predicate from the runtime (and the package root) so every site that runs an authored pattern shares one guard. The QTI spec is silent about response length; this is a divergence guard, not spec behavior: at or below the cap patterns run exactly as the XSD pattern language defines, above it `patternMatch` reads the skip as the pattern not matching (patternMask validation, which lives in the item player's response validation and calls the compiled `RegExp` itself, should read it as the text passing unmasked and can adopt the same exported predicate). A subject at the cap behaves unchanged; tests pin the cap boundary and a beyond-cap subject returning immediately under a catastrophically backtracking pattern.
