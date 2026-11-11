@@ -280,6 +280,7 @@ model. It omits presentation, PNP DOM, PCI, catalogs, and browser component type
 - `@pie-qti/item-player/web-components`: interaction element base contracts.
 - `@pie-qti/item-player/element` and `/element-class`: standalone browser element compatibility.
 - `@pie-qti/item-player/iframe`: optional iframe host/protocol helpers.
+- `@pie-qti/item-player/pci`: PCI host, sandbox session, and AMD loader helpers.
 - `@pie-qti/item-player/security`: security utilities.
 
 Additional detail: [QTI compliance](./docs/QTI-COMPLIANCE.md),

@@ -94,8 +94,17 @@
 	// message shows from then until the text matches again, as for the text entry.
 	let patternInvalidFields = $state<ReadonlySet<number>>(new Set());
 
+	/**
+	 * Runs per keystroke, so the shapes this comparison actually sees (a string for single
+	 * cardinality, a string array for multiple/ordered) compare directly; the JSON fallback
+	 * only serves any exotic shape a host stores.
+	 */
 	function sameResponse(a: unknown, b: unknown): boolean {
 		if (Object.is(a, b)) return true;
+		if (typeof a === 'string' && typeof b === 'string') return a === b;
+		if (Array.isArray(a) && Array.isArray(b)) {
+			return a.length === b.length && a.every((value, index) => value === b[index]);
+		}
 		try {
 			return JSON.stringify(a) === JSON.stringify(b);
 		} catch {
@@ -500,7 +509,9 @@
 				</button>
 			{/if}
 		</div>
-		<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(editorValues)} />
+		<!-- editorValues is reassigned fresh on every edit, so its identity is the change key
+		     without stringifying the essay per keystroke. -->
+		<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={editorValues} />
 		<div part="announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true">{liveAnnouncer.message}</div>
 		{#if isShowingCorrect && parsedCorrectResponse}
 			<div part="correct-answer" class="mt-3 p-3 bg-success bg-opacity-10 border border-success rounded">

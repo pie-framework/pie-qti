@@ -20,7 +20,8 @@
   <responseProcessing>
     <responseCondition>
       <responseIf>
-        <patternMatch caseSensitive="true">
+        <!-- XSD regular expressions are case-sensitive; a mixed-case match needs a class. -->
+        <patternMatch>
           <variable identifier="R" />
           <baseValue baseType="string">ab</baseValue>
         </patternMatch>
@@ -30,9 +31,9 @@
       </responseIf>
 
       <responseElseIf>
-        <patternMatch caseSensitive="false">
+        <patternMatch>
           <variable identifier="R" />
-          <baseValue baseType="string">ab</baseValue>
+          <baseValue baseType="string">[Aa]b</baseValue>
         </patternMatch>
         <setOutcomeValue identifier="SCORE">
           <baseValue baseType="integer">1</baseValue>

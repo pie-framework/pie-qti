@@ -6,7 +6,7 @@
 			"responses": {},
 			"expect": {
 				"outcomes": {
-					"SUB": "BC",
+					"SUB": true,
 					"IDIV": 3,
 					"MOD": 1,
 					"POW": 8,

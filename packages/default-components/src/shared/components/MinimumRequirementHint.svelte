@@ -18,8 +18,8 @@
 		id: string;
 		/** The requirement while it is unmet; empty when it is met or there is none. */
 		hint: string;
-		/** Any value that changes whenever the candidate's response changes. */
-		responseKey: string;
+		/** Any value that changes whenever the candidate's response changes (identity, not equality). */
+		responseKey: unknown;
 	}
 
 	let { id, hint, responseKey }: Props = $props();
@@ -27,7 +27,7 @@
 	let announcement = $state('');
 	// Plain bookkeeping, not render state.
 	let announced = false;
-	let lastResponseKey: string | undefined;
+	let lastResponseKey: unknown;
 
 	$effect(() => {
 		const text = hint;

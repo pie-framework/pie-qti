@@ -88,7 +88,8 @@ Codes forwarded from the mounted item player (its `error` event, bridged to the 
 | `item-load-failed` | The item XML failed to parse or the item failed to load inside the player. |
 | `response-processing-failed` | Response processing threw at submit time. |
 | `submission-failed` | The submission could not be recorded. |
-| `render-failed` | Rendering the item body threw. |
+| `render-failed` | Rendering the item body (or mounting an interaction) threw. |
+| `response-dispatch-failed` | The session rejected a response change (e.g. an unknown response identifier). |
 
 ## Tool integration (`@pie-players`)
 
