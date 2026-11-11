@@ -7,6 +7,7 @@
 	import type { AdaptiveAttemptResult, ItemPlayerErrorDetail, ModalFeedback, PlayerSecurityConfig, QTIRole, ScoringResult } from '../types';
 	import type { PnpProfile } from '../pnp/types';
 	import type { InteractionResponseValue } from '../web-components';
+	import { SESSION_INPUTS, type SessionInputKey } from '../session-inputs';
 	import { interfaceLocaleAttributes, translate, type I18nProvider } from '@pie-qti/i18n';
 	import { warnOnce } from '@pie-qti/qti-common';
 	import { untrack } from 'svelte';
@@ -139,20 +140,45 @@
 	// property write — disabled, i18n, typeset, responses, a no-op — must never re-create the
 	// item's attempt state. The element's mount bridge invalidates every prop together, so each
 	// session input is guarded by an equality-checked derived: unchanged values do not reach the
-	// session effect below.
-	const sessionItemXml = $derived(itemXml);
-	const sessionRole = $derived(role);
-	const sessionSecurity = $derived(security);
-	const sessionPnp = $derived(pnp);
-	const sessionDeliveryContext = $derived(deliveryContext);
-	const sessionResolveProcessingFragment = $derived(resolveProcessingFragment);
-	const sessionProcessingFragmentLimits = $derived(processingFragmentLimits);
-	const sessionPci = $derived(pci);
-	const sessionPlugins = $derived(plugins);
-	const sessionStringComparison = $derived(stringComparison);
-	const sessionShowFeedback = $derived(showFeedback ?? false);
-	const sessionShowSolution = $derived(showSolution ?? false);
+	// session effect below. The guarded inputs and their no-op-write normalization come from the
+	// canonical descriptor in ../session-inputs.ts, the same one the element's setters retire
+	// the owned session through.
+	const sessionItemXml = $derived(SESSION_INPUTS.itemXml.sessionValue(itemXml));
+	const sessionRole = $derived(SESSION_INPUTS.role.sessionValue(role));
+	const sessionSecurity = $derived(SESSION_INPUTS.security.sessionValue(security));
+	const sessionPnp = $derived(SESSION_INPUTS.pnp.sessionValue(pnp));
+	const sessionDeliveryContext = $derived(SESSION_INPUTS.deliveryContext.sessionValue(deliveryContext));
+	const sessionResolveProcessingFragment = $derived(SESSION_INPUTS.resolveProcessingFragment.sessionValue(resolveProcessingFragment));
+	const sessionProcessingFragmentLimits = $derived(SESSION_INPUTS.processingFragmentLimits.sessionValue(processingFragmentLimits));
+	const sessionPci = $derived(SESSION_INPUTS.pci.sessionValue(pci));
+	const sessionPlugins = $derived(SESSION_INPUTS.plugins.sessionValue(plugins));
+	const sessionStringComparison = $derived(SESSION_INPUTS.stringComparison.sessionValue(stringComparison));
+	const sessionShowFeedback = $derived(SESSION_INPUTS.showFeedback.sessionValue(showFeedback));
+	const sessionShowSolution = $derived(SESSION_INPUTS.showSolution.sessionValue(showSolution));
+	// Not a session input: an injected session replaces the displayed one and never re-opens
+	// the item's definition.
 	const injectedSession = $derived(session);
+
+	// The guarded session inputs, keyed by the canonical descriptor's property names. The
+	// `satisfies` pins this explicit list to src/session-inputs.ts in both directions at
+	// compile time: an input added to the descriptor but not guarded here, or guarded here
+	// but absent from the descriptor, is a type error. ($derived expressions cannot be
+	// generated at runtime, so the map is written out; the session-stability suite enforces
+	// the same lockstep behaviorally by flipping every descriptor input on the element.)
+	const sessionInputGuards = {
+		itemXml: () => sessionItemXml,
+		role: () => sessionRole,
+		security: () => sessionSecurity,
+		pnp: () => sessionPnp,
+		deliveryContext: () => sessionDeliveryContext,
+		resolveProcessingFragment: () => sessionResolveProcessingFragment,
+		processingFragmentLimits: () => sessionProcessingFragmentLimits,
+		pci: () => sessionPci,
+		plugins: () => sessionPlugins,
+		stringComparison: () => sessionStringComparison,
+		showFeedback: () => sessionShowFeedback,
+		showSolution: () => sessionShowSolution,
+	} satisfies { [K in SessionInputKey]: () => unknown };
 
 	// Stable per component instance and item text: a legitimate re-open of the same definition
 	// replays the same template-processing random layout instead of re-randomizing the

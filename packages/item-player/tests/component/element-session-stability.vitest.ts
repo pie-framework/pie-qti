@@ -12,8 +12,15 @@
  */
 
 import { afterEach, describe, expect, test } from 'vitest';
+import type { AssessmentItemDefinitionPlugin } from '../../src/core/AssessmentItemDefinition.js';
 import type { ComponentRegistry } from '../../src/core/ComponentRegistry.js';
 import { PieQtiItemPlayerElement } from '../../src/element-class.js';
+import {
+	SESSION_INPUTS,
+	SESSION_INPUT_KEYS,
+	type SessionInputKey,
+	type SessionInputRaw,
+} from '../../src/session-inputs.js';
 import { settle } from './helpers';
 
 const TAG = 'pie-qti-item-player-stability';
@@ -383,5 +390,177 @@ describe('what does and does not re-open the session', () => {
 		expect(submissions).toBe(1); // the end-attempt request still auto-submits
 		expect(bodyText(element)).toContain('Hint: it is named after the Roman god of war.');
 		elsewhere.remove();
+	});
+});
+
+/**
+ * The definition-fixed session-input lockstep matrix.
+ *
+ * The list of inputs whose change may re-open the session is maintained twice — the
+ * element's setters (`element-class.ts`, retiring through `SESSION_INPUTS[key].changed`)
+ * and the player's equality-guarded `$derived`s (`ItemPlayer.svelte`, normalized through
+ * `SESSION_INPUTS[key].sessionValue`) — and both sides are pinned to the one canonical
+ * descriptor in `src/session-inputs.ts`. These tests flip every input in that descriptor
+ * against a mounted element and assert the session re-opens exactly as the descriptor's
+ * `changed` semantics say. A future input added to only one side fails here:
+ *
+ * - a setter that forgets to retire resumes the old session (definition count stays 1),
+ * - a missing `$derived` guard never re-runs the session effect (`ready` stays at 1).
+ */
+describe('definition-fixed session inputs stay in lockstep with the descriptor', () => {
+	/** The adaptive two-attempt item, and the same definition under a different identifier. */
+	const ADAPTIVE_TWO_ATTEMPTS_V2 = ADAPTIVE_TWO_ATTEMPTS.replace(
+		'identifier="stability-adaptive"',
+		'identifier="stability-adaptive-v2"',
+	);
+
+	interface DefinitionCounter {
+		plugin: AssessmentItemDefinitionPlugin;
+		/** How many item definitions were compiled: a re-open compiles one, a resume does not. */
+		opens(): number;
+	}
+
+	/** Counts definition constructions through the plugin's definition-lifetime hook. */
+	function countingPlugin(): DefinitionCounter {
+		let opens = 0;
+		return {
+			plugin: {
+				kind: 'assessment-item-definition-plugin',
+				name: 'stability-definition-counter',
+				version: '1.0.0',
+				registerExtractors: () => {
+					opens += 1;
+				},
+			},
+			opens: () => opens,
+		};
+	}
+
+	async function renderProbe(
+		counter: DefinitionCounter,
+		setup: (element: PieQtiItemPlayerElement) => void,
+	): Promise<PieQtiItemPlayerElement> {
+		const element = document.createElement(TAG) as PieQtiItemPlayerElement;
+		element.plugins = [choiceRendererPlugin, counter.plugin];
+		setup(element);
+		element.itemXml = ADAPTIVE_TWO_ATTEMPTS;
+		document.body.appendChild(element);
+		elements.push(element);
+		await settle();
+		return element;
+	}
+
+	/** Assign a session input through the element's public property surface. */
+	function setSessionInput<K extends SessionInputKey>(
+		element: PieQtiItemPlayerElement,
+		key: K,
+		value: SessionInputRaw<K>,
+	): void {
+		(element as unknown as Record<K, SessionInputRaw<K>>)[key] = value;
+	}
+
+	/**
+	 * One definition change per descriptor input. `initial` matches what the element
+	 * defaults to before the flip; `changed` is a genuinely different definition. The
+	 * `plugins` flip reorders the list around the running counter's plugin, so the
+	 * re-opened definition keeps counting and rendering.
+	 */
+	function flipsFor(counter: DefinitionCounter): {
+		[K in SessionInputKey]: { initial: SessionInputRaw<K>; changed: SessionInputRaw<K> };
+	} {
+		return {
+			itemXml: { initial: ADAPTIVE_TWO_ATTEMPTS, changed: ADAPTIVE_TWO_ATTEMPTS_V2 },
+			role: { initial: 'candidate', changed: 'scorer' },
+			security: { initial: undefined, changed: { allowHttps: true } },
+			pnp: { initial: undefined, changed: { display: { colorScheme: 'blackrose' } } },
+			deliveryContext: {
+				initial: undefined,
+				changed: { stimuli: {}, stylesheets: [], catalogSources: [], validationMessages: [] },
+			},
+			resolveProcessingFragment: { initial: undefined, changed: () => null },
+			processingFragmentLimits: { initial: undefined, changed: { maxDepth: 4 } },
+			pci: { initial: undefined, changed: { baseUrl: 'https://cdn.example.org/pci/' } },
+			stringComparison: { initial: undefined, changed: { foldScriptInput: true } },
+			plugins: {
+				initial: [choiceRendererPlugin, counter.plugin],
+				changed: [counter.plugin, choiceRendererPlugin],
+			},
+			showFeedback: { initial: undefined, changed: true },
+			showSolution: { initial: undefined, changed: true },
+		};
+	}
+
+	test('every session input in the descriptor is a settable element property', () => {
+		for (const key of SESSION_INPUT_KEYS) {
+			const descriptor = Object.getOwnPropertyDescriptor(PieQtiItemPlayerElement.prototype, key);
+			expect(typeof descriptor?.get, `${key} must expose a getter`).toBe('function');
+			expect(typeof descriptor?.set, `${key} must expose a setter`).toBe('function');
+		}
+	});
+
+	test('every descriptor input agrees with the element defaults it flips from', () => {
+		const flips = flipsFor(countingPlugin());
+		for (const key of SESSION_INPUT_KEYS) {
+			const input = SESSION_INPUTS[key];
+			const { initial, changed } = flips[key];
+			expect(
+				input.changed(input.store(initial), input.store(changed)),
+				`the ${key} flip must be a new definition per SESSION_INPUTS['${key}'].changed`
+			).toBe(true);
+		}
+	});
+
+	for (const key of SESSION_INPUT_KEYS) {
+		test(`changing \`${key}\` re-opens the session exactly once, on a fresh definition`, async () => {
+			const counter = countingPlugin();
+			const flips = flipsFor(counter);
+			let readyCount = 0;
+			const element = await renderProbe(counter, (el) => {
+				el.addEventListener('ready', () => {
+					readyCount += 1;
+				});
+			});
+			expect(counter.opens()).toBe(1);
+			expect(readyCount).toBe(1);
+
+			element.submit(); // burn attempt 1: a resume keeps it, a re-open resets it
+			await settle();
+			const completions: unknown[] = [];
+			element.addEventListener('complete', (event) => completions.push((event as CustomEvent).detail));
+
+			setSessionInput(element, key, flips[key].changed);
+			await settle();
+
+			expect(readyCount).toBe(2); // the player's session effect re-ran exactly once
+			expect(counter.opens()).toBe(2); // a new definition was compiled, not a resume
+
+			// The re-opened session is fresh: the correct answer on its first attempt does not
+			// complete the item, the second one does.
+			answer(element, 'A');
+			await settle();
+			element.submit();
+			await settle();
+			expect(completions).toHaveLength(0);
+			element.submit();
+			await settle();
+			expect(completions).toHaveLength(1);
+		});
+	}
+
+	test('undefined and false are the same policy for the presentation flags', async () => {
+		const counter = countingPlugin();
+		let readyCount = 0;
+		const element = await renderProbe(counter, (el) => {
+			el.addEventListener('ready', () => {
+				readyCount += 1;
+			});
+		});
+
+		element.showFeedback = false;
+		element.showSolution = false;
+		await settle();
+
+		expect(readyCount).toBe(1);
+		expect(counter.opens()).toBe(1);
 	});
 });
