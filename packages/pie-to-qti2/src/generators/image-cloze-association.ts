@@ -5,7 +5,7 @@
  * Note: This is a complex interaction with limited QTI support
  */
 
-import { generateIdentifier } from '../utils/identifier-generator.js';
+import { generateIdentifier, prefixedIdentifier } from '../utils/identifier-generator.js';
 import { escapeXml, imageMimeType, QtiBuilder } from '../utils/qti-builder.js';
 import { buildResponseDeclaration } from '../utils/response-declaration-builder.js';
 import { correctResponseScoring, partialScoringEnabled } from '../utils/scoring.js';
@@ -55,10 +55,12 @@ export class ImageClozeAssociationGenerator extends BaseGenerator {
     const responseId = 'RESPONSE';
 
     // Build correct responses
+    // Response and container ids are sanitized the same way here and in the item body, so a
+    // quoted or spaced id cannot break the identifier attribute or split a directedPair value.
     const correctPairs: string[] = [];
     for (const container of model.responseContainers) {
       if (container.correctResponse) {
-        correctPairs.push(`RESPONSE_${container.correctResponse} CONTAINER_${container.id}`);
+        correctPairs.push(`${prefixedIdentifier('RESPONSE_', container.correctResponse)} ${prefixedIdentifier('CONTAINER_', container.id)}`);
       }
     }
 
@@ -114,7 +116,7 @@ export class ImageClozeAssociationGenerator extends BaseGenerator {
     const gapTextElements = responses
       .map(
         (response) =>
-          `      <gapText identifier="RESPONSE_${response.id}" matchMax="${containers.length}">${response.value || response.label}</gapText>`
+          `      <gapText identifier="${prefixedIdentifier('RESPONSE_', response.id)}" matchMax="${containers.length}">${response.value || response.label}</gapText>`
       )
       .join('\n');
 
@@ -122,7 +124,7 @@ export class ImageClozeAssociationGenerator extends BaseGenerator {
     const hotspotElements = containers
       .map((container) => {
         const coords = `${container.x},${container.y},${container.x + container.width},${container.y + container.height}`;
-        return `        <associableHotspot identifier="CONTAINER_${container.id}" shape="rect" coords="${coords}" matchMax="1"/>`;
+        return `        <associableHotspot identifier="${prefixedIdentifier('CONTAINER_', container.id)}" shape="rect" coords="${coords}" matchMax="1"/>`;
       })
       .join('\n');
 

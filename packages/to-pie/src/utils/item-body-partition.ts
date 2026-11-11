@@ -27,7 +27,7 @@ import type { HTMLElement, Node } from 'node-html-parser';
 import { createHash } from 'node:crypto';
 import { cleanPassageHtml, type PassageModel } from './passage-extraction.js';
 import type { PassageResourceIndex } from './passage-resources.js';
-import { piePlaceholderMarkup } from './pie-markup.js';
+import { escapePieAttribute, piePlaceholderMarkup } from './pie-markup.js';
 import { isQtiInteractionElement } from './qti-item-planner.js';
 
 /**
@@ -126,8 +126,10 @@ export function partitionItemBody(
       const views = (element.getAttribute('view') ?? '').trim().split(/\s+/);
       if (views.includes('candidate')) {
         const className = element.getAttribute('class');
+        // The parsed attribute value is already entity-decoded; re-emit it escaped so a
+        // quoted class cannot break out into additional attributes on re-parse.
         element.replaceWith(
-          `<div${className ? ` class="${className}"` : ''}>${element.innerHTML}</div>`
+          `<div${className ? ` class="${escapePieAttribute(className)}"` : ''}>${element.innerHTML}</div>`
         );
       } else {
         removeAndPrune(element, itemBody);

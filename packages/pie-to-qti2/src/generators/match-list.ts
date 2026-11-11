@@ -4,7 +4,7 @@
  * Generates QTI matchInteraction from PIE match-list models
  */
 
-import { generateIdentifier } from '../utils/identifier-generator.js';
+import { generateIdentifier, prefixedIdentifier } from '../utils/identifier-generator.js';
 import { QtiBuilder } from '../utils/qti-builder.js';
 import { buildResponseDeclaration } from '../utils/response-declaration-builder.js';
 import { correctResponseScoring, partialScoringEnabled } from '../utils/scoring.js';
@@ -67,10 +67,12 @@ export class MatchListGenerator extends BaseGenerator {
     const responseId = 'RESPONSE';
 
     // Build correct response pairs
+    // Prompt and answer ids are sanitized the same way here and in the item body, so a
+    // quoted or spaced id cannot break the identifier attribute or split a directedPair value.
     const correctPairs: string[] = [];
     for (const prompt of model.prompts) {
       if (prompt.relatedAnswer !== undefined && prompt.relatedAnswer !== null) {
-        correctPairs.push(`PROMPT_${prompt.id} ANSWER_${prompt.relatedAnswer}`);
+        correctPairs.push(`${prefixedIdentifier('PROMPT_', prompt.id)} ${prefixedIdentifier('ANSWER_', prompt.relatedAnswer)}`);
       }
     }
 
@@ -131,7 +133,7 @@ export class MatchListGenerator extends BaseGenerator {
     const promptChoices = prompts
       .map(
         (p) =>
-          `        <simpleAssociableChoice identifier="PROMPT_${p.id}" matchMax="1">${p.title}</simpleAssociableChoice>`
+          `        <simpleAssociableChoice identifier="${prefixedIdentifier('PROMPT_', p.id)}" matchMax="1">${p.title}</simpleAssociableChoice>`
       )
       .join('\n');
 
@@ -139,7 +141,7 @@ export class MatchListGenerator extends BaseGenerator {
     const answerChoices = answers
       .map(
         (a) =>
-          `        <simpleAssociableChoice identifier="ANSWER_${a.id}" matchMax="${prompts.length}">${a.title}</simpleAssociableChoice>`
+          `        <simpleAssociableChoice identifier="${prefixedIdentifier('ANSWER_', a.id)}" matchMax="${prompts.length}">${a.title}</simpleAssociableChoice>`
       )
       .join('\n');
 
