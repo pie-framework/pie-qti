@@ -51,7 +51,7 @@ prerelease; "Breaking:" notes where hosts must migrate).
 - default-components shared layer (never importing from `plugins/`, pinned by graph tests):
   `ImageStage` (7 stages), the keyboard crosshair (2), `createPickUpPlace` (4), pair helpers
   (move-aware), matchGroup blocking (5), capacity rules with 0 = unlimited (6+), `choiceAccessibleName`
-  readable names (6+), `createAnnouncer` (11), one `.sr-only` source injected into document and
+  readable names (6+), `createAnnouncer` (14), one `.sr-only` source injected into document and
   shadow roots (12+), one stroke icon set (9 inline copies), `InteractionProps<T>` for all 20 plugins,
   `radioGroup`, web-component prop helpers.
 - assessment-player/section-player: the feedback helper, `formatTime`, one `STORAGE_PREFIX`.

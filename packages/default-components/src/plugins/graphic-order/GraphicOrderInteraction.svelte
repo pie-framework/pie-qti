@@ -23,6 +23,7 @@
 	import { escapeHtml, imageAltText, regionMarkerPoint } from '../../shared/utils/graphicRegions';
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
+	import { createStageImage } from '../../shared/utils/stageImage.svelte';
 
 	type Props = InteractionProps<'graphicOrderInteraction'>;
 
@@ -49,28 +50,15 @@
 	// else a raster image's natural size once loaded, else unknown — the areas live
 	// in that space, so unknown means no overlay is drawn (a default would place
 	// them in a guessed space).
-	let imageWidth = $state<number | null>(null);
-	let imageHeight = $state<number | null>(null);
-	let imageFailed = $state(false);
-	let awaitingNaturalSize = $state(false);
-
-	let warnedMissingDimensions = false;
-	$effect(() => {
-		if (missingDimensions && !warnedMissingDimensions) {
-			warnedMissingDimensions = true;
-			console.warn(
-				'[pie-qti-graphic-order] The image has no known width/height, so its areas cannot be placed. Add width and height to the image, or supply the asset dimensions.',
-			);
-		}
+	const stage = createStageImage({
+		needsDimensions: () => !!imageData,
+		missingDimensionsWarning:
+			'[pie-qti-graphic-order] The image has no known width/height, so its areas cannot be placed. Add width and height to the image, or supply the asset dimensions.',
 	});
-
-	// Rendered width of the image, so the area badges keep their CSS size at any image scale.
-	let renderedWidth = $state(0);
-	const renderScale = $derived(imageWidth && renderedWidth > 0 ? renderedWidth / imageWidth : 1);
+	// Tell authors once, on the console, when the dimensions never arrive.
+	$effect(() => stage.warnOnceMissingDimensions());
 
 	const imageData = $derived(parsedInteraction?.imageData ?? null);
-	const hasImageDimensions = $derived(imageWidth !== null && imageHeight !== null);
-	const missingDimensions = $derived(!!imageData && !hasImageDimensions && !awaitingNaturalSize);
 	const showDiagnostics = $derived(role !== 'candidate');
 	const imageAlt = $derived(
 		imageAltText(imageData, translate(i18n, 'interactions.graphicOrder.imageFallback', 'Image for this question')),
@@ -247,7 +235,7 @@
 			</div>
 		{/if}
 
-		{#if missingDimensions && showDiagnostics}
+		{#if stage.missingDimensions && showDiagnostics}
 			<div part="diagnostic" class="alert alert-error qti-go-diagnostic" role="alert">
 				{translate(
 					i18n,
@@ -280,11 +268,11 @@
 							onImageError={warnImageFailed}
 							sizing="refuse"
 							reportWidth
-							bind:width={imageWidth}
-							bind:height={imageHeight}
-							bind:failed={imageFailed}
-							bind:awaiting={awaitingNaturalSize}
-							bind:renderedWidth
+							bind:width={stage.imageWidth}
+							bind:height={stage.imageHeight}
+							bind:failed={stage.imageFailed}
+							bind:awaiting={stage.awaitingNaturalSize}
+							bind:renderedWidth={stage.renderedWidth}
 						>
 							<!-- The areas the candidate orders, on the image (QTI 3.0 §5.61: "The delivery
 							     engine must clearly indicate all defined area(s) of the image"): each one
@@ -292,11 +280,11 @@
 							     Visual only: the list is what the keyboard and assistive technology use,
 							     so the overlay is hidden from both and takes no pointer input. It covers
 							     exactly the image, in its natural pixel space, and scales with it. -->
-							{#if hasImageDimensions && !imageFailed && (imageData.content || imageData.src)}
+							{#if stage.hasImageDimensions && !stage.imageFailed && (imageData.content || imageData.src)}
 								<svg
 									part="overlay"
 									class="qti-go-overlay"
-									viewBox="0 0 {imageWidth} {imageHeight}"
+									viewBox="0 0 {stage.imageWidth} {stage.imageHeight}"
 									xmlns="http://www.w3.org/2000/svg"
 									aria-hidden="true"
 									pointer-events="none"
@@ -307,8 +295,8 @@
 											<HotspotShape shape={choice.shape} coords={choice.coords} interactive={false} presentation={{ class: 'qti-go-area-halo' }} />
 											<HotspotShape shape={choice.shape} coords={choice.coords} interactive={false} presentation={{ class: 'qti-go-area-outline' }} />
 											{#if position}
-												{@const at = regionMarkerPoint(choice.shape, choice.coords, renderScale, 16)}
-												<g class="qti-go-badge" transform="translate({at.x} {at.y}) scale({1 / renderScale})">
+												{@const at = regionMarkerPoint(choice.shape, choice.coords, stage.renderScale, 16)}
+												<g class="qti-go-badge" transform="translate({at.x} {at.y}) scale({1 / stage.renderScale})">
 													<circle r="12" />
 													<text text-anchor="middle" dominant-baseline="central">{position}</text>
 												</g>

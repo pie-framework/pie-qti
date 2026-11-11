@@ -67,6 +67,7 @@
 	import { isAtLimit } from '../../shared/utils/capacity';
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
+	import { createStageImage } from '../../shared/utils/stageImage.svelte';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import { clientToImagePoint, imageAltText } from '../../shared/utils/graphicRegions';
@@ -104,28 +105,19 @@
 	// width/height, else a raster image's natural size once loaded, else unknown —
 	// QTI points live in that space, so unknown means nothing is placed (a default
 	// would score placements in a guessed space).
-	let imageWidth = $state<number | null>(null);
-	let imageHeight = $state<number | null>(null);
-	let imageFailed = $state(false);
-	let awaitingNaturalSize = $state(false);
+	const imageStage = createStageImage({
+		needsDimensions: () => !!imageData,
+		missingDimensionsWarning:
+			'[pie-qti-position-object] The stage image has no known width/height, so objects cannot be placed correctly. Add width and height to the image, or supply the asset dimensions.',
+	});
+	// Tell authors once, on the console, when the dimensions never arrive.
+	$effect(() => imageStage.warnOnceMissingDimensions());
 	// The authored reference point (QTI centerPoint), in object image pixels from
 	// its top-left; null means the QTI default, the object's centre.
 	const centerPoint = $derived(validCenterPoint(parsedInteraction?.centerPoint));
 
 	const imageData = $derived(parsedInteraction?.imageData ?? null);
-	const hasImageDimensions = $derived(imageWidth !== null && imageHeight !== null);
-	const missingDimensions = $derived(!!imageData && !hasImageDimensions && !awaitingNaturalSize);
 	const showDiagnostics = $derived(role !== 'candidate');
-
-	let warnedMissingDimensions = false;
-	$effect(() => {
-		if (missingDimensions && !warnedMissingDimensions) {
-			warnedMissingDimensions = true;
-			console.warn(
-				'[pie-qti-position-object] The stage image has no known width/height, so objects cannot be placed correctly. Add width and height to the image, or supply the asset dimensions.',
-			);
-		}
-	});
 	const imageAlt = $derived(
 		imageAltText(imageData, translate(i18n, 'interactions.positionObject.imageFallback', 'Image for this question')),
 	);
@@ -276,8 +268,8 @@
 	 * rounds (see emitPositions).
 	 */
 	function stagePointFromClient(clientX: number, clientY: number): { x: number; y: number } | null {
-		if (!imageContainer || !hasImageDimensions) return null;
-		return clientToImagePoint(clientX, clientY, imageContainer.getBoundingClientRect(), imageWidth ?? 0, imageHeight ?? 0, {
+		if (!imageContainer || !imageStage.hasImageDimensions) return null;
+		return clientToImagePoint(clientX, clientY, imageContainer.getBoundingClientRect(), imageStage.imageWidth ?? 0, imageStage.imageHeight ?? 0, {
 			round: false,
 		});
 	}
@@ -285,7 +277,7 @@
 	/** Place a new instance of `stageId` with its reference point at (x, y). */
 	function placeStageAt(stageId: string, x: number, y: number): boolean {
 		const stage = getStageById(stageId);
-		if (!stage || !hasImageDimensions) return false;
+		if (!stage || !imageStage.hasImageDimensions) return false;
 		if (isStageAtLimit(stage)) return false;
 		if (!canAddMore) return false;
 		positions = [...positions, { stageId, x, y }];
@@ -328,9 +320,10 @@
 
 			const stage = getStageById(stageId);
 			if (stage?.objectData) {
-				const renderScale = imageContainer ? imageContainer.getBoundingClientRect().width / (imageWidth ?? 1) || 1 : 1;
-				const width = objectDimension(stage.objectData.width) * renderScale;
-				const height = objectDimension(stage.objectData.height) * renderScale;
+				// The object's on-screen size: the stage image's rendered CSS px per authored
+				// image px (the shared stage state's scale, reported by ImageStage).
+				const width = objectDimension(stage.objectData.width) * imageStage.renderScale;
+				const height = objectDimension(stage.objectData.height) * imageStage.renderScale;
 
 				// Create a temporary element for the drag image
 				const dragImage = document.createElement('div');
@@ -450,12 +443,12 @@
 	 * reference point so that point (not the corner) lands on the recorded point.
 	 */
 	function objectBoxStyle(stage: PositionObjectStage, position: { x: number; y: number }, zIndex: number): string {
-		const width = stage.objectData ? `${(objectDimension(stage.objectData.width) / (imageWidth ?? 1)) * 100}%` : 'auto';
-		const height = stage.objectData ? `${(objectDimension(stage.objectData.height) / (imageHeight ?? 1)) * 100}%` : 'auto';
+		const width = stage.objectData ? `${(objectDimension(stage.objectData.width) / (imageStage.imageWidth ?? 1)) * 100}%` : 'auto';
+		const height = stage.objectData ? `${(objectDimension(stage.objectData.height) / (imageStage.imageHeight ?? 1)) * 100}%` : 'auto';
 		const reference = referenceFraction(stage);
 		return [
-			`left: ${(position.x / (imageWidth ?? 1)) * 100}%`,
-			`top: ${(position.y / (imageHeight ?? 1)) * 100}%`,
+			`left: ${(position.x / (imageStage.imageWidth ?? 1)) * 100}%`,
+			`top: ${(position.y / (imageStage.imageHeight ?? 1)) * 100}%`,
 			`width: ${width}`,
 			`height: ${height}`,
 			`z-index: ${zIndex}`,
@@ -476,7 +469,7 @@
 	 * Select a palette object for placement and move focus to the canvas.
 	 */
 	async function activateKeyboardPlacement(stageId: string) {
-		if (!canInteract || !hasImageDimensions) return;
+		if (!canInteract || !imageStage.hasImageDimensions) return;
 		const stage = getStageById(stageId);
 		if (!stage || !canDragStage(stageId)) return;
 
@@ -486,7 +479,7 @@
 		// Initialise crosshair to the stage's last placed position, or centre
 		const existing = [...positions].reverse().find((p: Position) => p.stageId === stageId);
 		if (existing) {
-			crosshair.jumpTo(existing.x / (imageWidth ?? 1), existing.y / (imageHeight ?? 1));
+			crosshair.jumpTo(existing.x / (imageStage.imageWidth ?? 1), existing.y / (imageStage.imageHeight ?? 1));
 		} else {
 			crosshair.centre();
 		}
@@ -527,8 +520,8 @@
 		liveAnnouncer.set(
 			translate(i18n, 'interactions.positionObject.objectPlacedAt', '{object} placed at {x}%, {y}%.', {
 				object: stageName(stage),
-				x: percent(x, imageWidth ?? 0),
-				y: percent(y, imageHeight ?? 0),
+				x: percent(x, imageStage.imageWidth ?? 0),
+				y: percent(y, imageStage.imageHeight ?? 0),
 			}),
 		);
 		selectedStageId = null;
@@ -541,7 +534,7 @@
 	function placeAtCrosshair() {
 		if (!selectedStageId || !parsedInteraction?.imageData) return;
 		// Unrounded here: the emission step rounds (see emitPositions).
-		finishPlacement(selectedStageId, crosshair.x * (imageWidth ?? 0), crosshair.y * (imageHeight ?? 0));
+		finishPlacement(selectedStageId, crosshair.x * (imageStage.imageWidth ?? 0), crosshair.y * (imageStage.imageHeight ?? 0));
 	}
 
 	/** Single-pointer alternative to dragging (WCAG 2.5.7): click/tap the canvas to place the selected object. */
@@ -603,7 +596,7 @@
 			</div>
 		{/if}
 
-		{#if missingDimensions && showDiagnostics}
+		{#if imageStage.missingDimensions && showDiagnostics}
 			<div part="diagnostic" class="alert alert-error qti-po-diagnostic" role="alert">
 				{translate(
 					i18n,
@@ -616,7 +609,7 @@
 		<div part="layout" class="qti-po-layout flex flex-col lg:flex-row gap-4 items-start">
 			<!-- Canvas Area with Background Image -->
 			<div part="canvas-area" class="qti-po-canvas-area flex-1 min-w-0">
-				<div class="qti-po-frame" style="max-width: calc({imageWidth}px + 4px);">
+				<div class="qti-po-frame" style={imageStage.frameStyle}>
 					<!-- The canvas is the drop target and the keyboard/pointer placement surface.
 					     While an object is being placed it is a focusable `application` (screen
 					     readers pass the arrow keys through); otherwise it is a plain container,
@@ -655,10 +648,12 @@
 						loadErrorText={translate(i18n, 'interactions.positionObject.imageLoadError', 'The image could not be loaded.')}
 						onImageError={warnImageFailed}
 						sizing="refuse"
-						bind:width={imageWidth}
-						bind:height={imageHeight}
-						bind:failed={imageFailed}
-						bind:awaiting={awaitingNaturalSize}
+						reportWidth
+						bind:width={imageStage.imageWidth}
+						bind:height={imageStage.imageHeight}
+						bind:failed={imageStage.imageFailed}
+						bind:awaiting={imageStage.awaitingNaturalSize}
+						bind:renderedWidth={imageStage.renderedWidth}
 						bind:container={imageContainer}
 					>
 
@@ -680,8 +675,8 @@
 										translate(i18n, 'accessibility.sentence', '{text}.', {
 											text: translate(i18n, 'interactions.positionObject.placedAtPercent', '{label} at {x}%, {y}%', {
 												label: stageName(stage),
-												x: percent(position.x, imageWidth ?? 0),
-												y: percent(position.y, imageHeight ?? 0),
+												x: percent(position.x, imageStage.imageWidth ?? 0),
+												y: percent(position.y, imageStage.imageHeight ?? 0),
 											}),
 										}),
 										isCorrect && translate(i18n, 'accessibility.correctPosition', 'Correct position.'),
@@ -743,8 +738,8 @@
 										role="img"
 										aria-label={translate(i18n, 'interactions.positionObject.correctPositionAtPercent', 'Correct position for {label}: {x}%, {y}%', {
 											label: stageName(stage),
-											x: percent(correctPos.x, imageWidth ?? 0),
-											y: percent(correctPos.y, imageHeight ?? 0),
+											x: percent(correctPos.x, imageStage.imageWidth ?? 0),
+											y: percent(correctPos.y, imageStage.imageHeight ?? 0),
 										})}
 									>
 										{#if stage.objectData}

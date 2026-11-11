@@ -16,6 +16,7 @@
 	import { matchGroupBlockedIds } from '../../shared/utils/matchGroupUtils';
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
+	import { createStageImage } from '../../shared/utils/stageImage.svelte';
 	import { countPairsWithId, hasUnorderedPair, pairIncludesId } from '../../shared/utils/pairHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
@@ -50,27 +51,16 @@
 	// else a raster image's natural size once loaded, else unknown — the hotspots are
 	// positioned in percentages of it, so unknown means no stage is drawn (a default
 	// would associate in a guessed space). The stage scales with its container (WCAG 1.4.10).
-	let imageWidth = $state<number | null>(null);
-	let imageHeight = $state<number | null>(null);
-	let imageFailed = $state(false);
-	let awaitingNaturalSize = $state(false);
-
-	const stageStyle = $derived(`max-width: calc(${imageWidth ?? 0}px + 4px);`);
+	const stage = createStageImage({
+		needsDimensions: () => !!imageData,
+		missingDimensionsWarning:
+			'[pie-qti-graphic-associate] The image has no known width/height, so its hotspots cannot be placed. Add width and height to the image, or supply the asset dimensions.',
+	});
+	// Tell authors once, on the console, when the dimensions never arrive.
+	$effect(() => stage.warnOnceMissingDimensions());
 
 	const imageData = $derived(parsedInteraction?.imageData ?? null);
-	const hasImageDimensions = $derived(imageWidth !== null && imageHeight !== null);
-	const missingDimensions = $derived(!!imageData && !hasImageDimensions && !awaitingNaturalSize);
 	const showDiagnostics = $derived(role !== 'candidate');
-
-	let warnedMissingDimensions = false;
-	$effect(() => {
-		if (missingDimensions && !warnedMissingDimensions) {
-			warnedMissingDimensions = true;
-			console.warn(
-				'[pie-qti-graphic-associate] The image has no known width/height, so its hotspots cannot be placed. Add width and height to the image, or supply the asset dimensions.',
-			);
-		}
-	});
 	const imageAlt = $derived(
 		imageAltText(imageData, translate(i18n, 'interactions.graphicAssociate.imageFallback', 'Image for this question')),
 	);
@@ -298,13 +288,13 @@
 	 * image (QTI 3.0 §8.29); a shape whose coords cannot be read has an empty box.
 	 */
 	function hotspotBounds(hotspot: GraphicAssociateHotspot): Bounds {
-		if (hotspot.shape === 'default') return { x: 0, y: 0, width: imageWidth ?? 0, height: imageHeight ?? 0 };
+		if (hotspot.shape === 'default') return { x: 0, y: 0, width: stage.imageWidth ?? 0, height: stage.imageHeight ?? 0 };
 		return shapeBounds(hotspot.shape, hotspot.coords) ?? { x: 0, y: 0, width: 0, height: 0 };
 	}
 
 	/** Where an association line meets a hotspot: its shape's centre; the whole image's for the default shape. */
 	function hotspotCenter(hotspot: GraphicAssociateHotspot): { x: number; y: number } {
-		if (hotspot.shape === 'default') return { x: (imageWidth ?? 0) / 2, y: (imageHeight ?? 0) / 2 };
+		if (hotspot.shape === 'default') return { x: (stage.imageWidth ?? 0) / 2, y: (stage.imageHeight ?? 0) / 2 };
 		return shapeCenter(hotspot.shape, hotspot.coords);
 	}
 
@@ -318,10 +308,10 @@
 		const bounds = hotspotBounds(hotspot);
 		const pct = (value: number, total: number) => `${((value / total) * 100).toFixed(4)}%`;
 		return [
-			`left: ${pct(bounds.x + bounds.width / 2, imageWidth ?? 1)}`,
-			`top: ${pct(bounds.y + bounds.height / 2, imageHeight ?? 1)}`,
-			`width: ${pct(bounds.width, imageWidth ?? 1)}`,
-			`height: ${pct(bounds.height, imageHeight ?? 1)}`,
+			`left: ${pct(bounds.x + bounds.width / 2, stage.imageWidth ?? 1)}`,
+			`top: ${pct(bounds.y + bounds.height / 2, stage.imageHeight ?? 1)}`,
+			`width: ${pct(bounds.width, stage.imageWidth ?? 1)}`,
+			`height: ${pct(bounds.height, stage.imageHeight ?? 1)}`,
 			'pointer-events: none',
 		].join('; ');
 	}
@@ -357,7 +347,7 @@
 			</div>
 		{/if}
 
-		{#if missingDimensions && showDiagnostics}
+		{#if stage.missingDimensions && showDiagnostics}
 			<div part="diagnostic" class="alert alert-error qti-ga-diagnostic" role="alert">
 				{translate(
 					i18n,
@@ -373,7 +363,7 @@
 				<div
 					part="stage"
 					class="qti-ga-stage relative border-2 border-base-300 rounded-lg bg-base-200"
-					style={stageStyle}
+					style={stage.frameStyle}
 				>
 					<!-- Borderless positioning canvas: exactly the image's aspect ratio, so the
 					     percentage hotspot boxes and the overlay's viewBox align at any scale. -->
@@ -392,13 +382,13 @@
 						loadErrorText={translate(i18n, 'interactions.graphicAssociate.imageLoadError', 'The image could not be loaded.')}
 						onImageError={warnImageFailed}
 						sizing="refuse"
-						bind:width={imageWidth}
-						bind:height={imageHeight}
-						bind:failed={imageFailed}
-						bind:awaiting={awaitingNaturalSize}
+						bind:width={stage.imageWidth}
+						bind:height={stage.imageHeight}
+						bind:failed={stage.imageFailed}
+						bind:awaiting={stage.awaitingNaturalSize}
 					>
 
-					{#if hasImageDimensions}
+					{#if stage.hasImageDimensions}
 					<!-- The hotspots on the image, each in its real shape (QTI 3.0 §5.7.5–5.7.6: the
 					     area its shape and coords describe) with its state: a light halo under the
 					     outline keeps it visible on any image. Visual only — default-shape hotspots
@@ -406,7 +396,7 @@
 					<svg
 						part="areas"
 						class="qti-ga-areas"
-						viewBox="0 0 {imageWidth} {imageHeight}"
+						viewBox="0 0 {stage.imageWidth} {stage.imageHeight}"
 						xmlns="http://www.w3.org/2000/svg"
 						aria-hidden="true"
 						pointer-events="none"
@@ -426,12 +416,12 @@
 					</svg>
 					{/if}
 
-					{#if hasImageDimensions}
+					{#if stage.hasImageDimensions}
 					<!-- SVG overlay for drawing connection lines (natural image coordinates, scales with the stage) -->
 					<svg
 						part="overlay"
 						class="qti-ga-overlay"
-						viewBox="0 0 {imageWidth} {imageHeight}"
+						viewBox="0 0 {stage.imageWidth} {stage.imageHeight}"
 						aria-hidden="true"
 					>
 						{#each pairs as pair}
@@ -480,7 +470,7 @@
 					     press reaches the button. A small shape grows with the button's 24 px minimum.
 					     Drawn only when the stage's pixel space is known: their boxes are percentages
 					     of it. -->
-					{#if hasImageDimensions}
+					{#if stage.hasImageDimensions}
 					{#each parsedInteraction.associableHotspots as hotspot}
 						{@const isSelected = isHotspotSelected(hotspot.identifier)}
 						{@const isMaxed = isHotspotMaxed(hotspot.identifier)}

@@ -12,6 +12,7 @@
 	import { exceedsLimit, isAtLimit, limitMessage } from '../../shared/utils/capacity';
 	import { isCompatibleMatchGroup, matchGroupBlockedIds, type MatchGroupBearer } from '../../shared/utils/matchGroupUtils';
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
+	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import {
 		countPairsForSource,
@@ -49,8 +50,10 @@
 	// is unreadable during dragover, so the gaps that refuse it (matchGroup) are known from here.
 	const pickUp = createPickUpPlace();
 
-	// K-02: live region message for screen reader announcements
-	let liveMessage: string = $state('');
+	// K-02: the live region's announcements. The shared announcer keeps a repeat of the
+	// same sentence changing the region's text, so an identical refusal still announces
+	// (a live region speaks only changes; WCAG 4.1.3).
+	const liveAnnouncer = createAnnouncer();
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
@@ -233,12 +236,12 @@
 
 	/** Announce a refused placement: the author's data-max-selections-message wins. */
 	function announceAssociationLimit() {
-		liveMessage = limitMessage(
+		liveAnnouncer.announce(limitMessage(
 			parsedInteraction?.maxSelectionsMessage,
 			translate(i18n, 'interactions.gapMatch.associationLimitReached', 'Association not possible: the limit of {max} is reached.', {
 				max: maxAssociations,
 			}),
-		);
+		));
 	}
 
 	/**
@@ -309,9 +312,11 @@
 		if (disabled || isWordUsed(wordId)) return;
 		pickUp.toggle(wordId);
 		const word = getWordText(wordId);
-		liveMessage = pickUp.held
-			? translate(i18n, 'interactions.gapMatch.wordSelected', '{word} picked up. Select a blank to place it, or press Escape to cancel.', { word })
-			: translate(i18n, 'interactions.gapMatch.pickUpCancelled', 'Pick-up of {word} cancelled.', { word });
+		liveAnnouncer.announce(
+			pickUp.held
+				? translate(i18n, 'interactions.gapMatch.wordSelected', '{word} picked up. Select a blank to place it, or press Escape to cancel.', { word })
+				: translate(i18n, 'interactions.gapMatch.pickUpCancelled', 'Pick-up of {word} cancelled.', { word }),
+		);
 	}
 
 	// K-02: global Escape handler to cancel pick-up from anywhere in the component.
@@ -321,9 +326,11 @@
 		if (e.key !== 'Escape') return;
 		const wordId = pickUp.release();
 		if (wordId === null) return;
-		liveMessage = translate(i18n, 'interactions.gapMatch.pickUpCancelled', 'Pick-up of {word} cancelled.', {
-			word: getWordText(wordId),
-		});
+		liveAnnouncer.announce(
+			translate(i18n, 'interactions.gapMatch.pickUpCancelled', 'Pick-up of {word} cancelled.', {
+				word: getWordText(wordId),
+			}),
+		);
 		void tick().then(() => {
 			const heldButton = Array.from(
 				rootElement?.querySelectorAll<HTMLButtonElement>('[data-word-id]') ?? []
@@ -413,17 +420,19 @@
 		if (pickUp.held !== null) {
 			const placed = pickUp.place(gapId, (wordId) => {
 				if (!canPlaceWord(wordId, gapId)) {
-					liveMessage = translate(i18n, 'interactions.gapMatch.notCompatibleSentence', 'Not compatible with the selected word.');
+					liveAnnouncer.announce(translate(i18n, 'interactions.gapMatch.notCompatibleSentence', 'Not compatible with the selected word.'));
 					return false;
 				}
 				return handleGapChange(gapId, wordId);
 			});
 			if (placed === null) return;
-			liveMessage = translate(i18n, 'interactions.gapMatch.placed', 'Placed {word} in blank {position} of {total}.', {
-				word: getWordText(placed),
-				position: gapPositions.positions.get(gapId) ?? 0,
-				total: gapPositions.total,
-			});
+			liveAnnouncer.announce(
+				translate(i18n, 'interactions.gapMatch.placed', 'Placed {word} in blank {position} of {total}.', {
+					word: getWordText(placed),
+					position: gapPositions.positions.get(gapId) ?? 0,
+					total: gapPositions.total,
+				}),
+			);
 		} else {
 			// No word held: clear this gap if it has a word
 			const current = getSelectedWord(gapId);
@@ -439,7 +448,9 @@
 		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: newPairs, onChange });
 		// The removal is announced: the focused remove button vanishes with the placements,
 		// so the live region is what tells assistive technology what just happened.
-		liveMessage = translate(i18n, 'interactions.gapMatch.wordRemovedFromBlanks', '{word} removed from the blanks.', { word: wordName });
+		liveAnnouncer.announce(
+			translate(i18n, 'interactions.gapMatch.wordRemovedFromBlanks', '{word} removed from the blanks.', { word: wordName }),
+		);
 		// The remove button is gone, which would drop keyboard focus to the document.
 		// Focus returns to the now-enabled word button instead.
 		await tick();
@@ -459,7 +470,7 @@
 	aria-atomic="true"
 	class="qti-gm-live-region"
 >
-	{liveMessage}
+	{liveAnnouncer.message}
 </div>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
