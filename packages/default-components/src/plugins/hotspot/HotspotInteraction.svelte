@@ -18,6 +18,7 @@
 	import { minimumHint } from '../../shared/utils/minimumRequirement';
 	import { hitStrokeWidth, imageAltText, regionMarkerPoint, type Point } from '../../shared/utils/graphicRegions';
 	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
+	import { createStageImage } from '../../shared/utils/stageImage.svelte';
 
 	// The response is the chosen region's identifier (single selection), or the chosen
 	// regions' identifiers (multiple); null (single) or [] (multiple) when cleared.
@@ -80,40 +81,27 @@
 
 	// The stage's pixel space: the image's authored width/height, else its natural size once
 	// loaded (resolved by the shared ImageStage; `refuse` mode).
-	let imageWidth = $state<number | null>(null);
-	let imageHeight = $state<number | null>(null);
-	let imageFailed = $state(false);
-	let awaitingNaturalSize = $state(false);
-
-	// Hotspot `coords` are in the source image's pixel space, so the overlay
-	// viewBox has to be the image's intrinsic dimensions. Without them there is
-	// no correct viewBox: any guess silently misplaces every region. Refuse to
-	// draw the overlay; tell authors why (console, and visibly outside the
-	// candidate role) — candidates never see authoring diagnostics.
-	const hasImageDimensions = $derived(imageWidth !== null && imageHeight !== null);
-	const missingDimensions = $derived(!!parsedInteraction && !hasImageDimensions && !awaitingNaturalSize);
-	const showDiagnostics = $derived(role !== 'candidate');
-
-	let warnedMissingDimensions = false;
-	$effect(() => {
-		if (missingDimensions && !warnedMissingDimensions) {
-			warnedMissingDimensions = true;
-			console.warn(
-				'[pie-qti-hotspot] The hotspot image has no known width/height, so its regions cannot be placed. Add width and height to the image, or supply the asset dimensions.',
-			);
-		}
+	const stage = createStageImage({
+		// Hotspot `coords` are in the source image's pixel space, so the overlay viewBox has
+		// to be the image's intrinsic dimensions. The image is mandatory — the regions are
+		// this interaction's whole answer (QTI 3.0 §8.29) — so the gate is the parsed
+		// interaction, not the image data.
+		needsDimensions: () => !!parsedInteraction,
+		missingDimensionsWarning:
+			'[pie-qti-hotspot] The hotspot image has no known width/height, so its regions cannot be placed. Add width and height to the image, or supply the asset dimensions.',
 	});
+	// Tell authors why the regions cannot be placed (console, and visibly outside the
+	// candidate role) — candidates never see authoring diagnostics.
+	$effect(() => stage.warnOnceMissingDimensions());
 
-	// Rendered width of the image, to size hit targets and markers in CSS px.
-	let renderedWidth = $state(0);
-	const renderScale = $derived(imageWidth && renderedWidth > 0 ? renderedWidth / imageWidth : 1);
+	const showDiagnostics = $derived(role !== 'candidate');
 
 	/**
 	 * Where a region's check marker sits, in image coordinates: the centre of its shape, or for a
 	 * default-shape region — the whole image — 14 CSS px in from the top-left corner.
 	 */
 	function markerPoint(choice: HotspotChoice): Point {
-		return regionMarkerPoint(choice.shape, choice.coords, renderScale, 14);
+		return regionMarkerPoint(choice.shape, choice.coords, stage.renderScale, 14);
 	}
 
 	const imageAlt = $derived(
@@ -325,7 +313,7 @@
 			</div>
 		{/if}
 
-		{#if missingDimensions && showDiagnostics}
+		{#if stage.missingDimensions && showDiagnostics}
 			<div part="diagnostic" class="alert alert-error qti-hotspot-diagnostic" role="alert">
 				{translate(
 					i18n,
@@ -351,11 +339,11 @@
 				loadErrorText={translate(i18n, 'interactions.hotspot.imageLoadError', 'The image could not be loaded.')}
 				onImageError={warnImageFailed}
 				sizing="refuse"
-				bind:width={imageWidth}
-				bind:height={imageHeight}
-				bind:failed={imageFailed}
-				bind:awaiting={awaitingNaturalSize}
-				bind:renderedWidth
+				bind:width={stage.imageWidth}
+				bind:height={stage.imageHeight}
+				bind:failed={stage.imageFailed}
+				bind:awaiting={stage.awaitingNaturalSize}
+				bind:renderedWidth={stage.renderedWidth}
 			>
 				{#if imageDescription}
 					<p id={imageDescriptionId} class="qti-hotspot-sr-only">{imageDescription}</p>
@@ -366,12 +354,12 @@
 				     viewBox must match the pixel space the coords were authored in.
 				     Single selection: the overlay is a radio group of role="radio" regions
 				     (roving tabindex, arrow keys). Multiple: aria-pressed toggle buttons. -->
-				{#if hasImageDimensions}
+				{#if stage.hasImageDimensions}
 				<svg
 					bind:this={overlayElement}
 					part="overlay"
 					class="qti-hotspot-overlay"
-					viewBox="0 0 {imageWidth} {imageHeight}"
+					viewBox="0 0 {stage.imageWidth} {stage.imageHeight}"
 					xmlns="http://www.w3.org/2000/svg"
 					data-disabled={disabled ? '' : undefined}
 					{...radioGroupAria}
@@ -386,7 +374,7 @@
 							<g
 								class="qti-hotspot-marker"
 								aria-hidden="true"
-								transform="translate({at.x} {at.y}) scale({1 / renderScale})"
+								transform="translate({at.x} {at.y}) scale({1 / stage.renderScale})"
 							>
 								<circle r="10" />
 								<path d="M-4.5 0.5 L-1.5 3.5 L4.5 -3" />
@@ -445,7 +433,7 @@
 								tabStop={!isSingle || choice.identifier === tabStopIdentifier}
 								presentation={{
 									class: isDefaultShape ? 'qti-hotspot-shape qti-hotspot-shape-default' : 'qti-hotspot-shape',
-									style: `--qti-hit-stroke: ${hitStrokeWidth(choice.shape, choice.coords, renderScale)}px;${isDefaultShape ? ' pointer-events: none;' : ''}`,
+									style: `--qti-hit-stroke: ${hitStrokeWidth(choice.shape, choice.coords, stage.renderScale)}px;${isDefaultShape ? ' pointer-events: none;' : ''}`,
 									'data-selected': regionSelected ? '' : undefined,
 									'aria-describedby': minHint ? minHintId : undefined,
 									// A disabled region says so, as a disabled native control does

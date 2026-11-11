@@ -25,6 +25,7 @@ import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
 	import { createPickUpPlace } from '../../shared/components/pickUpPlace.svelte';
 import { choiceAccessibleName } from '../../shared/utils/choiceName';
 import { createAnnouncer } from '../../shared/utils/announcer.svelte';
+import { createStageImage } from '../../shared/utils/stageImage.svelte';
 import { choicesShortOfMatchMin } from '../../shared/utils/minimumRequirement';
 	import {
 		getSourceForTarget,
@@ -68,29 +69,13 @@ const imageData = $derived(parsedInteraction?.imageData ?? null);
 // The stage's pixel space: the image's authored width/height, else its natural size once
 // loaded (resolved by the shared ImageStage; `refuse` mode). Hotspot coords are in that
 // pixel space when the item declares no width/height.
-let imageWidth = $state<number | null>(null);
-let imageHeight = $state<number | null>(null);
-let imageFailed = $state(false);
-let awaitingNaturalSize = $state(false);
-const hasImageDimensions = $derived(imageWidth !== null && imageHeight !== null);
-const missingDimensions = $derived(!!parsedInteraction && !!imageData && !hasImageDimensions && !awaitingNaturalSize);
-
-// Reflow (WCAG 1.4.10): the stage scales with its container up to the image's natural size.
-const frameStyle = $derived(imageWidth ? `max-width: calc(${imageWidth}px + 4px);` : '');
-
-let warnedMissingDimensions = false;
-$effect(() => {
-	if (missingDimensions && !warnedMissingDimensions) {
-		warnedMissingDimensions = true;
-		console.warn(
-			'[pie-qti-graphic-gap-match] The image has no known width/height, so its hotspots cannot be placed. Add width and height to the image, or supply the asset dimensions.',
-		);
-	}
+const stage = createStageImage({
+	needsDimensions: () => !!imageData,
+	missingDimensionsWarning:
+		'[pie-qti-graphic-gap-match] The image has no known width/height, so its hotspots cannot be placed. Add width and height to the image, or supply the asset dimensions.',
 });
-
-// Rendered width of the image, to size hit targets and hotspot labels in CSS px.
-let renderedWidth = $state(0);
-const renderScale = $derived(imageWidth && renderedWidth > 0 ? renderedWidth / imageWidth : 1);
+// Tell authors once, on the console, when the dimensions never arrive.
+$effect(() => stage.warnOnceMissingDimensions());
 
 const imageAlt = $derived(
 	imageAltText(imageData, translate(i18n, 'interactions.graphicGapMatch.imageFallback', 'Image for this question')),
@@ -533,7 +518,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 			)}
 		</div>
 
-		{#if missingDimensions && role !== 'candidate'}
+		{#if stage.missingDimensions && role !== 'candidate'}
 			<div part="diagnostic" class="alert alert-error" role="alert">
 				{translate(
 					i18n,
@@ -662,7 +647,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 			{/if}
 
 			<!-- Image/diagram with hotspot drop zones -->
-			<div part="stage" class="qti-ggm-stage" style={frameStyle}>
+			<div part="stage" class="qti-ggm-stage" style={stage.frameStyle}>
 				<ImageStage
 					{imageData}
 					alt={imageAlt}
@@ -678,20 +663,20 @@ function handleRootKeyDown(event: KeyboardEvent) {
 					loadErrorText={translate(i18n, 'interactions.graphicGapMatch.imageLoadError', 'The image could not be loaded.')}
 					onImageError={warnImageFailed}
 					sizing="refuse"
-					bind:width={imageWidth}
-					bind:height={imageHeight}
-					bind:failed={imageFailed}
-					bind:awaiting={awaitingNaturalSize}
-					bind:renderedWidth
+					bind:width={stage.imageWidth}
+					bind:height={stage.imageHeight}
+					bind:failed={stage.imageFailed}
+					bind:awaiting={stage.awaitingNaturalSize}
+					bind:renderedWidth={stage.renderedWidth}
 				>
 
 					<!-- Overlay with hotspot drop zones, in the image's natural pixel space.
 					     Only drawn when that space is known: any guess misplaces every hotspot. -->
-					{#if hasImageDimensions}
+					{#if stage.hasImageDimensions}
 					<svg
 						part="overlay"
 						class="qti-ggm-overlay"
-						viewBox="0 0 {imageWidth} {imageHeight}"
+						viewBox="0 0 {stage.imageWidth} {stage.imageHeight}"
 						data-disabled={disabled ? '' : undefined}
 					>
 						<!-- Default-shape hotspots are the whole image (QTI 3.0 §8.29), so they lie
@@ -724,7 +709,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 											text-anchor="middle"
 											dominant-baseline="middle"
 											class="qti-ggm-zone-text"
-											style="font-size: {14 / renderScale}px;"
+											style="font-size: {14 / stage.renderScale}px;"
 											aria-hidden="true"
 										>
 											{matchedLabelName ?? correctLabelName}
@@ -781,7 +766,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 										text-anchor="middle"
 										dominant-baseline="middle"
 										class="qti-ggm-zone-text"
-										style="font-size: {14 / renderScale}px;"
+										style="font-size: {14 / stage.renderScale}px;"
 										aria-hidden="true"
 									>
 										{matchedLabelName ?? correctLabelName}
@@ -805,7 +790,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 										class: `qti-ggm-hotspot${hotspotReady ? ' qti-ggm-hotspot-ready' : ''}`,
 										'data-filled': matchedGapText ? '' : undefined,
 										'aria-disabled': isBlocked ? 'true' : undefined,
-										style: `--qti-hit-stroke: ${hitStrokeWidth(hotspot.shape, hotspot.coords, renderScale)}px; cursor: ${disabled || isBlocked ? 'not-allowed' : hotspotReady ? 'copy' : 'pointer'};${hotspot.shape === 'default' ? ' pointer-events: none;' : ''}`,
+										style: `--qti-hit-stroke: ${hitStrokeWidth(hotspot.shape, hotspot.coords, stage.renderScale)}px; cursor: ${disabled || isBlocked ? 'not-allowed' : hotspotReady ? 'copy' : 'pointer'};${hotspot.shape === 'default' ? ' pointer-events: none;' : ''}`,
 									}}
 									ondragover={(e) => handleHotspotDragOver(e, hotspot.identifier)}
 									ondragleave={handleHotspotDragLeave}
