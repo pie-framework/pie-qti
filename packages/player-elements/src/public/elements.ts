@@ -1,5 +1,7 @@
 export type {
 	QtiAdaptiveAttemptResult,
+	QtiAssessmentAutosaveChangeDetail,
+	QtiAssessmentAutosaveFailedDetail,
 	QtiAssessmentBackend,
 	QtiAssessmentInitSessionRequest,
 	QtiAssessmentItemDefinitionPlugin,
@@ -40,7 +42,10 @@ export type {
 	QtiScoringResult,
 	QtiSectionComposition,
 	QtiSectionDiagnostic,
+	QtiSectionDisplaySettingsEvent,
+	QtiSectionFrameworkError,
 	QtiSectionItemRef,
+	QtiSectionItemPaneReadyDetail,
 	QtiSectionModel,
 	QtiSectionPlayerElement,
 	QtiSectionPlayerEventMap,
@@ -53,6 +58,7 @@ export type {
 	QtiSectionToolConfig,
 	QtiSharedHtmlBlock,
 	QtiSharedStimulus,
+	QtiStringComparison,
 } from './api.js';
 
 import type {

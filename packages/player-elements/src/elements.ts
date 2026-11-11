@@ -1,6 +1,8 @@
 export { defineQtiPlayerElements } from './define.js';
 export {
 	defineQtiAssessmentPlayerElement,
+	type QtiAssessmentAutosaveChangeDetail,
+	type QtiAssessmentAutosaveFailedDetail,
 	type QtiAssessmentErrorDetail,
 	type QtiAssessmentItemChangeDetail,
 	type QtiAssessmentLoadErrorDetail,
@@ -29,6 +31,9 @@ export {
 export {
 	defineQtiSectionPlayerSplitPaneElement,
 	QtiSectionPlayerSplitPaneElement,
+	type QtiSectionDisplaySettingsEvent,
+	type QtiSectionFrameworkError,
+	type QtiSectionItemPaneReadyDetail,
 	type QtiSectionPlayerEventMap,
 	type QtiSectionResponseDeltaDetail,
 } from './elements/QtiSectionPlayerSplitPaneElement.js';
