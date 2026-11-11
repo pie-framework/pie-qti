@@ -118,6 +118,11 @@ jobs:
       - name: Run unit tests
         run: bun run test
 
+      # Release-incident regression guards live in scripts/ (outside the turbo graph);
+      # they gate pushes here via the explicit-file-list root script.
+      - name: Run repository script guards
+        run: bun run test:scripts
+
   qti-public-certification:
     name: QTI Public Certification Gate
     if: ${{ !(github.event_name == 'pull_request' && (startsWith(github.head_ref, 'changeset-release/') || contains(github.event.pull_request.title, '[skip-heavy-ci]') || contains(join(github.event.pull_request.labels.*.name, ','), 'skip-heavy-ci'))) }}

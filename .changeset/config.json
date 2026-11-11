@@ -38,6 +38,7 @@
   "updateInternalDependencies": "patch",
   "ignore": [
     "@acme/likert-scale-plugin",
-    "@pie-qti/app-demo"
+    "@pie-qti/app-demo",
+    "@pie-qti/demo-vendor-extensions"
   ]
 }

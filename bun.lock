@@ -67,24 +67,10 @@
         "typescript": "^6.0.3",
         "vite": "^8.3.4",
       },
-      "peerDependencies": {
-        "@pie-framework/pie-assessment-player": "^1.0.0",
-        "@pie-framework/pie-esm-player": "^1.0.0",
-        "@pie-framework/pie-iife-player": "^1.0.0",
-      },
-      "optionalPeers": [
-        "@pie-framework/pie-assessment-player",
-        "@pie-framework/pie-esm-player",
-        "@pie-framework/pie-iife-player",
-      ],
     },
     "apps/docs": {
       "name": "@pie-qti/app-docs",
       "version": "0.1.22",
-      "dependencies": {
-        "@pie-qti/assessment-player": "workspace:*",
-        "@pie-qti/item-player": "workspace:*",
-      },
       "devDependencies": {
         "@sveltejs/adapter-static": "^4.0.0",
         "@sveltejs/kit": "^3.1.1",
@@ -198,7 +184,6 @@
       "name": "@pie-qti/demo-vendor-extensions",
       "version": "1.0.0-beta.3",
       "dependencies": {
-        "@pie-qti/to-pie": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
         "node-html-parser": "^9.0.5",
         "uuid": "^14.0.3",
@@ -308,7 +293,6 @@
       "devDependencies": {
         "@pie-qti/item-player": "workspace:*",
         "@pie-qti/to-pie": "workspace:*",
-        "@pie-qti/transform-core": "workspace:*",
         "typescript": "^5.9.3",
         "xmllint-wasm": "^5.3.0",
       },
@@ -499,7 +483,6 @@
       },
       "dependencies": {
         "@oclif/core": "^5.1.8",
-        "@oclif/plugin-help": "^7.0.5",
         "@pie-qti/ims-cp-node": "workspace:*",
         "@pie-qti/logger": "workspace:*",
         "@pie-qti/to-pie": "workspace:*",

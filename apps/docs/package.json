@@ -8,12 +8,9 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
+    "clean": "rm -rf build .svelte-kit",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@pie-qti/item-player": "workspace:*",
-    "@pie-qti/assessment-player": "workspace:*"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^4.0.0",

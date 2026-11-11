@@ -38,7 +38,6 @@ packages/schemas/scripts/*.d.ts.map
 !**/src/**/svelte-shims.d.ts
 !**/src/**/ambient.d.ts
 !**/src/**/katex-auto-render.d.ts
-!**/src/**/pie-players.d.ts
 
 # TypeScript build artifacts in tests/ (tests should be .ts files only)
 **/tests/**/*.js
