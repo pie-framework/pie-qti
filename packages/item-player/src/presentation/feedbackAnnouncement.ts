@@ -12,6 +12,7 @@
 import { isShownByIdentifier } from '@pie-qti/qti-common';
 import type { ItemSessionTransition } from '../core/ItemSession.js';
 import type { QTIRole } from '../types/index.js';
+import { readHtmlAttribute } from '../utils/htmlAttributes.js';
 
 /** The integrated feedback an item body shows. */
 export interface ShownFeedback {
@@ -75,21 +76,11 @@ function feedbackElements(html: string): FeedbackElement[] {
 	return roots;
 }
 
-/** An attribute in either QTI spelling, e.g. `outcomeIdentifier` or `outcome-identifier`. */
-function attribute(attrs: string, name: string): string | null {
-	const kebab = name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
-	for (const spelling of kebab === name ? [name] : [name, kebab]) {
-		const match = new RegExp(`(?:^|\\s)${spelling}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i').exec(attrs);
-		if (match) return match[1] ?? match[2] ?? '';
-	}
-	return null;
-}
-
 function isShown(element: FeedbackElement, outcomeValues: Readonly<Record<string, unknown>>): boolean {
-	const outcomeId = attribute(element.attrs, 'outcomeIdentifier');
-	const feedbackId = attribute(element.attrs, 'identifier');
+	const outcomeId = readHtmlAttribute(element.attrs, 'outcomeIdentifier');
+	const feedbackId = readHtmlAttribute(element.attrs, 'identifier');
 	if (outcomeId === null || feedbackId === null) return false;
-	return isShownByIdentifier(outcomeValues[outcomeId], feedbackId, attribute(element.attrs, 'showHide'));
+	return isShownByIdentifier(outcomeValues[outcomeId], feedbackId, readHtmlAttribute(element.attrs, 'showHide'));
 }
 
 /** A shown element's content as the plan renders it: nested feedback resolved, hidden feedback dropped. */
@@ -133,7 +124,7 @@ function accessibleText(html: string): string {
 	const text = html
 		.replace(/<!--[\s\S]*?-->/g, '')
 		.replace(/<(script|style|template|noscript)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, ' ')
-		.replace(/<img\b[^>]*>/gi, (tag) => ` ${attribute(tag.slice(4, -1), 'alt') ?? ''} `)
+		.replace(/<img\b[^>]*>/gi, (tag) => ` ${readHtmlAttribute(tag.slice(4, -1), 'alt') ?? ''} `)
 		.replace(/<\/?([a-zA-Z][\w:-]*)\b[^>]*>/g, (_tag, name: string) => (PHRASING_ELEMENTS.has(name.toLowerCase()) ? '' : ' '))
 		.replace(/<[^>]*>/g, ' ');
 	// Character references are decoded last, so an encoded `&lt;` is never mistaken for markup.

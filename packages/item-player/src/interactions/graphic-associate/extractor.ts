@@ -5,6 +5,7 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import { validateUniqueIdentifiers } from '../../extraction/utils.js';
 import { normalizePixelDimension } from '../../security/styleValues.js';
 import { extractImageAlternative, imgAlternativeSource } from '../shared/imageAlt.js';
 import { findInteractionImage } from '../shared/interactionImage.js';
@@ -183,16 +184,9 @@ export const standardGraphicAssociateExtractor: ElementExtractor<GraphicAssociat
 
 		// Validate hotspot identifiers and coords
 		if (data.associableHotspots && data.associableHotspots.length > 0) {
-			const identifiers = new Set<string>();
-			for (const hotspot of data.associableHotspots) {
-				if (!hotspot.identifier) {
-					errors.push('All hotspots must have an identifier');
-				} else if (identifiers.has(hotspot.identifier)) {
-					errors.push(`Duplicate hotspot identifier: ${hotspot.identifier}`);
-				} else {
-					identifiers.add(hotspot.identifier);
-				}
+			validateUniqueIdentifiers(data.associableHotspots, errors, { plural: 'hotspots', noun: 'hotspot' });
 
+			for (const hotspot of data.associableHotspots) {
 				if (!hotspot.coords) {
 					errors.push(`Hotspot ${hotspot.identifier} must have coords`);
 				}

@@ -1,6 +1,7 @@
 import type { SerializedItemSessionState, SerializedItemSessionVariable } from '@pie-qti/item-player';
 import { childElements, durationSecondsFromMilliseconds, getAttr, parseXml } from '@pie-qti/qti-processing';
 import { deliveredItems } from '../core/testStructure.js';
+import { inferBaseType } from './inferBaseType.js';
 import type {
 	AssessmentItemSessionState,
 	AssessmentScoringResult,
@@ -390,13 +391,6 @@ function inferCardinality(value: unknown): ResultCardinality {
 	if (Array.isArray(value)) return 'multiple';
 	if (value !== null && typeof value === 'object') return 'record';
 	return 'single';
-}
-
-function inferBaseType(value: unknown): ResultBaseType {
-	const sample = Array.isArray(value) ? value.find((entry) => entry !== null && entry !== undefined) : value;
-	if (typeof sample === 'boolean') return 'boolean';
-	if (typeof sample === 'number') return 'float';
-	return 'string';
 }
 
 function valuesOf(variables: Record<string, SerializedItemSessionVariable> | undefined): Record<string, unknown> {

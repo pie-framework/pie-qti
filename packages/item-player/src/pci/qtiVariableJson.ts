@@ -284,7 +284,14 @@ function base64ByteLength(base64: string): number {
 // Inference, for values whose declaration states no base type
 // ---------------------------------------------------------------------------
 
-/** A plain runtime value's QTI base-type name, when its JavaScript type says one. */
+/**
+ * A plain runtime value's QTI base-type name, when its JavaScript type says one. The numeric rule
+ * is the players' shared inference (a whole number is an `integer` value, a fractional one a
+ * `float` — see assessment-player's reporting `inferBaseType`); this PCI-boundary copy differs from
+ * it by contract, not by drift: the variable JSON must name a base type only when the value's
+ * JavaScript shape states one (other values bind as `string` by the callers' fallback), and it
+ * reads `{ dataUrl }` objects as `file`, the base type the PCI format carries files as.
+ */
 function inferBaseType(value: unknown): BaseType | undefined {
 	switch (typeof value) {
 		case 'boolean':

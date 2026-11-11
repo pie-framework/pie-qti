@@ -5,6 +5,7 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import { validateUniqueIdentifiers } from '../../extraction/utils.js';
 import {
 	normalizeCssPixelLength,
 	normalizePixelDimension,
@@ -313,30 +314,14 @@ export const standardGraphicGapMatchExtractor: ElementExtractor<GraphicGapMatchD
 
 		// Validate gapText identifiers
 		if (data.gapTexts) {
-			const identifiers = new Set<string>();
-			for (const gapText of data.gapTexts) {
-				if (!gapText.identifier) {
-					errors.push('All gapTexts must have an identifier');
-				} else if (identifiers.has(gapText.identifier)) {
-					errors.push(`Duplicate gapText identifier: ${gapText.identifier}`);
-				} else {
-					identifiers.add(gapText.identifier);
-				}
-			}
+			validateUniqueIdentifiers(data.gapTexts, errors, { plural: 'gapTexts', noun: 'gapText' });
 		}
 
 		// Validate hotspot identifiers
 		if (data.hotspots) {
-			const identifiers = new Set<string>();
-			for (const hotspot of data.hotspots) {
-				if (!hotspot.identifier) {
-					errors.push('All hotspots must have an identifier');
-				} else if (identifiers.has(hotspot.identifier)) {
-					errors.push(`Duplicate hotspot identifier: ${hotspot.identifier}`);
-				} else {
-					identifiers.add(hotspot.identifier);
-				}
+			validateUniqueIdentifiers(data.hotspots, errors, { plural: 'hotspots', noun: 'hotspot' });
 
+			for (const hotspot of data.hotspots) {
 				// The default shape is the whole image (QTI 3.0 §8.29), so its coords
 				// may be empty — the same rule the hotspot extractor applies.
 				if (!hotspot.coords && hotspot.shape !== 'default') {

@@ -5,6 +5,7 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import { validateUniqueIdentifiers } from '../../extraction/utils.js';
 import { maybeShuffle } from '../../core/shuffle.js';
 
 /**
@@ -96,16 +97,7 @@ export const standardInlineChoiceExtractor: ElementExtractor<InlineChoiceData> =
 
 		// Validate choice identifiers
 		if (data.choices) {
-			const identifiers = new Set<string>();
-			for (const choice of data.choices) {
-				if (!choice.identifier) {
-					errors.push('All choices must have an identifier');
-				} else if (identifiers.has(choice.identifier)) {
-					errors.push(`Duplicate choice identifier: ${choice.identifier}`);
-				} else {
-					identifiers.add(choice.identifier);
-				}
-			}
+			validateUniqueIdentifiers(data.choices, errors, { plural: 'choices', noun: 'choice' });
 
 			// Warn if too many choices
 			if (data.choices.length >= 10) {

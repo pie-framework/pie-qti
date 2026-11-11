@@ -1,5 +1,6 @@
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 import { escapeHtmlAttribute } from '../security/escapeHtml.js';
+import { readHtmlAttribute } from '../utils/htmlAttributes.js';
 
 export type StimulusSanitizer = (html: string) => string;
 
@@ -43,7 +44,7 @@ export function injectStimulusContent(itemBodyHtml: string, stimulusContent: Rec
 	html = html.replace(
 		/<qti-assessment-stimulus-ref\b([^>]*)\/?>\s*(?:<\/qti-assessment-stimulus-ref>)?/gi,
 		(match, attrs) => {
-			const identifier = extractAttribute(attrs, 'identifier');
+			const identifier = readHtmlAttribute(attrs, 'identifier');
 			if (!identifier) return match;
 			if (docked.has(identifier)) return '';
 			const content = stimulusContent[identifier];
@@ -62,11 +63,6 @@ export function injectStimulusContent(itemBodyHtml: string, stimulusContent: Rec
 		.join('');
 
 	return undocked ? undocked + html : html;
-}
-
-function extractAttribute(attrs: string, name: string): string | null {
-	const match = attrs.match(new RegExp(`\\b${name}\\s*=\\s*["']([^"']+)["']`, 'i'));
-	return match?.[1] ?? null;
 }
 
 function mergeClassAttribute(attrs: string, className: string): string {
