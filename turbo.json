@@ -25,9 +25,6 @@
       "dependsOn": ["build"],
       "cache": false
     },
-    "lint": {
-      "cache": false
-    },
     "typecheck": {
       "dependsOn": ["^build"],
       "cache": false
@@ -37,6 +34,11 @@
       "cache": false
     },
     "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "preview": {
+      "dependsOn": ["build"],
       "cache": false,
       "persistent": true
     },

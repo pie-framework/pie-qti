@@ -14,7 +14,9 @@
   },
   "scripts": {
     "build": "rm -rf dist tsconfig.build.tsbuildinfo && tsc -p tsconfig.build.json",
-    "test": "bun test"
+    "clean": "rm -rf dist tsconfig.build.tsbuildinfo",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@pie-qti/logger": "workspace:*",

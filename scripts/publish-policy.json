@@ -40,9 +40,6 @@
       "@pie-qti/i18n": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist",
       "@pie-qti/ims-cp-core": "consumed by Svelte sources compiled into @pie-qti/player-elements, not by this package's contracts-only dist"
     },
-    "@pie-qti/transform-cli": {
-      "@oclif/plugin-help": "oclif framework plugin, resolved dynamically at CLI runtime"
-    },
     "@pie-qti/assessment-player": {
       "node-html-parser": "bundled into dist by the vite build; runtime source imports it for manifest XML parsing"
     },

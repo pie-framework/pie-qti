@@ -21,7 +21,9 @@ Runs on every push to `master` and `develop`, and on pull requests targeting tho
 1. **Lint & Typecheck** - Runs Biome linting, Svelte checks, and TypeScript type checking
 2. **Translation Coverage** - Verifies locale coverage and fails on hard-coded learner-visible strings (`bun run check:i18n`)
 3. **Doc Links** - Verifies every relative link and heading anchor across all markdown resolves (`bun run check:doc-links`)
-4. **Unit Tests** - Runs package test suites through `bun run test`
+4. **Unit Tests** - Runs package test suites through `bun run test`, plus the repository script
+   guards in `scripts/*.test.mjs` (release-workflow and certification-runner invariants) via
+   `bun run test:scripts`
 5. **End-to-End Tests** - Runs the Playwright E2E suites against the demo app (`bun run test:e2e`)
 6. **QTI Public Certification Gate** - Runs clean-room public certification coverage
 7. **Accessibility Verification** - Runs `bun run verify:a11y` with Playwright Chromium, then the
@@ -60,6 +62,30 @@ Automatically creates release PRs and publishes packages to NPM using Changesets
   See [docs/development/trusted-publishing.md](../../docs/development/trusted-publishing.md).
   A legacy `NPM_TOKEN` secret is still honored as a classic-token fallback if present, but it is
   not required.
+
+### Deploy to GitHub Pages (`deploy-pages.yml`)
+
+Builds the docs site and the examples app and publishes them as one static site.
+
+**Triggers:**
+- Push to `master` branch
+- Manual dispatch
+
+**Behavior:**
+- Builds all workspace packages, then builds `apps/docs` and `apps/demo` with `NODE_ENV=production`
+- Assembles one Pages artifact: docs at `/`, examples app at `/examples`, plus `.nojekyll`
+- Deploys to the custom domain `qti.pie-framework.org` (CNAME in `apps/docs/static/CNAME`);
+  see [GITHUB_PAGES_SETUP.md](../GITHUB_PAGES_SETUP.md)
+- Sends Slack notifications on success/failure (when the Slack secrets are configured)
+
+**Base-path note:** `GITHUB_PAGES_SUBPATH` (read by both apps' Vite configs for a `github.io/pie-qti`
+subpath deployment) is **not set by any workflow**. CI always deploys the custom-domain layout
+(empty base path). The subpath variant remains a manual build option documented in
+[GITHUB_PAGES_SETUP.md](../GITHUB_PAGES_SETUP.md); the "set in workflow" comments in the apps'
+`vite.config.ts` files are stale on this point.
+
+**Required Secrets:**
+- `SLACK_WEBHOOK_URL` (optional) — enables the Slack deploy notifications
 
 ## Setup Instructions
 
@@ -175,3 +201,12 @@ When updating workflows:
 2. Create a PR to test workflows in isolation
 3. Check all jobs complete successfully
 4. Update this README if workflow behavior changes
+
+### Known version drift (parked)
+
+`slackapi/slack-github-action` is pinned at two different majors: `@v1.27.0` in `deploy-pages.yml`
+and `pr-notifications.yml` (env-var style: `SLACK_WEBHOOK_URL` / `SLACK_WEBHOOK_TYPE`) versus
+`@v3.0.1` in `release.yml` (`webhook:` / `webhook-type:` input style). Both invocation styles are
+incompatible between majors — v1 renames v3's inputs — so aligning them is a deliberate follow-up
+(parked in the 2026-11 round-3 review), not an accident to fix in passing. Do not bump one without
+the other.

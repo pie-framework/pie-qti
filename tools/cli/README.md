@@ -142,9 +142,12 @@ bun run pie-qti -- discover-qti ./content-package.zip --output discovery.json
 cd tools/cli
 bun run build
 
-# Run directly (development)
-bun run analyze-qti -- ./path/to/content/
-bun run batch-transform -- ./path/to/content/ -o ./output/
+# Run commands from the source-built binary
+node ./bin/run.js analyze-qti -- ./path/to/content/
+node ./bin/run.js batch-transform -- ./path/to/content/ -o ./output/
+
+# Or from the repository root, without cd
+bun run pie-qti -- analyze-qti ./path/to/content/
 ```
 
 ## Related Packages

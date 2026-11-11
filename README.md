@@ -213,10 +213,6 @@ Release behavior is lockstep and patch-only for publishable `packages/*`:
 
 See [docs/development/publish-verification.md](docs/development/publish-verification.md) for full publish-readiness details.
 
-### Local PIE Players
-
-To test with [pie-players](https://github.com/pie-framework/pie-players) locally, clone both repos side-by-side. The postinstall script auto-links them.
-
 ### GitHub Pages Preview
 
 ```bash

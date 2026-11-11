@@ -17,14 +17,10 @@
 	"scripts": {
 		"build": "tsc",
 		"clean": "rm -rf dist",
-		"prepack": "bun run build && oclif manifest",
-		"analyze-qti": "node --loader ts-node/esm --no-warnings=ExperimentalWarning ./src/commands/analyze-qti.ts",
-		"discover-qti": "node --loader ts-node/esm --no-warnings=ExperimentalWarning ./src/commands/discover-qti.ts",
-		"batch-transform": "node --loader ts-node/esm --no-warnings=ExperimentalWarning ./src/commands/batch-transform.ts"
+		"prepack": "bun run build && oclif manifest"
 	},
 	"dependencies": {
 		"@oclif/core": "^5.1.8",
-		"@oclif/plugin-help": "^7.0.5",
 		"@pie-qti/ims-cp-node": "workspace:*",
 		"@pie-qti/logger": "workspace:*",
 		"@pie-qti/to-pie": "workspace:*",
