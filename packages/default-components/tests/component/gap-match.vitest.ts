@@ -458,6 +458,33 @@ describe('GapMatchInteraction (pie-qti-gap-match)', () => {
 			cleanupInteraction(mounted);
 		});
 
+		test('two identical refusals in a row both reach the live region (WCAG 4.1.3)', async () => {
+			// A live region announces a change of its text: the same refusal twice must still
+			// change the region a second time, or assistive technology stays silent then.
+			const mounted = mountInteraction(GapMatchInteraction, { interaction: twoGaps({ maxAssociations: 1 }) });
+			await settle();
+			await place(mounted, 'W1', 'G1');
+
+			const dropW2OnG2 = (): Event => {
+				const drop = new Event('drop', { bubbles: true, cancelable: true });
+				Object.defineProperty(drop, 'dataTransfer', { value: { getData: () => 'W2' } });
+				return drop;
+			};
+			q(mounted, 'button[data-gap-id="G2"]')?.dispatchEvent(dropW2OnG2());
+			await settle();
+			const firstRefusal = liveRegion(mounted);
+			expect(firstRefusal).toBe('Association not possible: the limit of 1 is reached.');
+
+			q(mounted, 'button[data-gap-id="G2"]')?.dispatchEvent(dropW2OnG2());
+			await settle();
+			// The same sentence again: the region still carries it (invisible repeats are
+			// silent to reading, marked by the shared announcer's zero-width space) and its
+			// text has changed, so the second refusal is announced too.
+			expect(liveRegion(mounted).replace(/\u200b/g, '')).toBe(firstRefusal);
+			expect(liveRegion(mounted)).not.toBe(firstRefusal);
+			cleanupInteraction(mounted);
+		});
+
 		test('replacing the word in a filled gap stays within the cap', async () => {
 			const mounted = mountInteraction(GapMatchInteraction, { interaction: twoGaps({ maxAssociations: 1 }) });
 			await settle();

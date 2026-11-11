@@ -23,8 +23,9 @@ import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 	import { createPickUpPlace } from '../../shared/components/pickUpPlace.svelte';
-	import { choiceAccessibleName } from '../../shared/utils/choiceName';
-	import { choicesShortOfMatchMin } from '../../shared/utils/minimumRequirement';
+import { choiceAccessibleName } from '../../shared/utils/choiceName';
+import { createAnnouncer } from '../../shared/utils/announcer.svelte';
+import { choicesShortOfMatchMin } from '../../shared/utils/minimumRequirement';
 	import {
 		getSourceForTarget,
 		getTargetForSource,
@@ -106,8 +107,10 @@ let pairs = $state<string[]>([]);
 let hoveredHotspotId = $state<string | null>(null);
 /** The label "held" via the keyboard (two-phase pick-up/drop), and the label a pointer drag carries. */
 const pickUp = createPickUpPlace();
-/** Text announced to screen readers via the aria-live region. */
-let liveMessage = $state<string>('');
+/** The live region's announcements: the shared announcer keeps a repeat of the same
+    sentence changing the region's text, so an identical refusal still announces
+    (a live region speaks only changes; WCAG 4.1.3). */
+const liveAnnouncer = createAnnouncer();
 
 // Get reference to the root element for event dispatching (needed for Shadow DOM)
 let rootElement: HTMLDivElement | undefined = $state();
@@ -147,13 +150,15 @@ function exceedsMaxAssociations(candidatePairs: string[]): boolean {
 
 /** Announce a refused placement: the author's data-max-selections-message wins. */
 function announceAssociationLimit() {
-	liveMessage = limitMessage(
-		parsedInteraction?.maxSelectionsMessage,
-		translate(
-			i18n,
-			'interactions.graphicGapMatch.associationLimitReached',
-			'Association not possible: the limit of {max} is reached.',
-			{ max: Number(parsedInteraction?.maxAssociations ?? 0) },
+	liveAnnouncer.announce(
+		limitMessage(
+			parsedInteraction?.maxSelectionsMessage,
+			translate(
+				i18n,
+				'interactions.graphicGapMatch.associationLimitReached',
+				'Association not possible: the limit of {max} is reached.',
+				{ max: Number(parsedInteraction?.maxAssociations ?? 0) },
+			),
 		),
 	);
 }
@@ -290,7 +295,9 @@ function placeLabel(labelId: string, hotspotId: string): boolean {
 		// Call onChange callback if provided (for Svelte component usage)
 		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: pairs, onChange });
 
-		liveMessage = translate(i18n, 'interactions.graphicGapMatch.labelRemoved', '{label} removed from hotspot.', { label: labelName });
+		liveAnnouncer.announce(
+			translate(i18n, 'interactions.graphicGapMatch.labelRemoved', '{label} removed from hotspot.', { label: labelName }),
+		);
 
 		// The remove button is gone, which would drop keyboard focus to the document.
 		// Focus returns to the now-enabled label button beside it.
@@ -422,11 +429,13 @@ function handleLabelActivate(labelId: string) {
 	if (disabled || getMatchedHotspot(labelId)) return;
 
 	// A second press on the same label cancels the pick-up; another label switches to it.
-	liveMessage = pickUp.toggle(labelId)
-		? translate(i18n, 'interactions.graphicGapMatch.pickedUp', 'Picked up: {label}. Tab to a hotspot and press Enter to place it.', {
-				label: getLabelName(labelId),
-			})
-		: cancelledMessage();
+	liveAnnouncer.announce(
+		pickUp.toggle(labelId)
+			? translate(i18n, 'interactions.graphicGapMatch.pickedUp', 'Picked up: {label}. Tab to a hotspot and press Enter to place it.', {
+					label: getLabelName(labelId),
+				})
+			: cancelledMessage(),
+	);
 }
 
 function handleLabelKeyDown(event: KeyboardEvent, labelId: string) {
@@ -438,7 +447,7 @@ function handleLabelKeyDown(event: KeyboardEvent, labelId: string) {
 	} else if (event.key === 'Escape' && pickUp.held) {
 		event.preventDefault();
 		pickUp.release();
-		liveMessage = cancelledMessage();
+		liveAnnouncer.announce(cancelledMessage());
 	}
 }
 
@@ -452,7 +461,9 @@ function placePickedUpLabelOnHotspot(hotspotId: string) {
 	const placed = pickUp.place(hotspotId, (labelId) => {
 		// matchGroup: this hotspot does not accept the held label.
 		if (!canPlaceLabel(labelId, hotspotId)) {
-			liveMessage = translate(i18n, 'interactions.graphicGapMatch.unavailableSentence', 'Not available due to a match group restriction.');
+			liveAnnouncer.announce(
+				translate(i18n, 'interactions.graphicGapMatch.unavailableSentence', 'Not available due to a match group restriction.'),
+			);
 			return false;
 		}
 		// maxAssociations: placeLabel refuses (and announces) a placement past the cap.
@@ -460,12 +471,14 @@ function placePickedUpLabelOnHotspot(hotspotId: string) {
 	});
 	if (placed === null) return;
 
-	liveMessage = translate(i18n, 'interactions.graphicGapMatch.labelPlaced', '{label} placed on hotspot {hotspot}', {
-		label: getLabelName(placed),
-		// The message names the target "hotspot {n}"; a zone the author named
-		// (hotspotLabel) is announced by that name instead of its number.
-		hotspot: hotspot?.hotspotLabel?.trim() || hotspotIndex + 1,
-	});
+	liveAnnouncer.announce(
+		translate(i18n, 'interactions.graphicGapMatch.labelPlaced', '{label} placed on hotspot {hotspot}', {
+			label: getLabelName(placed),
+			// The message names the target "hotspot {n}"; a zone the author named
+			// (hotspotLabel) is announced by that name instead of its number.
+			hotspot: hotspot?.hotspotLabel?.trim() || hotspotIndex + 1,
+		}),
+	);
 }
 
 function handleHotspotKeyDown(event: KeyboardEvent, hotspotId: string) {
@@ -484,7 +497,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 	if (event.key === 'Escape' && pickUp.held) {
 		event.preventDefault();
 		pickUp.release();
-		liveMessage = cancelledMessage();
+		liveAnnouncer.announce(cancelledMessage());
 	}
 }
 
@@ -506,7 +519,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 
 		<!-- Visually-hidden live region for screen reader announcements -->
 		<div aria-live="polite" aria-atomic="true" class="sr-only">
-			{liveMessage}
+			{liveAnnouncer.message}
 		</div>
 
 		<p>{i18n?.t('interactions.graphicGapMatch.pointerInstructions') ?? 'Select a label, then select a hotspot on the image. You can also drag and drop.'}</p>

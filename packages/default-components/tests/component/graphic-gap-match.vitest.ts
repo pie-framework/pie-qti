@@ -367,6 +367,30 @@ describe('GraphicGapMatchInteraction (pie-qti-graphic-gap-match)', () => {
 			expect(mounted.instance.response).toEqual(['RAIN LAKE']);
 		});
 
+		test('two identical refusals in a row both reach the live region (WCAG 4.1.3)', async () => {
+			// A live region announces a change of its text: refusing the same placement twice
+			// must still change the region a second time, or assistive technology stays silent.
+			const mounted = mountInteraction(GraphicGapMatchInteraction, { interaction: groupedData() });
+			await settle();
+
+			const refusalText = () => q(mounted, '[aria-live="polite"]')?.textContent?.trim() ?? '';
+			pressKey(label(mounted, 'Rain'), 'Enter');
+			await settle();
+			pressKey(hotspotTargets(mounted)[0]!, 'Enter');
+			await settle();
+			const firstRefusal = refusalText();
+			expect(firstRefusal).toBe('Not available due to a match group restriction.');
+
+			// Rain stays held after the refusal, so the identical attempt repeats: the region
+			// still carries the sentence (invisible repeats are marked by the shared announcer's
+			// zero-width space) and its text has changed, so the second refusal announces too.
+			pressKey(hotspotTargets(mounted)[0]!, 'Enter');
+			await settle();
+			expect(refusalText().replace(/\u200b/g, '')).toBe(firstRefusal);
+			expect(refusalText()).not.toBe(firstRefusal);
+			cleanupInteraction(mounted);
+		});
+
 		test('the hotspot side constrains too: a hotspot accepts only the labels its matchGroup names', async () => {
 			// Sun names both hotspots, but the lake names only Rain. The renderer used to ignore a
 			// hotspot's matchGroup entirely.
