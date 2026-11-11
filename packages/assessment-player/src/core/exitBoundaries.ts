@@ -10,6 +10,7 @@
 
 import type { SecureSection } from '../integration/api-contract.js';
 import type { FlatItem } from './deliveryStructure.js';
+import { firstForwardBranchTarget } from './testStructure.js';
 
 /**
  * The enclosing section a literal EXIT_SECTION leaves: the innermost section, walked
@@ -34,7 +35,15 @@ export function endedEnclosingSection(
 	return ended;
 }
 
-/** Where a branch decision lands: an item index, or -1 when it ends the test. */
+/**
+ * Where a branch decision lands: an item index, or -1 when it ends the test or resolves to
+ * nothing forward. Literal targets resolve forward-only (QTI 2.2 §5.15: the target must refer
+ * to an item or section that has not yet been presented — a delivered test never re-enters an
+ * earlier one) through the same shared resolver the reference backend uses
+ * (`firstForwardBranchTarget`), so identical XML branches identically on the backend path. An
+ * unresolvable literal — e.g. a backward target with no later occurrence — is skipped: the
+ * delivery rules decide from the next item, as when the backend leaves the rule unfired.
+ */
 export function branchTargetIndex(
 	q: FlatItem,
 	target: string,
@@ -52,7 +61,7 @@ export function branchTargetIndex(
 		);
 		return inside >= 0 ? inside : items.findIndex((item, i) => i > q.index && item.testPart !== q.testPart);
 	}
-	return items.findIndex((item) => item.identifier === target);
+	return firstForwardBranchTarget(target, items, q.index) ?? -1;
 }
 
 /** Whether a branch decision takes delivery out of the item's test part (or ends the test). */
@@ -62,6 +71,12 @@ export function branchExitLeavesPart(
 	items: readonly FlatItem[],
 	currentIndex: number,
 ): boolean {
+	if (target !== 'EXIT_TEST' && target !== 'EXIT_TESTPART' && target !== 'EXIT_SECTION') {
+		// A literal target with no forward occurrence is skipped — the rule does not fire
+		// (the backend falls through to the next item) — so it crosses no part boundary.
+		const index = firstForwardBranchTarget(target, items, q.index);
+		return index !== undefined && items[index]!.testPart !== q.testPart;
+	}
 	const index = branchTargetIndex(q, target, items, currentIndex);
 	return index < 0 || items[index]!.testPart !== q.testPart;
 }

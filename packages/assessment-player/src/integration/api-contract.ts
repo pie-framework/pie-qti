@@ -139,7 +139,9 @@ export interface TestFeedbackItem {
 }
 
 export interface SecureTimeLimits {
+	/** Minimum duration in seconds (optional) */
 	minTime?: number;
+	/** Maximum duration in seconds (optional) */
 	maxTime?: number;
 	allowLateSubmission?: boolean;
 }

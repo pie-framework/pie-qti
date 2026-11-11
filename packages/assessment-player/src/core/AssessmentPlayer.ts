@@ -1484,10 +1484,15 @@ export class AssessmentPlayer {
 		const kept = this.nextSubmits(current) ? null : this.keptBranchDecisionFor(current);
 		if (kept) {
 			const target = this.branchTargetIndex(current, kept);
-			return {
-				nextIndex: target >= 0 ? target : null,
-				leavesTestPart: this.branchExitLeavesPart(current, kept),
-			};
+			if (target >= 0 || kept === 'EXIT_TEST' || kept === 'EXIT_TESTPART' || kept === 'EXIT_SECTION') {
+				return {
+					nextIndex: target >= 0 ? target : null,
+					leavesTestPart: this.branchExitLeavesPart(current, kept),
+				};
+			}
+			// A literal decision that resolves to nothing forward is skipped (the rule does
+			// not fire): Next falls through to the delivery rules, so that is what the step
+			// reports.
 		}
 		const nextIndex = this.forwardStepIndex(current);
 		const next = nextIndex >= 0 ? this.items[nextIndex] : undefined;
@@ -2475,11 +2480,19 @@ export class AssessmentPlayer {
 	 * Where a forward step from `q` that submits nothing lands — a move on after a practice
 	 * check, a move out of a simultaneous part, a jump into the next test part: the backend's
 	 * decision kept for `q`, else the next item the delivery rules make eligible
-	 * (`ruleForwardIndex`). -1 when nothing follows (an EXIT_TEST decision, nothing eligible).
+	 * (`ruleForwardIndex`). -1 when nothing follows (an EXIT_* decision nothing follows, or
+	 * nothing eligible). A decision whose literal target resolves to nothing forward is
+	 * skipped — the rule does not fire — so the delivery rules decide, exactly as the
+	 * backend's own walk falls through from an unresolvable target.
 	 */
 	private unsubmittedForwardIndex(q: FlatItem): number {
 		const kept = this.keptBranchDecisionFor(q);
-		return kept ? this.branchTargetIndex(q, kept) : this.ruleForwardIndex(q);
+		if (!kept) return this.ruleForwardIndex(q);
+		const target = this.branchTargetIndex(q, kept);
+		if (target >= 0) return target;
+		return kept === 'EXIT_TEST' || kept === 'EXIT_TESTPART' || kept === 'EXIT_SECTION'
+			? -1
+			: this.ruleForwardIndex(q);
 	}
 
 	/**
@@ -2992,7 +3005,12 @@ export class AssessmentPlayer {
 	 * left is never re-entered.
 	 */
 	private async followBranch(q: FlatItem, target: string): Promise<void> {
-		const targetIndex = this.items.findIndex((item) => item.identifier === target);
+		// Literal targets resolve forward-only (QTI 2.2 §5.15: a delivered test never re-enters
+		// presented items) through the same resolver the landing pre-checks use, so the hop
+		// cannot disagree with what `branchTargetIndex` reported; an unresolvable literal is
+		// skipped and delivery falls through to the delivery rules, as on the backend. EXIT_*
+		// land through their own boundary handling below (-1 never navigates).
+		const targetIndex = branchTargetIndex(q, target, this.items, this.currentItemIndex);
 		const standing = this.items[this.currentItemIndex] ?? q;
 		// A test part delivery already left is never re-entered, whatever the decision says.
 		if (targetIndex >= 0 && partOrderOf(this.assessment, this.items[targetIndex]) < partOrderOf(this.assessment, standing)) {
@@ -3038,7 +3056,7 @@ export class AssessmentPlayer {
 		}
 	}
 
-	/** Where a branch decision lands: an item index, or -1 when it ends the test. */
+	/** Where a branch decision lands: an item index, or -1 when it ends the test or resolves to nothing forward. */
 	private branchTargetIndex(q: FlatItem, target: string): number {
 		return branchTargetIndex(q, target, this.items, this.currentItemIndex);
 	}
