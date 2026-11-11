@@ -27,10 +27,16 @@
 		sections?: Section[];
 		/** Current section index */
 		currentSectionIndex?: number;
-		/** Whether to show section menu */
-		showSections?: boolean;
-		/** Whether section navigation is allowed */
-		allowSectionNavigation?: boolean;
+		/**
+		 * Whether the section menu shows at all — the shell decides from its config
+		 * (the option's one defaulting site), so there is no second default here.
+		 */
+		showSections: boolean;
+		/**
+		 * Whether section menu entries are usable right now — the shell composes the
+		 * config option with its own submission/completion gating.
+		 */
+		allowSectionNavigation: boolean;
 		/** Interface locale for the section menu. */
 		i18n?: I18nProvider;
 		/** Section selection callback */
@@ -47,8 +53,8 @@
 		headingLevel = 2,
 		sections = [],
 		currentSectionIndex,
-		showSections = true,
-		allowSectionNavigation = true,
+		showSections,
+		allowSectionNavigation,
 		i18n,
 		onSectionSelect,
 		actions,

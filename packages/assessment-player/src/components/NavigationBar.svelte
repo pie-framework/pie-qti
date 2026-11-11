@@ -8,7 +8,12 @@
 		onPrevious?: () => void;
 		onNext?: () => void;
 		onSubmit?: () => void;
-		showProgress?: boolean;
+		/**
+		 * Whether the position/progress indicator and the answered count show at all —
+		 * the shell decides from its config (the option's one defaulting site), so
+		 * there is no second default here.
+		 */
+		showProgress: boolean;
 		/** Items carrying a response (answered or partially answered), for the "8 of 12 answered" count. */
 		answeredCount?: number;
 		/**
@@ -59,7 +64,7 @@
 		onPrevious,
 		onNext,
 		onSubmit,
-		showProgress = true,
+		showProgress,
 		answeredCount,
 		saveLabel = null,
 		saveStatusEnabled = false,

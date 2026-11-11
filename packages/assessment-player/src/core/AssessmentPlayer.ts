@@ -195,9 +195,14 @@ export interface BackendAssessmentPlayerConfig {
 	 * reference/preview mode — does) and always receives it, whatever this says.
 	 */
 	sendItemSessionToBackend?: boolean;
-	// UI options
+	// Shell-presentation options. The headless core never reads these: the bundled
+	// AssessmentShell does, and it is their single defaulting site (absent means
+	// shown/enabled). Hosts rendering their own chrome decide for themselves.
+	/** Show the section menu in the shell header. Default shown; `false` hides it. */
 	showSections?: boolean;
+	/** Let the candidate jump between sections from the shell's section menu. Default allowed; `false` disables the entries. */
 	allowSectionNavigation?: boolean;
+	/** Show the position/progress indicator in the shell's navigation bar. Default shown; `false` hides it. */
 	showProgress?: boolean;
 	// Time management
 	/**
