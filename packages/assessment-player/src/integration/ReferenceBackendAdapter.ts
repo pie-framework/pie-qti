@@ -25,6 +25,21 @@
  * - Performs scoring server-side
  * - Validates all requests with authentication
  * - Filters sensitive data based on role
+ *
+ * ## Persistence failure semantics
+ *
+ * A localStorage write that does not land (quota exceeded, private-mode eviction) means
+ * the operation did not complete, and every backend method reports it honestly:
+ * `saveState` returns `success: false` (the autosave engine shows `failed`, retries with
+ * backoff and reports onError), `submitResponses` returns `success: false` (the player
+ * restores the pre-submit state and throws its coded `submitFailed` — accepting the
+ * submission anyway would silently lose the answer on the next resume), and
+ * `finalizeAssessment` returns `success: false` (the `finalized` flag never persisted, so
+ * reporting a completion would resurrect the test on resume; the player throws its coded
+ * `finalizeFailed` and the test stays open for a retry). The initial session write and
+ * the outcome-processing-error bookkeeping are the only best-effort writes: their response
+ * shapes carry no failure, and a lost init write merely leaves a fresh session without a
+ * resumable draft — which the very next save reports through the paths above.
  */
 
 import {
@@ -78,7 +93,6 @@ import {
 	type DeliveredItem,
 	deliveredItems,
 	drawAssessment,
-	evaluateTestCondition,
 	qtiElementNameMapper,
 	resolveItemSessionControl,
 	shuffleArray,
@@ -397,7 +411,18 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			session.state.visitedItems.push(request.itemIdentifier);
 		}
 
-		saveSession(session);
+		// The responses were scored and applied in memory, but if the write did not land
+		// they exist nowhere: accepting the submission anyway would silently lose the
+		// candidate's answer on the next resume. The failure is propagated honestly
+		// (`success: false`): the player restores the pre-submit session state, throws its
+		// coded `submitFailed`, and the candidate can retry — the in-memory session object
+		// above is discarded with the failed attempt.
+		if (!saveSession(session)) {
+			return {
+				success: false,
+				error: 'Failed to persist the submitted response',
+			};
+		}
 
 		const { outcomes, error } = this.currentOutcomes(session);
 		const currentVariables = testState.variables;
@@ -431,7 +456,15 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 
 		// Update state
 		session.state = request.state;
-		saveSession(session);
+		// A write that did not land is not a successful save: the autosave engine
+		// (`success: false`) shows `failed`, retries with backoff and reports onError —
+		// reporting success here would silently drop the draft.
+		if (!saveSession(session)) {
+			return {
+				success: false,
+				savedAt: Date.now(),
+			};
+		}
 
 		return {
 			success: true,
@@ -456,9 +489,20 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			};
 		}
 
-		// Mark as finalized
+		// Mark as finalized. If the write fails, the session on disk stays unfinalized —
+		// a resume would reopen the test. Reporting `finalized` to the player anyway would
+		// end delivery on a state nothing stored, so the failure is propagated: the player
+		// throws its coded `finalizeFailed` and the test stays open for a retry.
 		session.finalized = true;
-		saveSession(session);
+		if (!saveSession(session)) {
+			return {
+				success: false,
+				totalScore: 0,
+				maxScore: 0,
+				itemScores: {},
+				finalizedAt: Date.now(),
+			};
+		}
 
 		// Compute total score
 		const itemScores = session.state.itemScores || {};

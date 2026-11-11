@@ -88,9 +88,12 @@ export function scoreAssessmentItem(input: AssessmentItemScoringInput): Assessme
  * response processing again would apply the attempt twice or reset what earlier attempts
  * accumulated). Without a session only a non-templated, non-adaptive item is scored.
  *
- * When response processing fails the item scores 0 out of 1, and its test state holds no
- * variables: the item still counts as presented, and as responded when the candidate gave
- * any response.
+ * When response processing fails the item scores 0 (its declared maximum where the item
+ * declares one, else 1), and its test state holds no variables: the item still counts as
+ * presented, and as responded when the candidate gave any response. The failure is carried
+ * on the result as `scoringError` — mirroring the test-level `outcomeProcessingError` — so
+ * hosts can tell "answered wrong" from "the engine failed to score"; it never fails the
+ * submission.
  */
 export function scoreAssessmentItemForTest({
 	itemXml,
@@ -162,13 +165,26 @@ export function scoreAssessmentItemForTest({
 		};
 	} catch (error) {
 		console.error('Scoring error:', error);
+		// The item may still declare its maximum even though scoring failed; reading the
+		// declaration is best-effort (a broken itemXml fails here too) and the documented
+		// fallback of 1 applies only when nothing is declared.
+		let declaredMax: number | undefined;
+		try {
+			declaredMax = readOutcomeBounds(itemXml)?.SCORE?.normalMaximum;
+		} catch {
+			declaredMax = undefined;
+		}
+		const message = error instanceof Error ? error.message : String(error);
 		return {
 			result: {
 				itemIdentifier,
 				score: 0,
-				maxScore: 1,
+				maxScore: Number.isFinite(declaredMax) ? declaredMax! : 1,
 				completed: false,
 				outcomeValues: {},
+				// Mirrors the test-level outcomeProcessingError: delivery continues, but the
+				// degenerate 0 must be distinguishable from a candidate's wrong answer.
+				scoringError: { code: 'ITEM_SCORING_FAILED', message },
 			},
 			testState: { variables: {}, responded: hasAnyResponse(responses) },
 		};

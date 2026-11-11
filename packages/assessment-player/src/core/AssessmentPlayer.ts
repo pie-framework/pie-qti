@@ -275,9 +275,23 @@ export interface BackendAssessmentPlayerConfig {
 	 */
 	onFinalized?: (event: AssessmentFinalizedEvent) => void;
 	/**
-	 * Host hook for core and backend failures. Errors are `AssessmentPlayerError`
-	 * instances carrying a stable `code` for localization; `message` keeps the raw
-	 * detail (including backend error text) for logs — never show it to candidates.
+	 * Host hook for core and backend failures. Reach policy:
+	 *
+	 * - Core- and backend-reported failures reach it as they happen: a failed item entry
+	 *   (the first item, an expiry hop), test-level outcome-processing and item-scoring
+	 *   failures, an unevaluable branch rule or preCondition (`testConditionFailed`), a
+	 *   failed automatic finalization at a time expiry, autosave rejections.
+	 * - Candidate-initiated hard backend failures (`submitFailed`, `finalizeFailed`) reach
+	 *   it too: the core throws them for the candidate flow, and the built-in shell
+	 *   (AssessmentShell) additionally calls this hook at those sites, so a host that
+	 *   only listens here still hears about a submission the backend refused.
+	 * - Validation refusals stay inline-only: the coded warnings that name questions
+	 *   still needing an answer (`finalizeResponseRequired` &c.) and `attemptValidationFailed`
+	 *   are candidate-facing state, not failures — they never reach this hook.
+	 *
+	 * Errors are `AssessmentPlayerError` instances carrying a stable `code` for
+	 * localization; `message` keeps the raw detail (including backend error text) for
+	 * logs — never show it to candidates.
 	 */
 	onError?: (error: Error) => void;
 }
@@ -433,6 +447,14 @@ export class AssessmentPlayer {
 	private queuedExpiryHops = 0;
 	/** Last reported test-level outcome-processing failure, so hosts hear about each new one once. */
 	private reportedOutcomeProcessingError: OutcomeProcessingError | null = null;
+	/**
+	 * Test-scope branch rules and preConditions already reported as unevaluable, keyed by
+	 * condition XML + failure message: the rules re-evaluate on every forward step, and the
+	 * host must hear about each distinct failed rule once, not on every step.
+	 */
+	private reportedTestConditionFailures = new Set<string>();
+	/** Item scoring failures already reported, keyed by item identifier + failure message. */
+	private reportedItemScoringErrors = new Set<string>();
 	/** False while an opt-in begin gate holds delivery: no item is entered and no clock runs. */
 	private started = true;
 	/** A proctor pause: every clock is frozen and candidate actions are rejected. */
@@ -777,7 +799,10 @@ export class AssessmentPlayer {
 	/**
 	 * Serialize navigation and submission transitions. Exactly one transition runs at a
 	 * time; concurrent navigation or submit calls reject with a typed `navigationInFlight`
-	 * error instead of racing the in-flight backend request.
+	 * error instead of racing the in-flight backend request. The in-flight flag is set
+	 * inside the try so nothing before the operation — a throwing listener included —
+	 * can leave it stuck true (every later transition would then be rejected as busy
+	 * forever); the `finally` always resets it.
 	 */
 	private async runExclusive<T>(operation: () => Promise<T>): Promise<T> {
 		if (this.transitionInFlight) {
@@ -786,9 +811,9 @@ export class AssessmentPlayer {
 				'A navigation or submission transition is already in progress.',
 			);
 		}
-		this.transitionInFlight = true;
-		this.notifyBusyChange(true);
 		try {
+			this.transitionInFlight = true;
+			this.notifyBusyChange(true);
 			return await operation();
 		} finally {
 			this.transitionInFlight = false;
@@ -2469,7 +2494,9 @@ export class AssessmentPlayer {
 	private ruleForwardIndex(q: FlatItem): number {
 		if (!this.hasDeliveryRules) return this.nextUnlockedIndex(q.index);
 		const decls = this.navigationDeclarationsFor(q);
-		const first = this.indexOfItem(nextItemIdentifier(this.assessment, this.deliveredForRules, q.index, decls, Math.random));
+		const first = this.indexOfItem(
+			nextItemIdentifier(this.assessment, this.deliveredForRules, q.index, decls, Math.random, this.reportTestConditionFailure),
+		);
 		if (first < 0) return -1;
 		if (!this.isItemLocked(this.items[first]!)) return first;
 		for (const index of this.eligibleIndexesAfter(first, decls)) {
@@ -2495,7 +2522,15 @@ export class AssessmentPlayer {
 		let start = fromIndex + 1;
 		while (start < this.items.length) {
 			const index = this.indexOfItem(
-				firstEligibleItem(this.assessment, this.deliveredForRules, start, previous, declarations, Math.random),
+				firstEligibleItem(
+					this.assessment,
+					this.deliveredForRules,
+					start,
+					previous,
+					declarations,
+					Math.random,
+					this.reportTestConditionFailure,
+				),
 			);
 			if (index < 0) return;
 			yield index;
@@ -2859,6 +2894,7 @@ export class AssessmentPlayer {
 
 		this.setTestOutcomes(res.outcomes);
 		this.reportOutcomeProcessingError(res.outcomeProcessingError);
+		this.reportItemScoringError(res.result);
 
 		// An uncounted submission (QTI endAttempt countAttempt=false, a hint request) persists the
 		// response and session but records no result and consumes no attempt: the candidate stays
@@ -3194,6 +3230,7 @@ export class AssessmentPlayer {
 				}
 				this.setTestOutcomes(res.outcomes);
 				this.reportOutcomeProcessingError(res.outcomeProcessingError);
+				this.reportItemScoringError(res.result);
 			}
 
 			// The attached item must represent the same accepted lifecycle as persistence.
@@ -3583,6 +3620,45 @@ export class AssessmentPlayer {
 				new AssessmentPlayerError('outcomeProcessingFailed', error.message, { code: error.code }),
 			);
 		}
+	}
+
+	/**
+	 * The reporter the delivery-rules walk (`nextItemIdentifier`, `firstEligibleItem`)
+	 * hands each unevaluable branch rule or preCondition to. A broken rule reads as false
+	 * (delivery proceeds on the default path — the same rule never blocks or aborts the
+	 * test), but the host learns of it through `config.onError` as a coded
+	 * `testConditionFailed` error, once per distinct failed rule rather than on every
+	 * re-evaluation.
+	 */
+	private reportTestConditionFailure = (conditionXml: string, error: unknown): void => {
+		const message = error instanceof Error ? error.message : String(error);
+		const key = `${conditionXml}\n${message}`;
+		if (this.reportedTestConditionFailures.has(key)) return;
+		this.reportedTestConditionFailures.add(key);
+		this.config.onError?.(
+			new AssessmentPlayerError('testConditionFailed', message, {}, { cause: error }),
+		);
+	};
+
+	/**
+	 * A backend scoring result whose response processing failed carries a degenerate 0
+	 * (its declared maximum where known) plus a `scoringError` — the item-level mirror of
+	 * `outcomeProcessingError`. The submission stands and delivery continues, but the host
+	 * must be able to tell "answered wrong" from "the engine failed to score"; each
+	 * distinct item failure is reported once.
+	 */
+	private reportItemScoringError(result: AssessmentScoringResult | undefined): void {
+		const error = result?.scoringError;
+		if (!error) return;
+		const key = `${result?.itemIdentifier}\n${error.message}`;
+		if (this.reportedItemScoringErrors.has(key)) return;
+		this.reportedItemScoringErrors.add(key);
+		this.config.onError?.(
+			new AssessmentPlayerError('itemScoringFailed', error.message, {
+				itemIdentifier: result?.itemIdentifier ?? '',
+				code: error.code,
+			}),
+		);
 	}
 
 	// ---------------------------------------------------------------------------
@@ -4018,9 +4094,14 @@ export class AssessmentPlayer {
 			// An end of the test finalized while the hop waited: the move is moot.
 			if (this.finalized) return;
 			await this.leaveExpiredScopeLocked(scope, identifier);
-		}).catch(() => {
-			// Only reachable when the player was destroyed while the hop waited behind a
-			// transition: nothing left to close.
+		}).catch((error) => {
+			// Silent only when the player was destroyed while the hop waited behind a
+			// transition: nothing left to close. Any other rejection (a host listener
+			// slipping through, a destroyed-queue cancellation race) is a real expiry
+			// failure — report it like the automatic finalization does, instead of
+			// swallowing it with the scope left locked.
+			if (this.destroyed) return;
+			this.config.onError?.(error instanceof Error ? error : new Error(String(error)));
 		});
 	}
 

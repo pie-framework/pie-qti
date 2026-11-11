@@ -95,6 +95,15 @@ export function createPlayerConnection(options: PlayerConnectionOptions) {
 	// backend recovers later, the shell proceeds on its own.
 	let stillLoadingTimer: ReturnType<typeof setTimeout> | null = null;
 
+	/**
+	 * Bumped by every teardown: an `initialize()` whose `AssessmentPlayer.create()`
+	 * resolves after one is stale. Without this, a shell unmounted (or torn down for
+	 * a retry) while creation was in flight would adopt the resolved player — fully
+	 * wired and stored — and nothing would ever destroy it (its TimeManager interval
+	 * would tick forever).
+	 */
+	let teardownGeneration = 0;
+
 	function clearStillLoadingTimer() {
 		if (stillLoadingTimer) {
 			clearTimeout(stillLoadingTimer);
@@ -115,6 +124,7 @@ export function createPlayerConnection(options: PlayerConnectionOptions) {
 
 	/** Tear the half-created (or live) player down; the shell re-initializes after. */
 	function teardown() {
+		teardownGeneration += 1;
 		const current = state.player;
 		state.player = null;
 		current?.destroy();
@@ -171,7 +181,15 @@ export function createPlayerConnection(options: PlayerConnectionOptions) {
 		armStillLoadingTimer();
 
 		try {
+			const generation = teardownGeneration;
 			const created = await AssessmentPlayer.create(buildPlayerConfig());
+			if (generation !== teardownGeneration) {
+				// The shell unmounted (or retried) while creation was in flight: state.player
+				// is still null and nothing owns the resolved player, so destroy it here —
+				// adopting it would leave its TimeManager interval ticking forever.
+				created.destroy();
+				return;
+			}
 			state.startPending = !created.hasStarted();
 			state.player = created;
 

@@ -55,6 +55,26 @@ const RANDOM_TEMPLATE_ITEM = `<assessmentItem xmlns="http://www.imsglobal.org/xs
   </responseProcessing>
 </assessmentItem>`;
 
+/** Response processing references an unknown expression: the scorer's engine throws. */
+const BROKEN_RESPONSE_PROCESSING_ITEM = `<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="broken-rp" title="Broken Response Processing" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+  <itemBody><p>Broken</p></itemBody>
+  <responseProcessing><unknownProcessingExpression/></responseProcessing>
+</assessmentItem>`;
+
+/** Same engine failure, but the item declares its maximum (SCORE normalMaximum="5"). */
+const BROKEN_ITEM_WITH_DECLARED_MAX = `<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="broken-rp-max" title="Broken, Declared Max" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float" normalMaximum="5">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+  <itemBody><p>Broken with a declared max</p></itemBody>
+  <responseProcessing><unknownProcessingExpression/></responseProcessing>
+</assessmentItem>`;
+
 describe('assessment item scorer', () => {
 	it('extracts the AssessmentItem identifier used in ScoringResult', () => {
 		expect(getAssessmentItemIdentifier(MATCH_CORRECT_ITEM)).toBe('scored-choice');
@@ -109,5 +129,41 @@ describe('assessment item scorer', () => {
 		} finally {
 			Math.random = originalRandom;
 		}
+	});
+
+	it('attaches scoringError to the degenerate result when response processing fails', () => {
+		const errors: unknown[][] = [];
+		const original = console.error;
+		console.error = (...args: unknown[]) => errors.push(args);
+		let result;
+		try {
+			result = scoreAssessmentItem({ itemXml: BROKEN_RESPONSE_PROCESSING_ITEM, responses: { RESPONSE: 'A' } });
+		} finally {
+			console.error = original;
+		}
+		expect(result.score).toBe(0);
+		expect(result.completed).toBe(false);
+		expect(result.outcomeValues).toEqual({});
+		expect(result.scoringError?.code).toBe('ITEM_SCORING_FAILED');
+		expect(result.scoringError?.message).toBeTruthy();
+	});
+
+	it('keeps the declared maximum on the degenerate result instead of inventing 1', () => {
+		const original = console.error;
+		console.error = () => {};
+		let result;
+		try {
+			result = scoreAssessmentItem({ itemXml: BROKEN_ITEM_WITH_DECLARED_MAX, responses: { RESPONSE: 'A' } });
+		} finally {
+			console.error = original;
+		}
+		expect(result.score).toBe(0);
+		expect(result.maxScore).toBe(5);
+		expect(result.scoringError?.code).toBe('ITEM_SCORING_FAILED');
+	});
+
+	it('a healthy item result carries no scoringError', () => {
+		const result = scoreAssessmentItem({ itemXml: MATCH_CORRECT_ITEM, responses: { RESPONSE: 'A' } });
+		expect(result.scoringError).toBeUndefined();
 	});
 });
