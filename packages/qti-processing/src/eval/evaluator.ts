@@ -293,6 +293,16 @@ function greatestCommonDivisor(x: number, y: number): number {
 	return a;
 }
 
+/**
+ * Parking note: evalExpr rebuilds its helper closures on every call. Six of them are pure —
+ * `inferBaseType`, `roundDecimalPlaces`, `roundSignificantFigures`, `asBaseType`, `resolveWeight`
+ * and `applyWeight` capture nothing from `env` — and are hoist-safe candidates for a future
+ * module-scope refactor; the remaining helpers (`resolveNumberOrVarRef`, `resolveTwoNumbersOrVarRefs`,
+ * `normalizeScalarForCompare`, `qtiValuesMatch`, `filterTestItems`, `itemRefWeight`) close over
+ * `env` and would need it as an explicit parameter. The hoist is deferred deliberately: evalExpr
+ * runs on the response/outcome processing path (item init, endAttempt/submit, test finalize),
+ * not per keystroke or response change, so the per-call allocations are not measurable.
+ */
 export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 	const inferBaseType = (values: QtiValue[], fallback: BaseType = 'string'): BaseType => {
 		for (const v of values) {
