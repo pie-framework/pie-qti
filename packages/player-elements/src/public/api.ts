@@ -370,6 +370,13 @@ export interface QtiAssessmentPlayerConfig {
 	i18nProvider?: QtiI18nProvider;
 	security?: QtiPlayerSecurityConfig;
 	pci?: QtiPciConfiguration;
+	/**
+	 * String comparison folds beyond QTI's equality for the candidates' input, applied
+	 * by every item session the player opens (see the item player's
+	 * `AssessmentItemDefinitionConfig.stringComparison`). Exact when absent. Give the
+	 * scoring backend the same setting: it re-runs response processing on submitted items.
+	 */
+	stringComparison?: QtiStringComparison;
 	sectionHost?: QtiSectionRuntimeHost;
 	sectionTools?: QtiSectionToolConfig[];
 	passageTools?: QtiSectionToolConfig[];
@@ -392,6 +399,16 @@ export interface QtiAssessmentPlayerConfig {
 	timeWarningThresholds?: number[];
 	/** Opt-in begin gate, like the `begin-gate` attribute: delivery and the clocks wait for Begin. */
 	beginGate?: boolean;
+	/**
+	 * Debounced autosave of the session snapshot through the backend's `saveState`,
+	 * with the shell's save indicator and resume prompt. Default ON when the backend
+	 * reports the save capability; `false` when the host persists state itself.
+	 */
+	autosave?: boolean;
+	/** Autosave debounce window in ms. Default 1500. */
+	autosaveIntervalMs?: number;
+	/** Deterministic clock for time-limit tracking. Defaults to `Date.now`. */
+	now?: () => number;
 	pnp?: QtiPnpProfile;
 	/**
 	 * Shared catalog files from the content package manifest (resource type
