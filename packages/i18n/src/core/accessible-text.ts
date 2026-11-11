@@ -37,6 +37,12 @@ export function interpolate(
  *
  * `I18nProvider` is a host extension point, so a default handed back verbatim
  * is filled here: placeholders never reach a candidate, whichever provider runs.
+ *
+ * `key` stays `string` rather than `MessageKey`: components pass keys held in
+ * string-typed structures (label tables, wrapper helpers), and hosts pass keys
+ * from their own `customMessages` catalogs. Literal-key correctness is enforced
+ * by the `check-consumer-keys` scan in `check:i18n`, and at runtime by the
+ * provider's unconditional missing-key warning.
  */
 export function translate(i18n: I18nProvider | undefined, key: string, fallback: string, values?: Values): string {
 	if (!i18n) return interpolate(fallback, values);

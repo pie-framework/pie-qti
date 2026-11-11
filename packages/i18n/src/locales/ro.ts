@@ -219,6 +219,9 @@ export default {
 			selectText: 'Selectează text din pasaj',
 			ariaLabel: 'Interacțiune de selecție text',
 			maxChoicesReached: 'Poți selecta cel mult {max}. Deselectează una pentru a alege alta.',
+			// Fără bifa: HottextInteraction afișează propriul „✓ ” înaintea acestui badge.
+			minimumMet: 'Minim atins',
+			selectAtLeast: 'Selectează cel puțin {minChoices}',
 		},
 
 		hotspot: {
@@ -625,6 +628,19 @@ export default {
 		},
 	},
 
+	/**
+	 * Anunț pentru cititoarele de ecran când o interacțiune nu poate fi afișată.
+	 * Traducere de reluat de un vorbitor nativ.
+	 */
+	interaction: {
+		renderError: 'Acest element interactiv ({type}) nu a putut fi afișat.',
+	},
+
+	/** Nume accesibil al grupului randat de o interacțiune personalizată portabilă (PCI). */
+	customInteraction: {
+		portableLabel: 'Interacțiune personalizată portabilă',
+	},
+
 	item: {
 		loading: 'Se încarcă elementul...',
 		loadingError: 'Nu s-a putut încărca elementul',
@@ -836,6 +852,7 @@ export default {
 		},
 
 		feedback: {
+			title: 'Feedback',
 			correct: 'Corect',
 			incorrect: 'Incorect',
 			partiallyCorrect: 'Parțial corect',

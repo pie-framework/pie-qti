@@ -219,6 +219,9 @@ export default {
 			selectText: 'Sélectionnez du texte dans le passage',
 			ariaLabel: 'Interaction de sélection de texte',
 			maxChoicesReached: 'Vous pouvez sélectionner jusqu’à {max} réponses. Désélectionnez-en une pour en choisir une autre.',
+			// Pas de coche : HottextInteraction affiche son propre « ✓ » devant ce badge.
+			minimumMet: 'Minimum atteint',
+			selectAtLeast: 'Sélectionnez au moins {minChoices}',
 		},
 
 		hotspot: {
@@ -625,6 +628,19 @@ export default {
 		},
 	},
 
+	/**
+	 * Annonce pour les lecteurs d'écran lorsqu'une interaction ne peut pas être
+	 * affichée. Traduction à faire relire par un locuteur natif.
+	 */
+	interaction: {
+		renderError: 'Cet élément interactif ({type}) n\'a pas pu être affiché.',
+	},
+
+	/** Nom accessible du groupe rendu par une interaction personnalisée portable (PCI). */
+	customInteraction: {
+		portableLabel: 'Interaction personnalisée portable',
+	},
+
 	item: {
 		loading: 'Chargement de l\'élément...',
 		loadingError: 'Échec du chargement de l\'élément',
@@ -837,6 +853,7 @@ export default {
 		},
 
 		feedback: {
+			title: 'Commentaires',
 			correct: 'Correct',
 			incorrect: 'Incorrect',
 			partiallyCorrect: 'Partiellement correct',

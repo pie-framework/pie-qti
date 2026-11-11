@@ -9,7 +9,7 @@
  */
 
 import type { I18nProvider, PluralOptions } from '../core/I18nProvider.js';
-import type { LocaleCode, LocaleMessages } from '../core/types.js';
+import type { LocaleCode, LocaleMessages, MessageKey } from '../core/types.js';
 
 /** The localStorage key `persistLocale` writes by default. */
 export const DEFAULT_LOCALE_STORAGE_KEY = 'pie-qti-locale';
@@ -65,6 +65,16 @@ export class SvelteI18nProvider implements I18nProvider {
 		}
 	}
 
+	/**
+	 * Translate message key with optional default and/or interpolation
+	 *
+	 * Same overload pair as `DefaultI18nProvider.t`: `MessageKey` first for
+	 * completion and intent, then the documented escape overload for keys from a
+	 * host's `customMessages` catalog. See `DefaultI18nProvider.t` for why typo
+	 * catching lives in the `check-consumer-keys` scan rather than these overloads.
+	 */
+	t(key: MessageKey, defaultOrValues?: Record<string, any> | string, values?: Record<string, any>): string;
+	t(key: string, defaultOrValues?: Record<string, any> | string, values?: Record<string, any>): string;
 	t(key: string, defaultOrValues?: Record<string, any> | string, values?: Record<string, any>): string {
 		return this.provider.t(key, defaultOrValues, values);
 	}

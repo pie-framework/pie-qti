@@ -226,6 +226,9 @@ export default {
 			selectText: '从文章中选择文本',
 			ariaLabel: '文本选择交互',
 			maxChoicesReached: '最多可选择 {max} 项。请先取消一项选择,再选择其他项。',
+			// 不含对勾符号:HottextInteraction 会在此标记前自行显示 "✓ "。
+			minimumMet: '已满足最小要求',
+			selectAtLeast: '至少选择 {minChoices} 个',
 		},
 
 		hotspot: {
@@ -618,6 +621,19 @@ export default {
 		},
 	},
 
+	/**
+	 * 当交互无法显示时供屏幕阅读器播报的公告。
+	 * 译文应由母语人士复核。
+	 */
+	interaction: {
+		renderError: '无法显示此交互元素 ({type})。',
+	},
+
+	/** 可移植自定义交互 (PCI) 所渲染组的无障碍名称。 */
+	customInteraction: {
+		portableLabel: '可移植自定义交互',
+	},
+
 	item: {
 		loading: '加载项目中...',
 		loadingError: '加载项目失败',
@@ -829,6 +845,7 @@ export default {
 		},
 
 		feedback: {
+			title: '反馈',
 			correct: '正确',
 			incorrect: '错误',
 			partiallyCorrect: '部分正确',
