@@ -204,8 +204,11 @@ describe('display settings tool', () => {
 			expect.arrayContaining(['line-height', 'letter-spacing', 'word-spacing']),
 		);
 
-		// Every change reports the settings and the effective profile, to the prop and the host contract.
-		expect(onDisplaySettingsChange).toHaveBeenCalledTimes(4);
+		// Every change reports once, through the host contract the composition
+		// carries: the callback prop — the custom elements' DOM event source —
+		// stays silent when the contract carries the callback.
+		expect(hostEvents).toHaveLength(4);
+		expect(onDisplaySettingsChange).not.toHaveBeenCalled();
 		const last = hostEvents[hostEvents.length - 1]!;
 		expect(last.sectionIdentifier).toBe('section-1');
 		expect(last.settings).toEqual({ textSize: 3, highContrast: false, textSpacing: true });
@@ -220,6 +223,29 @@ describe('display settings tool', () => {
 		expect(document.activeElement).toBe(button);
 		// Closing keeps the settings.
 		expect(surface.style.getPropertyValue('--qti-font-size')).toBe('20pt');
+	});
+
+	test('without the host contract slot the callback prop hears every change', async () => {
+		// The composition carries a host (it may hold only the package/URL-policy
+		// hooks) with no `onDisplaySettingsChange`: the prop — the custom elements'
+		// DOM event source — is the fallback channel.
+		const onDisplaySettingsChange = vi.fn();
+		const m = mountInto(SectionPlayerVertical, {
+			composition: composition({ pnp: { display: { colorScheme: 'yellowblue' } } }),
+			onDisplaySettingsChange,
+		});
+		mounted.push(m);
+
+		const button = await settingsButton(m.host);
+		button.click();
+		await settle();
+		const dialog = dialogOf(m.host);
+		dialog.querySelector<HTMLInputElement>('[data-testid="section-display-settings-contrast"]')!.click();
+		flushSync();
+		expect(onDisplaySettingsChange).toHaveBeenCalledTimes(1);
+		const event = onDisplaySettingsChange.mock.calls[0]![0] as QtiSectionDisplaySettingsEvent;
+		expect(event.sectionIdentifier).toBe('section-1');
+		expect(event.settings).toEqual({ textSize: 0, highContrast: true, textSpacing: false });
 	});
 
 	test('Escape closes the dialog and focus returns to the trigger', async () => {

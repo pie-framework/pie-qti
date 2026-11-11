@@ -51,7 +51,8 @@ page session, per assessment. Layout props:
 | `onDisplaySettingsChange` | Hears `{ sectionIdentifier, settings, pnp }`; `pnp` is the effective profile to persist and pass back as the candidate's PNP |
 
 The same event reaches `QtiSectionRuntimeHostContract.onDisplaySettingsChange` (the composition's
-`host`), which is how a custom-element host hears it.
+`host`); when the contract does not carry that callback, the prop above delivers it, which is how
+a custom-element host hears it.
 
 ## Framework errors
 
@@ -61,6 +62,11 @@ callback. A host that cannot pass callbacks — the custom elements — hears th
 `pie-qti-section-player-splitpane` / `pie-qti-section-player-vertical` elements (the
 `invalid-composition` code they emit for a composition they cannot render is documented with
 [the elements](../player-elements/README.md)).
+
+The two channels are alternatives, not both-firing: for each occurrence the layout delivers
+through the host contract's callback when the composition's `host` carries it, and the callback
+prop — the elements' DOM event source — fires only when that slot is absent. A host that
+supplies the contract and also listens to the element's DOM events hears each report once.
 
 The event's `detail` is `QtiSectionFrameworkError`:
 

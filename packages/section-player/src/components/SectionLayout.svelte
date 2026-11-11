@@ -126,22 +126,25 @@
 		}
 	});
 
+	// Each report is delivered once: the composition host contract's callback owns
+	// the occurrence when the host supplies one, and the layout's callback prop —
+	// the custom elements' DOM event source — is the fallback channel when that
+	// slot is absent. A host using both channels therefore hears each event once.
 	function handleResponseChange(itemIdentifier: string, responseIdentifier: string, value: unknown) {
-		notifyResponseDelta(composition, itemIdentifier, responseIdentifier, value);
-		onResponseChange?.(itemIdentifier, responseIdentifier, value);
+		notifyResponseDelta(composition, itemIdentifier, responseIdentifier, value, (event) =>
+			onResponseChange?.(event.itemIdentifier, event.responseIdentifier, event.value),
+		);
 	}
 
 	function handleFrameworkError(error: QtiSectionFrameworkError) {
-		const event = notifyFrameworkError(composition, error);
-		onFrameworkError?.(event);
+		notifyFrameworkError(composition, error, onFrameworkError);
 	}
 
 	function handleDisplaySettingsChange(settings: QtiCandidateDisplaySettings) {
 		candidateSettings = settings;
 		// A shell that swaps layouts between items keeps the candidate's choices.
 		writeSessionDisplaySettings(assessmentId, settings);
-		const event = notifyDisplaySettingsChange(composition, settings, effectivePnp);
-		onDisplaySettingsChange?.(event);
+		notifyDisplaySettingsChange(composition, settings, effectivePnp, onDisplaySettingsChange);
 	}
 </script>
 

@@ -19,92 +19,33 @@ export type QtiParsingLimitsConfig = import('@pie-qti/item-player').ParsingLimit
 
 export type QtiPlayerSecurityConfig = import('@pie-qti/item-player').PlayerSecurityConfig;
 
-export type QtiPciModulePathKind = 'primary' | 'fallback';
+// The item-player contract types this facade publishes are aliases to the exact
+// upstream types — the contracts are the source of truth, so the facade can
+// neither drift a member nor ship a hand copy (the drift pins in
+// tests/data-model-contracts.ts hold both halves). `QtiPciSandboxConfiguration`
+// and `QtiPciModulePolicy` come from item-player's `./pci` entry, which exports
+// them at their own names; the root entry does not carry them.
+export type QtiPnpProfile = import('@pie-qti/item-player').PnpProfile;
 
-export interface QtiPciModuleResolutionContext {
-	authoredPath: string;
-	kind: QtiPciModulePathKind;
-	responseIdentifier: string;
-	customInteractionTypeIdentifier: string;
-}
+export type QtiPciModulePathKind = import('@pie-qti/item-player').PciModulePathKind;
 
-export type QtiPciModuleResolver = (
-	resolvedUrl: string,
-	context: QtiPciModuleResolutionContext,
-) => Promise<unknown> | unknown;
+export type QtiPciModuleResolutionContext = import('@pie-qti/item-player').PciModuleResolutionContext;
 
-/** The sandboxed engine's variant: a policy over module URLs, never an in-page evaluation. */
-export type QtiPciModulePolicy = (resolvedUrl: string, context: QtiPciModuleResolutionContext) => void;
+export type QtiPciModuleResolver = import('@pie-qti/item-player').PciModuleResolver;
 
-/** Mirror of `@pie-qti/item-player`'s PciSandboxConfiguration. */
-export interface QtiPciSandboxConfiguration {
-	/** Absolute URL of the deployed `@pie-qti/pci-runner` page on a cookieless origin. */
-	runnerUrl: string;
-	handshakeTimeoutMs?: number;
-	pollIntervalMs?: number;
-	registrationTimeoutMs?: number;
-}
+export type QtiPciModulePolicy = import('@pie-qti/item-player/pci').PciModulePolicy;
+
+export type QtiPciSandboxConfiguration = import('@pie-qti/item-player/pci').PciSandboxConfiguration;
 
 /**
  * The host's trust configuration for running PCI modules: the page-realm resolver
- * that vouches for a module, or the sandboxed runner engine. Host-side, per
+ * that vouches for a module, or the sandboxed runner engine. Host-side, exactly
  * `@pie-qti/item-player`'s `PciConfiguration` — a different thing from item-player's
  * `QtiPciConfiguration`, which is the config object a PCI module's `getInstance()`
- * factory receives (QTI 3.0 §6.1 module-facing contract).
+ * factory receives (QTI 3.0 §6.1 module-facing contract). The round-4 rename keeps
+ * this facade's name, since the upstream name is taken by that unrelated contract.
  */
-export interface QtiPciHostConfiguration {
-	baseUrl?: string;
-	/**
-	 * The host trust decision for executing a PCI module in the page realm.
-	 * Required unless `sandbox` is configured.
-	 */
-	moduleResolver?: QtiPciModuleResolver;
-	/** Opt-in hardened execution in a sandboxed cross-origin runner frame. */
-	sandbox?: QtiPciSandboxConfiguration;
-	/** Optional allow-list applied to module URLs handed to the sandbox runner. */
-	modulePolicy?: QtiPciModulePolicy;
-}
-
-/** DOM-facing mirror of @pie-qti/item-player's PnpProfile; kept hand-written until verified
- * field-for-field against upstream (PnpToolSupports is a named upstream type). */
-export interface QtiPnpProfile {
-	display?: {
-		colorScheme?: string;
-		magnification?: number;
-		interfaceLanguage?: string;
-		invertPolarity?: { foreground?: string; background?: string };
-		singleColumn?: boolean;
-		textAppearance?: {
-			fontSize?: number;
-			fontFamily?: string;
-			fontColor?: string;
-			backgroundColor?: string;
-			lineHeight?: number;
-			letterSpacing?: number;
-			wordSpacing?: number;
-		};
-	};
-	content?: {
-		glossaryOnScreen?: boolean;
-		keywordTranslation?: { active: boolean; languageCode: string };
-		illustratedGlossary?: boolean;
-		catalogSupports?: Record<
-			string,
-			boolean | { active?: boolean; languageCode?: string } | undefined
-		>;
-		extendedTime?: { active: boolean; multiplier: number; fixedMinutes?: number };
-	};
-	cognitive?: {
-		eliminationTool?: boolean;
-		answerMasking?: boolean;
-	};
-	tools?: {
-		supports?: string[];
-		prohibitedSupports?: string[];
-		activateAtInit?: string[];
-		toolParameters?: Record<string, Record<string, unknown>>;
-	};
-}
+export type QtiPciHostConfiguration = import('@pie-qti/item-player').PciConfiguration;
 
 export interface QtiProcessingFragmentRequest {
 	href: string;

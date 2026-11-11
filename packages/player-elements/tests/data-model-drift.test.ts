@@ -19,6 +19,7 @@ import { describe, expect, test } from 'bun:test';
 import {
 	DATA_MODEL_MIRRORS,
 	type DataModelMirrorPin,
+	ITEM_PLAYER_CONTRACT_ALIASES,
 	PARSED_TYPE_SOURCES,
 	PINNED_BY_REEXPORT,
 	SECTION_CONTRACT_ALIASES,
@@ -131,6 +132,25 @@ describe('section contract names are published at parity', () => {
 		const apiText = readSource(API_SOURCE);
 		const handCopied = SECTION_CONTRACT_ALIASES.filter((name) =>
 			new RegExp(`\\bexport interface ${name}\\b`).exec(apiText),
+		);
+		expect(handCopied).toEqual([]);
+	});
+});
+
+describe('item-player contract names are published at parity', () => {
+	test('api.ts aliases each item-player contract type to its exact upstream', () => {
+		const apiText = readSource(API_SOURCE);
+		const drifted = ITEM_PLAYER_CONTRACT_ALIASES.filter(
+			({ facade, upstream, from }) =>
+				!new RegExp(`export type ${facade}\\s*=\\s*import\\('${from}'\\)\\.${upstream}\\s*;`).exec(apiText),
+		);
+		expect(drifted).toEqual([]);
+	});
+
+	test('api.ts hand-copies no item-player contract type under any name', () => {
+		const apiText = readSource(API_SOURCE);
+		const handCopied = ITEM_PLAYER_CONTRACT_ALIASES.filter(({ facade }) =>
+			new RegExp(`\\bexport interface ${facade}\\b`).exec(apiText),
 		);
 		expect(handCopied).toEqual([]);
 	});
