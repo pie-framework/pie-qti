@@ -45,7 +45,14 @@ export interface QtiPciSandboxConfiguration {
 	registrationTimeoutMs?: number;
 }
 
-export interface QtiPciConfiguration {
+/**
+ * The host's trust configuration for running PCI modules: the page-realm resolver
+ * that vouches for a module, or the sandboxed runner engine. Host-side, per
+ * `@pie-qti/item-player`'s `PciConfiguration` — a different thing from item-player's
+ * `QtiPciConfiguration`, which is the config object a PCI module's `getInstance()`
+ * factory receives (QTI 3.0 §6.1 module-facing contract).
+ */
+export interface QtiPciHostConfiguration {
 	baseUrl?: string;
 	/**
 	 * The host trust decision for executing a PCI module in the page realm.
@@ -113,48 +120,6 @@ export type QtiProcessingFragmentResolver = (
 export interface QtiProcessingFragmentLimits {
 	maxDepth?: number;
 	maxCharacters?: number;
-}
-
-/**
- * Resolved package context passed through to the item renderer.
- * The contract is intentionally extensible because new QTI 3 delivery resources
- * can be added without coupling consumers to the internal package graph.
- */
-/** Composite shapes produced by the element's package-resolution pipeline (ims-cp-core provenance
- * + stimulus scoping); not a 1:1 mirror of any single upstream type. */
-export interface QtiResolvedStylesheetRef {
-	href: string;
-	type?: string;
-	media?: string;
-	xml: string;
-	resolvedHref: string;
-	source: 'item' | 'stimulus';
-	stimulusIdentifier?: string;
-	cssText?: string;
-}
-
-export interface QtiResolvedCatalogSource {
-	/**
-	 * `package` sources come from shared catalog files the manifest lists
-	 * (`imsqti_catalog_xmlv3p0`) and hold the lowest precedence; `item` sources
-	 * win identifier collisions over them (QTI 3.0 §6.3).
-	 */
-	scope: 'item' | 'stimulus' | 'package';
-	xml: string;
-	baseHref: string;
-	stimulusIdentifier?: string;
-}
-
-export interface QtiResolvedAssessmentStimulus {
-	identifier: string;
-	href: string;
-	resolvedHref: string;
-	title?: string;
-	lang?: string;
-	bodyHtml: string;
-	stylesheets: QtiResolvedStylesheetRef[];
-	catalogSource?: QtiResolvedCatalogSource;
-	validationMessages: string[];
 }
 
 export type QtiResolvedItemDeliveryContext = import('@pie-qti/item-player').ResolvedItemDeliveryContext;
@@ -232,7 +197,7 @@ export interface QtiItemPlayerElement extends HTMLElement {
 	security?: QtiPlayerSecurityConfig;
 	pnp?: QtiPnpProfile;
 	deliveryContext?: QtiResolvedItemDeliveryContext;
-	pci?: QtiPciConfiguration;
+	pci?: QtiPciHostConfiguration;
 	/**
 	 * String comparison folds beyond QTI's equality for the candidates' input, applied
 	 * when the element creates its own definition.
@@ -303,61 +268,24 @@ export type QtiAssessmentFinalizeResponse = import('@pie-qti/assessment-player')
 
 export type QtiAssessmentBackend = import('@pie-qti/assessment-player').BackendAdapter;
 
-export interface QtiSectionToolConfig {
-	toolId: string;
-	label?: string;
-	view?: string[];
-	enabled?: boolean;
-	scope?: 'section' | 'passage' | 'item';
-	provider?: Record<string, unknown>;
-	renderParams?: Record<string, unknown>;
-}
-
-export interface QtiPackageResolveContext {
-	ownerHref?: string;
-	referenceKind:
-		| 'item'
-		| 'passage'
-		| 'stimulus'
-		| 'stylesheet'
-		| 'catalog-file'
-		| 'asset'
-		| 'source-xml';
-}
-
-export interface QtiSharedHtmlSanitizeContext {
-	source?: string;
-	kind: 'passage' | 'rubric' | 'stimulus' | 'test-feedback' | 'instructions';
-}
-
-export interface QtiAssetUrlPolicyContext {
-	source?: string;
-	kind: 'img' | 'media' | 'object' | 'link' | 'any';
-}
+/** Section-player's contract type, at parity: `toolId` keeps its autocomplete literals. */
+export type QtiSectionToolConfig = import('@pie-qti/section-player').QtiSectionToolConfig;
 
 export type QtiSectionActiveItemChangeEvent =
 	import('@pie-qti/section-player').QtiSectionActiveItemChangeEvent;
 
 export type QtiSectionFrameworkError = import('@pie-qti/section-player').QtiSectionFrameworkError;
 
-export interface QtiSectionRuntimeHost {
-	resolvePackageUrl?(
-		href: string,
-		context: QtiPackageResolveContext,
-	): string | null;
-	readPackageFile?(
-		href: string,
-		context: QtiPackageResolveContext,
-	): Promise<string | Uint8Array | null>;
-	sanitizeSharedHtml?(html: string, context: QtiSharedHtmlSanitizeContext): string;
-	sanitizeAssetUrl?(href: string, context: QtiAssetUrlPolicyContext): string | null;
-	onResponseDelta?(event: QtiSectionResponseDeltaDetail): void;
-	onActiveItemChange?(event: QtiSectionActiveItemChangeEvent): void;
-	onSnapshotChange?(snapshot: QtiSectionSnapshot): void;
-	onFrameworkError?(error: QtiSectionFrameworkError): void;
-	/** The candidate changed their display settings; the event carries the session's `pnp`. */
-	onDisplaySettingsChange?(event: QtiSectionDisplaySettingsEvent): void;
-}
+export type QtiSectionDisplaySettingsEvent =
+	import('@pie-qti/section-player').QtiSectionDisplaySettingsEvent;
+
+export type QtiSectionResponseDeltaEvent =
+	import('@pie-qti/section-player').QtiSectionResponseDeltaEvent;
+
+/** The section runtime host, at its contract name: the identical object a host
+ * implements for the headless player's `sectionHost` and hands to the element. */
+export type QtiSectionRuntimeHostContract =
+	import('@pie-qti/section-player').QtiSectionRuntimeHostContract;
 
 export interface QtiAssessmentPlayerConfig {
 	role?: QtiRole;
@@ -371,7 +299,7 @@ export interface QtiAssessmentPlayerConfig {
 	plugins?: readonly QtiAssessmentItemDefinitionPlugin[];
 	i18nProvider?: QtiI18nProvider;
 	security?: QtiPlayerSecurityConfig;
-	pci?: QtiPciConfiguration;
+	pci?: QtiPciHostConfiguration;
 	/**
 	 * String comparison folds beyond QTI's equality for the candidates' input, applied
 	 * by every item session the player opens (see the item player's
@@ -379,7 +307,7 @@ export interface QtiAssessmentPlayerConfig {
 	 * scoring backend the same setting: it re-runs response processing on submitted items.
 	 */
 	stringComparison?: QtiStringComparison;
-	sectionHost?: QtiSectionRuntimeHost;
+	sectionHost?: QtiSectionRuntimeHostContract;
 	sectionTools?: QtiSectionToolConfig[];
 	passageTools?: QtiSectionToolConfig[];
 	itemTools?: QtiSectionToolConfig[];
@@ -489,7 +417,28 @@ export interface QtiItemFetchPolicy {
 export interface QtiAssessmentPlayerElement extends HTMLElement {
 	config: QtiAssessmentPlayerConfig;
 	security?: QtiPlayerSecurityConfig;
-	pci?: QtiPciConfiguration;
+	pci?: QtiPciHostConfiguration;
+	/**
+	 * The QTI view every item renders for: `candidate`, `scorer`, `proctor`,
+	 * `testConstructor`, `tutor` or `author`. Declaratively the `qti-role`
+	 * attribute — a bare `role` attribute stays the ARIA role. Like the other
+	 * per-item injection properties it wins over the same-named `config` field.
+	 */
+	role: QtiRole | null;
+	/** The interface locale provider, shared by every item player in the assessment. */
+	i18n?: QtiI18nProvider;
+	/** The candidate's PNP profile, applied to every item session. */
+	pnp?: QtiPnpProfile;
+	/**
+	 * Definition-lifetime extractor and renderer extensions applied to every item
+	 * definition the player opens.
+	 */
+	plugins?: readonly QtiAssessmentItemDefinitionPlugin[];
+	/**
+	 * String comparison folds beyond QTI's equality for the candidates' input,
+	 * applied by every item session the player opens (see `config.stringComparison`).
+	 */
+	stringComparison?: QtiStringComparison;
 	backend?: QtiAssessmentBackend;
 	initSession?: QtiAssessmentInitSessionRequest;
 	assessmentId?: string;
@@ -578,171 +527,63 @@ export interface QtiAssessmentPlayerElementConstructor {
 	readonly observedAttributes: string[];
 }
 
-interface QtiSectionItemRefBase {
-	identifier: string;
-	sourcePath?: string;
-	href?: string;
-	title?: string;
-	itemXml: string;
-	deliveryContext?: QtiResolvedItemDeliveryContext;
-	tools?: QtiSectionToolConfig[];
-	diagnostics?: QtiSectionDiagnostic[];
-}
-
-export type QtiSectionItemRef =
-	| (QtiSectionItemRefBase & {
-			session: QtiItemSessionReference;
-			responses?: never;
-	  })
-	| (QtiSectionItemRefBase & {
-			session?: undefined;
-			responses?: Record<string, unknown>;
-	  });
+// The section-player contract types the facade carries are aliases at their
+// contract names — the contracts are the source of truth, so a host learns one
+// name per concept and the facade cannot drift members or names. The runtime
+// element's own declarations (QtiSectionItemPaneReadyDetail,
+// QtiSectionPlayerEventMap) stay re-exported from the element file below.
+export type QtiSectionItemRef = import('@pie-qti/section-player').QtiSectionItemRef;
 
 export type QtiSerializedItemSessionVariable = import('@pie-qti/item-player').SerializedItemSessionVariable;
 
 export type QtiSerializedItemSessionState = import('@pie-qti/item-player').SerializedItemSessionState;
 
 export type QtiSectionDiagnosticSource =
-	| 'assessment-player'
-	| 'host'
-	| 'manifest'
-	| 'assessment-test'
-	| 'item'
-	| 'stimulus'
-	| 'security'
-	| 'section-player';
+	import('@pie-qti/section-player').QtiSectionDiagnosticSource;
 
-export interface QtiSectionDiagnostic {
-	severity: 'info' | 'warning' | 'error';
-	source: QtiSectionDiagnosticSource;
-	code: string;
-	message: string;
-	path?: string;
-}
+export type QtiSectionDiagnostic = import('@pie-qti/section-player').QtiSectionDiagnostic;
 
-export interface QtiSharedHtmlBlock {
-	identifier: string;
-	kind: 'passage' | 'instructions' | 'rubric' | 'stimulus' | 'test-feedback';
-	scope: 'assessment' | 'testPart' | 'section' | 'item' | 'stimulus';
-	source?: string;
-	view?: string[];
-	tools?: QtiSectionToolConfig[];
-	/** The passage or stimulus title; untitled passages get a neutral localized heading. */
-	title?: string;
-	rawHtml?: string;
-	/** The block's content language, from its `xml:lang`; sets its `lang` and its read-aloud voice. */
-	language?: string;
-	html?: QtiHtmlContent;
-}
+export type QtiPackageResolveContext = import('@pie-qti/section-player').QtiPackageResolveContext;
 
-export interface QtiSharedStimulus {
-	identifier: string;
-	href?: string;
-	source?: string;
-	bodyHtml?: QtiHtmlContent;
-	rawBodyHtml?: string;
-	stylesheets?: QtiSectionResolvedStylesheetRef[];
-	catalogSource?: QtiSectionResolvedCatalogSource;
-	diagnostics?: QtiSectionDiagnostic[];
-}
+export type QtiSharedHtmlSanitizeContext =
+	import('@pie-qti/section-player').QtiSharedHtmlSanitizeContext;
 
-export interface QtiSectionResolvedStylesheetRef {
-	href: string;
-	resolvedHref?: string;
-	renderHref?: string;
-	browserHref?: string;
-	source?: string;
-}
+export type QtiAssetUrlPolicyContext = import('@pie-qti/section-player').QtiAssetUrlPolicyContext;
 
-export interface QtiSectionResolvedCatalogSource {
-	scope: 'item' | 'stimulus' | 'section';
-	xml: string;
-	baseHref?: string;
-	stimulusIdentifier?: string;
-}
+export type QtiSharedHtmlBlock = import('@pie-qti/section-player').QtiSharedHtmlBlock;
 
-export interface QtiSectionSharedContext {
-	passages: QtiSharedHtmlBlock[];
-	stimuli: QtiSharedStimulus[];
-	rubricBlocks: QtiSharedHtmlBlock[];
-	testFeedback: QtiSharedHtmlBlock[];
-	stylesheets: QtiSectionResolvedStylesheetRef[];
-	catalogSources: QtiSectionResolvedCatalogSource[];
-	assetDiagnostics: QtiSectionDiagnostic[];
-}
+export type QtiSharedStimulus = import('@pie-qti/section-player').QtiSharedStimulus;
 
-export interface QtiSectionModel {
-	identifier: string;
-	/** The assessment the section belongs to; names the tool bars' toolkit assessment. */
-	assessmentId?: string;
-	title?: string;
-	role?: QtiRole;
-	view?: string[];
-	layoutPreference?: 'split-pane' | 'vertical' | 'auto';
-	navigationMode?: 'linear' | 'nonlinear';
-	submissionMode?: 'individual' | 'simultaneous';
-	tools?: QtiSectionToolConfig[];
-	itemRefs: QtiSectionItemRef[];
-	sharedContext?: QtiSectionSharedContext;
-	diagnostics?: QtiSectionDiagnostic[];
-}
+export type QtiResolvedStylesheetRef = import('@pie-qti/section-player').QtiResolvedStylesheetRef;
 
-export interface QtiSectionSnapshot {
-	sectionIdentifier: string;
-	activeItemIdentifier: string;
-	activeItemIndex: number;
-	itemCount: number;
-	responses: Record<string, Record<string, unknown>>;
-}
+export type QtiResolvedCatalogSource = import('@pie-qti/section-player').QtiResolvedCatalogSource;
 
-export interface QtiSectionComposition {
-	section: QtiSectionModel;
-	activeItem: QtiSectionItemRef;
-	activeItemIndex: number;
-	sharedContext: QtiSectionSharedContext;
-	layout: 'split-pane' | 'vertical';
-	canPrevious: boolean;
-	canNext: boolean;
-	snapshot: QtiSectionSnapshot;
-	diagnostics: QtiSectionDiagnostic[];
-	security?: QtiPlayerSecurityConfig;
-	host?: QtiSectionRuntimeHost;
-	/**
-	 * The assessment the section belongs to. It names the tool bars' toolkit
-	 * assessment and keys the candidate's session display settings; layouts fall
-	 * back to the section identifier.
-	 */
-	assessmentId?: string;
-	/**
-	 * The candidate's PNP. A layout given no `pnp` of its own applies this one: its
-	 * display needs to the whole section surface, the rest to the items.
-	 */
-	pnp?: QtiPnpProfile;
-}
+export type QtiSharedContext = import('@pie-qti/section-player').QtiSharedContext;
+
+export type QtiSectionModel = import('@pie-qti/section-player').QtiSectionModel;
+
+export type QtiSectionSnapshot = import('@pie-qti/section-player').QtiSectionSnapshot;
+
+export type ResolvedQtiSectionComposition =
+	import('@pie-qti/section-player').ResolvedQtiSectionComposition;
 
 import type {
-	QtiSectionDisplaySettingsEvent,
 	QtiSectionItemPaneReadyDetail,
 	QtiSectionPlayerEventMap,
-	QtiSectionResponseDeltaDetail,
 } from '../elements/QtiSectionPlayerSplitPaneElement.js';
 
-// The runtime element's declarations are the single source for the section
-// player's event contract — response deltas, framework errors, display
-// settings and the rendered item pane; re-exported here, types only, so the
-// published facade cannot drift from what the element dispatches.
+// The runtime element's declarations are the single source for the rendered
+// item pane and the section player's event map; re-exported here, types only,
+// so the published facade cannot drift from what the element dispatches.
 export type {
-	QtiSectionDisplaySettingsEvent,
 	QtiSectionItemPaneReadyDetail,
 	QtiSectionPlayerEventMap,
-	QtiSectionResponseDeltaDetail,
 };
 
 export interface QtiSectionPlayerElement extends HTMLElement {
-	composition: QtiSectionComposition | null;
+	composition: ResolvedQtiSectionComposition | null;
 	security?: QtiPlayerSecurityConfig;
-	pci?: QtiPciConfiguration;
+	pci?: QtiPciHostConfiguration;
 	i18n?: QtiI18nProvider;
 	typeset?: (root: HTMLElement) => void | Promise<void>;
 	/** Heading level (1–6) of the passage and item titles. Default 3. Reflects `heading-level`. */

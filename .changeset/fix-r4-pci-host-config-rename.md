@@ -1,0 +1,5 @@
+---
+'@pie-qti/player-elements': minor
+---
+
+**Breaking: `QtiPciConfiguration` renamed to `QtiPciHostConfiguration`** (beta prerelease). The exported type collided with an unrelated, structurally incompatible type of the same name: `@pie-qti/item-player` exports `QtiPciConfiguration` for the config object a PCI module's `getInstance()` factory receives (the QTI 3.0 §6.1 module-facing contract), while this package's same-named export was the host trust configuration for running PCI modules (page-realm resolver or sandboxed runner) — a hand mirror of item-player's `PciConfiguration`. Hosts importing the name from both sibling packages got two different types. The new name says who configures what (`Host` = the trust decisions a host makes about module execution) and keeps the `QtiPci*` family grouping in the facade (`QtiPciModuleResolver`, `QtiPciSandboxConfiguration`, …); item-player's spec-anchored module-facing name is unchanged. Fix: rename the import — every other use (the `pci` property on all four element interfaces, `QtiAssessmentPlayerConfig.pci`) is structural and keeps working once the type name is updated.

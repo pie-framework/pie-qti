@@ -8,7 +8,7 @@ import type {
 	QtiItemPlayerErrorDetail,
 	QtiItemPlayerResponseChangeDetail,
 	QtiItemPlayerSubmitDetail,
-	QtiSectionResponseDeltaDetail,
+	QtiSectionResponseDeltaEvent,
 } from '../src/index.js';
 
 export function assertItemCustomElementTypes(element: HTMLElementTagNameMap['pie-qti-item-player']) {
@@ -126,7 +126,7 @@ export function assertSectionCustomElementTypes(
 	};
 
 	element.addEventListener('qti-section-response-delta', (event) => {
-		const detail: QtiSectionResponseDeltaDetail = event.detail;
+		const detail: QtiSectionResponseDeltaEvent = event.detail;
 		void detail.responseIdentifier;
 	});
 }

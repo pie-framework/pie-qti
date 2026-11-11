@@ -1,12 +1,18 @@
 /**
- * Runtime walk of the data-model drift pins: for every contract interface in
- * @pie-qti/section-player's contract files and this package's parsed-assessment
- * sources, the reviewed mapping in tests/data-model-contracts.ts names the
- * facade mirror (src/public/api.ts, or the runtime element file for event
- * details) that must carry each of its members. A mirror that drops — or a
- * contract that gains — a field fails here, and an exported contract interface
- * that is in neither the mirror table nor the documented re-export pins fails
- * too, so a new contract type cannot ship without an explicit facade decision.
+ * Runtime walk of the data-model drift pins. Two families:
+ *
+ * (a) Section contracts: for every contract type in tests/data-model-contracts.ts's
+ *     SECTION_CONTRACT_ALIASES, the facade (src/public/api.ts) must publish the
+ *     type under its own contract name as a direct `import('@pie-qti/section-player')`
+ *     alias — NAME parity, not just member parity — and must not hand-copy it under
+ *     any name. Every exported contract interface must appear in the alias table or
+ *     the documented not-published table, so a new contract type cannot ship
+ *     without an explicit facade decision.
+ *
+ * (b) Parsed-assessment types: for every contract interface in this package's
+ *     parsed-assessment sources, the reviewed mapping in DATA_MODEL_MIRRORS names
+ *     the facade mirror that must carry each of its members. A mirror that drops —
+ *     or a contract that gains — a field fails here.
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, test } from 'bun:test';
@@ -15,6 +21,8 @@ import {
 	type DataModelMirrorPin,
 	PARSED_TYPE_SOURCES,
 	PINNED_BY_REEXPORT,
+	SECTION_CONTRACT_ALIASES,
+	SECTION_CONTRACT_NOT_PUBLISHED,
 	SECTION_CONTRACT_SOURCES,
 } from './data-model-contracts.js';
 
@@ -72,7 +80,19 @@ function extractMemberNames(source: string, name: string): string[] {
 }
 
 describe('every contract interface has an explicit facade decision', () => {
-	for (const source of [...SECTION_CONTRACT_SOURCES, ...PARSED_TYPE_SOURCES]) {
+	for (const source of SECTION_CONTRACT_SOURCES) {
+		test(`${source} exports no interface outside the alias and not-published tables`, () => {
+			const text = readSource(source);
+			const exported = [...text.matchAll(/^export interface (\w+)/gm)].map((match) => match[1]!);
+			const aliased = new Set(SECTION_CONTRACT_ALIASES);
+			const undecided = exported.filter(
+				(name) => !aliased.has(name) && !(name in SECTION_CONTRACT_NOT_PUBLISHED),
+			);
+			expect(undecided).toEqual([]);
+		});
+	}
+
+	for (const source of PARSED_TYPE_SOURCES) {
 		test(`${source} exports no interface outside the mirror and re-export tables`, () => {
 			const text = readSource(source);
 			const exported = [...text.matchAll(/^export interface (\w+)/gm)].map((match) => match[1]!);
@@ -85,6 +105,35 @@ describe('every contract interface has an explicit facade decision', () => {
 			expect(undecided).toEqual([]);
 		});
 	}
+});
+
+describe('section contract names are published at parity', () => {
+	test('every alias table entry names a type the contract files actually export', () => {
+		const contractText = SECTION_CONTRACT_SOURCES.map((source) => readSource(source)).join('\n');
+		const phantom = SECTION_CONTRACT_ALIASES.filter(
+			(name) => !new RegExp(`\\bexport (?:interface|type) ${name}\\b`).exec(contractText),
+		);
+		expect(phantom).toEqual([]);
+	});
+
+	test('api.ts aliases each section contract type under its own name', () => {
+		const apiText = readSource(API_SOURCE);
+		const drifted = SECTION_CONTRACT_ALIASES.filter(
+			(name) =>
+				!new RegExp(
+					`export type ${name}\\s*=\\s*import\\('@pie-qti/section-player'\\)\\.${name}\\s*;`,
+				).exec(apiText),
+		);
+		expect(drifted).toEqual([]);
+	});
+
+	test('api.ts hand-copies no section contract type under any name', () => {
+		const apiText = readSource(API_SOURCE);
+		const handCopied = SECTION_CONTRACT_ALIASES.filter((name) =>
+			new RegExp(`\\bexport interface ${name}\\b`).exec(apiText),
+		);
+		expect(handCopied).toEqual([]);
+	});
 });
 
 describe('facade mirrors carry every contract member', () => {

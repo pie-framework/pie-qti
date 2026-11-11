@@ -1,39 +1,32 @@
 /**
- * Drift pins between the published facade's data-model mirrors and the runtime
- * contract types they mirror. The hand-written interfaces in src/public/api.ts
- * mirror (a) @pie-qti/section-player's contract files and (b) this package's
- * own parsed-assessment types (src/qti/types.ts, src/qti/resolveItems.ts).
- * A mirror that drops a contract field still compiles against every
- * impl→contract assignability pin, so narrowing drift ships silently — the
- * source walk (tests/data-model-drift.test.ts) fails when a contract member has
- * no mirror counterpart, and the type pins below fail the same narrowing at
- * compile time.
+ * Drift pins between the published facade (src/public/api.ts) and the runtime
+ * contract types it publishes. Two families:
+ *
+ * (a) The @pie-qti/section-player contract types are published as 1:1 type
+ *     aliases at their contract names. SECTION_CONTRACT_ALIASES lists the names,
+ *     the bun-test walk (tests/data-model-drift.test.ts) asserts api.ts really
+ *     aliases each of those names — not a hand copy under a drifted name — and
+ *     the SectionIdentityPin types below assert each alias is the exact upstream
+ *     type. An alias can neither drop a member nor ship under a renamed or
+ *     hand-mirrored identity.
+ *
+ * (b) This package's own parsed-assessment runtime types (src/qti/types.ts,
+ *     src/qti/resolveItems.ts) keep hand-written facade interfaces: the reviewed
+ *     mapping in DATA_MODEL_MIRRORS names the mirror that must carry each
+ *     contract member, the source walk fails when a member has no mirror
+ *     counterpart, and the type pins below fail the same narrowing at compile
+ *     time.
  *
  * Typechecked by `tsc -p tsconfig.types.test.json` (part of `bun run test`).
  * Every pin is a type alias; the module also evaluates to the mapping lists the
- * bun-test walk reads, so the reviewed contract→mirror table lives in exactly
- * one place.
+ * bun-test walk reads, so the reviewed tables live in exactly one place.
  */
 import type {
 	ParsedAssessmentItemRef,
 	ParsedAssessmentSection,
 	ParsedAssessmentTest,
 	ParsedTestPart,
-	QtiAssetUrlPolicyContext,
 	QtiItemFetchPolicy,
-	QtiPackageResolveContext,
-	QtiSectionComposition,
-	QtiSectionDiagnostic,
-	QtiSectionModel,
-	QtiSectionResolvedCatalogSource,
-	QtiSectionResolvedStylesheetRef,
-	QtiSectionRuntimeHost,
-	QtiSectionSharedContext,
-	QtiSectionSnapshot,
-	QtiSectionToolConfig,
-	QtiSharedHtmlBlock,
-	QtiSharedHtmlSanitizeContext,
-	QtiSharedStimulus,
 	ResolveItemsForAssessmentOptions,
 } from '../src/public/api.js';
 
@@ -52,7 +45,7 @@ export interface DataModelMirrorPin {
 	mirrorSource?: string;
 }
 
-/** The section-player contract files the facade's data-model mirrors duplicate. */
+/** The section-player contract files whose types the facade publishes. */
 export const SECTION_CONTRACT_SOURCES = [
 	'../../section-player/src/contracts/layout-contract.ts',
 	'../../section-player/src/contracts/runtime-host-contract.ts',
@@ -62,70 +55,53 @@ export const SECTION_CONTRACT_SOURCES = [
 export const PARSED_TYPE_SOURCES = ['../src/qti/types.ts', '../src/qti/resolveItems.ts'] as const;
 
 /**
- * The reviewed contract→mirror table. Every exported interface in the contract
- * sources above must appear here or in PINNED_BY_REEXPORT, and every member of
- * a pinned contract type must appear on its mirror.
+ * The section contract types the facade must publish under their own names, as
+ * `export type <Name> = import('@pie-qti/section-player').<Name>` aliases. The
+ * contracts are the source of truth: a host learns one name per concept across
+ * both packages, and renames cannot silently diverge again.
+ */
+export const SECTION_CONTRACT_ALIASES: readonly string[] = [
+	// layout-contract.ts
+	'QtiSectionToolConfig',
+	'QtiSectionModel',
+	'QtiSectionItemRef',
+	'QtiSharedHtmlBlock',
+	'QtiSharedStimulus',
+	'QtiResolvedStylesheetRef',
+	'QtiResolvedCatalogSource',
+	'QtiSharedContext',
+	'QtiSectionSnapshot',
+	'ResolvedQtiSectionComposition',
+	// runtime-host-contract.ts
+	'QtiSectionDiagnosticSource',
+	'QtiSectionDiagnostic',
+	'QtiPackageResolveContext',
+	'QtiSharedHtmlSanitizeContext',
+	'QtiAssetUrlPolicyContext',
+	'QtiSectionResponseDeltaEvent',
+	'QtiSectionActiveItemChangeEvent',
+	'QtiSectionFrameworkError',
+	'QtiSectionDisplaySettingsEvent',
+	'QtiSectionRuntimeHostContract',
+];
+
+/**
+ * Exported contract interfaces with no facade publication, and why none is
+ * needed. The walk fails when a section contract interface is in neither table,
+ * so a new contract type cannot ship without an explicit facade decision.
+ */
+export const SECTION_CONTRACT_NOT_PUBLISHED: Record<string, string> = {
+	ResolveQtiSectionCompositionOptions:
+		'section-player-internal function options; the facade takes a complete composition, not these options.',
+};
+
+/**
+ * The reviewed contract→mirror table for the parsed-assessment family. Every
+ * exported interface in PARSED_TYPE_SOURCES must appear here or in
+ * PINNED_BY_REEXPORT, and every member of a pinned contract type must appear on
+ * its mirror.
  */
 export const DATA_MODEL_MIRRORS: DataModelMirrorPin[] = [
-	// layout-contract.ts
-	{ contractSource: SECTION_CONTRACT_SOURCES[0], contract: 'QtiSectionToolConfig', mirror: 'QtiSectionToolConfig' },
-	{ contractSource: SECTION_CONTRACT_SOURCES[0], contract: 'QtiSectionModel', mirror: 'QtiSectionModel' },
-	{
-		// QtiSectionItemRef itself is a session/responses union; both sides keep the
-		// carried fields in this (package-private) base interface.
-		contractSource: SECTION_CONTRACT_SOURCES[0],
-		contract: 'QtiSectionItemRefBase',
-		mirror: 'QtiSectionItemRefBase',
-	},
-	{ contractSource: SECTION_CONTRACT_SOURCES[0], contract: 'QtiSharedHtmlBlock', mirror: 'QtiSharedHtmlBlock' },
-	{ contractSource: SECTION_CONTRACT_SOURCES[0], contract: 'QtiSharedStimulus', mirror: 'QtiSharedStimulus' },
-	{
-		contractSource: SECTION_CONTRACT_SOURCES[0],
-		contract: 'QtiResolvedStylesheetRef',
-		mirror: 'QtiSectionResolvedStylesheetRef',
-	},
-	{
-		contractSource: SECTION_CONTRACT_SOURCES[0],
-		contract: 'QtiResolvedCatalogSource',
-		mirror: 'QtiSectionResolvedCatalogSource',
-	},
-	{ contractSource: SECTION_CONTRACT_SOURCES[0], contract: 'QtiSharedContext', mirror: 'QtiSectionSharedContext' },
-	{ contractSource: SECTION_CONTRACT_SOURCES[0], contract: 'QtiSectionSnapshot', mirror: 'QtiSectionSnapshot' },
-	{
-		contractSource: SECTION_CONTRACT_SOURCES[0],
-		contract: 'ResolvedQtiSectionComposition',
-		mirror: 'QtiSectionComposition',
-	},
-	// runtime-host-contract.ts
-	{ contractSource: SECTION_CONTRACT_SOURCES[1], contract: 'QtiSectionDiagnostic', mirror: 'QtiSectionDiagnostic' },
-	{
-		contractSource: SECTION_CONTRACT_SOURCES[1],
-		contract: 'QtiPackageResolveContext',
-		mirror: 'QtiPackageResolveContext',
-	},
-	{
-		contractSource: SECTION_CONTRACT_SOURCES[1],
-		contract: 'QtiSharedHtmlSanitizeContext',
-		mirror: 'QtiSharedHtmlSanitizeContext',
-	},
-	{
-		contractSource: SECTION_CONTRACT_SOURCES[1],
-		contract: 'QtiAssetUrlPolicyContext',
-		mirror: 'QtiAssetUrlPolicyContext',
-	},
-	{
-		contractSource: SECTION_CONTRACT_SOURCES[1],
-		contract: 'QtiSectionRuntimeHostContract',
-		mirror: 'QtiSectionRuntimeHost',
-	},
-	{
-		// The event detail is declared on the runtime element and re-exported
-		// through api.ts; the contract interface must keep matching it.
-		contractSource: SECTION_CONTRACT_SOURCES[1],
-		contract: 'QtiSectionResponseDeltaEvent',
-		mirror: 'QtiSectionResponseDeltaDetail',
-		mirrorSource: '../src/elements/QtiSectionPlayerSplitPaneElement.ts',
-	},
 	// src/qti/types.ts — the parsed-assessment family
 	{
 		contractSource: PARSED_TYPE_SOURCES[0],
@@ -149,21 +125,18 @@ export const DATA_MODEL_MIRRORS: DataModelMirrorPin[] = [
 ];
 
 /**
- * Exported contract interfaces with no hand mirror, and why none is needed.
- * The walk fails when a contract interface is in neither table, so a new
- * contract type cannot ship without an explicit mirror decision.
+ * Exported parsed-type interfaces with no hand mirror, and why none is needed.
+ * The walk fails when a parsed-type interface is in neither table.
  */
 export const PINNED_BY_REEXPORT: Record<string, string> = {
-	QtiSectionActiveItemChangeEvent: 'api.ts aliases the contract type directly (import alias; cannot drift).',
-	QtiSectionFrameworkError: 'api.ts aliases the contract type directly (import alias; cannot drift).',
-	QtiSectionDisplaySettingsEvent: 'the runtime element re-exports the contract type; api.ts re-exports it on.',
-	ResolveQtiSectionCompositionOptions:
-		'section-player-internal function options; the facade takes a complete composition, not these options.',
 	QtiItemMap: 'a Record<string, string> alias on both sides; no members to mirror.',
 	QtiAssessmentResourceResolver: 'a function type alias; no members to mirror.',
 	CreateAssessmentResourceResolverOptions:
 		'an Omit<> alias over ResolveItemsForAssessmentOptions, which is pinned.',
 };
+
+/** True only when A and B are the same type — no missing, no extra members. */
+type Exactly<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 
 /** True only when every key of Contract also exists on Mirror: a mirror that
  * drops a contract field fails here even though impl→contract assignability
@@ -174,19 +147,105 @@ type HasContractKeys<Contract extends object, Mirror extends object> =
 /** The assertion itself: a pin that does not hold fails the constraint here. */
 type Expect<T extends true> = T;
 
-// The three mirrors that drifted once (the section data model): narrowing fails
-// the build, not just the runtime walk.
-type SectionModelKeysPin = Expect<
-	HasContractKeys<import('@pie-qti/section-player').QtiSectionModel, QtiSectionModel>
+// ——— (a) Section contract identity pins: the facade name IS the contract type. ———
+type SectionToolConfigIdentityPin = Expect<
+	Exactly<import('@pie-qti/section-player').QtiSectionToolConfig, import('../src/public/api.js').QtiSectionToolConfig>
 >;
-type SectionCompositionKeysPin = Expect<
-	HasContractKeys<import('@pie-qti/section-player').ResolvedQtiSectionComposition, QtiSectionComposition>
+type SectionModelIdentityPin = Expect<
+	Exactly<import('@pie-qti/section-player').QtiSectionModel, import('../src/public/api.js').QtiSectionModel>
 >;
-type SectionRuntimeHostKeysPin = Expect<
-	HasContractKeys<import('@pie-qti/section-player').QtiSectionRuntimeHostContract, QtiSectionRuntimeHost>
+type SectionItemRefIdentityPin = Expect<
+	Exactly<import('@pie-qti/section-player').QtiSectionItemRef, import('../src/public/api.js').QtiSectionItemRef>
+>;
+type SharedHtmlBlockIdentityPin = Expect<
+	Exactly<import('@pie-qti/section-player').QtiSharedHtmlBlock, import('../src/public/api.js').QtiSharedHtmlBlock>
+>;
+type SharedStimulusIdentityPin = Expect<
+	Exactly<import('@pie-qti/section-player').QtiSharedStimulus, import('../src/public/api.js').QtiSharedStimulus>
+>;
+type ResolvedStylesheetRefIdentityPin = Expect<
+	Exactly<
+		import('@pie-qti/section-player').QtiResolvedStylesheetRef,
+		import('../src/public/api.js').QtiResolvedStylesheetRef
+	>
+>;
+type ResolvedCatalogSourceIdentityPin = Expect<
+	Exactly<
+		import('@pie-qti/section-player').QtiResolvedCatalogSource,
+		import('../src/public/api.js').QtiResolvedCatalogSource
+	>
+>;
+type SharedContextIdentityPin = Expect<
+	Exactly<import('@pie-qti/section-player').QtiSharedContext, import('../src/public/api.js').QtiSharedContext>
+>;
+type SectionSnapshotIdentityPin = Expect<
+	Exactly<import('@pie-qti/section-player').QtiSectionSnapshot, import('../src/public/api.js').QtiSectionSnapshot>
+>;
+type SectionCompositionIdentityPin = Expect<
+	Exactly<
+		import('@pie-qti/section-player').ResolvedQtiSectionComposition,
+		import('../src/public/api.js').ResolvedQtiSectionComposition
+	>
+>;
+type SectionDiagnosticSourceIdentityPin = Expect<
+	Exactly<
+		import('@pie-qti/section-player').QtiSectionDiagnosticSource,
+		import('../src/public/api.js').QtiSectionDiagnosticSource
+	>
+>;
+type SectionDiagnosticIdentityPin = Expect<
+	Exactly<import('@pie-qti/section-player').QtiSectionDiagnostic, import('../src/public/api.js').QtiSectionDiagnostic>
+>;
+type PackageResolveContextIdentityPin = Expect<
+	Exactly<
+		import('@pie-qti/section-player').QtiPackageResolveContext,
+		import('../src/public/api.js').QtiPackageResolveContext
+	>
+>;
+type SharedHtmlSanitizeContextIdentityPin = Expect<
+	Exactly<
+		import('@pie-qti/section-player').QtiSharedHtmlSanitizeContext,
+		import('../src/public/api.js').QtiSharedHtmlSanitizeContext
+	>
+>;
+type AssetUrlPolicyContextIdentityPin = Expect<
+	Exactly<
+		import('@pie-qti/section-player').QtiAssetUrlPolicyContext,
+		import('../src/public/api.js').QtiAssetUrlPolicyContext
+	>
+>;
+type SectionResponseDeltaEventIdentityPin = Expect<
+	Exactly<
+		import('@pie-qti/section-player').QtiSectionResponseDeltaEvent,
+		import('../src/public/api.js').QtiSectionResponseDeltaEvent
+	>
+>;
+type SectionActiveItemChangeEventIdentityPin = Expect<
+	Exactly<
+		import('@pie-qti/section-player').QtiSectionActiveItemChangeEvent,
+		import('../src/public/api.js').QtiSectionActiveItemChangeEvent
+	>
+>;
+type SectionFrameworkErrorIdentityPin = Expect<
+	Exactly<
+		import('@pie-qti/section-player').QtiSectionFrameworkError,
+		import('../src/public/api.js').QtiSectionFrameworkError
+	>
+>;
+type SectionDisplaySettingsEventIdentityPin = Expect<
+	Exactly<
+		import('@pie-qti/section-player').QtiSectionDisplaySettingsEvent,
+		import('../src/public/api.js').QtiSectionDisplaySettingsEvent
+	>
+>;
+type SectionRuntimeHostIdentityPin = Expect<
+	Exactly<
+		import('@pie-qti/section-player').QtiSectionRuntimeHostContract,
+		import('../src/public/api.js').QtiSectionRuntimeHostContract
+	>
 >;
 
-// The parsed-assessment family pins against this package's own runtime types.
+// ——— (b) The parsed-assessment family pins against this package's runtime types. ———
 type ParsedAssessmentTestKeysPin = Expect<
 	HasContractKeys<import('../src/qti/types.js').ParsedAssessmentTest, ParsedAssessmentTest>
 >;

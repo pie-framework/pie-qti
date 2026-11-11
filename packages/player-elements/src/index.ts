@@ -57,5 +57,5 @@ export type {
 	QtiSectionPlayerSplitPaneElement,
 	QtiSectionPlayerEventMap,
 	QtiSectionPlayerVerticalElement,
-	QtiSectionResponseDeltaDetail,
+	QtiSectionResponseDeltaEvent,
 } from './elements.js';
