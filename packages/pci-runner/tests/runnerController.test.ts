@@ -153,6 +153,24 @@ function createHarness(
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Poll until a condition holds, with a deadline — the convention used by the
+// assessment-player autosave suite — instead of racing async work against a
+// fixed sleep. Fixed sleeps remain only where a test asserts absence over a
+// window.
+async function until(check: () => boolean, timeout = 2000): Promise<void> {
+	const deadline = Date.now() + timeout;
+	while (Date.now() < deadline) {
+		if (check()) return;
+		await new Promise((resolve) => setTimeout(resolve, 5));
+	}
+	throw new Error(`condition not met within ${timeout}ms`);
+}
+
+type Harness = ReturnType<typeof createHarness>;
+
+const waitForMessage = (harness: Harness, msgType: string, timeout = 2000) =>
+	until(() => harness.last(msgType) !== undefined, timeout);
+
 describe('origin locking', () => {
 	test('announces runner-ready to any origin before the lock exists', () => {
 		const harness = createHarness(() => ({}));
@@ -172,8 +190,7 @@ describe('origin locking', () => {
 
 		harness.hello();
 		harness.init();
-		await sleep(10);
-		expect(harness.last('module-loaded')).toBeDefined();
+		await waitForMessage(harness, 'module-loaded');
 	});
 
 	test('once locked, messages from another origin are refused', async () => {
@@ -193,15 +210,14 @@ describe('origin locking', () => {
 		expect(harness.last('module-error')).toBeUndefined();
 
 		harness.init();
-		await sleep(10);
-		expect(harness.last('module-loaded')).toBeDefined();
+		await waitForMessage(harness, 'module-loaded');
 	});
 
 	test('after the lock, replies go only to the locked parent origin', async () => {
 		const harness = createHarness((type) => ({ [ENTRY_URL]: echoModule(type) }));
 		harness.hello();
 		harness.init();
-		await sleep(10);
+		await waitForMessage(harness, 'module-loaded');
 		for (const entry of harness.outbox) {
 			if (entry.message.type === 'runner-ready') continue;
 			expect(entry.targetOrigin).toBe(PARENT_ORIGIN);
@@ -214,7 +230,7 @@ describe('module loading and instantiation', () => {
 		const harness = createHarness((type) => ({ [ENTRY_URL]: echoModule(type) }));
 		harness.hello();
 		harness.init();
-		await sleep(10);
+		await waitForMessage(harness, 'module-loaded');
 
 		expect(harness.last('module-loaded')?.message.payload).toEqual({ typeIdentifier: harness.type });
 		// The container (and the markup inside it) appears at instantiation.
@@ -231,15 +247,14 @@ describe('module loading and instantiation', () => {
 		}));
 		harness.hello();
 		harness.init({ resolutionConfigUrl: configUrl });
-		await sleep(10);
-		expect(harness.last('module-loaded')).toBeDefined();
+		await waitForMessage(harness, 'module-loaded');
 	});
 
 	test('reports module-error when the module never registers', async () => {
 		const harness = createHarness(() => ({ [ENTRY_URL]: 'globalThis.__loaded = true;' }));
 		harness.hello();
 		harness.init({ registrationTimeoutMs: 40 });
-		await sleep(150);
+		await waitForMessage(harness, 'module-error');
 		const error = harness.last('module-error');
 		expect(error).toBeDefined();
 		expect((error?.message.payload as { message?: string } | undefined)?.message).toContain('did not register');
@@ -249,17 +264,16 @@ describe('module loading and instantiation', () => {
 		const harness = createHarness(() => ({}));
 		harness.hello();
 		harness.init();
-		await sleep(10);
-		expect(harness.last('module-error')).toBeDefined();
+		await waitForMessage(harness, 'module-error');
 	});
 
 	test('instantiates with the seeded state and reports instance-ready', async () => {
 		const harness = createHarness((type) => ({ [ENTRY_URL]: echoModule(type) }));
 		harness.hello();
 		harness.init({ markup: '<span class="markup"></span>' });
-		await sleep(10);
+		await waitForMessage(harness, 'module-loaded');
 		harness.instantiate({ state: { base: { string: 'A' } }, properties: { color: 'blue' } });
-		await sleep(10);
+		await waitForMessage(harness, 'instance-ready');
 
 		expect(harness.last('instance-ready')?.message.payload).toEqual({
 			response: { base: { string: 'A' } },
@@ -278,13 +292,13 @@ describe('module loading and instantiation', () => {
 		const harness = createHarness((type) => ({ [ENTRY_URL]: echoModule(type) }));
 		harness.hello();
 		harness.init();
-		await sleep(10);
+		await waitForMessage(harness, 'module-loaded');
 		harness.instantiate();
-		await sleep(10);
+		await waitForMessage(harness, 'instance-ready');
 		expect(harness.containers).toHaveLength(1);
 
 		harness.instantiate({ status: 'review' });
-		await sleep(10);
+		await until(() => harness.messages('instance-ready').length >= 2);
 		// The old container was emptied and a new one created for the new instance.
 		expect(harness.containers[0]?.children).toHaveLength(0);
 		expect(harness.containers).toHaveLength(2);
@@ -295,9 +309,9 @@ describe('module loading and instantiation', () => {
 		const harness = createHarness((type) => ({ [ENTRY_URL]: echoModule(type) }));
 		harness.hello();
 		harness.init();
-		await sleep(10);
+		await waitForMessage(harness, 'module-loaded');
 		harness.instantiate();
-		await sleep(10);
+		await waitForMessage(harness, 'instance-ready');
 		const instance = (globalThis as any).__echoInstance;
 		instance.disable = () => {
 			instance.disabled = true;
@@ -312,13 +326,13 @@ describe('response freshness', () => {
 		const harness = createHarness((type) => ({ [ENTRY_URL]: echoModule(type) }));
 		harness.hello();
 		harness.init({ pollIntervalMs: 30 });
-		await sleep(10);
+		await waitForMessage(harness, 'module-loaded');
 		harness.instantiate();
-		await sleep(10);
+		await waitForMessage(harness, 'instance-ready');
 		const before = harness.messages('response-change').length;
 
 		(globalThis as any).__echoInstance.setResponse('B');
-		await sleep(120);
+		await until(() => harness.messages('response-change').length > before);
 		const changes = harness.messages('response-change').slice(before);
 		expect(changes.length).toBeGreaterThanOrEqual(1);
 		expect(changes.at(-1)?.message.payload).toMatchObject({ response: { base: { string: 'B' } } });
@@ -328,11 +342,11 @@ describe('response freshness', () => {
 		const harness = createHarness((type) => ({ [ENTRY_URL]: echoModule(type) }));
 		harness.hello();
 		harness.init({ pollIntervalMs: 30 });
-		await sleep(10);
+		await waitForMessage(harness, 'module-loaded');
 		harness.instantiate();
-		await sleep(10);
+		await waitForMessage(harness, 'instance-ready');
 		harness.deliver(createSandboxEnvelope('teardown-instance', {}));
-		await sleep(10);
+		await until(() => (harness.containers[0]?.children.length ?? 0) === 0);
 		expect(harness.containers[0]?.children).toHaveLength(0);
 
 		const before = harness.messages('response-change').length;
@@ -366,9 +380,9 @@ describe('frame language (round 6)', () => {
 		const harness = createHarness((type) => ({ [ENTRY_URL]: echoModule(type) }), { frameDocument: frame });
 		harness.hello();
 		harness.init({ language: 'ar-EG', direction: 'rtl', frameTitle: 'محتوى تفاعلي' });
-		await sleep(10);
+		await waitForMessage(harness, 'module-loaded');
 		harness.instantiate();
-		await sleep(10);
+		await waitForMessage(harness, 'instance-ready');
 
 		expect(frame.documentElement.lang).toBe('ar-EG');
 		expect(frame.documentElement.dir).toBe('rtl');

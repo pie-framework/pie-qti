@@ -156,6 +156,9 @@
 				<ul class="menu menu-horizontal px-1">
 					<li><a href={resolve('/')} class:active={currentPath === resolve('/')}>{i18n?.t('demo.home') ?? 'Home'}</a></li>
 					<li>
+						<a href={resolve('/docs')} class:active={currentPath === resolve('/docs')}>{i18n?.t('demo.quickstart') ?? 'Quickstart'}</a>
+					</li>
+					<li>
 						<a href={resolve('/item-demo')} class:active={currentPath === resolve('/item-demo')}>{i18n?.t('demo.itemDemo') ?? 'Item Demo'}</a>
 					</li>
 					<li>

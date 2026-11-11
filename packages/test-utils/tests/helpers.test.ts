@@ -3,13 +3,11 @@
  */
 
 import { describe, expect, test } from 'bun:test';
+import { parse } from 'node-html-parser';
 import {
-	parseQtiItem,
 	createQtiWrapper,
 	createResponseDeclaration,
-	createOutcomeDeclaration,
 	createChoiceInteraction,
-	parseElement,
 } from '../src/index.js';
 
 describe('QTI Helpers', () => {
@@ -42,23 +40,6 @@ describe('QTI Helpers', () => {
 		});
 	});
 
-	describe('parseQtiItem', () => {
-		test('parses QTI XML', () => {
-			const qti = createQtiWrapper('<itemBody>test</itemBody>');
-			const element = parseQtiItem(qti);
-
-			expect(element).toBeDefined();
-			expect(element.rawTagName).toBe('assessmentItem');
-			expect(element.getAttribute('identifier')).toBe('test-item');
-		});
-
-		test('throws when no assessmentItem found', () => {
-			expect(() => parseQtiItem('<div>not qti</div>')).toThrow(
-				'No assessmentItem element found',
-			);
-		});
-	});
-
 	describe('createResponseDeclaration', () => {
 		test('creates single cardinality declaration', () => {
 			const decl = createResponseDeclaration('RESPONSE', 'single', ['A']);
@@ -88,24 +69,6 @@ describe('QTI Helpers', () => {
 
 			expect(decl).toContain('baseType="integer"');
 			expect(decl).toContain('<value>42</value>');
-		});
-	});
-
-	describe('createOutcomeDeclaration', () => {
-		test('creates outcome without default', () => {
-			const decl = createOutcomeDeclaration('SCORE', 'float');
-
-			expect(decl).toContain('<outcomeDeclaration');
-			expect(decl).toContain('identifier="SCORE"');
-			expect(decl).toContain('baseType="float"');
-			expect(decl).not.toContain('defaultValue');
-		});
-
-		test('creates outcome with default value', () => {
-			const decl = createOutcomeDeclaration('SCORE', 'float', '0');
-
-			expect(decl).toContain('<defaultValue>');
-			expect(decl).toContain('<value>0</value>');
 		});
 	});
 
@@ -142,32 +105,13 @@ describe('QTI Helpers', () => {
 			expect(interaction).toContain('<prompt>Select the correct answer:</prompt>');
 		});
 	});
-
-	describe('parseElement', () => {
-		test('parses XML element', () => {
-			const element = parseElement('<div class="test">content</div>');
-
-			expect(element).toBeDefined();
-			expect(element.rawTagName).toBe('div');
-			expect(element.getAttribute('class')).toBe('test');
-			expect(element.textContent).toContain('content');
-		});
-
-		test('parses self-closing elements', () => {
-			const element = parseElement('<br />');
-
-			expect(element).toBeDefined();
-			expect(element.rawTagName).toBe('br');
-		});
-	});
 });
 
 describe('Complete QTI Example', () => {
-	test('creates and parses complete QTI item', () => {
+	test('composes wrapper, response declaration and interaction into a valid item', () => {
 		const qti = createQtiWrapper(
 			`
       ${createResponseDeclaration('RESPONSE', 'single', ['A'])}
-      ${createOutcomeDeclaration('SCORE', 'float', '0')}
       ${createChoiceInteraction('RESPONSE', [
 				{ id: 'A', text: 'Correct Answer' },
 				{ id: 'B', text: 'Wrong Answer' },
@@ -177,8 +121,13 @@ describe('Complete QTI Example', () => {
 			'Complete Test Item',
 		);
 
-		const element = parseQtiItem(qti);
+		// Parse the composed XML to verify the pieces fit together
+		const doc = parse(qti, { lowerCaseTagName: false, comment: false });
+		const element =
+			doc.querySelector('assessmentItem') ??
+			doc.getElementsByTagName('assessmentItem')[0];
 
+		expect(element).toBeDefined();
 		expect(element.getAttribute('identifier')).toBe('complete-item');
 		expect(element.getAttribute('title')).toBe('Complete Test Item');
 
@@ -186,11 +135,6 @@ describe('Complete QTI Example', () => {
 		const responseDecl = element.getElementsByTagName('responseDeclaration')[0];
 		expect(responseDecl).toBeDefined();
 		expect(responseDecl.getAttribute('identifier')).toBe('RESPONSE');
-
-		// Verify outcome declaration
-		const outcomeDecl = element.getElementsByTagName('outcomeDeclaration')[0];
-		expect(outcomeDecl).toBeDefined();
-		expect(outcomeDecl.getAttribute('identifier')).toBe('SCORE');
 
 		// Verify interaction
 		const interaction = element.getElementsByTagName('choiceInteraction')[0];

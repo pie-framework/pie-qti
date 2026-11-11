@@ -29,7 +29,6 @@
         "@pie-qti/ims-cp-core": "workspace:*",
         "@pie-qti/item-player": "workspace:*",
         "@pie-qti/logger": "workspace:*",
-        "@pie-qti/pie-to-qti2": "workspace:*",
         "@pie-qti/player-elements": "workspace:*",
         "@pie-qti/qti-common": "workspace:*",
         "@pie-qti/section-player": "workspace:*",

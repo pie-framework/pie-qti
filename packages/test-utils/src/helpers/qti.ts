@@ -1,39 +1,7 @@
 /**
  * QTI Test Helpers
- * Utilities for creating and parsing QTI XML in tests
+ * Utilities for creating QTI XML in tests
  */
-
-import { type HTMLElement, parse } from 'node-html-parser';
-
-/**
- * Parse QTI XML and return the assessmentItem element
- * Handles the standard QTI parsing configuration
- *
- * @param qtiXml XML string to parse
- * @returns Parsed assessmentItem element
- *
- * @example
- * ```typescript
- * const qti = createQtiWrapper('<itemBody>...</itemBody>');
- * const element = parseQtiItem(qti);
- * ```
- */
-export function parseQtiItem(qtiXml: string): HTMLElement {
-	const doc = parse(qtiXml, {
-		lowerCaseTagName: false,
-		comment: false,
-	});
-
-	const itemElement =
-		doc.querySelector('assessmentItem') ||
-		doc.getElementsByTagName('assessmentItem')[0];
-
-	if (!itemElement) {
-		throw new Error('No assessmentItem element found in QTI XML');
-	}
-
-	return itemElement as HTMLElement;
-}
 
 /**
  * Create a basic QTI assessmentItem wrapper with standard attributes
@@ -106,33 +74,6 @@ export function createResponseDeclaration(
 }
 
 /**
- * Create an outcomeDeclaration element
- *
- * @param identifier Outcome identifier
- * @param baseType Base type (e.g., 'float', 'integer', 'identifier')
- * @param defaultValue Optional default value
- * @returns outcomeDeclaration XML string
- *
- * @example
- * ```typescript
- * const declaration = createOutcomeDeclaration('SCORE', 'float', '0');
- * ```
- */
-export function createOutcomeDeclaration(
-	identifier: string,
-	baseType: string,
-	defaultValue?: string,
-): string {
-	const defaultValueXml = defaultValue
-		? `\n    <defaultValue>\n      <value>${defaultValue}</value>\n    </defaultValue>`
-		: '';
-
-	return `
-  <outcomeDeclaration identifier="${identifier}" cardinality="single" baseType="${baseType}">${defaultValueXml}
-  </outcomeDeclaration>`;
-}
-
-/**
  * Create a simple choiceInteraction element
  *
  * @param responseId Response identifier
@@ -167,20 +108,4 @@ export function createChoiceInteraction(
 ${choicesXml}
     </choiceInteraction>
   </itemBody>`;
-}
-
-/**
- * Parse HTML element from XML string
- * General-purpose HTML/XML parser for test elements
- *
- * @param xml XML string to parse
- * @returns Parsed HTML element
- */
-export function parseElement(xml: string): HTMLElement {
-	const doc = parse(xml, {
-		lowerCaseTagName: false,
-		comment: false,
-	});
-
-	return doc.firstChild as HTMLElement;
 }

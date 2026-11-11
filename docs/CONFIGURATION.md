@@ -53,17 +53,17 @@ Configuration files should be in JSON format. The file (loaded via `loadFromFile
 Notes:
 
 - Plugin, detector, and vendor-extension entries are **objects** (`module`, optional `export`, optional `options`), not plain module-path strings. The loader dynamically imports `module` and instantiates the default export unless `export` names one; `options` is passed to the constructor.
-- There is **no `orchestration` or `defaultOptions` section in the file config**. Orchestrator settings and pipeline defaults come from environment variables via `loadOrchestrationConfig()` or from constructor injection (`new TransformEngine(orchestrator?, storage?)`). See [Orchestration Configuration](#orchestration-configuration).
+- There is **no `orchestration` or `defaultOptions` section in the file config**. Orchestrator and storage settings come from constructor injection (`new TransformEngine(orchestrator?, storage?)`). See [Orchestration Configuration](#orchestration-configuration).
 
 ## Orchestration Configuration
 
-Configure workflow orchestration for transformation pipelines. The orchestration layer provides retry mechanisms, progress tracking, and workflow execution.
+Transformation workflows run through a `WorkflowOrchestrator` (`packages/types/src/orchestration/orchestrator.ts`), which provides retry handling, progress tracking, and workflow execution.
 
-**This section is environment/constructor-only — it is not read from the config file.**
+**Orchestrator settings are constructor-only. There is no orchestration section in the config file and no orchestration environment variables.**
 
 ### In-Memory Orchestrator (Default)
 
-The `TransformEngine` constructor takes an optional orchestrator and storage backend and defaults to the in-memory orchestrator:
+The `TransformEngine` constructor takes an optional orchestrator and storage backend and defaults to the in-memory orchestrator (`packages/core/src/engine/transform-engine.ts`):
 
 ```typescript
 import { TransformEngine } from '@pie-qti/transform-core';
@@ -72,20 +72,7 @@ const engine = new TransformEngine(); // in-memory orchestrator, no storage back
 const engineWithDeps = new TransformEngine(myOrchestrator, myStorage);
 ```
 
-Retry policies, timeouts, and pipeline defaults are configured through environment variables consumed by `loadOrchestrationConfig()` (`packages/types/src/config/orchestration-config.ts`) — see [Environment Variables](#environment-variables):
-
-```bash
-# Retry policy
-export ORCHESTRATOR_MAX_ATTEMPTS=3
-export ORCHESTRATOR_RETRY_INITIAL_INTERVAL=1000
-export ORCHESTRATOR_RETRY_MAX_INTERVAL=30000
-export ORCHESTRATOR_RETRY_BACKOFF=2
-
-# Default transform options
-export SKIP_VALIDATION=false
-export MAX_CONCURRENT=5
-export DEFAULT_TIMEOUT=300000
-```
+Retry behavior is a property of the orchestrator/workflow, not of configuration files or environment variables. The shipped `InMemoryOrchestrator` (`packages/core/src/orchestration/in-memory-orchestrator.ts`) resolves the retry policy per activity from `activityOptions.retryPolicy`, falling back to the activity's own `retryPolicy`, then the workflow's `options.retryPolicy`, then its built-in default (3 attempts, 1000 ms initial interval, 30 s max interval, backoff coefficient 2). Pass a `RetryPolicy` in the workflow options or on the activity definition to override it.
 
 ### Custom Orchestrators
 
@@ -298,37 +285,21 @@ export class CustomFormatDetector implements FormatDetector {
 
 ## Environment Variables
 
-Environment variables are consumed by two separate loaders:
-
-### Config/engine path (`loadFromEnv()` in `packages/core/src/config/config-loader.ts`, also used by the CLI)
+Four environment variables are read, all by `loadFromEnv()` in `packages/core/src/config/config-loader.ts` (the CLI calls it from `BaseCommand.loadConfig()` in `tools/cli/src/base-command.ts`):
 
 ```bash
-export PIE_QTI_CONFIG=/path/to/config.json   # Config file path (takes precedence)
+export PIE_QTI_CONFIG=/path/to/config.json   # Config file path
 export PIE_QTI_STORAGE_BACKEND=filesystem    # memory, filesystem, s3, database, or a custom backend name
-export PIE_QTI_STORAGE_ROOT_DIR=./uploads    # Root directory when the backend is filesystem
-export PIE_QTI_LOG_LEVEL=debug               # error, warn, info, debug
+export PIE_QTI_STORAGE_ROOT_DIR=./uploads    # Only read when PIE_QTI_STORAGE_BACKEND=filesystem
+export PIE_QTI_LOG_LEVEL=debug               # debug, info, warn, error
 ```
 
-### Orchestration path (`loadOrchestrationConfig()` in `packages/types/src/config/orchestration-config.ts`)
+Behavior, matching the loader source exactly:
 
-`STORAGE_TYPE` and `STORAGE_BASE_PATH` are consumed **only** via `loadOrchestrationConfig()` — they configure the orchestration pipeline's storage view, not the `TransformConfig` file/env config above:
-
-```bash
-# Retry policy
-export ORCHESTRATOR_MAX_ATTEMPTS=3
-export ORCHESTRATOR_RETRY_INITIAL_INTERVAL=1000
-export ORCHESTRATOR_RETRY_MAX_INTERVAL=30000
-export ORCHESTRATOR_RETRY_BACKOFF=2
-
-# Storage (orchestration pipeline only)
-export STORAGE_TYPE=memory            # or filesystem
-export STORAGE_BASE_PATH=./uploads    # used when STORAGE_TYPE=filesystem
-
-# Default transform options
-export SKIP_VALIDATION=false
-export MAX_CONCURRENT=5
-export DEFAULT_TIMEOUT=300000
-```
+- **`PIE_QTI_CONFIG`** names a JSON config file. When it is set, `loadFromEnv()` returns an empty config — the other three variables are **not** read in that call — and the caller is expected to load the file with `loadFromFile()`. The CLI does this in `loadConfig()`, where a `--config` flag takes priority over `PIE_QTI_CONFIG` (the env var is only consulted when no flag was passed).
+- **`PIE_QTI_STORAGE_BACKEND`** sets `config.storage.backend`. The value is not validated by the loader; it is matched against a backend by whatever constructs the backend. **`PIE_QTI_STORAGE_ROOT_DIR`** becomes `config.storage.options.rootDir`, but only when the backend is exactly `filesystem`.
+- **`PIE_QTI_LOG_LEVEL`** becomes `config.logger.level`. The value is cast, not validated — anything other than `debug`/`info`/`warn`/`error` passes through unchanged.
+- The CLI applies only the `plugins` and `formatDetectors` sections of the merged config to the engine (`BaseCommand.createEngine()`). The `storage` and `logger` sections come back to the embedding application to act on — for example, constructing the storage backend passed to `new TransformEngine(orchestrator, storage)`.
 
 ## Usage Examples
 
@@ -353,13 +324,12 @@ bun run pie-qti -- transform input.xml -o output.json
 import { TransformEngine } from '@pie-qti/transform-core';
 import { loadFromFile } from '@pie-qti/transform-core/config/config-loader.js';
 import { loadAndRegisterPlugins } from '@pie-qti/transform-core/config/plugin-loader.js';
-import { loadOrchestrationConfig } from '@pie-qti/transform-types';
 
 // Load configuration
 const config = await loadFromFile('./config.json');
-const orchestrationConfig = loadOrchestrationConfig();
 
-// Create engine with orchestration
+// Create engine (defaults to the in-memory orchestrator; pass an
+// orchestrator and storage backend to override)
 const engine = new TransformEngine();
 
 // Register plugins from config
@@ -441,24 +411,25 @@ result.failed.forEach(item => {
 
 ## Configuration Precedence
 
-Configuration is merged in this order (later overrides earlier):
+The CLI (`BaseCommand.loadConfig()`) builds the effective config in this order — **the config file overrides the environment, not the other way around**:
 
-1. Default values (hardcoded)
-2. Config file (from `PIE_QTI_CONFIG` or `--config`)
-3. Environment variables consumed by `loadFromEnv()` (`PIE_QTI_*`)
+1. `loadFromEnv()`: `PIE_QTI_STORAGE_BACKEND` / `PIE_QTI_STORAGE_ROOT_DIR` / `PIE_QTI_LOG_LEVEL`. When `PIE_QTI_CONFIG` is set, this step yields an empty config (see [Environment Variables](#environment-variables)).
+2. The config file — `--config <path>` if given, otherwise `PIE_QTI_CONFIG` — merged over step 1 with `merge()`.
+
+`merge()` semantics (`packages/core/src/config/config-loader.ts`): a storage section with a *different* backend replaces the whole storage section including its options; the *same* backend merges options key by key. `plugins` merge per source format, `formatDetectors` and `vendorExtensions` lists are concatenated, `logger` fields are overwritten.
 
 Example:
 
 ```bash
-# Config file sets: storage.backend = "filesystem"
-# Environment overrides: storage backend = "s3"
+# Config file sets: storage.backend = "filesystem", storage.options.rootDir = "./uploads"
 export PIE_QTI_CONFIG=./config.json
-export PIE_QTI_STORAGE_BACKEND=s3  # This wins
 
-# Result: S3 backend is used
+# The file wins over any environment value — PIE_QTI_CONFIG being set means
+# loadFromEnv() contributed nothing, and the file was merged over it.
+export PIE_QTI_STORAGE_BACKEND=s3  # Ignored
+
+# Result: filesystem backend from the file is used
 ```
-
-`STORAGE_TYPE` / `STORAGE_BASE_PATH` and the orchestrator/default-option variables belong to the separate orchestration pipeline config (`loadOrchestrationConfig()`); they do not participate in the `TransformConfig` merge above.
 
 ## API Changes (Orchestration Update)
 

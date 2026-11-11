@@ -1,7 +1,7 @@
 # PIE-QTI
 
 ![QTI 2.1, 2.2 & 3.0 Coverage](https://img.shields.io/badge/QTI%202.1%2C%202.2%20%26%203.0-Partial-orange)
-![Interactions](https://img.shields.io/badge/Interaction%20extractors-21-blue)
+![Interactions](https://img.shields.io/badge/Interaction%20extractors-22-blue)
 ![Tests](https://img.shields.io/badge/Tests-2700%2B-success)
 ![Accessibility](https://img.shields.io/badge/Accessibility-Tested-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue)

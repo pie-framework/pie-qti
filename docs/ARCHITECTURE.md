@@ -36,7 +36,6 @@ Everything lives under `packages/` and `apps/`:
 - `packages/types`: shared transformation type contracts (input/output formats, storage interfaces)
 - `packages/schemas`: PIE schema/validation assets
 - `packages/core`: transform engine + plugin registry (format orchestration)
-- `packages/storage`: pluggable storage backends (filesystem, S3, database)
 - `packages/to-pie`: QTI → PIE transform plugin (plus vendor extension hooks)
 - `packages/pie-to-qti2`: PIE → QTI transform plugin (generator registry + packaging)
 - `packages/qti-common`: QTI version detection and element/attribute name mappers for 2.x ↔ 3.0 normalization
@@ -455,8 +454,8 @@ This separation enables:
 
 Key references:
 
-- Storage types: `packages/types/src/storage/index.ts`
-- Storage package: `packages/storage/src/`
+- Storage types: `packages/types/src/storage/index.ts` (hosts implement the `StorageBackend` interface; no backend implementations ship in this repository — the test mock lives in `packages/test-utils/src/mocks/storage.ts`)
+- In-memory orchestrator: `packages/core/src/orchestration/`
 - Source profile configuration: `docs/SOURCE-PROFILES.md`
 
 ### Server-side flow (sessioned)
