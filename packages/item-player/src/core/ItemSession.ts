@@ -148,6 +148,14 @@ export interface ItemSessionBinding {
 	 * carry interaction values, which present() reads into mounts, not into markup.
 	 */
 	getResponseIdentifiersPrintedInContent(): ReadonlySet<string>;
+	/**
+	 * Context identifiers the item's content prints live (`printedVariable` targets the session
+	 * reports as context state — the QTI built-ins `duration`, `numAttempts`,
+	 * `completionStatus` and declared context variables): the part of the context state a
+	 * presentation's markup actually renders. A presentation presenter can key its caching on
+	 * these — unprinted context values, `duration` included, never reach the markup.
+	 */
+	getContextIdentifiersPrintedInContent(): ReadonlySet<string>;
 	getI18nProvider(): unknown;
 	createPciHost(data: ExtractedPci): PciHostController;
 }
@@ -411,6 +419,10 @@ export class LiveItemSession implements ItemSession {
 			getResponseIdentifiersPrintedInContent: () => {
 				this.assertActive();
 				return this.player.getResponseIdentifiersPrintedInContent();
+			},
+			getContextIdentifiersPrintedInContent: () => {
+				this.assertActive();
+				return this.player.getContextIdentifiersPrintedInContent();
 			},
 			getI18nProvider: () => {
 				this.assertActive();

@@ -136,6 +136,20 @@ export type InlineInteractionMount =
 
 export type ItemInteractionMount = InlineInteractionMount | BlockInteractionMount;
 
+/**
+ * An interaction whose web component the registry could not resolve: it has no mount in
+ * `flow`, the body keeps rendering around it, and it still owns its slot. The presenter
+ * stands the render-failed `role="alert"` placeholder — the same one a mount that throws
+ * gets — in that slot.
+ */
+export interface FailedInteractionMount {
+	/** Unique key, drawn from the same keying the mounts use. */
+	readonly key: string;
+	/** As for {@link BlockInteractionMount.slot}. */
+	readonly slot: string | null;
+	readonly interaction: BaseInteractionData;
+}
+
 declare const finalItemBodyHtmlBrand: unique symbol;
 
 /** HTML that has completed every body transform, sanitation, and Trusted Types finalization. */
@@ -164,6 +178,13 @@ export interface ItemPresentation {
 	 * their sentence. A mount whose `slot` is null renders after the body.
 	 */
 	readonly flow: readonly ItemPresentationFlowNode[];
+	/**
+	 * Interactions whose component the registry failed to resolve (no component renders the
+	 * type), with the slot each authored. The host heard each failure once through
+	 * `onComponentError`; the presenter keeps the candidate-facing half of that contract —
+	 * the visible placeholder — in place while the failure stands.
+	 */
+	readonly failedInteractions: readonly FailedInteractionMount[];
 	/** Policy-checked CSS is kept out of the HTML/Trusted Types pipeline. */
 	readonly scopedCss: string;
 	/**
@@ -212,7 +233,7 @@ export function createItemPresentation({
 	const slots = new Map(
 		[...placed.slots].filter(([, slot]) => hasInteractionSlot(sanitized, slot))
 	);
-	const mounts = createInteractionMounts({
+	const { mounts, failedInteractions } = createInteractionMounts({
 		interactions: source.interactions,
 		slots,
 		source,
@@ -233,6 +254,7 @@ export function createItemPresentation({
 			{ kind: 'html', html: finalizeItemBodyHtml(sanitized, source.security) },
 			...mounts.map((mount): ItemPresentationFlowNode => ({ kind: 'interaction', mount })),
 		],
+		failedInteractions,
 		scopedCss,
 		shownFeedback,
 	});
@@ -369,8 +391,11 @@ function serializeHtmlChildren(element: ParsedHtmlElement): string {
 }
 
 /**
- * One mount per interaction, in document order: slotted interactions in slot order, then any
- * whose element is not in the body, in extraction order.
+ * One mount per interaction that resolves, in document order: slotted interactions in slot
+ * order, then any whose element is not in the body, in extraction order. An interaction whose
+ * component the registry cannot resolve gets no mount — the host hears the failure once
+ * through `onComponentError` — and is returned in `failedInteractions` with the slot it
+ * owned, so the presenter can stand the render-failed placeholder where it was authored.
  */
 function createInteractionMounts({
 	interactions,
@@ -390,7 +415,7 @@ function createInteractionMounts({
 	roleCapabilities: RoleCapabilities;
 	effectiveDisabled: boolean;
 	onComponentError?: (interaction: BaseInteractionData, error: unknown) => void;
-}): ItemInteractionMount[] {
+}): { mounts: ItemInteractionMount[]; failedInteractions: FailedInteractionMount[] } {
 	const slotRank = (index: number) => {
 		const slot = slots.get(index);
 		return slot === undefined ? Number.POSITIVE_INFINITY : Number(slot);
@@ -407,6 +432,7 @@ function createInteractionMounts({
 	};
 
 	const mounts: ItemInteractionMount[] = [];
+	const failedInteractions: FailedInteractionMount[] = [];
 	let inlineIndex = 0;
 	for (const index of order) {
 		const interaction = interactions[index];
@@ -461,10 +487,13 @@ function createInteractionMounts({
 			};
 			mounts.push(block);
 		} catch (error) {
+			// No component renders the type: the interaction has no mount, the body keeps
+			// rendering around it, and the slot it owned stays reserved for the placeholder.
 			onComponentError?.(interaction, error);
+			failedInteractions.push({ key: uniqueKey(interaction), slot, interaction });
 		}
 	}
-	return mounts;
+	return { mounts, failedInteractions };
 }
 
 export function interactionKey(interaction: BaseInteractionData): string {
