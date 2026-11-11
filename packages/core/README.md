@@ -39,7 +39,6 @@ const output = await handle.result();
 - **Engine** — `TransformEngine` (`use`, `transform`, `transformBatch`)
 - **Registries** — plugin registry and format-detector registry; built-in `qti-detector` and `pie-detector`
 - **Configuration** — `loadFromFile`, `loadFromEnv`, `merge` (config loader), the plugin loader, and the vendor registry (subpath exports `./config/*`)
-- **Validation** — `PieItemValidator`, `validatePieItemStructure` (see [VALIDATION.md](./VALIDATION.md))
 - **Orchestration** — `InMemoryOrchestrator` plus the workflow/activity definitions transforms run on
 
 Types live in [`@pie-qti/transform-types`](../types) and are re-exported from the root entry.

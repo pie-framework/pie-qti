@@ -10,6 +10,7 @@ import type {
 } from '@pie-qti/transform-types';
 import type { TransformEngine } from '../engine/transform-engine.js';
 import type { FormatDetector } from '../registry/format-detector-registry.js';
+import { loadConfiguredModule } from './module-loader.js';
 
 /**
  * Load a plugin or format detector from a module config
@@ -17,28 +18,7 @@ import type { FormatDetector } from '../registry/format-detector-registry.js';
 export async function loadPlugin<T = unknown>(
 	config: PluginConfig,
 ): Promise<T> {
-	try {
-		// Dynamic import of the module (Vite cannot statically analyze this)
-		const module = await import(/* @vite-ignore */ config.module);
-
-		// Get the export (default or named)
-		const exportName = config.export || 'default';
-		const PluginClass = module[exportName];
-
-		if (!PluginClass) {
-			throw new Error(
-				`Export "${exportName}" not found in module ${config.module}`,
-			);
-		}
-
-		// Instantiate with options
-		const instance = new PluginClass(config.options || {});
-		return instance as T;
-	} catch (error) {
-		throw new Error(
-			`Failed to load plugin from ${config.module}: ${(error as Error).message}`,
-		);
-	}
+	return loadConfiguredModule<T>(config, 'plugin');
 }
 
 /**

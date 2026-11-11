@@ -1,8 +1,22 @@
 {
   "description": "Model for the Choice Interaction",
+  "$comment": "required and additionalProperties are aligned to what this repo's QTI-to-PIE transformer (packages/to-pie/src/transformers/multiple-choice.ts) emits, so transformer output validates; the remaining optional properties mirror the upstream pie-elements model.",
   "additionalProperties": false,
   "type": "object",
   "properties": {
+    "correctResponse": {
+      "description": "Identifiers of the correct choices, in answer order",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "title": "correctResponse"
+    },
+    "shuffle": {
+      "description": "Indicates if the choices should be shuffled",
+      "type": "boolean",
+      "title": "shuffle"
+    },
     "choiceMode": {
       "description": "Indicates the choices are single or multiple selection",
       "enum": [
@@ -290,16 +304,14 @@
     }
   },
   "required": [
-    "accessibilityLabelsEnabled",
     "choices",
+    "choiceMode",
+    "correctResponse",
     "element",
-    "feedbackEnabled",
     "id",
-    "rationaleEnabled",
-    "rubricEnabled",
-    "spellCheckEnabled",
-    "studentInstructionsEnabled",
-    "teacherInstructionsEnabled"
+    "partialScoring",
+    "prompt",
+    "shuffle"
   ],
   "definitions": {
     "ConfigureProp": {

@@ -39,11 +39,9 @@
 	],
 	"license": "MIT",
 	"dependencies": {
-		"@pie-qti/element-schemas": "workspace:*",
 		"@pie-qti/logger": "workspace:*",
 		"@pie-qti/qti-common": "workspace:*",
 		"@pie-qti/transform-types": "workspace:*",
-		"ajv": "^8.20.0",
 		"node-html-parser": "^9.0.5"
 	},
 	"devDependencies": {
