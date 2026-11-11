@@ -42,6 +42,7 @@ interface CompositionHost {
 	onActiveItemChange?: (event: unknown) => void;
 	onSnapshotChange?: (snapshot: unknown) => void;
 	onResponseDelta?: (event: unknown) => void;
+	onFrameworkError?: (error: unknown) => void;
 }
 
 function composition(host: CompositionHost = {}): ResolvedQtiSectionComposition {
@@ -155,6 +156,36 @@ describe('SectionPlayerVertical', () => {
 		player.dispatchEvent(responseChange('RESPONSE', 'A'));
 		flushSync();
 		expect(onResponseChange).toHaveBeenCalledWith('q1', 'RESPONSE', 'A');
+	});
+
+	test('with the host contract carrying the callbacks, the props stay silent', async () => {
+		// The host contract and the callback prop (the custom elements' DOM event
+		// source) are alternatives: an occurrence is delivered through the contract
+		// when it carries the callback, so a host listening on both channels does
+		// not hear every report twice.
+		const deltas: unknown[] = [];
+		const errors: unknown[] = [];
+		const onResponseChange = vi.fn();
+		const onFrameworkError = vi.fn();
+		const m = mountInto(SectionPlayerVertical, {
+			composition: composition({ onResponseDelta: (event) => deltas.push(event), onFrameworkError: (error) => errors.push(error) }),
+			onResponseChange,
+			onFrameworkError,
+		});
+		mounted.push(m);
+		const player = (await itemPlayerOf(m.host)) as HTMLElement;
+		player.dispatchEvent(responseChange('RESPONSE', 'A'));
+		player.dispatchEvent(
+			new CustomEvent('error', { bubbles: true, composed: true, detail: { code: 'item-load-failed', message: 'parser exploded' } }),
+		);
+		flushSync();
+
+		expect(deltas).toEqual([{ sectionIdentifier: 'section-1', itemIdentifier: 'q1', responseIdentifier: 'RESPONSE', value: 'A' }]);
+		expect(errors).toEqual([
+			{ sectionIdentifier: 'section-1', itemIdentifier: 'q1', code: 'item-load-failed', message: 'parser exploded' },
+		]);
+		expect(onResponseChange).not.toHaveBeenCalled();
+		expect(onFrameworkError).not.toHaveBeenCalled();
 	});
 
 	test('the active item and the snapshot are announced to the runtime host', async () => {

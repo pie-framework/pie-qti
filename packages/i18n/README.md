@@ -428,11 +428,20 @@ The hardcoded-string scanner and compile-time types cannot see every call shape,
 and a key referenced by a component but carried by no catalog silently renders
 its hardcoded English default in every other locale. `bun run check-consumer-keys`
 walks consumer source (`packages/<pkg>/src`, `apps/<app>/src`) and asserts every
-literal key passed to `t()`, `translate()`, `translatePlural()` or `.plural()`,
-or named in a `labelKey`, exists in the framework en catalog or in a registered
-host custom-messages catalog. Dynamic keys (template literals, variables) are
-covered at runtime by the providers' missing-key warning, which fires in every
-environment.
+literal key passed to `t()`, `translate()`, `translatePlural()`,
+`interfaceText()` or `.plural()`, or named in a `labelKey`, exists in the
+framework en catalog or in a registered host custom-messages catalog. Dynamic
+keys (template literals, variables) are covered at runtime by the providers'
+missing-key warning, which fires in every environment.
+
+A host app that keeps its own strings registers their catalog module — the same
+module it passes to `createDefaultI18nProvider(locale, customMessages)` — in
+`HOST_CUSTOM_CATALOGS` at the top of [`scripts/check-consumer-keys.ts`](./scripts/check-consumer-keys.ts);
+the scan unions the keys of every registered catalog into the set it accepts.
+A catalog that is not registered there fails the scan as unknown keys, and
+catalogs living outside this repository are out of the scan's scope entirely
+(its roots are `packages/*/src` and `apps/*/src`), so their keys cannot be
+checked here.
 
 ```bash
 # Scan every package and app (part of `check:i18n`; exits 1 on an unknown key)

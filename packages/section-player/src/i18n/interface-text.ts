@@ -9,6 +9,12 @@ import { type I18nProvider, translate } from '@pie-qti/i18n';
  * renders under whatever provider its host composes. Rendered as a label, that key would
  * read as text (a passage headed "sectionPlayer.passage"). A key is never a translation, so
  * it counts as a miss here too, as it already does for `translatePlural`.
+ *
+ * `key` stays `string`, like `translate`'s: hosts pass keys from their own
+ * `customMessages` catalogs, and call sites hold keys in string-typed label tables.
+ * Literal-key correctness is enforced by the `check-consumer-keys` scan in
+ * `check:i18n` (it recognizes `interfaceText(` call sites) and by the provider's
+ * unconditional missing-key warning at runtime.
  */
 export function interfaceText(
 	i18n: I18nProvider | undefined,

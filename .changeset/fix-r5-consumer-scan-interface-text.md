@@ -1,0 +1,5 @@
+---
+'@pie-qti/i18n': patch
+---
+
+**The consumer key scan now sees section-player's `interfaceText()` wrapper** (beta prerelease). The scan recognized `t()`, `translate()`, `translatePlural()`, `.plural()` and `labelKey` literals, but the section's 20+ `interfaceText(i18n, 'sectionPlayer.question', 'Question')` call sites forwarded their literal keys through a variable the scan matched nothing — a typo there shipped CI green and rendered the hardcoded English fallback in every locale, the exact failure class the scan was built for. The wrapper keeps its `string` key (host `customMessages` keys are legitimate, like `translate`'s), so the scan is the enforcement net: it now recognizes `interfaceText(` call sites, and all current literal keys validate against the en catalog. The README's consumer-key-scan section also names `HOST_CUSTOM_CATALOGS` in `scripts/check-consumer-keys.ts` as the registration point for a host app's own catalog, and states that out-of-repo catalogs are outside the scan's roots.

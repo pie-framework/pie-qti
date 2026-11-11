@@ -4,9 +4,9 @@
  *
  * Walks consumer source (`packages/<pkg>/src`, `apps/<app>/src`) and asserts every
  * literal i18n key passed to `t()`, `translate()`, `translatePlural()`,
- * `.plural()` or named in a `labelKey` exists in the catalog that will serve
- * it: the framework English catalog, or — for apps that keep their own strings
- * — the host custom-messages catalogs registered below.
+ * `interfaceText()`, `.plural()` or named in a `labelKey` exists in the catalog
+ * that will serve it: the framework English catalog, or — for apps that keep
+ * their own strings — the host custom-messages catalogs registered below.
  *
  * This is the guard the hardcoded-string scanner cannot provide. That scanner
  * is precision-built to report only strings that render by construction, so by
@@ -62,6 +62,9 @@ const PATTERNS: Array<{ re: RegExp; kind: string }> = [
 	{ re: /\.t\(\s*(['"])((?:[^'"\\]|\\.)+?)\1/g, kind: 't()' },
 	{ re: /\btranslate\(\s*[^,()[\]{}]*\s*,\s*(['"])((?:[^'"\\]|\\.)*)\1/g, kind: 'translate()' },
 	{ re: /\btranslatePlural\(\s*[^,()[\]{}]*\s*,\s*(['"])((?:[^'"\\]|\\.)*)\1/g, kind: 'translatePlural()' },
+	// section-player's interfaceText() wrapper forwards its key to translate(),
+	// so its call-site literals must meet the same catalog check.
+	{ re: /\binterfaceText\(\s*[^,()[\]{}]*\s*,\s*(['"])((?:[^'"\\]|\\.)*)\1/g, kind: 'interfaceText()' },
 	{ re: /\.plural\(\s*(['"])((?:[^'"\\]|\\.)+?)\1/g, kind: 'plural()' },
 	{ re: /\blabelKey\s*[:=]\s*(['"])((?:[^'"\\]|\\.)*)\1/g, kind: 'labelKey' },
 ];

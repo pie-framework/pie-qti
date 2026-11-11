@@ -17,6 +17,13 @@
  *     counterpart, and the type pins below fail the same narrowing at compile
  *     time.
  *
+ * (c) The @pie-qti/item-player contract types the facade publishes (the PnP
+ *     profile and the PCI host-trust family) are aliases to the exact upstream
+ *     types, listed in ITEM_PLAYER_CONTRACT_ALIASES with the entry each type is
+ *     exported from; the identity pins below assert each alias is the exact
+ *     upstream type, and the walk in tests/data-model-drift.test.ts asserts the
+ *     alias really is `import('<entry>').<UpstreamName>` — not a hand copy.
+ *
  * Typechecked by `tsc -p tsconfig.types.test.json` (part of `bun run test`).
  * Every pin is a type alias; the module also evaluates to the mapping lists the
  * bun-test walk reads, so the reviewed tables live in exactly one place.
@@ -134,6 +141,40 @@ export const PINNED_BY_REEXPORT: Record<string, string> = {
 	CreateAssessmentResourceResolverOptions:
 		'an Omit<> alias over ResolveItemsForAssessmentOptions, which is pinned.',
 };
+
+/** One facade name published as an alias of an exact @pie-qti/item-player contract type. */
+export interface ItemPlayerContractAlias {
+	/** The name the facade publishes. */
+	facade: string;
+	/** The contract type's own name upstream. */
+	upstream: string;
+	/**
+	 * The @pie-qti/item-player entry the type is exported from. The two PCI
+	 * types the root entry does not carry come from item-player's `./pci`
+	 * entry, which exports them at their own names.
+	 */
+	from: string;
+}
+
+/**
+ * The item-player contract types the facade publishes as aliases to the exact
+ * upstream type. `QtiPciHostConfiguration` keeps its round-4 facade name —
+ * item-player's `QtiPciConfiguration` is the unrelated module-facing contract —
+ * every other entry publishes the upstream name, Qti-prefixed.
+ */
+export const ITEM_PLAYER_CONTRACT_ALIASES: readonly ItemPlayerContractAlias[] = [
+	{ facade: 'QtiPnpProfile', upstream: 'PnpProfile', from: '@pie-qti/item-player' },
+	{ facade: 'QtiPciHostConfiguration', upstream: 'PciConfiguration', from: '@pie-qti/item-player' },
+	{ facade: 'QtiPciModulePathKind', upstream: 'PciModulePathKind', from: '@pie-qti/item-player' },
+	{
+		facade: 'QtiPciModuleResolutionContext',
+		upstream: 'PciModuleResolutionContext',
+		from: '@pie-qti/item-player',
+	},
+	{ facade: 'QtiPciModuleResolver', upstream: 'PciModuleResolver', from: '@pie-qti/item-player' },
+	{ facade: 'QtiPciSandboxConfiguration', upstream: 'PciSandboxConfiguration', from: '@pie-qti/item-player/pci' },
+	{ facade: 'QtiPciModulePolicy', upstream: 'PciModulePolicy', from: '@pie-qti/item-player/pci' },
+];
 
 /** True only when A and B are the same type — no missing, no extra members. */
 type Exactly<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
@@ -266,4 +307,47 @@ type ResolveItemsOptionsKeysPin = Expect<
 >;
 type ItemFetchPolicyKeysPin = Expect<
 	HasContractKeys<import('../src/qti/resolveItems.js').QtiItemFetchPolicy, QtiItemFetchPolicy>
+>;
+
+// ——— (c) Item-player contract identity pins: the facade name IS the contract type. ———
+// A hand copy under any of these names fails here, and so does an upstream type
+// that grows a field the facade alias cannot see (an alias sees everything).
+type PnpProfileIdentityPin = Expect<
+	Exactly<import('@pie-qti/item-player').PnpProfile, import('../src/public/api.js').QtiPnpProfile>
+>;
+type PciHostConfigurationIdentityPin = Expect<
+	Exactly<
+		import('@pie-qti/item-player').PciConfiguration,
+		import('../src/public/api.js').QtiPciHostConfiguration
+	>
+>;
+type PciModulePathKindIdentityPin = Expect<
+	Exactly<
+		import('@pie-qti/item-player').PciModulePathKind,
+		import('../src/public/api.js').QtiPciModulePathKind
+	>
+>;
+type PciModuleResolutionContextIdentityPin = Expect<
+	Exactly<
+		import('@pie-qti/item-player').PciModuleResolutionContext,
+		import('../src/public/api.js').QtiPciModuleResolutionContext
+	>
+>;
+type PciModuleResolverIdentityPin = Expect<
+	Exactly<
+		import('@pie-qti/item-player').PciModuleResolver,
+		import('../src/public/api.js').QtiPciModuleResolver
+	>
+>;
+type PciSandboxConfigurationIdentityPin = Expect<
+	Exactly<
+		import('@pie-qti/item-player/pci').PciSandboxConfiguration,
+		import('../src/public/api.js').QtiPciSandboxConfiguration
+	>
+>;
+type PciModulePolicyIdentityPin = Expect<
+	Exactly<
+		import('@pie-qti/item-player/pci').PciModulePolicy,
+		import('../src/public/api.js').QtiPciModulePolicy
+	>
 >;
