@@ -19,6 +19,8 @@ export type {
 	ParsedAssessmentSection,
 	ParsedAssessmentTest,
 	ParsedTestPart,
+	QtiAssessmentAutosaveChangeDetail,
+	QtiAssessmentAutosaveFailedDetail,
 	QtiAssessmentBackend,
 	QtiAssessmentInitSessionRequest,
 	QtiAssessmentItemDefinitionPlugin,
@@ -58,7 +60,10 @@ export type {
 	QtiScoringResult,
 	QtiSectionComposition,
 	QtiSectionDiagnostic,
+	QtiSectionDisplaySettingsEvent,
+	QtiSectionFrameworkError,
 	QtiSectionItemRef,
+	QtiSectionItemPaneReadyDetail,
 	QtiSectionModel,
 	QtiSectionPlayerEventMap,
 	QtiSectionResolvedCatalogSource,
@@ -70,6 +75,7 @@ export type {
 	QtiSectionToolConfig,
 	QtiSharedHtmlBlock,
 	QtiSharedStimulus,
+	QtiStringComparison,
 	ResolveItemsForAssessmentOptions,
 } from './api.js';
 

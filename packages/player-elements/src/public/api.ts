@@ -170,9 +170,6 @@ export type QtiCompletionStatus = import('@pie-qti/item-player').CompletionStatu
 
 export type QtiAdaptiveAttemptResult = import('@pie-qti/item-player').AdaptiveAttemptResult;
 
-export type QtiItemPlayerResponseMap = Record<string, unknown>;
-export type QtiItemPlayerSubmissionResult = QtiScoringResult | QtiAdaptiveAttemptResult;
-
 /**
  * The authoritative live item session accepted by the item-player element.
  * Create and control it through @pie-qti/item-player; the element never owns an injected session.
@@ -181,38 +178,35 @@ export type QtiItemSessionReference = import('@pie-qti/item-player').ItemSession
 export type QtiAssessmentItemDefinitionPlugin =
 	import('@pie-qti/item-player').AssessmentItemDefinitionPlugin;
 
-export interface QtiItemPlayerResponseChangeDetail {
-	responseId: string;
-	value: unknown;
-	responses: QtiItemPlayerResponseMap;
-}
+/** String comparison folds beyond QTI's equality for the candidates' input. */
+export type QtiStringComparison =
+	import('@pie-qti/item-player').AssessmentItemDefinitionConfig['stringComparison'];
 
-export interface QtiItemPlayerSubmitDetail {
-	responses: QtiItemPlayerResponseMap;
-	result: QtiItemPlayerSubmissionResult;
-}
+import type {
+	QtiItemPlayerCompleteDetail,
+	QtiItemPlayerErrorCode,
+	QtiItemPlayerErrorDetail,
+	QtiItemPlayerEventMap,
+	QtiItemPlayerResponseChangeDetail,
+	QtiItemPlayerResponseMap,
+	QtiItemPlayerSubmissionResult,
+	QtiItemPlayerSubmitDetail,
+} from '../elements/QtiItemPlayerElement.js';
 
-export interface QtiItemPlayerCompleteDetail {
-	result: QtiAdaptiveAttemptResult;
-}
-
-/** Why the item player reported a failure, as the `error` event's `detail.code`. */
-export type QtiItemPlayerErrorCode = import('@pie-qti/item-player').ItemPlayerErrorCode;
-
-/**
- * An item player failure: a stable `code`, the raw `message` for host logs — never render it
- * to candidates, who see a localized generic message — and the item when known.
- */
-export type QtiItemPlayerErrorDetail = import('@pie-qti/item-player').ItemPlayerErrorDetail;
-
-export interface QtiItemPlayerEventMap {
-	'response-change': CustomEvent<QtiItemPlayerResponseChangeDetail>;
-	/** Fires once per successful mount; a broken item fires `error` instead. */
-	ready: CustomEvent<void>;
-	submit: CustomEvent<QtiItemPlayerSubmitDetail>;
-	complete: CustomEvent<QtiItemPlayerCompleteDetail>;
-	error: CustomEvent<QtiItemPlayerErrorDetail>;
-}
+// The runtime element's declarations (via @pie-qti/item-player/element-class) are
+// the single source for the item player's event contract; re-exported here,
+// types only, so the published facade cannot drift from what the element
+// dispatches.
+export type {
+	QtiItemPlayerCompleteDetail,
+	QtiItemPlayerErrorCode,
+	QtiItemPlayerErrorDetail,
+	QtiItemPlayerEventMap,
+	QtiItemPlayerResponseChangeDetail,
+	QtiItemPlayerResponseMap,
+	QtiItemPlayerSubmissionResult,
+	QtiItemPlayerSubmitDetail,
+};
 
 export interface QtiItemPlayerElement extends HTMLElement {
 	itemXml: string | undefined;
@@ -239,6 +233,11 @@ export interface QtiItemPlayerElement extends HTMLElement {
 	pnp?: QtiPnpProfile;
 	deliveryContext?: QtiResolvedItemDeliveryContext;
 	pci?: QtiPciConfiguration;
+	/**
+	 * String comparison folds beyond QTI's equality for the candidates' input, applied
+	 * when the element creates its own definition.
+	 */
+	stringComparison?: QtiStringComparison;
 	plugins?: readonly QtiAssessmentItemDefinitionPlugin[];
 	resolveProcessingFragment?: QtiProcessingFragmentResolver;
 	processingFragmentLimits?: QtiProcessingFragmentLimits;
@@ -336,20 +335,10 @@ export interface QtiAssetUrlPolicyContext {
 	kind: 'img' | 'media' | 'object' | 'link' | 'any';
 }
 
-export interface QtiSectionActiveItemChangeEvent {
-	sectionIdentifier: string;
-	itemIdentifier: string;
-	itemIndex: number;
-	itemCount: number;
-}
+export type QtiSectionActiveItemChangeEvent =
+	import('@pie-qti/section-player').QtiSectionActiveItemChangeEvent;
 
-export interface QtiSectionFrameworkError {
-	sectionIdentifier?: string;
-	itemIdentifier?: string;
-	code: string;
-	message: string;
-	cause?: unknown;
-}
+export type QtiSectionFrameworkError = import('@pie-qti/section-player').QtiSectionFrameworkError;
 
 export interface QtiSectionRuntimeHost {
 	resolvePackageUrl?(
@@ -413,12 +402,8 @@ export interface QtiAssessmentPlayerConfig {
 	sharedCatalogs?: ReadonlyArray<{ href?: string; xml?: string }>;
 }
 
-export interface QtiAssessmentItemResult {
-	itemIdentifier: string;
-	score: number;
-	maxScore: number;
-	responses: Record<string, unknown>;
-}
+/** One item's score in the test results, as the assessment player reports it. */
+export type QtiAssessmentItemResult = import('@pie-qti/assessment-player').ItemResult;
 
 /**
  * Why the test ended: the candidate's submit, a time expiry, a proctor's forced submit,
@@ -427,128 +412,49 @@ export interface QtiAssessmentItemResult {
  * expired, or a scope expiry left nothing open — is `expiry` whoever triggers it (the
  * automatic submission, the candidate's Submit after it failed, a proctor's force-submit).
  */
-export type QtiAssessmentEndReason = 'candidate' | 'expiry' | 'proctor' | 'branch';
+export type QtiAssessmentEndReason = import('@pie-qti/assessment-player').AssessmentEndReason;
 
-export interface QtiAssessmentResults {
-	totalScore: number;
-	maxScore: number;
-	itemResults: QtiAssessmentItemResult[];
-	completedAt: Date;
-	/** Why the test ended in this delivery; absent for a session restored already finalized. */
-	endReason?: QtiAssessmentEndReason;
-}
-
-export interface QtiAssessmentResponseChangeDetail {
-	responses: Record<string, unknown>;
-}
-
-export interface QtiAssessmentItemChangeDetail {
-	itemIndex: number;
-	totalItems: number;
-}
-
-export interface QtiAssessmentSectionChangeDetail {
-	sectionIndex: number;
-	totalSections: number;
-}
-
-export interface QtiAssessmentSubmitDetail {
-	results: QtiAssessmentResults;
-}
-
-export interface QtiAssessmentLoadErrorDetail {
-	message: string;
-}
-
-/** Core/backend failure (`player-error`). Never render `message` to candidates. */
-export interface QtiAssessmentErrorDetail {
-	/** Stable code when the failure is a coded assessment-player error. */
-	code?: string;
-	message: string;
-}
-
-/**
- * A hard time limit ran out with no late submission (`time-expired`): the whole test —
- * the player then submits automatically (`autoFinalized`) — or a part, section or
- * question whose expiry left nothing to work on (`submissionRequired`).
- */
-export interface QtiAssessmentTimeExpiredDetail {
-	scope: 'assessment' | 'testPart' | 'section' | 'item';
-	/** The expired scope's identifier; absent for the whole test. */
-	identifier?: string;
-	/** The player already submitted the test automatically. */
-	autoFinalized: boolean;
-	/** The candidate must submit now (auto-submit failed, or nothing unlocked remains). */
-	submissionRequired: boolean;
-}
-
-/** A proctor pause started (`player-pause`); `reason` is the text the candidate sees. */
-export interface QtiAssessmentPauseDetail {
-	reason?: string;
-}
-
-/**
- * A test part, section or question limit ran out (`scope-time-expired`): its items
- * closed, and delivery moved on (`deliveryContinues`) or nothing open remains.
- */
-export interface QtiAssessmentScopeTimeExpiredDetail {
-	scope: 'testPart' | 'section' | 'item';
-	identifier: string;
-	deliveryContinues: boolean;
-	/**
-	 * The flat index of the open question delivery moves to (forward in the part, an open
-	 * question earlier in a nonlinear part, or the next part); absent when the candidate
-	 * was outside the expired scope, and at a dead end.
-	 */
-	nextIndex?: number;
-}
-
-/**
- * The session is terminal (`session-finalized`): finalized in this delivery
- * (`restored: false`, `endReason` says which path ended the test — the candidate's
- * submit, a time expiry, a proctor's force-submit, or a QTI branch rule), or restored
- * already finalized at mount (`restored: true`).
- */
-export interface QtiAssessmentSessionFinalizedDetail {
-	restored: boolean;
-	results: QtiAssessmentResults;
-	/** Why this delivery ended the test; absent when it was already finalized (`restored`). */
-	endReason?: QtiAssessmentEndReason;
-}
+/** The per-test scores a submission or finalization hands over. */
+export type QtiAssessmentResults = import('@pie-qti/assessment-player').AssessmentResults;
 
 /** The countdown state a proctor console reads (`getTimeState()`). */
-export interface QtiAssessmentTimeState {
-	/** Whether any active scope carries a hard maximum. */
-	limited: boolean;
-	/** Seconds left on the nearest active maximum; null when nothing is limited. */
-	remainingSeconds: number | null;
-	elapsedSeconds: number;
-	expired: boolean;
-	scope: 'assessment' | 'testPart' | 'section' | 'item' | null;
-	allowLateSubmission: boolean;
-	/** Whether a proctor pause freezes the clocks. */
-	paused: boolean;
-	/** Whether delivery has begun (false behind the begin gate). */
-	started: boolean;
-}
+export type QtiAssessmentTimeState = import('@pie-qti/assessment-player').AssessmentTimeState;
 
-export interface QtiAssessmentPlayerEventMap {
-	ready: CustomEvent<void>;
-	'load-start': CustomEvent<void>;
-	'load-end': CustomEvent<void>;
-	'load-error': CustomEvent<QtiAssessmentLoadErrorDetail>;
-	'item-change': CustomEvent<QtiAssessmentItemChangeDetail>;
-	'section-change': CustomEvent<QtiAssessmentSectionChangeDetail>;
-	'response-change': CustomEvent<QtiAssessmentResponseChangeDetail>;
-	submit: CustomEvent<QtiAssessmentSubmitDetail>;
-	complete: CustomEvent<void>;
-	'player-error': CustomEvent<QtiAssessmentErrorDetail>;
-	'time-expired': CustomEvent<QtiAssessmentTimeExpiredDetail>;
-	'scope-time-expired': CustomEvent<QtiAssessmentScopeTimeExpiredDetail>;
-	'session-finalized': CustomEvent<QtiAssessmentSessionFinalizedDetail>;
-	'player-pause': CustomEvent<QtiAssessmentPauseDetail>;
-	'player-resume': CustomEvent<void>;
-}
+import type {
+	QtiAssessmentAutosaveChangeDetail,
+	QtiAssessmentAutosaveFailedDetail,
+	QtiAssessmentErrorDetail,
+	QtiAssessmentItemChangeDetail,
+	QtiAssessmentLoadErrorDetail,
+	QtiAssessmentPauseDetail,
+	QtiAssessmentPlayerEventMap,
+	QtiAssessmentResponseChangeDetail,
+	QtiAssessmentScopeTimeExpiredDetail,
+	QtiAssessmentSectionChangeDetail,
+	QtiAssessmentSessionFinalizedDetail,
+	QtiAssessmentSubmitDetail,
+	QtiAssessmentTimeExpiredDetail,
+} from '../elements/QtiAssessmentPlayerElement.js';
+
+// The runtime element's declarations are the single source for the assessment
+// player's event contract — including the autosave notifications; re-exported
+// here, types only, so the published facade cannot drift from what the element
+// dispatches.
+export type {
+	QtiAssessmentAutosaveChangeDetail,
+	QtiAssessmentAutosaveFailedDetail,
+	QtiAssessmentErrorDetail,
+	QtiAssessmentItemChangeDetail,
+	QtiAssessmentLoadErrorDetail,
+	QtiAssessmentPauseDetail,
+	QtiAssessmentPlayerEventMap,
+	QtiAssessmentResponseChangeDetail,
+	QtiAssessmentScopeTimeExpiredDetail,
+	QtiAssessmentSectionChangeDetail,
+	QtiAssessmentSessionFinalizedDetail,
+	QtiAssessmentSubmitDetail,
+	QtiAssessmentTimeExpiredDetail,
+};
 
 export type QtiItemMap = Record<string, string>;
 
@@ -591,6 +497,15 @@ export interface QtiAssessmentPlayerElement extends HTMLElement {
 	 * candidate's answers but keeps the time accounting. Reflects `allow-start-over`.
 	 */
 	allowStartOver: boolean;
+	/**
+	 * Autosave of the candidate's draft through the backend's `saveState`, with the
+	 * shell's save indicator and resume prompt. Default ON when the backend reports
+	 * the save capability; `false` disables it for hosts that persist state
+	 * themselves. Reflects the `autosave` attribute.
+	 */
+	autosave: boolean | undefined;
+	/** Autosave debounce window in ms. Reflects the `autosave-interval-ms` attribute. */
+	autosaveIntervalMs: number | undefined;
 	next(): Promise<void>;
 	previous(): Promise<void>;
 	navigateTo(index: number): Promise<void>;
@@ -774,16 +689,23 @@ export interface QtiSectionComposition {
 	host?: QtiSectionRuntimeHost;
 }
 
-export interface QtiSectionResponseDeltaDetail {
-	sectionIdentifier: string;
-	itemIdentifier: string;
-	responseIdentifier: string;
-	value: unknown;
-}
+import type {
+	QtiSectionDisplaySettingsEvent,
+	QtiSectionItemPaneReadyDetail,
+	QtiSectionPlayerEventMap,
+	QtiSectionResponseDeltaDetail,
+} from '../elements/QtiSectionPlayerSplitPaneElement.js';
 
-export interface QtiSectionPlayerEventMap {
-	'qti-section-response-delta': CustomEvent<QtiSectionResponseDeltaDetail>;
-}
+// The runtime element's declarations are the single source for the section
+// player's event contract — response deltas, framework errors, display
+// settings and the rendered item pane; re-exported here, types only, so the
+// published facade cannot drift from what the element dispatches.
+export type {
+	QtiSectionDisplaySettingsEvent,
+	QtiSectionItemPaneReadyDetail,
+	QtiSectionPlayerEventMap,
+	QtiSectionResponseDeltaDetail,
+};
 
 export interface QtiSectionPlayerElement extends HTMLElement {
 	composition: QtiSectionComposition | null;
@@ -793,6 +715,17 @@ export interface QtiSectionPlayerElement extends HTMLElement {
 	typeset?: (root: HTMLElement) => void | Promise<void>;
 	/** Heading level (1–6) of the passage and item titles. Default 3. Reflects `heading-level`. */
 	headingLevel?: number;
+	/**
+	 * Whether the candidate gets the display settings tool. Default true.
+	 * `display-settings="false"` turns it off; the attribute reflects the property.
+	 */
+	displaySettings: boolean;
+	/**
+	 * Move focus to the active item, first selecting the question tab when the
+	 * panes are stacked. Shells use this for skip links and after navigation;
+	 * resolves whether focus moved.
+	 */
+	focusActiveItem(options?: FocusOptions): Promise<boolean>;
 	addEventListener<K extends keyof QtiSectionPlayerEventMap>(
 		type: K,
 		listener: (this: QtiSectionPlayerElement, event: QtiSectionPlayerEventMap[K]) => unknown,

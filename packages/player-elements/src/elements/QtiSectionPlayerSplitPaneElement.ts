@@ -10,6 +10,10 @@ import { QTI_SECTION_PLAYER_SPLITPANE_TAG } from '../constants.js';
 import { parseHeadingLevel } from '../utils/heading-level.js';
 import { BaseSvelteMountElement } from './BaseSvelteMountElement.js';
 
+// The section contracts this element's events carry, named where the runtime
+// uses them so host-facing facades can re-export the exact types.
+export type { QtiSectionDisplaySettingsEvent, QtiSectionFrameworkError };
+
 export type QtiSectionResponseDeltaDetail = {
 	sectionIdentifier: string;
 	itemIdentifier: string;
