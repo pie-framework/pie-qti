@@ -297,3 +297,61 @@ error-event detail shapes still lack one documented base; ~80 raw `console.*` ca
 delivery packages with `@pie-qti/logger` used by two files; evalExpr closure hoisting;
 per-package `clean`/`lint` script drift outside the root composition; the slack-github-action
 version split in workflows; a real-browser PCI sandbox handshake verification.
+
+---
+
+## Round-4 review loop (2026-11-11)
+
+Round 4 swept the last unreviewed lenses — QTI processing logic against the spec (verified
+against the 2.1/2.2.4/3.0 info models), the i18n framework and its data, test-suite rot, public
+API consistency across the four players, hot-path performance, demo/docs drift. Six fix branches
+(`fix/r4-*`), each merged behind a full GREEN gate (409 e2e):
+
+- **Spec correctness (qti-processing):** `substring` was an invented `(string, start, length)`
+  extraction in every supported version — the spec defines a boolean containment test with
+  `caseSensitive`, so it was rebuilt per spec (Breaking; the conformance fixture that pinned the
+  invented shape rewritten to containment, with the spec's operand direction); `patternMatch` no
+  longer reads the `caseSensitive` attribute no QTI version defines (Breaking; the fixture now
+  teaches case sensitivity via an explicit character class); matchTable rejects non-integer
+  sources per spec; malformed processing rules throw like every other malformed rule; authored
+  regexes are memoized per pattern+flags (bounded) in qti-processing and qti-common so
+  validation stops recompiling per keystroke.
+- **Spec correctness (delivery):** `completionStatus` now follows the §5.2.1 transitions
+  (`not_attempted` → `unknown` when an attempt begins → `completed`; Breaking note for
+  observers); branch targets resolve forward-only on the client path per §5.15 — the client and
+  reference resolvers previously disagreed and the client could hop backward to an
+  already-presented item (one shared forward-only helper, parity-pinned between both resolvers).
+- **Hot-path performance (item-player):** the item body's `present()` — full DOM re-serialize,
+  double sanitize, 2–3 parses — ran on every keystroke; it now rebuilds only when content-bearing
+  inputs change (outcomes/templates/lifecycle/disabled/PnP plus the response identifiers the
+  body actually prints), so typing no longer re-presents at all; the per-dispatch clone/validation
+  fan-out dropped to one validation and one shared deeply-frozen transition (per-listener
+  typed-array isolation preserved — the drawing-canvas pin still passes); extended text compares
+  responses without stringifying the essay per keystroke.
+- **i18n:** five keys referenced by player components existed in no locale (a screen-reader error
+  announcement among them) — catalogued in all 8 locales (th/ar flagged for native review);
+  `check:i18n` gained a consumer scan (every `t('…')`/`translate(…)` literal must exist in the en
+  catalog — the scan that would have caught the five) and placeholder-name parity; key parameters
+  gained `MessageKey` overloads with a documented string escape, the missing-key warning is no
+  longer NODE_ENV-gated, and the README's dead `?? fallback` pattern is corrected.
+- **API consistency:** the `QtiPciConfiguration` name collision between item-player and
+  player-elements resolved (the facade's host-trust config renamed `QtiPciHostConfiguration`);
+  the section facade's arbitrarily-renamed contract types are now 1:1 aliases at the contract
+  names with a name-parity drift test (the dropped `toolId` union restored); the assessment
+  element gained the five per-item injection properties (`i18n`/`pnp`/`role`/`plugins`/
+  `stringComparison`) its siblings already had; the README documents the per-element failure
+  channels and codes.
+- **Test/docs rot:** test-utils' 17 dead exports (2/3 of the package) deleted with the README
+  rewritten against the real surface (Breaking); pci-runner's sleep-racing tests converted to
+  bounded poll-until; three vacuous tests now assert; to-pie's README no longer teaches imports
+  from the wrong package; CONFIGURATION.md rewritten to the real config surface (the documented
+  orchestration config function, file, and nine env vars never existed); ARCHITECTURE.md's
+  phantom `packages/storage` removed; the demo Quickstart page linked (was orphaned), the demo
+  port and the extractor count corrected; dead demo scripts and helpers deleted.
+
+Recorded, not fixed (needs a design decision or native speakers): response-change detail shapes
+and boolean-attribute grammars differ across the three elements (documented, not converged);
+`submit()` signatures differ per element; ro/es register mixing and terminology drift need
+native-speaker review; locale/placeholder type strictness could go further than the bounded
+overloads; the demo a11y fixtures could deduplicate package helpers now that test-utils' surface
+is honest.
