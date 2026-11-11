@@ -159,7 +159,12 @@ function buildStatements(
 			case 'setoutcomevalue': {
 				const identifier = getAttr(el, 'identifier');
 				const exprEl = firstChildElement(el);
-				if (!identifier || !exprEl) break;
+				if (!identifier || !exprEl) {
+					// identifier and expression [1] are required (setOutcomeValue.Type): a rule without
+					// them is malformed, and silently skipping it would leave the outcome at its
+					// default and change scoring with no signal.
+					throw new Error('<setOutcomeValue> requires an identifier and one child expression');
+				}
 				out.push({
 					kind: 'stmt.setOutcomeValue',
 					id: newAstId('stmt'),
@@ -172,7 +177,9 @@ function buildStatements(
 				if (mode !== 'outcome' && mode !== 'response') break;
 				const identifier = getAttr(el, 'identifier');
 				const exprEl = firstChildElement(el);
-				if (!identifier || !exprEl) break;
+				if (!identifier || !exprEl) {
+					throw new Error('<lookupOutcomeValue> requires an identifier and one child expression');
+				}
 				out.push({
 					kind: 'stmt.lookupOutcomeValue',
 					id: newAstId('stmt'),
@@ -184,7 +191,9 @@ function buildStatements(
 			case 'settemplatevalue': {
 				const identifier = getAttr(el, 'identifier');
 				const exprEl = firstChildElement(el);
-				if (!identifier || !exprEl) break;
+				if (!identifier || !exprEl) {
+					throw new Error('<setTemplateValue> requires an identifier and one child expression');
+				}
 				out.push({
 					kind: 'stmt.setTemplateValue',
 					id: newAstId('stmt'),
@@ -197,7 +206,9 @@ function buildStatements(
 				if (mode !== 'template') break;
 				const identifier = getAttr(el, 'identifier');
 				const exprEl = firstChildElement(el);
-				if (!identifier || !exprEl) break;
+				if (!identifier || !exprEl) {
+					throw new Error('<setCorrectResponse> requires an identifier and one child expression');
+				}
 				out.push({
 					kind: 'stmt.setCorrectResponse',
 					id: newAstId('stmt'),
@@ -212,7 +223,9 @@ function buildStatements(
 				if (mode !== 'template') break;
 				const identifier = getAttr(el, 'identifier');
 				const exprEl = firstChildElement(el);
-				if (!identifier || !exprEl) break;
+				if (!identifier || !exprEl) {
+					throw new Error('<setDefaultValue> requires an identifier and one child expression');
+				}
 				out.push({
 					kind: 'stmt.setDefaultValue',
 					id: newAstId('stmt'),
@@ -777,12 +790,18 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			return { kind: 'expr.fieldValue', id, fieldIdentifier, record: buildExpression(kids[0]!, options) };
 		}
 		case 'substring': {
+			// QTI 2.1 §4.10 (2.2 §2.12.3.46, 3.0 §2.11.3.46): substring takes exactly two string
+			// sub-expressions and tests containment — true when the first expression is a substring
+			// of the second — with caseSensitive [1]: boolean = true (the required `case-sensitive`
+			// in the 3.0 XSD). No QTI version defines a (string, start, length) extraction form or
+			// an optional third operand, so that shape is a compile error.
+			if (kids.length !== 2) throw new Error('<substring> requires exactly two child expressions');
 			return {
 				kind: 'expr.substring',
 				id,
-				value: buildExpression(kids[0]!, options),
-				start: buildExpression(kids[1]!, options),
-				length: kids[2] ? buildExpression(kids[2], options) : undefined,
+				a: buildExpression(kids[0]!, options),
+				b: buildExpression(kids[1]!, options),
+				caseSensitive: boolAttr('caseSensitive', true),
 			};
 		}
 		case 'power': {
@@ -812,12 +831,14 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 					? { kind: 'expr.baseValue', id: newAstId('expr'), baseType: 'string', text: raw }
 					: kids[1] && buildExpression(kids[1], options);
 			if (!kids[0] || !pattern) return { kind: 'expr.null', id };
+			// No caseSensitive attribute here: patternMatch has exactly one attribute in every QTI
+			// version (`pattern` — 2.1 info model "Attribute : pattern [1]: stringOrVariableRef";
+			// 3.0 PatternMatchDType), and XSD regular expressions are case-sensitive by nature.
 			return {
 				kind: 'expr.patternMatch',
 				id,
 				value: buildExpression(kids[0], options),
 				pattern,
-				caseSensitive: boolAttr('caseSensitive', true),
 			};
 		}
 		case 'isnull': {

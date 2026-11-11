@@ -22,6 +22,7 @@ export {
 export { isShownByIdentifier, matchesIdentifier } from './feedback/visibility.js';
 export {
 	cleanFeedbackText,
+	feedbackInlineAttr,
 	processFeedbackInline,
 	DEFAULT_FEEDBACK_OUTCOME_ID,
 	DEFAULT_FEEDBACK_TRANSFORMS,

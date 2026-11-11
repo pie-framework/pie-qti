@@ -67,22 +67,17 @@ describe('affected operators with QTI 3.0 kebab-case children', () => {
 		).toEqual(qtiValue('float', 'single', 123.46));
 	});
 
-	it('qti-substring builds its optional length operand', () => {
+	it('qti-substring tests containment: the first expression inside the second, per spec', () => {
 		expect(
 			evaluate(
-				'<qti-substring><qti-base-value base-type="string">ABCDE</qti-base-value><qti-base-value base-type="integer">2</qti-base-value><qti-variable identifier="LEN"/></qti-substring>',
-				declared('LEN', 'integer', 2),
+				'<qti-substring><qti-base-value base-type="string">ell</qti-base-value><qti-base-value base-type="string">Hello</qti-base-value></qti-substring>',
 			),
-		).toEqual(qtiValue('string', 'single', 'BC'));
-	});
-
-	it('qti-substring builds without a length operand', () => {
+		).toEqual(qtiValue('boolean', 'single', true));
 		expect(
 			evaluate(
-				'<qti-substring><qti-base-value base-type="string">ABCDE</qti-base-value><qti-variable identifier="LEN"/></qti-substring>',
-				declared('LEN', 'integer', 2),
+				'<qti-substring><qti-base-value base-type="string">Hello</qti-base-value><qti-base-value base-type="string">ell</qti-base-value></qti-substring>',
 			),
-		).toEqual(qtiValue('string', 'single', 'BCDE'));
+		).toEqual(qtiValue('boolean', 'single', false));
 	});
 
 	it('qti-field-value reads a record variable field, the way a record value reaches expressions', () => {
@@ -186,7 +181,7 @@ const GUARD: ReadonlyArray<readonly [tag: string, attrs: string, body: string]> 
 	['roundto', 'rounding-mode="decimalPlaces" figures="2"', ONE],
 	['statsoperator', 'name="mean"', ONE],
 	['stringmatch', '', TWO],
-	['substring', '', '<qti-base-value base-type="string">ABCDE</qti-base-value><qti-base-value base-type="integer">2</qti-base-value><qti-variable identifier="LEN"/>'],
+	['substring', '', '<qti-base-value base-type="string">ABCDE</qti-base-value><qti-base-value base-type="string">BC</qti-base-value>'],
 	['subtract', '', TWO],
 	['sum', '', TWO],
 	['testvariables', 'variable-identifier="A"', ''],

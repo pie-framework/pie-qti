@@ -127,9 +127,16 @@ export function applyLookupTable(source: QtiValue, table: LookupTableTable, base
 	if (source.cardinality !== 'single' || Array.isArray(source.value)) return qtiInvalid('lookupTable expects single cardinality');
 
 	if (table.kind === 'table.matchTable') {
-		const numeric = source.baseType === 'integer' || source.baseType === 'float' || typeof source.value === 'number';
-		const x = numeric ? toNumber(source) : normalizeForCompare(source.value);
-		const entry = table.entries.find((e) => (numeric ? Number(e.sourceValue) === x : normalizeForCompare(e.sourceValue) === x));
+		// The source is an integer: 2.1 "matchTable transforms a source integer" with
+		// matchTableEntry@sourceValue [1]: integer; 3.0 lookupOutcomeValue: "Integer type is
+		// required when the associated table is a matchTable". A non-integer source is invalid
+		// content, not a miss — the engine once fell back to a string comparison for it.
+		const integral =
+			source.baseType === 'integer' ||
+			(source.baseType === undefined && typeof source.value === 'number' && Number.isInteger(source.value));
+		if (!integral) return qtiInvalid('matchTable expects an integer source');
+		const x = toNumber(source);
+		const entry = table.entries.find((e) => Number(e.sourceValue) === x);
 		return target(entry?.targetValue ?? table.defaultValue);
 	}
 
@@ -1026,26 +1033,18 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			return obj?.[expr.fieldIdentifier] ?? qtiNull();
 		}
 		case 'expr.substring': {
-			const value = evalExpr(env, expr.value);
-			const start = evalExpr(env, expr.start);
-			const length = expr.length ? evalExpr(env, expr.length) : undefined;
-			if (value.kind === 'invalid' || start.kind === 'invalid' || length?.kind === 'invalid') return qtiInvalid('substring invalid');
-			// A NULL operand gives NULL (QTI ASI §15.3), the empty string included (§5); a start
-			// past the end still gives the empty string.
-			if (isNullValue(value) || isNullValue(start) || (length !== undefined && isNullValue(length))) {
-				return qtiNull('string', 'single');
-			}
+			// QTI 2.1 §4.10 (2.2 §2.12.3.46, 3.0 §2.11.3.46): "true if the first expression is a
+			// substring of the second expression"; "If either sub-expression is NULL then the
+			// result of the operator is NULL" — the empty string included (§5). The fold follows
+			// caseSensitive, applied like every string comparison (as stringMatch does).
+			const a = evalExpr(env, expr.a);
+			const b = evalExpr(env, expr.b);
+			if (a.kind === 'invalid' || b.kind === 'invalid') return qtiInvalid('substring invalid');
+			if (isNullValue(a) || isNullValue(b)) return qtiNull('boolean', 'single');
 
-			const s = toStringValue(value);
-
-			// QTI indexing is 1-based
-			const startIdx = Math.max(0, Math.floor(toNumber(start)) - 1);
-			if (!Number.isFinite(startIdx)) return qtiInvalid('substring start invalid');
-
-			if (!length) return qtiValue('string', 'single', s.substring(startIdx));
-			const len = Math.max(0, Math.floor(toNumber(length)));
-			if (!Number.isFinite(len)) return qtiInvalid('substring length invalid');
-			return qtiValue('string', 'single', s.substring(startIdx, startIdx + len));
+			const left = comparableString(toStringValue(a), stringKeyComparison, !expr.caseSensitive);
+			const right = comparableString(toStringValue(b), stringKeyComparison, !expr.caseSensitive);
+			return qtiValue('boolean', 'single', right.includes(left));
 		}
 		case 'expr.random': {
 			const v = evalExpr(env, expr.value);
@@ -1106,7 +1105,8 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const sv = toStringValue(value);
 			const sp = toStringValue(pattern);
 
-			const re = xsdPatternToRegExp(sp, expr.caseSensitive ? '' : 'i');
+			// XSD patterns are case-sensitive by nature; no QTI version defines a way to fold them.
+			const re = xsdPatternToRegExp(sp);
 			// A subject beyond MAX_PATTERN_SUBJECT_LENGTH skips the pattern and does not match —
 			// the divergence guard documented on the constant. The guard is checked before the
 			// run, so the author's regular expression never executes on it.

@@ -51,6 +51,17 @@ describe('xsdPatternToRegExp', () => {
 	test('is null for a pattern that does not compile', () => {
 		expect(xsdPatternToRegExp('(')).toBeNull();
 	});
+
+	test('compiles an authored pattern once and reuses the RegExp', () => {
+		// Patterns are static per item but validation runs per keystroke, so repeated calls share
+		// one compiled RegExp; different flags compile separately, and a failed compile is cached
+		// too.
+		const first = xsdPatternToRegExp('[0-9]{3}');
+		expect(first).not.toBeNull();
+		expect(xsdPatternToRegExp('[0-9]{3}')).toBe(first);
+		expect(xsdPatternToRegExp('[0-9]{3}', 'i')).not.toBe(first);
+		expect(xsdPatternToRegExp('(')).toBe(xsdPatternToRegExp('('));
+	});
 });
 
 // XML Schema Part 2 (Second Edition), appendix F — the regular expression language QTI cites for
@@ -206,6 +217,29 @@ describe('XSD regular expressions (XML Schema Part 2, appendix F)', () => {
 });
 
 describe('patternMatch', () => {
+	const matchesWithAttrs = (attrs: string, pattern: string, response: string) => {
+		const ctx = new DeclarationContext({
+			RESPONSE: {
+				identifier: 'RESPONSE',
+				baseType: 'string',
+				cardinality: 'single',
+				value: qtiValue('string', 'single', response),
+			},
+			OUT: {
+				identifier: 'OUT',
+				baseType: 'boolean',
+				cardinality: 'single',
+				value: qtiValue('boolean', 'single', false),
+			},
+		});
+		const body = `<setOutcomeValue identifier="OUT"><patternMatch pattern="${pattern}" ${attrs}><variable identifier="RESPONSE"/></patternMatch></setOutcomeValue>`;
+		execProgram(
+			{ ctx, rng: () => 0.5 },
+			buildResponseProcessingAst(parseXml(`<responseProcessing>${body}</responseProcessing>`).documentElement, {}),
+		);
+		return ctx.getValue('OUT');
+	};
+
 	const matches = (pattern: string, response: string, template?: string) => {
 		const ctx = new DeclarationContext({
 			...(template === undefined
@@ -264,6 +298,16 @@ describe('patternMatch', () => {
 		expect(matches('\\p{IsBasicLatin}+', 'abé')).toMatchObject({ value: false });
 		expect(matches('^abc$', 'abc')).toMatchObject({ value: false });
 		expect(matches('\\w+', 'a_b')).toMatchObject({ value: false });
+	});
+
+	test('is case-sensitive; no QTI version defines a caseSensitive attribute to change that', () => {
+		// patternMatch has exactly one attribute in every version (`pattern`: QTI 2.1 info model
+		// "Attribute : pattern [1]: stringOrVariableRef"; 3.0 PatternMatchDType). The engine once
+		// read a home-grown caseSensitive and folded with the `i` flag; it is not read any more,
+		// so an attribute from content authored against that extension matches per the XSD.
+		const insensitive = matchesWithAttrs('caseSensitive="false"', 'abc', 'ABC');
+		expect(insensitive).toMatchObject({ value: false });
+		expect(matchesWithAttrs('caseSensitive="true"', 'abc', 'abc')).toMatchObject({ value: true });
 	});
 });
 
