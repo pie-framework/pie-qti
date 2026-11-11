@@ -23,7 +23,7 @@ import {
 } from '../qti/resolveItems.js';
 import type { ParsedAssessmentSection, ParsedAssessmentTest } from '../qti/types.js';
 import { parseHeadingLevel } from '../utils/heading-level.js';
-import { safeJsonParse } from '../utils/json.js';
+import { parseJsonObjectAttribute } from '../utils/json.js';
 import { BaseSvelteMountElement } from './BaseSvelteMountElement.js';
 
 /**
@@ -309,18 +309,23 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 		}
 
 		if (name === 'items-json') {
-			const parsed = safeJsonParse<QtiItemMap>(newValue);
-			if (parsed) this.#items = parsed;
+			const parsed = parseJsonObjectAttribute<QtiItemMap>(newValue);
+			// Removal and a malformed value mean the same thing: no items. A stale
+			// map must never survive an attribute the host replaced or removed.
+			this.#items = parsed.status === 'parsed' ? parsed.value : undefined;
+			if (parsed.status === 'invalid') this.#dispatchJsonAttributeError(name);
 		}
 
 		if (name === 'config-json') {
-			const parsed = safeJsonParse<AssessmentElementConfig>(newValue);
-			if (parsed) this.#config = parsed;
+			const parsed = parseJsonObjectAttribute<AssessmentElementConfig>(newValue);
+			this.#config = parsed.status === 'parsed' ? parsed.value : {};
+			if (parsed.status === 'invalid') this.#dispatchJsonAttributeError(name);
 		}
 
 		if (name === 'security-json') {
-			const parsed = safeJsonParse<PlayerSecurityConfig>(newValue);
-			if (parsed) this.#security = parsed;
+			const parsed = parseJsonObjectAttribute<PlayerSecurityConfig>(newValue);
+			this.#security = parsed.status === 'parsed' ? parsed.value : undefined;
+			if (parsed.status === 'invalid') this.#dispatchJsonAttributeError(name);
 		}
 
 		void this.#syncFromQti();
@@ -744,6 +749,12 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 					? {}
 					: { sectionReferenceLimits: { maxDepth: configuredSectionDepth } }),
 			});
+			// The adapter's parse does real work (external files resolve through the
+			// resource resolver) and does not observe the supersede signal, so a newer
+			// load — or a disconnect — may have won while it ran. Re-check before any
+			// state mutation: a stale result must not register, replace an injected
+			// backend, emit `load-end`, or mount.
+			if (seq !== this.#loadSeq) return; // superseded
 			// The reference backend scores submitted items: it compares strings as the player does.
 			const backend = new ReferenceBackendAdapter({
 				rng: this.#config.rng,
@@ -777,6 +788,18 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 				bubbles: true,
 				composed: true,
 			}),
+		);
+	}
+
+	/**
+	 * A JSON-object attribute (`items-json`, `config-json`, `security-json`) was
+	 * set to something that is not a JSON object. The field was already reset to
+	 * its removal value; this reports it through the element's error channel so
+	 * the malformed attribute is never silently ignored.
+	 */
+	#dispatchJsonAttributeError(attribute: string): void {
+		this.#dispatchLoadError(
+			`The \`${attribute}\` attribute is malformed: expected a JSON object. Its previous value was discarded.`,
 		);
 	}
 

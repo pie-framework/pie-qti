@@ -6,6 +6,7 @@
 	"include": [
 		"src/**/*",
 		"tests/custom-element-types.ts",
+		"tests/data-model-contracts.ts",
 		"tests/event-map-contracts.ts",
 		"tests/public-facade-compatibility.ts"
 	]
