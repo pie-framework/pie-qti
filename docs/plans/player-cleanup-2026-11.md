@@ -410,3 +410,40 @@ Recorded, not fixed: AssessmentPlayer.ts still ~4,260 lines (split parked); Item
 cache-key policy that could migrate to the presenter; `QtiProcessingFragment*` facade mirrors
 unpinned; the other 11 element schemas unaudited against transformer output; acme-likert's
 teaching example untouched by design; docs/prds storage prose describes aspirational interfaces.
+
+---
+
+## Rounds 6–7: loop closure (2026-11-11)
+
+Round 6 was the structural confirmation pass over the whole tree with fresh eyes. Two of three
+reviewers came back clean; the third found real survivors, fixed on `fix/r6-code` + `fix/r6-docs`
+(both gated GREEN):
+
+- Three parallel `inferBaseType` implementations fed the same assessment-result report model
+  with divergent semantics (one writer emitted every undeclared number as `float`, the other as
+  `integer`) — git archaeology showed the drift was born in a single commit. One shared rule now
+  backs both report writers (undeclared scalar → boolean/integer/float/string; lists → integer
+  only when every present member is whole), with the PCI copy keeping its deliberate `file`
+  extension and naming the shared rule (behavior change noted in a changeset: undeclared numbers
+  may now write `integer` in results XML).
+- A duplicate-choice-identifier validation loop was inlined 13× across 11 interaction
+  extractors — one `validateUniqueIdentifiers` helper with byte-identical messages.
+- Three divergent serialized-HTML attribute readers (one accepted unpaired quotes and rejected
+  empty values) — one `readHtmlAttribute` on the strictest shape.
+- Loop-introduced doc rot: the logger README still taught the deleted `consoleLogger`;
+  TRANSFORMATION-ENGINE.md still taught the phantom `createTestEngine` and asserted the wrong
+  transform result shape; the plan doc's "closures documented for a future hoist" claim is now
+  literally true (the parking comment exists at evalExpr).
+
+The loop-audit third of round 6 verified the waves themselves: changesets cover every changed
+publishable package with accurate Breaking notes; all 21 gate logs end `409 passed`; the parked
+list has not escalated (the demo `Symbol.for` brand is intact, PCI gained no new concurrent load
+paths, console.* counts match the record); `@pie-qti/element-schemas` confirmed at exactly zero
+importers repo-wide (decision still pending).
+
+Round 7 re-ran the confirmation adversarially against the round-6 fixes themselves and the
+remaining axes — **verdict CLEAN**: the baseType unification is sound (null filtering matches
+the writers' drop, heterogeneous lists documented and pinned), all 13 extractor sites preserve
+messages and order, the strict attribute reader changes nothing for valid markup, no new
+parallel helper families, net-negative src growth in the final commits, and the doc fixes match
+their sources. The review loop ends here.
