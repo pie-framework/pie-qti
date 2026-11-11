@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
 import { buildResponseProcessingAst } from '../src/ast/build.js';
-import { OperatorRegistry } from '../src/eval/operators.js';
 import { execProgram } from '../src/exec/execute.js';
 import { DeclarationContext } from '../src/runtime/context.js';
 import { qtiValue } from '../src/runtime/value.js';
@@ -229,7 +228,7 @@ describe('patternMatch', () => {
 		});
 		const body = `<setOutcomeValue identifier="OUT"><patternMatch pattern="${pattern}"><variable identifier="RESPONSE"/></patternMatch></setOutcomeValue>`;
 		execProgram(
-			{ ctx, ops: new OperatorRegistry(), rng: () => 0.5 },
+			{ ctx, rng: () => 0.5 },
 			buildResponseProcessingAst(parseXml(`<responseProcessing>${body}</responseProcessing>`).documentElement, {}),
 		);
 		return ctx.getValue('OUT');

@@ -18,7 +18,6 @@ import { describe, expect, it } from 'bun:test';
 import { Qti3ElementNameMapper } from '@pie-qti/qti-common';
 import { buildExpression } from '../src/ast/build.js';
 import { evalExpr } from '../src/eval/evaluator.js';
-import { OperatorRegistry } from '../src/eval/operators.js';
 import type { ProcessingScope } from '../src/ast/types.js';
 import { DeclarationContext } from '../src/runtime/context.js';
 import type { DeclarationMap, QtiValue } from '../src/runtime/types.js';
@@ -29,7 +28,7 @@ const mapper = new Qti3ElementNameMapper();
 
 function evaluate(body: string, decls: DeclarationMap = {}): QtiValue {
 	const expression = buildExpression(parseXml(body).documentElement, { elementNameMapper: mapper });
-	return evalExpr({ ctx: new DeclarationContext(decls), ops: new OperatorRegistry(), rng: () => 0.5 }, expression);
+	return evalExpr({ ctx: new DeclarationContext(decls), rng: () => 0.5 }, expression);
 }
 
 function declared(identifier: string, baseType: 'integer' | 'float' | 'string', value: unknown): DeclarationMap {

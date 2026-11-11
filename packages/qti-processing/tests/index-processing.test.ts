@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { buildExpression, buildResponseProcessingAst } from '../src/ast/build.js';
 import { evalExpr } from '../src/eval/evaluator.js';
-import { OperatorRegistry } from '../src/eval/operators.js';
 import { execProgram } from '../src/exec/execute.js';
 import { DeclarationContext } from '../src/runtime/context.js';
 import type { DeclarationMap } from '../src/runtime/types.js';
@@ -11,7 +10,6 @@ import { parseXml } from '../src/xml/parse.js';
 function makeEnv(decls: DeclarationMap) {
 	return {
 		ctx: new DeclarationContext(decls),
-		ops: new OperatorRegistry(),
 		rng: () => 0.5,
 	};
 }

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { buildExpression, buildOutcomeProcessingAst } from '../src/ast/build.js';
 import { evalExpr } from '../src/eval/evaluator.js';
-import { OperatorRegistry } from '../src/eval/operators.js';
 import { execProgram } from '../src/exec/execute.js';
 import { DeclarationContext } from '../src/runtime/context.js';
 import type { DeclarationMap } from '../src/runtime/types.js';
@@ -11,8 +10,7 @@ import { parseXml } from '../src/xml/parse.js';
 function makeEnv(args: { test: any }) {
 	const decls: DeclarationMap = {};
 	const ctx = new DeclarationContext(decls);
-	const ops = new OperatorRegistry();
-	return { ctx, ops, rng: () => 0.5, test: args.test };
+	return { ctx, rng: () => 0.5, test: args.test };
 }
 
 describe('qti-processing test-level expressions', () => {
@@ -164,7 +162,6 @@ describe('qti-processing test-scope variable weightIdentifier', () => {
 		} as DeclarationMap;
 		return {
 			ctx: new DeclarationContext(decls),
-			ops: new OperatorRegistry(),
 			rng: () => 0.5,
 			test: {
 				items: [

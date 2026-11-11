@@ -7,7 +7,6 @@
 import { describe, expect, it } from 'bun:test';
 import { buildExpression, buildResponseProcessingAst } from '../src/ast/build.js';
 import { evalExpr } from '../src/eval/evaluator.js';
-import { OperatorRegistry } from '../src/eval/operators.js';
 import { execProgram } from '../src/exec/execute.js';
 import { DeclarationContext } from '../src/runtime/context.js';
 import type { DeclarationMap, QtiValue } from '../src/runtime/types.js';
@@ -16,7 +15,7 @@ import { parseXml } from '../src/xml/parse.js';
 
 function evaluate(xml: string): QtiValue {
 	const expression = buildExpression(parseXml(xml).documentElement);
-	return evalExpr({ ctx: new DeclarationContext({}), ops: new OperatorRegistry(), rng: () => 0.5 }, expression);
+	return evalExpr({ ctx: new DeclarationContext({}), rng: () => 0.5 }, expression);
 }
 
 const float = (n: number): string => `<baseValue baseType="float">${n}</baseValue>`;
@@ -101,7 +100,7 @@ describe('integer results in numeric operators', () => {
 			<setOutcomeValue identifier="FLOAT_OUT"><round>${float(2.6)}</round></setOutcomeValue>
 			<setOutcomeValue identifier="INT_OUT"><truncate>${float(2.6)}</truncate></setOutcomeValue>
 		</responseProcessing>`).documentElement;
-		execProgram({ ctx, ops: new OperatorRegistry(), rng: () => 0.5 }, buildResponseProcessingAst(rp, {}));
+		execProgram({ ctx, rng: () => 0.5 }, buildResponseProcessingAst(rp, {}));
 		expect(ctx.getValue('FLOAT_OUT')).toEqual(qtiValue('float', 'single', 3));
 		expect(ctx.getValue('INT_OUT')).toEqual(integer(2));
 	});

@@ -7,7 +7,6 @@ import {
 	DeclarationContext,
 	type DeclarationMap,
 	findAssessmentItem,
-	OperatorRegistry,
 	parseXml,
 	type ProcessingProgram,
 	type QtiValue,
@@ -166,8 +165,6 @@ export class Player {
 	ctx: DeclarationContext;
 	/** @internal Engine modules read the session's random stream through the host. */
 	rng: () => number;
-	/** @internal Engine modules read the operator registry through the host. */
-	ops: OperatorRegistry;
 	private extractionRegistry: ExtractionRegistry;
 	private interactionDataCache: readonly BaseInteractionData[] | null = null;
 	/** Template variables declared with `mathVariable`, substituted into MathML. @internal */
@@ -298,7 +295,6 @@ export class Player {
 		this.applyTemplateDefaults(config.templateDefaults);
 		this.sourceDeclarations = cloneValue(this.decls);
 		this.ctx = new DeclarationContext(this.decls);
-		this.ops = new OperatorRegistry();
 
 		// Extraction + rendering registries (for interaction rendering)
 		// Pass the element name mapper to the extraction registry for QTI version handling

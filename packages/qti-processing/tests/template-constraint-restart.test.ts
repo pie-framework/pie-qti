@@ -9,7 +9,6 @@
 import { describe, expect, it } from 'bun:test';
 import { buildExpression, buildTemplateProcessingAst } from '../src/ast/build.js';
 import { evalExpr } from '../src/eval/evaluator.js';
-import { OperatorRegistry } from '../src/eval/operators.js';
 import { execProgram } from '../src/exec/execute.js';
 import { DeclarationContext } from '../src/runtime/context.js';
 import type { DeclarationMap } from '../src/runtime/types.js';
@@ -78,7 +77,7 @@ function runTemplate(decls: DeclarationMap, firstPassRules: string, secondPassRu
 		</templateConstraint>
 	</templateProcessing>`;
 	execProgram(
-		{ ctx, ops: new OperatorRegistry(), rng: replay(draws) },
+		{ ctx, rng: replay(draws) },
 		buildTemplateProcessingAst(parseXml(xml).documentElement, {}),
 	);
 	return ctx;
@@ -160,7 +159,7 @@ describe('randomInteger and randomFloat element forms', () => {
 	function drawsOf(xml: string, baseType: 'integer' | 'float'): number[] {
 		const expression = buildExpression(parseXml(xml).documentElement);
 		return SWEEP.map((draw) => {
-			const v = evalExpr({ ctx: new DeclarationContext({}), ops: new OperatorRegistry(), rng: () => draw }, expression);
+			const v = evalExpr({ ctx: new DeclarationContext({}), rng: () => draw }, expression);
 			expect(v).toMatchObject({ kind: 'value', baseType, cardinality: 'single' });
 			return v.kind === 'value' ? Number(v.value) : Number.NaN;
 		});
@@ -171,7 +170,7 @@ describe('randomInteger and randomFloat element forms', () => {
 	it('draws an integer from the min/max/step attributes and a float from min/max', () => {
 		const ctx = new DeclarationContext(makeDecls());
 		execProgram(
-			{ ctx, ops: new OperatorRegistry(), rng: replay([0.5]) },
+			{ ctx, rng: replay([0.5]) },
 			buildTemplateProcessingAst(
 				templateOf(`<setTemplateValue identifier="T"><randomInteger min="1" max="5" step="2"/></setTemplateValue>
 					<setTemplateValue identifier="T2"><randomFloat min="0" max="1"/></setTemplateValue>`),

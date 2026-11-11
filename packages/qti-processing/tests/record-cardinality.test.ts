@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { buildExpression } from '../src/ast/build.js';
 import { evalExpr } from '../src/eval/evaluator.js';
-import { OperatorRegistry } from '../src/eval/operators.js';
 import { DeclarationContext } from '../src/runtime/context.js';
 import type { DeclarationMap } from '../src/runtime/types.js';
 import { qtiNull, qtiValue } from '../src/runtime/value.js';
@@ -14,7 +13,6 @@ function record(fields: Record<string, ReturnType<typeof qtiValue>>) {
 function env(declarations: DeclarationMap = {}) {
 	return {
 		ctx: new DeclarationContext(declarations),
-		ops: new OperatorRegistry(),
 		rng: () => 0.5,
 	};
 }

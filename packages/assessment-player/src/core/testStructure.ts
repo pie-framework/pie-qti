@@ -10,7 +10,6 @@ import {
 	type DeclarationMap,
 	durationSecondsFromMilliseconds,
 	evalExpr,
-	OperatorRegistry,
 	parseXml,
 	type QtiValue,
 	qtiNull,
@@ -593,7 +592,7 @@ export function evaluateTestExpression(expressionXml: string, decls: Declaration
 	const root = parseXml(expressionXml).documentElement;
 	if (!root) return qtiNull();
 	const expr = buildExpression(root, { scope: 'test', elementNameMapper: qtiElementNameMapper });
-	return evalExpr({ ctx: new DeclarationContext(structuredClone(decls)), ops: new OperatorRegistry(), rng }, expr);
+	return evalExpr({ ctx: new DeclarationContext(structuredClone(decls)), rng }, expr);
 }
 
 /** True only when the expression evaluates to boolean true; NULL and errors read as false. */

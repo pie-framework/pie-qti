@@ -8,7 +8,6 @@
 import { describe, expect, it } from 'bun:test';
 import { buildExpression, buildResponseProcessingAst } from '../src/ast/build.js';
 import { evalExpr } from '../src/eval/evaluator.js';
-import { OperatorRegistry } from '../src/eval/operators.js';
 import { execProgram } from '../src/exec/execute.js';
 import { DeclarationContext } from '../src/runtime/context.js';
 import type { BaseType, Cardinality, DeclarationMap, QtiValue } from '../src/runtime/types.js';
@@ -21,7 +20,7 @@ function declaration(identifier: string, baseType: BaseType, cardinality: Cardin
 
 function evaluate(xml: string, decls: DeclarationMap = {}): QtiValue {
 	const expression = buildExpression(parseXml(xml).documentElement);
-	return evalExpr({ ctx: new DeclarationContext(decls), ops: new OperatorRegistry(), rng: () => 0.5 }, expression);
+	return evalExpr({ ctx: new DeclarationContext(decls), rng: () => 0.5 }, expression);
 }
 
 const BOOLEAN_NULL = { kind: 'null', baseType: 'boolean', cardinality: 'single' };
@@ -127,7 +126,7 @@ describe('a NULL condition is not true at the branch', () => {
 		};
 		const ctx = new DeclarationContext(decls);
 		const rp = parseXml(`<responseProcessing>${conditions}</responseProcessing>`).documentElement;
-		execProgram({ ctx, ops: new OperatorRegistry(), rng: () => 0.5 }, buildResponseProcessingAst(rp, {}));
+		execProgram({ ctx, rng: () => 0.5 }, buildResponseProcessingAst(rp, {}));
 		return ctx;
 	}
 

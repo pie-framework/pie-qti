@@ -17,11 +17,9 @@ import {
 	toStringValue,
 } from '../runtime/value.js';
 import type { TestEvalContext, TestItemState } from '../test/types.js';
-import type { OperatorRegistry } from './operators.js';
 
 export interface EvalEnv {
 	ctx: DeclarationContext;
-	ops: OperatorRegistry;
 	rng: () => number;
 	/**
 	 * BCP 47 tag of the item's content language. Number parsing reads responses in it (its
