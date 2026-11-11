@@ -8,6 +8,7 @@
 
 import { describe, expect, test } from 'bun:test';
 import type { PieItem, TransformOutput } from '@pie-qti/transform-types';
+import { parse } from 'node-html-parser';
 import { QtiToPiePlugin, transformQtiPackageToPie } from '../src';
 import { PASSAGE_UNRESOLVED } from '../src/utils/unresolved-passages';
 
@@ -280,6 +281,32 @@ describe('rubricBlocks', () => {
     expect(item.config.markup).toContain('<div><p>Use the map.</p></div>');
     expect(item.config.markup).not.toContain('Accept 6,650');
     expect(item.config.markup).not.toContain('rubricBlock');
+  });
+
+  test('a candidate class value with quotes or entities round-trips as one attribute', async () => {
+    const { item } =
+      await convert(`<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="ITEM-3" title="Item 3" adaptive="false" timeDependent="false">
+  ${CHOICE_DECLARATION}
+  <responseDeclaration identifier="TEXT" cardinality="single" baseType="string">
+    <correctResponse><value>6650</value></correctResponse>
+  </responseDeclaration>
+  <itemBody>
+    <rubricBlock view="candidate" class="note&quot; data-x=&quot;y"><p>Use the map.</p></rubricBlock>
+    <rubricBlock view="candidate" class="a&amp;b &lt;c&gt;"><p>And the key.</p></rubricBlock>
+    ${CHOICE}
+    <p>Length in km: <textEntryInteraction responseIdentifier="TEXT"/></p>
+  </itemBody>
+</assessmentItem>`);
+    const markup = item.config.markup as string;
+
+    // The decoded values are re-escaped, so no second attribute can appear.
+    expect(markup).toContain('<div class="note&quot; data-x=&quot;y">');
+    expect(markup).toContain('<div class="a&amp;b &lt;c&gt;">');
+
+    // And the markup parses back to the class values the item wrote.
+    const classes = parse(markup).querySelectorAll('div').map((div) => div.getAttribute('class'));
+    expect(classes).toContain('note" data-x="y');
+    expect(classes).toContain('a&b <c>');
   });
 });
 

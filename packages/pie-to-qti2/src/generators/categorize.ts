@@ -71,12 +71,14 @@ export class CategorizeGenerator extends BaseGenerator {
     const responseId = 'RESPONSE';
 
     // Build correct response pairs (choice -> category assignments)
+    // Ids are sanitized the same way here and in the item body, so a quoted or spaced
+    // id cannot break the identifier attribute or split a directedPair value.
     const correctPairs: string[] = [];
     for (const category of model.categories) {
       if (category.choices && Array.isArray(category.choices)) {
         for (const choiceId of category.choices) {
           // Format: "choiceId categoryId" (directedPair)
-          correctPairs.push(`${choiceId} ${category.id}`);
+          correctPairs.push(`${generateIdentifier(choiceId)} ${generateIdentifier(category.id)}`);
         }
       }
     }
@@ -141,7 +143,7 @@ export class CategorizeGenerator extends BaseGenerator {
     const categoryChoices = categories
       .map(
         (cat) =>
-          `      <simpleAssociableChoice identifier="${cat.id}" matchMax="${choices.length}">${cat.label}</simpleAssociableChoice>`
+          `      <simpleAssociableChoice identifier="${generateIdentifier(cat.id)}" matchMax="${choices.length}">${cat.label}</simpleAssociableChoice>`
       )
       .join('\n');
 
@@ -149,7 +151,7 @@ export class CategorizeGenerator extends BaseGenerator {
     const itemChoices = choices
       .map(
         (choice) =>
-          `      <simpleAssociableChoice identifier="${choice.id}" matchMax="${categories.length}">${choice.content}</simpleAssociableChoice>`
+          `      <simpleAssociableChoice identifier="${generateIdentifier(choice.id)}" matchMax="${categories.length}">${choice.content}</simpleAssociableChoice>`
       )
       .join('\n');
 
