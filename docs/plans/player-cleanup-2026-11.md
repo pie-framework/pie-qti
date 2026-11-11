@@ -355,3 +355,58 @@ and boolean-attribute grammars differ across the three elements (documented, not
 native-speaker review; locale/placeholder type strictness could go further than the bounded
 overloads; the demo a11y fixtures could deduplicate package helpers now that test-utils' surface
 is honest.
+
+---
+
+## Round-5 review loop (2026-11-11)
+
+Round 5 audited the renovations themselves (post-refactor integrity), ran a WCAG 2.2 AA pass
+over the changed surface, gave the small packages their first dedicated code review, and traced
+the cross-package seams the earlier rounds created. Six fix branches (`fix/r5-*`), each merged
+behind a full GREEN gate (409 e2e):
+
+- **The round-4 presentation cache froze printed time (caught by two reviewers
+  independently):** the context comparison skipped `duration` unconditionally ("renders
+  nowhere"), but `duration` is a printable built-in — an item printing
+  `<printedVariable identifier="duration"/>` displayed a frozen elapsed time all attempt. The
+  cache now compares exactly the context values the markup prints (the same printed-set gating
+  the response side already had); the round-4 "typing presents once" guarantee is
+  test-pinned unchanged.
+- **WCAG 2.2 AA:** hottext's minimum-selection status was visual-only — the only min-choices
+  interaction outside the shared hint pattern — and now uses `MinimumRequirementHint` (announced
+  politely once per unmet stretch, `aria-describedby` wired while it shows); extended-text now
+  wires the hint id into each field's description, the one consumer that didn't; the render-failed
+  placeholder border moved from the error fill token (≈2.9:1) to the `*-text` stroke token the
+  repo's own convention prescribes; registry-failure interactions (no component registered) now
+  stand in with the same `role="alert"` placeholder as mount failures instead of vanishing.
+- **pci-runner had the mirror of the round-3 connector bug:** it locked `event.origin` verbatim
+  as its outbound targetOrigin, so a host page that is itself opaque (LTI-style sandboxed embed)
+  silently dropped the entire bridge — outbound now posts `'*'` for the opaque spelling behind
+  the structural `event.source === window.parent` anchor; teardown also stopped leaking empty
+  container wrappers.
+- **Seams:** section events (failure/delta/display-settings) no longer double-deliver when a
+  host uses the composition host contract and DOM listeners together — the host slot wins, the
+  callback prop is the documented fallback; the i18n consumer scan learned section-player's
+  `interfaceText()` pattern (21 literal sites were invisible to it) and the README documents how
+  host catalogs register so their keys pass CI; the assessment element's remaining hand mirrors
+  (`QtiPnpProfile`, the PCI family) are 1:1 upstream aliases with compile-time identity pins.
+- **Post-refactor consolidation:** the branch-target skip policy collapsed from four encoded
+  sites (plus a stale "pure code motion" header) into one `branchLandingOf` classification
+  shared by every consumer; AssessmentPlayer's two clone report-once helpers became one
+  `reportOnce`; the `qti-role` list/parser is one export (`parseQtiRole`/`isQtiRole`) consumed
+  by both elements (the assessment's copy warned unbounded with different fallback semantics).
+- **Small packages & dead code:** web-component-loaders no longer cache a rejected import for
+  the page lifetime nor keep a hand-duplicated 21-tag list (Breaking: `DEFAULT_INTERACTION_TAGS`
+  removed); typeset-katex gets the same retry fix and its editor-ignore class is finally-guarded;
+  the logger interface now requires all four levels per its documented console-compatibility
+  intent (Breaking; dead `noopLogger`/`consoleLogger` deleted); core's dead `errors.ts`/
+  `validator.ts` (17 exports, zero consumers) deleted along with core's phantom-element-schema
+  dependency; the two wrong schemas (multiple-choice, match) now validate real to-pie
+  transformer output — which exposed that **`@pie-qti/element-schemas` has zero importers
+  left in the repo** after the dead validator went (decision pending: delete or wire);
+  transform-types' dead storage interfaces removed (Breaking).
+
+Recorded, not fixed: AssessmentPlayer.ts still ~4,260 lines (split parked); ItemBody absorbed
+cache-key policy that could migrate to the presenter; `QtiProcessingFragment*` facade mirrors
+unpinned; the other 11 element schemas unaudited against transformer output; acme-likert's
+teaching example untouched by design; docs/prds storage prose describes aspirational interfaces.
