@@ -134,6 +134,8 @@ const qtiAssessmentTest = result.items[0].content;
 
 See [Assessment Transformations](./docs/ASSESSMENT-TRANSFORMATIONS.md) for complete documentation.
 
+The runnable scripts in [`examples/`](./examples/) are run by hand (`bun packages/pie-to-qti2/examples/assessment-transformation.ts`); they are outside the package `tsconfig.json` `include`, so builds and typechecks do not cover them.
+
 ### External Passage Support
 
 For PIE items that reference external passages (via `passage` property), the plugin can resolve and generate separate passage files:

@@ -21,13 +21,22 @@
  * instructions, and every block is a rubric candidate in package analysis.
  */
 
+import { createStablePassageIdGenerator } from '@pie-qti/ims-cp-core';
 import type { PieItem, PieModel } from '@pie-qti/transform-types';
 import type { HTMLElement, Node } from 'node-html-parser';
+import { createHash } from 'node:crypto';
 import { cleanPassageHtml, type PassageModel } from './passage-extraction.js';
 import type { PassageResourceIndex } from './passage-resources.js';
-import { generateStablePassageId } from './passage-reusability.js';
 import { piePlaceholderMarkup } from './pie-markup.js';
 import { isQtiInteractionElement } from './qti-item-planner.js';
+
+/**
+ * Inline passage IDs must be computed synchronously, so the shared stable-ID
+ * strategy runs on a Node.js `sha256` instead of the async Web Crypto default.
+ */
+const generateStablePassageId = createStablePassageIdGenerator(
+  (content) => createHash('sha256').update(content).digest('hex')
+);
 
 /** Claims an item-body element as an inline passage. */
 export interface InlinePassageRule {

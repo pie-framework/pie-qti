@@ -5,6 +5,7 @@
  * Follows IMS Content Packaging v1.1.4 with the QTI 2.2 or QTI 3.0 content-packaging profile
  */
 
+import { escapeXmlAttribute } from '@pie-qti/qti-common/accessibility';
 import { v4 as uuid } from 'uuid';
 import type {
   AssessmentResource,
@@ -162,7 +163,7 @@ export function manifestToXml(manifest: ImsManifest): string {
   if (manifest.qtiVersion === '3.0') {
     // The QTI 3.0 profile requires the manifest metadata and fixes its values.
     lines.push(
-      `<manifest identifier="${escapeXml(manifest.identifier)}"`,
+      `<manifest identifier="${escapeXmlAttribute(manifest.identifier)}"`,
       `          xmlns="${QTI3_CP_NAMESPACE}"`,
       `          xmlns:imsmd="${LOM_NAMESPACE}"`,
       `          xmlns:imscsmd="${QTI3_CSM_NAMESPACE}"`,
@@ -177,7 +178,7 @@ export function manifestToXml(manifest: ImsManifest): string {
     );
   } else {
     lines.push(
-      '<manifest identifier="' + escapeXml(manifest.identifier) + '"',
+      '<manifest identifier="' + escapeXmlAttribute(manifest.identifier) + '"',
       '          xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"',
       `          xmlns:imsmd="${LOM_NAMESPACE}"`,
       '          xmlns:imsqti="http://www.imsglobal.org/xsd/imsqti_v2p2"',
@@ -193,7 +194,7 @@ export function manifestToXml(manifest: ImsManifest): string {
     if (manifest.metadata) {
       lines.push('  <metadata>');
       lines.push('    <schema>IMS Content</schema>');
-      lines.push('    <schemaversion>' + escapeXml(manifest.schemaVersion || '1.1') + '</schemaversion>');
+      lines.push('    <schemaversion>' + escapeXmlAttribute(manifest.schemaVersion || '1.1') + '</schemaversion>');
       lines.push('  </metadata>');
     }
   }
@@ -206,9 +207,9 @@ export function manifestToXml(manifest: ImsManifest): string {
 
   for (const resource of manifest.resources) {
     const resourceAttrs = [
-      `identifier="${escapeXml(resource.identifier)}"`,
-      `type="${escapeXml(resource.type)}"`,
-      `href="${escapeXml(resource.href)}"`,
+      `identifier="${escapeXmlAttribute(resource.identifier)}"`,
+      `type="${escapeXmlAttribute(resource.type)}"`,
+      `href="${escapeXmlAttribute(resource.href)}"`,
     ];
 
     lines.push('    <resource ' + resourceAttrs.join(' ') + '>');
@@ -234,19 +235,19 @@ export function manifestToXml(manifest: ImsManifest): string {
     }
 
     // Main file
-    lines.push(`      <file href="${escapeXml(resource.href)}"/>`);
+    lines.push(`      <file href="${escapeXmlAttribute(resource.href)}"/>`);
 
     // Additional files
     if (resource.files && resource.files.length > 0) {
       for (const file of resource.files) {
-        lines.push(`      <file href="${escapeXml(file.href)}"/>`);
+        lines.push(`      <file href="${escapeXmlAttribute(file.href)}"/>`);
       }
     }
 
     // Dependencies
     if (resource.dependencies && resource.dependencies.length > 0) {
       for (const dep of resource.dependencies) {
-        lines.push(`      <dependency identifierref="${escapeXml(dep.identifierref)}"/>`);
+        lines.push(`      <dependency identifierref="${escapeXmlAttribute(dep.identifierref)}"/>`);
       }
     }
 
@@ -261,18 +262,6 @@ export function manifestToXml(manifest: ImsManifest): string {
 
 function optionalString(value: unknown): string | undefined {
   return value === undefined || value === null ? undefined : String(value);
-}
-
-/**
- * Escape XML special characters
- */
-function escapeXml(unsafe: string): string {
-  return String(unsafe)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
 }
 
 /**
