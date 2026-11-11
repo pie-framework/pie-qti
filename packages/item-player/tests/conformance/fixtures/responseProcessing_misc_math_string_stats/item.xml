@@ -42,10 +42,11 @@
 		<responseCondition>
 			<responseElse>
 				<setOutcomeValue identifier="SUB">
-					<!-- QTI substring is a boolean containment test on two string operands. -->
+					<!-- QTI substring is a boolean containment test: true when the first operand is
+					     a substring of the second. -->
 					<substring>
-						<baseValue baseType="string">ABCDE</baseValue>
 						<baseValue baseType="string">BCD</baseValue>
+						<baseValue baseType="string">ABCDE</baseValue>
 					</substring>
 				</setOutcomeValue>
 
