@@ -1,5 +1,10 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
+	// The regions hide through the one shared `.sr-only` rule, injected once per
+	// document (srOnly.ts) — no per-component copy of the declarations.
+	import { ensureSrOnlyStyles } from './srOnly.js';
+
+	ensureSrOnlyStyles();
 
 	/**
 	 * Accessibility Announcer Component
@@ -102,18 +107,3 @@
 <div {lang} {dir} class="sr-only" role="alert" aria-live="assertive" aria-atomic="true" data-announcer="assertive">
 	{assertiveMessage}
 </div>
-
-<style>
-	/* Screen reader only - visually hidden but accessible */
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border-width: 0;
-	}
-</style>

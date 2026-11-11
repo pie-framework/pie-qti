@@ -19,6 +19,11 @@
 	import type { AssessmentPlayer } from '../core/AssessmentPlayer.js';
 	import type { I18nProvider } from '@pie-qti/i18n';
 	import { formatTime as formatClock } from '../core/formatTime.js';
+	// The announcement regions hide through the one shared `.sr-only` rule, injected
+	// once per document (srOnly.ts) — no per-component copy of the declarations.
+	import { ensureSrOnlyStyles } from './srOnly.js';
+
+	ensureSrOnlyStyles();
 
 	interface Props {
 		player: AssessmentPlayer;
@@ -283,18 +288,6 @@
 		50% {
 			box-shadow: 0 0 0 0.25rem color-mix(in oklab, var(--pie-qti-warning-text, #92400e) 0%, transparent);
 		}
-	}
-
-	.sr-only {
-		position: absolute;
-		inline-size: 1px;
-		block-size: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip-path: inset(50%);
-		white-space: nowrap;
-		border: 0;
 	}
 
 	/* Phones: the toggle collapses to its icon; its name stays for assistive technology. */
