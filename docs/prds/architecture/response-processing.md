@@ -159,7 +159,7 @@ None. The notes below record architecture choices the specification leaves to th
 - **FR-4:** `evalExpr(env, expr)` must return `QtiValue` with `kind: 'invalid'` (not throw) when an operator receives operands of incompatible types unless the spec defines NULL propagation for that operator.
 - **FR-5:** `execProgram(env, program)` must treat `QtiExit` (thrown by `exitResponse`, `exitTemplate`, `exitTest`) as a normal program termination, not as an unhandled error.
 - **FR-6:** `templateConstraint` must restart the entire `templateProcessing` program from statement 0 if the constraint evaluates to false or NULL, resetting all template variables to their default values. It must stop retrying after 100 iterations.
-- **FR-7:** `OperatorRegistry.register(name, impl)` must accept names case-insensitively. `OperatorRegistry.get(name)` must look up names case-insensitively.
+- **FR-7:** `customOperator` dispatch must consult `EvalEnv.customOperators` by the operator's `class` attribute (falling back to `definition`), trimmed; an expression with no registered handler evaluates to NULL.
 - **FR-8:** `DeclarationContext.resetToDefault(id)` must restore the variable's value to a clone of its `defaultValue`, not to the same object reference.
 - **FR-9:** `round` and `equalRounded` operators must use `ROUND_HALF_UP` semantics via `decimal.js`, not native `Math.round`.
 - **FR-10:** `mapResponse` must apply `lowerBound` and `upperBound` from the response declaration's mapping, clamping the result.
@@ -201,12 +201,12 @@ None. The notes below record architecture choices the specification leaves to th
 **Alternatives considered:** Immutable context with structural sharing. Rejected.  
 **Consequences:** Callers that need snapshot/rollback semantics (e.g. adaptive items that retry) must clone the declarations before calling `execProgram`. The item session does this when dispatching `{ action: 'submitAttempt' }`.
 
-### `OperatorRegistry` is a simple `Map<string, OperatorImpl>`, not a plugin system
+### `customOperator` dispatch is a plain record on `EvalEnv`, not a plugin system
 
-**Decision:** `OperatorRegistry` wraps a `Map`. Extension is done by calling `register()` before calling `evalExpr`.  
-**Rationale:** The full operator set for QTI 2.x/3.0 is finite and known. The registry exists primarily to support `<customOperator>` extensions by content authors or vendors, not to make the built-in operators swappable.  
-**Alternatives considered:** Immutable operator table compiled into the evaluator. This would prevent `customOperator` support.  
-**Consequences:** The default `EvalEnv` passed to `evalExpr` does not pre-populate the registry with built-in operators — built-in operator logic is inline in `evalExpr` switch cases. `OperatorRegistry` is only consulted for `customOperator` dispatch. This is the current design; built-in operators could be moved into the registry in future if the switch case grows unwieldy.
+**Decision:** `EvalEnv.customOperators` is an optional `Record<string, OperatorImpl>`; `customOperator` looks up by `class`/`definition` and evaluates to NULL when nothing is registered.  
+**Rationale:** The full operator set for QTI 2.x/3.0 is finite and known. The record exists to support `<customOperator>` extensions by content authors or vendors, not to make the built-in operators swappable. A never-read `OperatorRegistry` class used to sit in the public API next to it; it was removed in the 2026-11 round-2 structural review (nothing could ever register into it — the evaluator only ever consulted `customOperators`).  
+**Alternatives considered:** An immutable operator table compiled into the evaluator. Rejected — it would prevent `customOperator` support.  
+**Consequences:** Built-in operator logic is inline in `evalExpr` switch cases; built-in operators could move into the record in future if the switch cases grow unwieldy.
 
 ### `elementNameMapper` defaults to `Qti2xElementNameMapper` at build time
 
@@ -229,7 +229,6 @@ None. The notes below record architecture choices the specification leaves to th
 | Extension point | Interface/type | How to use | Example |
 |---|---|---|---|
 | Custom operators | `EvalEnv.customOperators: Record<string, (args, meta) => QtiValue>` | Populate the `customOperators` map before calling `evalExpr`. Keys are the operator `class` attribute or `definition` URI from the QTI XML. | Map `class="my:weighted"` to a custom scoring function |
-| `OperatorRegistry` | `OperatorRegistry` in `eval/operators.ts` | Call `registry.register(name, impl)` to add or override an operator. Pass the registry as `EvalEnv.ops`. | Override `round` to use a different rounding mode |
 | Element name mapping | `ElementNameMapper` (from `@pie-qti/qti-common`) | Implement and pass via `BuildOptions.elementNameMapper` | Support a content vendor's non-standard element names |
 | Test-level context | `TestEvalContext` in `test/types.ts` | Populate one `TestItemState` per delivered item and pass as `EvalEnv.test` | `ReferenceBackendAdapter.buildTestItems` |
 
@@ -266,7 +265,7 @@ Defined in `src/ast/types.ts`. A flat list of `StatementNode[]`. The scope (`res
 
 Defined in `src/eval/evaluator.ts`. The environment passed to `evalExpr`:
 - `ctx: DeclarationContext` — mutable variable state
-- `ops: OperatorRegistry` — for `customOperator` dispatch
+- `customOperators?: Record<string, OperatorImpl>` — for `customOperator` dispatch, keyed by the operator's `class` or `definition`
 - `rng: () => number` — injectable RNG (default: `Math.random`; inject a seeded RNG for reproducible templates)
 - `test?: TestEvalContext` — optional test-level context for aggregation expressions
 
@@ -351,10 +350,11 @@ AC-12: outcomeCondition with elseIf branches
   When: execProgram is called
   Then: PASSED is false
 
-AC-13: OperatorRegistry lookup is case-insensitive
-  Given: An OperatorRegistry with 'MyOp' registered
-  When: registry.get('myop') is called
-  Then: The registered impl is returned
+AC-13: customOperator dispatch uses the class attribute and defaults to NULL
+  Given: An EvalEnv with customOperators['my:weighted'] registered
+  When: evalExpr evaluates <customOperator class="my:weighted">…
+  Then: The registered impl is called with the evaluated operand values
+  And: the same expression with nothing registered for its class or definition evaluates to NULL
 ```
 
 ### Edge cases
@@ -408,8 +408,7 @@ AC-E6: buildOutcomeProcessingAst with scope 'test' allows outcomeCondition
 - Implementation:
   - `packages/qti-processing/src/ast/build.ts` — XML to AST
   - `packages/qti-processing/src/ast/types.ts` — AST node types
-  - `packages/qti-processing/src/eval/evaluator.ts` — expression evaluation
-  - `packages/qti-processing/src/eval/operators.ts` — `OperatorRegistry`
+  - `packages/qti-processing/src/eval/evaluator.ts` — expression evaluation and `customOperator` dispatch
   - `packages/qti-processing/src/exec/execute.ts` — statement execution
   - `packages/qti-processing/src/runtime/context.ts` — `DeclarationContext`
   - `packages/qti-processing/src/runtime/value.ts` — `QtiValue` helpers, type coercion

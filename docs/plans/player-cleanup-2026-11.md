@@ -3,7 +3,7 @@
 **Status**: Landed — Phases 0–7 executed 2026-11-08 → 2026-11-10, closed with a final review round
 and the full verification suite. This file is condensed to the decisions and outcomes; the full
 working plan lives in git history (branch-merge history on `develop` from `d697ed83` to `8f76acd7`).
-**Last reviewed**: 2026-11-10
+**Last reviewed**: 2026-11-11
 **Scope**: `packages/assessment-player/`, `packages/section-player/`, `packages/item-player/`,
 `packages/default-components/`, `packages/player-elements/`, `packages/qti-processing/`.
 The external conformance repo (`pie-qti-conformance`) pins published packages and is unaffected.
@@ -160,3 +160,59 @@ Recorded in this file's history and the plan's parked sections, summarized:
 - `verify:publish:quick` (fixed versioning, metadata, publish policy, exports, pack smoke,
   sourcemaps, deps, dist deps, publish surface, custom-element define safety across 26 packages) — OK.
 - Docs sweep for removed APIs found no stale references.
+
+---
+
+## Round-2 structural review (2026-11-11)
+
+Six read-only reviewers swept the repo for what the cleanup missed: module boundaries, god
+objects, duplication, rot. Every previously verified invariant held (the transition lock, the
+sole session-state writer, core↛integration, the workspace-alias boundaries, the one-source
+claims). The confirmed findings, fixed test-first on `fix/r2-*` branches, gated per merge:
+
+- **default-components:** gap-match and graphic-gap-match kept private live regions, so two
+  identical messages in a row announced once (WCAG 4.1.3) — both migrated to the shared
+  announcer; the six graphic interactions' stage-image handshake (states, missing-dimensions
+  predicates that had already drifted, warn-once effect, scale/frame derivations) is one
+  `createStageImage` module; the shared→plugins graph pin now covers every shared module and
+  side-effect/dynamic imports.
+- **qti-processing:** the never-read `OperatorRegistry` left the public API (Breaking — the
+  evaluator only ever consulted `EvalEnv.customOperators`); the ~55 duplicated hit-test
+  geometry helpers in the `inside`/`mapResponsePoint` arms hoisted to module scope, with both
+  arms pinned by tests before the move.
+- **player-elements:** `public/api.ts` now re-exports the runtime element declarations instead
+  of hand-mirrors that had already drifted — the assessment map was missing the autosave
+  events, the section map three of its four events plus `focusActiveItem`/`displaySettings`,
+  and the published element/config interfaces several runtime-accepted fields; a drift-pin test
+  walks the runtime dispatches against the published maps.
+- **converters:** `passage-reusability` is one module in ims-cp-core consumed by to-pie (the
+  drifted untyped-`<object>` reading unified on the stricter extension check — Breaking note;
+  generated IDs unchanged); pie-to-qti2's round-trip example repaired (broken since the to-pie
+  rename) and its 684-line dead example deleted; the two private `escapeXml` copies replaced
+  with qti-common's `escapeXmlAttribute` (byte-identical output, goldens unchanged).
+- **item-player:** the definition-fixed session inputs are one descriptor (`session-inputs.ts`)
+  consumed by the element setters and the component guards alike, with lockstep tests flipping
+  every input and asserting the re-open/survive semantics — the two lists had been maintained
+  by hand with nothing pinning them together.
+- **assessment-player:** `NavigationManager` unexported (Breaking; hosts use the player's
+  navigation methods); the shell-only `showSections`/`allowSectionNavigation`/`showProgress`
+  options default in exactly one place (the shell) instead of two drifting sites; the shell's
+  sr-only chrome has one injected source with computed-hidden coverage (the component-local
+  copies had drifted).
+
+The demo app's mixed module identities (bare dist imports beside the src-aliased component
+entries) were investigated and the fix **reverted**. Pinning every entry to source removed the
+dual copies but destabilized the dev-server e2e suite: a string-alias prefix bug took the
+interaction registry down (`…/src/index.ts/plugins`, ENOTDIR), and after anchoring the aliases,
+adding the missing `/plugins` pin, `optimizeDeps.include` and server warmup, the suite still
+dropped 3–5 functional tests per run under full parallelism while the unpinned config ran
+409/409 clean on the same tree. The demo-only duplication stays accepted for now, guarded by
+the `Symbol.for` error brand; the durable fix is serving the e2e suite from the built app (the
+no-host-css srcdoc frames import dev-only `/@id/` URLs, so that move is its own task).
+
+Parked from the round-2 fix wave (moderate, unscheduled): hotspot and graphic-gap-match bind
+`renderedWidth` without `reportWidth`, so their marker scaling is inert; player-elements' api.ts
+still hand-mirrors the section data-model family (drift-pinned, not yet derived); the stale 2.x
+`QtiDetector` copy in transform-core; `evalExpr` as a 1,600-line function with per-call closure
+rebuilding; `@pie-qti/theme` and `@pie-qti/source-profiles` have no in-repo consumers; two
+`escapeText` intra-package copies remain in qti-common.
