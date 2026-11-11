@@ -45,6 +45,11 @@ The element also exposes `next()`, `previous()`, `navigateTo()`, `navigateToSect
 `getResponses()`, `getState()`, and `restoreState()`. Its public properties and events are documented
 in [`@pie-qti/player-elements`](../player-elements/README.md).
 
+`showSections`, `allowSectionNavigation` and `showProgress` are shell-presentation options: the
+headless core ignores them, the bundled shell renders from them, and omitting any of them means
+shown/enabled — set `false` to hide the section menu, to disable its entries, or to hide the
+progress indicator.
+
 ### Explicit reference/preview mode
 
 Raw assessment XML is a demo and offline-preview path. Enable it explicitly before assigning XML:

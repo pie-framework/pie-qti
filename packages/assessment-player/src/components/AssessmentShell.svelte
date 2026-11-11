@@ -383,6 +383,13 @@
 	});
 	const hasSplitPane = $derived(sectionComposition?.layout === 'split-pane');
 	const sectionRole = $derived(config.role ?? 'candidate');
+	// The shell-presentation options are the headless core's ignored fields: the shell
+	// is their single defaulting site — absent means shown/enabled, `false` turns the
+	// piece of chrome off. The child components render what they are told, no second
+	// default.
+	const showSections = $derived(config.showSections !== false);
+	const allowSectionNavigation = $derived(config.allowSectionNavigation !== false);
+	const showProgress = $derived(config.showProgress !== false);
 	const titleHeadingLevel = $derived(Math.min(5, Math.max(1, Math.round(headingLevel ?? (fullViewport ? 1 : 2)))));
 	const testFeedbackBlocks = $derived<QtiSharedHtmlBlock[]>(
 		testFeedback.map((item) => ({
@@ -1897,8 +1904,8 @@
 			headingLevel={titleHeadingLevel}
 			sections={headerSections}
 			currentSectionIndex={navState.currentSection?.index}
-			showSections={config.showSections}
-			allowSectionNavigation={!isSubmitting && !isComplete && config.allowSectionNavigation !== false}
+			{showSections}
+			allowSectionNavigation={!isSubmitting && !isComplete && allowSectionNavigation}
 			inert={paused}
 			{i18n}
 			onSectionSelect={handleSectionSelect}
@@ -2121,7 +2128,7 @@
 				onPrevious={handlePrevious}
 				onNext={handleNext}
 				onSubmit={openSubmitDialog}
-				showProgress={config.showProgress !== false}
+				{showProgress}
 				answeredCount={reviewData?.answeredCount}
 				saveLabel={saveLabel}
 				saveStatusEnabled={player?.isAutosaveEnabled() === true}

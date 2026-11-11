@@ -204,14 +204,14 @@ describe('status regions (K)', () => {
 
 	test('the save indicator region exists before its first message (empty while idle)', () => {
 		const navState = { currentIndex: 0, totalItems: 2, canNext: true, canPrevious: false, isLoading: false };
-		const enabled = mountInto(NavigationBar, { navState, i18n, saveStatusEnabled: true, saveLabel: null });
+		const enabled = mountInto(NavigationBar, { navState, i18n, showProgress: true, saveStatusEnabled: true, saveLabel: null });
 		mounted.push(enabled);
 		const region = enabled.host.querySelector('[data-testid="assessment-save-status"]');
 		expect(region?.getAttribute('role')).toBe('status');
 		expect(region?.getAttribute('aria-live')).toBe('polite');
 		expect(region?.textContent?.trim()).toBe('');
 
-		const disabled = mountInto(NavigationBar, { navState, i18n, saveStatusEnabled: false, saveLabel: null });
+		const disabled = mountInto(NavigationBar, { navState, i18n, showProgress: true, saveStatusEnabled: false, saveLabel: null });
 		mounted.push(disabled);
 		expect(disabled.host.querySelector('[data-testid="assessment-save-status"]')).toBeNull();
 	});

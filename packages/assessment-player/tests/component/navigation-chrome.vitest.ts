@@ -24,7 +24,7 @@ function navState(overrides: Partial<NavigationState> = {}): NavigationState {
 }
 
 async function renderNav(props: Record<string, unknown>) {
-	const m = mountInto(NavigationBar, { i18n, ...props });
+	const m = mountInto(NavigationBar, { i18n, showProgress: true, ...props });
 	mounted.push(m);
 	await settle();
 	return m;
@@ -99,11 +99,26 @@ describe('NavigationBar', () => {
 			expect(icon.getAttribute('aria-hidden')).toBe('true');
 		}
 	});
+
+	test('showProgress: false hides the position and answered count, the landmark stays', async () => {
+		const m = await renderNav({ navState: navState(), answeredCount: 2, showProgress: false });
+
+		expect(m.host.querySelector('.progress-question')).toBeNull();
+		expect(m.host.querySelector('progress')).toBeNull();
+		expect(m.host.textContent).not.toContain('answered');
+		expect(m.host.querySelector('nav')).not.toBeNull();
+	});
 });
 
 describe('AssessmentHeader', () => {
 	test('renders the title at the requested heading level with the given id', async () => {
-		const m = mountInto(AssessmentHeader, { title: 'Life Cycles Assessment', titleId: 'title-1', headingLevel: 1 });
+		const m = mountInto(AssessmentHeader, {
+			title: 'Life Cycles Assessment',
+			titleId: 'title-1',
+			headingLevel: 1,
+			showSections: false,
+			allowSectionNavigation: true,
+		});
 		mounted.push(m);
 		await settle();
 
@@ -113,7 +128,7 @@ describe('AssessmentHeader', () => {
 		expect(m.host.querySelector('header')).not.toBeNull();
 	});
 
-	test('defaults to a level-2 title and localizes the section menu', async () => {
+	test('renders a level-2 title and localizes the section menu when the shell asks for it', async () => {
 		const m = mountInto(AssessmentHeader, {
 			title: 'Assessment',
 			i18n,
@@ -122,11 +137,28 @@ describe('AssessmentHeader', () => {
 				{ id: 'b', index: 1, title: 'Two' },
 			],
 			currentSectionIndex: 0,
+			showSections: true,
+			allowSectionNavigation: true,
 		});
 		mounted.push(m);
 		await settle();
 
 		expect(m.host.querySelector('h2')?.textContent).toBe('Assessment');
 		expect(m.host.querySelector('.section-menu > button')?.textContent).toContain('Sections');
+
+		const hidden = mountInto(AssessmentHeader, {
+			title: 'Assessment',
+			i18n,
+			sections: [
+				{ id: 'a', index: 0, title: 'One' },
+				{ id: 'b', index: 1, title: 'Two' },
+			],
+			currentSectionIndex: 0,
+			showSections: false,
+			allowSectionNavigation: true,
+		});
+		mounted.push(hidden);
+		await settle();
+		expect(hidden.host.querySelector('.section-menu')).toBeNull();
 	});
 });

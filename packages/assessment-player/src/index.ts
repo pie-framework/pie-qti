@@ -14,7 +14,7 @@ export type {
 export type { ForwardTransitionInfo, ItemAnswerStatus, ReviewItemView } from './core/index.js';
 // Autosave: debounced draft persistence through BackendAdapter.saveState.
 export type { AutosaveState, AutosaveStatus } from './core/index.js';
-export { AssessmentPlayer, NavigationManager } from './core/index.js';
+export { AssessmentPlayer } from './core/index.js';
 // Coded errors thrown by the core; shells localize them via `assessment.errors.codes.*`.
 export {
 	AssessmentPlayerError,

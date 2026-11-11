@@ -23,7 +23,7 @@ function navState(overrides: Partial<NavigationState> = {}): NavigationState {
 }
 
 async function renderNav(props: Record<string, unknown>) {
-	const m = mountInto(NavigationBar, { i18n, navState: navState(), ...props });
+	const m = mountInto(NavigationBar, { i18n, navState: navState(), showProgress: true, ...props });
 	mounted.push(m);
 	await settle();
 	return m;

@@ -26,6 +26,7 @@
 		<NavigationBar
 			{navState}
 			{i18n}
+			showProgress={true}
 			onPrevious={() => (navState = { ...navState, currentIndex: Math.max(0, navState.currentIndex - 1) })}
 			onNext={() => (navState = { ...navState, currentIndex: Math.min(navState.totalItems - 1, navState.currentIndex + 1) })}
 			onSubmit={() => {}}

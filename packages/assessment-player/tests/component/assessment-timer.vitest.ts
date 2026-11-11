@@ -147,6 +147,27 @@ describe('AssessmentTimer', () => {
 		expect(ui.warningRegion.textContent).toBe('1:30 remaining');
 	});
 
+	test('the announcement regions are computed-hidden through the shared sr-only rule', async () => {
+		const player = stubPlayer({ remaining: 300 });
+		const m = mountInto(AssessmentTimer, { player, i18n });
+		mounted.push(m);
+		await settle();
+		const ui = timerIn(m.host);
+
+		// jsdom resolves the injected document rule: visually hidden (1px, clipped,
+		// absolute) yet reachable — not display:none, not visibility:hidden.
+		for (const region of [ui.warningRegion, ui.expiredRegion]) {
+			const cs = getComputedStyle(region);
+			expect(cs.position).toBe('absolute');
+			expect(cs.width).toBe('1px');
+			expect(cs.height).toBe('1px');
+			expect(cs.overflow).toBe('hidden');
+			expect(cs.clip).toBe('rect(0px, 0px, 0px, 0px)');
+			expect(cs.display).not.toBe('none');
+			expect(cs.visibility).not.toBe('hidden');
+		}
+	});
+
 	test('announces expiry assertively and keeps announcing the warning politely', async () => {
 		const player = stubPlayer({ remaining: 10 });
 		const m = mountInto(AssessmentTimer, { player, i18n });

@@ -133,9 +133,6 @@ export function createPlayerConnection(options: PlayerConnectionOptions) {
 		return {
 			backend,
 			initSession,
-			showSections: config.showSections !== false,
-			allowSectionNavigation: config.allowSectionNavigation !== false,
-			showProgress: config.showProgress !== false,
 			...config,
 			beginGate: beginGate || config.beginGate === true,
 			i18nProvider: options.i18nProvider,
