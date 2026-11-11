@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, tick, untrack, type Snippet } from 'svelte';
+	import { tick, untrack, type Snippet } from 'svelte';
 	import { interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
 	import type { PnpProfile } from '@pie-qti/item-player';
 	import { interfaceText } from '../i18n/interface-text.js';
@@ -316,14 +316,14 @@
 		return rightPaneEl;
 	}
 
-	onMount(() => {
-		const loaded = loadSplitPct();
-		if (loaded !== null) splitLeftPct = loaded;
-	});
-
+	// One initialization: the candidate's last split (persisted when they dragged the
+	// splitter) wins, and the prop default is only the fallback for a storage miss.
+	// Restoring inside this effect — the only one that touches `splitLeftPct` at
+	// mount — keeps a later initialization from clobbering the restored value.
 	$effect(() => {
 		if (hasInitializedFromProps) return;
-		splitLeftPct = clampPct(initialSplitPct);
+		const loaded = loadSplitPct();
+		splitLeftPct = clampPct(loaded ?? initialSplitPct);
 		hasInitializedFromProps = true;
 	});
 

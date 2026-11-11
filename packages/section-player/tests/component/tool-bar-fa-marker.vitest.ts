@@ -5,6 +5,9 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 vi.mock('@pie-players/pie-assessment-toolkit', () => ({
 	ToolkitCoordinator: class {
 		updateAssessment() {}
+		dispose() {
+			return Promise.resolve();
+		}
 	},
 	ToolRegistry: class {
 		register() {}
