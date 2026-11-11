@@ -34,7 +34,6 @@ Everything lives under `packages/` and `apps/`:
 ### Transform system
 
 - `packages/types`: shared transformation type contracts (input/output formats, storage interfaces)
-- `packages/schemas`: PIE schema/validation assets
 - `packages/core`: transform engine + plugin registry (format orchestration)
 - `packages/to-pie`: QTI → PIE transform plugin (plus vendor extension hooks)
 - `packages/pie-to-qti2`: PIE → QTI transform plugin (generator registry + packaging)

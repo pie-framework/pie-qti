@@ -403,7 +403,7 @@ behind a full GREEN gate (409 e2e):
   `validator.ts` (17 exports, zero consumers) deleted along with core's phantom-element-schema
   dependency; the two wrong schemas (multiple-choice, match) now validate real to-pie
   transformer output — which exposed that **`@pie-qti/element-schemas` has zero importers
-  left in the repo** after the dead validator went (decision pending: delete or wire);
+  left in the repo** after the dead validator went (subsequently deleted — see below);
   transform-types' dead storage interfaces removed (Breaking).
 
 Recorded, not fixed: AssessmentPlayer.ts still ~4,260 lines (split parked); ItemBody absorbed
@@ -447,3 +447,11 @@ the writers' drop, heterogeneous lists documented and pinned), all 13 extractor 
 messages and order, the strict attribute reader changes nothing for valid markup, no new
 parallel helper families, net-negative src growth in the final commits, and the doc fixes match
 their sources. The review loop ends here.
+
+With the loop closed, the pending `@pie-qti/element-schemas` decision was taken: **the package
+is deleted**. It had zero importers repo-wide, only two of its thirteen schemas aligned with
+what the transformers actually emit, four emitted element types had no schema at all, and a
+published-but-unwired validator that diverges from reality gives false confidence. It leaves the
+fixed-versioning group and the publish-policy workspace roots; npm history is unaffected, and it
+can be re-synced from upstream pie-elements later if a real consumer appears. (to-pie's
+`packages/to-pie/schemas/` XSDs are unrelated vendored official schemas and stay.)

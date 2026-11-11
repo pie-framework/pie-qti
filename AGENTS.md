@@ -57,7 +57,7 @@ Common package areas:
 - `packages/section-player/`: section-level assessment player behavior.
 - `packages/default-components/`: standard QTI interaction components.
 - `packages/i18n/`: internationalization framework.
-- `packages/qti-processing/`, `packages/qti-common/`, and `packages/schemas/`: shared QTI logic, common types, and schema support.
+- `packages/qti-processing/` and `packages/qti-common/`: shared QTI logic and common types.
 - `packages/test-utils/`: shared test support.
 
 ## Monorepo Dependency Management
