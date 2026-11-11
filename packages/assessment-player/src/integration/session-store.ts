@@ -62,12 +62,22 @@ export function loadSession(sessionId: SessionId): StoredSession | null {
 	}
 }
 
-export function saveSession(session: StoredSession): void {
+/**
+ * Persist one session. Returns true only when the write landed: callers propagate the
+ * failure honestly (a `saveState` that reports success while nothing was stored would
+ * silently lose the draft; a finalize that reports finalized while the flag never
+ * persisted would resurrect the test on resume). Best-effort callers (the init write,
+ * the outcome-processing-error bookkeeping) may ignore the result.
+ */
+export function saveSession(session: StoredSession): boolean {
 	try {
 		const key = STORAGE_PREFIX + session.sessionId;
 		localStorage.setItem(key, JSON.stringify(session));
+		return true;
 	} catch (error) {
+		// Quota exceeded and friends: the failure is the caller's to surface.
 		console.error('Failed to save session to localStorage:', error);
+		return false;
 	}
 }
 

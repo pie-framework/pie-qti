@@ -19,7 +19,12 @@
 		SubmissionBlocker,
 	} from '../core/AssessmentPlayer.js';
 	import type { AutosaveState } from '../core/AutosaveManager.js';
-	import { assessmentErrorDisplay, isAssessmentPlayerError, isSubmissionBlockedError } from '../core/errors.js';
+	import {
+		assessmentErrorDisplay,
+		type AssessmentPlayerError,
+		isAssessmentPlayerError,
+		isSubmissionBlockedError,
+	} from '../core/errors.js';
 	import { formatTime } from '../core/formatTime.js';
 	import type { ReviewGroup } from './ReviewScreen.svelte';
 	import { createPlayerConnection } from './createPlayerConnection.svelte.js';
@@ -187,6 +192,17 @@
 	 */
 	function isSubmissionBlocked(err: unknown): boolean {
 		return isSubmissionBlockedError(err);
+	}
+
+	/**
+	 * The hard, candidate-initiated backend failures of an end of the test (`submitFailed`,
+	 * `finalizeFailed`). Reach policy — see `BackendAssessmentPlayerConfig.onError`: these
+	 * also call the host's `config.onError` hook (the shell owns the config, and the core
+	 * throws them instead of reporting); validation refusals (`isSubmissionBlocked`,
+	 * `attemptValidationFailed`) and busy rejections stay inline-only.
+	 */
+	function isHardSubmissionFailure(err: unknown): err is AssessmentPlayerError {
+		return isAssessmentPlayerError(err) && (err.code === 'submitFailed' || err.code === 'finalizeFailed');
 	}
 
 	/**
@@ -1556,6 +1572,12 @@
 				announcer?.announce(navError.message, 4000, 'assertive');
 				updateState();
 			} else if (!isBusyRejection(err)) {
+				// A hard backend failure (submitFailed, finalizeFailed) also reaches the
+				// host's own `config.onError` hook — the documented reach policy on
+				// `BackendAssessmentPlayerConfig.onError`; validation refusals stay inline.
+				// The shell owns the config: the core got a wrapped copy (see
+				// `createPlayerConnection`) and throws these instead of reporting them.
+				if (isHardSubmissionFailure(err)) config.onError?.(err);
 				console.error('Failed to submit assessment:', err);
 				submitError = localizeSubmitError(err);
 				// Keep the shell and its session available after the core restores a

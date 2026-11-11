@@ -64,6 +64,14 @@ export type AssessmentPlayerErrorCode =
 	| 'assessmentPaused'
 	/** Test-level outcome processing failed on the backend. */
 	| 'outcomeProcessingFailed'
+	/**
+	 * A test-scope branch rule or preCondition could not be evaluated (it failed to parse
+	 * or evaluate). Delivery proceeds on the default path (the rule reads as false) and the
+	 * host is informed, so a broken rule is never indistinguishable from an authored false.
+	 */
+	| 'testConditionFailed'
+	/** Item response processing failed; the item scores 0 and delivery continues. */
+	| 'itemScoringFailed'
 	/** Anything else: shells show a generic localized message plus a support code. */
 	| 'unexpected';
 

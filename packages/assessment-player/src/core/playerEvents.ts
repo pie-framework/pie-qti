@@ -1,12 +1,17 @@
 /**
  * Typed event emitter for the assessment player's notifications.
  *
- * Replaces the thirteen per-event listener `Set`s AssessmentPlayer used to hold
- * (pure code motion): insertion-order, synchronous dispatch exactly as the sets
- * did — listeners run in the order they subscribed, each notification happens in
- * the same synchronous block as before, and a listener that unsubscribes itself
- * (or another not-yet-visited listener) during dispatch takes effect for the
- * remaining listeners, because iteration walks the live set.
+ * Replaces the thirteen per-event listener `Set`s AssessmentPlayer used to hold:
+ * insertion-order, synchronous dispatch — listeners run in the order they subscribed,
+ * each notification happens in the same synchronous block as before, and a listener
+ * that unsubscribes itself (or another not-yet-visited listener) during dispatch takes
+ * effect for the remaining listeners, because iteration walks the live set.
+ *
+ * One listener's exception is isolated (the ItemSession subscriber pattern): it is
+ * logged and the remaining listeners still run, and `emit` returns normally — a
+ * throwing host callback must never abort the player's own transition (an expiry hop
+ * that dies mid-notify would leave its scope locked and the move lost), nor take
+ * down unrelated listeners.
  *
  * The player's public `on*` subscription methods keep their exact signatures;
  * the host-config callbacks (`config.onItemChange` &c.) stay in the player's
@@ -31,11 +36,21 @@ export class TypedEventEmitter<Events extends { [K in keyof Events]: unknown[] }
 		};
 	}
 
-	/** Call every current listener of `event` with `args`, in subscription order. */
+	/**
+	 * Call every current listener of `event` with `args`, in subscription order. A
+	 * throwing listener is logged and skipped: the rest still run and `emit` returns
+	 * normally.
+	 */
 	emit<K extends keyof Events & string>(event: K, ...args: Events[K]): void {
 		const set = this.#sets.get(event);
 		if (!set) return;
-		for (const listener of set) (listener as Listener<Events[K]>)(...args);
+		for (const listener of set) {
+			try {
+				(listener as Listener<Events[K]>)(...args);
+			} catch (error) {
+				console.error(`[AssessmentPlayer] ${event} listener failed:`, error);
+			}
+		}
 	}
 
 	/** Drop every listener of every event (teardown). */

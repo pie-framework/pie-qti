@@ -441,6 +441,20 @@ export interface SubmitResponsesResponse {
 // ============================================================================
 
 /**
+ * Structured, typed failure of one item's response processing.
+ *
+ * Mirrors `OutcomeProcessingError`: the submission is still accepted and delivery
+ * continues, but the item's score is a degenerate 0 (its declared maximum where known)
+ * and hosts must be able to tell "answered wrong" from "the engine failed to score".
+ */
+export interface ItemScoringError {
+	/** Stable code — currently always `ITEM_SCORING_FAILED`. */
+	code: 'ITEM_SCORING_FAILED';
+	/** Engine-side detail for logs and host callbacks; never shown verbatim to candidates. */
+	message: string;
+}
+
+/**
  * Scoring result returned from server
  *
  * Security: Server computes this, client never sees scoring rules
@@ -460,6 +474,11 @@ export interface AssessmentScoringResult {
 	feedback?: FeedbackItem[];
 	/** Correct response (only if role allows) */
 	correctResponse?: Record<string, ResponseValue>;
+	/**
+	 * Set when response processing for this item failed: the score is a degenerate 0
+	 * (the declared maximum where known), NOT a candidate's wrong answer.
+	 */
+	scoringError?: ItemScoringError;
 }
 
 export interface FeedbackItem {

@@ -193,6 +193,39 @@ describe('autosave basics', () => {
 		expect(player.getNavigationState().isLoading).toBe(false);
 	});
 
+	test('a quota-exceeded localStorage write surfaces as a failed autosave (reference backend)', async () => {
+		const parsed = await ReferenceBackendAdapter.parseAssessmentTestXml(testXml(2), { itemXmlMap: items(2) });
+		const backend = new ReferenceBackendAdapter();
+		backend.registerAssessment(parsed.identifier, parsed);
+		const player = await AssessmentPlayer.create({
+			backend,
+			initSession: { assessmentId: parsed.identifier, candidateId: 'candidate' },
+			autosaveIntervalMs: 40,
+		});
+		players.push(player);
+		await until(() => player.getNavigationState().currentIndex >= 0);
+
+		// Break the write the way a full quota does. The reference adapter's saveState must
+		// report `success: false` (never a fake success), and the autosave engine surfaces
+		// the failure as its `failed` indicator state (plus onError and the backoff retry).
+		const original = localStorage.setItem.bind(localStorage);
+		localStorage.setItem = () => {
+			throw new Error('QuotaExceededError: DOM Exception 22 — storage full');
+		};
+		try {
+			player.updateResponse('RESPONSE', 'A');
+			await until(() => player.getAutosaveState().status === 'failed');
+		} finally {
+			localStorage.setItem = original;
+		}
+		expect(player.getAutosaveState().status).toBe('failed');
+
+		// The write never landed: the stored draft holds no response.
+		const resumeId = backend.latestSessionId(parsed.identifier, 'candidate');
+		const stored = JSON.parse(localStorage.getItem(`qti_session_${resumeId}`) ?? 'null');
+		expect(stored?.state?.itemResponses?.i1).toBeUndefined();
+	});
+
 	test('the end-of-test snapshot is saved before finalize even while an older save is in flight', async () => {
 		const parsed = await ReferenceBackendAdapter.parseAssessmentTestXml(testXml(2), { itemXmlMap: items(2) });
 		const backend = new ReferenceBackendAdapter();

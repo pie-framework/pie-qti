@@ -153,7 +153,8 @@ export function deliveredItems(assessment: SecureAssessment): DeliveredItem[] {
  * section's it ends (inner to outer), then the test part's when it ends that too. Item and
  * section rules apply in linear navigation only. With no matching rule, navigation falls through
  * to the following item. Preconditions then skip forward from the target. EXIT_TEST means the
- * remaining items are all skipped; undefined means the current item was the last.
+ * remaining items are all skipped; undefined means the current item was the last. `onError`
+ * receives any condition evaluation failure (see `evaluateTestCondition`).
  */
 export function nextItemIdentifier(
 	assessment: SecureAssessment,
@@ -161,9 +162,10 @@ export function nextItemIdentifier(
 	index: number,
 	decls: DeclarationMap,
 	rng: () => number,
+	onError?: (expressionXml: string, error: unknown) => void,
 ): string | undefined {
-	const start = branchTarget(assessment, delivered, index, decls, rng) ?? index + 1;
-	const next = firstEligibleItem(assessment, delivered, start, delivered[index], decls, rng);
+	const start = branchTarget(assessment, delivered, index, decls, rng, onError) ?? index + 1;
+	const next = firstEligibleItem(assessment, delivered, start, delivered[index], decls, rng, onError);
 	return next ?? (index + 1 < delivered.length ? 'EXIT_TEST' : undefined);
 }
 
@@ -173,6 +175,7 @@ function branchTarget(
 	index: number,
 	decls: DeclarationMap,
 	rng: () => number,
+	onError?: (expressionXml: string, error: unknown) => void,
 ): number | undefined {
 	const current = delivered[index]!;
 	const following = delivered[index + 1];
@@ -190,7 +193,7 @@ function branchTarget(
 
 	for (const { rules, exitSection } of holders) {
 		for (const rule of rules ?? []) {
-			if (rule.conditionXml && !evaluateTestCondition(rule.conditionXml, decls, rng)) continue;
+			if (rule.conditionXml && !evaluateTestCondition(rule.conditionXml, decls, rng, onError)) continue;
 			const target = resolveBranchTarget(rule.target, delivered, index, exitSection);
 			if (target !== undefined) return target;
 		}
@@ -230,7 +233,8 @@ function resolveBranchTarget(
 /**
  * First item from `start` whose preconditions hold. A test part's are checked on entering it in
  * any navigation mode; a newly entered section's (outermost first) and the item's only in linear
- * navigation. A failing part or section skips everything inside it.
+ * navigation. A failing part or section skips everything inside it. `onError` receives any
+ * condition evaluation failure (see `evaluateTestCondition`).
  */
 export function firstEligibleItem(
 	assessment: SecureAssessment,
@@ -239,9 +243,10 @@ export function firstEligibleItem(
 	from: DeliveredItem | undefined,
 	decls: DeclarationMap,
 	rng: () => number,
+	onError?: (expressionXml: string, error: unknown) => void,
 ): string | undefined {
 	const holds = (conditions: string[] | undefined): boolean =>
-		(conditions ?? []).every((condition) => evaluateTestCondition(condition, decls, rng));
+		(conditions ?? []).every((condition) => evaluateTestCondition(condition, decls, rng, onError));
 	const skipPast = (j: number, inside: (d: DeliveredItem) => boolean): number => {
 		let next = j + 1;
 		while (next < delivered.length && inside(delivered[next]!)) next++;
@@ -595,13 +600,33 @@ export function evaluateTestExpression(expressionXml: string, decls: Declaration
 	return evalExpr({ ctx: new DeclarationContext(structuredClone(decls)), rng }, expr);
 }
 
-/** True only when the expression evaluates to boolean true; NULL and errors read as false. */
-export function evaluateTestCondition(expressionXml: string, decls: DeclarationMap, rng: () => number): boolean {
+/**
+ * True only when the expression evaluates to boolean true; NULL reads as false (QTI:
+ * a NULL condition result is false).
+ *
+ * An evaluation ERROR also reads as false, but unlike a NULL it is reported: delivery
+ * proceeds on the default path (a broken branchRule or preCondition must never abort a
+ * candidate's test), yet the failure is never indistinguishable from an authored false.
+ * Callers that own an error surface pass `onError` — the AssessmentPlayer reports a
+ * coded `testConditionFailed` through `config.onError` — and without one the failure
+ * stays a console warning (the reference backend's own evaluation).
+ *
+ * Documented divergence from the strict spec reading: QTI 2.1/3.0 leave undefined how
+ * delivery proceeds when a condition expression cannot be evaluated; reading it as
+ * false keeps delivery on the default path and reporting keeps it observable.
+ */
+export function evaluateTestCondition(
+	expressionXml: string,
+	decls: DeclarationMap,
+	rng: () => number,
+	onError?: (expressionXml: string, error: unknown) => void,
+): boolean {
 	try {
 		const out = evaluateTestExpression(expressionXml, decls, rng);
 		return out.kind === 'value' && out.value === true;
 	} catch (err) {
-		console.warn('[assessment-player] test condition failed to evaluate:', err);
+		if (onError) onError(expressionXml, err);
+		else console.warn('[assessment-player] test condition failed to evaluate:', err);
 		return false;
 	}
 }

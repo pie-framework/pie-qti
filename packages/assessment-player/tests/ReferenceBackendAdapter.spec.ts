@@ -284,6 +284,97 @@ describe('ReferenceBackendAdapter', () => {
 		});
 	});
 
+	// Persistence failure semantics (see the adapter header): a localStorage write that
+	// does not land (quota exceeded) is reported honestly, never as success.
+	describe('persistence failures', () => {
+		/** Break `setItem` the way a full quota does, run `run`, restore. */
+		async function withQuotaExceeded<T>(run: () => Promise<T> | T): Promise<T> {
+			const original = localStorage.setItem.bind(localStorage);
+			localStorage.setItem = () => {
+				throw new Error('QuotaExceededError: DOM Exception 22 — storage full');
+			};
+			try {
+				return await run();
+			} finally {
+				localStorage.setItem = original;
+			}
+		}
+
+		it('saveState reports the failed write instead of success', async () => {
+			const session = await adapter.initSession({
+				assessmentId: 'test-001',
+				candidateId: 'student-123',
+			});
+
+			const response = await withQuotaExceeded(() =>
+				adapter.saveState({
+					sessionId: session.sessionId,
+					state: {
+						currentItemIdentifier: 'item1',
+						visitedItems: [],
+						itemResponses: {},
+						timing: { startedAt: Date.now(), itemTimes: {}, totalTime: 0 },
+					},
+				}),
+			);
+			expect(response.success).toBe(false);
+			expect(response.savedAt).toBeDefined();
+		});
+
+		it('submitResponses refuses to accept a response it cannot persist', async () => {
+			const session = await adapter.initSession({
+				assessmentId: 'test-001',
+				candidateId: 'student-123',
+			});
+
+			const response = await withQuotaExceeded(() =>
+				adapter.submitResponses({
+					sessionId: session.sessionId,
+					itemIdentifier: 'item1',
+					responses: { RESPONSE: 'A' },
+					submittedAt: Date.now(),
+				}),
+			);
+			expect(response.success).toBe(false);
+			expect(response.error).toBeTruthy();
+			// Nothing was recorded: the storage never received the submission.
+			const stored = adapter.initSession({
+				assessmentId: 'test-001',
+				candidateId: 'student-123',
+				resumeSessionId: session.sessionId,
+			});
+			expect((await stored).restoredState?.itemResponses['item1']).toBeUndefined();
+		});
+
+		it('finalizeAssessment does not report finalized when the write failed', async () => {
+			const session = await adapter.initSession({
+				assessmentId: 'test-001',
+				candidateId: 'student-123',
+			});
+			await adapter.submitResponses({
+				sessionId: session.sessionId,
+				itemIdentifier: 'item1',
+				responses: { RESPONSE: 'A' },
+				submittedAt: Date.now(),
+			});
+
+			const response = await withQuotaExceeded(() =>
+				adapter.finalizeAssessment({ sessionId: session.sessionId }),
+			);
+			expect(response.success).toBe(false);
+
+			// The finalized flag never persisted: a resume still opens the draft, it must
+			// not resurrect a "completed" test the store knows nothing about.
+			const resumed = await adapter.initSession({
+				assessmentId: 'test-001',
+				candidateId: 'student-123',
+				resumeSessionId: session.sessionId,
+			});
+			expect(resumed.finalized).toBeUndefined();
+			expect(resumed.restoredState).toBeDefined();
+		});
+	});
+
 	describe('resumeSession', () => {
 		it('should resume session with restored state', async () => {
 			const session = await adapter.initSession({
