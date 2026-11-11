@@ -110,6 +110,7 @@ import {
 import { canNavigateByTestPart, isLegalSectionTarget } from './navigationPolicy.js';
 import {
 	branchExitLeavesPart,
+	branchLandingOf,
 	branchTargetIndex,
 	endedEnclosingSection,
 	resolveExitBoundary,
@@ -1483,10 +1484,10 @@ export class AssessmentPlayer {
 		// is what Next does now — unless Next re-submits a changed response, which decides anew.
 		const kept = this.nextSubmits(current) ? null : this.keptBranchDecisionFor(current);
 		if (kept) {
-			const target = this.branchTargetIndex(current, kept);
-			if (target >= 0 || kept === 'EXIT_TEST' || kept === 'EXIT_TESTPART' || kept === 'EXIT_SECTION') {
+			const landing = branchLandingOf(kept, this.branchTargetIndex(current, kept));
+			if (landing.kind !== 'skipped') {
 				return {
-					nextIndex: target >= 0 ? target : null,
+					nextIndex: landing.kind === 'item' ? landing.index : null,
 					leavesTestPart: this.branchExitLeavesPart(current, kept),
 				};
 			}
@@ -2488,11 +2489,17 @@ export class AssessmentPlayer {
 	private unsubmittedForwardIndex(q: FlatItem): number {
 		const kept = this.keptBranchDecisionFor(q);
 		if (!kept) return this.ruleForwardIndex(q);
-		const target = this.branchTargetIndex(q, kept);
-		if (target >= 0) return target;
-		return kept === 'EXIT_TEST' || kept === 'EXIT_TESTPART' || kept === 'EXIT_SECTION'
-			? -1
-			: this.ruleForwardIndex(q);
+		const landing = branchLandingOf(kept, this.branchTargetIndex(q, kept));
+		switch (landing.kind) {
+			case 'item':
+				return landing.index;
+			case 'exit':
+				// Nothing follows the EXIT_* boundary; Submit is the way on (its own handling
+				// ends the scope or the test — see `followBranch`).
+				return -1;
+			case 'skipped':
+				return this.ruleForwardIndex(q);
+		}
 	}
 
 	/**
@@ -3650,11 +3657,10 @@ export class AssessmentPlayer {
 	 */
 	private reportTestConditionFailure = (conditionXml: string, error: unknown): void => {
 		const message = error instanceof Error ? error.message : String(error);
-		const key = `${conditionXml}\n${message}`;
-		if (this.reportedTestConditionFailures.has(key)) return;
-		this.reportedTestConditionFailures.add(key);
-		this.config.onError?.(
-			new AssessmentPlayerError('testConditionFailed', message, {}, { cause: error }),
+		this.reportOnce(
+			this.reportedTestConditionFailures,
+			`${conditionXml}\n${message}`,
+			() => new AssessmentPlayerError('testConditionFailed', message, {}, { cause: error }),
 		);
 	};
 
@@ -3668,15 +3674,28 @@ export class AssessmentPlayer {
 	private reportItemScoringError(result: AssessmentScoringResult | undefined): void {
 		const error = result?.scoringError;
 		if (!error) return;
-		const key = `${result?.itemIdentifier}\n${error.message}`;
-		if (this.reportedItemScoringErrors.has(key)) return;
-		this.reportedItemScoringErrors.add(key);
-		this.config.onError?.(
-			new AssessmentPlayerError('itemScoringFailed', error.message, {
-				itemIdentifier: result?.itemIdentifier ?? '',
-				code: error.code,
-			}),
+		const itemIdentifier = result?.itemIdentifier;
+		this.reportOnce(
+			this.reportedItemScoringErrors,
+			`${itemIdentifier}\n${error.message}`,
+			() =>
+				new AssessmentPlayerError('itemScoringFailed', error.message, {
+					itemIdentifier: itemIdentifier ?? '',
+					code: error.code,
+				}),
 		);
+	}
+
+	/**
+	 * Report a distinct failure to the host once: `seen` holds the keys already reported,
+	 * `key` encodes what makes one failure distinct from another (each reporter composes
+	 * its own), and `build` constructs the coded error the host hears through
+	 * `config.onError` the first time the key is seen.
+	 */
+	private reportOnce(seen: Set<string>, key: string, build: () => AssessmentPlayerError): void {
+		if (seen.has(key)) return;
+		seen.add(key);
+		this.config.onError?.(build());
 	}
 
 	// ---------------------------------------------------------------------------

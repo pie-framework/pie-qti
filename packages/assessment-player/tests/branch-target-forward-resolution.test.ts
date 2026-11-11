@@ -75,6 +75,9 @@ const branchRuleTo = (holder: string, target: string) =>
 
 const items = (...ids: string[]) => Object.fromEntries(ids.map((id) => [id, choiceItem(id)]));
 
+/** Two counted attempts with revealed feedback: the check control's requirement. */
+const twoAttempts = `<itemSessionControl maxAttempts="2" showFeedback="true"/>`;
+
 afterEach(() => localStorage.clear());
 
 /** The parsed assessment and a real reference backend registered for it. */
@@ -279,6 +282,50 @@ describe('backward branch targets in delivery', () => {
 		player.updateResponse('RESPONSE', 'A');
 		await player.next();
 		expect(player.getCurrentItem()?.identifier).toBe('i3');
+		expect(player.getNavigationState().isComplete).not.toBe(true);
+	});
+});
+
+describe('a kept skipped literal: every consumer agrees', () => {
+	test('resolver, boundary check, Next preview and Next itself all skip a kept backward decision identically', async () => {
+		// A production backend may return the raw target for the check on i2; the decision
+		// `i1` is kept (delivery stayed). The shared resolver resolves it to nothing
+		// (forward-only), the part-boundary check has it cross no boundary, the Next preview
+		// reports the delivery-rules step it falls through to, and Next lands exactly there —
+		// one policy, so preview and landing cannot drift.
+		const xml = assessmentTest(part('part-1', section('s1', `${ref('i1')}${ref('i2', twoAttempts)}${ref('i3')}`)));
+		const { parsed, backend } = await referenceBackend(xml, items('i1', 'i2', 'i3'));
+		const delivered = deliveredItems(parsed);
+		const flat = flattenItems(parsed);
+		let completions = 0;
+		const player = await makePlayer(new ScriptedNextBackend(backend, { i2: 'i1' }), parsed.identifier, () => {
+			completions += 1;
+		});
+
+		player.updateResponse('RESPONSE', 'A');
+		await player.next();
+		expect(player.getCurrentItem()?.identifier).toBe('i2');
+
+		// With no decision on record the preview is the plain delivery-rules step (i3, same part).
+		const previewWithoutDecision = player.getForwardTransitionInfo();
+		expect(previewWithoutDecision).toEqual({ nextIndex: 2, leavesTestPart: false });
+
+		// The check keeps the raw backward decision `i1` for i2; delivery stays on i2.
+		await player.checkCurrentItem();
+		expect(player.getCurrentItem()?.identifier).toBe('i2');
+
+		// Every consumer of the decision agrees it is skipped.
+		expect(firstForwardBranchTarget('i1', delivered, 1)).toBeUndefined();
+		expect(branchTargetIndex(flat[1]!, 'i1', flat, 1)).toBe(-1);
+		expect(branchExitLeavesPart(flat[1]!, 'i1', flat, 1)).toBe(false);
+
+		// The preview with the kept decision reports the same step as with none.
+		expect(player.getForwardTransitionInfo()).toEqual(previewWithoutDecision);
+
+		// And Next lands exactly there — no re-entry of i1, no re-submission, no early end.
+		await player.next();
+		expect(player.getCurrentItem()?.identifier).toBe('i3');
+		expect(completions).toBe(0);
 		expect(player.getNavigationState().isComplete).not.toBe(true);
 	});
 });

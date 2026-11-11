@@ -2,10 +2,14 @@
  * Exit-boundary resolution for branch decisions.
  *
  * Where a QTI branch rule's `EXIT_TEST` / `EXIT_TESTPART` / `EXIT_SECTION` (or a
- * plain item target) lands in the delivered sequence. Moved out of
- * `AssessmentPlayer.ts` verbatim (pure code motion): pure functions over the flat
- * delivery — no lock, no session state. What the orchestrator then *does* with the
- * resolved boundary (flush the part, navigate, end the test) stays with it.
+ * plain item target) lands in the delivered sequence. Extracted from
+ * `AssessmentPlayer.ts` as pure functions over the flat delivery — no lock, no session
+ * state; what the orchestrator then *does* with the resolved boundary (flush the part,
+ * navigate, end the test) stays with it. No longer a verbatim copy: the literal-target
+ * semantics have since been deliberately aligned with the reference backend —
+ * forward-only resolution through the shared `firstForwardBranchTarget`, and one
+ * landing policy for every consumer (`branchLandingOf`: an EXIT_* is the landing, an
+ * unresolvable literal is skipped).
  */
 
 import type { SecureSection } from '../integration/api-contract.js';
@@ -64,6 +68,34 @@ export function branchTargetIndex(
 	return firstForwardBranchTarget(target, items, q.index) ?? -1;
 }
 
+/**
+ * How a branch decision lands in the delivery once `branchTargetIndex` has resolved it —
+ * the one statement of the policy every consumer shares:
+ *
+ * - `{ kind: 'item', index }` — the decision names a forward item: delivery hops there.
+ * - `{ kind: 'exit' }` — an `EXIT_TEST` / `EXIT_TESTPART` / `EXIT_SECTION`: the exit itself
+ *   is the landing; boundary handling ends the scope or the test (a resolved index of -1
+ *   never navigates).
+ * - `{ kind: 'skipped' }` — a literal target with no forward occurrence: the rule does not
+ *   fire, and the delivery rules decide from the next item, as when the backend leaves the
+ *   rule unfired.
+ */
+export type BranchLanding =
+	| { readonly kind: 'item'; readonly index: number }
+	| { readonly kind: 'exit' }
+	| { readonly kind: 'skipped' };
+
+/** Classify a resolved branch decision (see `BranchLanding`). */
+export function branchLandingOf(target: string, resolvedIndex: number): BranchLanding {
+	if (resolvedIndex >= 0) return { kind: 'item', index: resolvedIndex };
+	return isExitBranchTarget(target) ? { kind: 'exit' } : { kind: 'skipped' };
+}
+
+/** Whether a branch rule target exits a scope (`EXIT_TEST` / `EXIT_TESTPART` / `EXIT_SECTION`) rather than naming an item. */
+function isExitBranchTarget(target: string): boolean {
+	return target === 'EXIT_TEST' || target === 'EXIT_TESTPART' || target === 'EXIT_SECTION';
+}
+
 /** Whether a branch decision takes delivery out of the item's test part (or ends the test). */
 export function branchExitLeavesPart(
 	q: FlatItem,
@@ -71,14 +103,18 @@ export function branchExitLeavesPart(
 	items: readonly FlatItem[],
 	currentIndex: number,
 ): boolean {
-	if (target !== 'EXIT_TEST' && target !== 'EXIT_TESTPART' && target !== 'EXIT_SECTION') {
-		// A literal target with no forward occurrence is skipped — the rule does not fire
-		// (the backend falls through to the next item) — so it crosses no part boundary.
-		const index = firstForwardBranchTarget(target, items, q.index);
-		return index !== undefined && items[index]!.testPart !== q.testPart;
+	const landing = branchLandingOf(target, branchTargetIndex(q, target, items, currentIndex));
+	switch (landing.kind) {
+		case 'exit':
+			// EXIT_TEST ends the test; an EXIT_* boundary nothing follows ends the part anyway.
+			return true;
+		case 'item':
+			return items[landing.index]!.testPart !== q.testPart;
+		case 'skipped':
+			// The rule does not fire (the backend falls through to the next item), so it
+			// crosses no part boundary.
+			return false;
 	}
-	const index = branchTargetIndex(q, target, items, currentIndex);
-	return index < 0 || items[index]!.testPart !== q.testPart;
 }
 
 /**

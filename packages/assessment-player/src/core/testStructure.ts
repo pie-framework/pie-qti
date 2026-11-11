@@ -224,15 +224,17 @@ export function firstForwardBranchTarget(
 	items: readonly ScopedDeliveredItem[],
 	currentIndex: number,
 ): number | undefined {
-	const firstAfter = (match: (item: ScopedDeliveredItem) => boolean): number | undefined => {
-		for (let j = currentIndex + 1; j < items.length; j++) if (match(items[j]!)) return j;
-		return undefined;
-	};
 	return (
-		firstAfter((item) => item.item.identifier === target) ??
-		firstAfter((item) => item.sections.some((section) => section.identifier === target)) ??
-		firstAfter((item) => item.testPart.identifier === target)
+		firstAfter(items, currentIndex, (item) => item.item.identifier === target) ??
+		firstAfter(items, currentIndex, (item) => item.sections.some((section) => section.identifier === target)) ??
+		firstAfter(items, currentIndex, (item) => item.testPart.identifier === target)
 	);
+}
+
+/** The first element strictly after `from` that satisfies `match`; undefined when none does. */
+function firstAfter<T>(items: readonly T[], from: number, match: (item: T) => boolean): number | undefined {
+	for (let j = from + 1; j < items.length; j++) if (match(items[j]!)) return j;
+	return undefined;
 }
 
 /** Index a branch target resolves to, forward of `index`; delivered.length ends the test. */
@@ -243,18 +245,14 @@ function resolveBranchTarget(
 	exitSection: SecureSection | undefined,
 ): number | undefined {
 	const current = delivered[index]!;
-	const firstAfter = (match: (d: DeliveredItem) => boolean): number | undefined => {
-		for (let j = index + 1; j < delivered.length; j++) if (match(delivered[j]!)) return j;
-		return undefined;
-	};
 	switch (target) {
 		case 'EXIT_TEST':
 			return delivered.length;
 		case 'EXIT_TESTPART':
-			return firstAfter((d) => d.testPart !== current.testPart) ?? delivered.length;
+			return firstAfter(delivered, index, (d) => d.testPart !== current.testPart) ?? delivered.length;
 		case 'EXIT_SECTION':
 			if (!exitSection) return undefined;
-			return firstAfter((d) => !d.sections.includes(exitSection)) ?? delivered.length;
+			return firstAfter(delivered, index, (d) => !d.sections.includes(exitSection)) ?? delivered.length;
 		default:
 			return firstForwardBranchTarget(target, delivered, index);
 	}
