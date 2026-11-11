@@ -36,7 +36,7 @@ import { createLogger } from '@pie-qti/logger/server';
 
 // Console logger (development)
 const logger = createLogger('MyService');
-logger.info('Processing item', 'item-123', { vendor: 'ExampleCorp' });
+logger.info('Processing item', { itemId: 'item-123', vendor: 'ExampleCorp' });
 
 // JSON logger (production)
 import { JsonLogger, setLogger } from '@pie-qti/logger/server';
@@ -45,13 +45,12 @@ setLogger(new JsonLogger('info'));
 
 ### Environment-Agnostic Code
 
-For code that runs in both browser and Node.js (like QTI processing logic):
+For code that runs in both browser and Node.js (like QTI processing logic), depend on the `Logger` interface and let the caller inject an implementation:
 
 ```typescript
 import type { Logger } from '@pie-qti/logger';
-import { consoleLogger } from '@pie-qti/logger';
 
-function processQtiContent(xml: string, logger: Logger = consoleLogger) {
+function processQtiContent(xml: string, logger: Logger) {
   logger.debug('Parsing QTI XML');
   // ... processing logic
 }
@@ -69,12 +68,14 @@ processQtiContent(xml, createLogger('QTI'));
 
 ### Logger Interface
 
+All four methods are required — implementations must provide `debug`, `info`, `warn`, and `error`:
+
 ```typescript
 interface Logger {
   debug(message: string, ...args: any[]): void;
-  info?(message: string, ...args: any[]): void;
+  info(message: string, ...args: any[]): void;
   warn(message: string, ...args: any[]): void;
-  error?(message: string, ...args: any[]): void;
+  error(message: string, ...args: any[]): void;
 }
 ```
 
@@ -83,7 +84,7 @@ interface Logger {
 - **Auto dev/prod detection**: Debug logs only in development
 - **Configurable log levels**: Control minimum log level
 - **Prefix support**: Add namespace to all log messages
-- **Child loggers**: Create nested logger instances
+- **Child loggers**: `logger.child('Child')` creates a nested logger with a composed prefix (`[Parent:Child]`)
 
 ### Server Logger
 
