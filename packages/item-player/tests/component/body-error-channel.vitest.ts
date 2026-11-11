@@ -113,7 +113,7 @@ describe('response dispatch failures', () => {
 });
 
 describe('component registry failures', () => {
-	test('an interaction no component renders reports render-failed through the channel', async () => {
+	test('an interaction no component renders reports render-failed and stands in an alert', async () => {
 		const extractor: ElementExtractor = {
 			id: 'error-channel:mystery',
 			name: 'Mystery interaction extractor',
@@ -139,5 +139,28 @@ describe('component registry failures', () => {
 		expect(detail.message).toMatch(/No component registered/);
 		// The item body itself keeps rendering.
 		expect(body(m.host)).toContain('Registry failure paragraph.');
+		// The candidate does not get a silent gap either: the same placeholder a failed mount
+		// gets stands where the interaction was authored.
+		const alert = m.host.querySelector<HTMLElement>('.qti-item-body [role="alert"].qti-interaction-error');
+		expect(alert).not.toBeNull();
+		expect(alert?.textContent).toMatch(/mystery/i);
+		expect(alert?.closest('[data-qti-interaction-slot]')).not.toBeNull();
+	});
+});
+
+describe('render-failed placeholder styling', () => {
+	test('the placeholder border strokes with the error-text token, not the low-contrast fill (WCAG 1.4.11)', async () => {
+		defineThrowingChoice();
+		await render({ itemXml: ITEM, onError: vi.fn() });
+
+		const css = Array.from(document.querySelectorAll('style'))
+			.map((style) => style.textContent ?? '')
+			.join('\n');
+		const rule = css.match(/\.qti-item-body \.qti-interaction-error\s*\{[^}]*\}/);
+		expect(rule).not.toBeNull();
+		// The border is a non-text indicator, so it strokes with the >= 4.5:1 error TEXT
+		// token; the fill stays a tinted background, never the border colour.
+		expect(rule![0]).toContain('--pie-qti-error-text');
+		expect(rule![0]).not.toMatch(/border[^;]*var\(--pie-qti-error,/);
 	});
 });

@@ -91,21 +91,22 @@ import { createItemBodyRenderer, UNSLOTTED_CLASS, type MountedInteraction } from
 	 * a markup string the renderer then proves unchanged. The body markup is a pure function
 	 * of the item's content and the session state the content pass substitutes while it
 	 * serializes: outcome values (feedbackInline / feedbackBlock and the shown feedback),
-	 * template and context values (template-shown content, printed variables) — `duration`
-	 * excepted, which changes with every dispatch and renders nowhere — and the response
-	 * values content actually prints (`printedVariable` of a response), reported by the
-	 * session's binding. Everything else a response change carries is interaction input:
-	 * present() reads responses only into mounts, and this component reads those live from
-	 * `responses` when it props the mounted interactions (blockProps, createInline), so the
-	 * mount payloads stay current without rebuilding the plan.
+	 * template values (template-shown content), and the response and context values content
+	 * actually prints (`printedVariable` of any declared variable, the built-in `duration`
+	 * included), reported by the session's binding. Values the content does not print never
+	 * reach the markup: responses otherwise carry interaction input — present() reads
+	 * responses only into mounts, and this component reads those live from `responses` when
+	 * it props the mounted interactions (blockProps, createInline), so the mount payloads
+	 * stay current without rebuilding the plan — and `duration`, which changes with every
+	 * dispatch, is compared only when an item prints it.
 	 *
-	 * The non-response inputs are compared wholesale — outcomes, templates and context are
-	 * small records, and any dispatch that regenerates content (newTemplate, restore,
-	 * updatePnp) moves at least one of them, the lifecycle, the PnP profile or the compared
-	 * presentation options. When a content-regenerating dispatch leaves every compared input
-	 * equal, the regenerated presentation is byte-identical: the plan is a pure function of
-	 * the immutable compiled document, the compared context values, the session-fixed role
-	 * and feedback policy, and these options.
+	 * The unprinted inputs are compared wholesale — outcomes and templates are small records,
+	 * and any dispatch that regenerates content (newTemplate, restore, updatePnp) moves at
+	 * least one of them, the lifecycle, the PnP profile or the compared presentation options.
+	 * When a content-regenerating dispatch leaves every compared input equal, the regenerated
+	 * presentation is byte-identical: the plan is a pure function of the immutable compiled
+	 * document, the printed response and context values, the session-fixed role and feedback
+	 * policy, and these options.
 	 */
 	interface PresentationCache {
 		presentation: ItemPresentation;
@@ -120,6 +121,7 @@ import { createItemBodyRenderer, UNSLOTTED_CLASS, type MountedInteraction } from
 		context: Readonly<Record<string, unknown>>;
 		responses: Readonly<Record<string, unknown>>;
 		printedResponseIds: ReadonlySet<string>;
+		printedContextIds: ReadonlySet<string>;
 	}
 	let presentationCache: PresentationCache | null = null;
 
@@ -128,6 +130,7 @@ import { createItemBodyRenderer, UNSLOTTED_CLASS, type MountedInteraction } from
 		const currentPnp = binding.getPnp();
 		const currentSecurity = binding.getSecurityConfig();
 		const printedResponseIds = binding.getResponseIdentifiersPrintedInContent();
+		const printedContextIds = binding.getContextIdentifiersPrintedInContent();
 		const cache = presentationCache;
 		if (
 			cache &&
@@ -138,10 +141,11 @@ import { createItemBodyRenderer, UNSLOTTED_CLASS, type MountedInteraction } from
 			cache.pnp === currentPnp &&
 			cache.security === currentSecurity &&
 			cache.printedResponseIds === printedResponseIds &&
+			cache.printedContextIds === printedContextIds &&
 			recordEquals(cache.outcomes, view.outcomes) &&
 			recordEquals(cache.templates, view.templates) &&
-			recordEquals(cache.context, view.context, ['duration']) &&
-			printedResponsesEqual(cache.responses, view.responses, printedResponseIds)
+			printedValuesEqual(cache.context, view.context, printedContextIds) &&
+			printedValuesEqual(cache.responses, view.responses, printedResponseIds)
 		) {
 			return cache.presentation;
 		}
@@ -172,6 +176,7 @@ import { createItemBodyRenderer, UNSLOTTED_CLASS, type MountedInteraction } from
 			context: view.context,
 			responses: view.responses,
 			printedResponseIds,
+			printedContextIds,
 		};
 		return built;
 	});
@@ -206,26 +211,24 @@ import { createItemBodyRenderer, UNSLOTTED_CLASS, type MountedInteraction } from
 		}
 	}
 
-	/** Variable-map equality for the presentation cache; `skip` names rendered-nowhere fields. */
+	/** Variable-map equality for the presentation cache: outcomes and templates, wholesale. */
 	function recordEquals(
 		before: Readonly<Record<string, unknown>>,
-		after: Readonly<Record<string, unknown>>,
-		skip: readonly string[] = []
+		after: Readonly<Record<string, unknown>>
 	): boolean {
-		const skipped = new Set(skip);
-		const beforeKeys = Object.keys(before).filter((key) => !skipped.has(key));
-		const afterKeys = Object.keys(after).filter((key) => !skipped.has(key));
+		const beforeKeys = Object.keys(before);
+		const afterKeys = Object.keys(after);
 		if (beforeKeys.length !== afterKeys.length) return false;
 		return beforeKeys.every((key) => plainValueEquals(before[key], after[key]));
 	}
 
-	/** Equality of exactly the response values the body's markup prints. */
-	function printedResponsesEqual(
+	/** Equality of exactly the variable values the body's markup prints. */
+	function printedValuesEqual(
 		before: Readonly<Record<string, unknown>>,
 		after: Readonly<Record<string, unknown>>,
-		printedResponseIds: ReadonlySet<string>
+		printedIds: ReadonlySet<string>
 	): boolean {
-		for (const id of printedResponseIds) {
+		for (const id of printedIds) {
 			if (!plainValueEquals(before[id], after[id])) return false;
 		}
 		return true;
@@ -468,8 +471,11 @@ import { createItemBodyRenderer, UNSLOTTED_CLASS, type MountedInteraction } from
 		}
 
 		/**
-		 * role="alert" placeholders standing in for interactions that failed to mount,
-		 * keyed by mount key and reconciled against the failures of the last render.
+		 * role="alert" placeholders standing in for failed interactions, keyed by mount key
+		 * and reconciled against the failures of the last render. Both failure kinds land
+		 * here: an interaction whose mount threw, and one whose component the registry could
+		 * not resolve at all (it never became a mount; the plan reports it in
+		 * `failedInteractions`).
 		 */
 		const failureAlerts = new Map<string, HTMLElement>();
 		const failedThisRender = new Set<string>();
@@ -498,31 +504,40 @@ import { createItemBodyRenderer, UNSLOTTED_CLASS, type MountedInteraction } from
 			},
 		});
 
+		/** What a render-failure placeholder names: the failed interaction and where it was authored. */
+		interface RenderFailure {
+			key: string;
+			slot: string | null;
+			interaction: { type: string };
+		}
+
 		/**
-		 * Stand a `role="alert"` placeholder in the interaction's slot — or, when the
-		 * interaction renders after the body, in that area — naming the interaction
-		 * type, mirroring the player's load-failure alert.
+		 * Stand a `role="alert"` placeholder in the failed interaction's slot — or, when the
+		 * interaction renders after the body, in that area — naming the interaction type,
+		 * mirroring the player's load-failure alert. Placement is idempotent: a re-render that
+		 * fails the same interaction again leaves the standing alert where it is, so only a
+		 * genuine (re)appearance moves the DOM.
 		 */
-		function mountFailureAlert(container: HTMLElement, mount: ItemInteractionMount) {
-			let alert = failureAlerts.get(mount.key);
+		function mountFailureAlert(container: HTMLElement, failed: RenderFailure) {
+			let alert = failureAlerts.get(failed.key);
 			if (!alert) {
 				alert = container.ownerDocument.createElement('div');
 				alert.className = 'qti-interaction-error';
 				alert.setAttribute('role', 'alert');
-				failureAlerts.set(mount.key, alert);
+				failureAlerts.set(failed.key, alert);
 			}
 			alert.textContent = translate(
 				i18n,
 				'interaction.renderError',
 				'This interactive element ({type}) could not be displayed.',
-				{ type: mount.interaction.type },
+				{ type: failed.interaction.type },
 			);
 
-			if (mount.slot !== null) {
+			if (failed.slot !== null) {
 				const slot = Array.from(container.querySelectorAll<HTMLElement>(`[${INTERACTION_SLOT_ATTRIBUTE}]`))
-					.find((el) => el.getAttribute(INTERACTION_SLOT_ATTRIBUTE) === mount.slot);
+					.find((el) => el.getAttribute(INTERACTION_SLOT_ATTRIBUTE) === failed.slot);
 				if (slot) {
-					slot.replaceChildren(alert);
+					if (!slot.contains(alert)) slot.replaceChildren(alert);
 					return;
 				}
 			}
@@ -533,7 +548,7 @@ import { createItemBodyRenderer, UNSLOTTED_CLASS, type MountedInteraction } from
 					container.append(created);
 					return created;
 				})();
-			area.append(alert);
+			if (alert.parentNode !== area) area.append(alert);
 		}
 
 		const render = () =>
@@ -544,6 +559,12 @@ import { createItemBodyRenderer, UNSLOTTED_CLASS, type MountedInteraction } from
 					entry.kind === 'interaction' ? [entry.mount] : []
 				);
 				renderer.render(htmlNode?.kind === 'html' ? htmlNode.html : '', mounts);
+				// Interactions whose component the registry could not resolve never became
+				// mounts; the same placeholder stands in where each was authored.
+				for (const failed of params.presentation.failedInteractions) {
+					failedThisRender.add(failed.key);
+					mountFailureAlert(node, failed);
+				}
 				// Alerts whose interaction mounted cleanly this render — or left the
 				// item — come down again.
 				for (const [key, alert] of failureAlerts) {
@@ -689,15 +710,20 @@ import { createItemBodyRenderer, UNSLOTTED_CLASS, type MountedInteraction } from
 	}
 
 	/*
-	 * An interaction that failed to mount stands in as a role="alert" placeholder naming it,
-	 * styled like the player's error alert so a failed interaction reads as one, consistently.
+	 * An interaction that failed to render — a mount that threw, or a component the registry
+	 * could not resolve — stands in as a role="alert" placeholder naming it, styled like the
+	 * player's error alert so a failed interaction reads as one, consistently. The border is
+	 * a non-text indicator (WCAG 1.4.11), so it strokes with the error TEXT colour (>= 4.5:1
+	 * on base surfaces) rather than the fill (about 2.9:1 on white), matching the
+	 * *-text-token convention ShadowBaseStyles documents for indicator strokes; the fill
+	 * stays a tinted background.
 	 */
 	:global(.qti-item-body .qti-interaction-error) {
 		display: block;
 		max-width: 100%;
 		margin-block: 1rem;
 		padding: 0.75rem 1rem;
-		border: 1px solid var(--pie-qti-error, oklch(71% 0.194 13.428));
+		border: 1px solid var(--pie-qti-error-text, #b91c1c);
 		border-radius: 0.75rem;
 		background: color-mix(in oklch, var(--pie-qti-error, oklch(71% 0.194 13.428)) 8%, transparent);
 		color: var(--pie-qti-base-content, oklch(21% 0 0));

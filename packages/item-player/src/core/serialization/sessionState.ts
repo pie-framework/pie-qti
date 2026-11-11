@@ -33,18 +33,44 @@ export interface SerializationHost {
 	sessionStartedAt: number;
 }
 
+/**
+ * The QTI ASI built-in variables the session reports as context state — in the serializer's
+ * `contextVariables` record and `ItemSessionView.context` — alongside any declared context
+ * variables. `duration` moves on every dispatch, `completionStatus` and `numAttempts` at
+ * attempt boundaries; the built-ins carry no declaration of their own kind, which is why the
+ * set is named here rather than derived.
+ */
+export const BUILT_IN_CONTEXT_IDENTIFIERS: ReadonlySet<string> = new Set([
+	'completionStatus',
+	'numAttempts',
+	'duration',
+]);
+
+/**
+ * Whether a variable serializes into the session's context record: a built-in context
+ * identifier (see {@link BUILT_IN_CONTEXT_IDENTIFIERS}) or a declared context variable.
+ * The serializer and the printed-content scan (Player.getContextIdentifiersPrintedInContent)
+ * must classify identically — the context record is what the presentation cache compares.
+ */
+export function isContextSerialized(variable: { identifier: string } | undefined): boolean {
+	if (!variable) return false;
+	return (
+		BUILT_IN_CONTEXT_IDENTIFIERS.has(variable.identifier) ||
+		(variable as { __kind?: string }).__kind === 'context'
+	);
+}
+
 export function serializeItemSession(host: SerializationHost): SerializedItemSessionState {
 	const responseVariables: Record<string, SerializedItemSessionVariable> = {};
 	const outcomeVariables: Record<string, SerializedItemSessionVariable> = {};
 	const templateVariables: Record<string, SerializedItemSessionVariable> = {};
 	const contextVariables: Record<string, SerializedItemSessionVariable> = {};
-	const contextIds = new Set(['completionStatus', 'numAttempts', 'duration']);
 
 	for (const d of Object.values(host.decls)) {
 		const variable = serializeVariable(d);
 		if (d.isTemplate) {
 			templateVariables[d.identifier] = { ...variable, kind: 'template' };
-		} else if (contextIds.has(d.identifier) || (d as any).__kind === 'context') {
+		} else if (isContextSerialized(d)) {
 			contextVariables[d.identifier] = { ...variable, kind: 'context' };
 		} else if ((d as any).__kind === 'response') {
 			responseVariables[d.identifier] = { ...variable, kind: 'response' };

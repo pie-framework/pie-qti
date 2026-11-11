@@ -77,6 +77,7 @@ import { itemBodyHtml, modalFeedbackOf, rubricsOf } from './rendering/htmlRender
 import {
 	applySerializedVariables,
 	freezeDuration,
+	isContextSerialized,
 	serializeItemSession,
 	updateDuration,
 } from './serialization/sessionState.js';
@@ -994,6 +995,26 @@ export class Player {
 	}
 
 	private printedResponseIdentifiers?: ReadonlySet<string>;
+
+	/**
+	 * Context identifiers the item's content prints live: the `printedVariable` targets of the
+	 * body and rubric content the session reports as context state — the QTI built-ins
+	 * (`duration`, `numAttempts`, `completionStatus`) and declared context variables. Their
+	 * values are substituted while `getItemBodyHtml()` serializes (the content pass reads the
+	 * live context), so they are the part of the context state a presentation's markup actually
+	 * renders — presentation consumers (ItemBody) can key caching on them. The context
+	 * declaration set is fixed per session, so the filtered set is computed once.
+	 */
+	public getContextIdentifiersPrintedInContent(): ReadonlySet<string> {
+		this.printedContextIdentifiers ??= new Set(
+			[...this.itemDocument.printedVariableIdentifiers()].filter((identifier) =>
+				isContextSerialized(this.decls[identifier])
+			)
+		);
+		return this.printedContextIdentifiers;
+	}
+
+	private printedContextIdentifiers?: ReadonlySet<string>;
 
 	public isAdaptive(): boolean {
 		return (this.itemDocument.getAssessmentItemAttribute('adaptive') || '').toLowerCase() === 'true';

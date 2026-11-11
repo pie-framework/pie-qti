@@ -6,7 +6,9 @@
  *   dispatch. Typing N times into an item whose content prints no response calls present()
  *   once (the initial build), while the mounted interaction still receives every new value.
  * - A response the content prints (printedVariable of a response) is part of the markup, so
- *   typing re-presents, and the body shows the new value.
+ *   typing re-presents, and the body shows the new value. The same holds for a printed
+ *   context variable: `duration` changes with every dispatch, and an item that prints it
+ *   must show the elapsed time move — one that prints no context variable must not rebuild.
  * - Integrated feedback is outcome-driven: answering does not re-present, the attempt's
  *   response processing does.
  * - The wiring effect (PnP application, the `qti-change` listener) runs per element identity
@@ -39,6 +41,16 @@ const PRINTED_ITEM = `<?xml version="1.0" encoding="UTF-8"?>
 	<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="string"/>
 	<itemBody>
 		<p>You typed: <printedVariable identifier="RESPONSE"/>.</p>
+		<p><textEntryInteraction responseIdentifier="RESPONSE" expectedLength="10"/></p>
+	</itemBody>
+</assessmentItem>`;
+
+/** The body prints the built-in `duration` context variable: the printed elapsed time is markup. */
+const DURATION_ITEM = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem ${NS} identifier="memo-duration" adaptive="false" timeDependent="false">
+	<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="string"/>
+	<itemBody>
+		<p>Elapsed: <printedVariable identifier="duration"/> s.</p>
 		<p><textEntryInteraction responseIdentifier="RESPONSE" expectedLength="10"/></p>
 	</itemBody>
 </assessmentItem>`;
@@ -137,6 +149,24 @@ describe('ItemBody presentation cache', () => {
 
 		expect(present.mock.calls.length).toBe(initialBuilds + 2);
 		expect(bodyText(element)).toContain('You typed: 42.');
+	});
+
+	test('a body that prints duration re-presents as it changes: the elapsed time advances', async () => {
+		const present = vi.spyOn(LiveItemSession.prototype, 'present');
+		const element = await render(DURATION_ITEM);
+		const printedSeconds = () => Number(/Elapsed: ([\d.]+) s\./.exec(bodyText(element))?.[1] ?? Number.NaN);
+		const buildsBefore = present.mock.calls.length;
+		const secondsBefore = printedSeconds();
+		expect(Number.isFinite(secondsBefore)).toBe(true);
+
+		// A second of attempt time later, a dispatch carries a changed `duration`: the printed
+		// value must move with it, so the presentation cache must rebuild the markup.
+		await new Promise((resolve) => setTimeout(resolve, 1100));
+		typeInto(element, 'x');
+		await settle();
+
+		expect(printedSeconds()).toBeGreaterThan(secondsBefore);
+		expect(present.mock.calls.length).toBe(buildsBefore + 1);
 	});
 
 	test('answering does not re-present; the attempt that shows integrated feedback does', async () => {

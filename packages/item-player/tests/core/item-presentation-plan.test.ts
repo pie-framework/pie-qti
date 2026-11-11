@@ -4,6 +4,7 @@ import {
 	type ItemPresentation,
 	type ItemPresentationSource,
 } from '../../src/presentation/itemPresentationPlan.js';
+import { ComponentRegistry } from '../../src/core/ComponentRegistry.js';
 import { Player } from '../../src/core/Player.js';
 import { createAssessmentItemDefinition } from '../../src/core/AssessmentItemDefinition.js';
 import { convertQti2ToQti3 } from '@pie-qti/qti-common';
@@ -102,7 +103,7 @@ describe('createItemPresentation', () => {
 		const player = new Player({
 			itemXml: `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="feedback-hidden">
-	<outcomeDeclaration identifier="FEEDBACK" cardinality="single" baseType="identifier"/>
+	<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>
 	<itemBody>
 		<p><feedbackInline outcomeIdentifier="FEEDBACK" identifier="correct" showHide="show">Inline feedback</feedbackInline></p>
 		<feedbackBlock outcomeIdentifier="FEEDBACK" identifier="correct" showHide="show"><p>Block feedback</p></feedbackBlock>
@@ -119,6 +120,36 @@ describe('createItemPresentation', () => {
 		);
 		expect(hidden).not.toContain('Inline feedback');
 		expect(hidden).not.toContain('Block feedback');
+	});
+
+	test('a component the registry cannot resolve becomes a failed interaction with its slot, not a mount', () => {
+		const player = new Player({
+			itemXml: `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="registry-failure">
+	<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"/>
+	<itemBody>
+		<p>Surrounding text.</p>
+		<choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+			<simpleChoice identifier="A">A</simpleChoice>
+		</choiceInteraction>
+	</itemBody>
+</assessmentItem>`,
+		});
+		const onComponentError: Array<{ interaction: { type: string }; error: unknown }> = [];
+		const presentation = createItemPresentation({
+			// A registry with no registrations at all: every type fails to resolve.
+			source: { ...sourceFromPlayer(player), componentRegistry: new ComponentRegistry() },
+			onComponentError: (interaction, error) => onComponentError.push({ interaction, error }),
+		});
+
+		expect(presentation.flow.filter((node) => node.kind === 'interaction')).toHaveLength(0);
+		expect(presentation.failedInteractions).toHaveLength(1);
+		const failed = presentation.failedInteractions[0];
+		expect(failed.interaction.type).toBe('choiceInteraction');
+		// The authored slot stays reserved: the presenter stands the placeholder in it.
+		expect(failed.slot).not.toBeNull();
+		expect(onComponentError).toHaveLength(1);
+		expect((onComponentError[0].error as Error).message).toMatch(/No component registered/);
 	});
 
 	for (const [version, itemXml] of [
