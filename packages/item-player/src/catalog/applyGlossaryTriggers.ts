@@ -2,6 +2,7 @@ import { isImeComposing, translate, type I18nProvider } from '@pie-qti/i18n';
 import type { CatalogSupportPreference } from '../pnp/types.js';
 import type { PnpProfile } from '../pnp/types.js';
 import { htmlToString } from '../core/trustedTypes.js';
+import { isCatalogUrl } from './sessionCatalog.js';
 import type { HtmlContent } from '../types/index.js';
 
 const PLATFORM_USAGES = [
@@ -386,8 +387,10 @@ function buildFallbackPopup(label: string, html: HtmlContent, close: () => void,
 	body.className = 'card-body p-3';
 
 	const htmlString = htmlToString(html);
-	const isUrl = /^(https?:\/\/|\/)/i.test(htmlString.trim());
-	if (isUrl) {
+	// The same predicate catalogEntryOf used to pick the URL branch: html is either
+	// sanitizeHtml output or a sanitizeResourceUrl result, so a URL here is already
+	// policy-checked and can go to `src` directly.
+	if (isCatalogUrl(htmlString)) {
 		const img = document.createElement('img');
 		img.src = htmlString.trim();
 		img.alt = label;
