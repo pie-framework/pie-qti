@@ -272,3 +272,22 @@ export function xsdPatternToRegExp(pattern: string, flags = ''): RegExp | null {
 		}
 	}
 }
+
+/**
+ * The longest subject an authored pattern runs against, in UTF-16 code units.
+ *
+ * A divergence guard, documented because the QTI spec is silent about response length: an
+ * authored pattern with a nested quantifier (`(a+)+`) can take exponential time on a subject it
+ * fails on, so a hostile or accidental response — a pasted document, a broken integration —
+ * could hang the delivery tab. A subject at or below the cap runs exactly as the pattern
+ * language above defines; a longer one skips the pattern, and the caller decides what skipping
+ * means: `patternMatch` reads it as the pattern not matching, patternMask validation lets the
+ * text pass unmasked. The cap sits far above any real assessment response and far below where a
+ * pathological pattern becomes noticeable.
+ */
+export const MAX_PATTERN_SUBJECT_LENGTH = 10_000;
+
+/** Whether `subject` is short enough for an authored pattern to run on (see the cap). */
+export function isPatternSubjectWithinCap(subject: string): boolean {
+	return subject.length <= MAX_PATTERN_SUBJECT_LENGTH;
+}

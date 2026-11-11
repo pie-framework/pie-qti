@@ -11,6 +11,7 @@
 
 import { SSML_NAMESPACE } from './apip.js';
 import { type AccessibilityCatalog, type CatalogCard, mediaMimeType } from './catalog.js';
+import { escapeText } from './markup.js';
 
 export interface QtiCatalogInfoOptions {
 	/** Card HTML as the document's XML. Identity by default; SSML scripts bypass it. */
@@ -61,10 +62,6 @@ function fileHrefs({ payload }: CatalogCard): string | undefined {
 			return `<qti-file-href mime-type="${escapeAttribute(type)}">${escapeText(href)}</qti-file-href>`;
 		});
 	return files.length > 0 ? files.join('') : undefined;
-}
-
-function escapeText(text: string): string {
-	return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function escapeAttribute(value: string): string {

@@ -561,6 +561,10 @@ function quoted(value: string): string {
 	return /^["']/.test(value) ? value : `"${value}"`;
 }
 
+/**
+ * Escape a value for use inside XML text content: escapes `& < >`, quotes stay as authored.
+ * The one text escaper of the accessibility module family; apip.ts and catalog-info.ts use it too.
+ */
 export function escapeText(text: string): string {
 	return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

@@ -38,6 +38,7 @@ import {
 	mediaMimeType,
 	type TextRange,
 } from './catalog.js';
+import { escapeText } from './markup.js';
 
 export const APIP_NAMESPACE = 'http://www.imsglobal.org/xsd/apip/apipv1p0/imsapip_qtiv1p0';
 export const SSML_NAMESPACE = 'http://www.w3.org/2001/10/synthesis';
@@ -633,10 +634,6 @@ function ncName(value: string): string {
 // ---------------------------------------------------------------------------
 // Shared
 // ---------------------------------------------------------------------------
-
-function escapeText(text: string): string {
-	return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
 
 function escapeAttribute(value: string): string {
 	return escapeText(value).replace(/"/g, '&quot;');

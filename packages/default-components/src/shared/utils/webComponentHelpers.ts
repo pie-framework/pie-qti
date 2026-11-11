@@ -6,29 +6,45 @@
  * Parse a prop whose value is always an object (interaction data, a PNP profile): the object
  * itself, or its JSON text, which is how an HTML attribute carries it
  * (`<pie-qti-choice interaction='{"responseId":"R1",…}'>`). The string "null" stands for no
- * value; text that is not JSON is returned as given.
+ * value. Text that does not parse to an object — a truncated attribute, or JSON of another
+ * shape — is reported once on the console and read as no value, so the component renders its
+ * no-data state instead of a string masquerading as the data object.
  *
  * Never use it for a response: a string response is a value, and reading it as JSON would turn
  * the answer "1.50" into 1.5 or "null" into no answer. Responses go through `responseProp`.
  */
 export function parseJsonProp<T>(prop: T | string | null | undefined): T | undefined {
 	if (prop === null || prop === undefined) return undefined;
+	if (typeof prop !== 'string') return prop as T;
+	if (prop === 'null') return undefined;
 
-	if (typeof prop === 'string') {
-		// Handle "null" string
-		if (prop === 'null') return undefined;
-
-		// Try to parse as JSON
-		try {
-			return JSON.parse(prop) as T;
-		} catch {
-			// If it's not valid JSON, return the string as-is
-			// This handles simple string identifiers
-			return prop as unknown as T;
-		}
+	let value: unknown;
+	try {
+		value = JSON.parse(prop);
+	} catch {
+		return reportInvalidJsonProp(prop);
 	}
+	if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+		return reportInvalidJsonProp(prop);
+	}
+	return value as T;
+}
 
-	return prop as T;
+/**
+ * Report a data attribute that is not the JSON object its prop requires, and read it as no
+ * value. Once per distinct text: the shells derive from their props, so a live component
+ * re-runs the parse on every recompute — one warning per attribute keeps the console readable.
+ */
+const reportedInvalidJsonProps = new Set<string>();
+function reportInvalidJsonProp(text: string): undefined {
+	if (!reportedInvalidJsonProps.has(text)) {
+		reportedInvalidJsonProps.add(text);
+		const snippet = text.length > 80 ? `${text.slice(0, 80)}…` : text;
+		console.warn(
+			`[pie-qti] a data attribute is not the JSON object its component requires and is treated as absent (the component shows its no-data state): ${snippet}`,
+		);
+	}
+	return undefined;
 }
 
 /**

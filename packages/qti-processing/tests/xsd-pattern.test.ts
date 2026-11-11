@@ -3,7 +3,12 @@ import { buildResponseProcessingAst } from '../src/ast/build.js';
 import { execProgram } from '../src/exec/execute.js';
 import { DeclarationContext } from '../src/runtime/context.js';
 import { qtiValue } from '../src/runtime/value.js';
-import { xsdPatternSource, xsdPatternToRegExp } from '../src/runtime/xsd-pattern.js';
+import {
+	isPatternSubjectWithinCap,
+	MAX_PATTERN_SUBJECT_LENGTH,
+	xsdPatternSource,
+	xsdPatternToRegExp,
+} from '../src/runtime/xsd-pattern.js';
 import { parseXml } from '../src/xml/parse.js';
 
 /** The compiled pattern; fails the test when it does not compile. */
@@ -259,5 +264,52 @@ describe('patternMatch', () => {
 		expect(matches('\\p{IsBasicLatin}+', 'abé')).toMatchObject({ value: false });
 		expect(matches('^abc$', 'abc')).toMatchObject({ value: false });
 		expect(matches('\\w+', 'a_b')).toMatchObject({ value: false });
+	});
+});
+
+// The subject cap is the divergence guard on MAX_PATTERN_SUBJECT_LENGTH: the spec is silent
+// about response length, and an authored pattern with a nested quantifier can take exponential
+// time on a subject it fails on. A longer subject skips the pattern: patternMatch reads that as
+// the pattern not matching.
+describe('patternMatch subject cap', () => {
+	const matches = (pattern: string, response: string) => {
+		const ctx = new DeclarationContext({
+			RESPONSE: {
+				identifier: 'RESPONSE',
+				baseType: 'string',
+				cardinality: 'single',
+				value: qtiValue('string', 'single', response),
+			},
+			OUT: {
+				identifier: 'OUT',
+				baseType: 'boolean',
+				cardinality: 'single',
+				value: qtiValue('boolean', 'single', false),
+			},
+		});
+		const body = `<setOutcomeValue identifier="OUT"><patternMatch pattern="${pattern}"><variable identifier="RESPONSE"/></patternMatch></setOutcomeValue>`;
+		execProgram(
+			{ ctx, rng: () => 0.5 },
+			buildResponseProcessingAst(parseXml(`<responseProcessing>${body}</responseProcessing>`).documentElement, {}),
+		);
+		return ctx.getValue('OUT');
+	};
+
+	test('a subject at the cap runs and behaves unchanged', () => {
+		expect(matches('[0-9]+', '3'.repeat(MAX_PATTERN_SUBJECT_LENGTH))).toMatchObject({ value: true });
+		expect(matches('[0-9]+', `3${'x'.repeat(MAX_PATTERN_SUBJECT_LENGTH - 1)}`)).toMatchObject({ value: false });
+	});
+
+	test('a subject beyond the cap skips the pattern and does not match', () => {
+		// This pattern against this subject is catastrophically slow when it runs: if the guard
+		// were missing, this test would hang rather than fail.
+		expect(matches('(a+)+$', `${'a'.repeat(MAX_PATTERN_SUBJECT_LENGTH)}b`)).toMatchObject({ value: false });
+		expect(matches('[0-9]+', '3'.repeat(MAX_PATTERN_SUBJECT_LENGTH + 1))).toMatchObject({ value: false });
+	});
+
+	test('the cap predicate agrees with the constant', () => {
+		expect(isPatternSubjectWithinCap('x'.repeat(MAX_PATTERN_SUBJECT_LENGTH))).toBe(true);
+		expect(isPatternSubjectWithinCap('x'.repeat(MAX_PATTERN_SUBJECT_LENGTH + 1))).toBe(false);
+		expect(isPatternSubjectWithinCap('')).toBe(true);
 	});
 });

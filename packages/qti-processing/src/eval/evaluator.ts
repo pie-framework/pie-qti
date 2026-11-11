@@ -2,7 +2,7 @@ import Decimal from 'decimal.js';
 import type { ExpressionNode } from '../ast/types.js';
 import type { DeclarationContext } from '../runtime/context.js';
 import { normalizeResponse, type StringComparisonOptions } from '../runtime/normalize.js';
-import { xsdPatternToRegExp } from '../runtime/xsd-pattern.js';
+import { isPatternSubjectWithinCap, xsdPatternToRegExp } from '../runtime/xsd-pattern.js';
 import type { BaseType, Cardinality, Declaration, LookupTableTable, Mapping, MappingEntry, QtiValue } from '../runtime/types.js';
 import {
 	coerceBaseValue,
@@ -1107,7 +1107,10 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const sp = toStringValue(pattern);
 
 			const re = xsdPatternToRegExp(sp, expr.caseSensitive ? '' : 'i');
-			return qtiValue('boolean', 'single', re?.test(sv) ?? false);
+			// A subject beyond MAX_PATTERN_SUBJECT_LENGTH skips the pattern and does not match —
+			// the divergence guard documented on the constant. The guard is checked before the
+			// run, so the author's regular expression never executes on it.
+			return qtiValue('boolean', 'single', re !== null && isPatternSubjectWithinCap(sv) && re.test(sv));
 		}
 		case 'expr.lt':
 		case 'expr.lte':

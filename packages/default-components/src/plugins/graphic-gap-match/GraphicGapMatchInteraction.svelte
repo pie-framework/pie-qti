@@ -663,6 +663,7 @@ function handleRootKeyDown(event: KeyboardEvent) {
 					loadErrorText={translate(i18n, 'interactions.graphicGapMatch.imageLoadError', 'The image could not be loaded.')}
 					onImageError={warnImageFailed}
 					sizing="refuse"
+					reportWidth
 					bind:width={stage.imageWidth}
 					bind:height={stage.imageHeight}
 					bind:failed={stage.imageFailed}
