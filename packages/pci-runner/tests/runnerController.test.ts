@@ -29,6 +29,7 @@ interface FakeElement {
 	parent: FakeElement | null;
 	appendChild(child: FakeElement): FakeElement;
 	replaceChildren(...nodes: FakeElement[]): void;
+	remove(): void;
 }
 
 function fakeElement(): FakeElement {
@@ -44,6 +45,13 @@ function fakeElement(): FakeElement {
 		replaceChildren(...nodes) {
 			for (const child of element.children) child.parent = null;
 			element.children = nodes;
+		},
+		remove() {
+			const parent = element.parent;
+			if (!parent) return;
+			const index = parent.children.indexOf(element);
+			if (index >= 0) parent.children.splice(index, 1);
+			element.parent = null;
 		},
 	};
 	// The controller writes `innerHTML` on containers; record it through `markup`.
@@ -148,7 +156,7 @@ function createHarness(
 	const messages = (msgType: string) => outbox.filter((entry) => entry.message.type === msgType);
 	const last = (msgType: string) => messages(msgType).at(-1);
 	controller.start();
-	return { controller, type, files, outbox, deliver, mount, containers, messages, last, hello, init, instantiate };
+	return { controller, type, files, outbox, deliver, mount, containers, messages, last, hello, init, instantiate, initPayload };
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -222,6 +230,52 @@ describe('origin locking', () => {
 			if (entry.message.type === 'runner-ready') continue;
 			expect(entry.targetOrigin).toBe(PARENT_ORIGIN);
 		}
+	});
+
+	// A host page that is itself sandboxed (the LTI-style embed this sandbox
+	// architecture targets) serializes its origin as "null". That string can
+	// never be a usable postMessage targetOrigin — parsing it yields no origin
+	// that is same-origin with the parent — so every runner→host message would
+	// be silently dropped and the handshake could never complete. The runner
+	// must fall back to '*' outbound while the inbound lock keeps filtering on
+	// the "null" spelling.
+	test('an opaque-parent handshake (origin "null") delivers messages both ways', async () => {
+		const harness = createHarness((type) => ({ [ENTRY_URL]: echoModule(type) }));
+		const OPAQUE = 'null';
+		const fromParent = (data: unknown) => harness.deliver(data, OPAQUE);
+		fromParent(createSandboxEnvelope('hello', { parentOrigin: OPAQUE }));
+		fromParent(createSandboxEnvelope('init', harness.initPayload()));
+		await waitForMessage(harness, 'module-loaded');
+		fromParent(
+			createSandboxEnvelope('instantiate', {
+				responseIdentifier: 'RESPONSE',
+				status: 'interacting',
+				properties: {},
+			})
+		);
+		await waitForMessage(harness, 'instance-ready');
+
+		// Outbound: every post-lock message goes with '*', never the dead
+		// "null" target.
+		for (const entry of harness.outbox) {
+			if (entry.message.type === 'runner-ready') continue;
+			expect(entry.targetOrigin).toBe('*');
+			expect(entry.targetOrigin).not.toBe(OPAQUE);
+		}
+
+		// Inbound: messages keep arriving from the opaque parent — the poll
+		// picks up the module's new response and crosses the bridge.
+		(globalThis as any).__echoInstance.setResponse('opaque');
+		await until(() => harness.messages('response-change').length >= 1);
+		expect(harness.last('response-change')?.message.payload).toMatchObject({
+			response: { base: { string: 'opaque' } },
+		});
+
+		// The lock still refuses a tuple origin that is not the locked spelling.
+		harness.deliver(createSandboxEnvelope('init', harness.initPayload()), 'https://evil.example');
+		await sleep(10);
+		expect(harness.last('module-error')).toBeUndefined();
+		expect(harness.messages('module-loaded')).toHaveLength(1);
 	});
 });
 
@@ -299,8 +353,11 @@ describe('module loading and instantiation', () => {
 
 		harness.instantiate({ status: 'review' });
 		await until(() => harness.messages('instance-ready').length >= 2);
-		// The old container was emptied and a new one created for the new instance.
-		expect(harness.containers[0]?.children).toHaveLength(0);
+		// The old container is removed from the mount entirely — an emptied
+		// wrapper left behind would accumulate one dead <div> per re-instantiation.
+		expect(harness.containers[0]?.parent).toBeNull();
+		expect(harness.mount.children).toHaveLength(1);
+		expect(harness.mount.children[0]).toBe(harness.containers[1]);
 		expect(harness.containers).toHaveLength(2);
 		expect((globalThis as any).__echoConfiguration?.status).toBe('review');
 	});
@@ -338,7 +395,7 @@ describe('response freshness', () => {
 		expect(changes.at(-1)?.message.payload).toMatchObject({ response: { base: { string: 'B' } } });
 	});
 
-	test('teardown-instance stops the poll and disposes the container', async () => {
+	test('teardown-instance stops the poll and removes the container', async () => {
 		const harness = createHarness((type) => ({ [ENTRY_URL]: echoModule(type) }));
 		harness.hello();
 		harness.init({ pollIntervalMs: 30 });
@@ -346,8 +403,9 @@ describe('response freshness', () => {
 		harness.instantiate();
 		await waitForMessage(harness, 'instance-ready');
 		harness.deliver(createSandboxEnvelope('teardown-instance', {}));
-		await until(() => (harness.containers[0]?.children.length ?? 0) === 0);
-		expect(harness.containers[0]?.children).toHaveLength(0);
+		await until(() => harness.mount.children.length === 0);
+		expect(harness.containers[0]?.parent).toBeNull();
+		expect(harness.mount.children).toHaveLength(0);
 
 		const before = harness.messages('response-change').length;
 		(globalThis as any).__echoInstance.setResponse('C');

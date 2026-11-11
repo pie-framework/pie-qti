@@ -38,4 +38,3 @@
  */
 
 export type { Logger } from './types.js';
-export { noopLogger, consoleLogger } from './types.js';
