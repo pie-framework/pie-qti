@@ -212,6 +212,40 @@ export class AssessmentItemDocument {
 		return findDescendants(this.assessmentItem, this.elementNameMapper.toNative(tagName));
 	}
 
+	/**
+	 * Variable identifiers the content pass substitutes live from the session's variable
+	 * context while body and rubric content serialize: those named by `printedVariable`
+	 * (`printedvariable` canonically) inside the item body or a rubric block. Template and
+	 * processing do not author or remove elements — the compiled document is immutable and
+	 * handlers resolve clones — so this set is fixed per item and cached.
+	 */
+	printedVariableIdentifiers(): ReadonlySet<string> {
+		this.printedVariableIds ??= this.collectPrintedVariableIdentifiers();
+		return this.printedVariableIds;
+	}
+
+	private printedVariableIds?: ReadonlySet<string>;
+
+	private collectPrintedVariableIdentifiers(): ReadonlySet<string> {
+		const identifiers = new Set<string>();
+		const roots: Element[] = [this.getItemBodyElement(), ...this.findRubricElements()].filter(
+			(element): element is Element => Boolean(element)
+		);
+		for (const root of roots) this.collectPrintedVariableIdentifiersIn(root, identifiers);
+		return identifiers;
+	}
+
+	private collectPrintedVariableIdentifiersIn(element: Element, identifiers: Set<string>): void {
+		const tag = element.tagName ?? element.localName ?? '';
+		if (this.elementNameMapper.toCanonical(tag) === 'printedvariable') {
+			const identifier = this.getMappedAttribute(element, 'identifier')?.trim();
+			if (identifier) identifiers.add(identifier);
+		}
+		for (const child of childElements(element)) {
+			this.collectPrintedVariableIdentifiersIn(child, identifiers);
+		}
+	}
+
 	/** The item body's `xml:lang`, else the item's: the language its content is written in. */
 	getContentLanguage(): string | undefined {
 		const itemBody = this.getItemBodyElement();

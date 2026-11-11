@@ -118,7 +118,10 @@ describe('QTI item session lifecycle', () => {
 		expect(scoreOnly?.action).toBe('scoreAttempt');
 		expect(scoreOnly?.scoring?.score).toBe(1);
 		expect(scoreOnly?.numAttempts).toBe(0);
-		expect(scoreOnly?.completionStatus).toBe('not_attempted');
+		// The candidate's response change began the attempt (QTI ASI §5.2.1: unknown once the
+		// attempt has begun); scoring without attempt side effects leaves it there — it does
+		// not finalize a non-adaptive item, so it is not 'completed' either.
+		expect(scoreOnly?.completionStatus).toBe('unknown');
 		expect(scoreOnly?.completed).toBe(false);
 
 		const submitted = session.dispatch({ action: 'endAttempt' }).result;

@@ -503,7 +503,12 @@ export class Player {
 			contentLanguage: () => this.getContentLanguage(),
 			coerceToDeclarationValue: (baseType, cardinality, raw, identifier) =>
 				this.coerceToDeclarationValue(baseType, cardinality, raw, identifier),
-			onResponseApplied: () => this.touchResponses(),
+			onResponseApplied: () => {
+				// A mounted PCI module reporting its own change is a candidate response change,
+				// so the attempt has begun (beginAttempt's spec citation applies).
+				this.beginAttempt();
+				this.touchResponses();
+			},
 		});
 	}
 
@@ -557,6 +562,7 @@ export class Player {
 			if (!this.isResponseTrue(id)) this.endAttemptActivations.delete(id);
 			else if (!wasTrue.has(id)) this.endAttemptActivations.add(id);
 		}
+		this.beginAttempt();
 	}
 
 	/**
@@ -582,6 +588,27 @@ export class Player {
 			applyToPci(id, this.qtiValueToPci(d.value));
 		}
 		this.touchResponses();
+	}
+
+	/**
+	 * QTI ASI §5.2.1 built-in `completionStatus` transitions, as the specification's table names
+	 * them: `not_attempted` when the item session is registered, `unknown` once the attempt has
+	 * begun, and `completed` when response processing completes the attempt (the submission of a
+	 * non-adaptive item; an adaptive item reaches `completed` only through its own response
+	 * processing rules). This engine begins the attempt when the candidate changes a response
+	 * (every candidate write goes through setResponses, a mounted PCI reporting its own change
+	 * included) and when a suspended handoff is activated for interaction; response processing
+	 * completes it (responseProcessing.ts).
+	 *
+	 * Documented reading of an ambiguous edge: `openSession({ responses })` pre-seeds through
+	 * setResponses, so it counts as the attempt having begun. `restoreResponses` deliberately
+	 * does not begin an attempt — it replaces saved state ("the state as it stands"), and the
+	 * restored completionStatus travels with that state.
+	 */
+	private beginAttempt(): void {
+		if (this.getCompletionStatus() === 'not_attempted') {
+			this.ctx.setValue('completionStatus', qtiValue('identifier', 'single', 'unknown'));
+		}
 	}
 
 	/** Response values changed: the response snapshot and its memoized validation drop. */
@@ -653,7 +680,12 @@ export class Player {
 
 	/** @internal ItemSession uses this to resume a suspended delivery handoff. */
 	public activateAttempt(): void {
-		if (this.lifecycleStatus === 'suspended') this.lifecycleStatus = 'interacting';
+		if (this.lifecycleStatus === 'suspended') {
+			this.lifecycleStatus = 'interacting';
+			// Resuming hands the item back to the candidate: the attempt has begun
+			// (beginAttempt's spec citation applies), even before a first response change.
+			this.beginAttempt();
+		}
 	}
 
 	/** Test seam (paramVariable delivery); sessions dispatch newTemplate through ItemSession. */
@@ -943,6 +975,25 @@ export class Player {
 	public getResponseIdentifiers(): string[] {
 		return this.getResponseInteractions().map((i) => i.responseIdentifier);
 	}
+
+	/**
+	 * Response identifiers the item's content prints live: the `printedVariable` targets of the
+	 * body and rubric content that are declared responses. Their values are substituted while
+	 * `getItemBodyHtml()` serializes (the content pass reads the live context), so they are the
+	 * part of the response state a presentation's markup actually renders — presentation
+	 * consumers (ItemBody) can key caching on them. The declared response set is fixed per
+	 * session, so the filtered set is computed once.
+	 */
+	public getResponseIdentifiersPrintedInContent(): ReadonlySet<string> {
+		this.printedResponseIdentifiers ??= new Set(
+			[...this.itemDocument.printedVariableIdentifiers()].filter(
+				(identifier) => (this.decls[identifier] as any)?.__kind === 'response'
+			)
+		);
+		return this.printedResponseIdentifiers;
+	}
+
+	private printedResponseIdentifiers?: ReadonlySet<string>;
 
 	public isAdaptive(): boolean {
 		return (this.itemDocument.getAssessmentItemAttribute('adaptive') || '').toLowerCase() === 'true';

@@ -3,17 +3,19 @@
 </script>
 
 <script lang="ts">
-	import { mount as mountComponent, unmount, untrack, type ComponentProps } from 'svelte';
-	import { getItemSessionBinding, type ItemSession, type ItemSessionTransition } from '../core/ItemSession';
-	import type { InteractionResponseValue, QTIChangeEventDetail } from '../web-components';
-	import type { ExtractedPci } from '../pci/types';
-	import type { ItemBodyError, PlayerSecurityConfig } from '../types';
-	import type {
-		BlockInteractionMount,
-		InlineInteractionMount,
-		ItemInteractionMount,
-		ItemPresentation,
-	} from '../presentation/itemPresentationPlan';
+import { mount as mountComponent, unmount, untrack, type ComponentProps } from 'svelte';
+import { getItemSessionBinding, type ItemSession, type ItemSessionTransition, type ItemSessionView } from '../core/ItemSession';
+import type { InteractionResponseValue, QTIChangeEventDetail } from '../web-components';
+import type { ExtractedPci } from '../pci/types';
+import type { ItemBodyError, PlayerSecurityConfig } from '../types';
+import type { PnpProfile } from '../pnp/types';
+import type {
+	BlockInteractionMount,
+	InlineInteractionMount,
+	ItemInteractionMount,
+	ItemPresentation,
+} from '../presentation/itemPresentationPlan';
+import type { TextEntryInteractionData } from '../interactions/shared/types';
 	import { INTERACTION_SLOT_ATTRIBUTE } from '../presentation/interactionSlots';
 	import {
 		contentLanguageAttributes,
@@ -26,8 +28,10 @@
 	import { typesetAction } from './actions/typesetAction';
 	import { glossaryAction } from '../catalog/glossaryAction';
 	import { isWithinPnpSurface } from '../pnp/applyPnp';
-	import { assignProps } from '@pie-qti/qti-common';
-	import { createItemBodyRenderer, UNSLOTTED_CLASS, type MountedInteraction } from './utils/itemBodyRenderer';
+import { assignProps } from '@pie-qti/qti-common';
+import { textEntryStringIdentifier } from '../interactions/text-entry/response';
+import { plainValueEquals } from '../core/serialization/valueForms';
+import { createItemBodyRenderer, UNSLOTTED_CLASS, type MountedInteraction } from './utils/itemBodyRenderer';
 	import { sentenceContextId } from './utils/sentenceContext';
 	import {
 		isCandidateAttemptFeedback,
@@ -79,9 +83,69 @@
 	// every presentation: the host hears about each interaction type once, the log keeps
 	// every occurrence.
 	const reportedComponentErrors = new Set<string>();
+	/**
+	 * The last presentation, with the inputs it was built from.
+	 *
+	 * Building a presentation re-serializes the body DOM, sanitizes it twice, re-sanitizes
+	 * every stimulus and re-parses the flow — millisecond-scale work per keystroke to produce
+	 * a markup string the renderer then proves unchanged. The body markup is a pure function
+	 * of the item's content and the session state the content pass substitutes while it
+	 * serializes: outcome values (feedbackInline / feedbackBlock and the shown feedback),
+	 * template and context values (template-shown content, printed variables) — `duration`
+	 * excepted, which changes with every dispatch and renders nowhere — and the response
+	 * values content actually prints (`printedVariable` of a response), reported by the
+	 * session's binding. Everything else a response change carries is interaction input:
+	 * present() reads responses only into mounts, and this component reads those live from
+	 * `responses` when it props the mounted interactions (blockProps, createInline), so the
+	 * mount payloads stay current without rebuilding the plan.
+	 *
+	 * The non-response inputs are compared wholesale — outcomes, templates and context are
+	 * small records, and any dispatch that regenerates content (newTemplate, restore,
+	 * updatePnp) moves at least one of them, the lifecycle, the PnP profile or the compared
+	 * presentation options. When a content-regenerating dispatch leaves every compared input
+	 * equal, the regenerated presentation is byte-identical: the plan is a pure function of
+	 * the immutable compiled document, the compared context values, the session-fixed role
+	 * and feedback policy, and these options.
+	 */
+	interface PresentationCache {
+		presentation: ItemPresentation;
+		disabled: boolean;
+		renderItemBodyRubrics: boolean;
+		heuristicsConfig: QtiHeuristicsConfig | undefined;
+		lifecycleStatus: ItemSessionView['lifecycleStatus'];
+		pnp: PnpProfile | undefined;
+		security: PlayerSecurityConfig | undefined;
+		outcomes: Readonly<Record<string, unknown>>;
+		templates: Readonly<Record<string, unknown>>;
+		context: Readonly<Record<string, unknown>>;
+		responses: Readonly<Record<string, unknown>>;
+		printedResponseIds: ReadonlySet<string>;
+	}
+	let presentationCache: PresentationCache | null = null;
+
 	const presentation = $derived.by(() => {
-		void revision;
-		return session.present({
+		const view = sessionView;
+		const currentPnp = binding.getPnp();
+		const currentSecurity = binding.getSecurityConfig();
+		const printedResponseIds = binding.getResponseIdentifiersPrintedInContent();
+		const cache = presentationCache;
+		if (
+			cache &&
+			cache.disabled === disabled &&
+			cache.renderItemBodyRubrics === renderItemBodyRubrics &&
+			cache.heuristicsConfig === heuristicsConfig &&
+			cache.lifecycleStatus === view.lifecycleStatus &&
+			cache.pnp === currentPnp &&
+			cache.security === currentSecurity &&
+			cache.printedResponseIds === printedResponseIds &&
+			recordEquals(cache.outcomes, view.outcomes) &&
+			recordEquals(cache.templates, view.templates) &&
+			recordEquals(cache.context, view.context, ['duration']) &&
+			printedResponsesEqual(cache.responses, view.responses, printedResponseIds)
+		) {
+			return cache.presentation;
+		}
+		const built = session.present({
 			disabled,
 			heuristicsConfig,
 			itemBodyScopeSelector,
@@ -95,6 +159,21 @@
 				queueMicrotask(() => onError?.({ code: 'render-failed', cause: error }));
 			}
 		});
+		presentationCache = {
+			presentation: built,
+			disabled,
+			renderItemBodyRubrics,
+			heuristicsConfig,
+			lifecycleStatus: view.lifecycleStatus,
+			pnp: currentPnp,
+			security: currentSecurity,
+			outcomes: view.outcomes,
+			templates: view.templates,
+			context: view.context,
+			responses: view.responses,
+			printedResponseIds,
+		};
+		return built;
 	});
 	// The item body is a content root: `lang` and `dir` are the item's declared
 	// language and its direction, never the interface locale's. Content that
@@ -127,6 +206,31 @@
 		}
 	}
 
+	/** Variable-map equality for the presentation cache; `skip` names rendered-nowhere fields. */
+	function recordEquals(
+		before: Readonly<Record<string, unknown>>,
+		after: Readonly<Record<string, unknown>>,
+		skip: readonly string[] = []
+	): boolean {
+		const skipped = new Set(skip);
+		const beforeKeys = Object.keys(before).filter((key) => !skipped.has(key));
+		const afterKeys = Object.keys(after).filter((key) => !skipped.has(key));
+		if (beforeKeys.length !== afterKeys.length) return false;
+		return beforeKeys.every((key) => plainValueEquals(before[key], after[key]));
+	}
+
+	/** Equality of exactly the response values the body's markup prints. */
+	function printedResponsesEqual(
+		before: Readonly<Record<string, unknown>>,
+		after: Readonly<Record<string, unknown>>,
+		printedResponseIds: ReadonlySet<string>
+	): boolean {
+		for (const id of printedResponseIds) {
+			if (!plainValueEquals(before[id], after[id])) return false;
+		}
+		return true;
+	}
+
 	// Handle qti:change events from web components
 	function handleQtiChange(event: QtiChangeDomEvent) {
 		const { responseId, value } = event.detail;
@@ -138,19 +242,28 @@
 	// In runes mode, prefer explicit DOM listener wiring to avoid edge cases with
 	// custom events bubbling out of shadow DOM (and to keep typing sane for dynamic elements).
 	let rootEl: HTMLDivElement | null = $state(null);
+	// The wiring depends on the element identity and the session's binding only — never on
+	// `revision`: a response dispatch neither rewrites display attributes nor re-binds the
+	// listener the item's interactions dispatch through (re-binding momentarily detaches it).
+	// A PnP change (session.dispatch({ action: 'updatePnp' })) re-applies the display needs,
+	// which is the one revision-carrying change this surface owns.
 	$effect(() => {
 		if (!rootEl) return;
-		void revision;
+		const el = rootEl; // Capture reference for cleanup
 		// Display needs are applied once, by the outermost surface that renders this item.
 		// Inside a section player's surface (`applyPnpToSurface`), the section applies them to
 		// its passages, rubrics, tool bars and this item alike — including the candidate's own
 		// display settings — so the item body applies none that would override them.
-		if (!isWithinPnpSurface(rootEl)) binding.applyPnp(rootEl);
+		const applyDisplayNeeds = () => {
+			if (!isWithinPnpSurface(el)) binding.applyPnp(el);
+		};
+		applyDisplayNeeds();
+		const offPnpChange = binding.onPnpChange(() => applyDisplayNeeds());
 		const handler = (e: Event) => handleQtiChange(e as QtiChangeDomEvent);
-		const el = rootEl; // Capture reference for cleanup
 		el.addEventListener('qti-change', handler as EventListener);
 		return () => {
 			el.removeEventListener('qti-change', handler as EventListener);
+			offPnpChange();
 		};
 	});
 
@@ -228,14 +341,37 @@
 			return typeof response === 'string' ? response : '';
 		};
 
+		/**
+		 * The response values a mount's interaction shows, read from the CURRENT responses
+		 * rather than from the cached presentation's mount. The presentation plan is cached
+		 * across response changes (only the markup-bearing inputs rebuild it), so its mount
+		 * snapshots go stale; the mounted interaction must not. This is the same derivation
+		 * present() applies when it builds mounts (itemPresentationPlan's mount responses).
+		 */
+		function mountResponseProps(mount: BlockInteractionMount): {
+			response: ItemResponseValue;
+			stringResponse?: ItemResponseValue;
+			correctResponse: unknown;
+		} {
+			const stringIdentifier =
+				'stringIdentifier' in mount.interaction && typeof mount.interaction.stringIdentifier === 'string'
+					? mount.interaction.stringIdentifier
+					: undefined;
+			return {
+				response: (params.responses[mount.interaction.responseId] ?? null) as ItemResponseValue,
+				...(stringIdentifier ? { stringResponse: (params.responses[stringIdentifier] ?? null) as ItemResponseValue } : {}),
+				correctResponse: params.presentation.capabilities.canViewCorrectResponses
+					? (params.presentation.correctResponses[mount.interaction.responseId] ?? null)
+					: null,
+			};
+		}
+
 		function blockProps(mount: BlockInteractionMount): Record<string, unknown> {
 			return {
 				i18n: params.i18n,
 				typeset: params.typeset,
 				interaction: mount.interaction,
-				response: mount.response,
-				stringResponse: mount.stringResponse,
-				correctResponse: mount.correctResponse,
+				...mountResponseProps(mount),
 				pnp: mount.pnp,
 				eliminationTool: mount.eliminationTool,
 				answerMasking: mount.answerMasking,
@@ -289,14 +425,20 @@
 			});
 
 			if (mount.renderer === 'text-entry') {
-				const props: ComponentProps<typeof InlineTextEntry> = $state({ interaction: mount.interaction, ...shared(), stringResponse: mount.stringResponse });
+				// The string response reads live like the response itself: the cached plan's
+				// mount snapshot goes stale across response changes (see mountResponseProps).
+				const liveStringResponse = (interaction: TextEntryInteractionData): ItemResponseValue => {
+					const stringIdentifier = textEntryStringIdentifier(interaction);
+					return ((stringIdentifier ? params.responses[stringIdentifier] : undefined) ?? null) as ItemResponseValue;
+				};
+				const props: ComponentProps<typeof InlineTextEntry> = $state({ interaction: mount.interaction, ...shared(), stringResponse: liveStringResponse(mount.interaction) });
 				const instance = mountComponent(InlineTextEntry, { target: element, props });
 				return {
 					element,
 					update(next) {
 						if (next.placement !== 'inline' || next.renderer !== 'text-entry') return;
 						mount = next;
-						Object.assign(props, { interaction: next.interaction, ...shared(), stringResponse: next.stringResponse });
+						Object.assign(props, { interaction: next.interaction, ...shared(), stringResponse: liveStringResponse(next.interaction) });
 					},
 					placed(slot) {
 						props.contextId = slot ? sentenceContextId(slot, node, contextId) : undefined;

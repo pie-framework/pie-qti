@@ -73,3 +73,47 @@ function payloadEquals(a: unknown, b: unknown): boolean {
 	}
 	return false;
 }
+
+/** Typed arrays up to this many bytes diff bytewise; larger ones read as changed. */
+const TYPED_ARRAY_DIFF_LIMIT = 4096;
+
+/**
+ * Structural equality of two public variable values (whatever qtiValueToPublic produced:
+ * null, primitives, arrays, plain records, and the occasional non-plain leaf such as a File
+ * or a drawing's typed arrays). Like payloadEquals for QtiValues, non-plain leaves compare
+ * by identity, which can only over-report a change, never miss one. A typed array diffs
+ * bytewise only while it is small; a large one (a canvas snapshot) reads as changed, because
+ * diffing one per keystroke would cost what the comparison exists to save, and re-rendering
+ * is always the safe reading.
+ */
+export function plainValueEquals(a: unknown, b: unknown): boolean {
+	if (a === b) return true;
+	if (Array.isArray(a) || Array.isArray(b)) {
+		return (
+			Array.isArray(a) &&
+			Array.isArray(b) &&
+			a.length === b.length &&
+			a.every((item, index) => plainValueEquals(item, b[index]))
+		);
+	}
+	if (ArrayBuffer.isView(a) || ArrayBuffer.isView(b)) {
+		const viewA = a as ArrayBufferView;
+		const viewB = b as ArrayBufferView;
+		if (viewA.byteLength !== viewB.byteLength || viewA.byteLength > TYPED_ARRAY_DIFF_LIMIT) return false;
+		const bytesA = new Uint8Array(viewA.buffer, viewA.byteOffset, viewA.byteLength);
+		const bytesB = new Uint8Array(viewB.buffer, viewB.byteOffset, viewB.byteLength);
+		for (let index = 0; index < bytesA.length; index++) {
+			if (bytesA[index] !== bytesB[index]) return false;
+		}
+		return true;
+	}
+	if (a && b && typeof a === 'object' && typeof b === 'object') {
+		const keysA = Object.keys(a as Record<string, unknown>);
+		const keysB = Object.keys(b as Record<string, unknown>);
+		if (keysA.length !== keysB.length) return false;
+		return keysA.every((key) =>
+			plainValueEquals((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]),
+		);
+	}
+	return false;
+}
