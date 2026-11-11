@@ -1,0 +1,9 @@
+---
+'@pie-qti/assessment-player': patch
+---
+
+Branch-rule targets are honored forward-only on every path (QTI 2.2 §5.15: the test jumps forward, and an item or section target must refer to something that has not yet been presented — a delivered test cannot re-enter presented items). The client path (`exitBoundaries.branchTargetIndex`, and the branch hop in `AssessmentPlayer.followBranch`) previously resolved a literal target to the first item with that identifier anywhere in the delivered sequence, so a backward-targeting decision — spec-violating content, or a production backend echoing a raw target — made the candidate revisit an already-presented item while the reference backend moved forward. Both engines now resolve literal targets through one shared helper (`testStructure.firstForwardBranchTarget`: the first forward match by item, then enclosing-section, then test-part identifier), so identical XML branches identically on the backend and client paths; parity is pinned by tests over the same fixtures. A target with no forward occurrence is skipped — the rule does not fire and delivery falls through to the next item, exactly as the backend's own walk does — and a target whose identifier is presented again later lands on its first forward occurrence. `EXIT_TEST` / `EXIT_TESTPART` / `EXIT_SECTION` handling is unchanged.
+
+**Breaking:** a branch decision (a backend's `nextItemIdentifier`) naming an already-presented item no longer navigates backwards. Delivery skips such a decision and falls through to the delivery rules; content authoring backward branch targets (a spec violation) and hosts returning raw backward decisions see forward delivery now, never re-entry.
+
+The `SecureTimeLimits.minTime` / `maxTime` JSDoc now states their unit (seconds), matching every other duration field in the package.

@@ -201,6 +201,40 @@ function branchTarget(
 	return undefined;
 }
 
+/** The delivered-item shape literal branch-target resolution reads (`DeliveredItem` and `FlatItem` both). */
+export type ScopedDeliveredItem = {
+	item: { identifier: string };
+	/** Enclosing sections, outermost first. */
+	sections: readonly { identifier: string }[];
+	testPart: { identifier: string };
+};
+
+/**
+ * The one literal branch-target resolver both live engines share — the reference backend's
+ * `resolveBranchTarget` and the client's `exitBoundaries.branchTargetIndex` — so identical
+ * branch XML cannot branch differently on the two paths. Forward-only per QTI 2.2 §5.15
+ * ("the test jumps forward … the target must refer to an item or section … that has not yet
+ * been presented"): the first delivered item strictly after `currentIndex` whose item,
+ * enclosing-section, or test-part identifier matches `target`, tried in that order;
+ * `undefined` when none does. A target naming an already-presented item therefore resolves
+ * to nothing (the rule is skipped, delivery falls through), never backwards.
+ */
+export function firstForwardBranchTarget(
+	target: string,
+	items: readonly ScopedDeliveredItem[],
+	currentIndex: number,
+): number | undefined {
+	const firstAfter = (match: (item: ScopedDeliveredItem) => boolean): number | undefined => {
+		for (let j = currentIndex + 1; j < items.length; j++) if (match(items[j]!)) return j;
+		return undefined;
+	};
+	return (
+		firstAfter((item) => item.item.identifier === target) ??
+		firstAfter((item) => item.sections.some((section) => section.identifier === target)) ??
+		firstAfter((item) => item.testPart.identifier === target)
+	);
+}
+
 /** Index a branch target resolves to, forward of `index`; delivered.length ends the test. */
 function resolveBranchTarget(
 	target: string,
@@ -222,11 +256,7 @@ function resolveBranchTarget(
 			if (!exitSection) return undefined;
 			return firstAfter((d) => !d.sections.includes(exitSection)) ?? delivered.length;
 		default:
-			return (
-				firstAfter((d) => d.item.identifier === target) ??
-				firstAfter((d) => d.sections.some((section) => section.identifier === target)) ??
-				firstAfter((d) => d.testPart.identifier === target)
-			);
+			return firstForwardBranchTarget(target, delivered, index);
 	}
 }
 
