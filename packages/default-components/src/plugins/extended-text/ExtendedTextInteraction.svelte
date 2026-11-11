@@ -362,10 +362,19 @@
 		handleFieldLeave(index);
 	}
 
-	/** What describes field `index`: its counter, and its mask message while it shows. */
+	/**
+	 * What describes field `index`: its counter, its mask message while it shows, and the
+	 * minimum hint while the response is short of it — the hint names itself in
+	 * `aria-describedby` while it renders, per MinimumRequirementHint's contract, so a
+	 * screen-reader user hears the requirement with the field (WCAG 1.3.1, 3.3.2).
+	 */
 	function fieldDescribedBy(index: number): string | undefined {
 		return (
-			[showCounter ? counterId(index) : '', patternInvalidFields.has(index) ? patternErrorId(index) : '']
+			[
+				showCounter ? counterId(index) : '',
+				patternInvalidFields.has(index) ? patternErrorId(index) : '',
+				minHint && minHintId,
+			]
 				.filter(Boolean)
 				.join(' ') || undefined
 		);

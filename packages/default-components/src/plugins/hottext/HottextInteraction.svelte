@@ -15,6 +15,7 @@
 	import { accessibleTextFromHtml } from '../../shared/utils/accessibleText';
 	import { choiceAccessibleName } from '../../shared/utils/choiceName';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
 
 	type Props = InteractionProps<'hottextInteraction'>;
 
@@ -390,6 +391,22 @@
 		),
 	);
 	const showMaxMessage = $derived(isLimitMessageShown(selectedIds.length, maxChoices, parsedInteraction?.maxSelectionsMessage));
+
+	// Minimum requirement (minChoices): stated on the question while the response is short of
+	// it — the same minimum response validation enforces before the answer counts as complete
+	// (WCAG 3.3.2, 3.3.3) — through the shared hint, whose polite live region announces it once
+	// per unmet stretch (WCAG 4.1.3) where the old footer badges were a visual-only status. The
+	// author's message wins. Only while the candidate can still answer.
+	const minHintId = `${uid}-min-hint`;
+	const minHint = $derived.by(() => {
+		if (disabled || role !== 'candidate' || !parsedInteraction) return '';
+		const minimum = Number(parsedInteraction.minChoices ?? 0);
+		if (!Number.isFinite(minimum) || minimum <= 0 || selectedIds.length >= minimum) return '';
+		return (
+			parsedInteraction.minSelectionsMessage?.trim() ||
+			translate(i18n, 'interactions.hottext.selectAtLeast', `Select at least ${minimum}`, { minChoices: minimum })
+		);
+	});
 </script>
 
 <ShadowBaseStyles />
@@ -413,6 +430,7 @@
 			class="hottext-content qti-hottext-content qti-rich-content prose max-w-none"
 			role={isSingle ? 'radiogroup' : 'group'}
 			aria-label={translate(i18n, 'interactions.hottext.ariaLabel', 'Text selection interaction')}
+			aria-describedby={minHint ? minHintId : undefined}
 		>
 			{@html parsedInteraction.contentHtml}
 		</div>
@@ -421,13 +439,6 @@
 			<div>
 				<span class="font-medium">{translate(i18n, 'interactions.hottext.selected', 'Selected:')}</span>
 				<span class="ms-2">{selectedIds.length} / {parsedInteraction.hottextChoices?.length ?? 0}</span>
-				{#if parsedInteraction.minChoices > 0}
-					{#if selectedIds.length >= parsedInteraction.minChoices}
-						<span class="badge badge-success badge-sm ms-2">✓ {translate(i18n, 'interactions.hottext.minimumMet', 'Minimum met')}</span>
-					{:else}
-						<span class="badge badge-warning badge-sm ms-2">{limitMessage(parsedInteraction.minSelectionsMessage, translate(i18n, 'interactions.hottext.selectAtLeast', `Select at least ${parsedInteraction.minChoices}`, { minChoices: parsedInteraction.minChoices }))}</span>
-					{/if}
-				{/if}
 			</div>
 
 			<!-- Same name and rule as ChoiceInteraction's "Clear answer" (WCAG 3.2.4) -->
@@ -442,6 +453,7 @@
 				</button>
 			{/if}
 		</div>
+		<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(selectedIds)} />
 		{#if showMaxMessage}
 			<p class="qti-selection-message" role="alert">{maxMessage}</p>
 		{/if}

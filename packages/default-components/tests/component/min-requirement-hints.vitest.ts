@@ -19,6 +19,7 @@ import type {
 	GraphicGapMatchInteractionData,
 	GraphicOrderInteractionData,
 	HotspotInteractionData,
+	HottextInteractionData,
 	MatchInteractionData,
 	OrderInteractionData,
 } from '@pie-qti/item-player';
@@ -31,6 +32,7 @@ import GraphicAssociateInteraction from '../../src/plugins/graphic-associate/Gra
 import GraphicGapMatchInteraction from '../../src/plugins/graphic-gap-match/GraphicGapMatchInteraction.svelte';
 import GraphicOrderInteraction from '../../src/plugins/graphic-order/GraphicOrderInteraction.svelte';
 import HotspotInteraction from '../../src/plugins/hotspot/HotspotInteraction.svelte';
+import HottextInteraction from '../../src/plugins/hottext/HottextInteraction.svelte';
 import MatchInteraction from '../../src/plugins/match/MatchInteraction.svelte';
 import OrderInteraction from '../../src/plugins/order/OrderInteraction.svelte';
 import { check, cleanupInteraction, type MountedInteraction, mountInteraction, q, qa, settle } from './helpers';
@@ -530,6 +532,104 @@ describe('HotspotInteraction minimum (minChoices)', () => {
 	});
 });
 
+describe('HottextInteraction minimum (minChoices)', () => {
+	function hottextData(overrides: Partial<HottextInteractionData> = {}): HottextInteractionData {
+		return {
+			type: 'hottextInteraction',
+			responseId: 'RESPONSE',
+			prompt: '<p>Click every plant.</p>',
+			maxChoices: 3,
+			minChoices: 2,
+			contentHtml:
+				'<p>The <hottext identifier="H1">fern</hottext> and the <hottext identifier="H2">oak</hottext> are plants; a <hottext identifier="H3">rock</hottext> is not.</p>',
+			hottextChoices: [{ identifier: 'H1' }, { identifier: 'H2' }, { identifier: 'H3' }],
+			...overrides,
+		};
+	}
+
+	test('states the minimum while fewer are selected and describes the answer group with it', async () => {
+		const mounted = mountInteraction(HottextInteraction, { interaction: hottextData() });
+		await settle();
+
+		const group = q(mounted, '[role="group"]');
+		expect(hint(mounted)?.textContent).toBe('Select at least 2');
+		expect(describedByHint(mounted, group)).toBe(true);
+
+		const spans = qa<HTMLElement>(mounted, 'hottext');
+		spans[0]!.click();
+		await settle();
+		// Still short: the hint stays and keeps describing the group.
+		expect(hint(mounted)?.textContent).toBe('Select at least 2');
+		expect(describedByHint(mounted, group)).toBe(true);
+
+		spans[1]!.click();
+		await settle();
+		expect(mounted.instance.response).toEqual(['H1', 'H2']);
+		expect(hint(mounted)).toBeNull();
+		expect(group?.hasAttribute('aria-describedby')).toBe(false);
+
+		// Toggling one off leaves the response short again: the hint returns with its description.
+		spans[1]!.click();
+		await settle();
+		expect(hint(mounted)?.textContent).toBe('Select at least 2');
+		expect(describedByHint(mounted, group)).toBe(true);
+	});
+
+	test('the author’s message wins', async () => {
+		const mounted = mountInteraction(HottextInteraction, {
+			interaction: hottextData({ minSelectionsMessage: 'Select both plants.' }),
+		});
+		await settle();
+		expect(hint(mounted)?.textContent).toBe('Select both plants.');
+	});
+
+	test('the default comes from the localized catalog', async () => {
+		const mounted = mountInteraction(HottextInteraction, { interaction: hottextData(), i18n: nl });
+		await settle();
+		expect(hint(mounted)?.textContent).toBe('Selecteer minimaal 2');
+	});
+
+	test('is announced once when a change leaves the minimum unmet, not on every change or on load', async () => {
+		const mounted = mountInteraction(HottextInteraction, { interaction: hottextData() });
+		await settle();
+		// On load the hint is the group's description, not an announcement.
+		expect(announcement(mounted)).toBe('');
+		const announcements = watchAnnouncements(mounted);
+		const spans = qa<HTMLElement>(mounted, 'hottext');
+
+		spans[0]!.click();
+		await settle();
+		expect(announcement(mounted)).toBe('Select at least 2');
+		expect(announcements.count).toBe(1);
+
+		// Still short: silent.
+		spans[0]!.click();
+		await settle();
+		spans[2]!.click();
+		await settle();
+		expect(announcements.count).toBe(1);
+
+		// Met, then short again: a new announcement.
+		spans[1]!.click();
+		await settle();
+		expect(announcement(mounted)).toBe('');
+		spans[1]!.click();
+		await settle();
+		expect(announcement(mounted)).toBe('Select at least 2');
+		expect(announcements.count).toBe(2);
+		announcements.stop();
+	});
+
+	test('shows no hint without a minimum, when disabled, or outside the candidate role', async () => {
+		const none = mountInteraction(HottextInteraction, { interaction: hottextData({ minChoices: 0 }) });
+		const disabled = mountInteraction(HottextInteraction, { interaction: hottextData(), disabled: true });
+		const scorer = mountInteraction(HottextInteraction, { interaction: hottextData(), role: 'scorer' });
+		await settle();
+		expect([hint(none), hint(disabled), hint(scorer)]).toEqual([null, null, null]);
+		cleanupInteraction(none, disabled, scorer);
+	});
+});
+
 describe('GraphicOrderInteraction minimum (minChoices)', () => {
 	// minChoices at the hotspot count is full ordering: every hotspot is required, so the
 	// unmet-minimum hint reads while the response is ungiven and clears once it is committed.
@@ -750,6 +850,40 @@ describe('ExtendedTextInteraction minimum (minStrings)', () => {
 		await settle();
 		expect(qa(mounted, 'textarea')).toHaveLength(2);
 		expect(q(mounted, '[part="announcer"]')?.textContent).toContain('Response 3 removed.');
+	});
+
+	test('describes each field with the hint while the minimum is unmet, and drops it once met', async () => {
+		const mounted = mountInteraction(ExtendedTextInteraction, { interaction: extendedTextData() });
+		await settle();
+
+		const textareas = qa<HTMLTextAreaElement>(mounted, 'textarea');
+		expect(textareas.length).toBe(2);
+		expect(textareas.every((field) => describedByHint(mounted, field))).toBe(true);
+
+		// Still short with one field filled: the fields keep the description.
+		textareas[0]!.value = 'clouds';
+		textareas[0]!.dispatchEvent(new Event('input', { bubbles: true }));
+		await settle();
+		expect(qa<HTMLTextAreaElement>(mounted, 'textarea').every((field) => describedByHint(mounted, field))).toBe(true);
+
+		textareas[1]!.value = 'rain';
+		textareas[1]!.dispatchEvent(new Event('input', { bubbles: true }));
+		await settle();
+		expect(hint(mounted)).toBeNull();
+		expect(qa(mounted, 'textarea').some((field) => field.hasAttribute('aria-describedby'))).toBe(false);
+	});
+
+	test('the hint joins the field’s counter description, it does not replace it', async () => {
+		const mounted = mountInteraction(ExtendedTextInteraction, {
+			interaction: extendedTextData({ expectedLength: 40, interactionClasses: ['qti-counter-up'] }),
+		});
+		await settle();
+
+		const field = qa<HTMLTextAreaElement>(mounted, 'textarea')[0]!;
+		const ids = (field.getAttribute('aria-describedby') ?? '').split(/\s+/);
+		expect(ids).toHaveLength(2);
+		expect(ids).toContain(hint(mounted)!.id);
+		expect(ids).toContain(q(mounted, '[part="counter"]')!.id);
 	});
 
 	test('without a minimum the single response clears without a refusal', async () => {
