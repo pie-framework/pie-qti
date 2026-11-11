@@ -60,12 +60,28 @@ describe('validatePieItemStructure', () => {
 });
 
 describe('PieItemValidator', () => {
-  test('should create a validator instance', () => {
+  test('should create a validator instance with the validation API', () => {
     const validator = new PieItemValidator();
-    expect(validator).toBeDefined();
+    expect(typeof validator.registerSchema).toBe('function');
+    expect(typeof validator.loadSchemaForElement).toBe('function');
+    expect(typeof validator.validate).toBe('function');
+    expect(typeof validator.validateMany).toBe('function');
+
+    // A structurally complete item passes with no schemas registered
+    const result = validator.validate({
+      id: 'test-001',
+      uuid: '123e4567-e89b-12d3-a456-426614174000',
+      config: {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        models: [],
+        elements: {},
+      },
+    });
+    expect(result.valid).toBe(true);
+    expect(result.errors).toBeUndefined();
   });
 
-  test('should register a schema', () => {
+  test('should register a schema that validate() then enforces', () => {
     const validator = new PieItemValidator();
     const schema = {
       type: 'object',
@@ -78,7 +94,35 @@ describe('PieItemValidator', () => {
     };
 
     validator.registerSchema('@pie-element/test', schema);
-    // No error means success
+
+    // A model of the registered element that violates the schema must fail
+    const bad = validator.validate({
+      id: 'test-001',
+      uuid: '123e4567-e89b-12d3-a456-426614174000',
+      config: {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        models: [{ element: '@pie-element/test', prompt: 'missing id' }],
+        elements: {},
+      },
+    });
+    expect(bad.valid).toBe(false);
+    expect(bad.errors).toBeDefined();
+    expect(
+      bad.detailedErrors?.some((e) => e.path.startsWith('config.models[0]')),
+    ).toBe(true);
+
+    // A conforming model of the same element passes
+    const good = validator.validate({
+      id: 'test-001',
+      uuid: '123e4567-e89b-12d3-a456-426614174000',
+      config: {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        models: [{ id: 'model-001', element: '@pie-element/test' }],
+        elements: {},
+      },
+    });
+    expect(good.valid).toBe(true);
+    expect(good.errors).toBeUndefined();
   });
 
   test('should validate against registered schema', () => {

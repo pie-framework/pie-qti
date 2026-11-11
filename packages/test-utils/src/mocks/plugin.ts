@@ -166,32 +166,3 @@ export function createMockPlugin(
 ): MockTransformPlugin {
 	return new MockTransformPlugin(id, sourceFormat, targetFormat, { priority });
 }
-
-/**
- * Create a mock plugin that always rejects canHandle
- */
-export function createRejectingPlugin(
-	id: string,
-	sourceFormat: TransformFormat,
-	targetFormat: TransformFormat,
-): MockTransformPlugin {
-	return new MockTransformPlugin(id, sourceFormat, targetFormat, {
-		canHandle: async () => false,
-	});
-}
-
-/**
- * Create a mock plugin that throws an error during transform
- */
-export function createFailingPlugin(
-	id: string,
-	sourceFormat: TransformFormat,
-	targetFormat: TransformFormat,
-	errorMessage = 'Mock transform failed',
-): MockTransformPlugin {
-	return new MockTransformPlugin(id, sourceFormat, targetFormat, {
-		transform: async () => {
-			throw new Error(errorMessage);
-		},
-	});
-}
