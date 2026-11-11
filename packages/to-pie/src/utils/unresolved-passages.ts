@@ -6,9 +6,9 @@
  * render, or a stimulus reference the item body partition took out of the item.
  */
 
+import { parseObjectReference } from '@pie-qti/ims-cp-core';
 import type { PieItem, TransformOutput, TransformWarning } from '@pie-qti/transform-types';
 import { parse } from 'node-html-parser';
-import { parseObjectReference } from './passage-reusability.js';
 
 export const PASSAGE_UNRESOLVED = 'QTI_PASSAGE_UNRESOLVED';
 

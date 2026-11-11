@@ -46,12 +46,17 @@ console.log(localized.availableLocales); // Set of all locales
 ### Passage Reusability
 
 ```typescript
-import { generateStablePassageId, PassageRegistry } from '@pie-qti/ims-cp-core/passage-reusability';
+import { generateStablePassageId, parseObjectReference, PassageRegistry } from '@pie-qti/ims-cp-core/passage-reusability';
 
 // Generate stable ID from content (async)
 const id = await generateStablePassageId({
   content: '<p>The Industrial Revolution...</p>'
 });
+
+// Parse an <object> element into a passage reference (sync).
+// A text/* type is a passage; an untyped object only when its data file
+// looks like a markup document (.html, .xhtml, .xml).
+const reference = parseObjectReference(objectElement);
 
 // Track passage references across a package
 const registry = new PassageRegistry();
@@ -66,8 +71,12 @@ registry.registerReference('item-1', {
 
 ### Breaking Changes from to-pie
 
-- `generateStablePassageId()` is now **async** (returns `Promise<string>`)
-- `PassageRegistry.detectAndMergeDuplicates()` is now **async**
+- `generateStablePassageId()` is **async** (returns `Promise<string>`); inject a sync hash
+  with `createStablePassageIdGenerator(hashContent)` when you need synchronous IDs
+- `PassageRegistry.detectAndMergeDuplicates()` is **async**
+- `parseObjectReference()` is **sync** and strict about untyped objects: an `<object>`
+  without a `type` is a passage only when its `data` file looks like markup
+  (`.html`, `.xhtml`, `.xml`); figures and other assets are not passages
 
 ## License
 
