@@ -7,7 +7,6 @@
 import { describe, expect, it } from 'bun:test';
 import { buildExpression } from '../src/ast/build.js';
 import { evalExpr } from '../src/eval/evaluator.js';
-import { OperatorRegistry } from '../src/eval/operators.js';
 import { DeclarationContext } from '../src/runtime/context.js';
 import type { BaseType, Cardinality, DeclarationMap, QtiValue } from '../src/runtime/types.js';
 import { qtiNull, qtiValue } from '../src/runtime/value.js';
@@ -19,7 +18,7 @@ function declaration(identifier: string, baseType: BaseType, cardinality: Cardin
 
 function evaluate(xml: string, decls: DeclarationMap = {}): QtiValue {
 	const expression = buildExpression(parseXml(xml).documentElement);
-	return evalExpr({ ctx: new DeclarationContext(decls), ops: new OperatorRegistry(), rng: () => 0.5 }, expression);
+	return evalExpr({ ctx: new DeclarationContext(decls), rng: () => 0.5 }, expression);
 }
 
 const id = (text: string): string => `<baseValue baseType="identifier">${text}</baseValue>`;

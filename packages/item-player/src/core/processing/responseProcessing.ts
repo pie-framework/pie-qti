@@ -9,7 +9,6 @@ import {
 	evalExpr,
 	execProgram,
 	isNullValue,
-	OperatorRegistry,
 	type ProcessingProgram,
 	type QtiValue,
 	qtiNull,
@@ -33,7 +32,6 @@ export interface ResponseProcessingHost {
 	/** The declarations as compiled from the item source, before any template rule changed them. */
 	readonly sourceDeclarations: DeclarationMap;
 	readonly ctx: DeclarationContext;
-	readonly ops: OperatorRegistry;
 	readonly rng: () => number;
 	readonly responseProcessing: ResponseProcessingDescriptor;
 	readonly responseProcessingProgram: ProcessingProgram | null;
@@ -63,7 +61,6 @@ export interface ResponseProcessingHost {
 export function processingEnv(host: ResponseProcessingHost) {
 	return {
 		ctx: host.ctx,
-		ops: host.ops,
 		rng: host.rng,
 		language: host.getContentLanguage(),
 		stringComparison: host.config.stringComparison,

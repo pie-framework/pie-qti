@@ -17,11 +17,9 @@ import {
 	toStringValue,
 } from '../runtime/value.js';
 import type { TestEvalContext, TestItemState } from '../test/types.js';
-import type { OperatorRegistry } from './operators.js';
 
 export interface EvalEnv {
 	ctx: DeclarationContext;
-	ops: OperatorRegistry;
 	rng: () => number;
 	/**
 	 * BCP 47 tag of the item's content language. Number parsing reads responses in it (its
@@ -49,6 +47,67 @@ export interface EvalEnv {
 		(args: QtiValue[], meta: { class?: string; definition?: string }) => QtiValue
 	>;
 }
+
+/**
+ * Point-in-shape geometry shared by the `inside` operator and area mappings (mapResponsePoint):
+ * coords are comma- or space-separated numbers, every boundary test is inclusive, and a shape
+ * with degenerate or malformed coords holds no point at all.
+ */
+const numsFromCoords = (coords: string): number[] =>
+	(coords.match(/-?\d+(?:\.\d+)?/g) || []).map((s) => Number(s));
+
+const parsePoint = (v: unknown): { x: number; y: number } | null => {
+	if (typeof v !== 'string') return null;
+	const parts = v.trim().split(/\s+/);
+	if (parts.length < 2) return null;
+	const x = Number(parts[0]);
+	const y = Number(parts[1]);
+	if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+	return { x, y };
+};
+
+const inRect = (p: { x: number; y: number }, coords: string): boolean => {
+	const [x1, y1, x2, y2] = numsFromCoords(coords);
+	if (![x1, y1, x2, y2].every((n) => Number.isFinite(n))) return false;
+	const minX = Math.min(x1, x2);
+	const maxX = Math.max(x1, x2);
+	const minY = Math.min(y1, y2);
+	const maxY = Math.max(y1, y2);
+	return p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY;
+};
+
+const inCircle = (p: { x: number; y: number }, coords: string): boolean => {
+	const [cx, cy, r] = numsFromCoords(coords);
+	if (![cx, cy, r].every((n) => Number.isFinite(n))) return false;
+	const dx = p.x - cx;
+	const dy = p.y - cy;
+	return dx * dx + dy * dy <= r * r;
+};
+
+const inEllipse = (p: { x: number; y: number }, coords: string): boolean => {
+	const [cx, cy, rx, ry] = numsFromCoords(coords);
+	if (![cx, cy, rx, ry].every((n) => Number.isFinite(n))) return false;
+	if (rx === 0 || ry === 0) return false;
+	const dx = (p.x - cx) / rx;
+	const dy = (p.y - cy) / ry;
+	return dx * dx + dy * dy <= 1;
+};
+
+// Ray casting algorithm for point in polygon
+const inPoly = (p: { x: number; y: number }, coords: string): boolean => {
+	const ns = numsFromCoords(coords);
+	if (ns.length < 6 || ns.length % 2 !== 0) return false;
+	let inside = false;
+	for (let i = 0, j = ns.length - 2; i < ns.length; j = i, i += 2) {
+		const xi = ns[i]!;
+		const yi = ns[i + 1]!;
+		const xj = ns[j]!;
+		const yj = ns[j + 1]!;
+		const intersects = (yi > p.y) !== (yj > p.y) && p.x < ((xj - xi) * (p.y - yi)) / (yj - yi) + xi;
+		if (intersects) inside = !inside;
+	}
+	return inside;
+};
 
 /**
  * QTI lookupOutcomeValue: a matchTable maps an exact source value, an interpolationTable maps the
@@ -903,62 +962,6 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			if (value.kind !== 'value') return qtiInvalid('inside expects a value');
 			if (value.baseType !== 'point') return qtiInvalid('inside expects point baseType');
 
-			const numsFromCoords = (coords: string): number[] =>
-				(coords.match(/-?\d+(?:\.\d+)?/g) || []).map((s) => Number(s));
-
-			const parsePoint = (v: unknown): { x: number; y: number } | null => {
-				if (typeof v !== 'string') return null;
-				const parts = v.trim().split(/\s+/);
-				if (parts.length < 2) return null;
-				const x = Number(parts[0]);
-				const y = Number(parts[1]);
-				if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-				return { x, y };
-			};
-
-			const inRect = (p: { x: number; y: number }, coords: string): boolean => {
-				const [x1, y1, x2, y2] = numsFromCoords(coords);
-				if (![x1, y1, x2, y2].every((n) => Number.isFinite(n))) return false;
-				const minX = Math.min(x1, x2);
-				const maxX = Math.max(x1, x2);
-				const minY = Math.min(y1, y2);
-				const maxY = Math.max(y1, y2);
-				return p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY;
-			};
-
-			const inCircle = (p: { x: number; y: number }, coords: string): boolean => {
-				const [cx, cy, r] = numsFromCoords(coords);
-				if (![cx, cy, r].every((n) => Number.isFinite(n))) return false;
-				const dx = p.x - cx;
-				const dy = p.y - cy;
-				return dx * dx + dy * dy <= r * r;
-			};
-
-			const inEllipse = (p: { x: number; y: number }, coords: string): boolean => {
-				const [cx, cy, rx, ry] = numsFromCoords(coords);
-				if (![cx, cy, rx, ry].every((n) => Number.isFinite(n))) return false;
-				if (rx === 0 || ry === 0) return false;
-				const dx = (p.x - cx) / rx;
-				const dy = (p.y - cy) / ry;
-				return dx * dx + dy * dy <= 1;
-			};
-
-			// Ray casting algorithm for point in polygon
-			const inPoly = (p: { x: number; y: number }, coords: string): boolean => {
-				const ns = numsFromCoords(coords);
-				if (ns.length < 6 || ns.length % 2 !== 0) return false;
-				let inside = false;
-				for (let i = 0, j = ns.length - 2; i < ns.length; j = i, i += 2) {
-					const xi = ns[i]!;
-					const yi = ns[i + 1]!;
-					const xj = ns[j]!;
-					const yj = ns[j + 1]!;
-					const intersects = (yi > p.y) !== (yj > p.y) && p.x < ((xj - xi) * (p.y - yi)) / (yj - yi) + xi;
-					if (intersects) inside = !inside;
-				}
-				return inside;
-			};
-
 			const points = Array.isArray(value.value) ? value.value : [value.value];
 
 			for (const raw of points) {
@@ -1281,64 +1284,6 @@ export function evalExpr(env: EvalEnv, expr: ExpressionNode): QtiValue {
 			const decl = env.ctx.getDeclaration(expr.identifier);
 			if (!decl?.areaMapping) return qtiValue('float', 'single', 0);
 			const current = decl.value;
-
-			const numsFromCoords = (coords: string): number[] =>
-				(coords.match(/-?\d+(?:\.\d+)?/g) || []).map((s) => Number(s));
-
-			const parsePoint = (v: unknown): { x: number; y: number } | null => {
-				if (typeof v !== 'string') return null;
-				const parts = v.trim().split(/\s+/);
-				if (parts.length < 2) return null;
-				const x = Number(parts[0]);
-				const y = Number(parts[1]);
-				if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-				return { x, y };
-			};
-
-			const inRect = (p: { x: number; y: number }, coords: string): boolean => {
-				const [x1, y1, x2, y2] = numsFromCoords(coords);
-				if (![x1, y1, x2, y2].every((n) => Number.isFinite(n))) return false;
-				const minX = Math.min(x1, x2);
-				const maxX = Math.max(x1, x2);
-				const minY = Math.min(y1, y2);
-				const maxY = Math.max(y1, y2);
-				return p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY;
-			};
-
-			const inCircle = (p: { x: number; y: number }, coords: string): boolean => {
-				const [cx, cy, r] = numsFromCoords(coords);
-				if (![cx, cy, r].every((n) => Number.isFinite(n))) return false;
-				const dx = p.x - cx;
-				const dy = p.y - cy;
-				return dx * dx + dy * dy <= r * r;
-			};
-
-			const inEllipse = (p: { x: number; y: number }, coords: string): boolean => {
-				const [cx, cy, rx, ry] = numsFromCoords(coords);
-				if (![cx, cy, rx, ry].every((n) => Number.isFinite(n))) return false;
-				if (rx === 0 || ry === 0) return false;
-				const dx = (p.x - cx) / rx;
-				const dy = (p.y - cy) / ry;
-				return dx * dx + dy * dy <= 1;
-			};
-
-			// Ray casting algorithm for point in polygon
-			const inPoly = (p: { x: number; y: number }, coords: string): boolean => {
-				const ns = numsFromCoords(coords);
-				if (ns.length < 6 || ns.length % 2 !== 0) return false;
-				let inside = false;
-				for (let i = 0, j = ns.length - 2; i < ns.length; j = i, i += 2) {
-					const xi = ns[i]!;
-					const yi = ns[i + 1]!;
-					const xj = ns[j]!;
-					const yj = ns[j + 1]!;
-					const intersects =
-						(yi > p.y) !== (yj > p.y) &&
-						p.x < ((xj - xi) * (p.y - yi)) / (yj - yi) + xi;
-					if (intersects) inside = !inside;
-				}
-				return inside;
-			};
 
 			// Overlapping areas resolve to the entry listed first (QTI §5.5.4:
 			// "those listed first taking priority in the case where areas overlap").

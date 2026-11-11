@@ -11,7 +11,6 @@ import {
 	buildResponseProcessingAst,
 	buildTemplateProcessingAst,
 } from '../src/ast/build.js';
-import { OperatorRegistry } from '../src/eval/operators.js';
 import { execProgram } from '../src/exec/execute.js';
 import { DeclarationContext } from '../src/runtime/context.js';
 import type { DeclarationMap } from '../src/runtime/types.js';
@@ -29,7 +28,7 @@ function program(kind: 'template' | 'response', body: string): Element {
 function runTemplate(decls: DeclarationMap, body: string): DeclarationContext {
 	const ctx = new DeclarationContext(decls);
 	execProgram(
-		{ ctx, ops: new OperatorRegistry(), rng: () => 0.5 },
+		{ ctx, rng: () => 0.5 },
 		buildTemplateProcessingAst(program('template', body), {}),
 	);
 	return ctx;
@@ -100,7 +99,7 @@ describe('setDefaultValue', () => {
 			`<setDefaultValue identifier="R"><baseValue baseType="identifier">C</baseValue></setDefaultValue>`,
 		);
 		execProgram(
-			{ ctx, ops: new OperatorRegistry(), rng: () => 0.5 },
+			{ ctx, rng: () => 0.5 },
 			buildResponseProcessingAst(
 				program('response', `<setOutcomeValue identifier="OUT"><default identifier="R"/></setOutcomeValue>`),
 				{},

@@ -16,7 +16,6 @@
 import { describe, expect, it } from 'bun:test';
 import { buildExpression } from '../src/ast/build.js';
 import { evalExpr } from '../src/eval/evaluator.js';
-import { OperatorRegistry } from '../src/eval/operators.js';
 import { DeclarationContext } from '../src/runtime/context.js';
 import type { StringComparisonOptions } from '../src/runtime/normalize.js';
 import type { Cardinality, DeclarationMap, Mapping, QtiValue } from '../src/runtime/types.js';
@@ -37,7 +36,7 @@ function response(value: unknown, cardinality: Cardinality = 'single', mapping?:
 
 function evaluate(xml: string, decls: DeclarationMap, delivery: Delivery = {}): QtiValue {
 	const expression = buildExpression(parseXml(xml).documentElement);
-	return evalExpr({ ctx: new DeclarationContext(decls), ops: new OperatorRegistry(), rng: () => 0.5, ...delivery }, expression);
+	return evalExpr({ ctx: new DeclarationContext(decls), rng: () => 0.5, ...delivery }, expression);
 }
 
 const text = (value: string): string => `<baseValue baseType="string">${value}</baseValue>`;

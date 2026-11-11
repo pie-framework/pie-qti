@@ -32,7 +32,6 @@ import {
 	DeclarationContext,
 	type DeclarationMap,
 	execProgram,
-	OperatorRegistry,
 	parseXml,
 	serializeXml,
 	type QtiValue,
@@ -538,7 +537,6 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			session.state.timing,
 		);
 			const ctx = new DeclarationContext(decls);
-			const ops = new OperatorRegistry();
 
 			// Parse and execute outcome processing
 			const opEl = parseXml(assessment.outcomeProcessingXml).documentElement;
@@ -551,7 +549,6 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			execProgram(
 				{
 					ctx,
-					ops,
 					rng: this.rng,
 					test: { items: testItems },
 				},

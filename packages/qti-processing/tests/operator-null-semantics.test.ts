@@ -8,7 +8,6 @@
 import { describe, expect, it } from 'bun:test';
 import { buildExpression } from '../src/ast/build.js';
 import { evalExpr } from '../src/eval/evaluator.js';
-import { OperatorRegistry } from '../src/eval/operators.js';
 import { DeclarationContext } from '../src/runtime/context.js';
 import type { BaseType, Cardinality, DeclarationMap, QtiValue } from '../src/runtime/types.js';
 import { qtiValue } from '../src/runtime/value.js';
@@ -33,7 +32,7 @@ const DECLS: DeclarationMap = {
 
 function evaluate(xml: string): QtiValue {
 	const expression = buildExpression(parseXml(xml).documentElement);
-	return evalExpr({ ctx: new DeclarationContext(structuredClone(DECLS)), ops: new OperatorRegistry(), rng: () => 0.5 }, expression);
+	return evalExpr({ ctx: new DeclarationContext(structuredClone(DECLS)), rng: () => 0.5 }, expression);
 }
 
 const yes = qtiValue('boolean', 'single', true);

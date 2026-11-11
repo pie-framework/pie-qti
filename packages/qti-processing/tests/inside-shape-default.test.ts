@@ -8,7 +8,6 @@
 import { describe, expect, it } from 'bun:test';
 import { buildExpression } from '../src/ast/build.js';
 import { evalExpr } from '../src/eval/evaluator.js';
-import { OperatorRegistry } from '../src/eval/operators.js';
 import { DeclarationContext } from '../src/runtime/context.js';
 import type { DeclarationMap, QtiValue } from '../src/runtime/types.js';
 import { qtiNull, qtiValue } from '../src/runtime/value.js';
@@ -16,7 +15,7 @@ import { parseXml } from '../src/xml/parse.js';
 
 function evaluate(xml: string, decls: DeclarationMap = {}): QtiValue {
 	const expression = buildExpression(parseXml(xml).documentElement);
-	return evalExpr({ ctx: new DeclarationContext(decls), ops: new OperatorRegistry(), rng: () => 0.5 }, expression);
+	return evalExpr({ ctx: new DeclarationContext(decls), rng: () => 0.5 }, expression);
 }
 
 const point = (value: string): string => `<baseValue baseType="point">${value}</baseValue>`;
@@ -67,6 +66,45 @@ describe('inside', () => {
 		it('a shape with coords still tests the point against them', () => {
 			expect(evaluate(`<inside shape="rect" coords="0,0,10,10">${point('5 5')}</inside>`)).toEqual(yes);
 			expect(evaluate(`<inside shape="rect" coords="0,0,10,10">${point('50 5')}</inside>`)).toEqual(no);
+		});
+
+		// Pins each shape's hit-test geometry exactly: the boundary counts as inside for
+		// rect/circle/ellipse (their tests are inclusive), and degenerate or malformed
+		// coords hold no point at all.
+		describe('shape geometry', () => {
+			it('rect: corners and edges are inside, inclusive on the boundary', () => {
+				const coords = '0,0,10,10';
+				expect(evaluate(`<inside shape="rect" coords="${coords}">${point('0 0')}</inside>`)).toEqual(yes);
+				expect(evaluate(`<inside shape="rect" coords="${coords}">${point('10 10')}</inside>`)).toEqual(yes);
+				// Coords given corner-first still read as the same rectangle.
+				expect(evaluate(`<inside shape="rect" coords="10,10,0,0">${point('3 7')}</inside>`)).toEqual(yes);
+				expect(evaluate(`<inside shape="rect" coords="${coords}">${point('10.5 5')}</inside>`)).toEqual(no);
+			});
+
+			it('circle: inside and on the radius, outside beyond it', () => {
+				const coords = '50,50,10';
+				expect(evaluate(`<inside shape="circle" coords="${coords}">${point('55 52')}</inside>`)).toEqual(yes);
+				expect(evaluate(`<inside shape="circle" coords="${coords}">${point('40 50')}</inside>`)).toEqual(yes);
+				expect(evaluate(`<inside shape="circle" coords="${coords}">${point('50 65')}</inside>`)).toEqual(no);
+			});
+
+			it('ellipse: within both radii, outside past either, zero radius holds nothing', () => {
+				const coords = '50,50,20,10';
+				expect(evaluate(`<inside shape="ellipse" coords="${coords}">${point('50 55')}</inside>`)).toEqual(yes);
+				expect(evaluate(`<inside shape="ellipse" coords="${coords}">${point('75 50')}</inside>`)).toEqual(no);
+				expect(evaluate(`<inside shape="ellipse" coords="${coords}">${point('50 65')}</inside>`)).toEqual(no);
+				// rx 0 or ry 0 would divide by zero; the shape simply holds no point.
+				expect(evaluate(`<inside shape="ellipse" coords="50,50,0,10">${point('50 50')}</inside>`)).toEqual(no);
+			});
+
+			it('poly: inside the ring, outside it, malformed coords hold nothing', () => {
+				const square = '0,0,10,0,10,10,0,10';
+				expect(evaluate(`<inside shape="poly" coords="${square}">${point('5 5')}</inside>`)).toEqual(yes);
+				expect(evaluate(`<inside shape="poly" coords="${square}">${point('15 5')}</inside>`)).toEqual(no);
+				// Fewer than six numbers, or an odd count, is no polygon at all.
+				expect(evaluate(`<inside shape="poly" coords="0,0,10,0,10">${point('5 5')}</inside>`)).toEqual(no);
+				expect(evaluate(`<inside shape="poly" coords="0,0,10,0,10,10,0">${point('5 5')}</inside>`)).toEqual(no);
+			});
 		});
 
 		it('a missing shape is still rejected', () => {

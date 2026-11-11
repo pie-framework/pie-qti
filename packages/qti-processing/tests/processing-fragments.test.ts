@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { buildResponseProcessingAst } from '../src/ast/build.js';
 import { execProgram } from '../src/exec/execute.js';
-import { OperatorRegistry } from '../src/eval/operators.js';
 import { DeclarationContext } from '../src/runtime/context.js';
 import type { DeclarationMap } from '../src/runtime/types.js';
 import { qtiValue } from '../src/runtime/value.js';
@@ -45,7 +44,7 @@ describe('external QTI processing fragments', () => {
 		);
 		const ctx = new DeclarationContext(scoreDeclarations());
 
-		execProgram({ ctx, ops: new OperatorRegistry(), rng: () => 0.5 }, program);
+		execProgram({ ctx, rng: () => 0.5 }, program);
 
 		expect(requests).toEqual(['response:processing/score.xml:0']);
 		expect(ctx.getValue('SCORE')).toEqual(qtiValue('float', 'single', 1));
@@ -64,7 +63,7 @@ describe('external QTI processing fragments', () => {
 		);
 		const ctx = new DeclarationContext(scoreDeclarations());
 
-		execProgram({ ctx, ops: new OperatorRegistry(), rng: () => 0.5 }, program);
+		execProgram({ ctx, rng: () => 0.5 }, program);
 
 		expect(ctx.getValue('SCORE')).toEqual(qtiValue('float', 'single', 2));
 	});

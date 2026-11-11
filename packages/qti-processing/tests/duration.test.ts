@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { buildExpression, buildResponseProcessingAst } from '../src/ast/build.js';
 import { evalExpr } from '../src/eval/evaluator.js';
-import { OperatorRegistry } from '../src/eval/operators.js';
 import { execProgram } from '../src/exec/execute.js';
 import { DeclarationContext } from '../src/runtime/context.js';
 import type { DeclarationMap, QtiValue } from '../src/runtime/types.js';
@@ -27,7 +26,7 @@ import { parseXml } from '../src/xml/parse.js';
 function evaluate(xml: string, decls: DeclarationMap = {}): QtiValue {
 	const ctx = new DeclarationContext(decls);
 	return evalExpr(
-		{ ctx, ops: new OperatorRegistry(), rng: () => 0.5 },
+		{ ctx, rng: () => 0.5 },
 		buildExpression(parseXml(xml).documentElement, {}),
 	);
 }
@@ -190,7 +189,7 @@ describe('response processing on the built-in duration', () => {
 		};
 		const ctx = new DeclarationContext(decls);
 		execProgram(
-			{ ctx, ops: new OperatorRegistry(), rng: () => 0.5 },
+			{ ctx, rng: () => 0.5 },
 			buildResponseProcessingAst(
 				parseXml(`<responseProcessing>
 					<responseCondition>
