@@ -36,6 +36,27 @@ sequenceDiagram
 - **Origin allowlists**:
   - if you intentionally use an opaque-origin sandbox, you may need to allow `"null"` as an origin on the host side (not recommended for production; prefer a real, dedicated runtime origin).
 
+### The built-in PCI sandbox frame (`createIframeFrameConnector`)
+
+Portable Custom Interaction modules run in their own frame with `sandbox="allow-scripts"` —
+**without** `allow-same-origin`, so the frame's origin is opaque and serializes as `"null"`.
+The bridge is built around that reality:
+
+- **Parent → frame**: messages are posted to the frame's `contentWindow` with target origin
+  `'*'`. A tuple target origin can never match an opaque origin, so a locked target would
+  silently drop every message. The recipient is bounded by the target window; the frame is
+  scripts-only and cannot reach parent state.
+- **Frame → parent**: messages are accepted only when `event.source` is the frame's own
+  `contentWindow` (the identity anchor — a sender cannot forge a source window) and
+  `event.origin` is the runner origin **or** `"null"` (the opaque serialization this frame
+  always produces). A foreign origin matches neither and is rejected.
+- **Runner-side expectations** (integrator-owned): validate `event.source === window.parent`,
+  and lock replies to the configured parent origin — the parent page is *not* sandboxed, so
+  its `event.origin` is the real tuple origin, never `"null"`.
+
+A jsdom-level test can only assert the filter logic, not browser origin semantics; verify the
+real `postMessage` handshake in a browser against your deployed runner.
+
 ## Host usage (recommended)
 
 ```ts
