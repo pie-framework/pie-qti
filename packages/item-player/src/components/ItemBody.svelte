@@ -7,13 +7,14 @@
 	import { getItemSessionBinding, type ItemSession, type ItemSessionTransition } from '../core/ItemSession';
 	import type { InteractionResponseValue, QTIChangeEventDetail } from '../web-components';
 	import type { ExtractedPci } from '../pci/types';
-	import type { PlayerSecurityConfig } from '../types';
+	import type { ItemBodyError, PlayerSecurityConfig } from '../types';
 	import type {
 		BlockInteractionMount,
 		InlineInteractionMount,
 		ItemInteractionMount,
 		ItemPresentation,
 	} from '../presentation/itemPresentationPlan';
+	import { INTERACTION_SLOT_ATTRIBUTE } from '../presentation/interactionSlots';
 	import {
 		contentLanguageAttributes,
 		interfaceLocaleAttributes,
@@ -26,7 +27,7 @@
 	import { glossaryAction } from '../catalog/glossaryAction';
 	import { isWithinPnpSurface } from '../pnp/applyPnp';
 	import { assignProps } from '@pie-qti/qti-common';
-	import { createItemBodyRenderer, type MountedInteraction } from './utils/itemBodyRenderer';
+	import { createItemBodyRenderer, UNSLOTTED_CLASS, type MountedInteraction } from './utils/itemBodyRenderer';
 	import { sentenceContextId } from './utils/sentenceContext';
 	import {
 		isCandidateAttemptFeedback,
@@ -47,7 +48,8 @@
 		i18n?: I18nProvider;
 		typeset?: (element: HTMLElement) => void;
 		onResponseChange?: (responseId: string, value: ItemResponseValue) => void;
-		onError?: (error: unknown) => void;
+		/** A render or response-dispatch failure, with the stable code the player's `error` event carries. */
+		onError?: (error: ItemBodyError) => void;
 		heuristicsConfig?: QtiHeuristicsConfig; // Optional heuristics configuration
 		/** Render role-visible rubricBlock content authored inside itemBody. */
 		renderItemBodyRubrics?: boolean;
@@ -73,6 +75,10 @@
 		return session.state();
 	});
 	const responses = $derived(sessionView.responses as ItemResponseMap);
+	// The component registry is sealed per item, so the same type failing once fails on
+	// every presentation: the host hears about each interaction type once, the log keeps
+	// every occurrence.
+	const reportedComponentErrors = new Set<string>();
 	const presentation = $derived.by(() => {
 		void revision;
 		return session.present({
@@ -80,8 +86,14 @@
 			heuristicsConfig,
 			itemBodyScopeSelector,
 			renderItemBodyRubrics,
-			onComponentError: (interaction, error) =>
-				console.error(`Failed to get tag name for ${interaction.type}:`, error)
+			onComponentError: (interaction, error) => {
+				console.error(`Failed to get tag name for ${interaction.type}:`, error);
+				if (reportedComponentErrors.has(interaction.type)) return;
+				reportedComponentErrors.add(interaction.type);
+				// present() runs inside a $derived; the report defers so a host handler
+				// may update state outside the derivation.
+				queueMicrotask(() => onError?.({ code: 'render-failed', cause: error }));
+			}
 		});
 	});
 	// The item body is a content root: `lang` and `dir` are the item's declared
@@ -108,7 +120,7 @@
 			onResponseChange?.(responseId, value);
 		} catch (error) {
 			if (onError) {
-				onError(error);
+				onError({ code: 'response-dispatch-failed', cause: error });
 				return;
 			}
 			throw error;
@@ -313,18 +325,91 @@
 			};
 		}
 
+		/**
+		 * role="alert" placeholders standing in for interactions that failed to mount,
+		 * keyed by mount key and reconciled against the failures of the last render.
+		 */
+		const failureAlerts = new Map<string, HTMLElement>();
+		const failedThisRender = new Set<string>();
+		const failedCreations = new Set<string>();
+
 		const renderer = createItemBodyRenderer<ItemInteractionMount>(node, {
-			create: (mount) => (mount.placement === 'block' ? createBlock(mount) : createInline(mount)),
-			onError: (mount, error) => console.error(`Failed to render ${mount.interaction.type}:`, error),
+			create: (mount) => {
+				try {
+					const created = mount.placement === 'block' ? createBlock(mount) : createInline(mount);
+					failedCreations.delete(mount.key);
+					return created;
+				} catch (error) {
+					failedCreations.add(mount.key);
+					throw error;
+				}
+			},
+			onError: (mount, error) => {
+				console.error(`Failed to render ${mount.interaction.type}:`, error);
+				onError?.({ code: 'render-failed', cause: error });
+				// An interaction that never mounted has nothing at its slot; a visible
+				// alert stands in where it would have rendered. A failed update keeps
+				// its mounted element in place and only reports.
+				if (!failedCreations.has(mount.key)) return;
+				failedThisRender.add(mount.key);
+				mountFailureAlert(node, mount);
+			},
 		});
+
+		/**
+		 * Stand a `role="alert"` placeholder in the interaction's slot — or, when the
+		 * interaction renders after the body, in that area — naming the interaction
+		 * type, mirroring the player's load-failure alert.
+		 */
+		function mountFailureAlert(container: HTMLElement, mount: ItemInteractionMount) {
+			let alert = failureAlerts.get(mount.key);
+			if (!alert) {
+				alert = container.ownerDocument.createElement('div');
+				alert.className = 'qti-interaction-error';
+				alert.setAttribute('role', 'alert');
+				failureAlerts.set(mount.key, alert);
+			}
+			alert.textContent = translate(
+				i18n,
+				'interaction.renderError',
+				'This interactive element ({type}) could not be displayed.',
+				{ type: mount.interaction.type },
+			);
+
+			if (mount.slot !== null) {
+				const slot = Array.from(container.querySelectorAll<HTMLElement>(`[${INTERACTION_SLOT_ATTRIBUTE}]`))
+					.find((el) => el.getAttribute(INTERACTION_SLOT_ATTRIBUTE) === mount.slot);
+				if (slot) {
+					slot.replaceChildren(alert);
+					return;
+				}
+			}
+			const area = Array.from(container.children).find((el) => el.classList.contains(UNSLOTTED_CLASS))
+				?? (() => {
+					const created = container.ownerDocument.createElement('div');
+					created.className = UNSLOTTED_CLASS;
+					container.append(created);
+					return created;
+				})();
+			area.append(alert);
+		}
 
 		const render = () =>
 			untrack(() => {
+				failedThisRender.clear();
 				const htmlNode = params.presentation.flow.find((entry) => entry.kind === 'html');
 				const mounts = params.presentation.flow.flatMap((entry) =>
 					entry.kind === 'interaction' ? [entry.mount] : []
 				);
 				renderer.render(htmlNode?.kind === 'html' ? htmlNode.html : '', mounts);
+				// Alerts whose interaction mounted cleanly this render — or left the
+				// item — come down again.
+				for (const [key, alert] of failureAlerts) {
+					if (!failedThisRender.has(key)) {
+						alert.remove();
+						failureAlerts.delete(key);
+					}
+				}
 			});
 		render();
 
@@ -459,6 +544,21 @@
 	/* Interactions whose element is not in the body render after it. */
 	:global(.qti-item-body .qti-item-body-unslotted) {
 		display: flow-root;
+	}
+
+	/*
+	 * An interaction that failed to mount stands in as a role="alert" placeholder naming it,
+	 * styled like the player's error alert so a failed interaction reads as one, consistently.
+	 */
+	:global(.qti-item-body .qti-interaction-error) {
+		display: block;
+		max-width: 100%;
+		margin-block: 1rem;
+		padding: 0.75rem 1rem;
+		border: 1px solid var(--pie-qti-error, oklch(71% 0.194 13.428));
+		border-radius: 0.75rem;
+		background: color-mix(in oklch, var(--pie-qti-error, oklch(71% 0.194 13.428)) 8%, transparent);
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
 	}
 
 	/*

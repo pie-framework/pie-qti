@@ -240,6 +240,7 @@ export type QTIRole = 'candidate' | 'scorer' | 'proctor' | 'testConstructor' | '
 export type ItemPlayerErrorCode =
 	| 'item-load-failed'
 	| 'response-processing-failed'
+	| 'response-dispatch-failed'
 	| 'submission-failed'
 	| 'render-failed';
 
@@ -249,6 +250,18 @@ export interface ItemPlayerErrorDetail {
 	/** Raw message, for logs and host diagnostics — never render it to candidates. */
 	message: string;
 	itemIdentifier?: string;
+}
+
+/**
+ * A failure the item body reports to its player: the stable `code` the element's
+ * `error` event carries, plus the raw cause for host logs. `render-failed` covers
+ * interaction mount/update and component-registry failures; the item keeps
+ * rendering with a visible placeholder for the failed interaction.
+ * `response-dispatch-failed` covers a rejected response write.
+ */
+export interface ItemBodyError {
+	code: Extract<ItemPlayerErrorCode, 'render-failed' | 'response-dispatch-failed'>;
+	cause: unknown;
 }
 
 export type RubricBlockScope = 'direct' | 'itemBody';
