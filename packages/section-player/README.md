@@ -53,6 +53,43 @@ page session, per assessment. Layout props:
 The same event reaches `QtiSectionRuntimeHostContract.onDisplaySettingsChange` (the composition's
 `host`), which is how a custom-element host hears it.
 
+## Framework errors
+
+The layouts report their own failures through the runtime-host contract's `onFrameworkError`
+callback. A host that cannot pass callbacks — the custom elements — hears the same reports as
+`qti-section-framework-error`, a typed, bubbling, composed `CustomEvent` on the
+`pie-qti-section-player-splitpane` / `pie-qti-section-player-vertical` elements (the
+`invalid-composition` code they emit for a composition they cannot render is documented with
+[the elements](../player-elements/README.md)).
+
+The event's `detail` is `QtiSectionFrameworkError`:
+
+| Field | Meaning |
+|-------|---------|
+| `code` | Stable identifier for the failure, from the table below |
+| `message` | Raw engine/parser text. For host logs and diagnostics only — **never render it to candidates** |
+| `sectionIdentifier` | The section that was presenting when the failure was reported (filled from the composition) |
+| `itemIdentifier` | The item concerned, when known (filled from the active item otherwise) |
+| `cause` | The original thrown value, when there is one |
+
+Codes the section player itself reports:
+
+| Code | When |
+|------|------|
+| `item-player-load-failed` | The `pie-qti-item-player` element's module failed to load for an item. The item renders a localized alert instead; presenting the next item retries the load. |
+| `toolkit-load-failed` | The assessment toolkit's element chunks failed to load for a tool bar. The bar renders nothing that session; remounting the bar retries the load. |
+| `item-speech-extraction-failed` | The item's SSML could not be extracted. The item renders without read-aloud catalogs. |
+| `readable-block-failed` | A passage, rubric, stimulus or feedback block failed preparation or sanitization. The block renders its fallback markup. |
+
+Codes forwarded from the mounted item player (its `error` event, bridged to the section):
+
+| Code | When |
+|------|------|
+| `item-load-failed` | The item XML failed to parse or the item failed to load inside the player. |
+| `response-processing-failed` | Response processing threw at submit time. |
+| `submission-failed` | The submission could not be recorded. |
+| `render-failed` | Rendering the item body threw. |
+
 ## Tool integration (`@pie-players`)
 
 The section tool bar composes external tool packages from the sibling

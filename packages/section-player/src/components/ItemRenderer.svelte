@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { I18nProvider } from '@pie-qti/i18n';
-	import type { PciConfiguration, PlayerSecurityConfig, PnpProfile } from '@pie-qti/item-player';
+	import type { ItemPlayerErrorDetail, PciConfiguration, PlayerSecurityConfig, PnpProfile } from '@pie-qti/item-player';
 	import { assignProps } from '@pie-qti/qti-common';
 	import type { QtiSectionFrameworkError, QtiSectionItemRef, QtiSectionRole, QtiSectionToolConfig } from '../contracts/index.js';
 	import { interfaceText } from '../i18n/interface-text.js';
@@ -9,6 +9,7 @@
 	import QtiToolButtonBar from './QtiToolButtonBar.svelte';
 
 	type ItemPlayerResponseChangeEvent = CustomEvent<{ responseId: string; value: unknown }>;
+	type ItemPlayerErrorEvent = CustomEvent<ItemPlayerErrorDetail>;
 
 	interface Props {
 		itemRef: QtiSectionItemRef;
@@ -128,8 +129,21 @@
 			const { responseId, value } = (event as ItemPlayerResponseChangeEvent).detail;
 			handleResponseChange(responseId, value);
 		};
+		// The inner element's documented `error` event (item-load-failed,
+		// response-processing-failed, submission-failed, render-failed) reaches this
+		// section as a framework error: the code passes through, and the message is
+		// raw engine text for host logs — never rendered to the candidate.
+		const handleItemPlayerError = (event: Event) => {
+			const { code, message, itemIdentifier } = (event as ItemPlayerErrorEvent).detail;
+			onFrameworkError?.({
+				itemIdentifier: itemIdentifier ?? itemRef.identifier,
+				code,
+				message,
+			});
+		};
 
 		node.addEventListener('response-change', handleItemPlayerResponseChange);
+		node.addEventListener('error', handleItemPlayerError);
 		assignProps(node, props);
 
 		return {
@@ -138,6 +152,7 @@
 			},
 			destroy() {
 				node.removeEventListener('response-change', handleItemPlayerResponseChange);
+				node.removeEventListener('error', handleItemPlayerError);
 			},
 		};
 	}
@@ -178,6 +193,7 @@
 					{assessmentId}
 					{pnp}
 					{displaySettingsControls}
+					{onFrameworkError}
 				/>
 			</header>
 		{/if}

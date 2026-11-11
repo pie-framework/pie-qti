@@ -22,9 +22,10 @@
 		rulerToolRegistration,
 		ttsToolRegistration,
 	} from '@pie-players/pie-default-tool-loaders';
+	import { untrack } from 'svelte';
 	import { interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
 	import type { PnpProfile } from '@pie-qti/item-player';
-	import type { QtiSectionToolConfig } from '../contracts/index.js';
+	import type { QtiSectionFrameworkError, QtiSectionToolConfig } from '../contracts/index.js';
 	import { interfaceText } from '../i18n/interface-text.js';
 	import type { QtiDisplaySettingsControls } from '../tools/display-settings.js';
 	import type { SpokenCatalog } from '../tts/spoken-catalogs.js';
@@ -54,6 +55,8 @@
 		pnp?: PnpProfile;
 		/** The section's display settings dialog; present, the bar opens it from its own button. */
 		displaySettingsControls?: QtiDisplaySettingsControls | null;
+		/** Host diagnostics for the bar's own failures; the message is for logs, never rendered to candidates. */
+		onFrameworkError?: (error: QtiSectionFrameworkError) => void;
 	}
 
 	const {
@@ -69,6 +72,7 @@
 		assessmentId,
 		pnp,
 		displaySettingsControls = null,
+		onFrameworkError,
 	}: Props = $props();
 
 	let shellHost = $state<HTMLElement | null>(null);
@@ -204,7 +208,17 @@
 				if (!cancelled) toolkitElementsReady = true;
 			})
 			.catch((error) => {
-				if (!cancelled) console.error('Unable to load assessment toolkit elements:', error);
+				if (cancelled) return;
+				console.error('Unable to load assessment toolkit elements:', error);
+				// Host diagnostics: the message is raw engine text for logs, never rendered
+				// to candidates. A remount retries the load; this failure does not.
+				const message = error instanceof Error ? error.message : 'Unable to load the assessment toolkit elements.';
+				onFrameworkError?.({
+					...(level === 'item' ? { itemIdentifier: scopeId } : {}),
+					code: 'toolkit-load-failed',
+					message: `${scopeId}: ${message}`,
+					cause: error,
+				});
 			});
 		return () => {
 			cancelled = true;
@@ -257,20 +271,67 @@
 		};
 	});
 
+	// The parts of the tools config the toolkit lets a host change on a live
+	// coordinator: `updateToolsPlacement` patches the placement levels and
+	// `updateToolConfig` replaces one tool's provider config. `tools.policy` has no
+	// mutator, so a changed allowlist or blocklist can only take effect in a
+	// coordinator built with it — that is what this signature tracks.
+	const policySignature = $derived(JSON.stringify(toolsConfig.policy));
+	/** The placement the current coordinator last received, for skipping no-op updates. */
+	let appliedPlacementKey: string | null = null;
+	/** The provider configs the current coordinator last received, likewise. */
+	let appliedProvidersKey: string | null = null;
+
 	$effect(() => {
-		// A bar holding only the display settings button needs no toolkit.
-		if (toolkitCoordinator || !hasToolkitTools) return;
+		// A bar holding only the display settings button needs no toolkit. The
+		// coordinator guard reads untracked: writing the state below must not re-run
+		// (and so dispose) the effect that created it.
+		if (untrack(() => toolkitCoordinator) || !hasToolkitTools) return;
+		// A changed policy signature rebuilds: the coordinator's policy has no mutator.
+		void policySignature;
+		const config = untrack(() => toolsConfig);
 		const coordinator = new ToolkitCoordinator({
 			assessmentId: toolkitAssessmentId,
 			lazyInit: false,
 			toolConfigStrictness: 'off',
-			tools: toolsConfig as any,
+			tools: config as any,
 			toolRegistry,
 		});
 		// Bind the candidate's profile so enforcement reads it; the coordinator is
 		// ours, so the toolkit element will not apply its own assessment property.
 		coordinator.updateAssessment(assessmentEntity as any);
+		appliedPlacementKey = JSON.stringify(config.placement);
+		appliedProvidersKey = JSON.stringify(config.providers);
 		toolkitCoordinator = coordinator;
+		// The coordinator is ours: take it down with the bar (or with the rebuild), so
+		// a shell retry that unmounts and remounts bars does not leak one per remount.
+		return () => {
+			void coordinator.dispose();
+			if (toolkitCoordinator === coordinator) toolkitCoordinator = null;
+		};
+	});
+
+	$effect(() => {
+		const coordinator = toolkitCoordinator;
+		if (!coordinator) return;
+		const config = toolsConfig;
+		const placementKey = JSON.stringify(config.placement);
+		if (placementKey !== appliedPlacementKey) {
+			coordinator.updateToolsPlacement({
+				section: [...config.placement.section],
+				item: [...config.placement.item],
+				passage: [...config.placement.passage],
+			});
+			appliedPlacementKey = placementKey;
+		}
+		const providersKey = JSON.stringify(config.providers);
+		if (providersKey !== appliedProvidersKey) {
+			for (const [toolId, providerConfig] of Object.entries(config.providers)) {
+				if (!providerConfig) continue;
+				coordinator.updateToolConfig(toolId, providerConfig as any);
+			}
+			appliedProvidersKey = providersKey;
+		}
 	});
 
 	$effect(() => {

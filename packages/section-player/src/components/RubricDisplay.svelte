@@ -178,6 +178,7 @@
 									{i18n}
 									{assessmentId}
 									{pnp}
+									{onFrameworkError}
 								/>
 								<!--
 									A disclosure named by the passage's heading: the name stays the same in

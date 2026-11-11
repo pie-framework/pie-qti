@@ -1,0 +1,9 @@
+---
+'@pie-qti/section-player': patch
+---
+
+Section player fixes around error reach and tool-bar coordinator lifecycle:
+
+- **Split pane restore**: the persisted split percentage is restored again on mount. The initialization effect clobbered the `onMount` restore back to the 50% default (the restore path was dead code), so a candidate's saved split never survived a reload. The persisted value now wins and the prop default is only the fallback.
+- **Tool-bar coordinator lifecycle**: a reused tool bar now applies tool-policy changes to its `ToolkitCoordinator` instead of keeping the first scope's snapshot — placement moves through `updateToolsPlacement`, provider config changes through `updateToolConfig`, and a changed `tools.policy` allowlist (no mutator exists) rebuilds the coordinator. The bar also disposes the coordinator it owns on unmount, so a shell retry that unmounts and remounts tool bars no longer leaks one coordinator per remount. A host that captured the coordinator through the `qti-toolkit-coordinator-ready` event and kept using it after the bar went away now sees a disposed coordinator.
+- **Error reach**: `QtiToolButtonBar` gained an `onFrameworkError` prop (per the runtime-host contract pattern) and reports toolkit element chunk failures with the new code `toolkit-load-failed`; `ItemRenderer` and `RubricDisplay` forward their existing `onFrameworkError` to the bars they render. `ItemRenderer` now also bridges the inner `pie-qti-item-player` element's bubbling `error` event to `onFrameworkError` (code passthrough with `item-load-failed` / `response-processing-failed` / `submission-failed` / `render-failed`), so item failures inside a section reach `onFrameworkError` / `qti-section-framework-error`. The README documents the `qti-section-framework-error` event, its detail shape and every code.
