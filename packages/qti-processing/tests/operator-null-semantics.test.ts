@@ -2,7 +2,7 @@
  * NULL semantics of the numeric and logical operators (QTI ASI §5 and §15.3, carried to QTI 2.2
  * and 3.0): anyN is three-valued; max, min, gcd and lcm take containers; divide, power and
  * integerDivide give NULL where the result is undefined; an empty string is NULL in every
- * numeric operator; substring gives NULL for a NULL start or length.
+ * numeric operator; substring gives NULL for a NULL operand.
  */
 
 import { describe, expect, it } from 'bun:test';
@@ -259,23 +259,17 @@ describe('an empty string is NULL in every numeric operator (QTI ASI §5)', () =
 	}
 });
 
-describe('substring gives NULL for a NULL start or length', () => {
+describe('substring gives NULL for a NULL operand', () => {
 	const ABC = str('abc');
 
-	it('is NULL for a NULL start or length', () => {
-		expect(evaluate(`<substring>${ABC}${NULL}</substring>`)).toEqual({ kind: 'null', baseType: 'string', cardinality: 'single' });
-		expect(evaluate(`<substring>${ABC}${int(1)}${NULL}</substring>`)).toEqual({
+	it('is NULL for a NULL operand, in either position', () => {
+		expect(evaluate(`<substring>${ABC}${NULL}</substring>`)).toEqual({ kind: 'null', baseType: 'boolean', cardinality: 'single' });
+		expect(evaluate(`<substring>${NULL}${ABC}</substring>`)).toEqual({
 			kind: 'null',
-			baseType: 'string',
+			baseType: 'boolean',
 			cardinality: 'single',
 		});
 		expect(isNull(evaluate(`<substring>${ABC}${variable('EMPTY_STRING')}</substring>`))).toBe(true);
-		expect(isNull(evaluate(`<substring>${variable('EMPTY_STRING')}${int(1)}</substring>`))).toBe(true);
-	});
-
-	it('keeps the defined results, an out-of-range start giving the empty string', () => {
-		expect(evaluate(`<substring>${ABC}${int(2)}</substring>`)).toEqual(qtiValue('string', 'single', 'bc'));
-		expect(evaluate(`<substring>${ABC}${int(2)}${int(1)}</substring>`)).toEqual(qtiValue('string', 'single', 'b'));
-		expect(evaluate(`<substring>${ABC}${int(99)}</substring>`)).toEqual(qtiValue('string', 'single', ''));
+		expect(isNull(evaluate(`<substring>${variable('EMPTY_STRING')}${ABC}</substring>`))).toBe(true);
 	});
 });

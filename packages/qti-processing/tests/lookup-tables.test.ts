@@ -42,4 +42,20 @@ describe('applyLookupTable', () => {
 			qtiValue('identifier', 'single', 'none'),
 		);
 	});
+
+	it('matchTable requires an integer source: anything else is invalid, not a miss', () => {
+		// The spec defines integer sources only (2.1: matchTable "transforms a source integer",
+		// matchTableEntry@sourceValue [1]: integer; 3.0 lookupOutcomeValue: "Integer type is
+		// required when the associated table is a matchTable"). The engine once fell back to a
+		// string comparison for other base types; that leniency is gone.
+		const table = {
+			kind: 'table.matchTable' as const,
+			defaultValue: 'none',
+			entries: [{ sourceValue: '1', targetValue: 'one' }],
+		};
+		expect(applyLookupTable(qtiValue('string', 'single', '1'), table, 'identifier')).toMatchObject({ kind: 'invalid' });
+		expect(applyLookupTable(qtiValue('float', 'single', 1), table, 'identifier')).toMatchObject({ kind: 'invalid' });
+		expect(applyLookupTable(qtiValue('boolean', 'single', true), table, 'identifier')).toMatchObject({ kind: 'invalid' });
+		expect(applyLookupTable(qtiValue('integer', 'multiple', [1]), table, 'identifier')).toMatchObject({ kind: 'invalid' });
+	});
 });

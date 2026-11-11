@@ -170,11 +170,28 @@ function feedbackElements(html: string): FeedbackElement[] {
 	return roots;
 }
 
+/**
+ * The attribute matchers for one attribute name, in both QTI spellings, compiled once and
+ * shared. Feedback runs on every keystroke of an interaction, and the set of attribute names is
+ * a handful, so the cache never grows meaningfully; past the bound it is cleared. The compiled
+ * RegExps carry no state: no `g`/`y` flag, so `lastIndex` is never used.
+ */
+const FEEDBACK_ATTR_MATCHER_CACHE_LIMIT = 64;
+
+const feedbackAttrMatchers = new Map<string, RegExp[]>();
+
 /** An attribute in either QTI spelling, e.g. `outcomeIdentifier` or `outcome-identifier`. */
-function feedbackInlineAttr(attrs: string, name: string): string | null {
-	const kebab = name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
-	for (const spelling of kebab === name ? [name] : [name, kebab]) {
-		const match = new RegExp(`(?:^|\\s)${spelling}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i').exec(attrs);
+export function feedbackInlineAttr(attrs: string, name: string): string | null {
+	let matchers = feedbackAttrMatchers.get(name);
+	if (!matchers) {
+		const kebab = name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+		const spellings = kebab === name ? [name] : [name, kebab];
+		matchers = spellings.map((spelling) => new RegExp(`(?:^|\\s)${spelling}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i'));
+		if (feedbackAttrMatchers.size >= FEEDBACK_ATTR_MATCHER_CACHE_LIMIT) feedbackAttrMatchers.clear();
+		feedbackAttrMatchers.set(name, matchers);
+	}
+	for (const matcher of matchers) {
+		const match = matcher.exec(attrs);
 		if (match) return match[1] ?? match[2] ?? '';
 	}
 	return null;

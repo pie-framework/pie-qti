@@ -394,9 +394,12 @@ export type FieldValueExpr = {
 export type SubstringExpr = {
 	kind: 'expr.substring';
 	id: AstNodeId;
-	value: ExpressionNode;
-	start: ExpressionNode;
-	length?: ExpressionNode;
+	/** The candidate substring (QTI: "the first expression"). */
+	a: ExpressionNode;
+	/** The string searched for the substring (QTI: "the second expression"). */
+	b: ExpressionNode;
+	/** substring@caseSensitive, default true (QTI 2.1 §4.10); required `case-sensitive` in 3.0. */
+	caseSensitive: boolean;
 };
 
 export type PowerExpr = {
@@ -427,7 +430,6 @@ export type PatternMatchExpr = {
 	id: AstNodeId;
 	value: ExpressionNode;
 	pattern: ExpressionNode;
-	caseSensitive: boolean;
 };
 
 export type IsNullExpr = {

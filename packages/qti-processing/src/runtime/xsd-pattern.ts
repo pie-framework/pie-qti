@@ -254,23 +254,43 @@ export function xsdPatternSource(pattern: string): string {
 }
 
 /**
+ * How many distinct compiled patterns are kept. Authored patterns are static per item, but
+ * patternMatch and patternMask validation run on every keystroke, so each (pattern, flags) pair
+ * is translated and compiled once and its RegExp shared; the cache is bounded by clearing it
+ * once it passes this many entries — an item holds a handful of patterns, so the steady state is
+ * a hit, and a stream of distinct patterns cannot grow the cache without bound. Cached RegExps
+ * carry no state: no caller compiles with the `g`/`y` flags, so `lastIndex` is never used.
+ */
+const COMPILED_PATTERN_CACHE_LIMIT = 512;
+
+const compiledPatterns = new Map<string, RegExp | null>();
+
+/**
  * Compiles an XSD pattern to a `RegExp` that matches the whole string, or `null` when the
  * pattern does not compile. The `u` flag is used, or `v` for a class subtraction. A pattern that
  * does not compile translated, which is not a valid XSD pattern, compiles as written without
- * either flag, so content that matched before still does.
+ * either flag, so content that matched before still does. Repeated calls with the same pattern
+ * and flags return the same compiled RegExp (see the cache limit).
  */
 export function xsdPatternToRegExp(pattern: string, flags = ''): RegExp | null {
+	const key = `${flags}\u0000${pattern}`;
+	const cached = compiledPatterns.get(key);
+	if (cached !== undefined) return cached;
 	const unicode = translate(pattern, false);
 	const [source, mode] = unicode.subtracts ? [translate(pattern, true).source, 'v'] : [unicode.source, 'u'];
+	let compiled: RegExp | null;
 	try {
-		return new RegExp(`^(?:${source})$`, `${flags}${mode}`);
+		compiled = new RegExp(`^(?:${source})$`, `${flags}${mode}`);
 	} catch {
 		try {
-			return new RegExp(`^(?:${pattern})$`, flags);
+			compiled = new RegExp(`^(?:${pattern})$`, flags);
 		} catch {
-			return null;
+			compiled = null;
 		}
 	}
+	if (compiledPatterns.size >= COMPILED_PATTERN_CACHE_LIMIT) compiledPatterns.clear();
+	compiledPatterns.set(key, compiled);
+	return compiled;
 }
 
 /**
