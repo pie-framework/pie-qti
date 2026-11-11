@@ -139,11 +139,9 @@
       "name": "@pie-qti/transform-core",
       "version": "1.0.0-beta.4",
       "dependencies": {
-        "@pie-qti/element-schemas": "workspace:*",
         "@pie-qti/logger": "workspace:*",
         "@pie-qti/qti-common": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
-        "ajv": "^8.20.0",
         "node-html-parser": "^9.0.5",
       },
       "devDependencies": {
@@ -347,6 +345,8 @@
       "name": "@pie-qti/element-schemas",
       "version": "1.0.0-beta.4",
       "devDependencies": {
+        "ajv": "^8.20.0",
+        "node-html-parser": "^9.0.5",
         "typescript": "^5.9.3",
       },
     },

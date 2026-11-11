@@ -19,6 +19,50 @@ const allSchemas = await loadAllSchemas();
 
 - `multiple-choice` - Multiple choice questions
 - `extended-text-entry` - Extended text entry questions
+- `placement-ordering` - Placement ordering questions
+- `match` - Match (stem-to-option) questions
+- `explicit-constructed-response` - Explicit constructed response
+- `select-text` - Select text questions
+- `inline-dropdown` - Inline dropdown questions
+- `drag-in-the-blank` - Drag in the blank questions
+- `ebsr` - Evidence-based selected response
+- `hotspot` - Hotspot questions
+- `image-cloze-association` - Image cloze association
+- `match-list` - Match list questions
+- `passage` - Passage elements
+
+## Scope and known gaps
+
+Schemas originate from the upstream pie-elements repo (see below), but the
+`required` list and `additionalProperties` of two schemas are aligned to what
+THIS repo's QTI-to-PIE transformers actually emit, so transformer output
+validates:
+
+- `multiple-choice.json` — required fields and the `correctResponse`/`shuffle`
+  properties match `packages/to-pie/src/transformers/multiple-choice.ts`; the
+  remaining optional properties mirror upstream.
+- `match.json` — required fields match `packages/to-pie/src/transformers/match.ts`
+  (upstream required `rationale`, which the transformer never emits).
+
+`tests/transformer-output.test.ts` runs the real to-pie transformers against
+to-pie's QTI fixtures (read-only, test-only relative wiring — no package
+dependency) and validates their output against these two schemas.
+
+Known gaps — element types this repo's transformers emit but no schema exists
+for (upstream sync has not provided them; do not author them blind):
+
+- `@pie-element/categorize` (emitted by `to-pie/src/transformers/associate-to-categorize.ts`)
+- `@pie-element/number-line` (emitted by `to-pie/src/transformers/number-line.ts` and `select-point.ts`)
+- `@pie-element/charting` (emitted by `to-pie/src/transformers/select-point.ts`)
+- `@pie-element/graphing` (emitted by `to-pie/src/transformers/select-point.ts`)
+
+The other schemas' `required` lists still mirror upstream and have not been
+audited against this repo's transformer output.
+
+Re-running the upstream sync (below) overwrites these files wholesale and will
+undo the `required` alignment for `multiple-choice.json` and `match.json`; if
+that happens, re-derive the two schemas from the transformer tests, which will
+fail loudly on the regression.
 
 ## Keeping Schemas Up-to-Date
 

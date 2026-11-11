@@ -1,5 +1,6 @@
 {
   "description": "Model for the @pie-elements/match Interaction",
+  "$comment": "required is aligned to what this repo's QTI-to-PIE transformer (packages/to-pie/src/transformers/match.ts) emits, so transformer output validates; the remaining optional properties mirror the upstream pie-elements model.",
   "additionalProperties": false,
   "type": "object",
   "properties": {
@@ -330,19 +331,15 @@
     }
   },
   "required": [
+    "choiceMode",
     "element",
-    "feedbackEnabled",
     "headers",
     "id",
     "layout",
+    "lockChoiceOrder",
+    "partialScoring",
     "prompt",
-    "rationale",
-    "rationaleEnabled",
-    "rows",
-    "rubricEnabled",
-    "spellCheckEnabled",
-    "studentInstructionsEnabled",
-    "teacherInstructionsEnabled"
+    "rows"
   ],
   "definitions": {
     "EditableHtmlConfigureProp": {

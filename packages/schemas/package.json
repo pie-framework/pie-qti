@@ -4,6 +4,8 @@
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "devDependencies": {
+    "ajv": "^8.20.0",
+    "node-html-parser": "^9.0.5",
     "typescript": "^5.9.3"
   },
   "exports": {
@@ -26,6 +28,7 @@
     "clean": "rm -rf dist",
     "sync": "bun run scripts/sync-schemas.ts",
     "check-updates": "bun run scripts/check-schema-versions.ts",
+    "test": "bun test tests",
     "typecheck": "tsc --noEmit"
   },
   "type": "module",
