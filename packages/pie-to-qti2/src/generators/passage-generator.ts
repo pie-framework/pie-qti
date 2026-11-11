@@ -7,19 +7,8 @@
 import type { PieModel, PiePassageStimulus } from '@pie-qti/transform-types';
 import type { GeneratedPassageFile, ResolvedPassage } from '../types/passages.js';
 import { convertQti2ToQti3 } from '@pie-qti/qti-common';
+import { escapeXmlAttribute } from '@pie-qti/qti-common/accessibility';
 import { toQtiXhtml } from '../utils/xhtml.js';
-
-/**
- * Escape XML special characters
- */
-function escapeXml(unsafe: string): string {
-  return String(unsafe)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
 
 interface PassageParts {
   /** The QTI identifier: baseId when present, else id. */
@@ -43,7 +32,7 @@ function passageParts(passage: PieModel | ResolvedPassage): PassageParts {
 }
 
 function stimulusDiv({ title, content }: PassageParts): string {
-  const titleElement = title ? `<h2>${escapeXml(title)}</h2>\n    ` : '';
+  const titleElement = title ? `<h2>${escapeXmlAttribute(title)}</h2>\n    ` : '';
   return `<div class="stimulus">
       ${titleElement}${toQtiXhtml(content ?? '')}
     </div>`;
@@ -66,8 +55,8 @@ export function generatePassageXml(passage: PieModel | ResolvedPassage): string 
                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                 xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2
                                     http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
-                identifier="${escapeXml(parts.identifier)}"
-                title="${escapeXml(parts.title || 'Passage')}"
+                identifier="${escapeXmlAttribute(parts.identifier)}"
+                title="${escapeXmlAttribute(parts.title || 'Passage')}"
                 adaptive="false"
                 timeDependent="false">
   <!-- Standalone passage/stimulus item -->
@@ -89,8 +78,8 @@ export function generatePassageStimulusXml(passage: PieModel | ResolvedPassage):
                     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                     xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2
                                         http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
-                    identifier="${escapeXml(parts.identifier)}"
-                    title="${escapeXml(parts.title || 'Passage')}">
+                    identifier="${escapeXmlAttribute(parts.identifier)}"
+                    title="${escapeXmlAttribute(parts.title || 'Passage')}">
   <stimulusBody>
     ${stimulusDiv(parts)}
   </stimulusBody>
@@ -179,7 +168,7 @@ export function generatePassageFromStimulus(
  * Creates QTI object element that references an external passage file
  */
 export function generatePassageObjectTag(passageId: string, href: string): string {
-  return `<object data="${escapeXml(href)}" type="text/html" data-pie-passage-id="${escapeXml(passageId)}">
+  return `<object data="${escapeXmlAttribute(href)}" type="text/html" data-pie-passage-id="${escapeXmlAttribute(passageId)}">
       <p>Passage content not available</p>
     </object>`;
 }
@@ -221,6 +210,6 @@ export function insertPassageObjectReference(
 export function insertStimulusReference(qtiXml: string, passageId: string, href: string): string {
   const at = qtiXml.search(/<(?:companionMaterialsInfo|stylesheet|itemBody)[\s/>]/);
   if (at === -1) return qtiXml;
-  const ref = `<assessmentStimulusRef identifier="${escapeXml(passageId)}" href="${escapeXml(href)}" data-pie-passage-id="${escapeXml(passageId)}"/>\n  `;
+  const ref = `<assessmentStimulusRef identifier="${escapeXmlAttribute(passageId)}" href="${escapeXmlAttribute(href)}" data-pie-passage-id="${escapeXmlAttribute(passageId)}"/>\n  `;
   return `${qtiXml.slice(0, at)}${ref}${qtiXml.slice(at)}`;
 }
