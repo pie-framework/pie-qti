@@ -6,7 +6,7 @@ import { QTI_SECTION_PLAYER_SPLITPANE_TAG, QTI_SECTION_PLAYER_VERTICAL_TAG } fro
 import {
 	QtiSectionPlayerSplitPaneElement,
 	defineQtiSectionPlayerSplitPaneElement,
-	type QtiSectionResponseDeltaDetail,
+	type QtiSectionResponseDeltaEvent,
 } from '../src/elements/QtiSectionPlayerSplitPaneElement.js';
 import {
 	QtiSectionPlayerVerticalElement,
@@ -120,10 +120,10 @@ describe('section player custom elements', () => {
 		const security: PlayerSecurityConfig = { allowIframes: false };
 		const moduleResolver: PciModuleResolver = () => ({});
 		const element = document.createElement('test-qti-section-player-splitpane') as TestSplitPaneElement;
-		const events: QtiSectionResponseDeltaDetail[] = [];
-		const eventOptions: Array<Pick<CustomEventInit<QtiSectionResponseDeltaDetail>, 'bubbles' | 'composed'>> = [];
+		const events: QtiSectionResponseDeltaEvent[] = [];
+		const eventOptions: Array<Pick<CustomEventInit<QtiSectionResponseDeltaEvent>, 'bubbles' | 'composed'>> = [];
 		element.addEventListener('qti-section-response-delta', (event) => {
-			const customEvent = event as CustomEvent<QtiSectionResponseDeltaDetail>;
+			const customEvent = event as CustomEvent<QtiSectionResponseDeltaEvent>;
 			events.push(customEvent.detail);
 		});
 
@@ -133,7 +133,7 @@ describe('section player custom elements', () => {
 		const props = element.exposeProps();
 		const OriginalCustomEvent = globalThis.CustomEvent;
 		globalThis.CustomEvent = class extends OriginalCustomEvent {
-			constructor(type: string, init?: CustomEventInit<QtiSectionResponseDeltaDetail>) {
+			constructor(type: string, init?: CustomEventInit<QtiSectionResponseDeltaEvent>) {
 				eventOptions.push({ bubbles: init?.bubbles, composed: init?.composed });
 				super(type, init);
 			}

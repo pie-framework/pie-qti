@@ -10,7 +10,14 @@ import type {
 	ScopeTimeExpiryEvent,
 } from '@pie-qti/assessment-player';
 import { isAssessmentPlayerError, ReferenceBackendAdapter } from '@pie-qti/assessment-player';
-import type { PciConfiguration, PlayerSecurityConfig } from '@pie-qti/item-player';
+import type { I18nProvider } from '@pie-qti/i18n';
+import type {
+	AssessmentItemDefinitionPlugin,
+	PciConfiguration,
+	PnpProfile,
+	PlayerSecurityConfig,
+	QTIRole,
+} from '@pie-qti/item-player';
 import { enforceItemXmlLimits, normalizeParsingLimits } from '@pie-qti/item-player/security';
 import AssessmentShell from '@pie-qti/assessment-player/components/AssessmentShell.svelte';
 import { QTI_ASSESSMENT_PLAYER_TAG } from '../constants.js';
@@ -31,6 +38,19 @@ import { BaseSvelteMountElement } from './BaseSvelteMountElement.js';
  * built-in reference backend (reference/preview mode).
  */
 type AssessmentElementConfig = Partial<BackendAssessmentPlayerConfig> & { rng?: () => number };
+
+const QTI_ROLES: readonly QTIRole[] = ['candidate', 'scorer', 'proctor', 'testConstructor', 'tutor', 'author'];
+
+/** Unknown values never change delivery silently: the candidate view renders, with a warning. */
+function parseQtiRoleAttribute(value: string | null): QTIRole | undefined {
+	if (value === null) return undefined;
+	const role = QTI_ROLES.find((candidate) => candidate === value);
+	if (role) return role;
+	console.warn(
+		`assessment-player: unknown qti-role '${value}' ignored; the candidate view renders. Accepted values are ${QTI_ROLES.join(', ')}, set with the qti-role attribute or the role property.`,
+	);
+	return undefined;
+}
 
 export type QtiAssessmentResponseChangeDetail = {
 	responses: Record<string, unknown>;
@@ -179,6 +199,9 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 			// Common
 			'config-json',
 			'security-json',
+			// Per-item injection (also JS properties); `role` is declarative,
+			// the rest are objects/functions no attribute can carry safely.
+			'qti-role',
 			// Presentation
 			'full-viewport',
 			'heading-level',
@@ -208,6 +231,11 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	#config: AssessmentElementConfig = {};
 	#security: PlayerSecurityConfig | undefined;
 	#pci: PciConfiguration | undefined;
+	#role: QTIRole | undefined;
+	#i18n: I18nProvider | undefined;
+	#pnp: PnpProfile | undefined;
+	#plugins: readonly AssessmentItemDefinitionPlugin[] | undefined;
+	#stringComparison: BackendAssessmentPlayerConfig['stringComparison'];
 	#referenceMode = false;
 	#fullViewport = false;
 	#headingLevel: number | undefined;
@@ -254,6 +282,13 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	}
 
 	attributeChangedCallback(name: string, _oldValue: string | null, newValue: string | null) {
+		if (name === 'qti-role') {
+			this.#role = parseQtiRoleAttribute(newValue);
+			// Like a `config` change: the role feeds the sessions the shell opens.
+			if (this.#allowMount) this._mountOrUpdate();
+			return;
+		}
+
 		if (
 			name === 'full-viewport' ||
 			name === 'heading-level' ||
@@ -458,6 +493,76 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 	}
 	set pci(value: PciConfiguration | undefined) {
 		this.#pci = value;
+		if (this.#allowMount) {
+			this._mountOrUpdate();
+		}
+	}
+
+	/**
+	 * The QTI view every item renders for (`candidate`, `scorer`, `proctor`,
+	 * `testConstructor`, `tutor`, `author`). Reflects the `qti-role` attribute; a bare
+	 * `role` attribute stays the ARIA role. Wins over `config.role`.
+	 */
+	get role(): QTIRole | null {
+		return this.#role ?? this.#config.role ?? null;
+	}
+	set role(value: QTIRole | null) {
+		if (value === null) this.removeAttribute('qti-role');
+		else this.setAttribute('qti-role', value);
+	}
+
+	/**
+	 * The interface locale provider, shared by every item player in the assessment.
+	 * JavaScript-only (an object); wins over `config.i18nProvider`.
+	 */
+	get i18n(): I18nProvider | undefined {
+		return this.#i18n ?? this.#config.i18nProvider;
+	}
+	set i18n(value: I18nProvider | undefined) {
+		this.#i18n = value;
+		if (this.#allowMount) {
+			this._mountOrUpdate();
+		}
+	}
+
+	/**
+	 * The candidate's PNP profile, applied to every item session (extended time also
+	 * scales the assessment time limits). JavaScript-only; wins over `config.pnp`.
+	 */
+	get pnp(): PnpProfile | undefined {
+		return this.#pnp ?? this.#config.pnp;
+	}
+	set pnp(value: PnpProfile | undefined) {
+		this.#pnp = value;
+		if (this.#allowMount) {
+			this._mountOrUpdate();
+		}
+	}
+
+	/**
+	 * Definition-lifetime extractor and renderer extensions applied to every item
+	 * definition the player opens. JavaScript-only; wins over `config.plugins`.
+	 */
+	get plugins(): readonly AssessmentItemDefinitionPlugin[] | undefined {
+		return this.#plugins ?? this.#config.plugins;
+	}
+	set plugins(value: readonly AssessmentItemDefinitionPlugin[] | undefined) {
+		this.#plugins = value;
+		if (this.#allowMount) {
+			this._mountOrUpdate();
+		}
+	}
+
+	/**
+	 * String comparison folds beyond QTI's equality for the candidates' input, applied
+	 * by every item session the player opens (see `config.stringComparison`).
+	 * JavaScript-only; wins over the config field.
+	 */
+	get stringComparison(): BackendAssessmentPlayerConfig['stringComparison'] {
+		return this.#stringComparison ?? this.#config.stringComparison;
+	}
+	set stringComparison(value: BackendAssessmentPlayerConfig['stringComparison']) {
+		this.#stringComparison = value;
 		if (this.#allowMount) {
 			this._mountOrUpdate();
 		}
@@ -890,6 +995,13 @@ export class QtiAssessmentPlayerElement extends BaseSvelteMountElement<Record<st
 			...this.#config,
 			security: this.#security,
 			pci: this.#pci ?? this.#config.pci,
+			// Per-item injection properties mirror the item and section elements; each
+			// wins over the same-named config field.
+			role: this.#role ?? this.#config.role,
+			i18nProvider: this.#i18n ?? this.#config.i18nProvider,
+			pnp: this.#pnp ?? this.#config.pnp,
+			plugins: this.#plugins ?? this.#config.plugins,
+			stringComparison: this.#stringComparison ?? this.#config.stringComparison,
 			onItemChange: (itemIndex: number, totalItems: number) => {
 				const detail: QtiAssessmentItemChangeDetail = { itemIndex, totalItems };
 				this.dispatchEvent(

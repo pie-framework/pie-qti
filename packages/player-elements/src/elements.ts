@@ -35,7 +35,7 @@ export {
 	type QtiSectionFrameworkError,
 	type QtiSectionItemPaneReadyDetail,
 	type QtiSectionPlayerEventMap,
-	type QtiSectionResponseDeltaDetail,
+	type QtiSectionResponseDeltaEvent,
 } from './elements/QtiSectionPlayerSplitPaneElement.js';
 export {
 	defineQtiSectionPlayerVerticalElement,

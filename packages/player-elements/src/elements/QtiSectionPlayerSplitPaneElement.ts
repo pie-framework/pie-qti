@@ -1,6 +1,7 @@
 import type {
 	QtiSectionDisplaySettingsEvent,
 	QtiSectionFrameworkError,
+	QtiSectionResponseDeltaEvent,
 	ResolvedQtiSectionComposition,
 } from '@pie-qti/section-player';
 import type { I18nProvider } from '@pie-qti/i18n';
@@ -12,13 +13,10 @@ import { BaseSvelteMountElement } from './BaseSvelteMountElement.js';
 
 // The section contracts this element's events carry, named where the runtime
 // uses them so host-facing facades can re-export the exact types.
-export type { QtiSectionDisplaySettingsEvent, QtiSectionFrameworkError };
-
-export type QtiSectionResponseDeltaDetail = {
-	sectionIdentifier: string;
-	itemIdentifier: string;
-	responseIdentifier: string;
-	value: unknown;
+export type {
+	QtiSectionDisplaySettingsEvent,
+	QtiSectionFrameworkError,
+	QtiSectionResponseDeltaEvent,
 };
 
 /** The item pane element the layout rendered, for a host's skip links. */
@@ -27,7 +25,7 @@ export interface QtiSectionItemPaneReadyDetail {
 }
 
 export interface QtiSectionPlayerEventMap {
-	'qti-section-response-delta': CustomEvent<QtiSectionResponseDeltaDetail>;
+	'qti-section-response-delta': CustomEvent<QtiSectionResponseDeltaEvent>;
 	'qti-section-framework-error': CustomEvent<QtiSectionFrameworkError>;
 	'qti-section-display-settings': CustomEvent<QtiSectionDisplaySettingsEvent>;
 	'qti-section-item-pane-ready': CustomEvent<QtiSectionItemPaneReadyDetail>;
@@ -258,7 +256,7 @@ export abstract class QtiSectionPlayerElementBase extends BaseSvelteMountElement
 			...(this.#headingLevel === undefined ? {} : { headingLevel: this.#headingLevel }),
 			...(this.#displaySettings === undefined ? {} : { displaySettings: this.#displaySettings }),
 			onResponseChange: (itemIdentifier, responseIdentifier, value) => {
-				const detail: QtiSectionResponseDeltaDetail = {
+				const detail: QtiSectionResponseDeltaEvent = {
 					sectionIdentifier: composition.section.identifier,
 					itemIdentifier,
 					responseIdentifier,

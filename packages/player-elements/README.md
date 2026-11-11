@@ -133,8 +133,9 @@ item.addEventListener('error', (event) => {
 });
 ```
 
-`error` codes are `item-load-failed`, `response-processing-failed`, `submission-failed` and
-`render-failed`.
+`error` codes are `item-load-failed`, `response-processing-failed`, `response-dispatch-failed`,
+`submission-failed` and `render-failed`. See [Failure events and codes](#failure-events-and-codes)
+for how the failure channels differ across the four elements.
 
 Portable Custom Interaction execution is disabled until the host opts into one of two engines:
 a page-realm resolver that returns the trusted module, or the sandboxed engine
@@ -180,7 +181,11 @@ document.body.append(assessment);
 ```
 
 `backend`, `initSession`, `assessmentId`, `candidateId`, `config`, `security`, and `pci` are
-JavaScript properties. `config.plugins` is propagated to every compiled item definition.
+JavaScript properties. So are the per-item injection properties the item and section elements
+expose: `role` (declaratively the `qti-role` attribute — a bare `role` attribute stays the ARIA
+role), `i18n`, `pnp`, `plugins`, and `stringComparison`. Each wins over the same-named `config`
+field (`config` spells the locale provider `i18nProvider`). `config.plugins` is propagated to
+every compiled item definition.
 
 ### Explicit reference/preview delivery
 
@@ -217,6 +222,9 @@ assessment.addEventListener('section-change', (event) => {});
 assessment.addEventListener('response-change', (event) => {});
 assessment.addEventListener('submit', (event) => {}); // { results } — once, for every ending
 assessment.addEventListener('complete', () => {});
+assessment.addEventListener('player-error', (event) => {}); // { code?, message } — core/backend failure, never rendered to candidates
+assessment.addEventListener('autosave-change', (event) => {}); // { status: 'idle' | 'pending' | 'saving' | 'saved' | 'failed', lastSavedAt? }
+assessment.addEventListener('autosave-failed', (event) => {}); // { message } — the draft retries on the next change
 
 await assessment.next();
 await assessment.previous();
@@ -379,6 +387,33 @@ defineQtiPlayerElements();
 
 The `/elements` entry is browser-only. Use the package root when only constants, parser helpers, or
 public types are needed in SSR/tooling code.
+
+## Failure events and codes
+
+Each element reports "the player failed" on its own channel, with its own code taxonomy. A host
+listens per element it renders:
+
+| Element | Failure event(s) | Event detail | Code style |
+|---|---|---|---|
+| `pie-qti-item-player` | `error` — one event for load, response dispatch, response processing, submission and render failures | `{ code, message, itemIdentifier? }` | kebab-case, always present |
+| `pie-qti-assessment-player` | `player-error` (runtime failures) and `load-error` (resource/parse load failures) | `{ code?, message }` / `{ message }` | camelCase, optional — a failure that is not a coded error carries no `code` |
+| `pie-qti-section-player-*` | `qti-section-framework-error` | `{ code, message, sectionIdentifier?, itemIdentifier?, cause? }` | kebab-case string |
+
+The item element's codes are `item-load-failed`, `response-processing-failed`,
+`response-dispatch-failed`, `submission-failed` and `render-failed`. The assessment element's
+`player-error` codes are the assessment player core's (camelCase, e.g. `invalidNavigationTarget`,
+`itemTimeExpired`) — because the code is optional, hosts switching on it need a default branch.
+The assessment element's `load-error` carries only `message`. The section elements report the
+section player's own codes plus the item-player codes bridged from the item players they mount
+(the section player's README lists them); the custom elements add `invalid-composition` for a
+composition they cannot render.
+
+The `qti-section-*` prefix on the section events is load-bearing: section layouts embed real
+`pie-qti-item-player` elements and re-namespace their bubbling events, so the section's own
+reports must not collide with the names the mounted items emit. Event names are stable per
+element; a host that renders several elements registers a listener per element — `error` on item
+elements, `player-error`/`load-error` on the assessment element, `qti-section-framework-error` on
+the section elements.
 
 ## Security boundary
 
