@@ -1,15 +1,36 @@
 import type { PciFrameConnection, PciFrameConnector } from '../types.js';
 
 /**
+ * How a sandboxed frame's opaque origin serializes in `event.origin`. Without
+ * `allow-same-origin` the frame's document has no tuple origin at all, so it
+ * never equals the runner origin this connector is built from.
+ */
+const OPAQUE_ORIGIN = 'null';
+
+/**
  * The production `PciFrameConnector`: one `<iframe sandbox="allow-scripts">`
  * per PCI, loaded from the runner origin. Without `allow-same-origin` the
  * frame's document has an opaque origin — it shares no storage, cookies, or
  * DOM with the player — while its base URL stays the runner URL, so authored
- * relative asset paths still resolve inside it.
+ * relative asset paths still resolve inside it. An opaque origin serializes as
+ * the string `"null"` and never compares equal to a tuple origin.
  *
- * Incoming messages are accepted only when `event.origin` is the runner origin
- * and `event.source` is this frame's `contentWindow`; outgoing messages are
- * posted locked to the runner origin.
+ * Incoming messages are accepted only when `event.source` is this frame's
+ * `contentWindow` — the identity anchor, because a sender cannot forge a
+ * source window — and `event.origin` is the runner origin or the opaque
+ * `"null"` serialization. This frame is always `allow-scripts`-only, so every
+ * message it sends carries `"null"`; filtering both spellings keeps the origin
+ * check meaningful (a foreign origin is still rejected) without dropping the
+ * only origin this frame can ever produce.
+ *
+ * Outgoing messages are posted to this frame's `contentWindow` with target
+ * origin `'*'`. A tuple target origin can never match the frame's opaque
+ * origin, so a locked target would silently drop every message and the
+ * handshake could never complete. The recipient is bounded by the target
+ * window: only this frame receives it, and a scripts-only sandboxed frame has
+ * no access to parent state. The runner answers through the same window it was
+ * reached by, and the `hello` handshake carries the parent origin so the frame
+ * can verify where it talks to.
  */
 export function createIframeFrameConnector(): PciFrameConnector {
 	return (frameUrl: string, title: string) => new IframeFrameConnection(frameUrl, title);
@@ -56,8 +77,13 @@ class IframeFrameConnection implements PciFrameConnection {
 
 		this.windowListener = (event: MessageEvent) => {
 			if (this.disposed) return;
+			// Identity anchor: only this frame's window may be the source — a sender
+			// cannot forge it. The origin comparison is the secondary check: this
+			// frame's opaque origin serializes as "null" and never equals the runner
+			// tuple origin, so a frame message legitimately arrives under either
+			// spelling while a foreign origin still matches neither.
 			if (event.source !== this.frame.contentWindow) return;
-			if (event.origin !== this.frameOrigin) return;
+			if (event.origin !== this.frameOrigin && event.origin !== OPAQUE_ORIGIN) return;
 			for (const handler of this.handlers) handler(event.data);
 		};
 		if (typeof window !== 'undefined') {
@@ -67,7 +93,11 @@ class IframeFrameConnection implements PciFrameConnection {
 
 	/** {@inheritdoc PciFrameConnection.post} */
 	public post(message: unknown): void {
-		this.frame.contentWindow?.postMessage(message, this.frameOrigin);
+		// Target origin '*': the frame's origin is opaque, so no tuple target can
+		// ever match it and a locked target would drop every message. The recipient
+		// is bounded by posting to this frame's contentWindow only, and identity in
+		// the reply direction is anchored on `event.source`, not the target origin.
+		this.frame.contentWindow?.postMessage(message, '*');
 	}
 
 	/** {@inheritdoc PciFrameConnection.appendTo} */

@@ -77,7 +77,9 @@ export function catalogEntryOf(
 	const html =
 		stimulusHtml ?? getCatalogEntryWithAliases(indexes.catalogIndex, idref, usage, lang);
 	if (html === null) return null;
-	if (looksLikeCatalogUrl(html)) {
+	if (isCatalogUrl(html)) {
+		// A URL entry never meets sanitizeHtml: it crosses the bridge as a resource
+		// URL, and a blocked URL stays null per the sanitizer contract.
 		return sanitizeResourceUrl(html.trim(), security?.urlPolicy, 'img');
 	}
 	return toTrustedHtml(
@@ -86,8 +88,30 @@ export function catalogEntryOf(
 	);
 }
 
-function looksLikeCatalogUrl(value: string): boolean {
+/** Characters markup always carries and a bare URL never does. */
+const MARKUP_CHARACTERS = /[<>&'"]/;
+// Protocol-relative, root-relative and dot-relative paths; the scheme forms are
+// decided above.
+const URL_PREFIX = /^(\/\/|\/|\.{0,2}\/)/i;
+const MEDIA_FILE_EXTENSION = /\.(png|jpe?g|gif|webp|svg|mp3|wav|ogg|mp4|webm|pdf)(\?.*)?$/i;
+
+/**
+ * Whether a catalog entry is a bare resource URL rather than HTML. The URL
+ * branch's output goes to `src`/`href` attributes and to hosts via
+ * `qti-catalog-lookup` unmodified, so an entry only qualifies when it can never
+ * be markup: a `data:`/`blob:`/`http(s)` scheme is decisive (whatever follows a
+ * scheme is URL payload, and sanitizeResourceUrl owns blocking it), while every
+ * other value must carry no markup characters and still match a URL shape.
+ * Markup that merely ends in a filename-looking token
+ * (`<img src=x onerror=…>see photo.png`) is HTML for sanitizeHtml, never a URL.
+ *
+ * Shared with the catalog popup fallback so its img-vs-HTML decision is the same
+ * one `catalogEntryOf` made for the entry.
+ */
+export function isCatalogUrl(value: string): boolean {
 	const trimmed = value.trim();
-	return /^(https?:\/\/|\/\/|\/|\.{0,2}\/|data:|blob:)/i.test(trimmed) ||
-		/\.(png|jpe?g|gif|webp|svg|mp3|wav|ogg|mp4|webm|pdf)(\?.*)?$/i.test(trimmed);
+	if (!trimmed) return false;
+	if (/^(data:|blob:|https?:\/\/)/i.test(trimmed)) return true;
+	if (MARKUP_CHARACTERS.test(trimmed)) return false;
+	return URL_PREFIX.test(trimmed) || MEDIA_FILE_EXTENSION.test(trimmed);
 }

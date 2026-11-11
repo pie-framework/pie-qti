@@ -4,7 +4,7 @@
 	import { getItemSessionBinding, UnknownResponseIdentifierError, type ItemSession, type ItemSessionView } from '../core/ItemSession';
 	import type { AssessmentItemDefinitionPlugin } from '../core/AssessmentItemDefinition';
 	import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
-	import type { AdaptiveAttemptResult, ItemPlayerErrorDetail, ModalFeedback, PlayerSecurityConfig, QTIRole, ScoringResult } from '../types';
+	import type { AdaptiveAttemptResult, ItemBodyError, ItemPlayerErrorDetail, ModalFeedback, PlayerSecurityConfig, QTIRole, ScoringResult } from '../types';
 	import type { PnpProfile } from '../pnp/types';
 	import type { InteractionResponseValue } from '../web-components';
 	import { SESSION_INPUTS, type SessionInputKey } from '../session-inputs';
@@ -61,7 +61,7 @@
 		showSolution?: boolean;
 		/** A session the player owns or applied rendered successfully. */
 		onReady?: () => void;
-		/** A load, response-processing, submission or render failure; the raw message never renders to candidates. */
+		/** A load, response-processing, response-dispatch, submission or render failure; the raw message never renders to candidates. */
 		onError?: (error: ItemPlayerErrorDetail) => void;
 		/**
 		 * The player's own session was opened (or replaced by a definition change). Hosts that
@@ -375,11 +375,16 @@
 		}
 	});
 
-	function handleItemBodyError(cause: unknown) {
-		errorKind = 'processing';
+	/**
+	 * A render failure keeps the item on screen — the failed interaction stands in
+	 * as a visible alert in the body — so only the coded detail goes to the host.
+	 * A rejected response write takes the generic processing message, as before.
+	 */
+	function handleItemBodyError(error: ItemBodyError) {
+		if (error.code === 'response-dispatch-failed') errorKind = 'processing';
 		onError?.({
-			code: 'render-failed',
-			message: cause instanceof Error ? cause.message : String(cause),
+			code: error.code,
+			message: error.cause instanceof Error ? error.cause.message : String(error.cause),
 			...safeItemIdentifier(activeSession),
 		});
 	}

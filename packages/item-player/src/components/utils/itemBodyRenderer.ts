@@ -30,7 +30,8 @@ export interface ItemBodyRenderer<M extends SlottedMount> {
 	destroy(): void;
 }
 
-const UNSLOTTED_CLASS = 'qti-item-body-unslotted';
+/** Class of the area after the body where an interaction with no slot renders. */
+export const UNSLOTTED_CLASS = 'qti-item-body-unslotted';
 
 /**
  * Renders an item presentation into `container`: the body HTML once, with every interaction
