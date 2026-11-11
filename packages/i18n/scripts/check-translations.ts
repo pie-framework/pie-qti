@@ -143,6 +143,56 @@ function compareLocales(reference: Record<string, string>, target: Record<string
 	return { missing, extra, untranslated };
 }
 
+/** A leaf of a plural group (`.one`, `.few`, …), where a locale may spell the number out. */
+const PLURAL_LEAF = /\.(zero|one|two|few|many|other)$/;
+
+/**
+ * The unique `{name}` interpolation names a message uses, in order of first
+ * appearance.
+ */
+export function placeholderNames(value: string): string[] {
+	const names: string[] = [];
+	for (const match of value.matchAll(/\{(\w+)\}/g)) {
+		if (!names.includes(match[1])) names.push(match[1]);
+	}
+	return names;
+}
+
+/**
+ * Why a locale's value for `key` uses different interpolation names than en, or
+ * null when they agree.
+ *
+ * Regular keys must use exactly en's placeholder set: a renamed placeholder
+ * leaves en's `{name}` unfilled in the translation, and a placeholder en does
+ * not carry is never supplied a value and renders literally.
+ *
+ * A plural leaf may use a subset: locales that spell small counts out as words
+ * (Romanian and Arabic `.one` forms such as "Mai este un caracter", "عنصر واحد")
+ * are complete sentences that legitimately omit `{count}`. Inventing a name en
+ * does not carry is still a violation there.
+ */
+export function placeholderViolation(key: string, reference: string, target: string): string | null {
+	const expected = placeholderNames(reference);
+	const actual = placeholderNames(target);
+
+	if (PLURAL_LEAF.test(key)) {
+		const invented = actual.filter((name) => !expected.includes(name));
+		if (invented.length > 0) {
+			return `introduces placeholder(s) {${invented.join('}, {')}} that en's "${reference}" does not carry`;
+		}
+		return null;
+	}
+
+	const missing = expected.filter((name) => !actual.includes(name));
+	const invented = actual.filter((name) => !expected.includes(name));
+	if (missing.length === 0 && invented.length === 0) return null;
+
+	const parts: string[] = [];
+	if (missing.length > 0) parts.push(`drops {${missing.join('}, {')}}`);
+	if (invented.length > 0) parts.push(`introduces {${invented.join('}, {')}} which en does not carry`);
+	return `${parts.join('; ')} (en: "${reference}", locale: "${target}")`;
+}
+
 /**
  * Format the report for a single locale
  */
@@ -229,6 +279,7 @@ async function main() {
 		missing: number;
 		extra: number;
 		untranslated: number;
+		placeholderDrift: number;
 	}> = [];
 
 	// Check each locale
@@ -238,6 +289,16 @@ async function main() {
 
 		const { missing, extra, untranslated } = compareLocales(referenceFlat, targetFlat);
 
+		// Placeholder-name drift on keys both catalogs carry. Key parity alone
+		// cannot see a renamed `{count}`: the key exists, the translation renders
+		// a literal `{name}` to the candidate.
+		const placeholderDrift: Array<{ key: string; detail: string }> = [];
+		for (const key of Object.keys(referenceFlat)) {
+			if (!(key in targetFlat)) continue;
+			const violation = placeholderViolation(key, referenceFlat[key], targetFlat[key]);
+			if (violation) placeholderDrift.push({ key, detail: violation });
+		}
+
 		const coverage = ((totalKeys - missing.length) / totalKeys * 100);
 		summaryData.push({
 			locale: localeName,
@@ -245,12 +306,22 @@ async function main() {
 			missing: missing.length,
 			extra: extra.length,
 			untranslated: untranslated.length,
+			placeholderDrift: placeholderDrift.length,
 		});
 
 		const report = formatLocaleReport(localeName, missing, extra, untranslated, totalKeys);
-		console.log(report);
+		if (placeholderDrift.length > 0) {
+			let driftSection = `\n❌ Placeholder Drift (${placeholderDrift.length}) - interpolation names differ from en:\n`;
+			driftSection += `${'─'.repeat(80)}\n`;
+			for (const { key, detail } of placeholderDrift.sort((a, b) => a.key.localeCompare(b.key))) {
+				driftSection += `  • ${key}: ${detail}\n`;
+			}
+			console.log(report + driftSection);
+		} else {
+			console.log(report);
+		}
 
-		if (missing.length > 0 || extra.length > 0) {
+		if (missing.length > 0 || extra.length > 0 || placeholderDrift.length > 0) {
 			hasIssues = true;
 		}
 
@@ -267,20 +338,21 @@ async function main() {
 		console.log(`\n${'='.repeat(80)}`);
 		console.log(`📊 SUMMARY TABLE`);
 		console.log(`${'='.repeat(80)}\n`);
-		console.log(`Locale      Coverage    Missing    Extra    Untranslated`);
+		console.log(`Locale      Coverage    Missing    Extra    Untranslated    PlaceholderDrift`);
 		console.log(`${'─'.repeat(80)}`);
 
 		summaryData
 			.sort((a, b) => b.coverage - a.coverage)
 			.forEach((item) => {
-				const status = item.coverage === 100 && item.extra === 0 ? '✅' : '⚠️ ';
+				const status = item.coverage === 100 && item.extra === 0 && item.placeholderDrift === 0 ? '✅' : '⚠️ ';
 				const coverageStr = `${item.coverage.toFixed(1)}%`.padEnd(10);
 				const localeStr = item.locale.padEnd(10);
 				const missingStr = item.missing.toString().padEnd(9);
 				const extraStr = item.extra.toString().padEnd(8);
 				const untransStr = item.untranslated.toString().padEnd(8);
+				const driftStr = item.placeholderDrift.toString().padEnd(8);
 
-				console.log(`${status} ${localeStr} ${coverageStr} ${missingStr} ${extraStr} ${untransStr}`);
+				console.log(`${status} ${localeStr} ${coverageStr} ${missingStr} ${extraStr} ${untransStr} ${driftStr}`);
 			});
 
 		console.log(`${'─'.repeat(80)}\n`);
@@ -296,7 +368,9 @@ async function main() {
 	}
 }
 
-main().catch((error) => {
-	console.error('❌ Error:', error.message);
-	process.exit(1);
-});
+if (import.meta.main) {
+	main().catch((error) => {
+		console.error('❌ Error:', error.message);
+		process.exit(1);
+	});
+}

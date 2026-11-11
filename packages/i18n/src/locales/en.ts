@@ -226,6 +226,9 @@ export default {
 			selectText: 'Select text from the passage',
 			ariaLabel: 'Text selection interaction',
 			maxChoicesReached: 'You can select up to {max}. Deselect one to choose another.',
+			// No checkmark: HottextInteraction renders its own "✓ " before this badge.
+			minimumMet: 'Minimum met',
+			selectAtLeast: 'Select at least {minChoices}',
 		},
 
 		hotspot: {
@@ -620,6 +623,19 @@ export default {
 		},
 	},
 
+	/**
+	 * Screen-reader announcement when an interaction cannot be rendered. The
+	 * {type} placeholder carries the QTI interaction element name.
+	 */
+	interaction: {
+		renderError: 'This interactive element ({type}) could not be displayed.',
+	},
+
+	/** Accessible name of the group a Portable Custom Interaction (PCI) renders. */
+	customInteraction: {
+		portableLabel: 'Portable custom interaction',
+	},
+
 	item: {
 		loading: 'Loading item...',
 		loadingError: 'Failed to load item',
@@ -834,6 +850,7 @@ export default {
 		},
 
 		feedback: {
+			title: 'Feedback',
 			correct: 'Correct',
 			incorrect: 'Incorrect',
 			partiallyCorrect: 'Partially correct',

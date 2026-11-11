@@ -274,6 +274,9 @@ export default {
 			selectText: 'اختر نصًا من الفقرة',
 			ariaLabel: 'تفاعل تحديد النص',
 			maxChoicesReached: 'يمكنك اختيار {max} خيارات كحد أقصى. ألغِ اختيار أحد الخيارات لاختيار آخر.',
+			// بدون علامة الصح: يضيف HottextInteraction علامة "✓ " بنفسه قبل هذه الشارة.
+			minimumMet: 'تم تحقيق الحد الأدنى',
+			selectAtLeast: 'اختر على الأقل {minChoices}',
 		},
 
 		hotspot: {
@@ -730,6 +733,19 @@ export default {
 		},
 	},
 
+	/**
+	 * إعلان لقارئات الشاشة عندما يتعذر عرض التفاعل.
+	 * ينبغي أن يراجع هذه الترجمة متحدث أصلي.
+	 */
+	interaction: {
+		renderError: 'تعذّر عرض هذا العنصر التفاعلي ({type}).',
+	},
+
+	/** الاسم المتاح للمجموعة التي يعرضها التفاعل المخصص القابل للنقل (PCI). */
+	customInteraction: {
+		portableLabel: 'تفاعل مخصص قابل للنقل',
+	},
+
 	item: {
 		loading: 'جارٍ تحميل العنصر...',
 		loadingError: 'فشل تحميل العنصر',
@@ -941,6 +957,7 @@ export default {
 		},
 
 		feedback: {
+			title: 'التعليقات',
 			correct: 'صحيح',
 			incorrect: 'غير صحيح',
 			partiallyCorrect: 'صحيح جزئيًا',

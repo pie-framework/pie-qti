@@ -272,7 +272,7 @@ Custom translations have higher priority than framework translations, so you can
 
 ### Recommended Pattern (Svelte 5)
 
-The recommended approach is simple: use `$derived` to create memoized translations.
+The recommended approach is simple: use `$derived` to create memoized translations, passing the English default as the second argument to `t()`.
 
 ```svelte
 <script lang="ts">
@@ -286,8 +286,8 @@ let { i18n }: Props = $props();
 
 // Memoized translations - evaluated once when component loads
 const translations = $derived({
-  submit: i18n?.t('common.submit') ?? 'Submit',
-  cancel: i18n?.t('common.cancel') ?? 'Cancel'
+  submit: i18n?.t('common.submit', 'Submit'),
+  cancel: i18n?.t('common.cancel', 'Cancel')
 });
 </script>
 
@@ -295,21 +295,38 @@ const translations = $derived({
 <button class="btn btn-outline">{translations.cancel}</button>
 ```
 
+The fallback contract: `t()` always returns a `string` — the translation, the
+default passed as its second argument (interpolated like a translation), or, for
+a key no catalog carries and no default was given, the key itself. It never
+returns nullish, so `??` after `t()` is dead code. The only nullish value in the
+pattern is `i18n` itself when a component was mounted without a provider, which
+is what the optional chain covers:
+
+```svelte
+<!-- i18n undefined → renders 'Submit'; key missing from a catalog → same. -->
+<button>{i18n?.t('common.submit', 'Submit') ?? 'Submit'}</button>
+```
+
+A key no catalog carries warns at runtime in every environment and is caught in
+CI by `check:i18n`'s consumer key scan, so the "renders the key itself" case is
+a build failure, not a UI bug that ships.
+
 ### Inline Pattern (For Simple Cases)
 
 For one-off translations, you can call `t()` directly:
 
 ```svelte
-<button>{i18n?.t('common.submit') ?? 'Submit'}</button>
+<button>{i18n?.t('common.submit', 'Submit') ?? 'Submit'}</button>
 ```
 
 ### Helper Pattern (For Cleaner Code)
 
-Create a translation helper for repeated use:
+Create a translation helper for repeated use. The trailing `??` fires only when
+no provider was passed — never when a key is missing:
 
 ```svelte
 <script lang="ts">
-const t = $derived((key: string, fallback: string) => i18n?.t(key) ?? fallback);
+const t = $derived((key: string, fallback: string) => i18n?.t(key, fallback) ?? fallback);
 </script>
 
 <button>{t('common.submit', 'Submit')}</button>
@@ -327,7 +344,7 @@ interface Props {
 
 let { i18n = $bindable() }: Props = $props();
 
-const t = $derived((key: string, fallback: string) => i18n?.t(key) ?? fallback);
+const t = $derived((key: string, fallback: string) => i18n?.t(key, fallback) ?? fallback);
 ```
 
 **Note:** No manual subscriptions needed. Components re-render when the host passes a new provider or view; hosts that change the locale in place opt into reload.
@@ -393,6 +410,7 @@ The checker:
 - ✅ **Automatically detects** all locale files (no configuration)
 - ✅ **Reports missing keys** in other locales
 - ✅ **Detects obsolete keys** that should be removed
+- ✅ **Compares placeholder names** — a locale must use the same `{name}` interpolation variables as en (plural leaves may omit them, for locales that spell small counts out as words)
 - ✅ **Runs in CI/CD** to block PRs with incomplete translations
 
 **Integrated into build:**
@@ -403,6 +421,26 @@ bun run build  # Automatically checks translations first
 
 See [`scripts/check-translations.ts`](./scripts/check-translations.ts) for the checker's behavior
 and options.
+
+### Consumer Key Scan
+
+The hardcoded-string scanner and compile-time types cannot see every call shape,
+and a key referenced by a component but carried by no catalog silently renders
+its hardcoded English default in every other locale. `bun run check-consumer-keys`
+walks consumer source (`packages/<pkg>/src`, `apps/<app>/src`) and asserts every
+literal key passed to `t()`, `translate()`, `translatePlural()` or `.plural()`,
+or named in a `labelKey`, exists in the framework en catalog or in a registered
+host custom-messages catalog. Dynamic keys (template literals, variables) are
+covered at runtime by the providers' missing-key warning, which fires in every
+environment.
+
+```bash
+# Scan every package and app (part of `check:i18n`; exits 1 on an unknown key)
+bun run check-consumer-keys
+
+# Scan a custom path
+bun run check-consumer-keys --path=../custom-components/src
+```
 
 ### Hardcoded String Scanner
 

@@ -215,6 +215,9 @@ export default {
 			selectText: 'Selecteer tekst uit de passage',
 			ariaLabel: 'Tekstselectie-interactie',
 			maxChoicesReached: 'Je kunt maximaal {max} selecteren. Deselecteer er een om een andere te kiezen.',
+			// Geen vinkje: HottextInteraction plaatst zelf een "✓ " voor dit kenmerk.
+			minimumMet: 'Minimum bereikt',
+			selectAtLeast: 'Selecteer minimaal {minChoices}',
 		},
 
 		hotspot: {
@@ -605,6 +608,19 @@ export default {
 		},
 	},
 
+	/**
+	 * Aankondiging voor schermlezers wanneer een interactie niet kan worden
+	 * weergegeven. Vertaling nog te laten controleren door een native speaker.
+	 */
+	interaction: {
+		renderError: 'Dit interactieve element ({type}) kon niet worden weergegeven.',
+	},
+
+	/** Toegankelijke naam van de groep die een draagbare aangepaste interactie (PCI) rendert. */
+	customInteraction: {
+		portableLabel: 'Draagbare aangepaste interactie',
+	},
+
 	item: {
 		loading: 'Item laden...',
 		loadingError: 'Kan item niet laden',
@@ -816,6 +832,7 @@ export default {
 		},
 
 		feedback: {
+			title: 'Terugkoppeling',
 			correct: 'Correct',
 			incorrect: 'Incorrect',
 			partiallyCorrect: 'Gedeeltelijk correct',

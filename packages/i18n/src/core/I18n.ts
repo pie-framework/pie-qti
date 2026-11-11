@@ -72,17 +72,6 @@ function intlLocale(tag: string): string {
 	}
 }
 
-/**
- * Whether to log missing-translation warnings.
- *
- * `process` does not exist in a plain browser, so the read is guarded rather
- * than bare: an unguarded `process.env.NODE_ENV` throws a ReferenceError on the
- * missing-key path for any consumer that is not running the code through a
- * bundler that substitutes it.
- */
-const isDevelopment: boolean =
-	typeof process !== 'undefined' && process.env?.NODE_ENV === 'development';
-
 export class DefaultI18nProvider implements I18nProvider {
 	/** Shared across instances: constructing Intl.PluralRules is not cheap */
 	private static pluralRules: Map<string, Intl.PluralRules> = new Map();
@@ -181,10 +170,23 @@ export class DefaultI18nProvider implements I18nProvider {
 
 	/**
 	 * Translate message key with optional default and/or interpolation
+	 *
+	 * Overloads: the first overload enumerates the framework catalog keys
+	 * (`MessageKey`), so editors complete keys and a typo stands out against the
+	 * union. The second overload is the documented escape hatch for keys that
+	 * live in a host's `customMessages` catalog rather than a framework catalog —
+	 * the key namespace at runtime is framework keys plus custom keys, and a
+	 * plain-string overload cannot reject a misspelled framework key that also
+	 * matches it, so compile-time typo catching for literal keys is enforced by
+	 * the `check-consumer-keys` scan in `check:i18n` instead, and at runtime by
+	 * the unconditional missing-key warning below.
+	 *
 	 * @example t('upload.label') => "Upload a file"
 	 * @example t('upload.label', 'Upload') => translated or "Upload" if missing
-	 * @example t('upload.selected', { name: 'file.pdf' }) => "Selected: file.pdf"
+	 * @example t('upload.fileSize', { size: 42 }) => "42 bytes"
 	 */
+	t(key: MessageKey, defaultOrValues?: Record<string, any> | string, values?: Record<string, any>): string;
+	t(key: string, defaultOrValues?: Record<string, any> | string, values?: Record<string, any>): string;
 	t(key: string, defaultOrValues?: Record<string, any> | string, values?: Record<string, any>): string {
 		const message = this.getMessage(key);
 		const interpolationValues = typeof defaultOrValues === 'object' && defaultOrValues !== null
@@ -192,7 +194,12 @@ export class DefaultI18nProvider implements I18nProvider {
 			: values;
 		const defaultStr = typeof defaultOrValues === 'string' ? defaultOrValues : undefined;
 
-		if (!message && isDevelopment) {
+		if (!message) {
+			// Unconditional, in every environment: a key no catalog carries silently
+			// degrades the UI to its English default or to the key itself, and a
+			// warning gated on NODE_ENV never fires in production builds — which is
+			// exactly where a regression ships. The runtime typo guard is paired
+			// with the `check-consumer-keys` scan at CI time.
 			console.warn(`[i18n] Missing translation: ${key} (locale: ${this.currentLocale})`);
 		}
 

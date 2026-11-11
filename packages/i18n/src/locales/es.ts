@@ -220,6 +220,9 @@ export default {
 			selectText: 'Selecciona texto del pasaje',
 			ariaLabel: 'Interacción de selección de texto',
 			maxChoicesReached: 'Puedes seleccionar hasta {max}. Desmarca una para elegir otra.',
+			// Sin marca de verificación: HottextInteraction añade su propio "✓ " delante de esta insignia.
+			minimumMet: 'Mínimo cumplido',
+			selectAtLeast: 'Selecciona al menos {minChoices}',
 		},
 
 		hotspot: {
@@ -626,6 +629,19 @@ export default {
 		},
 	},
 
+	/**
+	 * Anuncio para lectores de pantalla cuando una interacción no se puede mostrar.
+	 * Traducción pendiente de revisión por un hablante nativo.
+	 */
+	interaction: {
+		renderError: 'No se pudo mostrar este elemento interactivo ({type}).',
+	},
+
+	/** Nombre accesible del grupo que muestra una interacción personalizada portátil (PCI). */
+	customInteraction: {
+		portableLabel: 'Interacción personalizada portátil',
+	},
+
 	item: {
 		loading: 'Cargando elemento...',
 		loadingError: 'Error al cargar elemento',
@@ -837,6 +853,7 @@ export default {
 		},
 
 		feedback: {
+			title: 'Retroalimentación',
 			correct: 'Correcto',
 			incorrect: 'Incorrecto',
 			partiallyCorrect: 'Parcialmente correcto',
