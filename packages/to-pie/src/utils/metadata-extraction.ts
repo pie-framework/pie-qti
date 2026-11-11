@@ -6,12 +6,17 @@
 
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
+import { createInvalidContentError } from './qti-errors.js';
 
 /**
  * Extract a PIE item's extensions from a QTI item
  *
  * Priority 1: Check for PIE extension with embedded extensions (perfect reconstruction)
  * Priority 2: Parse QTI metadata section
+ *
+ * A `pie:sourceModel` element holding malformed JSON throws: silently falling through to the
+ * QTI metadata would drop the author's embedded extensions as if none existed. An absent
+ * element, or a valid `sourceModel` without an `extensions` object, falls through normally.
  *
  * @param qtiXml - QTI XML string or parsed HTMLElement
  * @returns Extracted extensions object
@@ -28,15 +33,26 @@ export function extractExtensions(qtiXml: string | HTMLElement): Record<string, 
                          .find(el => el.rawTagName === 'pie:sourceModel');
 
   if (pieExtension) {
-    try {
-      const sourceModelText = pieExtension.textContent || pieExtension.innerHTML;
-      const sourceModel = JSON.parse(sourceModelText);
-      const extensions = sourceModel.extensions;
+    // node-html-parser keeps the CDATA wrapper in textContent; rawText holds the bare content.
+    let json = (pieExtension.rawText || pieExtension.text || '').trim();
+    if (json.startsWith('<![CDATA[') && json.endsWith(']]>')) {
+      json = json.substring(9, json.length - 3).trim();
+    }
+    if (json) {
+      let sourceModel: any;
+      try {
+        sourceModel = JSON.parse(json);
+      } catch (parseError) {
+        throw createInvalidContentError(
+          'pie:sourceModel JSON',
+          `The embedded sourceModel is not valid JSON: ${(parseError as Error).message}`,
+          { details: `Content excerpt: ${json.slice(0, 120)}` },
+        );
+      }
+      const extensions = sourceModel?.extensions;
       if (extensions) {
         return extensions;
       }
-    } catch (e) {
-      // Fall through to QTI metadata parsing
     }
   }
 

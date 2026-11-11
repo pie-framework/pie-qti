@@ -54,6 +54,15 @@ describe.each([
 		expect(player.canSubmitResponses({ RESPONSE: '12a' })).toBe(false);
 		expect(player.canSubmitResponses({ RESPONSE: '123' })).toBe(true);
 	});
+
+	test('a response beyond the pattern subject cap passes unmasked instead of running authored regex', () => {
+		// '111…1' (10001 chars) cannot match [0-9]{3}, so if the regex ran, the response would be
+		// invalid; beyond the documented subject cap the mask is skipped, and the check must return
+		// immediately rather than run authored regex over the huge subject.
+		expect(entry(textEntry, '1'.repeat(10_001))).toMatchObject({ valid: true });
+		// At the cap the mask still applies.
+		expect(entry(textEntry, '1'.repeat(10_000))).toMatchObject({ valid: false });
+	});
 });
 
 test('a numeric response is not checked: its value is not the text the candidate entered', () => {

@@ -10,7 +10,11 @@
  * vendor overrides such as acme-likert delivering `choiceInteraction` keep the generic
  * checks); no entry adds a constraint.
  */
-import { type DeclarationMap, xsdPatternToRegExp } from '@pie-qti/qti-processing';
+import {
+	type DeclarationMap,
+	isPatternSubjectWithinCap,
+	xsdPatternToRegExp,
+} from '@pie-qti/qti-processing';
 import type { MatchGroupConstraints } from '../matchGroups.js';
 import { findMatchGroupViolations } from '../matchGroups.js';
 import { type OrderChoiceLimits, orderChoiceLimits } from '../../interactions/order/limits.js';
@@ -218,7 +222,10 @@ export function validateResponses(host: ResponseValidationHost, responses: Recor
 			const entered = (Array.isArray(value) ? value : [value]).filter(
 				(text): text is string => typeof text === 'string' && text !== '',
 			);
-			if (entered.some((text) => !patternMask.test(text))) {
+			// A response beyond the documented subject cap (see the pattern subject cap in
+			// @pie-qti/qti-processing) skips the mask instead of running authored regex over it:
+			// it passes unmasked rather than risking a hang on a pathological pattern.
+			if (entered.filter(isPatternSubjectWithinCap).some((text) => !patternMask.test(text))) {
 				errors.push(`Response '${responseId}' does not match its patternMask`);
 			}
 		}
