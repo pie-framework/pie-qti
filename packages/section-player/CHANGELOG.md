@@ -1,5 +1,250 @@
 # @pie-qti/section-player
 
+## 1.0.0-beta.5
+
+### Minor Changes
+
+- d3619a3: Final review fixes for the section player shells:
+  
+  - **Additive (section elements)**: both section elements now dispatch typed, bubbling, composed `qti-section-framework-error`, `qti-section-display-settings` and `qti-section-item-pane-ready` events alongside `qti-section-response-delta`; expose a `display-settings` attribute (`display-settings="false"` turns the candidate's display settings tool off) and a `focusActiveItem(options?)` skip-link helper. A composition the layouts cannot render (a hand-built object missing `sharedContext` or the response snapshot) emits `qti-section-framework-error` with code `invalid-composition` instead of throwing an uncaught `TypeError` from the Svelte render. The player-elements README documents the event surface and the remaining FontAwesome-suppression CSP implication (the `data:` marker stylesheet now renders inside the section's own DOM instead of the host `<head>`).
+  - **Behaviour fixes (display settings)**: a candidate's display settings raise the host profile's floor instead of overwriting it — a 24pt profile no longer shrinks to 14pt on "Large", and "Extra text spacing" no longer drops a `lineHeight: 2.0` profile to 1.5. `withDisplaySettings` subtracts the settings' own fingerprints (a size step, the black-on-white scheme, the exact reference-spacing triple) from the incoming profile before applying, so the documented resume contract (persist the effective `pnp`, pass it back as the candidate's PNP) keeps the toggles reversible; section layouts seed the tool's controls from `displaySettingsOf` when no session settings exist, so a persisted profile starts where the candidate left off.
+  - **Behaviour fixes (layouts)**: an item whose speech extraction is rejected (a `<!DOCTYPE>`, an item over the parsing limits) degrades to no read-aloud catalogs with a `QtiSectionFrameworkError` diagnostic instead of aborting the section layout's update batch; a failed item player element load is retried for the next item instead of sticking; test feedback renders in both section layouts through a persistent `aria-live` region (the region exists before its content, per WCAG 4.1.3); stacking the split panes keeps focus in whichever pane holds it (WCAG 2.4.3/2.4.7); the splitter reports and steps within the percentages its container can actually take.
+
+### Patch Changes
+
+- 4e5f1a8: Accommodations and tools in the section player.
+  
+  - **Display accommodations cover the whole section.** A section layout (`SectionPlayerSplitPane`, `SectionPlayerVertical` and their custom elements) applies the candidate's PNP display needs — colour scheme, inverted polarity, single-column layout, text appearance, magnification metadata — to its own root, a PNP surface, so passages, stimuli, rubric blocks, tool bars, the Passage/Question tabs, item headers and items all take them. The host page outside the layout is never repainted. Item bodies inside a surface leave their display needs to it, so one profile governs passage and question and an inverting filter applies once. A single-column need stacks the split pane behind its tabs at any width. The layouts apply their `pnp` prop, else the new `ResolvedQtiSectionComposition.pnp`, which `resolveQtiSectionComposition` now carries along with `assessmentId`.
+  - **Candidates can adjust their display.** A "Display settings" button in the item tool bar opens an accessible native modal on the section surface: text size (Default, Large, Larger, Largest), higher-contrast text and extra text spacing, applied through the PNP mechanisms (`withDisplaySettings`). Settings last for the page session per assessment, also across a split-pane/vertical layout swap, and every change reaches the host as `{ sectionIdentifier, settings, pnp }` through the layouts' `onDisplaySettingsChange` and `QtiSectionRuntimeHostContract.onDisplaySettingsChange`, with the effective profile to persist. `displaySettings={false}` leaves the tool out; `initialDisplaySettings` and `displaySettingsOf()` restore persisted settings.
+  - **Ruler and protractor render.** The tool bars register the packaged `ruler` and `protractor` tools, so the measurement tools the PNP and an item's companion materials grant are no longer granted but invisible. Companion materials become the item scope's required tools, and section-scoped tools render on the active item's tool bar.
+  - **Tool bars bind the real assessment, with PNP enforcement on.** The hardcoded `qti-section-demo` id is gone: the toolkit takes the composition's `assessmentId` (else the section identifier) and the candidate's PNP tool supports as its profile, so granted tools are protected and prohibited ones withdrawn.
+  - `@pie-qti/item-player` exports `applyPnpToSurface`, `clearPnpSurface`, `isWithinPnpSurface` and `PNP_SURFACE_ATTRIBUTE` for hosts that paint a larger surface themselves.
+  - New catalog keys `sectionPlayer.displaySettings.*` in every locale.
+- fc99dd9: The passage collapse control keeps one name in both states (WCAG 4.1.2).
+  
+  Its accessible name used to carry the state as an action verb ("The Water Cycle — Collapse passage", then "The Water Cycle — Expand passage") while `aria-expanded` changed as well, so the state was announced twice and the name a voice-control user speaks changed with every press. The control is now labelled by the passage's heading ("The Water Cycle", or the neutral "Passage" / "Passage 2" for an untitled one) and `aria-expanded` alone carries the state. The visible chevron is unchanged.
+  
+  **Breaking: locale keys removed** (beta prerelease). `assessment.expandPassage` and `assessment.collapsePassage` have no use left and are removed from all locales. Hosts that override these keys in a custom catalog can drop the overrides.
+- bf483a3: Name each passage's collapse toggle for its own passage (WCAG 2.4.6/4.1.2). The icon-only
+  expand/collapse control previously announced "Expand passage"/"Collapse passage" for every
+  passage, so with several passages on screen a screen-reader user could not tell which passage a
+  toggle belonged to. The accessible name is now composed from the passage's heading (authored
+  title, or the neutral "Passage"/"Passage 2" label) plus the translated verb, e.g. "The Water
+  Cycle — Collapse passage"; the visible icon, `aria-expanded` and the existing i18n keys are
+  unchanged.
+- 098f997: Round-3 accessibility fixes for content language, transient UI on pause, and forced colors:
+  
+  - **Test-level content keeps its language (WCAG 3.1.2):** the assessmentTest parser now carries
+    the authored language of each `testFeedback` and `rubricBlock` (passages, instructions) as an
+    optional `language` field: its own `xml:lang` (QTI 3.0 also `lang`, or its
+    `qti-content-body`'s), else the enclosing test part's, section's or test's, across an
+    `assessmentSectionRef` too; `xml:lang=""` declares none. `TestFeedbackItem`,
+    `VisibleTestFeedback` and `AssessmentRubricBlock` gain the optional field,
+    `normalizeQtiSharedContext` passes it through as `QtiSharedHtmlBlock.language`, and the section
+    player's `TestFeedback` renders it as each block's `lang`/`dir` — in delivery and on the
+    completion screen — so screen readers and read-aloud switch to the content's voice while the
+    chrome keeps the interface locale. A passage's nested `xml:lang` is now restated as HTML `lang`
+    (with `dir` where the direction changes against the passage's own language) even without SSML.
+  - **Transient UI closes on a proctor pause:** the math-input dialog and glossary/catalog popups
+    listen for the host's `pie-qti-close-transient-ui` event on `document` (the assessment shell
+    dispatches it with `detail.reason: 'pause'`). The math dialog closes through its cancel path
+    (`onCancel`, focus trap released, focus back on its opener) and a request that arrives while
+    MathLive is still loading cancels it before it opens; an open popup closes as if dismissed. The
+    math dialog's focus trap is re-entrancy-safe: it never re-handles the focus moves it makes, so it
+    cannot recurse against another focus containment such as the pause overlay.
+  - **States survive forced colors (WCAG 1.4.11/1.4.1):** in Windows High Contrast and other
+    forced-colors modes the picked-up item of a reorderable list keeps a heavier system `Highlight`
+    border (no layout shift), and pressed Bold/Italic toolbar toggles in the rich-text editor take
+    the system selection colours. Focus outlines are unchanged.
+- ad99965: Accessibility fixes from the round-4 WCAG 2.2 AA review:
+  
+  - **Interactions state their minimum requirement** (WCAG 3.3.2, 3.3.3). Choice, match, associate, order, gap match, hotspot and graphic order interactions show a visible hint while the response is below its authored minimum (`minChoices`, `minAssociations`, a choice's `matchMin` in match, associate and gap match), the same minimums response validation enforces before an answer counts as complete. The author's `data-min-selections-message` wins over the localized default ("Select at least 2 answers.", "Needs more associations: Red.", "Still to place in the blanks: blue and green."). The hint describes the answer group (`aria-describedby`), draws in `--pie-qti-warning-text`, and is announced politely once when a change leaves the minimum unmet, not on every change. It shows only while the candidate can answer: not when the interaction is disabled or rendered for another role.
+  - `@pie-qti/item-player` delivers `minSelectionsMessage` for order and associate interactions, also reads the QTI 3.0 `data-min-selections-message` on match interactions, and extracts graphic order `minChoices` (with its message), which response validation now enforces. `GapMatchInteractionData` choices carry `matchMin`.
+  - New `interactions.*` catalog keys in every locale: `choice.minChoicesHint`, `match.minAssociationsHint`, `match.minChoiceUsesHint`, `associate.minAssociationsHint`, `associate.minChoiceUsesHint`, `order.minChoicesHint`, `graphicOrder.minChoicesHint`, `hotspot.minChoicesHint` and `gapMatch.minPlacementsHint`.
+  - **PNP inverted polarity no longer inverts a forced-colours palette**: under `@media (forced-colors: active)` the inversion filter is off, so Windows high contrast keeps the colours the candidate chose.
+  - **A proctor pause keeps a typed math expression**: the math dialog reports a host close as an interrupted cancel with the LaTeX typed so far, and the rich-text editor offers it again in its next insert dialog. The draft is session-only and per response field; inserting the math or the candidate's own cancel discards it.
+  - **Nested languages in section content**: an `xml:lang` inside test feedback, instructions or rubrics now renders as HTML `lang` (with `dir` where the direction changes), as in passages (WCAG 3.1.2).
+- d6ac3bb: **Section events are delivered once** (beta prerelease). The section layouts fired every framework error, response delta and display-settings change through both channels — the composition's `QtiSectionRuntimeHostContract` callback *and* the layout's callback prop — so a host that supplies the contract (the natural way to carry the package/URL-policy hooks) and embeds `pie-qti-section-player-*` listening to the documented DOM events heard every occurrence twice. The two channels are alternatives, as the README always said: the layout now delivers through the host contract's callback when the composition's `host` carries it, and the callback prop — the custom elements' DOM event source — fires only when that slot is absent. A host relying on the double delivery (there is no reason to) sees one event per occurrence now.
+- 2667df1: The assessment shell and section player no longer require DaisyUI or Tailwind on the host page.
+  
+  - **Self-contained styling**: the shell (`<pie-qti-assessment-player>`) and section players (`<pie-qti-section-player-splitpane>`, `<pie-qti-section-player-vertical>`) style themselves with scoped CSS on the `--pie-qti-*` tokens, with fallbacks when no theme is loaded. Icons are sized by the components, buttons are ≥44px with visible 2px focus rings, and alerts, spinners, the splitter and test feedback no longer read DaisyUI `--color-*` variables. Existing class names and `data-testid` hooks are kept.
+  - **Layout**: the shell fills its host container instead of a fixed `100vh` box (`--pie-qti-assessment-min-block-size` / `--pie-qti-assessment-max-block-size` tune the bounds when the host gives no height). A new `full-viewport` attribute (`fullViewport` property) fills the dynamic viewport with safe-area insets and page-level `header`/`main`/`nav` landmarks. At short viewports (400% zoom, landscape phones) everything flows in one scroll and no bar is pinned over the content.
+  - **Phones**: navigation is one compact row (Previous, position, Next/Submit), nested gutters collapse to one slim gutter, and a passage shares the screen with the question through an accessible Passage/Question tab switch instead of a 40%-height scroll box. Wide screens keep the keyboard-resizable splitter.
+  - **Accessibility**: a "Skip to question" link, a region named by the assessment title, a labelled navigation landmark, Previous/Next arrows mirrored right-to-left, and navigation buttons that keep focus while a transition is in flight.
+  - **Polish**: the header shows the assessmentTest `title` (or a localized generic title), never the identifier; untitled sections no longer read "Section 2 of 0"; passages are headed by their `title` or a neutral localized "Passage" label at a heading level that fits the outline (`heading-level` attribute on the assessment and section elements). Item load failures show a localized message instead of the raw error.
+  - **Host CSS**: a low-priority `@layer pie-qti-base` restores user-agent defaults (lists, headings, paragraph spacing, link underlines, inline images, bordered tables, media max-width) inside item, passage and rubric content, so host resets no longer strip question stems.
+  - **APIs**: `AssessmentPlayer.getAssessmentTitle()`; optional `title` on `QtiSharedHtmlBlock`; the reference parser leaves a missing assessmentTest title empty instead of English "Assessment". `@pie-qti/i18n` adds `assessment.skipToQuestion` and a `sectionPlayer` section across all eight locales.
+- 20e8e52: Section tool bars move to `@pie-players` 1.0.0-beta.9 and render in the interface language, with each locale's catalog loaded only when a tool bar needs it.
+  
+  - **The tool packages are on 1.0.0-beta.9.** `pie-assessment-toolkit`, `pie-default-tool-loaders`, `pie-tool-tts-inline` and `pie-tool-calculator-desmos` move from 1.0.0-beta.6 to 1.0.0-beta.9. The section player also declares `pie-calculator-desmos`, `tts-client-server`, `@pie-players/pie-players-shared` and `@pie-players/pie-i18n-generated` as runtime dependencies, all at 1.0.0-beta.9.
+  - **The toolkit's chrome follows the interface locale.** In 1.0.0-beta.9 the toolkit's default provider ships English only. The tool bar now gives the toolkit a provider over the two pie-players catalog tiers, composed as pie-players documents: the bundled catalog first, then `@pie-players/pie-i18n-generated`. A Dutch interface reads "Voorlezen starten", and Arabic, Spanish, French, Romanian, Thai, Chinese and the other locales that package ships get their own toolkit chrome. A regional tag reaches its language (`es-MX` → `es`, `nl-BE` → `nl-NL`), and the toolkit's `lang` names the catalog it renders.
+  - **Catalogs load lazily, one locale at a time.** English is bundled and needs no fetch, so an English page loads nothing extra. The generated package is reached only through a dynamic `import()`, the first time a tool bar needs a non-English locale. Each locale's catalog is a chunk of its own, fetched only for that locale, and every tool bar on the page shares it. The catalog loads before the toolkit renders, so a non-English tool bar does not appear in English first.
+  - **A locale with no catalog falls back to English.** It renders the toolkit in English under its own tag. The pseudo-locales render English without fetching a catalog: `ar-XB` keeps its own `lang` and right-to-left `dir` instead of resolving to the Arabic catalog. If the generated package fails to load, tool bars render in English and the section player warns once.
+- b8a2862: No section label shows a raw i18n key.
+  
+  - **A provider that misses a key no longer puts the key in a label.** The passage collapse control composes its name from the passage heading and an action verb. Under a host provider that answers a lookup without a default with the key, it read "Passage — assessment.collapsePassage". The section's labels now go through one helper that falls back to the English phrase whenever a provider hands back the key. That covers the passage, instructions, rubric and test feedback regions, the item heading and loading messages, the split-pane labels and resizer, and the display settings button and dialog. Some of these labels also rendered empty without a provider; they now read the English phrase.
+- 2916759: Dead-code removal in the assessment and section players (cleanup phase 1). Delivery is unchanged: navigation, submission gating, attempts, timing, scoring and the reference backend behave exactly as before.
+  
+  **Breaking: removed APIs** (beta prerelease; migrate before upgrading):
+  
+  - `@pie-qti/assessment-player`: the `rng` option of `AssessmentPlayer.create()` (`BackendAssessmentPlayerConfig.rng`) is gone. It has been ignored since the backend started drawing selection and ordering at session start. Pass the seed to the reference backend instead: `new ReferenceBackendAdapter({ rng })`.
+  - `@pie-qti/assessment-player`: `AssessmentPlayer.getItemSessionInfo()` no longer takes an item identifier. The argument was ignored: the method always reported the current item, and still does. Drop the argument.
+  - `@pie-qti/assessment-player` no longer exports `shortSupportCode`, `isSubmissionBlockedError`, or the types `ItemRef` and `NavigationMode`. Nothing outside the package used them and no documentation named them. For a support code, read `assessmentErrorDisplay(error).supportCode`. To recognize a refusal that names unanswered questions, check `isAssessmentPlayerError(error)` and its `code` (`finalizeResponseRequired`, `finalizeResponseInvalid`, `leavePartResponseRequired` or `leavePartResponseInvalid`). No API took or returned `ItemRef` or `NavigationMode`.
+  - `@pie-qti/section-player` no longer exports `hasDisplaySettingsChanged`. To test whether a candidate changed the display settings, compare them with `DEFAULT_DISPLAY_SETTINGS` (a different `textSize` step, or `highContrast` or `textSpacing` on).
+  
+  **`@pie-qti/section-player` dependencies:** `@pie-players/pie-calculator-desmos` and `@pie-players/tts-client-server` are no longer direct dependencies. The section player never imported them; `@pie-players/pie-default-tool-loaders`, which loads the calculator and read-aloud tools, declares and imports them itself, so they are still installed, at the same version. An app that imported either package without declaring it should add it to its own dependencies.
+  
+  Also removed, internal to `@pie-qti/assessment-player` and never reachable from its entry points: the navigation-gating `ItemSessionController.canNavigateAway()` and `validateItem()` (with the coordinator's wrapper), `ItemSessionController.resetItem()` and `clear()`, the reference session store's `removeSession()`, and the never-set `currentSectionStartTime` timing field. QTI gates submission, not navigation: `allowSkipping` and `validateResponses` stay enforced where they were, by the submission gate and the item player's response validation.
+  
+  `@pie-qti/player-elements`: the documentation of `QtiAssessmentPlayerConfig.rng`, which still seeds the element's built-in reference backend, no longer points at the removed headless option.
+- 8d03d05: Module boundaries (cleanup phase 3), with one fix.
+  
+  **Fix: a coded error keeps its code across copies of the package.** `isAssessmentPlayerError` (and `assessmentErrorDisplay`, which builds on it) used `instanceof`, which fails for an `AssessmentPlayerError` created by another copy of `@pie-qti/assessment-player`. The `<pie-qti-assessment-player>` bundle carries two copies — it compiles the shell and core from source and also imports the package's built entry — so a coded error reached the `player-error` event without its `code`. A host that loads `@pie-qti/assessment-player` beside the self-contained player-elements bundle met the same split. Every `AssessmentPlayerError` now carries a `Symbol.for('pie-qti.AssessmentPlayerError')` brand, which the guard checks; recognize coded errors with `isAssessmentPlayerError`, not `instanceof`.
+  
+  Without behavior changes:
+  
+  - `@pie-qti/section-player` exports `filterToolsForRole`, the tool filter its composition applies. `@pie-qti/assessment-toolkit`'s `normalizeQtiToolConfig` is now that filter without PNP supports: the same result, still an array.
+  - `@pie-qti/item-player` exports `DEFAULT_COMPONENT_TAGS_BY_TYPE`, its default custom-element tag per interaction type (plus `catalogPopup`), and `@pie-qti/default-components` derives `registerDefaultComponents` from it. Tag names are unchanged; the registrations' debugging `description` is now generic (`Default Svelte-based component for <type>`).
+  - Internal: unpublished component source is imported through one workspace alias map instead of `../../../<pkg>/src` paths; item-player's presentation code no longer imports from its Svelte component helpers; the reference backend's session key prefix (`qti_session_`) is defined once, so saved sessions resume as before.
+- 611b971: Player cleanup, phase 4 (assessment-player and section-player): three internal deduplications with no intended behavior change.
+  
+  **Shared section layout.** `SectionPlayerVertical` and `SectionPlayerSplitPane` move their duplicated section body — the role/security/PNP/display-settings state, the runtime-host notifications, the response and framework-error handlers, and the passage, rubric+item and display-settings fragments — into a shared `SectionLayout` module that both render through a layout-provided frame. Role and view filtering stays in `resolveQtiSectionComposition`. The rendered DOM, landmarks, headings and focus order are unchanged (pinned by new component tests); `focusActiveItem`, the props and the `onItemPaneReady`/`onResponseChange`/`onFrameworkError`/`onDisplaySettingsChange` callbacks keep their shapes.
+  
+  **One attempt-relative feedback helper.** New (internal) `resolveMaxAttempts(settings, adaptive)` and `attemptFeedbackVisible({ showFeedback, maxAttempts, attempts, adaptive })` in assessment-player carry the player's feedback semantics that `AssessmentPlayer.feedbackVisible` and the check-answer state used to inline; the private `resolvedMaxAttempts` is gone. `getItemSessionInfo().showFeedback` keeps its current semantics — it stays false before the item's first submission even when `itemSessionControl@showFeedback` is on, reads the live recorded attempt count rather than the projected one, and treats an adaptive item as unlimited only through its resolved settings — and now shares the attempt-relative arithmetic with the presentation rule.
+  
+  **`TimeManager.formatTime` moved.** The clock readout is now a standalone `formatTime` util (still not re-exported from the package root, like `TimeManager` itself); `TimeManager.formatTime` is removed with it. Nothing outside the package could call it, and the rendering is byte-identical.
+- fa577a0: No-legacy removals in the assessment and section players (legacy audit items A1 to A4). The project is pre-1.0 and keeps no compatibility paths for its own earlier APIs, wire shapes or stored formats. Spec-conformant delivery, scoring, timing and test feedback behave as before.
+  
+  **Breaking:**
+  
+  - **`FinalizeAssessmentResponse.feedback` is gone** from `@pie-qti/assessment-player`, and so from `QtiAssessmentFinalizeResponse` in `@pie-qti/player-elements`, which aliases it. The contract documented it as "legacy: single string; prefer outcomes + assessment.testFeedback". For a test without `testFeedback`, the player showed that string as one synthetic end-of-test feedback entry. Test feedback now comes only from the test's and its test parts' `testFeedback` blocks, evaluated against the outcomes the backend returns. To migrate a backend that answered `finalizeAssessment` with a feedback string, author the text as `testFeedback` in the assessmentTest and return the test-level `outcomes` that select it. `SubmitItemResponse.feedback` (the per-item `FeedbackItem[]`) is unchanged.
+  - **The reference backend no longer rebuilds an item's test-level state from its stored score** (`ReferenceBackendAdapter`). Sessions it stored before item test states existed (earlier beta builds) hold only `itemScores` for their submitted items. Outcome processing used to rebuild those items' variables from the scores, count them as responded from their raw responses, and infer correctness from SCORE and MAXSCORE. Such items now reach outcome processing as presented with only their SCORE: not responded, neither correct nor incorrect. Their scores still count toward the totals. Sessions stored by current builds are unaffected. A submission whose response processing fails still counts as presented, and as responded when the candidate gave a response, as before.
+  - **`responseInvalid` is no longer an `AssessmentPlayerErrorCode`.** The `@pie-qti/i18n` catalogs no longer carry its message (`assessment.errors.codes.responseInvalid`) in any of the eight locales, and `MessageKey` no longer includes that key. Nothing has thrown the code since navigation stopped gating on response validity (cleanup phase 1): invalid responses are refused at submission, with `attemptValidationFailed`, `finalizeResponseInvalid` or `leavePartResponseInvalid`. Drop the code from any `switch` and the key from catalog overrides.
+  - **`@pie-qti/section-player` no longer maps the pre-1.0 toolkit TTS provider shape.** A `textToSpeech` tool's `provider` now applies over the section player's defaults as given. To migrate, name the backend with `backend` (`'server'` or `'browser'`) and the server with `serverProvider` instead of a string `provider`, move `settings` keys to the top level, and use `endpointValidationMode: 'none'` instead of `validateEndpoint: false`. The old keys now reach the toolkit unchanged, and the toolkit rejects a string `provider`.
+  
+  Also removed, internal to `@pie-qti/assessment-player` and never reachable from its entry points: `TimeManagerConfig.warningThreshold`, which was kept "for compatibility" and merged into `warningThresholds`. The player now passes the whole warning list, so `TimeManager` fires exactly the thresholds it is given. The host options are unchanged: `timeWarningThreshold` (default 60) sets the default warning and `timeWarningThresholds` adds to it.
+- 07f1bc2: Section player fixes around error reach and tool-bar coordinator lifecycle:
+  
+  - **Split pane restore**: the persisted split percentage is restored again on mount. The initialization effect clobbered the `onMount` restore back to the 50% default (the restore path was dead code), so a candidate's saved split never survived a reload. The persisted value now wins and the prop default is only the fallback.
+  - **Tool-bar coordinator lifecycle**: a reused tool bar now applies tool-policy changes to its `ToolkitCoordinator` instead of keeping the first scope's snapshot — placement moves through `updateToolsPlacement`, provider config changes through `updateToolConfig`, and a changed `tools.policy` allowlist (no mutator exists) rebuilds the coordinator. The bar also disposes the coordinator it owns on unmount, so a shell retry that unmounts and remounts tool bars no longer leaks one coordinator per remount. A host that captured the coordinator through the `qti-toolkit-coordinator-ready` event and kept using it after the bar went away now sees a disposed coordinator.
+  - **Error reach**: `QtiToolButtonBar` gained an `onFrameworkError` prop (per the runtime-host contract pattern) and reports toolkit element chunk failures with the new code `toolkit-load-failed`; `ItemRenderer` and `RubricDisplay` forward their existing `onFrameworkError` to the bars they render. `ItemRenderer` now also bridges the inner `pie-qti-item-player` element's bubbling `error` event to `onFrameworkError` (code passthrough with `item-load-failed` / `response-processing-failed` / `submission-failed` / `render-failed`), so item failures inside a section reach `onFrameworkError` / `qti-section-framework-error`. The README documents the `qti-section-framework-error` event, its detail shape and every code.
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies [310b975]
+- Updated dependencies [64f6607]
+- Updated dependencies [35bd0c3]
+- Updated dependencies [d7a8262]
+- Updated dependencies [30bc3bf]
+- Updated dependencies [91d2e05]
+- Updated dependencies [23a4077]
+- Updated dependencies [bd67d58]
+- Updated dependencies [0f11f98]
+- Updated dependencies [4e5f1a8]
+- Updated dependencies [2fa635f]
+- Updated dependencies [7dcb9d7]
+- Updated dependencies [bc7e8f6]
+- Updated dependencies [b504c41]
+- Updated dependencies [756771f]
+- Updated dependencies [0a1c071]
+- Updated dependencies [7cbed03]
+- Updated dependencies [bdfc40e]
+- Updated dependencies [3d51b92]
+- Updated dependencies [0973689]
+- Updated dependencies [f6e7714]
+- Updated dependencies [209a0c0]
+- Updated dependencies [eb50277]
+- Updated dependencies [7c451f7]
+- Updated dependencies [3a31af2]
+- Updated dependencies [2f43e0e]
+- Updated dependencies [6128449]
+- Updated dependencies [8c4274b]
+- Updated dependencies [ac81831]
+- Updated dependencies [ee233f4]
+- Updated dependencies [19b6ce2]
+- Updated dependencies [495730a]
+- Updated dependencies [0cf8193]
+- Updated dependencies [fc99dd9]
+- Updated dependencies [9c75e43]
+- Updated dependencies [72b3545]
+- Updated dependencies [cfb78e2]
+- Updated dependencies [99341e5]
+- Updated dependencies [9cd2772]
+- Updated dependencies [372037e]
+- Updated dependencies [9814c9b]
+- Updated dependencies [098f997]
+- Updated dependencies [410fe38]
+- Updated dependencies [9abdf17]
+- Updated dependencies [c6ae98c]
+- Updated dependencies [ad99965]
+- Updated dependencies [d6ac3bb]
+- Updated dependencies [fff7dd7]
+- Updated dependencies [d54f5f7]
+- Updated dependencies [d54f5f7]
+- Updated dependencies [d54f5f7]
+- Updated dependencies [fe9e624]
+- Updated dependencies [7cff6aa]
+- Updated dependencies [362b7c1]
+- Updated dependencies [2e4f6fb]
+- Updated dependencies [816c8f8]
+- Updated dependencies [3ed760e]
+- Updated dependencies [9cb24ad]
+- Updated dependencies [90d1c60]
+- Updated dependencies [01fb4d1]
+- Updated dependencies [d7d744e]
+- Updated dependencies [9e07058]
+- Updated dependencies [dc38e3b]
+- Updated dependencies [af961a1]
+- Updated dependencies [c85ea64]
+- Updated dependencies [209a0c0]
+- Updated dependencies [2667df1]
+- Updated dependencies [74c3886]
+- Updated dependencies [de1eed5]
+- Updated dependencies [a1c989d]
+- Updated dependencies [30bc3bf]
+- Updated dependencies [b34d710]
+- Updated dependencies [f13613d]
+- Updated dependencies [643ae6c]
+- Updated dependencies [51e70e8]
+- Updated dependencies [88b69c0]
+- Updated dependencies [30bc3bf]
+- Updated dependencies [68c8b37]
+- Updated dependencies [ecbc9ef]
+- Updated dependencies [5e5072a]
+- Updated dependencies [795c767]
+- Updated dependencies [91d2e05]
+- Updated dependencies [6d4d19d]
+- Updated dependencies [6d4d19d]
+- Updated dependencies [befc768]
+- Updated dependencies [e7188e4]
+- Updated dependencies [35bd0c3]
+- Updated dependencies [fe86d42]
+- Updated dependencies [500b714]
+- Updated dependencies [47e9176]
+- Updated dependencies [a183a16]
+- Updated dependencies [7cf746f]
+- Updated dependencies [8d03d05]
+- Updated dependencies [1449b94]
+- Updated dependencies [562182a]
+- Updated dependencies [b5d8bf7]
+- Updated dependencies [2fd1003]
+- Updated dependencies [4f9a07c]
+- Updated dependencies [edd4020]
+- Updated dependencies [281d6fb]
+- Updated dependencies [93df941]
+- Updated dependencies [fa577a0]
+- Updated dependencies [0bdb7f1]
+- Updated dependencies [7c767d4]
+- Updated dependencies [b38cb07]
+- Updated dependencies [db8e08f]
+- Updated dependencies [3b3927e]
+- Updated dependencies
+- Updated dependencies [9ec0f69]
+- Updated dependencies [b668938]
+  - @pie-qti/qti-common@1.0.0-beta.5
+  - @pie-qti/default-components@1.0.0-beta.5
+  - @pie-qti/item-player@1.0.0-beta.5
+  - @pie-qti/i18n@1.0.0-beta.5
+  - @pie-qti/ims-cp-core@1.0.0-beta.5
+
 ## 1.0.0-beta.4
 
 ### Patch Changes

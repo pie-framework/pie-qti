@@ -1,42 +1,42 @@
 {
-  "name": "@acme/likert-scale-plugin",
-  "version": "0.1.0",
-  "main": "./dist/index.js",
-  "devDependencies": {
-    "@pie-qti/item-player": "workspace:*",
-    "@types/bun": "^1.4.4",
-    "node-html-parser": "^9.0.5",
-    "typescript": "^5.9.3"
-  },
-  "peerDependencies": {
-    "@pie-qti/item-player": "^1.0.0-beta.4"
-  },
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "svelte": "./dist/index.js",
-      "default": "./dist/index.js"
-    }
-  },
-  "description": "Likert scale choice interactions for QTI assessments",
-  "files": [
-    "dist",
-    "README.md"
-  ],
-  "keywords": [
-    "qti",
-    "plugin",
-    "likert",
-    "scale",
-    "assessment"
-  ],
-  "license": "MIT",
-  "private": true,
-  "scripts": {
-    "build": "tsc",
-    "test": "bun test",
-    "typecheck": "tsc --noEmit"
-  },
-  "type": "module",
-  "types": "./dist/index.d.ts"
+	"name": "@acme/likert-scale-plugin",
+	"version": "0.1.0",
+	"main": "./dist/index.js",
+	"devDependencies": {
+		"@pie-qti/item-player": "workspace:*",
+		"@types/bun": "^1.4.4",
+		"node-html-parser": "^9.0.5",
+		"typescript": "^5.9.3"
+	},
+	"peerDependencies": {
+		"@pie-qti/item-player": "workspace:*"
+	},
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"svelte": "./dist/index.js",
+			"default": "./dist/index.js"
+		}
+	},
+	"description": "Likert scale choice interactions for QTI assessments",
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"keywords": [
+		"qti",
+		"plugin",
+		"likert",
+		"scale",
+		"assessment"
+	],
+	"license": "MIT",
+	"private": true,
+	"scripts": {
+		"build": "tsc",
+		"test": "bun test",
+		"typecheck": "tsc --noEmit"
+	},
+	"type": "module",
+	"types": "./dist/index.d.ts"
 }

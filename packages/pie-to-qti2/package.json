@@ -1,6 +1,6 @@
 {
 	"name": "@pie-qti/pie-to-qti2",
-	"version": "1.0.0-beta.4",
+	"version": "1.0.0-beta.5",
 	"description": "PIE to QTI 2.2 transformation plugin",
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",

@@ -1,5 +1,43 @@
 # @pie-qti/pie-to-qti2
 
+## 1.0.0-beta.5
+
+### Patch Changes
+
+- af63915: PIE items and passages take optional `curriculumStandards` and `skillLevels`, where `[]` states that none applies. A QTI 3 package carries an item's standards as Curriculum Standards Metadata 1.1 and both fields as LOM classifications, so to-pie reads them back unchanged without the sidecar and reads standards and skill levels from foreign QTI 3 packages; QTI 2.2 packages carry them in the sidecar only. A standard without `providerId` means Academic Benchmarks and keeps the attribute absent through the round trip.
+- 90bf9ab: Correct published dependency graphs: runtime imports no longer hide in `devDependencies`, and test-only packages no longer ride along as production dependencies. `@pie-qti/player-elements` now declares `@pie-qti/qti-common` and `@pie-qti/default-components` (both imported at runtime from its entry points) in `dependencies`; `@pie-qti/pci-runner` likewise declares `@pie-qti/item-player`. `@pie-qti/core` moves `@pie-qti/test-utils` and `@pie-qti/to-pie` moves `@pie-qti/transform-core` to dev dependencies (tests only), and `@pie-qti/pie-to-qti2` drops `@pie-qti/transform-core` entirely (only a type import remained, now satisfied by `@pie-qti/transform-types`). Installing these packages no longer pulls unnecessary extras, and bundlers without hoisting-dependent resolution keep working. The `check:deps` script now flags runtime value imports of workspace packages that are not declared in `dependencies`/`peerDependencies` of publishable packages.
+- 5afc7b7: Fix `ReferenceError: require is not defined` crashes in ESM builds. `createAcmeExtensions()` in `@pie-qti/demo-vendor-extensions` threw on every call under Node, and `@pie-qti/pie-to-qti2`'s assessment transform threw for every PIE assessment conversion while package validation always failed with "Failed to generate manifest". Both packages are ESM (`"type": "module"`), where `require` does not exist; the calls now use static imports. Bun-based consumers were unaffected because Bun shims `require` in ESM.
+- e2e2b78: The categorize, match-list, image-cloze-association and drag-in-the-blank generators interpolated raw PIE ids and values into `identifier="…"` attributes and `directedPair` correct responses. An id containing a double quote terminated the attribute early, so the rest of the id re-parsed as arbitrary attributes on the element, and an id containing a space split a `directedPair` value into mismatched identifiers, corrupting the correct response. These generators now run the same identifier sanitizing their siblings use (`prefixedIdentifier`/`generateIdentifier`), applied identically to the item body and the response declaration so the pairs still match. Output for well-formed ids is unchanged, byte for byte.
+- 88f849c: The transformation packages join the 1.0 beta line: every publishable `@pie-qti/*` package now releases at one version, so these move from `0.2.x` to `1.0.0-beta.5` and publish under the `beta` dist-tag with the players. Hosts that pin them exactly need the new version; a `^0.2` range does not pick it up.
+- f32122e: The package's own XML escaping now has one implementation: `passage-generator` and `manifest-generator` each carried a private `escapeXml` copy alongside the `escapeXmlAttribute` they already consume from `@pie-qti/qti-common/accessibility` (via `utils/qti-builder.ts`). Both copies are deleted and their call sites use `escapeXmlAttribute` directly. Generated QTI and manifest bytes are unchanged — the copies were entity-for-entity identical to the canonical escaper.
+  
+  Also repairs the documented runnable example: `examples/assessment-transformation.ts` still imported `../../qti2-to-pie/src/plugin.js`, a package path that no longer exists after the rename to `@pie-qti/to-pie`, so the command in `docs/PIE-QTI-TRANSFORMATION-GUIDE.md` and `docs/ASSESSMENT-TRANSFORMATIONS.md` failed. It now imports the workspace packages by name and reads the current round-trip shape (`testParts` → `sections`); the docs command runs clean. `examples/advanced-assessment-features.ts` — referenced nowhere, shipped nowhere, equally broken — is deleted. The pie-to-qti2 README notes that `examples/` scripts are run by hand and are outside the package tsconfig, which is why they rotted silently.
+- 93df941: Packaging and back-compat shim removal (legacy audit PR 5, `docs/plans/legacy-audit-2026-11.md` rows A5, A6, A7). No QTI-observable behaviour changes for current-format content.
+  
+  **Breaking: removed deprecated image-path helper** (beta prerelease; migrate before upgrading):
+  
+  - `@pie-qti/ims-cp-browser` no longer exports `tryResolveImagePath`. It had been `@deprecated` since path resolution moved to `@pie-qti/ims-cp-core` and had no callers in the repo. Resolve package image references with `buildPackageFileIndex` and `resolvePackageReference` from `@pie-qti/ims-cp-core` (as `resolveImagesInXml` already does); the documented lenient path-resolution heuristics are unchanged.
+  
+  **Breaking: removed the historical vendor-extension type path** (beta prerelease; migrate before upgrading):
+  
+  - `@pie-qti/to-pie` no longer re-exports `VendorInfo`, `VendorDetector`, `VendorTransformer`, `ResolvedAsset`, `AssetResolver`, `VendorClasses`, `CssClassExtractor`, `MetadataExtractor`, `CustomAttributes` or `VendorExtensionHooks`; the `src/types/vendor-extensions.ts` shim that preserved the pre-move import path is gone. Import these types from `@pie-qti/transform-types`, where they live.
+  
+  **Breaking: pre-rename extensions metadata is no longer read** (beta prerelease; migrate before upgrading):
+  
+  - Packages exported while the PIE metadata bag was still named `searchMetaData` no longer import their extensions metadata: the `?? sourceModel.searchMetaData` fallbacks in `@pie-qti/ims-cp-core`'s `extractExtensionsFromQtiXml` and `@pie-qti/to-pie`'s `extractExtensions`, and the `pie:searchMetaData:` LOM source prefix in `@pie-qti/to-pie`'s `readPieResourceLom`, are gone; only `extensions` and the `pie:extension:` prefix are read. `@pie-qti/transform-types` no longer exports `PIE_LOM_LEGACY_EXTENSION_SOURCE`. The QTI package writer (`@pie-qti/pie-to-qti2`) only ever wrote the current forms, so content written by any current release is unaffected.
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies [310b975]
+- Updated dependencies [af63915]
+- Updated dependencies [30bc3bf]
+- Updated dependencies [99341e5]
+- Updated dependencies [88f849c]
+- Updated dependencies [fe86d42]
+- Updated dependencies [93df941]
+- Updated dependencies
+- Updated dependencies [684738a]
+  - @pie-qti/qti-common@1.0.0-beta.5
+  - @pie-qti/transform-types@1.0.0-beta.5
+
 ## 0.2.1
 
 ### Patch Changes

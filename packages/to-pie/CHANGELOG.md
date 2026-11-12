@@ -1,5 +1,70 @@
 # @pie-qti/to-pie
 
+## 1.0.0-beta.5
+
+### Patch Changes
+
+- 310b975: Single source of truth for two XML helpers that each existed in three drifted copies across the conversion packages:
+  
+  - **Catalog idrefs**: `qti-common/accessibility` now exports `CATALOG_IDREF_PATTERN` + `catalogIdrefFromMatch`, matching quoted (single/double) and bare attribute values. Previously the exporter parsed `data-catalog-idref` with a *different grammar* than the importer — a bare idref written by one side parsed differently on the other. The qti-common and to-pie readers now accept bare values too (backwards-compatible widening).
+  - **XML escaping**: new canonical `escapeXmlAttribute` (safe inside `"..."` and `'...'`; also escapes apostrophes, so generated attributes containing apostrophes now carry `&apos;` — XML-equivalent). `pie-to-qti2`'s three identical `escapeXml` copies and `to-pie`'s local `escapeAttribute` delegate to it.
+- af63915: PIE items and passages take optional `curriculumStandards` and `skillLevels`, where `[]` states that none applies. A QTI 3 package carries an item's standards as Curriculum Standards Metadata 1.1 and both fields as LOM classifications, so to-pie reads them back unchanged without the sidecar and reads standards and skill levels from foreign QTI 3 packages; QTI 2.2 packages carry them in the sidecar only. A standard without `providerId` means Academic Benchmarks and keeps the attribute absent through the round trip.
+- 90bf9ab: Correct published dependency graphs: runtime imports no longer hide in `devDependencies`, and test-only packages no longer ride along as production dependencies. `@pie-qti/player-elements` now declares `@pie-qti/qti-common` and `@pie-qti/default-components` (both imported at runtime from its entry points) in `dependencies`; `@pie-qti/pci-runner` likewise declares `@pie-qti/item-player`. `@pie-qti/core` moves `@pie-qti/test-utils` and `@pie-qti/to-pie` moves `@pie-qti/transform-core` to dev dependencies (tests only), and `@pie-qti/pie-to-qti2` drops `@pie-qti/transform-core` entirely (only a type import remained, now satisfied by `@pie-qti/transform-types`). Installing these packages no longer pulls unnecessary extras, and bundlers without hoisting-dependent resolution keep working. The `check:deps` script now flags runtime value imports of workspace packages that are not declared in `dependencies`/`peerDependencies` of publishable packages.
+- 9c75e43: `extractExtensions` no longer silently discards a `pie:sourceModel` whose JSON is malformed: it now throws a content error naming the problem, like `extractPieExtension` does. The Priority-1 branch also actually parses CDATA-wrapped source models now (its `textContent` read kept the CDATA wrapper, so `JSON.parse` never succeeded and the old swallow hid that a valid embedded `extensions` object was being dropped in favor of the QTI metadata).
+  
+  Breaking: `extractExtensions` throws on a present-but-malformed `pie:sourceModel` where it previously fell through to the QTI metadata without a signal.
+- e2e2b78: Two fixes in the QTI → PIE readers:
+  
+  - `extractPieExtension` no longer reports a legacy `<pie:sourceModel>` holding malformed JSON as "no extension present". The element was present, so the interaction's custom data existed and was silently dropped, indistinguishable from an item with no extension; the extraction logged to the console and returned `{ sourceModel: null, hasExtension: false }`. A present element whose JSON does not parse now throws the package's established content-failure error naming the interaction (`pie:metadata` `elementType`) and the item identifier, with the `JSON.parse` failure and a content excerpt. An absent element and an empty (or `<![CDATA[]]>`-only) element still read as no extension, without an error. **Breaking:** callers of the public `extractPieExtension` util that relied on malformed embedded JSON reading as "no extension" now get a thrown error from that item's content.
+  
+  - A candidate `rubricBlock`'s `class` attribute is re-emitted escaped into the `<div>` that replaces it. The parsed attribute value is entity-decoded, so a class containing a double quote re-emitted raw broke out into additional attributes on the div; it is now escaped with the package's `escapePieAttribute`, so the value round-trips as one attribute.
+- 795c767: QTI spec-conformance fixes for interaction extraction and delivery data.
+  
+  **Image element forms (QTI 3.0).** Every graphic interaction (hotspot, graphic order/associate/gap match, select point, drawing, position object) and the `gapImg`/`qti-gap-img` label now accepts the full QTI 3.0 `object|img|picture` choice. A `<picture>` background previously extracted `imageData: null`, leaving the interaction unanswerable; a QTI 3.0 `<img>` position-object stage or draggable made extraction throw and the whole item fail to load. The delivered image data is derived from the `<picture>`'s `<img>` fallback, so its shape is unchanged for renderers.
+  
+  **Response completeness.** `graphicGapMatchInteraction` now extracts `matchMin` on `gapImg` and `associableHotspot` (it had gapText only) and response validation enforces the hotspots' minimum, so a response using such a choice or hotspot fewer than `matchMin` times is no longer accepted as complete. The delivered `gapTexts`/`gapImages`/`hotspots` types carry `matchMin`; `hotspots` also carries the authored `hotspotLabel`, which the default graphic gap match component uses to name zones for assistive technology (placement announcements included) instead of the generic "Hotspot 1/2".
+  
+  **Authored names.** Gap images deliver the gapImg `objectLabel` attribute (QTI 2.1 `objectLabel.GapImg.Attr`, QTI 3.0 `object-label`); both gap-match components use it after the image's alt text, before the generic fallback.
+  
+  **Booleans and shuffle.** Interaction boolean attributes now read the full xs:boolean lexical space, so `shuffle="1"`, `fixed="1"`, `required="1"`, `count-attempt="1"`, `step-label="1"` and `reverse="1"` extract as on. `fixed` is now read on match and associate `simpleAssociableChoice` (and on QTI 2.1 `gapText`/`gapImg`, read for QTI 2.1 content only — 2.2/3.0 define none), so authored fixed choices keep their position under `shuffle="true"` instead of being shuffled.
+  
+  **Removed surfaces (previously tolerated inputs stop working):**
+  - The PCI extractor reads only the schema-defined `customInteractionTypeIdentifier` / `custom-interaction-type-identifier`. The never-standardized `customInteractionIdentifierType` / `custom-interaction-identifier-type` spellings it also accepted are no longer read; hosts passing those must use the schema name. `@pie-qti/to-pie` follows: its PCI type-identifier read is the same two schema names, and its unsupported-interaction diagnostic names the field `customInteractionTypeIdentifier`.
+  - Three dead delivered-type members are deleted: `AssociateData.minSelectionsMessage`, `GraphicOrderData.minSelectionsMessage` (attributes no QTI version defines; never populated) and `GapMatchInteractionData.gapTexts[].inputWidth` (never populated; the `qti-input-width-*` class reaches the renderer via `classes`). Plugin authors reading them must switch to the delivered `classes` (input width) or drop the read (the messages).
+- 88f849c: The transformation packages join the 1.0 beta line: every publishable `@pie-qti/*` package now releases at one version, so these move from `0.2.x` to `1.0.0-beta.5` and publish under the `beta` dist-tag with the players. Hosts that pin them exactly need the new version; a `^0.2` range does not pick it up.
+- 93df941: Packaging and back-compat shim removal (legacy audit PR 5, `docs/plans/legacy-audit-2026-11.md` rows A5, A6, A7). No QTI-observable behaviour changes for current-format content.
+  
+  **Breaking: removed deprecated image-path helper** (beta prerelease; migrate before upgrading):
+  
+  - `@pie-qti/ims-cp-browser` no longer exports `tryResolveImagePath`. It had been `@deprecated` since path resolution moved to `@pie-qti/ims-cp-core` and had no callers in the repo. Resolve package image references with `buildPackageFileIndex` and `resolvePackageReference` from `@pie-qti/ims-cp-core` (as `resolveImagesInXml` already does); the documented lenient path-resolution heuristics are unchanged.
+  
+  **Breaking: removed the historical vendor-extension type path** (beta prerelease; migrate before upgrading):
+  
+  - `@pie-qti/to-pie` no longer re-exports `VendorInfo`, `VendorDetector`, `VendorTransformer`, `ResolvedAsset`, `AssetResolver`, `VendorClasses`, `CssClassExtractor`, `MetadataExtractor`, `CustomAttributes` or `VendorExtensionHooks`; the `src/types/vendor-extensions.ts` shim that preserved the pre-move import path is gone. Import these types from `@pie-qti/transform-types`, where they live.
+  
+  **Breaking: pre-rename extensions metadata is no longer read** (beta prerelease; migrate before upgrading):
+  
+  - Packages exported while the PIE metadata bag was still named `searchMetaData` no longer import their extensions metadata: the `?? sourceModel.searchMetaData` fallbacks in `@pie-qti/ims-cp-core`'s `extractExtensionsFromQtiXml` and `@pie-qti/to-pie`'s `extractExtensions`, and the `pie:searchMetaData:` LOM source prefix in `@pie-qti/to-pie`'s `readPieResourceLom`, are gone; only `extensions` and the `pie:extension:` prefix are read. `@pie-qti/transform-types` no longer exports `PIE_LOM_LEGACY_EXTENSION_SOURCE`. The QTI package writer (`@pie-qti/pie-to-qti2`) only ever wrote the current forms, so content written by any current release is unaffected.
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- b668938: One passage-reusability module instead of two drifted copies: `packages/to-pie`'s `src/utils/passage-reusability.ts` is deleted and `@pie-qti/to-pie` now consumes `@pie-qti/ims-cp-core`. The shared ID strategy can be generated synchronously: `createStablePassageIdGenerator(hashContent)` builds a sync generator from an injected content hash (to-pie uses Node's `createHash('sha256')`), while `generateStablePassageId` stays async on the shared Web Crypto/Node `sha256`. The ID values are unchanged for every strategy.
+  
+  **Breaking: `parseObjectReference` is sync and strict about untyped objects** (beta prerelease). It is no longer `async`, and an `<object>` without a `type` attribute is a passage only when its `data` file looks like a markup document (`.html`, `.xhtml`, `.xml`); other untyped objects — figures, media, any asset — are no longer reported as passages. Hosts that relied on ims-cp-core's previous any-untyped-object reading, or on awaiting `parseObjectReference`, must adapt; `await` on the sync return value keeps working for the call itself.
+- Updated dependencies [310b975]
+- Updated dependencies [af63915]
+- Updated dependencies [30bc3bf]
+- Updated dependencies [99341e5]
+- Updated dependencies [e7188e4]
+- Updated dependencies [88f849c]
+- Updated dependencies [fe86d42]
+- Updated dependencies [93df941]
+- Updated dependencies
+- Updated dependencies [684738a]
+- Updated dependencies [b668938]
+  - @pie-qti/qti-common@1.0.0-beta.5
+  - @pie-qti/transform-types@1.0.0-beta.5
+  - @pie-qti/ims-cp-core@1.0.0-beta.5
+  - @pie-qti/ims-cp-node@1.0.0-beta.5
+
 ## 0.2.1
 
 ### Patch Changes

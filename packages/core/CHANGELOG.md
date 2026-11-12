@@ -1,5 +1,42 @@
 # @pie-qti/transform-core
 
+## 1.0.0-beta.5
+
+### Major Changes
+
+- 684738a: Breaking: removed the dead utilities module — a 360-line public API whose only consumers were its own tests and docs. Deleted `src/utils/errors.ts` and `src/utils/validator.ts` with everything they exported from the package root:
+  
+  - Error helpers: `createError`, `CreateErrorOptions`, `createValidationError`, `createConfigurationError`, `createInternalError`, `createExternalError`, `shouldRetry`, `shouldShowToUser`, `shouldNotifyOps`, `getSuggestedAction`, `wrapError`, `formatError`, `isValidationError`, `isConfigurationError`, `isInternalError`, `isExternalError`. Error handling goes through `TransformError`/`ErrorCategory` from `@pie-qti/transform-types` directly, as it already did everywhere in-repo.
+  - PIE item validation: `PieItemValidator`, `validatePieItemStructure`, `DetailedValidationResult`, `ValidationError`. The class had no caller outside its own tests (and the engine's activities construct their own errors), so the validation surface validated nothing real.
+  
+  Also removed with them: the `VALIDATION.md` doc (it documented only the deleted validator plus a `--validate` CLI flag that does not exist), the Validation section in the package README, and the now-unused `@pie-qti/element-schemas` and `ajv` dependencies. Transform behavior is unchanged.
+
+### Patch Changes
+
+- 90bf9ab: Correct published dependency graphs: runtime imports no longer hide in `devDependencies`, and test-only packages no longer ride along as production dependencies. `@pie-qti/player-elements` now declares `@pie-qti/qti-common` and `@pie-qti/default-components` (both imported at runtime from its entry points) in `dependencies`; `@pie-qti/pci-runner` likewise declares `@pie-qti/item-player`. `@pie-qti/core` moves `@pie-qti/test-utils` and `@pie-qti/to-pie` moves `@pie-qti/transform-core` to dev dependencies (tests only), and `@pie-qti/pie-to-qti2` drops `@pie-qti/transform-core` entirely (only a type import remained, now satisfied by `@pie-qti/transform-types`). Installing these packages no longer pulls unnecessary extras, and bundlers without hoisting-dependent resolution keep working. The `check:deps` script now flags runtime value imports of workspace packages that are not declared in `dependencies`/`peerDependencies` of publishable packages.
+- e2e2b78: Format detection no longer misreads QTI 3.0 items as QTI 2.2. `DetectFormatActivity` checked for camelCase `<assessmentItem`/`<assessmentTest` markup before the QTI 3.0 namespace, and QTI 3.0 items also contain that vocabulary, so a live QTI 3.0 item flowing through the transform workflow was dispatched to QTI 2.2 plugins. The activity now delegates to the canonical `detectQtiVersion` (`@pie-qti/qti-common` `version-detection`, a new workspace dependency of `@pie-qti/transform-core`), which decides by namespace first: the QTI 3.0 namespace detects as `qti30`, camelCase roots with a QTI 2.x namespace or none detect as `qti22` (so unversioned QTI 2.0/2.1 markup now maps to `qti22` too instead of failing), and content that names no QTI version still throws.
+- 88f849c: The transformation packages join the 1.0 beta line: every publishable `@pie-qti/*` package now releases at one version, so these move from `0.2.x` to `1.0.0-beta.5` and publish under the `beta` dist-tag with the players. Hosts that pin them exactly need the new version; a `^0.2` range does not pick it up.
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- 684738a: One dynamic module loader instead of two byte-identical copies: `loadPlugin` (`config/plugin-loader.ts`) and the vendor registry's private `loadVendorModule` (`config/vendor-registry.ts`) both implemented the same dynamic-import / export-lookup / instantiate / rewrap sequence and now delegate to a shared `loadConfiguredModule(config, kind)` in `config/module-loader.ts` (internal — not added to the public surface). The two entry points keep their exact error messages ("Failed to load plugin from …" / "Failed to load vendor extension from …"), and `registerExtensions`' five copy-pasted registration blocks (detectors, transformers, asset resolvers, CSS class extractors, metadata extractors) collapse into a per-kind loop that preserves the registration order, the skip-if-hook-missing behavior and the warn text verbatim. No behavior change; the config and plugin-loader suites pass untouched.
+- 9ec0f69: Close the remaining `any`-typed public seams (type-only changes, no runtime behavior change):
+  
+  - `@pie-qti/item-player`: the player config's `i18nProvider` and `getI18nProvider()` are now typed as `I18nProvider` instead of `any`, so consumers get real checking on the provider contract.
+  - `@pie-qti/assessment-player`: `AssessmentRubricBlock.view` models QTI's `view` attribute as `string[]` (it is an arbitrary token list; role semantics live in the toolkit/section-player filtering layer). This removes the `as any[]` casts at both parse sites.
+  - `@pie-qti/core`: vendor-extension plugin hooks (`registerVendorDetector`, `registerVendorTransformer`, `registerAssetResolver`, `registerCssClassExtractor`, `registerMetadataExtractor`) take `unknown` instead of `any` — the registry is generic plumbing and can no longer silently widen host plugin objects; the five `as any` call-site casts are gone.
+- Updated dependencies [310b975]
+- Updated dependencies [af63915]
+- Updated dependencies [30bc3bf]
+- Updated dependencies [99341e5]
+- Updated dependencies [1f1d8f0]
+- Updated dependencies [88f849c]
+- Updated dependencies [fe86d42]
+- Updated dependencies [93df941]
+- Updated dependencies
+- Updated dependencies [684738a]
+  - @pie-qti/qti-common@1.0.0-beta.5
+  - @pie-qti/transform-types@1.0.0-beta.5
+  - @pie-qti/logger@1.0.0-beta.5
+
 ## 0.2.1
 
 ### Patch Changes

@@ -1,5 +1,18 @@
 # @pie-qti/source-profiles
 
+## 1.0.0-beta.5
+
+### Patch Changes
+
+- 88f849c: The transformation packages join the 1.0 beta line: every publishable `@pie-qti/*` package now releases at one version, so these move from `0.2.x` to `1.0.0-beta.5` and publish under the `beta` dist-tag with the players. Hosts that pin them exactly need the new version; a `^0.2` range does not pick it up.
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies [af63915]
+- Updated dependencies [88f849c]
+- Updated dependencies [93df941]
+- Updated dependencies
+- Updated dependencies [684738a]
+  - @pie-qti/transform-types@1.0.0-beta.5
+
 ## 0.2.1
 
 ### Patch Changes

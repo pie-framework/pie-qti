@@ -1,5 +1,39 @@
 # @pie-qti/qti-common
 
+## 1.0.0-beta.5
+
+### Patch Changes
+
+- 310b975: Single source of truth for two XML helpers that each existed in three drifted copies across the conversion packages:
+  
+  - **Catalog idrefs**: `qti-common/accessibility` now exports `CATALOG_IDREF_PATTERN` + `catalogIdrefFromMatch`, matching quoted (single/double) and bare attribute values. Previously the exporter parsed `data-catalog-idref` with a *different grammar* than the importer — a bare idref written by one side parsed differently on the other. The qti-common and to-pie readers now accept bare values too (backwards-compatible widening).
+  - **XML escaping**: new canonical `escapeXmlAttribute` (safe inside `"..."` and `'...'`; also escapes apostrophes, so generated attributes containing apostrophes now carry `&apos;` — XML-equivalent). `pie-to-qti2`'s three identical `escapeXml` copies and `to-pie`'s local `escapeAttribute` delegate to it.
+- 30bc3bf: One `escapeText` instead of three byte-identical copies: apip.ts and catalog-info.ts carried private duplicates of markup.ts's exported text escaper (`& < >`, quotes stay as authored) and now import it from markup, whose export remains the public `escapeText` of `qti-common/accessibility`. Emitted XML is unchanged byte for byte (the accessibility suites that assert the exact strings pass as before). The attribute escapers stay per-module on purpose: markup's `escapeXmlAttribute` also escapes `'` while apip/catalog-info's `escapeAttribute` escape `"` only, and unifying those would change emitted XML.
+- 99341e5: QTI specification fixes in the scoring engine and item player, plus QTI Results Reporting output.
+  
+  - **Durations are seconds, as QTI defines them.** `@pie-qti/qti-processing` reads duration values as seconds: the specified `xsd:double` form (`<baseValue baseType="duration">30</baseValue>`, previously rejected as invalid) and, as a leniency, ISO 8601 (`PT30S`). `durationLT`/`durationGTE` normalize both operands, so a malformed duration is invalid instead of silently comparing false, and `match`/`equal` compare durations by their seconds. In `@pie-qti/item-player` the built-in `duration` variable now holds seconds, so response processing compares it with seconds. **Behavior change:** the QTI variable value seen in `ScoringResult.outcomeValues.duration`, `SerializedItemSessionState.contextVariables.duration` and `ItemSessionView.context.duration` is now seconds (it was milliseconds). The host-facing `duration` fields — `SerializedItemSessionState.duration`, `ItemSessionActionResult.duration`, `ItemSessionView.duration` — stay in milliseconds, and sessions saved before this change restore correctly. New helpers: `parseDurationSeconds`, `durationSeconds`, `durationSecondsFromMilliseconds`.
+  - **Unsupported response-processing templates fail explicitly.** An item whose `responseProcessing` only references a template the player does not implement now fails compilation with `UnsupportedResponseProcessingTemplateError` (exported), instead of logging a warning and scoring its outcome defaults. The predefined `no_response_processing` template is supported (the standard empty program: outcomes keep their defaults); strict QTI compliance no longer rejects QTI 3.0 items.
+  - **`strictQtiCompliance` validates the item.** Compilation checks the item's QTI namespace, its element names against the XSD-verified QTI 2.2/3.0 vocabulary (unknown QTI-namespace elements and unknown `qti-` elements), interactions whose `responseIdentifier` has no `responseDeclaration`, QTI interactions without a `responseIdentifier`, and response-bound elements no registered extractor renders (previously skipped silently). Findings are listed on the new `AssessmentItemDefinition.diagnostics` and logged: warnings by default, errors in strict mode, where versions other than QTI 2.2 and 3.0 are findings too. Strict mode with `rejectUnknownExtensions` throws a `QtiComplianceError` carrying them. **Behavior change:** strict mode no longer rejects QTI 3.0 items for not being QTI 2.2.
+  - **matchGroup is enforced in response validation.** `validateResponses` reports pairs that `matchGroup` forbids in associate, match, gap match, graphic gap match and graphic associate responses (`match_group` errors, which block submission), so restored or programmatic responses cannot bypass the renderers' restriction.
+  - **Version detection says when it guessed.** `@pie-qti/qti-common` adds `detectQtiVersionDetailed`, which returns the version `detectQtiVersion` returns together with its basis, a confidence and warnings — for example when an unversioned `assessmentItem` is assumed to be QTI 2.2. It also exports the QTI element vocabularies (`isQtiVocabularyElement`, `QTI2_ELEMENTS`, `QTI2_XHTML_ELEMENTS`, `QTI3_ELEMENTS`).
+  - **QTI Results Reporting.** `@pie-qti/assessment-player` adds `toAssessmentResultXml(results, { version: '2.2' | '3.0' })`, which writes the assessment's results as a QTI Results Reporting `assessmentResult` document (context, test result with outcomes and durations, an item result per item with its status, response and outcome variables), and `serializeAssessmentResult` for hand-built reports.
+  
+  Deliberate deviations from the specification (Unicode folding in string comparison, duration lexical forms, the matchGroup reading) are documented in `docs/QTI_techguide.md` §7.4.
+- fe86d42: Compiled-pattern reuse on the hot path (no behavior change):
+  
+  - `xsdPatternToRegExp` (qti-processing) translates and compiles an authored XSD pattern on every
+    call, and `patternMatch`/`patternMask` validation runs per keystroke while authored patterns are
+    static per item. Each (pattern, flags) pair is now compiled once and its `RegExp` shared
+    through a bounded module-level memo (cleared past 512 entries, so a stream of distinct patterns
+    cannot grow it without bound; cached `RegExp`s are stateful-free since no caller compiles with
+    `g`/`y`). Failed compiles are cached too.
+  - Feedback rendering (qti-common `processFeedbackInline`/`feedbackInlineAttr`) built a fresh
+    `RegExp` per attribute lookup per feedback element per keystroke; the matchers for an attribute
+    name (both QTI spellings) are now compiled once and shared, through the same bounded-memo
+    shape. `feedbackInlineAttr` is now exported from `@pie-qti/qti-common` so hosts and tests can
+    use the same reader.
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+
 ## 1.0.0-beta.4
 
 ### Patch Changes
