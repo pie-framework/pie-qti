@@ -16,6 +16,7 @@
 
 import type { FrameLocator } from '@playwright/test';
 import { expect, type Page, test } from './fixtures';
+import { nextControlKey, previousControlKey } from './a11y-utils';
 
 const NO_CSS_SRC_DOC = String.raw`<!doctype html>
 <html lang="en">
@@ -402,7 +403,10 @@ const NO_CSS_SRC_DOC = String.raw`<!doctype html>
   </body>
 </html>`;
 
-test.describe('Web components without host CSS', () => {
+/** Tagged @cross-browser: shadow-DOM rendering without host CSS also runs on WebKit and Firefox. */
+const CROSS_BROWSER = { tag: '@cross-browser' };
+
+test.describe('Web components without host CSS', CROSS_BROWSER, () => {
 	test('key interactions should not render giant SVG icons without Tailwind', async ({ page }) => {
 		await page.goto('./');
 		await page.waitForLoadState('networkidle');
@@ -681,11 +685,11 @@ async function largestShellIcon(frame: FrameLocator) {
 }
 
 /** A keyboard-focused control shows the token focus ring. */
-async function expectKeyboardFocusRing(page: Page, frame: FrameLocator, selector: string) {
+async function expectKeyboardFocusRing(page: Page, frame: FrameLocator, browserName: string, selector: string) {
 	const target = frame.locator(selector).first();
 	await target.focus();
-	await page.keyboard.press('Shift+Tab');
-	await page.keyboard.press('Tab');
+	await page.keyboard.press(previousControlKey(browserName));
+	await page.keyboard.press(nextControlKey(browserName));
 	await expect(target).toBeFocused();
 	const ring = await target.evaluate((element) => {
 		const style = getComputedStyle(element);
@@ -694,8 +698,8 @@ async function expectKeyboardFocusRing(page: Page, frame: FrameLocator, selector
 	expect(ring).toEqual({ visible: true, style: 'solid', width: '2px' });
 }
 
-test.describe('Assessment shell and section player without host CSS', () => {
-	test('desktop: sized icons, token-styled controls, focus rings and a fitted shell', async ({ page }) => {
+test.describe('Assessment shell and section player without host CSS', CROSS_BROWSER, () => {
+	test('desktop: sized icons, token-styled controls, focus rings and a fitted shell', async ({ page, browserName }) => {
 		const frame = await renderShellWithoutHostCss(page, { width: 1100, height: 800 });
 
 		// The assessmentTest title heads the shell, never its identifier.
@@ -726,8 +730,8 @@ test.describe('Assessment shell and section player without host CSS', () => {
 		const sectionsBox = await frame.locator('.section-menu > button').boundingBox();
 		expect(sectionsBox!.height).toBeGreaterThanOrEqual(44);
 
-		await expectKeyboardFocusRing(page, frame, '[data-testid="assessment-next"]');
-		await expectKeyboardFocusRing(page, frame, '[role="separator"]');
+		await expectKeyboardFocusRing(page, frame, browserName, '[data-testid="assessment-next"]');
+		await expectKeyboardFocusRing(page, frame, browserName, '[role="separator"]');
 
 		// The skip link is hidden until focused, then leads to the question.
 		const skip = frame.getByRole('link', { name: 'Skip to question' });

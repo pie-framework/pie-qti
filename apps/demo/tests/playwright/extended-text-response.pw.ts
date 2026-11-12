@@ -22,7 +22,10 @@ function storedResponses(page: Page) {
 	return page.locator('div:has(> h3:text-is("Current Responses:")) > pre');
 }
 
-test.describe('extended text keeps a typed answer exactly as written', () => {
+/** Tagged @cross-browser: text input handling in textareas/contenteditable also runs on WebKit and Firefox. */
+const CROSS_BROWSER = { tag: '@cross-browser' };
+
+test.describe('extended text keeps a typed answer exactly as written', CROSS_BROWSER, () => {
 	// 1e5 reads as a number once its last character is typed: the field must not turn it into
 	// 100000 under the candidate's cursor.
 	for (const answer of ['1.50', '1e5']) {

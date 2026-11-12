@@ -31,7 +31,10 @@ async function runStep(page: Page, step: EvalStep): Promise<void> {
 
 const evalFiles = readEvalFiles('asset-loading');
 
-test.describe('docs/evals/asset-loading (YAML-driven)', () => {
+/** Tagged @cross-browser: asset and media loading also runs on WebKit and Firefox. */
+const CROSS_BROWSER = { tag: '@cross-browser' };
+
+test.describe('docs/evals/asset-loading (YAML-driven)', CROSS_BROWSER, () => {
 	for (const { filePath, data } of evalFiles) {
 		test.describe(path.relative(process.cwd(), filePath), () => {
 			for (const c of data.evals) {

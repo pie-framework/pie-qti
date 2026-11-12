@@ -1,6 +1,9 @@
 import { expect, test } from './fixtures';
 
-test.describe('web component initialization', () => {
+/** Tagged @cross-browser: custom element registration and rendering also runs on WebKit and Firefox. */
+const CROSS_BROWSER = { tag: '@cross-browser' };
+
+test.describe('web component initialization', CROSS_BROWSER, () => {
 	test('wc item player registers and renders', async ({ page }) => {
 		await page.goto('wc-item');
 

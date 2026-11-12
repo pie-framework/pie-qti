@@ -495,13 +495,6 @@
 </div>
 
 <style>
-	/* Minimal icon sizing so SVGs don't fall back to browser default size without Tailwind */
-	.qti-icon {
-		width: 1.5rem;
-		height: 1.5rem;
-		flex: 0 0 auto;
-	}
-
 	.qti-sp-body {
 		display: grid;
 		gap: 0.75rem;

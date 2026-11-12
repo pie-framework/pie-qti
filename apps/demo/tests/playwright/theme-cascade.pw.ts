@@ -36,7 +36,10 @@ async function getColors(page: any) {
 	});
 }
 
-test.describe('DaisyUI theme cascades into player + TipTap editor', () => {
+/** Tagged @cross-browser: theme cascade through shadow roots also runs on WebKit and Firefox. */
+const CROSS_BROWSER = { tag: '@cross-browser' };
+
+test.describe('DaisyUI theme cascades into player + TipTap editor', CROSS_BROWSER, () => {
 	test('item-demo: editor colors change when theme changes', async ({ page }) => {
 		await page.goto('fixtures/item-player');
 		// Wait for the page to be fully loaded

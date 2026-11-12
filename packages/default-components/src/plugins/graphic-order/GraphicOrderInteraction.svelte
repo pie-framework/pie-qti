@@ -395,13 +395,6 @@
 		-webkit-user-drag: element;
 	}
 
-	/* Minimal icon sizing so SVGs don't fall back to browser default size without Tailwind */
-	.qti-icon {
-		width: 1.25rem;
-		height: 1.25rem;
-		flex: 0 0 auto;
-	}
-
 	/* Minimal layout so this works without Tailwind utilities */
 	.qti-go-layout {
 		display: flex;

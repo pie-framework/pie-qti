@@ -314,13 +314,6 @@
 </div>
 
 <style>
-	/* Minimal icon sizing so SVGs don't fall back to browser default size without Tailwind */
-	.qti-icon-sm {
-		width: 1rem;
-		height: 1rem;
-		flex: 0 0 auto;
-	}
-
 	/* The confirmed control: the badge's success reading without removing the control */
 	.qti-order-confirmed {
 		display: inline-flex;
