@@ -455,3 +455,14 @@ published-but-unwired validator that diverges from reality gives false confidenc
 fixed-versioning group and the publish-policy workspace roots; npm history is unaffected, and it
 can be re-synced from upstream pie-elements later if a real consumer appears. (to-pie's
 `packages/to-pie/schemas/` XSDs are unrelated vendored official schemas and stay.)
+
+Beta-release readiness pass (2026-11-12): the pending
+`.changeset/element-schemas-transformer-contract.md` changeset still bumped the deleted package
+and would have hard-failed `changeset version` (assemble-release-plan throws on unknown
+packages) — deleted, and the stale "schema home" pointer in
+`transform-core-remove-dead-utils.md` corrected. `changeset status` now assembles: one version
+run consumes the 166 pending changesets and moves all 25 fixed-group packages to
+1.0.0-beta.5. The two declared `major` bumps and eight `minor`s are inert while `.changeset/pre.json`
+is active — verified against the installed @changesets/assemble-release-plan 7.0.0 source: in
+pre mode every bump type just increments the prerelease number, and on `changeset pre exit`
+packages that took prerelease increments snap to stable with at most a patch.
