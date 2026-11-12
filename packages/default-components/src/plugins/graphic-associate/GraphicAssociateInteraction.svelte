@@ -614,18 +614,6 @@
 </div>
 
 <style>
-	/* Minimal icon sizing so SVGs don't fall back to browser default size without Tailwind */
-	.qti-icon {
-		width: 1.5rem;
-		height: 1.5rem;
-		flex: 0 0 auto;
-	}
-	.qti-icon-sm {
-		width: 1rem;
-		height: 1rem;
-		flex: 0 0 auto;
-	}
-
 	/* Minimal layout so this works without Tailwind utilities */
 	.qti-ga-layout {
 		display: flex;

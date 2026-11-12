@@ -81,8 +81,11 @@ async function expectPseudoStringsIntact(page: Page, selector: string) {
 	expect(report.clipped, 'clipped pseudo strings').toEqual([]);
 }
 
+/** Tagged @cross-browser: RTL layout and mirrored keys also run on WebKit and Firefox. */
+const CROSS_BROWSER = { tag: '@cross-browser' };
+
 for (const locale of LOCALES) {
-	test.describe(`RTL matrix: ${locale}`, () => {
+	test.describe(`RTL matrix: ${locale}`, CROSS_BROWSER, () => {
 		test('item player chrome is right-to-left and horizontal ordering keys mirror', async ({ page }) => {
 			await openRoute(page, 'wc-item', locale);
 			const chrome = page.locator('pie-qti-item-player .qti-item-player');

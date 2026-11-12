@@ -913,13 +913,6 @@
 		touch-action: none;
 	}
 
-	/* Minimal icon sizing so SVGs don't fall back to browser default size without Tailwind */
-	.qti-icon-xs {
-		width: 0.75rem;
-		height: 0.75rem;
-		flex: 0 0 auto;
-	}
-
 	/* Minimal layout so this works without Tailwind utilities */
 	.qti-po-layout {
 		display: flex;

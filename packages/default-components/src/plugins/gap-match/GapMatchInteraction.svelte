@@ -412,8 +412,14 @@
 		handleGapChange(gapId, wordId);
 	}
 
-	function onGapClick(gapId: string) {
+	function onGapClick(gapId: string, event: MouseEvent) {
 		if (disabled) return;
+		// Anchor focus on the gap the candidate acted on: Safari/WebKit never moves focus to
+		// buttons on click, so without this the focus ring and the next Tab stop would stay
+		// wherever they were (the keyboard path already sits on the button, where this is a no-op).
+		// Svelte 5 delegates click handlers, so `currentTarget` is not the button — resolve
+		// the pressed button from `target` instead.
+		(event.target as HTMLElement | null)?.closest?.<HTMLButtonElement>('button[data-gap-id]')?.focus();
 		// K-02: if a word is held, drop it into this gap. A refused placement keeps it held, so
 		// the candidate can place it elsewhere (replacing a word) or cancel: matchGroup (this
 		// gap does not accept the held word) and maxAssociations (announced by handleGapChange).
@@ -570,7 +576,7 @@
 			ondragover={(e: DragEvent) => onGapDragOver(gapId, e)}
 			ondragleave={() => onGapDragLeave(gapId)}
 			ondrop={(e: DragEvent) => onGapDrop(gapId, e)}
-			onclick={() => onGapClick(gapId)}
+			onclick={(event: MouseEvent) => onGapClick(gapId, event)}
 		>
 			{#if shownWord?.kind === 'image'}
 				<img class="qti-gm-gap-img" src={shownWord.src} alt="" width={shownWord.width} height={shownWord.height} />

@@ -1,8 +1,11 @@
 import { expect, test } from './fixtures';
 import { scanA11yFixture } from './a11y-utils';
 
+/** Tagged @cross-browser: mouse, touch and keyboard activation also runs on WebKit and Firefox. */
+const CROSS_BROWSER = { tag: '@cross-browser' };
+
 for (const input of ['mouse', 'touch', 'keyboard'] as const) {
-	test.describe(input, () => {
+	test.describe(input, CROSS_BROWSER, () => {
 		test.use({ hasTouch: input === 'touch', viewport: { width: input === 'touch' ? 375 : 1280, height: 900 } });
 		test('completes ordering and each matching type without dragging', async ({ page }) => {
 			await page.goto('fixtures/pointer-interactions');

@@ -1,5 +1,6 @@
 import type { Locator } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
+import { nextControlKey } from './a11y-utils';
 import { A11Y_REGRESSION_FIXTURES } from '../../src/routes/fixtures/a11y-regression/items';
 
 /**
@@ -21,16 +22,6 @@ import { A11Y_REGRESSION_FIXTURES } from '../../src/routes/fixtures/a11y-regress
  */
 
 const CROSS_BROWSER = { tag: '@cross-browser' };
-
-/**
- * The key that moves keyboard focus to the next control. Safari on macOS skips buttons,
- * radios and checkboxes on Tab unless "Press Tab to highlight each item" is enabled (the
- * default is off), and Option+Tab is that platform's all-controls key; WebKit on Linux
- * (CI), Chromium and Firefox move through every control on Tab.
- */
-function nextControlKey(browserName: string): string {
-	return browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab';
-}
 
 const fixture = (item: string) => `/fixtures/a11y-regression/?item=${item}`;
 

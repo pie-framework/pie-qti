@@ -29,7 +29,10 @@ async function render(page: import('@playwright/test').Page, interfaceLocale: st
 	await expect(page.locator('pie-qti-item-player .qti-item-body input').first()).toBeVisible();
 }
 
-test.describe('content and interface direction', () => {
+/** Tagged @cross-browser: content and interface direction also runs on WebKit and Firefox. */
+const CROSS_BROWSER = { tag: '@cross-browser' };
+
+test.describe('content and interface direction', CROSS_BROWSER, () => {
 	test('an Arabic item under an English interface is right-to-left in left-to-right chrome', async ({ page }) => {
 		await render(page, 'en-US', item('ar', '<p>ما هو <span xml:lang="en">H2O</span>؟</p>'));
 		const player = page.locator('pie-qti-item-player .qti-item-player');

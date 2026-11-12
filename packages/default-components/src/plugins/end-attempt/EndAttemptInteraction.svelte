@@ -114,12 +114,12 @@
 				disabled={!canInteract || hasEnded}
 			>
 				{#if hasEnded}
-					<Icon d={ICON_CHECK} part="icon" class="qti-icon" stroke="currentColor" />
+					<Icon d={ICON_CHECK} part="icon" class="qti-icon w-6 h-6" stroke="currentColor" />
 					{parsedInteraction.countAttempt
 						? translate(i18n, 'interactions.endAttempt.ended', 'Attempt Ended')
 						: translate(i18n, 'interactions.endAttempt.requested', 'Requested')}
 				{:else}
-					<Icon d={ICON_CLOSE} part="icon" class="qti-icon" stroke="currentColor" />
+					<Icon d={ICON_CLOSE} part="icon" class="qti-icon w-6 h-6" stroke="currentColor" />
 					{parsedInteraction.title}
 				{/if}
 			</button>
