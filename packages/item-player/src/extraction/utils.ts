@@ -5,8 +5,9 @@
  */
 
 import type { ElementNameMapper, AttributeNameMapper } from '@pie-qti/qti-common';
-import { Qti2xElementNameMapper, Qti2xAttributeNameMapper } from '@pie-qti/qti-common';
 import { sanitizeTextContent } from '../core/sanitizer.js';
+import { defaultExtractionMappers } from '../core/nameMappers.js';
+import { escapeHtmlAttribute } from '../security/escapeHtml.js';
 import { readAloudAttributes } from './interactionAccessibility.js';
 import type { PlayerSecurityConfig } from '../types/index.js';
 import type { QTIElement } from '../interactions/shared/types.js';
@@ -36,6 +37,13 @@ function getChildrenByTagWithMapper(
 /**
  * Extract a boolean attribute from a QTI element
  * Supports both QTI 2.x (camelCase) and QTI 3.0 (kebab-case) attributes
+ *
+ * Every QTI interaction boolean is `xs:boolean`, whose lexical space is
+ * `{true, false, 1, 0}` (XML Schema Part 2), so the on-forms are `"true"` and
+ * `"1"` — not just the literal `"true"`. This helper is the one xs:boolean
+ * reader for every extractor. (The media extractor's `isBooleanAttributeOn`
+ * stays separate on purpose: it reads HTML presence semantics for
+ * `<track default>`, which has no xs:boolean lexical space.)
  */
 function getBooleanAttribute(
 	element: QTIElement,
@@ -52,7 +60,7 @@ function getBooleanAttribute(
 	}
 
 	if (value === null || value === undefined) return defaultValue;
-	return value === 'true';
+	return value === 'true' || value === '1';
 }
 
 /**
@@ -139,6 +147,32 @@ function wrapsContentWithIdref(element: QTIElement, idref: string): boolean {
 }
 
 /**
+ * Validates one choice-like identifier set for an extractor: every item must carry an identifier
+ * and none may repeat, as an interaction whose response holds identifiers would otherwise be
+ * ambiguous. Items are identifiers (gapMatchInteraction's gaps are bare strings) or objects with
+ * an optional `identifier`; each failure pushes one error into `errors`, with the same wording for
+ * every extractor. `labels.plural` names the set in the missing-identifier error ("source
+ * choices"), `labels.noun` in the duplicate error ("source").
+ */
+export function validateUniqueIdentifiers(
+	items: ReadonlyArray<string | { identifier?: string } | undefined>,
+	errors: string[],
+	labels: { plural: string; noun: string }
+): void {
+	const identifiers = new Set<string>();
+	for (const item of items) {
+		const identifier = typeof item === 'string' ? item : item?.identifier;
+		if (!identifier) {
+			errors.push(`All ${labels.plural} must have an identifier`);
+		} else if (identifiers.has(identifier)) {
+			errors.push(`Duplicate ${labels.noun} identifier: ${identifier}`);
+		} else {
+			identifiers.add(identifier);
+		}
+	}
+}
+
+/**
  * Create extraction utilities instance
  * Provides standard helpers for extracting data from QTI elements.
  * Automatically handles both QTI 2.x and QTI 3.0 element and attribute naming conventions.
@@ -149,8 +183,7 @@ export function createExtractionUtils(
 	attributeMapper?: AttributeNameMapper
 ): ExtractionUtils {
 	// Default to QTI 2.x mappers (primary supported QTI format)
-	const elementMapper = mapper || new Qti2xElementNameMapper();
-	const attrMapper = attributeMapper || new Qti2xAttributeNameMapper();
+	const { elementMapper, attrMapper } = defaultExtractionMappers(mapper, attributeMapper);
 	return {
 		matchesTag(element: QTIElement, tagName: string): boolean {
 			return matchesTagName(element.rawTagName, tagName, elementMapper);
@@ -211,12 +244,12 @@ export function createExtractionUtils(
 			if (attributes?.['data-catalog-idref'] && wrapsContentWithIdref(element, attributes['data-catalog-idref'])) {
 				delete attributes['data-catalog-idref'];
 			}
-			const wrapped =
-				html && attributes && Object.keys(attributes).length > 0
-					? `<span ${Object.entries(attributes)
-							.map(([name, value]) => `${name}="${value.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`)
-							.join(' ')}>${html}</span>`
-					: html;
+		const wrapped =
+			html && attributes && Object.keys(attributes).length > 0
+				? `<span ${Object.entries(attributes)
+						.map(([name, value]) => `${name}="${escapeHtmlAttribute(value)}"`)
+						.join(' ')}>${html}</span>`
+				: html;
 			return sanitizeTextContent(wrapped, { security });
 		},
 

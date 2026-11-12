@@ -34,9 +34,7 @@ Everything lives under `packages/` and `apps/`:
 ### Transform system
 
 - `packages/types`: shared transformation type contracts (input/output formats, storage interfaces)
-- `packages/schemas`: PIE schema/validation assets
 - `packages/core`: transform engine + plugin registry (format orchestration)
-- `packages/storage`: pluggable storage backends (filesystem, S3, database)
 - `packages/to-pie`: QTI → PIE transform plugin (plus vendor extension hooks)
 - `packages/pie-to-qti2`: PIE → QTI transform plugin (generator registry + packaging)
 - `packages/qti-common`: QTI version detection and element/attribute name mappers for 2.x ↔ 3.0 normalization
@@ -174,7 +172,7 @@ When rendering into the host DOM, configure security guardrails explicitly:
 
 - **HTML sanitization** (what tags/attrs survive, and how URLs are filtered)
 - **URL policy** (which protocols/hosts are allowed for extracted URLs and HTML attributes)
-- **Parsing limits** (optional DoS guardrails)
+- **Parsing limits** (DoS guardrails, on by default; `parsingLimits.enabled: false` opts out)
 - **Trusted Types policy name** (host-controlled; effective only if your CSP enforces Trusted Types)
 
 Key references:
@@ -455,8 +453,8 @@ This separation enables:
 
 Key references:
 
-- Storage types: `packages/types/src/storage/index.ts`
-- Storage package: `packages/storage/src/`
+- Storage types: `packages/types/src/storage/index.ts` (hosts implement the `StorageBackend` interface; no backend implementations ship in this repository — the test mock lives in `packages/test-utils/src/mocks/storage.ts`)
+- In-memory orchestrator: `packages/core/src/orchestration/`
 - Source profile configuration: `docs/SOURCE-PROFILES.md`
 
 ### Server-side flow (sessioned)
@@ -482,7 +480,7 @@ This section combines “deployment guidance” with “security boundary clarif
 
 ### Trust boundaries (what this project does and does not do)
 
-- **Same-DOM is not a sandbox**: rendering attacker-controlled content into your application DOM is inherently risky. The player provides **guardrails** (sanitization, URL policy, optional parsing limits, Trusted Types support), but it does **not** provide a complete isolation boundary.
+- **Same-DOM is not a sandbox**: rendering attacker-controlled content into your application DOM is inherently risky. The player provides **guardrails** (sanitization, URL policy, parsing limits on by default, Trusted Types support), but it does **not** provide a complete isolation boundary.
 - **Plugins/custom components are integrator-owned**: any `AssessmentItemDefinitionPlugin` and any custom web components run as host code. Treat them as trusted application code (review, test, pin).
 - **Client-side scoring is not secure**: for high-stakes assessment, you must do **server-side scoring** and avoid sending correct answers / scoring logic to the candidate.
 - **Best isolation is origin isolation**: for untrusted QTI, prefer iframe mode and run the runtime on a separate origin with strict postMessage allowlists.
@@ -503,7 +501,7 @@ Use when you control authoring and inputs.
 If you must render third-party QTI in the host DOM:
 
 - enforce strict URL policy and limit allowed protocols/hosts,
-- enable parsing limits to reduce DoS surface,
+- keep parsing limits on (the default) to reduce DoS surface,
 - keep `<object>`/`<embed>`/`<iframe>` disabled,
 - deploy strong CSP and consider Trusted Types enforcement.
 

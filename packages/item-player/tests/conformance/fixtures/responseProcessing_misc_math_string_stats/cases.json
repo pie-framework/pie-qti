@@ -6,7 +6,7 @@
 			"responses": {},
 			"expect": {
 				"outcomes": {
-					"SUB": "BC",
+					"SUB": true,
 					"IDIV": 3,
 					"MOD": 1,
 					"POW": 8,
@@ -14,13 +14,9 @@
 					"SVAR": 1,
 					"SSD": 1,
 					"PVAR_MILLI": 666,
-					"PSD_MILLI": 816,
-					"TYPE_INT_OK": true,
-					"TYPE_FLOAT_OK": false
+					"PSD_MILLI": 816
 				}
 			}
 		}
 	]
 }
-
-

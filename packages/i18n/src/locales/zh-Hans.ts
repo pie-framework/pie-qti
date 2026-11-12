@@ -53,14 +53,6 @@ export default {
 		errorNoData: '未提供交互数据',
 	},
 
-	units: {
-		bytes: '{count} 字节',
-		kilobytes: '{count} KB',
-		megabytes: '{count} MB',
-		seconds: '{count} 秒',
-		minutes: '{count} 分钟',
-		hours: '{count} 小时',
-	},
 
 	// 复数示例
 	// 使用 i18n.plural('plurals.items', { count: n }) 访问这些内容
@@ -103,13 +95,6 @@ export default {
 		},
 	},
 
-	validation: {
-		required: '此字段为必填项',
-		invalidFormat: '格式无效',
-		tooShort: '太短(最少 {min} 个字符)',
-		tooLong: '太长(最多 {max} 个字符)',
-		outOfRange: '值必须在 {min} 和 {max} 之间',
-	},
 
 	interactions: {
 		choice: {
@@ -120,6 +105,13 @@ export default {
 			correct: '正确',
 			revealChoice: '显示选项 {index}',
 			groupLabel: '答案选项',
+			maxChoicesReached: '最多可选择 {max} 项。请先取消一项选择,再选择其他项。',
+			clearAnswer: '清除答案',
+			minChoicesHint: {
+				one: '请至少选择 {count} 个答案。',
+				other: '请至少选择 {count} 个答案。',
+			},
+			eliminateChoice: '排除',
 		},
 
 		upload: {
@@ -149,6 +141,8 @@ export default {
 			// {max} 将被替换为最大大小(MB)
 			errorTooLarge: '文件太大(最大 {max} MB)',
 			unknownType: '未知文件类型',
+			fileRemoved: '已移除文件。',
+			errorFileTooLarge: '文件 {filename} 太大。最大大小为 {maxBytes} 字节。',
 		},
 
 		drawing: {
@@ -164,6 +158,8 @@ export default {
 			updated: '绘图已更新。',
 			cleared: '绘图已清除。',
 			generated: '已生成:',
+			imageFallback: '绘图背景',
+			imageLoadError: '无法加载背景图像。',
 		},
 
 		extendedText: {
@@ -175,15 +171,43 @@ export default {
 			underline: '下划线',
 			bulletList: '项目符号列表',
 			numberedList: '编号列表',
-			insertMath: '插入数学公式',
 			insertInlineMath: '插入行内数学',
 			insertBlockMath: '插入块级数学',
-			enterMathExpression: '输入您的数学表达式：',
-			latexSource: 'LaTeX 源码：',
-			keyboard: '键盘',
+			responseLabel: '回答',
+			responseNumber: '回答 {number}',
+			addResponse: '添加回答',
+			removeResponseNumber: '删除回答 {number}',
+			responseRemoved: '已删除回答 {number}。',
+			charactersRemaining: {
+				one: '还可输入 {count} 个字符',
+				other: '还可输入 {count} 个字符',
+			},
+			expectedLengthReached: {
+				one: '已达到 {count} 个字符的预期长度。',
+				other: '已达到 {count} 个字符的预期长度。',
+			},
+			correctAnswerHeading: '正确答案：',
+			editMath: '编辑数学公式',
+			minStringsHint: {
+				one: '请至少填写 {count} 个回答。',
+				other: '请至少填写 {count} 个回答。',
+			},
+			minStringsRemoveRefused: '回答未移除：至少需要 {count} 个回答。',
+			patternMismatch: '此答案不符合预期格式。',
+		},
+
+		mathInput: {
+			insertInlineTitle: '插入行内数学',
+			insertBlockTitle: '插入块级数学',
+			editInlineTitle: '编辑行内数学',
+			editBlockTitle: '编辑块级数学',
+			instructions: '输入表达式，或打开数学键盘。按 Escape 取消。',
+			fieldLabel: '数学表达式',
+			latexSourceLabel: 'LaTeX 源码',
+			latexEmpty: 'LaTeX 代码将显示在这里',
+			toggleKeyboard: '数学键盘',
 			update: '更新',
 			insert: '插入',
-			correctAnswerHeading: '正确答案：',
 		},
 
 		slider: {
@@ -194,13 +218,17 @@ export default {
 			step: '步长:{step}',
 			ariaLabel: '滑块值从 {lowerBound} 到 {upperBound}',
 			statTitle: '已选择的值',
+			noValueSelected: '未选择任何值',
 		},
 
 		hottext: {
 			selected: '已选择:',
 			selectText: '从文章中选择文本',
-			clearSelection: '清除选择',
 			ariaLabel: '文本选择交互',
+			maxChoicesReached: '最多可选择 {max} 项。请先取消一项选择,再选择其他项。',
+			// 不含对勾符号:HottextInteraction 会在此标记前自行显示 "✓ "。
+			minimumMet: '已满足最小要求',
+			selectAtLeast: '至少选择 {minChoices} 个',
 		},
 
 		hotspot: {
@@ -211,9 +239,19 @@ export default {
 			unknownImageDimensions:
 				'无法显示此热点：其图像尺寸未知，因此无法定位可选区域。请为图像添加宽度和高度，或提供资源尺寸。',
 			correctList: '正确：{ids}',
+			imageFallback: '本题的图像',
+			imageLoadError: '无法加载图像。',
+			regionOfTotal: '第 {index} 个区域，共 {total} 个',
+			selectedRegion: '已选择：{region}',
+			maxChoicesReached: '最多可选择 {max} 项。请先取消一项选择,再选择其他项。',
+			minChoicesHint: {
+				one: '请至少选择 {count} 个区域。',
+				other: '请至少选择 {count} 个区域。',
+			},
 		},
 
 		selectPoint: {
+			unknownImageDimensions: '无法显示此选点交互：图像尺寸未知，因此无法正确放置点。请为图像添加宽度和高度，或提供素材尺寸。',
 			instruction: '点击图像以选择点',
 			instructionAria: '点击以在图像上选择点',
 			maxPointsReached: '已达到最大点数。移除一个点以添加新点。',
@@ -228,6 +266,16 @@ export default {
 			minimumMet: '✓ 已满足最小要求',
 			selectAtLeast: '至少选择 {minChoices} 个',
 			correctPointAt: '坐标为 {x}, {y} 的正确答案点',
+			imageFallback: '本题的图像',
+			imageLoadError: '无法加载图像。',
+			stageLabel: '选点区域',
+			keyboardInstructions: '点击图像放置一个点。使用键盘时，请将焦点移到图像上，用方向键移动十字准线（按住 Shift 可小步移动），然后按 Enter 或空格键放置一个点。',
+			placedPoints: '已放置的点',
+			pointAtPercent: '点 {index} 位于 {x}%，{y}%',
+			percentPosition: '{x}%，{y}%',
+			pointPlaced: '已在 {x}%，{y}% 处放置点 {index}。',
+			pointRemoved: '已移除点 {index}。',
+			allPointsRemoved: '已移除所有点。',
 		},
 
 		match: {
@@ -253,18 +301,26 @@ export default {
 			navigateToTarget: '导航到目标并按空格键或回车键进行匹配',
 			selectionCancelled: '已取消选择',
 			matchCleared: '已清除 {item} 的匹配',
-			maxReached: '已达到最大关联数。请移除一对后再添加新的一对。',
+			associationLimitReached: '无法创建关联：已达到 {max} 个的上限。',
+			sourceLimitReached: '无法操作：{label} 不能参与更多关联。',
 			pairCreated: '{source} 已与 {target} 匹配。',
+			minAssociationsHint: {
+				one: '请至少完成 {count} 组匹配。',
+				other: '请至少完成 {count} 组匹配。',
+			},
+			minChoiceUsesHint: '还需要更多匹配：{items}。',
 			matchedWithSentence: '已与 {targets} 匹配。',
 			selectedForMatchingSentence: '已选择以进行匹配。',
 			availableForMatchingSentence: '可用于匹配。',
 			notCompatibleSentence: '与所选来源不兼容。',
+			selectionCancelledItem: '已取消选择 {item}。',
 		},
 
 		gapMatch: {
-			filledGapAriaLabelWithHeld: '空格 {gapId}，已填入 {word}。选择以替换为 {heldWord}。',
-			blankGapAriaLabelWithHeld: '空格 {gapId}。选择以在此放入 {heldWord}。',
-			placed: '已将 {word} 放入空格 {gapId}。',
+			filledGapAriaLabelWithHeld: '第 {position} 处空白（共 {total} 处），已填入 {word}。选择以替换为 {heldWord}。',
+			blankGapAriaLabelWithHeld: '第 {position} 处空白（共 {total} 处）。选择以在此放入 {heldWord}。',
+			placed: '已将 {word} 放入第 {position} 处空白（共 {total} 处）。',
+			associationLimitReached: '无法创建关联：已达到 {max} 个的上限。',
 			pointerInstructions: '先选择一个词，再选择一个空格。也可以拖放。',
 			instruction: '拖动单词填入空白处',
 			available: '可用的单词',
@@ -275,8 +331,14 @@ export default {
 			removeFromBlanks: '从空白处移除 {word}',
 			selectPlaceholder: '选择...',
 			gapAriaLabel: '空白 {gapId}',
-			blankGapAriaLabel: '空白 {gapId}。在此处放置答案。',
-			filledGapAriaLabel: 'Blank {gapId}, filled with {word}. Click to clear.',
+			blankGapAriaLabel: '第 {position} 处空白（共 {total} 处）。在此处放置答案。',
+			filledGapAriaLabel: '第 {position} 处空白（共 {total} 处），已填入 {word}。选择以清除。',
+			wordSelected: '已拿起 {word}。选择一处空白以放置，或按 Esc 键取消。',
+			pickUpCancelled: '已取消拿起 {word}。',
+			minPlacementsHint: '还需放入空白处：{words}。',
+			notCompatibleSentence: '与所选词语不兼容。',
+			wordRemovedFromBlanks: '已将 {word} 从空格中移除。',
+			requiredBlanksLegend: '标有 * 的空白处为必填。',
 		},
 
 		graphicGapMatch: {
@@ -299,9 +361,8 @@ export default {
 			pickedUp: '已拿起：{label}。按 Tab 键移到热点，然后按 Enter 键放置。',
 			alreadyPlacedSentence: '已放置在热点上。',
 			unavailableSentence: '因匹配组限制而不可用。',
-			heldHint: '已拿起。按 Tab 键移到热点，然后按 Enter 键放置。',
+			heldHint: '按 Tab 键移到热点，然后按 Enter 键放置。',
 			pickUpHint: '按空格键或 Enter 键拿起。',
-			selectedHint: '已选择以进行放置。',
 			selectHint: '按空格键选择。',
 			hotspotContains: '热点 {number}。包含 {label}。',
 			hotspotCorrectAnswer: '热点 {number}。正确答案：{label}。',
@@ -311,11 +372,17 @@ export default {
 			placeLabelHint: '按空格键或 Enter 键放置标签。',
 			labelFallback: '标签',
 			pickUpInstructions: '按空格键或回车键拾取标签。按 Tab 键移到图像上的热点，然后按回车键放置。按 Esc 键取消。',
+			imageFallback: '本题的图像',
+			imageLoadError: '无法加载图像。',
+			unknownImageDimensions: '无法显示热点：图像尺寸未知。请为图像添加宽度和高度。',
+			minPlacementsHint: '仍需放置到区域：{labels}。',
+			associationLimitReached: '无法创建关联：已达到 {max} 个的上限。',
 		},
 
 		order: {
-			moveEarlier: '向前移动',
-			moveLater: '向后移动',
+			moveEarlierItem: '将 {item} 向前移动',
+			moveLaterItem: '将 {item} 向后移动',
+			eliminateItem: '排除 {item}',
 			instruction: '使用移动按钮或拖动项目来调整顺序。',
 			keyboardInstructions: '按空格键或回车键抓取项目。使用方向键移动项目。再次按空格键或回车键放下。按 Esc 键取消。',
 			grabbed: '已抓取。使用方向键移动。',
@@ -330,9 +397,32 @@ export default {
 			itemDropped: '{item} 已放置在位置 {position} / {total}',
 			itemMoved: '{item} 已移动到位置 {position} / {total}',
 			selectionCancelled: '{item} 选择已取消',
-			itemPosition: '{item}。位置 {position} / {total}。',
 			itemFallback: '项目',
 			orderConfirmed: '顺序已确认',
+			minChoicesHint: {
+				one: '请至少为 {count} 个项目排序。',
+				other: '请至少为 {count} 个项目排序。',
+			},
+			yourOrder: '你的排序',
+			notInOrder: '不在你的排序中',
+			emptyOrder: '你的排序中还没有项目。',
+			addItem: '将 {item} 添加到你的排序',
+			removeItem: '从你的排序中移除 {item}',
+			itemAdded: '已将 {item} 添加到你的排序,位于位置 {position} / {total}。',
+			itemRemoved: '已从你的排序中移除 {item}。',
+			orderLimitReached: {
+				one: '你的排序最多只能包含 {max} 个项目。请先移除它,再添加其他项目。',
+				other: '你的排序最多可包含 {max} 个项目。请先移除一个,再添加其他项目。',
+			},
+			correctOrder: '正确顺序',
+			subsetExactHint: {
+				one: '请为你的排序选择 {count} 个项目。',
+				other: '请选择 {count} 个项目并按顺序排列。',
+			},
+			subsetRangeHint: {
+				one: '请选择 {min} 至 {max} 个项目并按顺序排列。',
+				other: '请选择 {min} 至 {max} 个项目并按顺序排列。',
+			},
 		},
 
 		associate: {
@@ -355,9 +445,24 @@ export default {
 			clickHotspotsToAssociate: '点击图像上的两个热点以创建关联。',
 			clickAnotherHotspot: '已选择:<strong>{label}</strong>。点击另一个热点以创建关联。',
 			removeAssociationBetween: '移除 {first} 与 {second} 之间的关联',
+			inPairSentence: '已在一个关联中。',
+			removedAssociationBetween: '已移除 {first} 与 {second} 之间的关联。',
+			minAssociationsHint: {
+				one: '请至少建立 {count} 个关联。',
+				other: '请至少建立 {count} 个关联。',
+			},
+			minChoiceUsesHint: '还需要更多关联：{items}。',
+			maxAssociationsHint: {
+				one: '最多可建立 {count} 个关联。',
+				other: '最多可建立 {count} 个关联。',
+			},
+			choiceLimitReached: '无法操作：{label} 不能参与更多关联。',
+			associationLimitReached: '无法创建关联：已达到 {max} 个的上限。',
+			notAvailableSentence: '因匹配组限制而不可用。',
 		},
 
 		positionObject: {
+			unknownImageDimensions: '无法放置对象：舞台图像的尺寸未知。请为图像添加宽度和高度，或提供素材尺寸。',
 			instruction: '将物体拖动到图像上',
 			placeObject: '将 {object} 放在图像上',
 			removeObject: '移除 {object}',
@@ -367,25 +472,39 @@ export default {
 			positioned: '已将 {label} 放置在 ({x}, {y})',
 			minimumRequired: '最少需要:{minChoices}',
 			maximumAllowed: '最多:{maxChoices}',
+			maxChoicesReached: {
+				one: '无法继续放置：已达到 {max} 个的上限。',
+				other: '无法继续放置：已达到 {max} 个的上限。',
+			},
+			objectLimitReached: '无法操作：{object} 不能再次放置。',
 			availableObjects: '可用的物体',
-			objectUsage: '{label}(已使用 {usageCount}/{matchMax})',
 			availableObjectsCount: '可用的物体({count}/{max})',
 			dragObjectsInstruction: '将物体拖动到画布上进行定位。',
 			used: '已使用 {usageCount}/{matchMax}',
+			usedUnlimited: '已使用 {usageCount}，无限制',
 			objectSelected: '已选择 {object}。按 Tab 键移到画布，然后使用方向键定位。按 Enter 键放置，按 Esc 键取消。',
 			objectPlacedAt: '已将 {object} 放置在 {x}%，{y}%。',
 			placementCancelled: '已取消放置。',
 			correctPositionFor: '{label} 的正确位置在 ({x}, {y})',
 			availableObjectsTotal: '可用的物体({count})',
 			paletteInstructions: '将物体拖动到画布上，或在物体上按回车键或空格键，然后使用方向键在画布上定位。',
+			imageFallback: '本题的图像',
+			imageLoadError: '无法加载图像。',
+			objectFallback: '对象 {index}',
+			objectRemoved: '已移除 {object}。',
+			canvasActiveLabel: '定位画布：使用方向键移动十字准线，按 Enter 放置，按 Escape 取消',
+			placedAtPercent: '{label} 位于 {x}%，{y}%',
+			correctPositionAtPercent: '{label} 的正确位置：{x}%，{y}%',
 		},
 
 		endAttempt: {
 			buttonLabel: '结束尝试',
 			ended: '尝试已结束',
 			requested: '已请求',
-			warningMessage: '你的尝试已结束,无法再进行修改。',
+			warningMessage: '你的尝试已结束。',
 			confirmMessage: '你确定要结束尝试吗?你将无法更改你的答案。',
+			confirm: '是,结束尝试',
+			cancel: '取消',
 		},
 
 		media: {
@@ -402,19 +521,34 @@ export default {
 			ariaLabel: '媒体内容',
 			maxPlayLimitReached: '已达到最大播放次数',
 			playCount: '播放次数:',
-			remaining: '剩余:',
 			requirementMet: '✓ 已满足要求',
 			playAtLeastCount: {
 				one: '至少播放 {count} 次',
 				other: '至少播放 {count} 次',
 			},
 			browserNoSupport: '你的浏览器不支持此媒体类型。',
+			playsLeft: {
+				one: '还可播放 {count} 次',
+				other: '还可播放 {count} 次',
+			},
+			playStartedOfMax: '已开始第 {count} 次播放（共 {max} 次）。',
+			playStarted: '已开始第 {count} 次播放。',
+			requiredPlaysReached: '已达到要求的播放次数。',
+			controls: '媒体控制',
+			captions: '字幕',
+			captionsOff: '关闭',
+			playsNeeded: {
+				one: '还需播放 {count} 次',
+				other: '还需播放 {count} 次',
+			},
+			trackFallbackLabel: '轨道 {index}',
 			audioNoSupport: '你的浏览器不支持音频元素。',
 			videoNoSupport: '你的浏览器不支持视频元素。',
 			objectDisabled: '此项目使用了出于安全原因默认禁用的嵌入式对象类型。',
 		},
 
 		graphicOrder: {
+			unknownImageDimensions: '无法显示区域：图像尺寸未知。请为图像添加宽度和高度，或提供素材尺寸。',
 			instruction: '点击热点以对它们进行排序',
 			diagramLabel: '排序图',
 			altText: '排序图',
@@ -423,6 +557,47 @@ export default {
 			confirmOrder: '确认顺序',
 			confirmOrderNoChanges: '确认顺序(无更改)',
 			confirmAria: '将此顺序确认为你的答案',
+			imageFallback: '本题的图像',
+			imageLoadError: '无法加载图像。',
+			unlabeledItem: '项目 {index}',
+			minChoicesHint: {
+				one: '请至少为 {count} 个项目排序。',
+				other: '请至少为 {count} 个项目排序。',
+			},
+			subsetExactHint: {
+				one: '请为你的排序选择 {count} 个项目。',
+				other: '请选择 {count} 个项目并按顺序排列。',
+			},
+			subsetRangeHint: {
+				one: '请选择 {min} 至 {max} 个项目并按顺序排列。',
+				other: '请选择 {min} 至 {max} 个项目并按顺序排列。',
+			},
+		},
+
+		graphicAssociate: {
+			unknownImageDimensions: '无法显示此图形关联：图像尺寸未知，因此无法放置热区。请为图像添加宽度和高度，或提供素材尺寸。',
+			imageFallback: '本题的图像',
+			imageLoadError: '无法加载图像。',
+			unlabeledHotspot: '区域 {index}',
+			hotspotConnections: '{label}（{usageCount}/{matchMax} 个连接）',
+			hotspotConnectionsUnlimited: '{label}（{usageCount} 个连接，无限制）',
+			notAvailableSentence: '因匹配组限制而不可用。',
+			selectAnotherHotspot: '已选择：{label}。请选择另一个热点以创建关联。',
+			associationsCount: '关联（{count}/{max}）',
+			associationsCountUnlimited: '关联（{count}）',
+			clickHotspotsToAssociate: '选择图像上的两个热点以创建关联。',
+			pairDescription: '{first} 与 {second} 关联',
+			removeAssociation: '移除 {first} 与 {second} 之间的关联',
+			minimumRequired: '最少需要：{minAssociations}',
+			associationMade: '已创建关联。',
+			associationRemoved: '已移除关联。',
+			associationLimitReached: '无法创建关联：已达到 {max} 个的上限。',
+			hotspotLimitReached: '无法操作：{label} 不能参与更多关联。',
+			minAssociationsHint: {
+				one: '请至少建立 {count} 个关联。',
+				other: '请至少建立 {count} 个关联。',
+			},
+			minHotspotUsesHint: '还需要更多关联：{items}。',
 		},
 
 		custom: {
@@ -439,10 +614,24 @@ export default {
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: '选择...',
-			textEntryLabel: '文本输入 {id}',
-			choiceLabel: '行内选项 {id}',
-			formatHint: '格式：{mask}',
+			blankLabel: '第 {index} 空，共 {count} 空',
+			patternMismatch: '此答案不符合预期格式。',
+			patternMismatchWithHint: '此答案不符合预期格式。请使用此格式：{hint}',
+			correctChoice: '正确：{choice}',
 		},
+	},
+
+	/**
+	 * 当交互无法显示时供屏幕阅读器播报的公告。
+	 * 译文应由母语人士复核。
+	 */
+	interaction: {
+		renderError: '无法显示此交互元素 ({type})。',
+	},
+
+	/** 可移植自定义交互 (PCI) 所渲染组的无障碍名称。 */
+	customInteraction: {
+		portableLabel: '可移植自定义交互',
 	},
 
 	item: {
@@ -451,28 +640,28 @@ export default {
 		loadError: '加载项目时出错:{error}',
 		parsingError: '解析 QTI XML 失败',
 		processingError: '处理响应失败',
+		submitError: '无法提交你的答案，请重试。',
 		submit: '提交',
 		complete: '完成',
 		completed: '已完成',
 		attempt: '尝试 {numAttempts}',
 	},
 
-	itemSession: {
-		attempt: '尝试 {numAttempts}',
-		attemptsRemaining: '剩余 {attemptsRemaining} 次尝试',
-		maxAttempts: '最多尝试次数:{maxAttempts}',
-	},
 
 	feedback: {
+		title: '反馈',
 		close: '关闭反馈',
 		closeFeedback: '关闭反馈',
 		testFeedback: '测试反馈',
+		shown: '已显示反馈。',
 	},
 
 	assessment: {
 		title: '评估',
 		loading: '加载评估中...',
-		loadingError: '加载评估超时。此评估可能无效或播放器初始化失败。',
+		loadingError: '无法加载此测评。请重试。',
+		stillLoading: '仍在加载。请稍候。',
+		loadingRetry: '重试',
 		question: '问题 {current} / {total}',
 		questionAnnouncement: '问题 {current} / {total}',
 		section: '部分 {current} / {total}',
@@ -480,8 +669,6 @@ export default {
 		closeMenu: '关闭菜单',
 		readingPassage: '阅读文章',
 		readingPassages: '阅读文章',
-		expandPassage: '展开文章',
-		collapsePassage: '折叠文章',
 
 		attempts: {
 			remaining: '剩余 {count} 次尝试',
@@ -491,6 +678,22 @@ export default {
 			maxReached: '已达到最大尝试次数',
 			required: '必须在继续之前回答',
 			reviewNotAllowed: '提交后不允许',
+			attemptOf: '第 {current} 次尝试(共 {total} 次)',
+			current: '第 {current} 次尝试',
+		},
+
+		// Practice delivery: the item-level check control (stays on the item, shows feedback).
+		checkAnswer: {
+			button: '检查答案',
+			submittedAnnouncement: '你的答案已提交。',
+			attemptsUsedUp: '你已用完本题的所有尝试次数。',
+		},
+
+		// QTI allowComment: the candidate comment disclosure.
+		comments: {
+			heading: '给测试团队的评论',
+			label: '你的评论',
+			placeholder: '给测试团队写一条评论(可选)。',
 		},
 
 		navigation: {
@@ -500,6 +703,64 @@ export default {
 			jumpTo: '跳转到问题 {number}',
 			sectionMenu: '部分菜单',
 			progress: '进度:{percent}%',
+			answeredCount: '已答 {answered}/{total} 题',
+		},
+
+		flag: {
+			label: '标记待复查',
+			flaggedAnnouncement: '已标记第 {number} 题待复查。',
+			unflaggedAnnouncement: '已取消第 {number} 题的标记。',
+		},
+
+		review: {
+			title: '检查你的答案',
+			open: '复查题目',
+			backToQuestion: '返回当前题目',
+			flagged: '已标记',
+			flaggedCount: '{count} 题已标记待复查',
+			questionsGroup: '题目',
+			linearNote: '此部分只能向前作答，以下题目仅供复查。',
+			goToItem: '转到第 {number} 题',
+			currentItem: '当前题目',
+			statusAnswered: '已回答',
+			statusPartially: '部分回答',
+			statusUnanswered: '未回答',
+			notVisited: '尚未浏览',
+		},
+
+		submit: {
+			dialogTitle: '提交试卷？',
+			dialogDescription: '提交后将无法修改答案。',
+			flaggedLine: '{count} 题已标记待复查',
+			unansweredHeading: '{count} 题未回答',
+			unansweredHeadingOne: '1 题未回答',
+			needsAnswerHeading: '提交前有 {count} 题需要作答',
+			needsAnswerHeadingOne: '提交前有 1 题需要作答',
+			incompleteHeadingOne: '1 个答案尚未完成，提交前必须完成',
+			incompleteHeading: '{count} 个答案尚未完成，提交前必须完成',
+			requirement: {
+				minChoices: '至少选择 {count} 项',
+				minStrings: '至少填写 {count} 项',
+				minAssociations: '至少匹配 {count} 项',
+				minPlays: '最少播放次数：{count}',
+				incomplete: '请完成你的答案',
+			},
+			incompleteJump: '转到第 {number} 题：{requirement}',
+			incompleteEntry: '第 {number} 题：{requirement}',
+			allAnswered: '你已回答所有题目。',
+			confirm: '提交试卷',
+			cancel: '继续作答',
+		},
+
+		leavePart: {
+			title: '离开此部分？',
+			description: '继续后，你将无法返回此部分中的题目。',
+			confirm: '继续',
+			cancel: '留在此部分',
+			needsAnswerHeadingOne: '本部分还有 1 道题需要作答后才能离开',
+			needsAnswerHeading: '本部分还有 {count} 道题需要作答后才能离开',
+			incompleteHeadingOne: '本部分有 1 个答案尚未完成，完成后才能离开',
+			incompleteHeading: '本部分有 {count} 个答案尚未完成，完成后才能离开',
 		},
 
 		sections: {
@@ -514,9 +775,77 @@ export default {
 			timeRemaining: '剩余时间:{time}',
 			timeElapsed: '已用时间:{time}',
 			timeUp: '时间到!',
+			warningMinutesOne: '剩余 1 分钟',
+			warningMinutes: '剩余 {count} 分钟',
+			warningTime: '剩余 {time}',
+			paused: '已暂停',
+			label: '计时器',
+		},
+
+		start: {
+			begin: '开始',
+			resume: '继续作答',
+			timeMinutesOne: '你有 1 分钟的时间。',
+			timeMinutes: '你有 {count} 分钟的时间。',
+			timeExact: '你有 {time} 的时间。',
+			scopedTimeLimits: '本测试的部分内容有各自的时间限制。',
+			paused: '本测试已暂停。请等待恢复。',
+		},
+
+		timeExpiry: {
+			autoSubmitted: '时间到。你的答案已提交。',
+			submitTitle: '本测试的时间已到',
+			submitDescription: '你已无法修改答案。请提交试卷以结束。',
+			partTitle: '本部分的时间已到',
+			sectionTitle: '本节的时间已到',
+			questionTitle: '本题的时间已到',
+			scopeDescription: '你将进入测试的下一部分。',
+			movingToQuestion: '即将进入第 {number} 题。',
+			closedDescription: '其题目的答案不能再修改。',
+			continue: '继续',
+		},
+
+		pause: {
+			title: '评估已暂停',
+			message: '你的测试已暂停。请等待恢复。',
+			announcement: '评估已暂停。',
+			withReason: '评估已暂停:{reason}',
+			resumed: '评估已恢复。',
+		},
+
+		// 自动保存：已答数量旁的保存状态指示。
+		autosave: {
+			saved: '已保存 · {time}',
+			savedShort: '已保存',
+			saving: '保存中…',
+			notSaved: '未保存',
+		},
+
+		// 恢复的快照带有已保存的答案：继续作答或重新开始。
+		resume: {
+			title: '继续作答？',
+			description: '你在 {time} 保存了答案。',
+			descriptionNoTime: '你有上次会话保存的答案。',
+			resumeAction: '从上次作答处继续',
+			startOver: '重新开始',
+			confirmTitle: '重新开始并删除已保存的答案？',
+			confirmDescription:
+				'已保存的答案将被删除，测评将从头开始。此操作无法撤销。',
+			confirmAction: '删除并重新开始',
+			cancel: '保留已保存的答案',
+			resumedAnnouncement: '已恢复你保存的答案。',
+			restartedAnnouncement: '测评已从头重新开始。',
+		},
+
+		// 题目内容渲染失败：使用平实语言，不显示技术文本，测评继续进行。
+		itemError: {
+			title: '无法显示此题。',
+			tryAgain: '重试',
+			continue: '继续',
 		},
 
 		feedback: {
+			title: '反馈',
 			correct: '正确',
 			incorrect: '错误',
 			partiallyCorrect: '部分正确',
@@ -535,15 +864,74 @@ export default {
 			exit: '退出',
 		},
 
+		// The shell completion screen after finalization (+ the opt-in results summary).
+		complete: {
+			alreadySubmitted: '该测试已提交。',
+			finished: '你已完成测试。',
+			timeExpired: '时间到。测试已结束，你的答案已提交。',
+			byProctor: '你的测试已由监考老师提交。',
+			byProctorAnnouncement: '监考老师已提交你的测试。',
+			resultsHeading: '结果摘要',
+			totalScore: '总分:{score} / {maxScore}',
+			itemName: '第 {number} 题',
+		},
+
 		errors: {
 			navigationFailed: '导航失败。请重试。',
 			submitFailed: '提交评估失败。请重试。',
 			loadFailed: '加载问题失败。',
 			saveFailed: '保存响应失败。',
+			unexpected: '出错了，请重试。',
+			supportCode: '支持代码:{code}',
+			codes: {
+				invalidNavigationTarget: '该题目或部分不可用。',
+				linearNavigationOnly: '在本部分中，你只能前往下一题。',
+				navigationNotAllowed: '当前无法前往该位置。',
+				navigationInFlight: '请稍候再试。',
+				testFinalized: '本评估已提交。',
+				minTimeNotElapsed: '请在本内容上至少再停留 {remaining} 秒后再继续。',
+				itemTimeExpired: '本题的时间限制已到。',
+				reviewNotAllowed: '无法返回本题。',
+				responseRequired: '继续之前必须回答本题。',
+				finalizeResponseRequired: '提交前仍有题目需要作答：{items}。',
+				finalizeResponseInvalid: '部分答案尚未完成。提交前请检查这些题目：{items}。',
+				leavePartResponseRequired: '本部分仍有题目需要作答后才能继续：{items}。',
+				leavePartResponseInvalid: '本部分仍有答案未完成。继续前请先检查：{items}。',
+				attemptValidationFailed: '请检查你的答案。必须提供有效作答。',
+				maxAttemptsReached: '你已用完本题的所有尝试次数。',
+				itemSessionLocked: '本题已关闭，无法再修改。',
+				commentsNotAllowed: '本题不允许填写评论。',
+				submitFailed: '无法提交你的答案。你的答案仍然保留在这里，请重试。',
+				finalizeFailed: '暂时无法提交评估。你的答案仍然保留在这里，请重试。',
+				assessmentPaused: '你的评估已暂停。请等待恢复。',
+				outcomeProcessingFailed: '你的答案已保存，但无法计算结果。如果问题仍然存在，请联系支持人员。',
+			},
 		},
 		playerLabel: '评估播放器',
 		instructions: '说明',
 		rubrics: '评分标准',
+		skipToQuestion: '跳到问题',
+	},
+
+	// Section player chrome: passage/question panes and their headings.
+	sectionPlayer: {
+		passage: '文章',
+		passageNumbered: '文章 {number}',
+		passages: '文章',
+		question: '问题',
+		passageAndQuestion: '文章和问题',
+		// The candidate's display settings tool and its dialog.
+		displaySettings: {
+			title: '显示设置',
+			description: '更改会立即生效，并在本次会话期间保持。',
+			textSize: '文字大小',
+			sizeDefault: '默认',
+			sizeLarge: '大',
+			sizeLarger: '较大',
+			sizeLargest: '最大',
+			highContrast: '更高对比度文字',
+			textSpacing: '增加文字间距',
+		},
 	},
 
 	i18n: {
@@ -561,6 +949,7 @@ export default {
 		answerRecorded: '答案已记录',
 		resizer: '调整文章和问题面板大小',
 		sentence: '{text}。',
+		choiceFallback: '选项 {index}',
 		correctAnswer: '正确答案。',
 		correctAnswerIs: '正确答案：{answer}。',
 		correctPosition: '位置正确。',
@@ -576,124 +965,6 @@ export default {
 		catalogRequestUsage: '请求 {usage}：{term}',
 	},
 
-	demo: {
-		selectSampleItem: '选择示例项目',
-		configurationPanel: '配置面板',
-		viewingAs: '查看身份',
-		role: '角色',
-		candidate: '考生',
-		author: '作者',
-		proctor: '监考员',
-		scorer: '评分员',
-		tutor: '辅导员',
-		showCorrectAnswers: '显示正确答案',
-		showFeedback: '显示反馈',
-		settings_aria: '打开设置菜单',
-		xmlEditor: 'XML 编辑器',
-
-		// 导航
-		appName: 'PIE QTI 播放器',
-		home: '主页',
-		itemDemo: '项目演示',
-		assessmentDemo: '评估演示',
-		likertDemo: 'Likert 插件演示',
-		iframeDemo: 'Iframe 演示',
-		theme: '主题',
-
-		// Home Page
-		homeTitle: 'QTI 播放器',
-		homeSubtitle: '一个现代的、与框架无关的 QTI 评估项目播放器。默认情况下 100% 在客户端运行，并提供可选的服务器端钩子用于生产环境。',
-		homeMetaDescription: '具有可选后端集成的现代 QTI 播放器',
-		tryItems: '尝试项目',
-		tryAssessments: '尝试评估',
-		trySectionPlayer: '章节播放器',
-		pluginDemo: '插件演示',
-		dropQtiFile: '将 QTI XML 文件拖放到此处',
-		orClickToSelect: '或点击选择文件',
-		selectFile: '选择文件',
-		selectedFile: '已选择:',
-		loadInPlayer: '在播放器中加载',
-		footerTitle: 'QTI 播放器',
-		footerLicense: 'MIT 许可 • 开源',
-
-		// 设置面板
-		settings: '设置',
-		candidateStudent: '考生(学生)',
-		testConstructor: '测试构建者',
-		controlsRubricVisibility: '控制评分标准可见性和正确答案显示',
-		useBackendScoring: '使用后端评分',
-		scoreOnServer: '在服务器而非客户端评分响应',
-		sessionManagement: '会话管理',
-		saving: '保存中...',
-		saveSession: '保存会话',
-		loadSession: '加载会话',
-
-		// 导出和模板
-		exportResponses: '导出响应',
-		json: 'JSON',
-		csv: 'CSV',
-		templateProcessing: '模板处理',
-		rerunTemplateProcessing: '重新运行模板处理并重置项目会话',
-		regenerateVariant: '重新生成变体',
-		templateVariablesDebug: '模板变量(调试)',
-		variable: '变量',
-		value: '值',
-
-		// 键盘快捷键
-		keyboardShortcuts: '键盘快捷键',
-		submitAnswersShortcut: '提交答案',
-		tryAgainShortcut: '重试',
-		exportJsonShortcut: '导出 JSON',
-		saveSessionShortcut: '保存会话',
-		useCmdOnMacOS: '在 macOS 上使用 <kbd class="kbd kbd-xs">Cmd</kbd>',
-
-		// 结果面板
-		results: '结果',
-		score: '得分',
-		outcomeVariables: '结果变量',
-
-		// 其他
-		format: '格式',
-		selectItemOrPasteXml: '选择示例项目或粘贴自定义 XML 以开始。',
-		pageTitle: '播放器演示 - PIE QTI 播放器',
-
-		// 示例项目描述
-		sampleItemDescriptions: {
-			'': '自定义上传项目',
-			'simple-choice': '带有合理干扰项的基础减法应用题',
-			'partial-credit': '使用 mapResponse 的部分得分多项选择题',
-			'capital-cities': '带有随机选项的地理问题',
-			'text-entry': '不区分大小写匹配的填空题',
-			'extended-text': '多行文本响应问题',
-			'inline-choice': '嵌入文本中的下拉菜单',
-			'order-interaction': '按正确顺序排列项目',
-			'match-interaction': '匹配两列中的项目',
-			'associate-interaction': '在项目之间创建关联',
-			'gap-match': '将单词拖入文本中的空白处',
-			'graphic-gap-match-solar-system': '标记太阳系的四个内行星',
-			'slider': '在数字滑块上选择一个值',
-			'hotspot': '在这个天文问题中点击蓝色星球',
-			'hotspot-partial-credit': '识别有液态水的行星(类地行星部分得分)',
-			'template-variable-demo': 'templateProcessing 生成值;responseProcessing 根据它们评分',
-			'upload-interaction': '上传文件作为响应(baseType=file)',
-			'drawing-interaction': '在画布上绘制(baseType=file,PNG dataUrl)',
-			'media-audio': '带有播放次数跟踪和最小播放次数要求的音频播放器',
-			'media-video': '带有播放次数跟踪和最大播放次数限制的视频播放器',
-			'hottext-single': '点击以在文本中选择单个单词(语法问题)',
-			'hottext-multiple': '点击以选择多个文本片段(阅读理解)',
-			'select-point': '点击图像以选择一个点的位置(地理问题)',
-			'graphic-order': '拖动以重新排列图像上的项目(地质层)',
-			'graphic-associate': '点击热点对以创建关联(器官匹配)',
-			'position-object': '在房间布局上拖动和定位家具物体',
-			'end-attempt': '结束评估尝试的按钮',
-			'custom-interaction': '显示 customInteraction 的备用 UI 并允许手动响应',
-			'choice-with-stimulus': '内嵌阅读文章的问题',
-			'math-inline': '带有 MathML 行内数学渲染的多项选择题',
-			'math-extended': '带有 MathML 和富文本编辑器的扩展响应,用于展示数学工作',
-			'math-fractions': '带有 MathML 块级显示的分数算术',
-			'adaptive-capitals': '带有渐进式反馈和提示的多次尝试自适应问题',
-		},
-	},
 
 	transform: {
 		// 应用标题和导航

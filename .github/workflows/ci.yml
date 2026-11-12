@@ -118,6 +118,11 @@ jobs:
       - name: Run unit tests
         run: bun run test
 
+      # Release-incident regression guards live in scripts/ (outside the turbo graph);
+      # they gate pushes here via the explicit-file-list root script.
+      - name: Run repository script guards
+        run: bun run test:scripts
+
   qti-public-certification:
     name: QTI Public Certification Gate
     if: ${{ !(github.event_name == 'pull_request' && (startsWith(github.head_ref, 'changeset-release/') || contains(github.event.pull_request.title, '[skip-heavy-ci]') || contains(join(github.event.pull_request.labels.*.name, ','), 'skip-heavy-ci'))) }}
@@ -184,16 +189,34 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # WebKit and Firefox run only the @cross-browser subset (accessibility regressions
+      # plus a core smoke set: 46 tests, about 40 s on one worker), so they ride along in
+      # this job rather than a separate one: no second checkout/install/build. With the
+      # engine downloads and their system deps that is roughly 2-3 extra minutes, in a job
+      # that still finishes well inside the full Chromium e2e job's time.
       - name: Install Playwright browsers
         run: |
           cd apps/demo
-          bunx playwright install --with-deps chromium
+          bunx playwright install --with-deps chromium webkit firefox
 
       - name: Build packages
         run: bun run build
 
       - name: Run accessibility verification
         run: bun run verify:a11y
+
+      - name: Run cross-browser accessibility and smoke tests (WebKit, Firefox)
+        run: bun run --cwd apps/demo test:e2e:cross-browser
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-accessibility
+          path: |
+            apps/demo/playwright-report
+            apps/demo/test-results
+          retention-days: 7
 
   e2e:
     name: End-to-End Tests

@@ -7,6 +7,11 @@
       "expect": { "outcomes": { "SCORE": 2 } }
     },
     {
+      "name": "no response (NULL) maps as the empty selection: clamps to lowerBound",
+      "responses": {},
+      "expect": { "outcomes": { "SCORE": 2 } }
+    },
+    {
       "name": "unknown uses defaultValue then clamps to lowerBound",
       "responses": { "R": ["X"] },
       "expect": { "outcomes": { "SCORE": 2 } }
@@ -17,9 +22,9 @@
       "expect": { "outcomes": { "SCORE": 15 } }
     },
     {
-      "name": "duplicate responses are counted (and then clamped)",
+      "name": "duplicate responses count once (QTI ASI 15.3: {A,A} maps 10, not 20)",
       "responses": { "R": ["A", "A"] },
-      "expect": { "outcomes": { "SCORE": 15 } }
+      "expect": { "outcomes": { "SCORE": 10 } }
     }
   ]
 }

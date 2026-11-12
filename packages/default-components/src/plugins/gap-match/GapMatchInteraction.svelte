@@ -1,34 +1,44 @@
 <svelte:options customElement="pie-qti-gap-match" />
 
 <script lang="ts">
-	import type { GapMatchInteractionData, PlayerSecurityConfig } from '@pie-qti/item-player';
+	import type { GapMatchInteractionData, HtmlContent, PlayerSecurityConfig } from '@pie-qti/item-player';
+	import type { InteractionProps } from '../../shared/utils/interactionProps';
+	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
 	import { normalizeCssPixelLength, sanitizeSharedHtml } from '@pie-qti/item-player/security';
-	import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
+	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
+	import { tick } from 'svelte';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
-	import { isCompatibleMatchGroup } from '../../shared/utils/matchGroupUtils';
+	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
+	import { exceedsLimit, isAtLimit, limitMessage } from '../../shared/utils/capacity';
+	import { isCompatibleMatchGroup, matchGroupBlockedIds, type MatchGroupBearer } from '../../shared/utils/matchGroupUtils';
+	import { choiceAccessibleName } from '../../shared/utils/choiceName';
+	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 	import { interactionAria } from '../../shared/utils/interactionAria';
+	import {
+		countPairsForSource,
+		getSourceForTarget,
+		placeSourceOnTarget,
+		removePairBySource,
+	} from '../../shared/utils/pairHelpers';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
+	import { createPickUpPlace } from '../../shared/components/pickUpPlace.svelte';
 
-	interface Props {
-		interaction?: GapMatchInteractionData | string;
-		response?: string[];
-		correctResponse?: string[] | null;
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
+	interface Props extends InteractionProps<'gapMatchInteraction', string[]> {
 		security?: PlayerSecurityConfig;
-		onChange?: (value: string[]) => void;
 	}
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), security, onChange }: Props = $props();
 
-	// Parse props that may be JSON strings (web component usage)
-	const parsedInteraction = $derived(parseJsonProp<GapMatchInteractionData>(interaction));
-	const parsedResponse = $derived(parseJsonProp<string[]>(response));
-	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
-	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+	// Parse props that may be JSON strings (web component usage). Correct-answer mode is the
+	// scorer's view of an item that has a correct response (the shared shell's rule).
+	const shell = $derived(
+		createInteractionShell<GapMatchInteractionData, string[], string[]>({ interaction, response, correctResponse, role, listResponse: true }),
+	);
+	const parsedInteraction = $derived(shell.interaction);
+	const parsedResponse = $derived(shell.response);
+	const parsedCorrectResponse = $derived(shell.correctResponse);
+	const isShowingCorrect = $derived(shell.isShowingCorrect);
 	const choicesContainerWidth = $derived(
 		normalizeCssPixelLength(parsedInteraction?.choicesContainerWidth),
 	);
@@ -36,89 +46,242 @@
 	const pairs = $derived(Array.isArray(parsedResponse) ? parsedResponse : []);
 	const correctPairs = $derived(Array.isArray(parsedCorrectResponse) ? parsedCorrectResponse : []);
 
-	// K-02: identifier of the word currently "held" in the keyboard pick-up flow
-	let pickedUpWord: string | null = $state(null);
+	// K-02: the word "held" in the pick-up flow, and the word a pointer drag carries: its data
+	// is unreadable during dragover, so the gaps that refuse it (matchGroup) are known from here.
+	const pickUp = createPickUpPlace();
 
-	// K-02: live region message for screen reader announcements
-	let liveMessage: string = $state('');
+	// K-02: the live region's announcements. The shared announcer keeps a repeat of the
+	// same sentence changing the region's text, so an identical refusal still announces
+	// (a live region speaks only changes; WCAG 4.1.3).
+	const liveAnnouncer = createAnnouncer();
 
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
 
-	// Rendered prompt container - we keep the original HTML structure and insert live gap targets.
-	let promptContainer: HTMLDivElement | undefined = $state();
+	// Gap currently under a drag operation (drives the drag-over highlight)
+	let dragOverGap: string | null = $state(null);
 
-	// Track cleanup functions for event listeners to prevent memory leaks
-	let cleanupFunctions: (() => void)[] = [];
+	/**
+	 * The prompt, split on the extractor's `[GAP:id]` text markers so each gap renders as a live
+	 * control between sanitized HTML segments. Each segment is sanitized and handed to the
+	 * `{@html}` sink independently: every sink call stays policy-checked, so the Trusted Types
+	 * guarantee holds without post-egress string surgery on sanitized markup.
+	 */
+	type PromptSegment = { html: HtmlContent; gapId?: string };
 
-	// Words that cannot be placed because they share a matchGroup with an already-placed word
-	const unavailableWords = $derived.by(() => {
-		if (!parsedInteraction) return new Set<string>();
-		const placedGroups = new Set<string>();
-		for (const pair of pairs) {
-			const wordId = pair.split(' ')[0];
-			const gt = parsedInteraction.gapTexts.find((g) => g.identifier === wordId);
-			gt?.matchGroup?.forEach((g) => placedGroups.add(g));
+	const promptSegments = $derived.by((): PromptSegment[] => {
+		const source = parsedInteraction?.promptText;
+		if (typeof source !== 'string') {
+			// TrustedHTML (or null) cannot be marker-split as a string; it renders whole, without live gaps.
+			return source ? [{ html: source }] : [];
 		}
-		return new Set(
-			parsedInteraction.gapTexts
-				.filter((gt) => {
-					const isPlaced = pairs.some((p) => p.startsWith(`${gt.identifier} `));
-					if (isPlaced) return false;
-					return gt.matchGroup?.some((g) => placedGroups.has(g)) ?? false;
-				})
-				.map((gt) => gt.identifier)
+		const segments: PromptSegment[] = [];
+		const marker = /\[GAP:([^\]]+)\]/g;
+		let cursor = 0;
+		let match: RegExpExecArray | null;
+		while ((match = marker.exec(source))) {
+			if (match.index > cursor) segments.push({ html: sanitizeSharedHtml(source.slice(cursor, match.index), security) });
+			segments.push({ html: '', gapId: match[1] ?? '' });
+			cursor = match.index + match[0].length;
+		}
+		if (cursor < source.length) segments.push({ html: sanitizeSharedHtml(source.slice(cursor), security) });
+		return segments;
+	});
+
+	/** 1-based position of each gap in reading order, for localized-ordinal names. */
+	const gapPositions = $derived.by(() => {
+		const positions = new Map<string, number>();
+		let count = 0;
+		for (const segment of promptSegments) {
+			if (segment.gapId && !positions.has(segment.gapId)) positions.set(segment.gapId, (count += 1));
+		}
+		return { positions, total: count };
+	});
+
+	/**
+	 * Gaps authored `required` (QTI 2.1 gap; QTI 3.0 §5.55.5): a valid response fills each of
+	 * them, which response validation enforces, so the candidate is told which ones (WCAG
+	 * 3.3.2). Each shows a visible mark — a character a legend explains, not a colour alone —
+	 * and, since a gap is a button and `aria-required` is not allowed on that role, states
+	 * the requirement as its accessible description.
+	 */
+	const requiredGapIds = $derived(new Set(parsedInteraction?.requiredGaps ?? []));
+	const requiredDescription = $derived(
+		translate(i18n, 'accessibility.sentence', '{text}.', { text: translate(i18n, 'common.required', 'Required') }),
+	);
+
+	/** The id of a required gap's description: per instance, and by position, so any identifier is safe. */
+	function requiredDescriptionId(gapId: string): string {
+		return `${uid}-gap-${gapPositions.positions.get(gapId) ?? 0}-required`;
+	}
+
+	/**
+	 * The draggable pool: gapText words and gapImg image tiles share one identifier
+	 * space and one set of placement rules, so everything downstream (palette,
+	 * drop handling, pick-up flow, matchMax/matchGroup constraints) works on this
+	 * combined list. Image choices are named by their alt text; a word or image
+	 * whose content carries no readable text is named by its presented position in
+	 * the palette ("Choice 3"), never by its identifier, which is meaningless and
+	 * potentially answer-leaking to candidates using a screen reader.
+	 */
+	type PaletteWord = {
+		identifier: string;
+		kind: 'text' | 'image';
+		/** Readable name: gapText content, the image's alt text, else a localized ordinal. */
+		name: string;
+		src?: string;
+		width?: number;
+		height?: number;
+		matchMax: number;
+		/** Gaps this choice must fill at least (QTI matchMin); absent means none. */
+		matchMin?: number;
+		matchGroup?: string[];
+	};
+
+	const paletteWords = $derived.by((): PaletteWord[] => {
+		const interaction = parsedInteraction;
+		if (!interaction) return [];
+		const words: PaletteWord[] = (interaction.gapTexts ?? []).map((gapText) => ({
+			identifier: gapText.identifier,
+			kind: 'text' as const,
+			name: gapText.text,
+			matchMax: gapText.matchMax,
+			...(gapText.matchMin ? { matchMin: gapText.matchMin } : {}),
+			...(gapText.matchGroup ? { matchGroup: gapText.matchGroup } : {}),
+		}));
+		for (const gapImage of interaction.gapImages ?? []) {
+			words.push({
+				identifier: gapImage.identifier,
+				kind: 'image',
+				// The image's alt text names it; the gapImg's authored objectLabel stands
+				// in when the image carries none (QTI objectLabel / object-label).
+				name: gapImage.alt || gapImage.objectLabel || '',
+				src: gapImage.src,
+				...(gapImage.width !== undefined ? { width: gapImage.width } : {}),
+				...(gapImage.height !== undefined ? { height: gapImage.height } : {}),
+				matchMax: gapImage.matchMax,
+				...(gapImage.matchMin ? { matchMin: gapImage.matchMin } : {}),
+				...(gapImage.matchGroup ? { matchGroup: gapImage.matchGroup } : {}),
+			});
+		}
+		// Content-less words take the ordinal of their palette position (1-based, as
+		// presented after shuffle); an authored name passes through unchanged.
+		words.forEach((word, index) => {
+			word.name = choiceAccessibleName({ i18n, label: word.name, position: index + 1 });
+		});
+		return words;
+	});
+
+	/**
+	 * Minimum requirement (each choice's matchMin): the choices the response does not place
+	 * often enough yet, the minimum response validation enforces, are named on the question;
+	 * the author's message wins. It describes the word palette. Only while the candidate can
+	 * still answer.
+	 */
+	const uid = $props.id();
+	const minHintId = `${uid}-min-hint`;
+	const wordsShortOfMinimum = $derived(
+		paletteWords.filter(
+			(word) => (word.matchMin ?? 0) > 0 && countPairsForSource(pairs, word.identifier) < (word.matchMin ?? 0),
+		),
+	);
+	const minHint = $derived.by(() => {
+		if (disabled || role !== 'candidate' || wordsShortOfMinimum.length === 0) return '';
+		return (
+			parsedInteraction?.minSelectionsMessage?.trim() ||
+			translate(i18n, 'interactions.gapMatch.minPlacementsHint', 'Still to place in the blanks: {words}.', {
+				words: formatList(
+					i18n,
+					wordsShortOfMinimum.map((word) => word.name),
+				),
+			})
 		);
 	});
 
-	function getMatchMax(wordId: string): number {
-		const gt = parsedInteraction?.gapTexts?.find((g) => g.identifier === wordId);
-		return gt?.matchMax ?? 1;
+	/** A gap as a pairing target: its identifier and its authored matchGroup. */
+	function gapBearer(gapId: string): MatchGroupBearer {
+		return { identifier: gapId, matchGroup: parsedInteraction?.gapMatchGroups?.[gapId] };
 	}
 
-	function handleGapChange(gapId: string, wordId: string) {
-		// Remove any existing pair for this gap (each gap holds one word)
-		let newPairs = pairs.filter((p: string) => !p.endsWith(` ${gapId}`));
+	/**
+	 * Whether `matchGroup` lets a word go into a gap: the word's `matchGroup` names the gaps
+	 * it may fill and the gap's names the words it accepts, read by the same rule response
+	 * validation applies (`isCompatibleMatchGroup`), so the UI and validation agree.
+	 */
+	function canPlaceWord(wordId: string, gapId: string): boolean {
+		const word = paletteWords.find((w) => w.identifier === wordId);
+		if (!word) return false;
+		return isCompatibleMatchGroup(word, gapBearer(gapId));
+	}
 
-		// For reusable words (matchMax=0 or >1): don't remove other placements. For matchMax=1: move the word.
-		const matchMax = getMatchMax(wordId);
-		const currentCount = newPairs.filter((p: string) => p.startsWith(`${wordId} `)).length;
-		if (matchMax === 1 || (matchMax > 0 && currentCount >= matchMax)) {
-			// Single-use or at limit: remove this word from other gaps (move)
-			newPairs = newPairs.filter((p: string) => !p.startsWith(`${wordId} `));
-		}
+	// Gaps the dragged or held word may not fill (matchGroup); they stay focusable but are
+	// marked unavailable, and refuse a drop. An active drag is what a drop would place.
+	const blockedGapIds = $derived.by(() => {
+		const wordId = pickUp.active;
+		if (wordId === null) return new Set<string>();
+		const gapIds = [...gapPositions.positions.keys()];
+		const word = paletteWords.find((w) => w.identifier === wordId);
+		// A word the palette does not have goes in no gap.
+		if (!word) return new Set(gapIds);
+		return matchGroupBlockedIds(word, gapIds.map(gapBearer));
+	});
 
-		// Add new pair if a word was selected
-		if (wordId) {
-			const newPair = `${wordId} ${gapId}`;
-			if (!newPairs.includes(newPair)) {
-				newPairs.push(newPair);
-			}
+	function getMatchMax(wordId: string): number {
+		const word = paletteWords.find((g) => g.identifier === wordId);
+		return word?.matchMax ?? 1;
+	}
+
+	/** The interaction's `maxAssociations` (QTI: 0 means no restriction). */
+	const maxAssociations = $derived(Number(parsedInteraction?.maxAssociations ?? 0));
+
+	/** Announce a refused placement: the author's data-max-selections-message wins. */
+	function announceAssociationLimit() {
+		liveAnnouncer.announce(limitMessage(
+			parsedInteraction?.maxSelectionsMessage,
+			translate(i18n, 'interactions.gapMatch.associationLimitReached', 'Association not possible: the limit of {max} is reached.', {
+				max: maxAssociations,
+			}),
+		));
+	}
+
+	/**
+	 * Place `wordId` in `gapId`, or clear the gap when `wordId` is empty. Returns whether the
+	 * response changed: a placement the gap refuses (matchGroup) or one past `maxAssociations`
+	 * is refused, the latter announced, so an over-limit response never reaches the submit
+	 * that would reject it.
+	 */
+	function handleGapChange(gapId: string, wordId: string): boolean {
+		// matchGroup: refuse a placement the gap does not accept (clearing stays allowed).
+		if (wordId && !canPlaceWord(wordId, gapId)) return false;
+
+		// Each gap holds one word. A reusable word (matchMax=0, or below its matchMax) keeps its
+		// other placements; a single-use word, or one at its matchMax, moves. An empty wordId
+		// clears the gap.
+		const newPairs = placeSourceOnTarget(pairs, wordId, gapId, getMatchMax(wordId));
+
+		// maxAssociations: refuse a placement that would exceed the interaction's cap. Replacing
+		// a gap's word or moving a single-use word keeps the count, so it is still allowed.
+		if (wordId && exceedsLimit(newPairs.length, maxAssociations)) {
+			announceAssociationLimit();
+			return false;
 		}
 
 		response = newPairs;
-		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(newPairs);
-		// Dispatch event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, newPairs));
-		}
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: newPairs, onChange });
+		return true;
 	}
 
 	function isWordUsed(wordId: string): boolean {
-		const matchMax = getMatchMax(wordId);
-		const count = pairs.filter((p: string) => p.startsWith(`${wordId} `)).length;
-		return matchMax > 0 ? count >= matchMax : false; // matchMax=0 means unlimited, never "used"
+		// matchMax=0 means unlimited: such a word is never "used".
+		return isAtLimit(countPairsForSource(pairs, wordId), getMatchMax(wordId));
 	}
 
 	function getSelectedWord(gapId: string): string {
-		const pair = pairs.find((p: string) => p.endsWith(` ${gapId}`));
-		return pair ? pair.split(' ')[0] : '';
+		return getSourceForTarget(pairs, gapId) ?? '';
 	}
 
 	function getCorrectWord(gapId: string): string {
-		const pair = correctPairs.find((p: string) => p.endsWith(` ${gapId}`));
-		return pair ? pair.split(' ')[0] : '';
+		return getSourceForTarget(correctPairs, gapId) ?? '';
 	}
 
 	function isCorrectGap(gapId: string): boolean {
@@ -126,8 +289,10 @@
 	}
 
 	function getWordText(wordId: string): string {
-		const w = parsedInteraction?.gapTexts?.find((gt) => gt.identifier === wordId);
-		return w?.text ?? wordId;
+		const word = paletteWords.find((w) => w.identifier === wordId);
+		// An unknown id has no name to substitute: the identifier stays out of
+		// announcements, as it stays out of every accessible name.
+		return word?.name ?? '';
 	}
 
 	function onWordDragStart(e: DragEvent, wordId: string) {
@@ -135,261 +300,172 @@
 		if (!e.dataTransfer) return;
 		e.dataTransfer.setData('text/plain', wordId);
 		e.dataTransfer.effectAllowed = 'move';
+		pickUp.startDrag(wordId);
+	}
+
+	function onWordDragEnd() {
+		pickUp.endDrag();
+		dragOverGap = null;
 	}
 
 	function selectWord(wordId: string) {
-		if (disabled || isWordUsed(wordId) || unavailableWords.has(wordId)) return;
-		pickedUpWord = pickedUpWord === wordId ? null : wordId;
-		const item = getWordText(wordId);
-		liveMessage = pickedUpWord
-			? (i18n?.t('interactions.match.selected', { item }) ?? `${item} selected`)
-			: (i18n?.t('common.selectionCancelled') ?? 'Selection cancelled');
-	}
-
-	// K-02: global Escape handler to cancel pick-up from anywhere in the component
-	function onRootKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape' && pickedUpWord !== null) {
-			pickedUpWord = null;
-			liveMessage = i18n?.t('common.selectionCancelled') ?? 'Pick-up cancelled.';
-		}
-	}
-
-	function clearWord(wordId: string) {
-		if (disabled) return;
-		const newPairs = pairs.filter((p: string) => !p.startsWith(`${wordId} `));
-		response = newPairs;
-		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(newPairs);
-		// Dispatch event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, newPairs));
-		}
-	}
-
-	function renderPromptWithGaps() {
-		if (!promptContainer || !parsedInteraction?.promptText) return;
-
-		const activeElement = (promptContainer.getRootNode() as Document | ShadowRoot).activeElement;
-		const focusedGapId = activeElement && promptContainer.contains(activeElement)
-			? activeElement.getAttribute('data-gap-id') : null;
-
-		// Clean up any existing event listeners before creating new ones
-		cleanupFunctions.forEach(cleanup => cleanup());
-		cleanupFunctions = [];
-
-		const tpl = document.createElement('template');
-		const promptHtml =
-			typeof parsedInteraction.promptText === 'string'
-				? sanitizeSharedHtml(parsedInteraction.promptText, security)
-				: parsedInteraction.promptText;
-		// Preserve a TrustedHTML object all the way to the sink. Gap controls are
-		// composed afterwards with DOM operations, so no post-egress string rewrite
-		// can invalidate the security guarantee.
-		tpl.innerHTML = promptHtml as any;
-		replaceGapMarkers(tpl.content);
-		promptContainer.replaceChildren();
-		promptContainer.appendChild(tpl.content.cloneNode(true));
-
-		const placeholders = Array.from(
-			promptContainer.querySelectorAll<HTMLSpanElement>('[data-gap-placeholder]')
+		if (disabled || isWordUsed(wordId)) return;
+		pickUp.toggle(wordId);
+		const word = getWordText(wordId);
+		liveAnnouncer.announce(
+			pickUp.held
+				? translate(i18n, 'interactions.gapMatch.wordSelected', '{word} picked up. Select a blank to place it, or press Escape to cancel.', { word })
+				: translate(i18n, 'interactions.gapMatch.pickUpCancelled', 'Pick-up of {word} cancelled.', { word }),
 		);
-		for (const ph of placeholders) {
-			const gapId = ph.getAttribute('data-gap-placeholder') ?? '';
-			if (!gapId) continue;
+	}
 
-			const btn = document.createElement('button');
-			btn.type = 'button';
-			btn.setAttribute('part', 'gap');
-			btn.setAttribute('data-gap-id', gapId);
-			// Match the look/feel of other interactions (DaisyUI input/select styling when present).
-			btn.className = 'qti-gm-gap-target select select-bordered select-sm';
+	// K-02: global Escape handler to cancel pick-up from anywhere in the component.
+	// Focus returns to the word that was held, since the gap it was hovering lost
+	// its "ready" state and the word is what the user resumes from.
+	function onRootKeydown(e: KeyboardEvent) {
+		if (e.key !== 'Escape') return;
+		const wordId = pickUp.release();
+		if (wordId === null) return;
+		liveAnnouncer.announce(
+			translate(i18n, 'interactions.gapMatch.pickUpCancelled', 'Pick-up of {word} cancelled.', {
+				word: getWordText(wordId),
+			}),
+		);
+		void tick().then(() => {
+			const heldButton = Array.from(
+				rootElement?.querySelectorAll<HTMLButtonElement>('[data-word-id]') ?? []
+			).find((button) => button.dataset.wordId === wordId);
+			heldButton?.focus();
+		});
+	}
 
-			const selected = getSelectedWord(gapId);
-			const correct = getCorrectWord(gapId);
-			const isCorrect = isCorrectGap(gapId);
-			if (selected) {
-				const word = getWordText(selected);
-				btn.textContent = word;
-				btn.removeAttribute('data-empty');
-				if (isCorrect) {
-					btn.classList.add('qti-gm-gap-correct');
+	// Accessible name for a gap, composed with the held-word hint and correct-answer state.
+	// Gaps are named with localized ordinals ("Blank 2 of 4"), never the raw QTI gap
+	// identifier, which can leak the answer to screen reader users. Reading order puts
+	// each inline gap in its sentence, so the surrounding context is already available
+	// to assistive technology without a describedby copy of the whole passage.
+	function gapAriaLabel(gapId: string): string {
+		const selected = getSelectedWord(gapId);
+		const correct = getCorrectWord(gapId);
+		const isCorrect = isCorrectGap(gapId);
+		const held = pickUp.held;
+		// matchGroup: the held or dragged word may not go here.
+		const notCompatible =
+			blockedGapIds.has(gapId) &&
+			translate(i18n, 'interactions.gapMatch.notCompatibleSentence', 'Not compatible with the selected word.');
+		const ordinals = {
+			position: gapPositions.positions.get(gapId) ?? 0,
+			total: gapPositions.total,
+		};
+		if (selected) {
+			const word = getWordText(selected);
+			const label =
+				held !== null
+					? translate(
+							i18n,
+							'interactions.gapMatch.filledGapAriaLabelWithHeld',
+							'Blank {position} of {total}, filled with {word}. Select to replace with {heldWord}.',
+							{ ...ordinals, word, heldWord: getWordText(held) },
+						)
+					: translate(i18n, 'interactions.gapMatch.filledGapAriaLabel', 'Blank {position} of {total}, filled with {word}. Select to clear.', {
+							...ordinals,
+							word,
+						});
+			return joinSentences(label, notCompatible, isCorrect && translate(i18n, 'accessibility.correctAnswer', 'Correct answer.'));
+		}
+		const label =
+			held !== null
+				? translate(i18n, 'interactions.gapMatch.blankGapAriaLabelWithHeld', 'Blank {position} of {total}. Select to place {heldWord} here.', {
+						...ordinals,
+						heldWord: getWordText(held),
+					})
+				: translate(i18n, 'interactions.gapMatch.blankGapAriaLabel', 'Blank {position} of {total}. Drop an answer here.', ordinals);
+		return joinSentences(
+			label,
+			notCompatible,
+			isCorrect &&
+				correct &&
+				translate(i18n, 'accessibility.correctAnswerIs', 'Correct answer: {answer}.', { answer: getWordText(correct) }),
+		);
+	}
+
+	function onGapDragOver(gapId: string, e: DragEvent) {
+		if (disabled) return;
+		// matchGroup: not a drop target for the dragged word; leave the browser's "no drop" feedback.
+		if (blockedGapIds.has(gapId)) return;
+		e.preventDefault();
+		dragOverGap = gapId;
+	}
+
+	function onGapDragLeave(gapId: string) {
+		if (dragOverGap === gapId) dragOverGap = null;
+	}
+
+	function onGapDrop(gapId: string, e: DragEvent) {
+		if (disabled) return;
+		e.preventDefault();
+		dragOverGap = null;
+		pickUp.endDrag();
+		const wordId = e.dataTransfer?.getData('text/plain') ?? '';
+		if (!wordId) return;
+		// handleGapChange refuses a word the gap does not accept (matchGroup).
+		handleGapChange(gapId, wordId);
+	}
+
+	function onGapClick(gapId: string, event: MouseEvent) {
+		if (disabled) return;
+		// Anchor focus on the gap the candidate acted on: Safari/WebKit never moves focus to
+		// buttons on click, so without this the focus ring and the next Tab stop would stay
+		// wherever they were (the keyboard path already sits on the button, where this is a no-op).
+		// Svelte 5 delegates click handlers, so `currentTarget` is not the button — resolve
+		// the pressed button from `target` instead.
+		(event.target as HTMLElement | null)?.closest?.<HTMLButtonElement>('button[data-gap-id]')?.focus();
+		// K-02: if a word is held, drop it into this gap. A refused placement keeps it held, so
+		// the candidate can place it elsewhere (replacing a word) or cancel: matchGroup (this
+		// gap does not accept the held word) and maxAssociations (announced by handleGapChange).
+		if (pickUp.held !== null) {
+			const placed = pickUp.place(gapId, (wordId) => {
+				if (!canPlaceWord(wordId, gapId)) {
+					liveAnnouncer.announce(translate(i18n, 'interactions.gapMatch.notCompatibleSentence', 'Not compatible with the selected word.'));
+					return false;
 				}
-				// K-02: update aria-label to hint drop action when a word is held
-				const filledAriaLabel =
-					pickedUpWord !== null
-						? translate(
-								i18n,
-								'interactions.gapMatch.filledGapAriaLabelWithHeld',
-								'Blank {gapId}, filled with {word}. Select to replace with {heldWord}.',
-								{ gapId, word, heldWord: getWordText(pickedUpWord) },
-							)
-						: translate(i18n, 'interactions.gapMatch.filledGapAriaLabel', 'Blank {gapId}, filled with {word}. Click to clear.', {
-								gapId,
-								word,
-							});
-				btn.setAttribute(
-					'aria-label',
-					joinSentences(filledAriaLabel, isCorrect && translate(i18n, 'accessibility.correctAnswer', 'Correct answer.')),
-				);
-			} else {
-				// Keep the gap visually blank (no letters), but still accessible.
-				btn.textContent = '';
-				btn.setAttribute('data-empty', 'true');
-				if (isCorrect && correct) {
-					const correctWord = getWordText(correct);
-					btn.textContent = correctWord;
-					btn.classList.add('qti-gm-gap-correct');
-					btn.removeAttribute('data-empty');
-				}
-				// K-02: update aria-label to hint drop action when a word is held
-				const ariaLabel =
-					pickedUpWord !== null
-						? translate(i18n, 'interactions.gapMatch.blankGapAriaLabelWithHeld', 'Blank {gapId}. Select to place {heldWord} here.', {
-								gapId,
-								heldWord: getWordText(pickedUpWord),
-							})
-						: translate(i18n, 'interactions.gapMatch.blankGapAriaLabel', 'Blank {gapId}. Drop an answer here.', { gapId });
-				btn.setAttribute(
-					'aria-label',
-					joinSentences(
-						ariaLabel,
-						isCorrect &&
-							correct &&
-							translate(i18n, 'accessibility.correctAnswerIs', 'Correct answer: {answer}.', { answer: getWordText(correct) }),
-					),
-				);
-			}
-
-			// K-02: apply "ready to receive" visual class when a word is held
-			if (pickedUpWord !== null) {
-				btn.classList.add('qti-gm-gap-ready');
-			}
-
-			if (disabled) btn.setAttribute('aria-disabled', 'true');
-
-			const onDragEnter = (e: DragEvent) => {
-				if (disabled) return;
-				e.preventDefault();
-				btn.classList.add('is-dragover');
-			};
-
-			const onDragOver = (e: DragEvent) => {
-				if (disabled) return;
-				e.preventDefault();
-				btn.classList.add('is-dragover');
-			};
-
-			const onDragLeave = () => {
-				btn.classList.remove('is-dragover');
-			};
-
-			const onDrop = (e: DragEvent) => {
-				if (disabled) return;
-				e.preventDefault();
-				btn.classList.remove('is-dragover');
-				const wordId = e.dataTransfer?.getData('text/plain') ?? '';
-				if (!wordId) return;
-				handleGapChange(gapId, wordId);
-			};
-
-			const onClick = () => {
-				if (disabled) return;
-				// K-02: if a word is held, drop it into this gap
-				if (pickedUpWord !== null) {
-					const wordText = getWordText(pickedUpWord);
-					handleGapChange(gapId, pickedUpWord);
-					liveMessage =
-						i18n?.t('interactions.gapMatch.placed', { word: wordText, gapId }) ??
-						`Placed ${wordText} in blank ${gapId}.`;
-					pickedUpWord = null;
-				} else {
-					// No word held: clear this gap if it has a word
-					const current = getSelectedWord(gapId);
-					if (current) handleGapChange(gapId, '');
-				}
-			};
-
-			// K-02: keydown handler for gap buttons
-			const onKeydown = (e: KeyboardEvent) => {
-				if (disabled) return;
-				if (e.key === 'Enter' || e.key === ' ') {
-					e.preventDefault();
-					onClick();
-				} else if (e.key === 'Escape') {
-					if (pickedUpWord !== null) {
-						pickedUpWord = null;
-						liveMessage = i18n?.t('common.selectionCancelled') ?? 'Pick-up cancelled.';
-					}
-				}
-			};
-
-			btn.addEventListener('dragenter', onDragEnter);
-			btn.addEventListener('dragover', onDragOver);
-			btn.addEventListener('dragleave', onDragLeave);
-			btn.addEventListener('drop', onDrop);
-			btn.addEventListener('click', onClick);
-			btn.addEventListener('keydown', onKeydown);
-
-			// Store cleanup functions to remove event listeners later
-			cleanupFunctions.push(() => {
-				btn.removeEventListener('dragenter', onDragEnter);
-				btn.removeEventListener('dragover', onDragOver);
-				btn.removeEventListener('dragleave', onDragLeave);
-				btn.removeEventListener('drop', onDrop);
-				btn.removeEventListener('click', onClick);
-				btn.removeEventListener('keydown', onKeydown);
+				return handleGapChange(gapId, wordId);
 			});
-
-			ph.replaceWith(btn);
-		}
-		if (focusedGapId) {
-			const replacement = Array.from(promptContainer.querySelectorAll<HTMLButtonElement>('[data-gap-id]'))
-				.find((button) => button.dataset.gapId === focusedGapId);
-			replacement?.focus({ preventScroll: true });
-		}
-	}
-
-	function replaceGapMarkers(root: DocumentFragment): void {
-		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-		const textNodes: Text[] = [];
-		while (walker.nextNode()) textNodes.push(walker.currentNode as Text);
-
-		for (const textNode of textNodes) {
-			const text = textNode.data;
-			const pattern = /\[GAP:([^\]]+)\]/g;
-			let match: RegExpExecArray | null;
-			let offset = 0;
-			let replaced = false;
-			const fragment = document.createDocumentFragment();
-			while ((match = pattern.exec(text))) {
-				replaced = true;
-				if (match.index > offset) fragment.append(text.slice(offset, match.index));
-				const marker = document.createElement('span');
-				marker.dataset.gapPlaceholder = match[1] ?? '';
-				fragment.append(marker);
-				offset = match.index + match[0].length;
-			}
-			if (!replaced) continue;
-			if (offset < text.length) fragment.append(text.slice(offset));
-			textNode.replaceWith(fragment);
+			if (placed === null) return;
+			liveAnnouncer.announce(
+				translate(i18n, 'interactions.gapMatch.placed', 'Placed {word} in blank {position} of {total}.', {
+					word: getWordText(placed),
+					position: gapPositions.positions.get(gapId) ?? 0,
+					total: gapPositions.total,
+				}),
+			);
+		} else {
+			// No word held: clear this gap if it has a word
+			const current = getSelectedWord(gapId);
+			if (current) handleGapChange(gapId, '');
 		}
 	}
 
-	// Re-render prompt when interaction or response changes (keeps selected word labels in sync)
-	$effect(() => {
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-		parsedInteraction?.promptText;
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-		pairs.length;
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-		correctPairs.length;
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-		isShowingCorrect;
-		// K-02: re-render whenever pickedUpWord changes so gap aria-labels and styles update
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-		pickedUpWord;
-		renderPromptWithGaps();
-	});
+	async function clearWord(wordId: string) {
+		if (disabled) return;
+		const wordName = getWordText(wordId);
+		const newPairs = removePairBySource(pairs, wordId);
+		response = newPairs;
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: newPairs, onChange });
+		// The removal is announced: the focused remove button vanishes with the placements,
+		// so the live region is what tells assistive technology what just happened.
+		liveAnnouncer.announce(
+			translate(i18n, 'interactions.gapMatch.wordRemovedFromBlanks', '{word} removed from the blanks.', { word: wordName }),
+		);
+		// The remove button is gone, which would drop keyboard focus to the document.
+		// Focus returns to the now-enabled word button instead.
+		await tick();
+		const wordButton = Array.from(rootElement?.querySelectorAll<HTMLButtonElement>('[data-word-id]') ?? []).find(
+			(button) => button.dataset.wordId === wordId,
+		);
+		wordButton?.focus();
+	}
+
 </script>
 
 <ShadowBaseStyles />
@@ -400,7 +476,7 @@
 	aria-atomic="true"
 	class="qti-gm-live-region"
 >
-	{liveMessage}
+	{liveAnnouncer.message}
 </div>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -409,13 +485,13 @@
 	{#if !parsedInteraction}
 		<div class="alert alert-error">{i18n?.t('common.errorNoData', 'No interaction data provided')}</div>
 	{:else}
-		{#if parsedInteraction.prompt}
-			<div part="prompt" class="qti-gm-prompt qti-rich-content font-semibold">
-				{@html parsedInteraction.prompt}
-			</div>
-		{/if}
 
 		<p>{i18n?.t('interactions.gapMatch.pointerInstructions') ?? 'Select a word, then select a blank. You can also drag and drop.'}</p>
+		{#if requiredGapIds.size > 0}
+			<p part="required-legend" class="qti-gm-required-legend">
+				{translate(i18n, 'interactions.gapMatch.requiredBlanksLegend', 'Blanks marked * are required.')}
+			</p>
+		{/if}
 
 		<div class="qti-gm-layout">
 		<!-- Available gap texts (draggable words) -->
@@ -425,45 +501,50 @@
 			style={choicesContainerWidth ? `width: ${choicesContainerWidth}` : undefined}
 			role="group"
 			aria-label={i18n?.t('interactions.gapMatch.availableLabel') ?? 'Available words to place'}
+			aria-describedby={minHint ? minHintId : undefined}
 		>
 			<div class="qti-gm-palette-title w-full text-sm text-base-content/70 font-semibold mb-2">
 				{translate(i18n, 'interactions.gapMatch.availableHeading', 'Available words:')}
 			</div>
-			{#each parsedInteraction.gapTexts as gapText (gapText.identifier)}
-				{@const used = isWordUsed(gapText.identifier)}
-				{@const isHeld = pickedUpWord === gapText.identifier}
-				{@const isUnavailable = unavailableWords.has(gapText.identifier)}
+			{#each paletteWords as word (word.identifier)}
+				{@const used = isWordUsed(word.identifier)}
+				{@const isHeld = pickUp.isHeld(word.identifier)}
 				<div class="inline-flex items-center gap-1">
 					<button
 						part="word"
 						type="button"
 						class="btn btn-md font-medium transition-all"
-						class:btn-primary={!used && !isHeld && !isUnavailable}
+						class:btn-primary={!used && !isHeld}
 						class:btn-success={used && !isHeld}
 						class:btn-warning={isHeld}
 						class:qti-gm-word-held={isHeld}
-						class:cursor-grab={!disabled && !used && !isUnavailable}
-						class:cursor-not-allowed={disabled || isUnavailable}
-						class:opacity-40={isUnavailable}
+						class:cursor-grab={!disabled && !used}
+						class:cursor-not-allowed={disabled}
 						class:opacity-70={disabled}
-						data-word-id={gapText.identifier}
-						draggable={!disabled && !used && !isUnavailable}
-						aria-disabled={disabled || used || isUnavailable}
+						data-word-id={word.identifier}
+						draggable={!disabled && !used}
+						aria-disabled={disabled || used}
 						aria-pressed={isHeld}
 						disabled={disabled || used}
-						ondragstart={(e: DragEvent) => onWordDragStart(e, gapText.identifier)}
-						onclick={() => selectWord(gapText.identifier)}
-						aria-label={gapText.text}
+						ondragstart={(e: DragEvent) => onWordDragStart(e, word.identifier)}
+						ondragend={onWordDragEnd}
+						onclick={() => selectWord(word.identifier)}
+						aria-label={word.name}
 					>
-						{gapText.text}
+						{#if word.kind === 'image'}
+							<!-- alt="" on the tile: the button's aria-label is the image's alt text. -->
+							<img class="qti-gm-word-img" src={word.src} alt="" width={word.width} height={word.height} />
+						{:else}
+							{word.name}
+						{/if}
 					</button>
 					{#if used && !disabled}
 						<button
 							type="button"
 							part="word-remove"
-							class="btn btn-sm btn-circle btn-error"
-							onclick={() => clearWord(gapText.identifier)}
-							aria-label={translate(i18n, 'interactions.gapMatch.removeFromBlanks', 'Remove {word} from the blanks', { word: gapText.text })}
+							class="qti-gm-word-remove btn btn-sm btn-circle btn-error"
+							onclick={() => clearWord(word.identifier)}
+							aria-label={translate(i18n, 'interactions.gapMatch.removeFromBlanks', 'Remove {word} from the blanks', { word: word.name })}
 							title={i18n?.t('interactions.gapMatch.removeWord') ?? 'Remove word'}
 						>
 							✕
@@ -473,11 +554,61 @@
 			{/each}
 		</div>
 
-	<!-- Render the text with gaps as drop targets, preserving original HTML structure -->
-	<div part="text" class="qti-gm-text qti-rich-content p-4 bg-base-100 border border-base-300 rounded">
-		<div bind:this={promptContainer} class="qti-gm-inline"></div>
-	</div>
+	{#snippet gapButton(gapId: string)}
+		{@const selected = getSelectedWord(gapId)}
+		{@const showCorrect = isCorrectGap(gapId)}
+		{@const showWord = selected || (showCorrect ? getCorrectWord(gapId) : '')}
+		{@const shownWord = showWord === '' ? null : paletteWords.find((w) => w.identifier === showWord)}
+		{@const required = requiredGapIds.has(gapId)}
+		<button
+			part="gap"
+			type="button"
+			data-gap-id={gapId}
+			class="qti-gm-gap-target select select-bordered select-sm"
+			class:qti-gm-gap-correct={showCorrect}
+			class:qti-gm-gap-ready={pickUp.held !== null && !blockedGapIds.has(gapId)}
+			class:is-dragover={dragOverGap === gapId}
+			data-empty={showWord === '' ? 'true' : undefined}
+			data-required={required ? 'true' : undefined}
+			aria-disabled={disabled || blockedGapIds.has(gapId) ? 'true' : undefined}
+			aria-label={gapAriaLabel(gapId)}
+			aria-describedby={required ? requiredDescriptionId(gapId) : undefined}
+			ondragover={(e: DragEvent) => onGapDragOver(gapId, e)}
+			ondragleave={() => onGapDragLeave(gapId)}
+			ondrop={(e: DragEvent) => onGapDrop(gapId, e)}
+			onclick={(event: MouseEvent) => onGapClick(gapId, event)}
+		>
+			{#if shownWord?.kind === 'image'}
+				<img class="qti-gm-gap-img" src={shownWord.src} alt="" width={shownWord.width} height={shownWord.height} />
+			{:else}
+				{showWord === '' ? '' : getWordText(showWord)}
+			{/if}{#if required}<span class="qti-gm-gap-required-mark" aria-hidden="true">*</span>{/if}
+		</button>
+		{#if required}
+			<!-- Hidden, yet still the gap's description (aria-describedby reads hidden text), so
+			     reading the sentence does not say it twice. -->
+			<span id={requiredDescriptionId(gapId)} hidden>{requiredDescription}</span>
+		{/if}
+	{/snippet}
+	{#if promptSegments.length > 0}
+		<!-- The prompt with live gap controls, rendered once. The extractor's promptText IS the
+		     prompt with <gap> elements rewritten to [GAP:id] markers; rendering `prompt` as well
+		     would show the sentence twice, once with dead markers. -->
+		<div part="text" class="qti-gm-text qti-rich-content p-4 bg-base-100 border border-base-300 rounded">
+			<div class="qti-gm-inline">
+				{#each promptSegments as seg, i (i)}
+					{#if seg.gapId}{@render gapButton(seg.gapId)}{:else}{@html seg.html}{/if}
+				{/each}
+			</div>
 		</div>
+	{:else if parsedInteraction.prompt}
+		<!-- No marker text available (e.g. hand-built data): fall back to the static prompt. -->
+		<div part="prompt" class="qti-gm-prompt qti-rich-content font-semibold">
+			{@html parsedInteraction.prompt}
+		</div>
+	{/if}
+		</div>
+		<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(pairs)} />
 	{/if}
 </div>
 
@@ -524,23 +655,14 @@
 		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
 		background: var(--pie-qti-base-100, oklch(100% 0 0));
 	}
-	/* K-02: visually hidden live region */
-	.qti-gm-live-region {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
-	}
 	:global(.qti-gm-gap-target) {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		min-width: 6.25rem;
+		/* K-12 target size: the blanks are this interaction's primary targets
+		   (WCAG 2.5.8 minimum is 24px; primary controls aim at 44px). */
+		min-height: 2.75rem;
 		margin: 0 0.25rem;
 		/* Height/padding/border/background should come from DaisyUI `select select-sm`
 		   (or ShadowBaseStyles fallback), so empty and filled gaps match exactly. */
@@ -553,17 +675,26 @@
 			background-color 120ms ease;
 	}
 	:global(.qti-gm-gap-target[data-empty='true']) {
-		/* Same size + base styling as a filled gap, but dashed to indicate "drop here". */
+		/* Same size + base styling as a filled gap, but dashed to indicate "drop here".
+		   1.4.11: the blank's boundary is a control boundary and needs 3:1, which a
+		   washed-out base-300 blend cannot provide on the page background. */
 		border-style: dashed;
-		border-color: color-mix(
-			in oklch,
-			var(--pie-qti-base-content, oklch(21% 0 0)) 18%,
-			var(--pie-qti-base-300, oklch(95% 0 0))
-		);
+		border-color: var(--pie-qti-border-strong, #767676);
 	}
 	:global(.qti-gm-gap-target[data-empty='true']::before) {
 		/* Ensure empty gaps reserve the same line-height as filled gaps (no visible text). */
 		content: '\00a0';
+	}
+	/* Required gap (QTI gap `required`): an asterisk, which the legend explains, so the cue is
+	   a character and not a colour alone (WCAG 1.4.1); the text token keeps it at 4.5:1. */
+	.qti-gm-gap-required-mark {
+		margin-inline-start: 0.125rem;
+		font-weight: 700;
+		color: var(--pie-qti-error-text, #b91c1c);
+	}
+	.qti-gm-required-legend {
+		margin: 0;
+		font-size: 0.875rem;
 	}
 	:global(.qti-gm-gap-target.is-dragover) {
 		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));
@@ -587,7 +718,8 @@
 		box-shadow: 0 0 0 2px color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 22%, transparent);
 	}
 	:global(.qti-gm-gap-target:focus-visible) {
-		outline: 2px solid color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 50%, transparent);
+		/* No alpha: a 50% primary ring measures 2.64:1, below the 3:1 focus indicator. */
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
 	}
 	:global(.qti-gm-gap-target:hover) {
@@ -607,9 +739,23 @@
 	.qti-gm-palette [part='word'][draggable='true']:active {
 		cursor: grabbing;
 	}
-	/* K-02: "held" visual for the picked-up word button */
+	/* K-02: "held" visual for the picked-up word button. 1.4.11: warning yellow
+	   reads 1.68:1 against the palette; a control-state cue needs 3:1. */
 	:global(.qti-gm-word-held) {
-		outline: 3px solid var(--pie-qti-warning, oklch(84% 0.2 85));
+		outline: 3px solid var(--pie-qti-border-strong, #767676);
 		outline-offset: 2px;
+	}
+	/* Image choice tiles in the palette and inside filled gaps. */
+	:global(.qti-gm-word-img),
+	:global(.qti-gm-gap-img) {
+		max-height: 2rem;
+		width: auto;
+		display: block;
+	}
+	/* K-12 target size for the per-word clear button (matches the match clear button). */
+	:global(.qti-gm-word-remove) {
+		width: 2.75rem;
+		height: 2.75rem;
+		font-size: 1rem;
 	}
 </style>

@@ -1,7 +1,7 @@
 {
   "id": "responseProcessing_deleteValue_repeat",
   "title": "responseProcessing: delete + repeat",
-  "description": "Covers QTI 2.2.2 response normalization expressions: delete(container, valueOrContainer) and repeat@numberRepeats.",
+  "description": "Covers QTI 2.2.2 response normalization expressions: delete(value, container), with the value first as QTI orders them, and repeat@numberRepeats. The pruned container lands in an outcome variable — QTI response rules never write response variables.",
   "spec": "QTI 2.2.2",
   "provenance": {
     "source": "authored",
@@ -12,6 +12,7 @@
     "expr.baseValue",
     "expr.delete",
     "expr.repeat",
-    "repeat"
+    "repeat",
+    "stmt.setOutcomeValue"
   ]
 }

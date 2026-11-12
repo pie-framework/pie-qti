@@ -23,9 +23,10 @@ test.describe('/assessment-demo', () => {
 		// Select the Science sample using test helper (workaround for Svelte 5 + Playwright compatibility)
 		await page.evaluate(() => (window as any).__testHelpers.selectSample('science-1'));
 
-		// Wait for the assessment shell to re-render with new content
-		// The shell shows the assessment identifier as a heading when loaded
-		await expect(page.getByRole('heading', { name: 'SCIENCE-001' })).toBeVisible({ timeout: 10000 });
+		// Wait for the assessment shell to re-render with new content: it is headed by
+		// the assessmentTest title, never the raw identifier ("SCIENCE-001").
+		await expect(page.getByRole('heading', { name: 'Life Cycles Assessment' })).toBeVisible({ timeout: 10000 });
+		await expect(page.getByRole('heading', { name: 'SCIENCE-001' })).toHaveCount(0);
 
 		// Wait for the order interaction to fully render before interacting
 		const orderHost = page.locator('pie-qti-order').first();
@@ -41,7 +42,10 @@ test.describe('/assessment-demo', () => {
 		await next.click();
 		// Wait a bit for validation to trigger
 		await page.waitForTimeout(500);
-		await expect(page.getByText(/must answer this item/i)).toBeVisible({ timeout: 10000 });
+		// Candidate-facing errors are the localized coded messages (assessment.errors.codes.*).
+		await expect(page.getByRole('alert').filter({ hasText: /must answer this question/i })).toBeVisible({
+			timeout: 10000,
+		});
 
 		// Provide an order response by dispatching a qti-change from the host element.
 		const interaction = await orderHost.evaluate((el: any) => {
@@ -98,15 +102,13 @@ test.describe('/assessment-demo', () => {
 		await page.evaluate(() => (window as any).__testHelpers.selectSample('interaction-showcase-1'));
 
 		// Wait for the assessment shell to re-render with new content
-		await expect(page.getByRole('heading', { name: 'SHOWCASE-001' })).toBeVisible({ timeout: 10000 });
+		await expect(page.getByRole('heading', { name: 'Interaction Showcase' })).toBeVisible({ timeout: 10000 });
 
 		// Wait for initial section to load
 		await expect(page.locator('pie-qti-choice').first()).toBeVisible({ timeout: 10000 });
 
 		// Open the section menu (only shown when multiple sections exist).
-		// The button has an icon (hamburger menu) and may have localized text.
-		// Find it by the SVG path that represents the hamburger icon.
-		const sectionsButton = page.locator('button.btn:has(svg path[d*="M4 6h16M4 12h16M4 18h16"])').first();
+		const sectionsButton = page.locator('button.section-menu-toggle').first();
 		await expect(sectionsButton).toBeVisible({ timeout: 10000 });
 		await sectionsButton.click();
 
@@ -158,7 +160,11 @@ test.describe('/assessment-demo', () => {
 		}
 
 		await expect(submit).toBeVisible({ timeout: 10000 });
+		// Submitting is confirmed first (WCAG 3.3.4); the end screen follows the explicit confirm.
 		await submit.click();
+		const confirmDialog = page.getByRole('dialog', { name: 'Submit your test?' });
+		await expect(confirmDialog).toBeVisible({ timeout: 10000 });
+		await confirmDialog.getByTestId('assessment-dialog-confirm').click();
 
 		// End screen should render.
 		await expect(page.getByRole('heading', { name: /assessment complete/i })).toBeVisible();
@@ -197,7 +203,11 @@ test.describe('/assessment-demo', () => {
 			await page.waitForTimeout(300);
 		}
 		await expect(submit).toBeVisible({ timeout: 10000 });
+		// Submitting is confirmed first (WCAG 3.3.4); the end screen follows the explicit confirm.
 		await submit.click();
+		const confirmDialog = page.getByRole('dialog', { name: 'Submit your test?' });
+		await expect(confirmDialog).toBeVisible({ timeout: 10000 });
+		await confirmDialog.getByTestId('assessment-dialog-confirm').click();
 
 		// End screen: total score should not be 0.
 		await expect(page.getByRole('heading', { name: /assessment complete/i })).toBeVisible();
@@ -216,7 +226,7 @@ test.describe('/assessment-demo', () => {
 		await page.evaluate(() => (window as any).__testHelpers.selectSample('interaction-showcase-1'));
 
 		// Wait for the assessment shell to re-render with new content
-		await expect(page.getByRole('heading', { name: 'SHOWCASE-001' })).toBeVisible({ timeout: 10000 });
+		await expect(page.getByRole('heading', { name: 'Interaction Showcase' })).toBeVisible({ timeout: 10000 });
 
 		// Wait for assessment to load
 		await page.waitForTimeout(1000);
@@ -266,7 +276,11 @@ test.describe('/assessment-demo', () => {
 			await page.waitForTimeout(300);
 		}
 		await expect(submit).toBeVisible({ timeout: 10000 });
+		// Submitting is confirmed first (WCAG 3.3.4); the end screen follows the explicit confirm.
 		await submit.click();
+		const confirmDialog = page.getByRole('dialog', { name: 'Submit your test?' });
+		await expect(confirmDialog).toBeVisible({ timeout: 10000 });
+		await confirmDialog.getByTestId('assessment-dialog-confirm').click();
 
 		await expect(page.getByRole('heading', { name: /assessment complete/i })).toBeVisible();
 		const totalText = await page.locator('.stat-value').first().innerText();

@@ -1,104 +1,105 @@
 {
-	"name": "@pie-qti/item-player",
-	"version": "1.0.0-beta.4",
-	"description": "Modern QTI player supporting QTI 2.2 and 3.0 - Client-side with optional backend hooks",
-	"type": "module",
-	"main": "./dist/index.js",
-	"types": "./dist/index.d.ts",
-	"scripts": {
-		"build": "vite build && tsc",
-		"dev": "tsc --watch",
-		"test": "bun test && tsc -p ./tsconfig.server-types.test.json",
-		"typecheck": "tsc --noEmit",
-		"check": "svelte-check --tsconfig ./tsconfig.svelte.json",
-		"lint": "biome check .",
-		"lint:fix": "biome check --write .",
-		"format": "biome format --write ."
-	},
-	"keywords": [
-		"qti",
-		"qti2",
-		"qti3",
-		"qti 2.x",
-		"qti 3.0",
-		"assessment",
-		"player",
-		"e-learning"
-	],
-	"license": "MIT",
-	"dependencies": {
-		"@pie-qti/i18n": "workspace:*",
-		"@pie-qti/ims-cp-core": "workspace:*",
-		"@pie-qti/qti-common": "workspace:*",
-		"@pie-qti/qti-processing": "workspace:*",
-		"mathlive": "^0.111.1",
-		"node-html-parser": "^9.0.5"
-	},
-	"devDependencies": {
-		"@biomejs/biome": "^2.6.2",
-		"@sveltejs/vite-plugin-svelte": "^7.3.1",
-		"@types/node": "^26.6.4",
-		"svelte": "^5.57.1",
-		"svelte-check": "^4.7.7",
-		"typescript": "^5.9.3",
-		"vite": "^8.3.4",
-		"vite-plugin-dts": "^5.1.2"
-	},
-	"exports": {
-		".": {
-			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js"
-		},
-		"./server": {
-			"types": "./dist/server.d.ts",
-			"import": "./dist/server.js"
-		},
-		"./web-components": {
-			"types": "./dist/web-components/index.d.ts",
-			"import": "./dist/web-components/index.js"
-		},
-		"./iframe": {
-			"types": "./dist/iframe/index.d.ts",
-			"import": "./dist/iframe/index.js"
-		},
-		"./security": {
-			"types": "./dist/security/index.d.ts",
-			"import": "./dist/security/index.js"
-		},
-		"./pci": {
-			"types": "./dist/pci/index.d.ts",
-			"import": "./dist/pci/index.js"
-		},
-		"./element": {
-			"types": "./dist/element.d.ts",
-			"import": "./dist/element.js"
-		},
-		"./element-class": {
-			"types": "./dist/element-class.d.ts",
-			"import": "./dist/element-class.js"
-		}
-	},
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/pie-framework/pie-qti.git",
-		"directory": "packages/item-player"
-	},
-	"homepage": "https://github.com/pie-framework/pie-qti/tree/master/packages/item-player",
-	"bugs": {
-		"url": "https://github.com/pie-framework/pie-qti/issues"
-	},
-	"publishConfig": {
-		"access": "public"
-	},
-	"sideEffects": [
-		"./dist/element.js"
-	],
-	"engines": {
-		"node": ">=20.19.0"
-	},
-	"files": [
-		"dist"
-	],
-	"unpkg": "./dist/element.js",
-	"jsdelivr": "./dist/element.js"
+  "name": "@pie-qti/item-player",
+  "version": "1.0.0-beta.5",
+  "description": "Modern QTI player supporting QTI 2.2 and 3.0 - Client-side with optional backend hooks",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "vite build && tsc",
+    "dev": "tsc --watch",
+    "test": "bun test && tsc -p ./tsconfig.server-types.test.json && bun run test:component",
+    "test:component": "vitest run",
+    "typecheck": "tsc --noEmit && tsc -p ./tsconfig.test.json --noEmit",
+    "check": "svelte-check --tsconfig ./tsconfig.svelte.json",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write ."
+  },
+  "keywords": [
+    "qti",
+    "qti2",
+    "qti3",
+    "qti 2.x",
+    "qti 3.0",
+    "assessment",
+    "player",
+    "e-learning"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@pie-qti/i18n": "workspace:*",
+    "@pie-qti/ims-cp-core": "workspace:*",
+    "@pie-qti/qti-common": "workspace:*",
+    "@pie-qti/qti-processing": "workspace:*",
+    "node-html-parser": "^9.0.5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.4",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@types/node": "^26.6.6",
+    "jsdom": "^30.1.3",
+    "linkedom": "^0.18.13",
+    "svelte": "^5.57.1",
+    "svelte-check": "^4.7.7",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.4",
+    "vite-plugin-dts": "^5.1.2",
+    "vitest": "^5.0.5"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js"
+    },
+    "./web-components": {
+      "types": "./dist/web-components/index.d.ts",
+      "import": "./dist/web-components/index.js"
+    },
+    "./iframe": {
+      "types": "./dist/iframe/index.d.ts",
+      "import": "./dist/iframe/index.js"
+    },
+    "./security": {
+      "types": "./dist/security/index.d.ts",
+      "import": "./dist/security/index.js"
+    },
+    "./pci": {
+      "types": "./dist/pci/index.d.ts",
+      "import": "./dist/pci/index.js"
+    },
+    "./element": {
+      "types": "./dist/element.d.ts",
+      "import": "./dist/element.js"
+    },
+    "./element-class": {
+      "types": "./dist/element-class.d.ts",
+      "import": "./dist/element-class.js"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pie-framework/pie-qti.git",
+    "directory": "packages/item-player"
+  },
+  "homepage": "https://github.com/pie-framework/pie-qti/tree/master/packages/item-player",
+  "bugs": {
+    "url": "https://github.com/pie-framework/pie-qti/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": [
+    "./dist/element.js"
+  ],
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "files": [
+    "dist"
+  ]
 }

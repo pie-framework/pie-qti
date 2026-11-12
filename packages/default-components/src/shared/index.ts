@@ -15,3 +15,5 @@ export * from './utils/eventHelpers.js';
 export * from './utils/pairHelpers.js';
 // Authored accessible name and description for an interaction root
 export * from './utils/interactionAria.js';
+// QTI graphic-region geometry (shapes, coords, markers) for the graphic interactions
+export * from './utils/graphicRegions.js';

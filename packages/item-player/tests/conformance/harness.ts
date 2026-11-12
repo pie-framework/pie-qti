@@ -1,6 +1,8 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { Player } from '../../src/core/Player.js';
+import { createAssessmentItemDefinition } from '../../src/core/AssessmentItemDefinition.js';
+import type { ItemSession } from '../../src/core/ItemSession.js';
+import type { ScoringResult } from '../../src/types/index.js';
 import type { ConformanceCaseFile, ConformanceFixtureManifest } from './types.js';
 
 export interface LoadedFixture {
@@ -58,6 +60,17 @@ export function normalizeOutcomes(outcomes: Record<string, unknown>): Record<str
 	);
 }
 
+/** The item body as a session delivers it: the presentation's body HTML. */
+function deliveredItemBodyHtml(session: ItemSession): string {
+	const body = session.present().flow.find((node) => node.kind === 'html');
+	return body?.kind === 'html' ? String(body.html) : '';
+}
+
+/**
+ * Run one fixture case the way a delivery system does: compile the item into a definition, open
+ * a candidate session with the case's responses, read the delivered body, and end the attempt —
+ * or, for `useSubmitAttempt`, submit it (the adaptive submitAttempt action).
+ */
 export function runItemCase(args: {
 	itemXml: string;
 	responses: Record<string, unknown>;
@@ -65,24 +78,23 @@ export function runItemCase(args: {
 	seed?: number;
 	useSubmitAttempt?: boolean;
 	countAttempt?: boolean;
-}) {
-	const player = new Player({
+	security?: { allowObjectEmbeds?: boolean };
+}): { result: ScoringResult; itemBodyHtml: string } {
+	const session = createAssessmentItemDefinition({
 		itemXml: args.itemXml,
 		role: args.role ?? 'candidate',
 		seed: args.seed ?? 42,
-	});
-	player.setResponses(args.responses as any);
-
-	const itemBodyHtml = player.getItemBodyHtml();
-
-	if (args.useSubmitAttempt) {
-		const result = player.runItemSessionAction({
-			action: 'submitAttempt',
-			countAttempt: args.countAttempt ?? true,
-		}).scoring;
-		if (!result) throw new Error('Adaptive submission did not produce a scoring result');
+		...(args.security ? { security: args.security } : {}),
+	}).openSession({ responses: args.responses });
+	try {
+		const itemBodyHtml = deliveredItemBodyHtml(session);
+		const transition = args.useSubmitAttempt
+			? session.dispatch({ action: 'submitAttempt', countAttempt: args.countAttempt ?? true })
+			: session.dispatch({ action: 'endAttempt' });
+		const result = transition.result?.scoring;
+		if (!result) throw new Error(`${transition.command.action} did not produce a scoring result`);
 		return { result, itemBodyHtml };
+	} finally {
+		session.dispose();
 	}
-	return { result: player.processResponses(), itemBodyHtml };
 }
-

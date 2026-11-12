@@ -1,11 +1,19 @@
 import type { SerializedItemSessionState } from '@pie-qti/item-player';
-import type { AssessmentSessionState } from '../integration/api-contract.js';
+import type { AssessmentScoringResult, AssessmentSessionState } from '../integration/api-contract.js';
 import type { ItemResult } from '../types/index.js';
+import { AssessmentPlayerError } from './errors.js';
 import {
 	ItemSessionController,
 	type ItemSessionControlSettings,
 	type ItemSessionState,
 } from './ItemSessionController.js';
+import {
+	asResponseValues,
+	cloneData,
+	cloneResponseRecord,
+	closedItemSession,
+	responseValuesEqual,
+} from './sessionRecords.js';
 
 export interface AssessmentSessionCoordinatorOptions {
 	state: AssessmentSessionState;
@@ -66,6 +74,9 @@ export class AssessmentSessionCoordinator {
 					: undefined,
 			itemSessionStates: this.#itemSessionStateSnapshot(),
 			itemComments: this.#state.itemComments ? { ...this.#state.itemComments } : undefined,
+			itemFlags: this.#state.itemFlags ? { ...this.#state.itemFlags } : undefined,
+			branchDecisions: this.#state.branchDecisions ? { ...this.#state.branchDecisions } : undefined,
+			testOutcomes: this.#state.testOutcomes ? { ...this.#state.testOutcomes } : undefined,
 			timing: {
 				...this.#state.timing,
 				itemTimes: { ...this.#state.timing.itemTimes },
@@ -109,7 +120,7 @@ export class AssessmentSessionCoordinator {
 			...((this.#state.itemResponses?.[itemIdentifier] || {}) as Record<string, unknown>),
 			[responseId]: value,
 		};
-		this.#state.itemResponses[itemIdentifier] = next as any;
+		this.#state.itemResponses[itemIdentifier] = asResponseValues(next);
 		this.markAnswered(itemIdentifier, next);
 		return next;
 	}
@@ -124,7 +135,7 @@ export class AssessmentSessionCoordinator {
 			...(this.#state.itemSessions ?? {}),
 			[itemIdentifier]: sessionState,
 		};
-		this.#state.itemResponses[itemIdentifier] = responses as any;
+		this.#state.itemResponses[itemIdentifier] = asResponseValues(responses);
 		this.#state.timing.itemTimes[itemIdentifier] = duration;
 		this.markAnswered(itemIdentifier, responses);
 	}
@@ -155,12 +166,169 @@ export class AssessmentSessionCoordinator {
 		itemResponses: AssessmentSessionState['itemResponses'],
 		itemSessions: AssessmentSessionState['itemSessions']
 	): void {
+		// Where the candidate stands is the client's: delivery moves through navigation (a
+		// branch decision is `nextItemIdentifier`), never through a backend state update,
+		// whose position may be stale — or already overtaken by a scope expiry's move.
+		const currentItemIdentifier = this.#state.currentItemIdentifier;
+		// The test outcomes the client already mirrored into its state survive a backend
+		// snapshot that does not carry the field; a snapshot that does wins (its values are
+		// the fresher outcome processing's).
+		const testOutcomes = updatedState.testOutcomes ?? this.#state.testOutcomes;
 		this.restoreState(updatedState);
+		this.#state.currentItemIdentifier = currentItemIdentifier;
 		// Own the accepted snapshots rather than retaining the submit loop's mutable
 		// working maps. Later provisional items must not appear committed until their
 		// backend request succeeds.
 		this.#state.itemResponses = { ...itemResponses };
 		this.#state.itemSessions = itemSessions ? { ...itemSessions } : undefined;
+		this.#state.testOutcomes = testOutcomes ? { ...testOutcomes } : undefined;
+	}
+
+	// ---------------------------------------------------------------------------
+	// Submission commits — the only writers of session state.
+	//
+	// One method per submit-path combination (individual / simultaneous × backend
+	// returns / omits `updatedState`), reproducing exactly the state writes the
+	// player's submit loops used to make inline.
+	// ---------------------------------------------------------------------------
+
+	/** Where delivery stands (navigation owns the pointer; the snapshot carries it). */
+	setCurrentItem(itemIdentifier: string): void {
+		this.#state.currentItemIdentifier = itemIdentifier;
+	}
+
+	/** The backend decision kept for the item (`state.branchDecisions`), if any. */
+	getBranchDecision(itemIdentifier: string): string | undefined {
+		return this.#state.branchDecisions?.[itemIdentifier];
+	}
+
+	/** Keep `target` as the one decision delivery may still follow — the item's freshest. */
+	keepBranchDecision(itemIdentifier: string, target: string): void {
+		this.#state.branchDecisions = { [itemIdentifier]: target };
+	}
+
+	/** Every kept decision is void: a counted submission moved the outcomes they decided on. */
+	clearBranchDecisions(): void {
+		delete this.#state.branchDecisions;
+	}
+
+	/** The test-level outcomes the backend last returned (`state.testOutcomes`), if any. */
+	getTestOutcomes(): AssessmentSessionState['testOutcomes'] {
+		return this.#state.testOutcomes;
+	}
+
+	/** Store the test-level outcomes the backend returned for its last outcome processing. */
+	setTestOutcomes(outcomes: AssessmentSessionState['testOutcomes']): void {
+		this.#state.testOutcomes = outcomes ? { ...outcomes } : undefined;
+	}
+
+	/**
+	 * The live item session's responses mirrored into the persisted record: an
+	 * equality-checked write (identical responses are not re-written or re-notified)
+	 * plus the answered mark. Returns whether the record changed.
+	 */
+	mirrorResponses(itemIdentifier: string, responses: Readonly<Record<string, unknown>>): boolean {
+		const current = this.getResponses(itemIdentifier);
+		if (responseValuesEqual(current, responses)) return false;
+
+		const snapshot = cloneResponseRecord(responses);
+		this.#state.itemResponses[itemIdentifier] = asResponseValues(snapshot);
+		this.markAnswered(itemIdentifier, snapshot);
+		return true;
+	}
+
+	/**
+	 * A counted individual submission the backend accepted WITH its `updatedState`:
+	 * replace the session state with the backend's, keeping the client-owned position
+	 * and the client-collected responses and sessions (the snapshot may only include
+	 * the items submitted so far, which would otherwise wipe later answers).
+	 */
+	recordSubmittedItemInUpdatedState(
+		itemIdentifier: string,
+		responses: Record<string, unknown>,
+		updatedState: AssessmentSessionState,
+	): void {
+		const localResponses = cloneData(this.#state.itemResponses || {})!;
+		localResponses[itemIdentifier] = asResponseValues(cloneResponseRecord(responses));
+		this.replaceStatePreservingResponsesAndSessions(
+			updatedState,
+			localResponses,
+			cloneData(this.#state.itemSessions || {})!,
+		);
+	}
+
+	/**
+	 * A counted individual submission the backend accepted WITHOUT a state update:
+	 * the minimal local commit — score, visited mark, responses, session snapshot.
+	 */
+	recordIndividualSubmission(
+		itemIdentifier: string,
+		responses: Record<string, unknown>,
+		itemSession: SerializedItemSessionState | undefined,
+		scoring: AssessmentScoringResult,
+	): void {
+		this.#state.itemScores = this.#state.itemScores || {};
+		this.#state.itemScores[itemIdentifier] = scoring;
+		this.markVisited(itemIdentifier);
+		this.#state.itemResponses[itemIdentifier] = asResponseValues(responses);
+		if (itemSession) {
+			this.setItemSession(itemIdentifier, itemSession);
+		}
+	}
+
+	/**
+	 * A counted simultaneous-flush submission the backend accepted WITHOUT a state
+	 * update: the minimal local commit plus the attempt record and the accepted
+	 * result (its responses read back from the persisted record, as the flush loop did).
+	 */
+	recordSimultaneousSubmission(
+		itemIdentifier: string,
+		responses: Record<string, unknown>,
+		itemSession: SerializedItemSessionState,
+		scoring: AssessmentScoringResult,
+	): void {
+		this.#state.itemScores = this.#state.itemScores || {};
+		this.#state.itemScores[itemIdentifier] = scoring;
+		this.markVisited(itemIdentifier);
+		this.#state.itemResponses[itemIdentifier] = asResponseValues(responses);
+		this.setItemSession(itemIdentifier, itemSession);
+		this.recordAttempt(itemIdentifier);
+		this.setItemResult({
+			itemIdentifier,
+			score: scoring.score,
+			maxScore: scoring.maxScore,
+			responses: this.#state.itemResponses[itemIdentifier] || {},
+		});
+	}
+
+	/**
+	 * Record an attempt locally only when the backend has not counted it already: a
+	 * backend `updatedState` carries its own authoritative count (`itemSessionStates`),
+	 * which must not be counted twice.
+	 */
+	recordAttemptIfUncounted(itemIdentifier: string, attemptsBefore: number): void {
+		try {
+			if (this.getItemSessionInfo(itemIdentifier).attemptCount <= attemptsBefore) {
+				this.recordAttempt(itemIdentifier);
+			}
+		} catch {
+			// ignore
+		}
+	}
+
+	/** The test ended: every delivered item session in the persisted record is closed. */
+	closeAllItemSessions(): void {
+		const sessions = this.#state.itemSessions;
+		if (sessions) {
+			this.#state.itemSessions = Object.fromEntries(
+				Object.entries(sessions).map(([identifier, session]) => [identifier, closedItemSession(session)]),
+			);
+		}
+	}
+
+	/** Whether the candidate hid the countdown (a persisted shell preference). */
+	setTimerHidden(hidden: boolean): void {
+		this.#state.timerHidden = hidden;
 	}
 
 	markVisited(itemIdentifier: string): void {
@@ -173,15 +341,13 @@ export class AssessmentSessionCoordinator {
 		this.#sessionController.markAnswered(itemIdentifier, hasAnyResponse(responses));
 	}
 
-	canReview(itemIdentifier: string): boolean {
-		return this.#sessionController.canReview(itemIdentifier);
-	}
-
-	canNavigateAway(
-		itemIdentifier: string,
-		responses: Record<string, unknown>
-	): { allowed: boolean; reason?: string } {
-		return this.#sessionController.canNavigateAway(itemIdentifier, hasAnyResponse(responses));
+	/**
+	 * Whether the candidate may return to the item: always before its first submission, and
+	 * while attempts remain (an adaptive item: until it `completed`); after that QTI
+	 * `allowReview` decides.
+	 */
+	canReview(itemIdentifier: string, options: { completed?: boolean } = {}): boolean {
+		return this.#sessionController.canReview(itemIdentifier, options);
 	}
 
 	updateItemSessionControl(settings: ItemSessionControlSettings): void {
@@ -200,16 +366,35 @@ export class AssessmentSessionCoordinator {
 		return this.#sessionController.getItemSettings(itemIdentifier);
 	}
 
-	/** Records the candidate's comment on an item; throws unless its allowComment is on. */
+	/** Records the candidate's comment on an item; throws a coded error unless its allowComment is on. */
 	setItemComment(itemIdentifier: string, comment: string): void {
 		if (!this.#sessionController.canComment(itemIdentifier)) {
-			throw new Error(`Comments are not allowed for item "${itemIdentifier}".`);
+			throw new AssessmentPlayerError(
+				'commentsNotAllowed',
+				`Comments are not allowed for item "${itemIdentifier}".`,
+			);
 		}
 		this.#state.itemComments = { ...(this.#state.itemComments ?? {}), [itemIdentifier]: comment };
 	}
 
 	getItemComment(itemIdentifier: string): string | undefined {
 		return this.#state.itemComments?.[itemIdentifier];
+	}
+
+	/** Sets (or clears) the candidate's flag-for-review on an item. */
+	setItemFlag(itemIdentifier: string, flagged: boolean): void {
+		const flags = { ...(this.#state.itemFlags ?? {}) };
+		if (flagged) flags[itemIdentifier] = true;
+		else delete flags[itemIdentifier];
+		this.#state.itemFlags = flags;
+	}
+
+	isItemFlagged(itemIdentifier: string): boolean {
+		return this.#state.itemFlags?.[itemIdentifier] === true;
+	}
+
+	getFlaggedItemIdentifiers(): string[] {
+		return Object.keys(this.#state.itemFlags ?? {}).filter((id) => this.#state.itemFlags?.[id] === true);
 	}
 
 	recordAttempt(itemIdentifier: string): void {
@@ -297,7 +482,11 @@ export class AssessmentSessionCoordinator {
 	}
 }
 
-function hasAnyResponse(responses: Record<string, unknown>): boolean {
+/**
+ * True when any response value in the record carries learner input. Shared with the
+ * reference backend adapter so "answered" is decided identically on both sides.
+ */
+export function hasAnyResponse(responses: Record<string, unknown>): boolean {
 	for (const value of Object.values(responses)) {
 		if (value == null) continue;
 		if (Array.isArray(value)) {
@@ -311,4 +500,38 @@ function hasAnyResponse(responses: Record<string, unknown>): boolean {
 		return true;
 	}
 	return false;
+}
+
+/** A response variable's declared default, with the cardinality that decides how it compares. */
+export interface ResponseDefault {
+	value: unknown;
+	cardinality?: string;
+}
+
+/**
+ * QTI's skipped item (itemSessionControl `allowSkipping`): every response is NULL, empty, or
+ * still equal to its declared default — the same test `numberResponded` applies (a response
+ * that differs from its default). A `multiple` response compares as an unordered container.
+ */
+export function isSkippedResponseSet(
+	responses: Record<string, unknown>,
+	defaults: Readonly<Record<string, ResponseDefault>> = {},
+): boolean {
+	for (const [identifier, value] of Object.entries(responses)) {
+		if (!hasAnyResponse({ [identifier]: value })) continue;
+		const declared = defaults[identifier];
+		if (declared && declared.value != null && responseEqualsDefault(value, declared)) continue;
+		return false;
+	}
+	return true;
+}
+
+function responseEqualsDefault(value: unknown, declared: ResponseDefault): boolean {
+	if (declared.cardinality === 'multiple' && Array.isArray(value) && Array.isArray(declared.value)) {
+		const canonical = (entries: unknown[]) => entries.map((entry) => JSON.stringify(entry)).sort();
+		const left = canonical(value);
+		const right = canonical(declared.value);
+		return left.length === right.length && left.every((entry, index) => entry === right[index]);
+	}
+	return JSON.stringify(value) === JSON.stringify(declared.value);
 }

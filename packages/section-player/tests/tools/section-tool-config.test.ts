@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { pollyVoiceForLanguage, resolveSectionTtsProviderConfig } from '../../src/tools/section-tool-config';
+import { pollyVoiceForLanguage, resolveSectionTtsProviderConfig, toolkitAssessmentOf } from '../../src/tools/section-tool-config';
 
 describe('resolveSectionTtsProviderConfig', () => {
 	test('keeps Polly defaults when no provider override is supplied', () => {
@@ -38,24 +38,20 @@ describe('resolveSectionTtsProviderConfig', () => {
 		});
 	});
 
-	test('maps the pre-1.0 toolkit keys onto the 1.0 shape', () => {
-		const config = resolveSectionTtsProviderConfig({
-			provider: 'custom',
-			validateEndpoint: true,
-			settings: { layoutMode: 'left-aligned', speedOptions: [1, 1.5] },
-		});
-		expect(config).toMatchObject({
-			backend: 'server',
-			serverProvider: 'custom',
-			layoutMode: 'left-aligned',
-			speedOptions: [1, 1.5],
-		});
-		expect(config).not.toHaveProperty('provider');
-		expect(config).not.toHaveProperty('settings');
-		expect(config).not.toHaveProperty('validateEndpoint');
-		expect(resolveSectionTtsProviderConfig({ provider: 'browser' })).toMatchObject({ backend: 'browser' });
+	test('applies the host record over the defaults as given, translating no keys', () => {
 		expect(resolveSectionTtsProviderConfig({ provider: { id: 'tts-server' } })).toMatchObject({
 			provider: { id: 'tts-server' },
+		});
+		// Only the toolkit's own keys configure it: a string `provider` does not name the server
+		// (`serverProvider` does) and nested `settings` set no layout; both reach it unchanged.
+		expect(
+			resolveSectionTtsProviderConfig({ provider: 'custom', settings: { layoutMode: 'left-aligned' } }),
+		).toMatchObject({
+			backend: 'server',
+			serverProvider: 'polly',
+			layoutMode: 'expanding-row',
+			provider: 'custom',
+			settings: { layoutMode: 'left-aligned' },
 		});
 	});
 
@@ -86,5 +82,38 @@ describe('resolveSectionTtsProviderConfig', () => {
 	test('finds no voice for a language without one', () => {
 		expect(pollyVoiceForLanguage('xx')).toBeUndefined();
 		expect(pollyVoiceForLanguage('pt_PT')).toBe('Ines');
+	});
+});
+
+describe('toolkitAssessmentOf', () => {
+	test('names the assessment and binds no profile without PNP tool supports', () => {
+		expect(toolkitAssessmentOf('assessment-1', undefined)).toEqual({ id: 'assessment-1' });
+		expect(toolkitAssessmentOf('assessment-1', { display: { colorScheme: 'blackwhite' } })).toEqual({ id: 'assessment-1' });
+	});
+
+	test('binds the candidate\'s tool supports as the toolkit profile', () => {
+		expect(
+			toolkitAssessmentOf('assessment-1', {
+				tools: {
+					supports: ['ruler', 'calculator'],
+					prohibitedSupports: ['textToSpeech'],
+					activateAtInit: ['ruler'],
+					toolParameters: { calculator: { type: 'scientific' } },
+				},
+			}),
+		).toEqual({
+			id: 'assessment-1',
+			personalNeedsProfile: {
+				supports: ['ruler', 'calculator'],
+				prohibitedSupports: ['textToSpeech'],
+				activateAtInit: ['ruler'],
+				toolParameters: { calculator: { type: 'scientific' } },
+			},
+		});
+		// A prohibition alone still binds, with no supports.
+		expect(toolkitAssessmentOf('a', { tools: { prohibitedSupports: ['calculator'] } }).personalNeedsProfile).toEqual({
+			supports: [],
+			prohibitedSupports: ['calculator'],
+		});
 	});
 });

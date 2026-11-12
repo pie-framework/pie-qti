@@ -12,7 +12,8 @@ test.describe('assessment accessibility behavior', () => {
 
 		await toggle.click();
 		await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-		await expect(page.getByRole('menuitemradio', { name: /section 1/i })).toBeFocused();
+		// A disclosure, not a role="menu": the current section button receives focus on open.
+		await expect(page.getByRole('button', { name: /section 1/i })).toBeFocused();
 
 		await page.keyboard.press('Escape');
 		await expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -64,19 +65,40 @@ test.describe('assessment accessibility behavior', () => {
 	test('timer warning and expiry are exposed to assistive technology', async ({ page }) => {
 		await page.goto('a11y-components/assessment-timer');
 
-		await expect(page.getByRole('timer')).toHaveAttribute('aria-label', /remaining/i);
+		// The ticking readout: a programmatic name, never a live region.
+		const readout = page.getByRole('timer');
+		await expect(readout).toHaveAttribute('aria-label', /time remaining/i);
+		await expect(readout).toHaveAttribute('aria-live', 'off');
 
 		const warningButton = page.getByRole('button', { name: /simulate warning/i });
 		await warningButton.focus();
 		await page.keyboard.press('Enter');
-		await expect(page.getByRole('status').filter({ hasText: /time remaining/i })).toBeAttached();
+		await expect(page.getByTestId('assessment-timer-warning')).toHaveText('1 minute remaining');
 		await expect(warningButton).toBeFocused();
+		// The readout itself stays silent even after the warning.
+		await expect(readout).toHaveAttribute('aria-live', 'off');
 
 		const expiryButton = page.getByRole('button', { name: /simulate expiry/i });
 		await expiryButton.focus();
 		await page.keyboard.press('Enter');
-		await expect(page.getByRole('alert').filter({ hasText: /time expired/i })).toBeAttached();
+		await expect(page.getByTestId('assessment-timer-expired')).toHaveText('Time expired');
 		await expect(expiryButton).toBeFocused();
+	});
+
+	test('the candidate can hide the timer and bring it back', async ({ page }) => {
+		await page.goto('a11y-components/assessment-timer');
+
+		const toggle = page.getByTestId('assessment-timer-toggle');
+		// One name in both states (WCAG 4.1.2): the control is named for the countdown it
+		// reveals, and `aria-expanded` alone says whether the countdown is showing.
+		await expect(toggle).toHaveAccessibleName('Timer');
+		await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+		await toggle.click();
+		await expect(page.getByRole('timer')).toHaveCount(0);
+		await expect(toggle).toHaveAccessibleName('Timer');
+		await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+		await toggle.click();
+		await expect(page.getByRole('timer')).toHaveCount(1);
 	});
 
 	test('timer controls remain reachable in a narrow reflow viewport', async ({ page }) => {
@@ -93,6 +115,70 @@ test.describe('assessment accessibility behavior', () => {
 			await button.focus();
 			await expect(button).toBeFocused();
 		}
+	});
+
+	test('assessment dialog moves focus in, cancels on Escape and returns focus to its trigger', async ({ page }) => {
+		await page.goto('a11y-components/assessment-dialog');
+
+		const opener = page.getByRole('button', { name: 'Open submit confirmation' });
+		await opener.click();
+		const dialog = page.getByRole('dialog', { name: 'Submit your answers?' });
+		await expect(dialog).toBeVisible();
+		await expect(dialog).toHaveAccessibleDescription(/cannot change your answers/i);
+		await expect(dialog.getByRole('heading', { name: 'Submit your answers?' })).toBeFocused();
+		for (const name of ['Keep working', 'Submit']) {
+			const box = await dialog.getByRole('button', { name, exact: true }).boundingBox();
+			expect(box!.height).toBeGreaterThanOrEqual(44);
+		}
+
+		const results = await new AxeBuilder({ page }).include('dialog').withTags(WCAG_AA_TAGS).analyze();
+		expect(results.violations).toEqual([]);
+
+		await page.keyboard.press('Escape');
+		await expect(dialog).toBeHidden();
+		await expect(opener).toBeFocused();
+		await expect(page.getByTestId('dialog-result')).toHaveText('Last result: cancel');
+
+		await opener.press('Enter');
+		await expect(dialog).toBeVisible();
+		await dialog.getByRole('button', { name: 'Submit', exact: true }).click();
+		await expect(dialog).toBeHidden();
+		await expect(opener).toBeFocused();
+		await expect(page.getByTestId('dialog-result')).toHaveText('Last result: confirm');
+	});
+
+	test('assessment shell has labelled landmarks and a skip link to the question', async ({ page }) => {
+		await page.goto('/assessment-demo');
+		await expect(page.locator('.assessment-shell')).toBeVisible({ timeout: 10000 });
+
+		// One region named by the assessmentTest title, with labelled content and navigation.
+		const shell = page.getByRole('region', { name: 'Reading Comprehension: The Water Cycle' });
+		await expect(shell).toBeVisible();
+		await expect(shell.getByRole('region', { name: 'Question content' })).toBeVisible();
+		await expect(shell.getByRole('navigation', { name: 'Assessment navigation' })).toBeVisible();
+
+		const skip = shell.getByRole('link', { name: 'Skip to question' });
+		await skip.focus();
+		await expect(skip).toBeInViewport();
+		await page.keyboard.press('Enter');
+		await expect(shell.getByRole('region', { name: 'Question', exact: true })).toBeFocused();
+	});
+
+	test('moving to the next question keeps the focused question clear of the shell bars', async ({ page }) => {
+		await page.goto('/assessment-demo');
+		const next = page.getByTestId('assessment-next');
+		await expect(next).toBeEnabled({ timeout: 10000 });
+		await page.getByRole('radio', { name: 'Evaporation', exact: true }).check();
+		await next.press('Enter');
+
+		const question = page.getByRole('region', { name: 'Question', exact: true });
+		await expect(question).toBeFocused();
+		const [questionBox, navBox] = await Promise.all([
+			question.boundingBox(),
+			page.getByRole('navigation', { name: 'Assessment navigation' }).boundingBox(),
+		]);
+		// The bars sit outside the scrolling question content instead of on top of it.
+		expect(questionBox!.y + questionBox!.height).toBeLessThanOrEqual(navBox!.y + 1);
 	});
 
 	test('composed assessment demo shell has no automated WCAG AA violations', async ({ page }) => {

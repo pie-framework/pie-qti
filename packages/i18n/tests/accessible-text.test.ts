@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { scanHardcodedStrings } from '../scripts/scan-hardcoded-strings.js';
 import { formatList, isImeComposing, joinSentences, translate, translatePlural } from '../src/core/accessible-text.js';
 import { DefaultI18nProvider } from '../src/core/I18n.js';
+import type { I18nProvider } from '../src/core/I18nProvider.js';
 
 async function arabic(): Promise<DefaultI18nProvider> {
 	const provider = new DefaultI18nProvider('ar');
@@ -28,6 +29,31 @@ describe('translate', () => {
 			'تمت مطابقة A مع B.',
 		);
 	});
+
+	it('interpolates the fallback when the provider lacks the key', async () => {
+		// A key missing from every catalog in the chain must not surface literal
+		// "{source}" placeholders; the English fallback renders interpolated.
+		expect(translate(await arabic(), 'no.such.key', '{source} matched with {target}.', { source: 'A', target: 'B' })).toBe(
+			'A matched with B.',
+		);
+	});
+
+	it('fills a fallback a host provider hands back verbatim', () => {
+		const host: I18nProvider = {
+			getLocale: () => 'en',
+			setLocale: () => {},
+			t: (_key, defaultOrValues) => String(defaultOrValues),
+			formatNumber: (value) => `#${value}`,
+		};
+		expect(translate(host, 'no.such.key', 'Blank {index} of {count}', { index: 2, count: 5 })).toBe('Blank #2 of #5');
+	});
+
+	it('leaves a placeholder visible without a provider when its value is nullish', () => {
+		// Same authoring-bug visibility as the provider path, never the word "undefined".
+		expect(translate(undefined, 'no.such.key', 'Blank {index} of {count}', { index: 1, count: undefined })).toBe(
+			'Blank 1 of {count}',
+		);
+	});
 });
 
 describe('translatePlural', () => {
@@ -42,6 +68,22 @@ describe('translatePlural', () => {
 		const ar = await arabic();
 		expect(translatePlural(ar, 'interactions.media.playAtLeastCount', fallback, 2)).toBe('شغّل مرتين على الأقل');
 		expect(translatePlural(ar, 'interactions.media.playAtLeastCount', fallback, 5)).toBe('شغّل 5 مرات على الأقل');
+	});
+
+	it('picks an interpolated English form when no catalog carries the group', async () => {
+		// Never the raw key "no.such.group.other".
+		const ar = await arabic();
+		expect(translatePlural(ar, 'no.such.group', fallback, 1)).toBe('Play at least 1 time');
+		expect(translatePlural(ar, 'no.such.group', fallback, 3)).toBe('Play at least 3 times');
+	});
+
+	it('picks an English form through a provider without plural support', () => {
+		const host: I18nProvider = {
+			getLocale: () => 'en',
+			setLocale: () => {},
+			t: (_key, defaultOrValues) => String(defaultOrValues),
+		};
+		expect(translatePlural(host, 'no.such.group', fallback, 3)).toBe('Play at least 3 times');
 	});
 });
 
@@ -77,6 +119,7 @@ describe('scanHardcodedStrings', () => {
 				[
 					'<script>const diagnostic = "Not reported";</script>',
 					'<p>Continue</p>',
+					// biome-ignore lint/suspicious/noTemplateCurlyInString: fixture source text needs a literal Svelte template interpolation
 					'<button aria-label={`Remove ${item}`} title="Close"></button>',
 					'<input placeholder="Type {x}" />',
 					'<Widget title="Component prop" />',

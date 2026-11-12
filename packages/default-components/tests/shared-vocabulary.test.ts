@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { readFileSync } from 'node:fs';
-import { INTERACTION_DESCRIPTION_ID, interactionAria } from '../src/shared/utils/interactionAria';
+import { INTERACTION_DESCRIPTION_ID, interactionAria, interactionDescriptionId } from '../src/shared/utils/interactionAria';
 
 const sharedCss = readFileSync(
 	new URL('../src/shared/styles/qti-shared-vocabulary.css', import.meta.url),
@@ -33,23 +33,45 @@ describe('shared vocabulary stylesheet', () => {
 	])('styles %s', (selector) => {
 		expect(sharedCss).toContain(selector);
 	});
+
+	it('draws qti-well from theme tokens so it follows dark themes and PNP schemes', () => {
+		const well = /\.qti-well\s*\{([^}]*)\}/.exec(sharedCss)?.[1] ?? '';
+		expect(well).toContain('border: 1px solid var(--pie-qti-border-strong, #767676);');
+		expect(well).toContain('background-color: var(--pie-qti-base-200, #f9f9f9);');
+		expect(well).not.toMatch(/#ccc\b/);
+	});
 });
 
 describe('interaction accessible names', () => {
 	it('labels a group from the authored accessibility', () => {
-		expect(interactionAria({ accessibility: { label: 'Planets', description: 'Pick two.' } })).toEqual({
+		const described = { accessibility: { label: 'Planets', description: 'Pick two.' } };
+		expect(interactionAria(described)).toEqual({
 			role: 'group',
 			'aria-label': 'Planets',
-			'aria-describedby': INTERACTION_DESCRIPTION_ID,
+			'aria-describedby': interactionDescriptionId(described) as string,
 		});
-		expect(interactionAria({ accessibility: { description: 'Pick two.' } })).toEqual({
+		const unlabelled = { accessibility: { description: 'Pick two.' } };
+		expect(interactionAria(unlabelled)).toEqual({
 			role: 'group',
-			'aria-describedby': INTERACTION_DESCRIPTION_ID,
+			'aria-describedby': interactionDescriptionId(unlabelled) as string,
 		});
+	});
+
+	it('gives each interaction its own description id, stable for that interaction', () => {
+		// Two interactions with identical content (a composite item, or two renderings of one
+		// item) must not share the id their aria-describedby resolves to.
+		const first = { accessibility: { description: 'Pick two.' } };
+		const second = { accessibility: { description: 'Pick two.' } };
+		const firstId = interactionDescriptionId(first);
+		expect(firstId?.startsWith(`${INTERACTION_DESCRIPTION_ID}-`)).toBe(true);
+		expect(interactionDescriptionId(first)).toBe(firstId);
+		expect(interactionAria(first)['aria-describedby']).toBe(firstId as string);
+		expect(interactionDescriptionId(second)).not.toBe(firstId);
 	});
 
 	it('adds nothing without authored accessibility', () => {
 		expect(interactionAria({})).toEqual({});
 		expect(interactionAria(undefined)).toEqual({});
+		expect(interactionDescriptionId({ accessibility: { label: 'Only a name' } })).toBeNull();
 	});
 });

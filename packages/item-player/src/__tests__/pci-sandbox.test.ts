@@ -160,7 +160,7 @@ function makeFakeRunner(deliver: (envelope: unknown) => void) {
 describe('PciHost sandboxed engine', () => {
 	function setup(
 		data: ExtractedPci = makeData(),
-		options: { sandbox?: Partial<PciSandboxConfiguration> } = {}
+		options: { sandbox?: Partial<PciSandboxConfiguration>; contentLanguage?: string } = {}
 	) {
 		const pair = makeConnectionPair();
 		const runner = makeFakeRunner(pair.deliver);
@@ -173,6 +173,7 @@ describe('PciHost sandboxed engine', () => {
 			frameConnector: () => pair.connection,
 			parentOrigin: () => PARENT_ORIGIN,
 			responseDeclaration: { baseType: 'identifier', cardinality: 'single' },
+			...(options.contentLanguage ? { contentLanguage: options.contentLanguage } : {}),
 		});
 		host.onError((error) => errors.push(error));
 		host.onResponseChange((responseId, value) => responses.push({ responseId, value }));
@@ -212,6 +213,23 @@ describe('PciHost sandboxed engine', () => {
 		expect(init!.payload.baseUrl).toBe('https://packages.example.com/items/');
 		expect(String(init!.payload.markup)).toContain('pci-container');
 		expect(typeof init!.payload.registrationTimeoutMs).toBe('number');
+		// Without a content language the frame keeps the runner's static English/LTR defaults.
+		expect(init!.payload.language).toBeUndefined();
+		expect(init!.payload.direction).toBeUndefined();
+	});
+
+	test('the init payload states the item content language, direction and frame title', async () => {
+		const { host, runner } = setup(makeData(), { contentLanguage: 'ar-EG' });
+		await host.load();
+		host.initialize(makeMountNode());
+		runner.runnerReady();
+		await sleep(5);
+
+		const init = runner.lastInit();
+		expect(init?.payload.language).toBe('ar-EG');
+		expect(init?.payload.direction).toBe('rtl');
+		// The same title the page-realm scaffold gives the frame element.
+		expect(init?.payload.frameTitle).toBe('Interactive content: echo-pci');
 	});
 
 	test('instantiate waits for module-loaded and carries the seeded state', async () => {

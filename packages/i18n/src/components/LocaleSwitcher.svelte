@@ -83,10 +83,12 @@
 		compact = false,
 	}: Props = $props();
 
-	// Reactive translations
+	// Reactive translations. `t()` always returns a string (the English default
+	// is its second argument); the trailing `??` covers only `i18n` being
+	// undefined when the component is mounted without a provider.
 	const translations = $derived({
-		selectLanguage: label ?? i18n?.t('i18n.selectLanguage') ?? 'Language',
-		ariaLabel: i18n?.t('i18n.selectLanguageAriaLabel') ?? 'Select display language',
+		selectLanguage: label ?? i18n?.t('i18n.selectLanguage', 'Language') ?? 'Language',
+		ariaLabel: i18n?.t('i18n.selectLanguageAriaLabel', 'Select display language') ?? 'Select display language',
 	});
 
 	function handleChange(event: Event) {

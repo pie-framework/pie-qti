@@ -2,35 +2,44 @@
 
 <script lang="ts">
 	import type { OrderInteractionData } from '@pie-qti/item-player';
+	import type { InteractionProps, TypesetProps } from '../../shared/utils/interactionProps';
+	import { tick } from 'svelte';
+	import { emitInteractionChange } from '../../shared/utils/eventHelpers';
+	import { createConfirmationFlow } from '../../shared/utils/confirmationFlow.svelte';
+	import { createEliminationTool } from '../../shared/utils/eliminationTool.svelte';
+	import { accessibleTextFromHtml } from '../../shared/utils/accessibleText.js';
+	import { choiceAccessibleName } from '../../shared/utils/choiceName';
+	import { createAnnouncer } from '../../shared/utils/announcer.svelte';
 	import { translate, type I18nProvider } from '@pie-qti/i18n';
 	import { typesetAction } from '../../shared/actions/typesetAction';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
+	import Icon from '../../shared/components/Icon.svelte';
+	import { ICON_CHECK } from '../../shared/components/icons';
 	import SortableList, { type SortableIndexLabels } from '../../shared/components/SortableList.svelte';
-	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import OrderSubset from '../../shared/components/OrderSubset.svelte';
+	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
+	import { minimumHint, subsetOrderHint } from '../../shared/utils/minimumRequirement';
+	import { orderChoiceLimits } from '@pie-qti/item-player';
 
-	interface Props {
-		interaction?: OrderInteractionData | string;
-		response?: string[] | null;
-		correctResponse?: string[] | null;
-		disabled?: boolean;
-		role?: string;
-		i18n?: I18nProvider;
-		typeset?: (element: HTMLElement) => void;
-		onChange?: (value: string[]) => void;
+	interface Props extends InteractionProps<'orderInteraction'>, TypesetProps {
 		/** When true, renders an elimination toggle button per choice (QTI 3.0 PNP §6.2). */
 		eliminationTool?: boolean;
 	}
 
 	let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), typeset, onChange, eliminationTool = false }: Props = $props();
 
-	// Parse props that may be JSON strings (web component usage)
-	const parsedInteraction = $derived(parseJsonProp<OrderInteractionData>(interaction));
-	const parsedResponse = $derived(parseJsonProp<string[]>(response));
-	const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
-	const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+	// Parse props that may be JSON strings (web component usage). Correct-answer mode is the
+	// scorer's view of an item that has a correct response (the shared shell's rule).
+	const shell = $derived(
+		createInteractionShell<OrderInteractionData, string[], string[]>({ interaction, response, correctResponse, role, listResponse: true }),
+	);
+	const parsedInteraction = $derived(shell.interaction);
+	const parsedResponse = $derived(shell.response);
+	const parsedCorrectResponse = $derived(shell.correctResponse);
+	const isShowingCorrect = $derived(shell.isShowingCorrect);
 	const classes = $derived(parsedInteraction?.interactionClasses ?? []);
 	const orientation = $derived(
 		classes.includes('qti-orientation-horizontal') ||
@@ -54,8 +63,6 @@
 	// Get reference to the root element for event dispatching
 	let rootElement: HTMLDivElement | undefined = $state();
 
-	// Track whether user has confirmed their order
-	let hasConfirmed = $state(false);
 
 	// Presentation order comes from the extractor, which applies `shuffle` seeded from the
 	// item session GUID (see `core/shuffle.ts`). Shuffling here as well would re-order on
@@ -69,74 +76,156 @@
 			: shuffledChoiceIds
 	);
 
+	// Subset ordering (QTI 2.2 ASI §5.73, §2.4.1.2): only a minChoices below the number of
+	// choices lets the candidate pick which items to order; without it, or with minChoices at
+	// or above N, every choice is ordered (and maxChoices is ignored). The same rule the
+	// engine's response validation reads.
+	const limits = $derived(
+		orderChoiceLimits({
+			minChoices: parsedInteraction?.minChoices,
+			maxChoices: parsedInteraction?.maxChoices,
+			choiceCount: shuffledChoiceIds.length,
+		}),
+	);
+	const subsetMode = $derived(limits.subset);
+
+	// The ordered subset: a restored response's known choices, in its sequence, each once.
+	const subsetOrderedIds = $derived(
+		parsedResponse
+			? [...new Set(parsedResponse.filter((id) => shuffledChoiceIds.includes(id)))]
+			: []
+	);
+
 	// Track initial order to detect if user has made changes
 	const initialOrder = $derived(parsedInteraction?.choices.map((c) => c.identifier) ?? []);
-	const hasReordered = $derived(
-		orderedIds.length > 0 &&
-		orderedIds.some((id, index) => id !== initialOrder[index])
-	);
 
-	// Show confirmation button when response is null or when not confirmed yet
-	const needsConfirmation = $derived(
-		!disabled &&
-		(!response || !hasConfirmed) &&
-		orderedIds.length > 0
-	);
+	const confirmation = createConfirmationFlow({
+		orderedIds: () => orderedIds,
+		initialOrder: () => initialOrder,
+		disabled: () => disabled,
+		response: () => response,
+		commit: (order) => {
+			response = order;
+			emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: order, onChange });
+		},
+	});
 
 	function handleReorder(newOrder: string[]) {
-		hasConfirmed = true; // Auto-confirm on drag
+		confirmation.autoConfirm(); // Auto-confirm on drag
 		response = newOrder;
-		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(newOrder);
-		// Dispatch event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, newOrder));
-		}
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: newOrder, onChange });
 	}
 
-	function confirmOrder() {
-		if (disabled || hasConfirmed) return;
-
-		hasConfirmed = true;
-		const currentOrder = orderedIds;
-		response = currentOrder;
-
-		// Call onChange callback if provided (for Svelte component usage)
-		onChange?.(currentOrder);
-		// Dispatch event for web component usage - event will bubble up to the host element
-		if (rootElement) {
-			rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction?.responseId, currentOrder));
-		}
+	// Subset ordering has no confirm step. Full mode needs one because the presented order is
+	// itself a plausible answer a candidate could mean to keep untouched; in subset mode nothing
+	// is ordered until the candidate adds an item, every ordered item got there by an explicit
+	// add, and each act stays reversible (remove, move) until submission — the "reversible"
+	// branch of WCAG 2.2 SC 3.3.4 — so a confirm button would only add a step. Each add, remove
+	// and move records the response at once; ordering nothing is a NULL response.
+	function handleSubsetChange(newOrder: string[]) {
+		const value = newOrder.length > 0 ? newOrder : null;
+		response = value;
+		// A cleared subset reports null, as clearing does elsewhere (choice's clear answer).
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value, onChange });
 	}
 
 	// Reset confirmation state when response is externally cleared
 	$effect(() => {
-		if (response === null || (Array.isArray(response) && response.length === 0)) {
-			hasConfirmed = false;
-		}
+		confirmation.resetIfCleared();
 	});
 
-	// Elimination tool state
-	let eliminatedChoices = $state(new Set<string>());
+	// Confirmation feedback: the control itself stays mounted through confirmation (it
+	// becomes an inert "Order confirmed" state instead of being swapped for a badge), so
+	// the focus that pressed it keeps a home, and the always-present polite region below
+	// announces the confirmation to assistive technology.
+	const confirmationAnnouncer = createAnnouncer();
 
-	function toggleElimination(identifier: string) {
-		const next = new Set(eliminatedChoices);
-		if (next.has(identifier)) {
-			next.delete(identifier);
-		} else {
-			next.add(identifier);
+	/** Announce the confirmation; the shared announcer keeps repeats announcing. */
+	function announceConfirmation(message: string) {
+		confirmationAnnouncer.announce(message);
+	}
+	async function confirmFromButton(event: MouseEvent) {
+		const button = event.currentTarget as HTMLButtonElement | null;
+		const wasNeedy = confirmation.needsConfirmation;
+		confirmation.confirmOrder();
+		if (!wasNeedy) return;
+		announceConfirmation(translate(i18n, 'interactions.order.orderConfirmed', 'Order confirmed'));
+		// The control flips to its confirmed state in place; make sure keyboard focus
+		// sits on it even if a re-render replaced the element.
+		await tick();
+		button?.focus();
+	}
+
+	// Minimum requirement: stated while the response orders fewer items than required — the same
+	// minimum response validation enforces; the author's message wins. In subset mode the
+	// statement also names the cap ("Choose 2 items and put them in order.", or a range), so the
+	// limits are known up front (WCAG 3.3.2). It describes the list. Only while the candidate
+	// can still answer.
+	const uid = $props.id();
+	const minHintId = `${uid}-min-hint`;
+	// The confirm button is named by its visible label, so a voice-control user saying that
+	// label reaches it (WCAG 2.5.3 Label in Name); the fuller sentence describes it.
+	const confirmDescriptionId = `${uid}-confirm-description`;
+	const orderedCount = $derived(
+		subsetMode
+			? (Array.isArray(parsedResponse) ? parsedResponse.filter((id) => shuffledChoiceIds.includes(id)).length : 0)
+			: (Array.isArray(parsedResponse) ? parsedResponse.filter(Boolean).length : 0),
+	);
+	const minHint = $derived.by(() => {
+		if (subsetMode && !disabled && role === 'candidate') {
+			return subsetOrderHint({
+				i18n,
+				min: limits.minOrdered,
+				max: limits.maxOrdered,
+				count: orderedCount,
+				authored: parsedInteraction?.minSelectionsMessage,
+				namespace: 'interactions.order',
+			});
 		}
-		eliminatedChoices = next;
-	}
+		return minimumHint({
+			i18n,
+			minimum: !disabled && role === 'candidate' && !subsetMode ? parsedInteraction?.minChoices : 0,
+			count: orderedCount,
+			authored: parsedInteraction?.minSelectionsMessage,
+			key: 'interactions.order.minChoicesHint',
+			fallback: { one: 'Put at least {count} item in order.', other: 'Put at least {count} items in order.' },
+		});
+	});
 
-	function eliminationLabel(identifier: string): string {
-		return eliminatedChoices.has(identifier)
-			? (i18n?.t('interactions.choice.restoreChoice') ?? 'Restore')
-			: (i18n?.t('interactions.choice.eliminateChoice') ?? 'Eliminate');
-	}
+	// Elimination tool (QTI 3.0 PNP §6.2): scratch-work toggles; the response is untouched.
+	const elimination = createEliminationTool();
+	// Each toggle is named for its item (image alt and MathML included), not just
+	// "Eliminate", so screen reader users know which choice a toggle acts on. The name is the
+	// same in both states: aria-pressed says whether the item is eliminated, so it never flips
+	// to "Restore" (WCAG 4.1.2), and the visible ✕ never changes either (2.5.3). An item with
+	// nothing to read is named by its presented position, never by its identifier.
+	const eliminationLabel = (identifier: string): string => {
+		const choices = parsedInteraction?.choices ?? [];
+		const index = choices.findIndex((c) => c.identifier === identifier);
+		const item = choiceAccessibleName({
+			i18n,
+			label: accessibleTextFromHtml(choices[index]?.text),
+			position: index + 1,
+		});
+		return translate(i18n, 'interactions.order.eliminateItem', 'Eliminate {item}', { item });
+	};
 </script>
 
 <ShadowBaseStyles />
+
+{#snippet eliminationToggle(item: { id: string })}
+	{#if eliminationTool}
+		<!-- Lives in its item's row, so the toggle aligns with the item at any row height. -->
+		<button
+			type="button"
+			class="qti-eliminate-btn"
+			aria-label={eliminationLabel(item.id)}
+			aria-pressed={elimination.isEliminated(item.id)}
+			onclick={() => elimination.toggle(item.id)}
+			data-eliminated={elimination.isEliminated(item.id) ? '' : undefined}
+		>✕</button>
+	{/if}
+{/snippet}
 
 <div bind:this={rootElement} {...interactionAria(parsedInteraction)} class={['qti-order-interaction', ...classes].join(' ')} use:typesetAction={{ typeset }}>
 	<InteractionDescription interaction={parsedInteraction} />
@@ -149,119 +238,135 @@
 			</div>
 		{/if}
 
-		<div class="qti-order-sortable-wrapper" class:qti-order-with-elimination={eliminationTool}>
-			<SortableList
-				items={parsedInteraction.choices.map(c => ({ id: c.identifier, text: c.text }))}
-				{orderedIds}
-				{i18n}
-				correctOrder={isShowingCorrect ? (parsedCorrectResponse || []) : []}
-				{orientation}
-				{indexLabels}
-				{indexSuffix}
-				{disabled}
-				onReorder={handleReorder}
-			/>
-			{#if eliminationTool}
-				<div class="qti-order-elimination-col" aria-hidden="true">
-					{#each orderedIds as id (id)}
-						<button
-							type="button"
-							class="qti-eliminate-btn"
-							aria-label={eliminationLabel(id)}
-							aria-pressed={eliminatedChoices.has(id)}
-							aria-hidden="false"
-							onclick={() => toggleElimination(id)}
-							data-eliminated={eliminatedChoices.has(id) ? '' : undefined}
-						>✕</button>
-					{/each}
-				</div>
+		<div class="qti-order-sortable-wrapper">
+			{#if subsetMode}
+				<OrderSubset
+					items={parsedInteraction.choices.map(c => ({ id: c.identifier, text: c.text }))}
+					orderedIds={subsetOrderedIds}
+					maxOrdered={limits.maxOrdered}
+					capMessage={parsedInteraction?.maxSelectionsMessage}
+					{i18n}
+					correctOrder={isShowingCorrect ? (parsedCorrectResponse || []) : []}
+					{orientation}
+					{indexLabels}
+					{indexSuffix}
+					{disabled}
+					describedBy={minHint ? minHintId : undefined}
+					onChange={handleSubsetChange}
+					rowTrailing={eliminationToggle}
+				/>
+			{:else}
+				<SortableList
+					items={parsedInteraction.choices.map(c => ({ id: c.identifier, text: c.text }))}
+					{orderedIds}
+					{i18n}
+					correctOrder={isShowingCorrect ? (parsedCorrectResponse || []) : []}
+					{orientation}
+					{indexLabels}
+					{indexSuffix}
+					{disabled}
+					describedBy={minHint ? minHintId : undefined}
+					onReorder={handleReorder}
+					rowTrailing={eliminationToggle}
+				/>
 			{/if}
 		</div>
+		<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(parsedResponse ?? null)} />
 
-		<!-- Confirmation button for WCAG 2.2 SC 3.3.4 compliance -->
+		<!-- Confirmation control for WCAG 2.2 SC 3.3.4 compliance. One persistent element
+		     flips between the actionable control and an inert "Order confirmed" state
+		     (aria-disabled, tabindex=-1 — never removed), so the focus that pressed it keeps
+		     a home; the always-present polite region below announces the confirmation.
+		     Its visible label is its accessible name (WCAG 2.5.3): the sentence saying what
+		     confirming means is its description, not a name that hides the label. -->
 		<div class="mt-4 flex items-center gap-3">
-			{#if needsConfirmation}
+			{#if !subsetMode && (confirmation.needsConfirmation || confirmation.hasConfirmed)}
 				<button
 					type="button"
-					class="btn btn-primary btn-sm"
-					onclick={confirmOrder}
-					aria-label={i18n?.t('interactions.order.confirmAria') ?? 'Confirm this order as your answer'}
+					part={confirmation.hasConfirmed ? 'confirmed' : 'confirm'}
+					class="btn btn-sm {confirmation.hasConfirmed ? 'qti-order-confirmed' : 'btn-primary'}"
+					onclick={confirmFromButton}
+					aria-disabled={confirmation.hasConfirmed ? 'true' : undefined}
+					tabindex={confirmation.hasConfirmed ? -1 : undefined}
+					aria-describedby={confirmation.hasConfirmed ? undefined : confirmDescriptionId}
 				>
-					{hasReordered
-						? (i18n?.t('interactions.order.confirmOrder') ?? 'Confirm Order')
-						: (i18n?.t('interactions.order.confirmOrderNoChanges') ?? 'Confirm Order (No Changes)')}
+					{#if confirmation.hasConfirmed}
+						<Icon d={ICON_CHECK} part="confirmed-icon" class="qti-icon-sm inline-block w-4 h-4 stroke-current" />
+						{translate(i18n, 'interactions.order.orderConfirmed', 'Order confirmed')}
+					{:else}
+						{confirmation.hasReordered
+							? (i18n?.t('interactions.order.confirmOrder') ?? 'Confirm Order')
+							: (i18n?.t('interactions.order.confirmOrderNoChanges') ?? 'Confirm Order (No Changes)')}
+					{/if}
 				</button>
-				<span class="text-xs text-base-content/60">
-					{i18n?.t('interactions.order.instruction') ?? 'Drag items to reorder, or click to confirm the current order'}
-				</span>
-			{:else if hasConfirmed}
-				<div class="badge badge-success gap-2">
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
-						part="confirmed-icon"
-						class="qti-icon-sm inline-block w-4 h-4 stroke-current"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M5 13l4 4L19 7"
-						></path>
-					</svg>
-					{translate(i18n, 'interactions.order.orderConfirmed', 'Order confirmed')}
-				</div>
+				{#if !confirmation.hasConfirmed}
+					<span id={confirmDescriptionId} class="sr-only">
+						{i18n?.t('interactions.order.confirmAria') ?? 'Confirm this order as your answer'}
+					</span>
+					<span class="text-xs text-base-content/60">
+						{i18n?.t('interactions.order.instruction') ?? 'Drag items to reorder, or click to confirm the current order'}
+					</span>
+				{/if}
 			{/if}
 		</div>
+		<div aria-live="polite" aria-atomic="true" class="qti-order-confirmation-live">{confirmationAnnouncer.message}</div>
 	{/if}
 </div>
 
 <style>
-	/* Minimal icon sizing so SVGs don't fall back to browser default size without Tailwind */
-	.qti-icon-sm {
-		width: 1rem;
-		height: 1rem;
-		flex: 0 0 auto;
+	/* The confirmed control: the badge's success reading without removing the control */
+	.qti-order-confirmed {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		border: 1px solid var(--pie-qti-success-text, #15803d);
+		color: var(--pie-qti-success-text, #15803d);
+		background: transparent;
+		cursor: default;
 	}
+
 
 	/* Elimination tool layout */
 	.qti-order-sortable-wrapper {
 		position: relative;
 	}
 
-	.qti-order-with-elimination {
-		display: grid;
-		grid-template-columns: 1fr auto;
-		gap: 0.25rem;
-		align-items: start;
-	}
-
-	.qti-order-elimination-col {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
+	/* K-12 target size: each toggle is a primary control in its item's row. Its boundary and
+	   ✕ glyph are the control's identifying features: both at full strength (the boundary on
+	   the strong-border token, 3:1 or more against the row — WCAG 1.4.11), as choice's toggle
+	   with the same function is. Dimming the idle state below 3:1 would hide the control. */
 	.qti-eliminate-btn {
 		background: none;
-		border: 1px solid currentColor;
+		border: 1px solid var(--pie-qti-border-strong, #767676);
 		border-radius: 50%;
-		width: 1.75rem;
-		height: 1.75rem;
-		font-size: 0.75rem;
+		width: 2.75rem;
+		height: 2.75rem;
+		font-size: 0.875rem;
 		cursor: pointer;
-		opacity: 0.4;
 		padding: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		flex-shrink: 0;
+		flex: 0 0 auto;
+		color: inherit;
 	}
 
-	.qti-eliminate-btn:hover,
+	.qti-eliminate-btn:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
+	}
+
+	.qti-eliminate-btn:hover {
+		background-color: color-mix(in oklch, var(--pie-qti-base-content, oklch(21% 0 0)) 8%, transparent);
+	}
+
+	/* Eliminated: the same treatment choice gives its toggle — the error *text* token on glyph
+	   and boundary, plus a tinted fill and a heavier boundary, so the state is told apart by
+	   fill and weight, not by colour alone (WCAG 1.4.1). */
 	.qti-eliminate-btn[data-eliminated] {
-		opacity: 1;
-		color: var(--pie-qti-error, oklch(63% 0.237 25.331));
+		color: var(--pie-qti-error-text, #b91c1c);
+		border-color: var(--pie-qti-error-text, #b91c1c);
+		border-width: 2px;
+		background-color: color-mix(in oklch, var(--pie-qti-error, oklch(63% 0.237 25.331)) 12%, transparent);
 	}
 </style>

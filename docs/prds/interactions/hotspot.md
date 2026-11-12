@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: hotspotInteraction
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-11-09
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-11-09
 
 ---
 
@@ -19,7 +19,7 @@
 
 `hotspotInteraction` presents a background image with one or more defined clickable regions (`hotspotChoice` elements). The candidate selects regions by clicking or tapping them. The response is an `identifier` (single cardinality) or a set of `identifier` values (multiple cardinality), where each identifier names the chosen `hotspotChoice`. The interaction is used in K-12 assessments to test spatial reasoning — identifying countries on a map, labelling anatomy diagrams, or locating features in a photograph.
 
-The component (`pie-qti-hotspot`) renders the image and overlays a scalable SVG layer whose `viewBox` matches the image's natural dimensions. Hotspot regions are SVG shapes (`<circle>`, `<rect>`, `<polygon>`) at native coordinates; the SVG scales with the container so coordinates remain valid at any rendered size. Clicking a shape fires a `qti-change` event.
+The component (`pie-qti-hotspot`) renders the image and overlays a scalable SVG layer whose `viewBox` matches the image's natural dimensions. Hotspot regions are SVG shapes (`<circle>`, `<ellipse>`, `<rect>`, `<polygon>`, and a whole-image `<rect>` for the `default` shape) at native coordinates; the SVG scales with the container so coordinates remain valid at any rendered size. Clicking a shape fires a `qti-change` event: with `maxChoices=1` the chosen identifier, otherwise the list of chosen identifiers.
 
 ---
 
@@ -39,11 +39,11 @@ The image is constrained with `width: 100%; max-width: <naturalWidth>px` and an 
 
 A hotspot on a map image is visually self-evident — the candidate sees the map, reads the question, and clicks a region. For a blind user or a user navigating by keyboard, none of that is available. Two separate problems must be solved:
 
-1. **Keyboard reachability.** SVG elements are not natively focusable. The component makes each shape focusable by setting `tabindex=0` (or `-1` when `disabled`) and handling `keydown` for Enter and Space. This matches the `role="button"` semantic declared on each shape. The tab order follows DOM order, which is the order of `hotspotChoice` elements in the QTI XML.
+1. **Keyboard reachability.** SVG elements are not natively focusable. The component makes each shape focusable with `tabindex` (`-1` on every shape when `disabled`) and handles `keydown`. With `maxChoices=1` the regions are a radio group, like single-select hottext and `choiceInteraction`'s radios: one Tab stop (roving tabindex: the checked region, else the first), arrow keys that move to the next or previous region and check it, and Space or Enter to check the focused region. With any other `maxChoices` each region is a toggle button and its own Tab stop, activated by Enter or Space: activating a selected region deselects it, and a selection past `maxChoices` is refused and announced. The order is DOM order, which is the order of `hotspotChoice` elements in the QTI XML — a `default`-shape region included, although it is painted beneath the others.
 
-2. **Accessible name.** A screen reader reaching a shape with `role="button"` will read its accessible name. Without an explicit name, the name would be empty or derived from SVG content (which is none). The component generates `aria-label="Select hotspot {identifier}"` (with `". Correct answer"` appended in scorer role when the choice is correct). This is a fallback. The QTI spec provides `hotspotLabel` on `hotspotChoice` specifically to supply a meaningful human-readable name (e.g. "Glasgow" instead of "A"). The extractor reads `hotspotLabel` and includes it in the extracted data; the component should use it as the `aria-label` when present — **this is not yet wired up** (see Known gaps).
+2. **Accessible name.** A screen reader reaching a region (`role="radio"` in single selection, `role="button"` otherwise) reads its accessible name. QTI provides `hotspotLabel` on `hotspotChoice` to give a region a human-readable name (e.g. "Glasgow" instead of "A"), and the component uses it as the region's name. A region without one is named by its position, "Region 2 of 5" (`interactions.hotspot.regionOfTotal`), never by its identifier. In the scorer role, "Correct answer." is appended to a correct region's name.
 
-3. **Image alt text.** The background image itself needs an accessible description. The QTI spec does not mandate alt text on the `<object>` element, but WCAG 2.2 SC 1.1.1 does. The component supplies a fallback alt of `"Hotspot interaction"` when no i18n key is configured. Item authors should be instructed to use the `<object>` element's text content as the alt description, or to provide it via the i18n system.
+3. **Image alt text.** The background image needs a text alternative (WCAG 2.2 SC 1.1.1; QTI does not mandate one). The extractor reads the author's alternative from the QTI source: the `<object>` fallback text, `aria-label`/`aria-labelledby`, an inline SVG's `<title>`/`<desc>`, or an `<img alt>`, where an empty `alt` marks the image decorative. Without one, the image is named by the localized fallback `interactions.hotspot.imageFallback` ("Image for this question").
 
 ### Touch target sizing
 
@@ -57,7 +57,7 @@ HTML `<map>` and `<area>` elements provide native image-map semantics and were t
 
 1. **Responsive scaling.** `<area>` coords are pixel-absolute. They require JavaScript to be recalculated when the image resizes, and browsers do not consistently scale image maps. SVG `viewBox` scaling is automatic and CSS-driven.
 2. **Visual feedback.** SVG shapes can receive CSS fill, stroke, and transition styling. An `<area>` element has no visible rendering and cannot show selection state without additional DOM elements.
-3. **ARIA support.** SVG elements accept `role`, `aria-label`, `aria-pressed`, and `tabindex`, making them suitable interactive elements when attributed correctly.
+3. **ARIA support.** SVG elements accept `role`, `aria-label`, `aria-checked`, `aria-pressed`, and `tabindex`, making them suitable interactive elements when attributed correctly.
 
 The trade-off is that inline SVG in a shadow root has some quirks with Tailwind utility classes and hover pseudo-classes. The component includes fallback native CSS for hover state in the `<style>` block alongside the Tailwind utilities.
 
@@ -73,22 +73,24 @@ The trade-off is that inline SVG in a shadow root has some quirks with Tailwind 
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `responseIdentifier` | ✅ Full | Extracted as `responseId`; used in `qti-change` event payload |
-| `maxChoices` | ✅ Extracted | Defaults to `1` when absent. **Currently only single-select (string response) is implemented in the UI**; `maxChoices > 1` is extracted but the component does not support multi-selection. See Known gaps. |
-| `minChoices` | ✅ Extracted | Defaults to `0` when absent; included in `HotspotData` when non-zero. Not enforced at response-submission time. |
+| `maxChoices` | ✅ Full | Defaults to `1` when absent (QTI 2.2 and 3.0). `1` is single selection: a radio group whose response is one identifier. Above `1`, or `0` for no restriction, is multiple selection (QTI 3.0 §5.68.2: such an interaction is bound to a multiple-cardinality response): toggle buttons whose response is the list of selected identifiers, where a selection past `maxChoices` is refused and announced. |
+| `minChoices` | ✅ Full | Defaults to `0` when absent; included in `HotspotData` when non-zero. Enforced by `Player.validateResponses()`, which reports a response with fewer selections incomplete; while the response is short of it, the component states the minimum (`interactions.hotspot.minChoicesHint`, or the author's message) and describes each region by it. |
+| `data-max-selections-message` | ✅ Full | QTI 3.0 §5.68.4: "The custom message to be rendered by the delivery platform upon violation of the max-choices constraint". Shown at the cap for any `maxChoices`, and announced when a selection is refused; without it, multiple selection uses the localized default `interactions.hotspot.maxChoicesReached`, the same text `choiceInteraction` and hottext use. |
+| `data-min-selections-message` | ✅ Full | Replaces the localized minimum hint. |
 
 ### Supported attributes on `hotspotChoice`
 
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `identifier` | ✅ Full | Required; deduplicated; used as response value |
-| `shape` | ✅ Full | `circle`, `rect`, `poly` rendered as SVG shapes. `ellipse` is in the type union but has no rendering branch; falls through without rendering. `default` is reserved for full-image fallback and also not rendered. |
-| `coords` | ✅ Partial | See coordinate format notes below. `rect` format has a spec divergence. |
-| `hotspotLabel` | ✅ Extracted | Extracted into `HotspotData.hotspotChoices[*].hotspotLabel`; **not yet used as `aria-label` in the component.** Falls back to `"Select hotspot {identifier}"`. |
+| `shape` | ✅ Full | `circle`, `rect`, `ellipse` and `poly` are rendered as SVG shapes. `default` — "the entire area of the associated image" (QTI 3.0 §8.29 ShapeEnum) — is a whole-image region painted beneath every other region, so another region's click stays its own; it is reached by keyboard and named like any other region, in `hotspotChoice` order. |
+| `coords` | ✅ Full | See coordinate format notes below. Not needed for the `default` shape, which the extractor accepts without them. |
+| `hotspotLabel` | ✅ Full | Used verbatim as the region's accessible name and in the "Selected:" summary. A region without one is named by position ("Region 2 of 5"), never by its identifier. |
 | `fixed` | ❌ Not extracted | Spec: in interactions with shuffling, `fixed=true` choices keep their position. `hotspotInteraction` does not implement shuffle, so this attribute has no effect. Not extracted. |
 
 ### Image element
 
-The spec uses `<object>` to embed the background image (with `type`, `data`, `width`, `height` attributes). The extractor reads `<object>` children and extracts either an image URL (`src`) or inline SVG content. The `width` and `height` attributes on `<object>` provide the natural dimensions used to set the SVG `viewBox`. If dimensions are absent or non-numeric, the `viewBox` falls back to `800 600` and the overlay may misalign.
+The spec uses `<object>` to embed the background image (with `type`, `data`, `width`, `height` attributes). The extractor reads `<object>` children and extracts either an image URL (`src`) or inline SVG content. The `width` and `height` attributes on `<object>` provide the natural dimensions used to set the SVG `viewBox`; without them, a raster image's natural size once it has loaded. With neither, no `viewBox` would place the regions correctly, so the component draws no overlay, warns in the console and, outside the candidate role, says why.
 
 ### Shape coordinate formats
 
@@ -97,16 +99,17 @@ The spec defines the following formats (all coordinates are in natural image pix
 | Shape | Spec format | Notes |
 |-------|-------------|-------|
 | `circle` | `centerX,centerY,radius` | Renders as SVG `<circle cx cy r>`. Correctly implemented. |
-| `rect` | `left,top,right,bottom` (two corners) | **The component incorrectly interprets these as `x,y,width,height`**. See Known gaps — G-RECT. |
+| `rect` | `left,top,right,bottom` (two corners) | Renders as SVG `<rect>` with `width = right − left` and `height = bottom − top`. |
 | `poly` | `x1,y1,x2,y2,...,xn,yn` (vertex pairs) | Renders as SVG `<polygon points="...">`. Correctly implemented. Closing-point repeat is handled by the to-pie transformer but not in the component (the SVG polygon element closes automatically). |
-| `ellipse` | `centerX,centerY,radiusX,radiusY` | No rendering branch in the component. Shape type is in the TypeScript union but silently skipped. |
+| `ellipse` | `centerX,centerY,radiusX,radiusY` | Renders as SVG `<ellipse cx cy rx ry>`. |
+| `default` | none (the whole image) | Renders as SVG `<rect x="0" y="0" width="100%" height="100%">`, whose percentages resolve against the overlay's `viewBox`. Its pointer target is painted first, beneath every other region; the focusable region takes no pointer input. Its check marker sits 14 CSS px in from the top-left corner, clear of the other regions' markers. |
 
 ### Response variable contract
 
 - **baseType:** `identifier`
-- **cardinality:** `single` when `maxChoices=1`; `multiple` when `maxChoices>1` or `maxChoices=0` (unlimited)
-- **Value format (single):** a string matching one `hotspotChoice` identifier
-- **Value format (multiple):** an array of identifier strings (spec) — **not yet implemented in the component**; the component always produces a single string
+- **cardinality:** `single` or `multiple` when `maxChoices=1`; `multiple` when `maxChoices>1` or `maxChoices=0` (unlimited)
+- **Value format (single selection, `maxChoices=1`):** a string matching one `hotspotChoice` identifier, or `null` once cleared. Bound to a multiple-cardinality response, the player stores it as a one-element list, and the component reads that list back.
+- **Value format (multiple selection):** the list of selected identifiers, in selection order; `[]` once cleared
 
 ### Standard response processing templates
 
@@ -116,12 +119,17 @@ The spec defines the following formats (all coordinates are in natural image pix
 
 ### Known gaps
 
-- **G-RECT: `rect` coordinate format divergence.** The QTI spec defines `rect` coords as `left,top,right,bottom` (two corners). The component's SVG `<rect>` expects `x,y,width,height`. The code comment in the component says "coords are x, y, width, height" — this is incorrect per spec. Items authored per spec with `rect` coords will render visually wrong (the rect will be at the correct top-left origin but with `width=right` and `height=bottom` instead of `width=right-left` and `height=bottom-top`). Items authored against the broken interpretation will work correctly but are non-portable. **This is a rendering bug that must be fixed.** To fix: in the `rect` branch, compute `width = coords[2] - coords[0]` and `height = coords[3] - coords[1]`. Also note: the to-pie transformer (`packages/to-pie/src/transformers/hotspot.ts`) correctly interprets `rect` as `x1,y1,x2,y2` and computes width/height — so the transformer is correct but the native QTI player component is wrong.
-- **Multi-select not implemented.** When `maxChoices > 1`, the spec requires a `multiple`-cardinality response (array of identifiers). The component stores `response` as a single string and `handleClick` replaces it unconditionally. An item with `maxChoices=2` will behave identically to `maxChoices=1`.
-- **`ellipse` shape not rendered.** The `ellipse` shape type is in the TypeScript union (from the extractor) but the component has no rendering branch for it. Hotspot choices with `shape="ellipse"` are silently skipped; the candidate cannot see or select them.
-- **`hotspotLabel` not used as `aria-label`.** The extractor reads `hotspotLabel` and includes it in `HotspotData`. The component does not read it when composing `aria-label`; all hotspots get the generic `"Select hotspot {identifier}"` label.
-- **Image alt text not author-configurable.** The `<object>` element's text content (which QTI uses as the fallback alt text) is not extracted as image alt text. The component uses a static i18n key fallback.
-- **`minChoices` not enforced at submission time.** Extracted and present in `HotspotData` but not checked against the number of selected hotspots before submission.
+None in the delivered behaviour above.
+
+Resolved since the previous review, and no longer gaps:
+
+- **Multiple selection**: with `maxChoices` above `1` or `0`, the response is the list of selected identifiers (toggle buttons, a refused selection past the cap announced, "Clear answer" clearing them all).
+- **`default` shape**: rendered as the whole image, beneath the other regions.
+- **G-RECT**: a `rect` is drawn from its two corners (`HotspotShape.svelte`).
+- **`ellipse` shape**: rendered as an SVG ellipse.
+- **`hotspotLabel`**: the region's accessible name.
+- **Image alt text**: extracted from the QTI source (see [Accessibility challenge](#accessibility-challenge-graphical-interactions-and-screen-readers)).
+- **`minChoices`**: `Player.validateResponses()` reports a response with fewer selections incomplete.
 
 ---
 
@@ -134,11 +142,13 @@ The spec defines the following formats (all coordinates are in natural image pix
 - **FR-5:** For each `hotspotChoice` with `shape="poly"`, render an SVG `<polygon>` whose `points` attribute is constructed from alternating x,y coordinate pairs.
 - **FR-6:** Unselected hotspot regions must have a transparent (or near-transparent) fill so the image beneath is visible. A hover state provides visual affordance that the region is clickable.
 - **FR-7:** When a hotspot is selected, its fill and stroke change to a visually distinct selected state (blue fill/stroke by default). The change must apply immediately on click/tap/Enter/Space without a page reload.
-- **FR-8:** Clicking or tapping a selected hotspot (when `maxChoices=1`) replaces the current selection — it does not deselect. There is no deselect gesture for single-select.
-- **FR-9:** On each selection change, emit a `qti-change` CustomEvent from the root element with `{ responseIdentifier, value }`. The event must bubble and be `composed: true` so it crosses the shadow DOM boundary.
-- **FR-10:** Accept a `response` prop reflecting the current response state. On initial mount with a pre-set `response`, the corresponding hotspot(s) must render in selected state without emitting a `qti-change` event.
+- **FR-8:** Clicking or tapping the selected hotspot (when `maxChoices=1`) keeps it selected and emits nothing — it does not deselect; selecting another hotspot replaces it. A "Clear answer" button (`interactions.choice.clearAnswer`, the name `choiceInteraction` and hottext use for the same control), shown while there is an answer and the interaction is enabled, retracts it: it emits `null` and moves focus to the first region.
+- **FR-8a (multiple selection):** With `maxChoices` above `1`, or `0`, click, tap, Enter and Space toggle a region (`aria-pressed`), and each change emits the list of selected identifiers. At `maxChoices` a further selection is refused: nothing changes, nothing is emitted, and the limit message — the author's `data-max-selections-message`, else `interactions.hotspot.maxChoicesReached` — is announced in a polite live region; the same message is shown at the cap. "Clear answer" clears every region, emits `[]` and moves focus to the first region.
+- **FR-8b (`default` shape):** A `hotspotChoice` with `shape="default"` covers the whole image. Its pointer target is painted beneath every other region, so a click on another region selects that region and a click anywhere else on the image selects the default region; its focusable region takes no pointer input and keeps its place in `hotspotChoice` order for the keyboard and its name.
+- **FR-9:** On each selection change, emit a `qti-change` CustomEvent from the root element with `{ responseId, value }`. The event must bubble and be `composed: true` so it crosses the shadow DOM boundary.
+- **FR-10:** Accept a `response` prop reflecting the current response state — an identifier, or a list of identifiers (multiple selection, or a single selection bound to a multiple-cardinality response). On initial mount with a pre-set `response`, the corresponding hotspot(s) must render in selected state without emitting a `qti-change` event.
 - **FR-11:** When `disabled=true`, all hotspot shapes must be non-interactive (no click/keydown handling, `tabindex=-1`). The `disabled` state must be visually distinguishable (e.g. `cursor: not-allowed` on the overlay, reduced opacity).
-- **FR-12:** When `role='scorer'` and `correctResponse` is provided, highlight correct hotspot(s) with a distinct visual treatment (green fill/stroke). Correct answers must not be revealed to the `candidate` role.
+- **FR-12:** When `role='scorer'` and `correctResponse` is provided (correct-answer mode, the `createInteractionShell` rule shared by every interaction), highlight correct hotspot(s) with a distinct visual treatment. A scorer view without a correct response is the plain interaction. Correct answers must not be revealed to the `candidate` role.
 - **FR-13:** Render the `prompt` HTML content above the image/overlay when present.
 - **FR-14:** When `parsedInteraction` is null or undefined, render an error state rather than a blank or broken layout.
 
@@ -148,14 +158,14 @@ The spec defines the following formats (all coordinates are in natural image pix
 
 ### Accessibility
 
-- **WCAG 2.2 SC 1.1.1 (Non-text content):** The background image must have a meaningful `alt` attribute. When the i18n key `interactions.hotspot.altText` is not configured, fall back to a descriptive string (not `""`). When `imageData.type === 'svg'`, the inline SVG must have a `<title>` element or `aria-label` on the `<svg>` container.
-- **WCAG 2.2 SC 1.3.1 (Info and relationships):** Each hotspot region must have `role="button"` and `aria-label` conveying the region's identity. When `hotspotLabel` is provided on the `hotspotChoice`, use it verbatim as the `aria-label`. Fall back to a translated "Select region {identifier}" string.
+- **WCAG 2.2 SC 1.1.1 (Non-text content):** The background image must have a meaningful text alternative: the author's, from the QTI source, else the localized `interactions.hotspot.imageFallback` string (not `""`). When `imageData.type === 'svg'`, the inline SVG must have a `<title>` element or `aria-label` on the `<svg>` container.
+- **WCAG 2.2 SC 1.3.1 (Info and relationships):** Each hotspot region must have `role="radio"` (single selection, inside a `role="radiogroup"` overlay named by the prompt, else by the localized "Hotspot interaction") or `role="button"` (multiple selection), and an `aria-label` conveying the region's identity. When `hotspotLabel` is provided on the `hotspotChoice`, use it verbatim as the `aria-label`. Fall back to a translated position name ("Region 2 of 5"); never expose the identifier.
 - **WCAG 2.2 SC 1.4.3 (Contrast):** Selected and hover fill colours must provide sufficient contrast against the image content. The current blue (`rgba(59,130,246,0.3)`) may be insufficient over light-coloured images. Hosts may override via `::part(overlay)` and `::part(image)`. Consider a stroke-only visual indicator as an alternative.
-- **WCAG 2.2 SC 2.1.1 (Keyboard):** All hotspot regions must be reachable and operable by keyboard. Tab moves focus sequentially through regions. Enter and Space activate the focused region (same behaviour as click). Focus must be visible on each SVG shape — SVG elements need an explicit `:focus` CSS outline since the browser default focus ring may not appear on SVG shapes in all browsers.
+- **WCAG 2.2 SC 2.1.1 (Keyboard):** All hotspot regions must be reachable and operable by keyboard. In single selection the radio group is one Tab stop: the arrow keys move to the next or previous region, wrapping, and check it (Left/Right follow the inline direction, mirrored under RTL; with Alt, Ctrl or Meta they are left to the browser), and Space or Enter checks the focused region. In multiple selection Tab moves focus sequentially through regions and Enter and Space activate the focused region (same behaviour as click). Focus must be visible on each SVG shape — SVG elements need an explicit `:focus` CSS outline since the browser default focus ring may not appear on SVG shapes in all browsers.
 - **WCAG 2.2 SC 2.4.7 (Focus visible):** The focus indicator on each hotspot shape must be visible. Implement via `outline` on `.qti-hotspot-shape:focus`.
 - **WCAG 2.2 SC 2.5.3 (Label in name):** The `aria-label` on each button must describe the region; for scorer role, append ". Correct answer" or similar translated suffix when the choice is correct.
 - **WCAG 2.2 SC 2.5.8 (Target size minimum):** In rendered CSS pixels, each hotspot must have a minimum bounding box of 44×44 CSS px. This cannot be enforced at runtime (it depends on rendered size), but the extractor should warn when a hotspot's natural-coordinate bounding box is smaller than 44×44 (assuming full natural-size rendering).
-- **WCAG 2.2 SC 4.1.2 (Name, role, value):** `aria-pressed="true"/"false"` communicates selected state for each button-role shape.
+- **WCAG 2.2 SC 4.1.2 (Name, role, value):** In single selection `aria-checked="true"/"false"` communicates the selected state of each radio region, and activating the checked region never unchecks it, as a native radio. In multiple selection `aria-pressed="true"/"false"` communicates the state of each toggle-button region. The two never mix, and the region's name never carries the state. A disabled region carries `aria-disabled="true"`.
 
 ### Performance
 
@@ -175,9 +185,11 @@ The spec defines the following formats (all coordinates are in natural image pix
 
 ### i18n
 
-- `interactions.hotspot.altText` — alt text for the background image when not SVG.
-- `interactions.hotspot.selected` — prefix label before the selected identifier in the info panel.
-- Hotspot accessible names should use a translated pattern like `interactions.hotspot.regionLabel` with `{identifier}` interpolation, falling back to `"Select hotspot {identifier}"`.
+- `interactions.hotspot.imageFallback` — text alternative for the background image when the QTI source gives none.
+- `interactions.hotspot.selectedRegion` — the "Selected: {region}" summary in the info panel; in multiple selection `{region}` is the localized list of the selected regions.
+- `interactions.hotspot.regionOfTotal` — a region's name when it has no `hotspotLabel`: "Region {index} of {total}".
+- `interactions.hotspot.maxChoicesReached` — the limit message in multiple selection without an authored `data-max-selections-message`: "You can select up to {max}. Deselect one to choose another." (the text `choiceInteraction` and hottext use).
+- `interactions.hotspot.minChoicesHint` — the unmet-minimum statement ("Select at least {count} regions.").
 
 ---
 
@@ -190,11 +202,11 @@ The spec defines the following formats (all coordinates are in natural image pix
 **Alternatives considered:** (1) HTML `<map>/<area>` with JavaScript position recalculation; rejected because `<area>` does not support visual feedback or ARIA attributes adequately. (2) Percentage-positioned `<div>` elements; rejected because div coordinates are percentages of the container, not the image, and the image may not fill the full container width.  
 **Consequences:** The SVG must be kept in perfect positional and dimensional sync with the image. If the image fails to load (broken URL, CORS) and the browser renders a broken-image icon at a different size, the SVG overlay will not align. The component renders the SVG regardless of image load state.
 
-### Single-file response value (string, not array), even when `maxChoices=1`
+### One identifier for single selection, a list for multiple selection
 
-**Decision:** The component currently stores `response` as a single `identifier` string, matching the `single` cardinality case.  
-**Rationale:** The initial implementation targeted the most common use case (`maxChoices=1`). The response variable contract for `single` cardinality is a bare string, not a one-element array, so this is spec-correct for that case. Multi-select support (`multiple` cardinality, array response) is a gap, not an intentional permanent decision.  
-**Consequences:** `maxChoices > 1` items silently behave as single-select. Item authors writing multi-select hotspot items will receive incorrect responses. This gap should be resolved before shipping multi-select hotspot content. See Known gaps.
+**Decision:** With `maxChoices=1` the component emits one `identifier` string (or `null` once cleared); with any other `maxChoices` it emits the list of selected identifiers (or `[]` once cleared). It reads either form back from `response`.  
+**Rationale:** The value format follows the selection model, as `choiceInteraction` and hottext do: a radio group has one answer, toggle buttons a set. QTI 3.0 §5.68.2 binds `maxChoices` above `1` (or `0`) to a multiple-cardinality response, so the list is the spec's value there. `maxChoices=1` may be bound to either cardinality; the player coerces the emitted string into the declaration's cardinality, so a multiple-cardinality response stores a one-element list, which the component reads back as the checked region.  
+**Consequences:** The component does not need the response declaration's cardinality. Identifiers in a restored response that name no region, and repeats, are dropped from the selection.
 
 ### Colors are hardcoded (not theme tokens)
 
@@ -203,11 +215,11 @@ The spec defines the following formats (all coordinates are in natural image pix
 **Alternatives considered:** CSS custom properties on `:host` for theming; requires host to declare the variables and increases API surface. Not implemented in this version.  
 **Consequences:** Items displayed in high-contrast mode (e.g. Windows High Contrast Mode) will not automatically adapt. Hosts requiring accessible colour overrides must use `::part(overlay)` or inject styles that override fill/stroke on `.qti-hotspot-shape` — but shadow DOM prevents direct CSS targeting unless `::part()` is used.
 
-### Props accept both parsed objects and JSON strings
+### Interaction data accepts an object or its JSON; responses are values
 
-**Decision:** `interaction`, `response`, `correctResponse`, and `i18n` are each parsed with `parseJsonProp` before use.  
-**Rationale:** Identical to the pattern in `choiceInteraction` and all other default components. When used as a native web component, all prop values arrive as attribute strings. When used as a Svelte component inside the item player, they arrive as typed objects. `parseJsonProp` handles both.  
-**Consequences:** Small runtime JSON.parse overhead on each reactive update. Negligible for typical hotspot item sizes.
+**Decision:** `interaction` is parsed by `createInteractionShell` (`parseJsonProp`) before use; `response` and `correctResponse` pass through it as values. A string response stays as given — identifiers such as `true` or `null` are never read as JSON — except that a string reading as a JSON array is read as that list, which is how an HTML attribute carries a multiple-selection answer. The shell also gives correct-answer mode: the `scorer` role with a correct response.  
+**Rationale:** Identical to the pattern in `choiceInteraction` and all other default components. An HTML attribute carries the interaction data as JSON text; inside the item player it arrives as an object, and `parseJsonProp` handles both. A response is a region identifier (or a list of them): read as JSON, a single identifier such as `true` would lose the selection, so only list text is parsed. The item player sets responses as JavaScript properties.  
+**Consequences:** Small runtime JSON.parse overhead on the interaction data for the web component case. Negligible for typical hotspot item sizes.
 
 ---
 
@@ -221,7 +233,7 @@ The spec defines the following formats (all coordinates are in natural image pix
 interface HotspotChoice {
   identifier: string;
   shape: 'circle' | 'rect' | 'poly' | 'ellipse' | 'default';
-  coords: string;    // raw comma-separated string from QTI XML
+  coords: string;    // raw comma-separated string from QTI XML; may be empty for 'default'
   hotspotLabel?: string;
   classes?: string[];
 }
@@ -234,6 +246,8 @@ interface HotspotInteractionData extends BaseInteractionData {
   prompt: string | null;
   imageData: ImageData | null;
   hotspotChoices: HotspotChoice[];
+  maxSelectionsMessage?: string | null;  // data-max-selections-message
+  minSelectionsMessage?: string | null;  // data-min-selections-message
 }
 
 interface ImageData {
@@ -248,6 +262,7 @@ interface ImageData {
 **Invariants enforced by extractor:**
 - `hotspotChoices` has at least one entry (error if zero)
 - All `identifier` values are non-empty and unique (error on duplicate)
+- Every hotspot has `coords`, except a `default`-shape one (the whole image)
 - `maxChoices >= 0` (error if negative)
 - `minChoices <= maxChoices` when `maxChoices > 0` (error if violated)
 - `imageData` is present and has either `src` (image) or `content` (SVG) (error if missing)
@@ -255,19 +270,18 @@ interface ImageData {
 **Invariants NOT enforced (gaps):**
 - Coord format correctness per shape type is not validated
 - Minimum hotspot bounding-box size (44×44 natural px) is not checked
-- `ellipse` shape is accepted without warning despite having no rendering support
 
 ### Component props (`pie-qti-hotspot`)
 
 | Prop | Type | Direction | Notes |
 |------|------|-----------|-------|
-| `interaction` | `HotspotInteractionData \| string` | in | Parsed with `parseJsonProp` |
-| `response` | `string \| null` | in/out (`$bindable`) | Current selected identifier (single-select only) |
-| `correctResponse` | `string \| string[] \| null` | in | Correct identifier(s); only shown in `scorer` role |
+| `interaction` | `HotspotInteractionData \| string` | in | Parsed by `createInteractionShell` |
+| `response` | `string \| string[] \| null` | in/out (`$bindable`) | The selected identifier (single selection) or identifiers (multiple selection) |
+| `correctResponse` | `string \| string[] \| null` | in | Correct identifier(s); shown only in correct-answer mode (`scorer` role with a correct response) |
 | `disabled` | `boolean` | in | Default `false` |
 | `role` | `string` | in | `'candidate'` (default) or `'scorer'` |
 | `i18n` | `I18nProvider` | in | Optional; falls back to English strings |
-| `onChange` | `(value: string) => void` | in | Callback for Svelte usage (web component uses `qti-change` event) |
+| `onChange` | `(value: string \| string[] \| null) => void` | in | Callback for Svelte usage (web component uses `qti-change` event); the same value as the event |
 
 ### `qti-change` event payload
 
@@ -277,8 +291,10 @@ interface ImageData {
   bubbles: true,
   composed: true,
   detail: {
-    responseIdentifier: string,   // matches HotspotInteractionData.responseId
-    value: string                 // selected hotspotChoice identifier
+    responseId: string,              // matches HotspotInteractionData.responseId
+    value: string | string[] | null, // maxChoices=1: the selected identifier, null on "Clear answer";
+                                     // otherwise: the selected identifiers, [] on "Clear answer"
+    timestamp: number
   }
 }
 ```
@@ -380,6 +396,37 @@ AC-17: poly shape renders at correct position
   Given: an item with hotspotChoice shape="poly" coords="150,120,180,100,200,130,170,160"
   When: the item renders
   Then: the SVG <polygon> has points="150,120 180,100 200,130 170,160"
+
+AC-18: Multiple selection toggles regions and answers with the list
+  Given: an item with maxChoices="2" bound to a multiple-cardinality response, regions Sun,
+         Tree and Star
+  When: the candidate taps Sun, then Star, then Sun again
+  Then: qti-change fires with ["SUN"], then ["SUN","STAR"], then ["STAR"]; each region's
+        aria-pressed follows its selection
+
+AC-19: A selection past maxChoices is refused and announced
+  Given: the item from AC-18 with Sun and Star selected
+  When: the candidate activates Tree (tap, Enter or Space)
+  Then: nothing changes and no qti-change fires; the live region announces the author's
+        data-max-selections-message, else "You can select up to 2. Deselect one to choose
+        another."
+
+AC-20: maxChoices=0 is unlimited
+  Given: an item with maxChoices="0"
+  When: the candidate selects every region
+  Then: every region is selected; no limit message is shown or announced
+
+AC-21: Clear answer clears every selected region
+  Given: the item from AC-18 with two regions selected
+  When: the candidate activates "Clear answer"
+  Then: no region is selected; qti-change fires with []; focus moves to the first region
+
+AC-22: The default shape is the whole image, beneath the other regions
+  Given: regions Lake (rect) and Island (circle), then a hotspotChoice shape="default"
+         hotspotLabel="Somewhere else" listed last
+  When: the candidate clicks inside the lake, then on the image outside both regions
+  Then: the first click selects Lake, the second "Somewhere else"; by keyboard "Somewhere
+        else" is the third region in the radio group
 ```
 
 ### Accessibility
@@ -388,8 +435,10 @@ AC-17: poly shape renders at correct position
 AC-A1: Hotspot regions are keyboard-focusable
   Given: the item from AC-1 rendered without disabled
   When: the candidate presses Tab until focus enters the interaction
-  Then: the first hotspot shape receives a visible focus ring; subsequent Tab presses move
-        focus to each remaining hotspot in DOM order
+  Then: the first hotspot shape receives a visible focus ring. With maxChoices=1 the regions
+        are one Tab stop (the next Tab leaves the interaction) and the arrow keys move between
+        them; with maxChoices>1 subsequent Tab presses move focus to each remaining hotspot in
+        DOM order
 
 AC-A2: Enter activates a focused hotspot
   Given: the item from AC-1 with keyboard focus on hotspot "A"
@@ -407,12 +456,14 @@ AC-A4: Focused hotspot has visible focus ring in all browsers
   Then: a visible outline (minimum 2px solid, non-transparent) appears around the shape
   Notes: SVG shapes require explicit :focus CSS outline; test in Chrome, Firefox, and Safari
 
-AC-A5: aria-pressed reflects selection state
-  Given: the item from AC-1 with no selection
+AC-A5: aria-checked reflects selection state (single selection)
+  Given: the item from AC-1 (maxChoices=1) with no selection
   When: the item renders
-  Then: all hotspot shapes have aria-pressed="false"
+  Then: all hotspot shapes are role="radio" with aria-checked="false" inside a role="radiogroup";
+        none has aria-pressed
   When: the candidate selects hotspot "A"
-  Then: hotspot "A" has aria-pressed="true"; others remain aria-pressed="false"
+  Then: hotspot "A" has aria-checked="true"; others remain aria-checked="false"
+  Notes: with maxChoices>1 the shapes are role="button" toggle buttons with aria-pressed instead
 
 AC-A6: hotspotLabel used as aria-label when provided
   Given: an item where hotspotChoice identifier="A" has hotspotLabel="Glasgow"
@@ -450,13 +501,15 @@ AC-A10: Touch targets meet minimum size in rendered dimensions
 AC-E1: Missing image data renders gracefully
   Given: HotspotInteractionData with imageData=null
   When: the item renders
-  Then: the overlay SVG renders with the fallback 800×600 viewBox; no JavaScript exception
+  Then: no overlay is drawn (its viewBox would be unknown) and a console warning says why;
+        outside the candidate role a diagnostic is shown; no JavaScript exception
   Notes: this is a content authoring error; the component should not crash
 
 AC-E2: Image with no width/height attributes
   Given: an item whose <object> element has no width or height attributes
-  When: the item renders
-  Then: the overlay SVG uses fallback viewBox="0 0 800 600"; the image displays with width:100%
+  When: the raster image loads
+  Then: the overlay SVG uses the image's natural size as its viewBox; the image displays
+        with width:100%
 
 AC-E3: Zero hotspot choices (extractor error state)
   Given: an item with no hotspotChoice children (extractor produces an error)
@@ -486,18 +539,17 @@ AC-E7: maxChoices=0 (unlimited) in extractor
   When: the extractor runs
   Then: HotspotData.maxChoices === 0 and a validator warning is emitted ("maxChoices=0 means
         unlimited; verify this is intended")
-  Notes: maxChoices=0 does not currently change UI behaviour (multi-select is unimplemented);
-         this AC tests extractor semantics only
+  Notes: in the component maxChoices=0 is multiple selection without a limit (AC-20)
 ```
 
 ---
 
 ## Open questions
 
-- [ ] Should deselection be supported for single-select hotspots? The spec does not define a deselect gesture. Some delivery engines allow clicking a selected hotspot again to deselect it. This would require setting response to null/empty. Decide before implementing multi-select, since the pattern differs for single vs. multiple cardinality.
-- [ ] How should `ellipse` shape be handled? Options: (a) convert to SVG `<ellipse cx cy rx ry>` (straightforward); (b) approximate as a polygon (consistent with to-pie transformer's circle treatment); (c) raise a runtime warning and skip. The SVG `<ellipse>` approach is simplest and correct.
+- [x] Should deselection be supported for single-select hotspots? (resolved) Not by re-activation: the spec defines no deselect gesture, so single selection follows native radios, single-select hottext and `choiceInteraction` — activating the checked region keeps it, and "Clear answer" retracts the answer (`null`).
+- [x] How should `ellipse` shape be handled? (resolved) Option (a): it renders as an SVG `<ellipse cx cy rx ry>`.
 - [ ] Should the extractor warn when a hotspot's natural bounding box is below 44×44 px? This would help item authors catch WCAG 2.5.8 violations at authoring time, but requires the extractor to parse and compute shape geometry rather than just passing raw coord strings.
-- [ ] For multi-select: should clicking a selected hotspot deselect it (toggle), or should there be a separate "clear" button? Toggle is the most natural mobile pattern. A "clear all" button may be needed for users who have filled all selections and need to change one.
+- [x] For multi-select: should clicking a selected hotspot deselect it (toggle), or should there be a separate "clear" button? (resolved) Both, as hottext's multiple selection: activating a selected region deselects it, and "Clear answer" clears every region.
 - [ ] What is the intended behaviour when the image fails to load (broken URL)? Currently the overlay SVG still renders, but the hotspots float over the browser's broken-image icon, which has different dimensions than the natural image. Consider emitting a `qti-image-error` event or showing an error state.
 
 ---
@@ -506,8 +558,9 @@ AC-E7: maxChoices=0 (unlimited) in extractor
 
 - QTI spec: `docs/QTI_techguide.md` §3.3.1 hotspotInteraction
 - Response processing: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
-- Spec gaps: `docs/SPEC-GAPS-PLAN.md` (no existing gap item for hotspot; the `rect` coordinate bug and multi-select gap described above are new)
-- Component: `packages/default-components/src/plugins/hotspot/HotspotInteraction.svelte`
+- Spec gaps: `docs/SPEC-GAPS-PLAN.md` (no gap item for hotspot; the `rect` coordinate, multiple-selection and `default`-shape gaps this PRD once listed are resolved)
+- Component: `packages/default-components/src/plugins/hotspot/HotspotInteraction.svelte`; region geometry in `packages/default-components/src/shared/components/HotspotShape.svelte`
+- Browser checks: `apps/demo/tests/playwright/graphic-interactions.pw.ts` (multiple selection by keyboard and touch, the `default` shape) and `default-components-runtime-events.pw.ts` (the single-selection radio group)
 - Extractor: `packages/item-player/src/interactions/hotspot/extractor.ts`
 - Types: `packages/item-player/src/interactions/shared/types.ts` — `HotspotInteractionData`, `HotspotChoice`, `ImageData`
 - To-PIE transformer: `packages/to-pie/src/transformers/hotspot.ts` (note: uses correct `rect` coord interpretation)

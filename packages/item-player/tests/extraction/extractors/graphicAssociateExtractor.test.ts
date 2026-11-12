@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardGraphicAssociateExtractor } from '../../../src/interactions/graphic-associate/extractor.js';
+import { type GraphicAssociateData, standardGraphicAssociateExtractor } from '../../../src/interactions/graphic-associate/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardGraphicAssociateExtractor', () => {
@@ -86,7 +86,7 @@ describe('standardGraphicAssociateExtractor', () => {
 		expect(result.maxAssociations).toBe(5);
 	});
 
-	test('uses default values when attributes are missing', () => {
+	test('keeps hotspot defaults but invents no image dimensions when attributes are missing', () => {
 		const xml = `
 			<graphicAssociateInteraction responseIdentifier="RESPONSE">
 				<object data="test.png" type="image/png"/>
@@ -101,14 +101,18 @@ describe('standardGraphicAssociateExtractor', () => {
 
 		expect(result.maxAssociations).toBe(1);
 		expect(result.minAssociations).toBe(0);
-		expect(result.imageData?.width).toBe('500');
-		expect(result.imageData?.height).toBe('300');
+		// The stage's pixel space stays the image's own: a default would place the
+		// hotspots in a guessed space. The renderer stages the raster at its natural size.
+		expect(result.imageData?.width).toBeUndefined();
+		expect(result.imageData?.height).toBeUndefined();
 		expect(result.associableHotspots[0].shape).toBe('rect');
 		expect(result.associableHotspots[0].coords).toBe('0,0,50,50');
 		expect(result.associableHotspots[0].matchMax).toBe(1);
 	});
 
-	test('uses identifier as label if text content is empty', () => {
+	test('never uses the identifier as label when the hotspot has no text', () => {
+		// Identifiers can reveal the answer key to assistive technology; the
+		// renderer names an unlabelled hotspot by position instead.
 		const xml = `
 			<graphicAssociateInteraction responseIdentifier="RESPONSE">
 				<object data="test.png" type="image/png"/>
@@ -121,7 +125,56 @@ describe('standardGraphicAssociateExtractor', () => {
 
 		const result = standardGraphicAssociateExtractor.extract(element, context);
 
-		expect(result.associableHotspots[0].label).toBe('HOTSPOT_ONE');
+		expect(result.associableHotspots[0].label).toBe('');
+	});
+
+	test('uses the authored hotspotLabel as label', () => {
+		const xml = `
+			<graphicAssociateInteraction responseIdentifier="RESPONSE">
+				<object data="test.png" type="image/png"/>
+				<associableHotspot identifier="HOTSPOT_ONE" shape="rect" coords="0,0,50,50" hotspotLabel="Lungs"/>
+			</graphicAssociateInteraction>
+		`;
+
+		const element = parseQTI(xml);
+		const result = standardGraphicAssociateExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+		expect(result.associableHotspots[0].label).toBe('Lungs');
+	});
+
+	test('keeps the inline SVG title and desc as the image alternative', () => {
+		const xml = `
+			<graphicAssociateInteraction responseIdentifier="RESPONSE">
+				<object type="image/svg+xml" width="600" height="400">
+					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400">
+						<title>Body systems</title>
+						<desc>Outline of a human torso showing the heart and lungs.</desc>
+						<text x="10" y="20">Heart</text>
+					</svg>
+				</object>
+				<associableHotspot identifier="A" shape="rect" coords="0,0,50,50">A</associableHotspot>
+			</graphicAssociateInteraction>
+		`;
+
+		const element = parseQTI(xml);
+		const result = standardGraphicAssociateExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+		expect(result.imageData?.alt).toBe('Body systems');
+		expect(result.imageData?.altDescription).toBe('Outline of a human torso showing the heart and lungs.');
+	});
+
+	test('prefers an authored aria-label on the object over its fallback text', () => {
+		const xml = `
+			<graphicAssociateInteraction responseIdentifier="RESPONSE">
+				<object data="test.png" type="image/png" aria-label="Food web diagram">fallback</object>
+				<associableHotspot identifier="A" shape="rect" coords="0,0,50,50">A</associableHotspot>
+			</graphicAssociateInteraction>
+		`;
+
+		const element = parseQTI(xml);
+		const result = standardGraphicAssociateExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+		expect(result.imageData?.alt).toBe('Food web diagram');
 	});
 
 	test('handles multiple associableHotspots with different matchMax values', () => {
@@ -236,7 +289,7 @@ describe('standardGraphicAssociateExtractor', () => {
 
 	describe('validation', () => {
 		test('validates correct graphicAssociate data', () => {
-			const data = {
+			const data: GraphicAssociateData = {
 				associableHotspots: [
 					{ identifier: 'A', label: 'A', shape: 'rect', coords: '0,0,100,100', matchMax: 1 },
 					{ identifier: 'B', label: 'B', shape: 'rect', coords: '100,0,200,100', matchMax: 1 },
@@ -254,7 +307,7 @@ describe('standardGraphicAssociateExtractor', () => {
 		});
 
 		test('reports error for insufficient hotspots', () => {
-			const data = {
+			const data: GraphicAssociateData = {
 				associableHotspots: [
 					{ identifier: 'A', label: 'A', shape: 'rect', coords: '0,0,100,100', matchMax: 1 },
 				],
@@ -271,7 +324,7 @@ describe('standardGraphicAssociateExtractor', () => {
 		});
 
 		test('reports error for duplicate identifiers', () => {
-			const data = {
+			const data: GraphicAssociateData = {
 				associableHotspots: [
 					{ identifier: 'A', label: 'A', shape: 'rect', coords: '0,0,100,100', matchMax: 1 },
 					{ identifier: 'A', label: 'B', shape: 'rect', coords: '100,0,200,100', matchMax: 1 },
@@ -289,7 +342,7 @@ describe('standardGraphicAssociateExtractor', () => {
 		});
 
 		test('reports warning for missing image data', () => {
-			const data = {
+			const data: GraphicAssociateData = {
 				associableHotspots: [
 					{ identifier: 'A', label: 'A', shape: 'rect', coords: '0,0,100,100', matchMax: 1 },
 					{ identifier: 'B', label: 'B', shape: 'rect', coords: '100,0,200,100', matchMax: 1 },

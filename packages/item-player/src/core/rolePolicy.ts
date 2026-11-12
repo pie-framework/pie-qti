@@ -1,3 +1,4 @@
+import { warnOnce } from '@pie-qti/qti-common';
 import type { QTIRole } from '../types/index.js';
 
 /**
@@ -32,3 +33,27 @@ export function getRoleCapabilities(role: QTIRole): RoleCapabilities {
 	};
 }
 
+/** The one role list, shared by every player element that exposes `qti-role`. */
+export const QTI_ROLES: readonly QTIRole[] = [
+	'candidate',
+	'scorer',
+	'proctor',
+	'testConstructor',
+	'tutor',
+	'author',
+];
+
+export function isQtiRole(value: string): value is QTIRole {
+	return (QTI_ROLES as readonly string[]).includes(value);
+}
+
+/** Unknown values never make the player silently read-only: they render as `candidate`. */
+export function parseQtiRole(value: string | null | undefined): QTIRole {
+	const role = value ?? 'candidate';
+	if (isQtiRole(role)) return role;
+	warnOnce(
+		'pie-qti:unknown-role',
+		`Unknown player role '${role}': the player renders as 'candidate'. Accepted values are ${QTI_ROLES.join(', ')}, set with the qti-role attribute or the role property.`,
+	);
+	return 'candidate';
+}

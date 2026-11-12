@@ -30,6 +30,10 @@ When the player was designed, the default interactions were authored in Svelte 5
 
 The item XML, plugin set, security policy, and processing configuration are definition-lifetime inputs; responses, outcomes, attempts, duration, and lifecycle status are session-lifetime state. `createAssessmentItemDefinition()` snapshots the former, and `openSession()` creates the latter. An active item has exactly one live session. Assessment-player, section composition, and the item renderer all reach that same object rather than synchronizing mutable copies. `serialize()` returns a `SerializedItemSessionState` handoff value; restoration creates a new live session after validating the item identifier. Serialized state is never a second live authority.
 
+### Why the renderer submits only a session it owns
+
+Activating an `endAttemptInteraction` sets its boolean response, and the natural reflex is to end the attempt right there. In standalone delivery the player owns the session and does exactly that, with the interaction's `countAttempt`. In assessment delivery the session is injected from above: closing it locally would leave the assessment's later `endAttempt` dispatch throwing against a closed session and could fail the submission. The renderer therefore gates auto-submit on session ownership; the assessment player watches the same response on the normal response path and decides per QTI submission mode. The interaction itself stays dumb — a boolean response plus the `countAttempt` metadata its owner reads.
+
 ### Why web components as the rendering contract
 
 The browser adapter communicates with interaction UIs via three mechanisms: element creation by tag name, property assignment for presentation data, and the bubbling `qti-change` CustomEvent for response mutations. The event is translated into an `ItemSession.dispatch(...)` command; components do not own response state. This is intentionally the narrowest browser seam. Web components are the cross-framework rendering primitive, while `ItemSession` remains equally usable by a headless adapter.
@@ -54,7 +58,7 @@ The `customOperators` key in `AssessmentItemDefinitionConfig` is the escape hatc
 
 The player defaults to blocking `<object>`, `<embed>`, and `<iframe>` elements, stripping all `on*` event handlers case-insensitively, and blocking protocol-relative URLs. These were not always the defaults: the security audit (commit `a87ca31`) identified real XSS bypass classes in earlier versions including mixed-case `onClick`, `iframe[srcdoc]`, and SVG `xlink:href`. The lesson was that "reasonable" sanitizer defaults are routinely insufficient for attacker-controlled HTML. The current defaults are conservative because the cost of being too strict is a logged warning and a visible gap; the cost of being too permissive is XSS in a product used by K-12 students.
 
-Parsing limits (`ParsingLimitsConfig`) are opt-in rather than default because they impose hard limits that could break large legitimate items. When rendering content from known-safe authors, the limits add no value and risk false-positive failures. For untrusted deployments, enabling `security.parsingLimits` is strongly recommended in addition to origin isolation.
+Parsing limits (`ParsingLimitsConfig`) are on by default for the same reason: item XML is untrusted input, and the generous defaults (10 MB item XML, 5 MB HTML per sanitizer input, 200 000 elements, depth 200, DOCTYPE rejected) leave legitimate items untouched. A host whose content is trusted, or whose upstream layer already enforces equivalent limits, can raise an individual limit or opt out with `security.parsingLimits.enabled: false`. For untrusted deployments, keep them on in addition to origin isolation.
 
 ---
 
@@ -64,9 +68,9 @@ Parsing limits (`ParsingLimitsConfig`) are opt-in rather than default because th
 - **Spec sections:** QTI 2.2 §4 (assessmentItem), §5 (interactions), §6 (response processing), §7 (outcome processing), §8 (template processing), §9 (adaptive items), §13 (view/rubric)
 - **Supported attributes:** `adaptive`, `timeDependent` (tracked), `view` (rubricBlock filtering), all `responseDeclaration`/`outcomeDeclaration`/`templateDeclaration` attributes including `defaultValue`, `correctResponse`, `mapping`, `areaMapping`, `matchTable`, `interpolationTable`
 - **Deliberately omitted attributes:** `timeDependent` does not gate submission (the player has no built-in timer; time tracking is the assessment shell's responsibility)
-- **Known divergences from spec:**
-  - QTI 3.0 element names (`qti-choice-interaction`, etc.) and attribute names (`response-identifier`) are automatically detected and normalized at construction time via `ElementNameMapper`/`AttributeNameMapper`; they do not require explicit configuration.
-  - `completionStatus` and `numAttempts` are injected as built-in outcome declarations if absent — the spec technically requires items to declare them explicitly; in practice, many authored items omit the declaration.
+- **Known divergences from spec:** none. Two behaviors that were once listed here follow the specification:
+  - QTI 3.0 element names (`qti-choice-interaction`, etc.) and attribute names (`response-identifier`) are automatically detected and normalized at construction time via `ElementNameMapper`/`AttributeNameMapper`; they do not require explicit configuration. This is QTI 3.0 support.
+  - The built-in session variables `completionStatus`, `numAttempts` and `duration` are declared implicitly when an item does not declare them. QTI requires exactly that: "All variables must be declared except for the built-in session variables […] which are declared implicitly and must not be declared" (QTI 3.0 Information Model, item variables; QTI 2.1 likewise). An item that declares one anyway, against the specification, is read as authored.
 
 ---
 
@@ -89,6 +93,12 @@ Parsing limits (`ParsingLimitsConfig`) are opt-in rather than default because th
   rubrics.
 - **FR-9:** Presentation must apply stimulus injection, rubric filtering, feedback expansion, inline planning, and interaction placement before the final body sanitation and optional `TrustedHTML` creation. Policy-checked scoped stylesheet text must remain a separate `scopedCss` field.
 - **FR-10:** The package must not publish the private session engine. The root and DOM-free server entries expose definitions, sessions, and command/result contracts.
+- **FR-11:** Activating an `endAttemptInteraction` ends the attempt with its `countAttempt` (QTI 3.0
+  `count-attempt`): response processing always runs, while `numAttempts` increments and the session
+  closes only for a counted attempt. With `countAttempt=false` (a hint request) `numAttempts` is
+  unchanged and a non-adaptive session stays open — the candidate continues. The renderer
+  auto-submits only a session it owns (standalone delivery); an injected session is decided by its
+  owner and is never closed locally by a renderer.
 
 ---
 
@@ -295,10 +305,12 @@ AC-7: QTI 3.0 item parsed without explicit mapper configuration
 ```
 
 ```
-AC-8: Strict compliance mode rejects non-2.2 items when configured
-  Given: A QTI 3.0 item and AssessmentItemDefinitionConfig with strictQtiCompliance: { enabled: true, rejectUnknownExtensions: true }
+AC-8: Strict compliance mode rejects non-certifiable versions and unknown vocabulary when configured
+  Given: A QTI 2.1 item, or a QTI 2.2/3.0 item with an element outside its version's vocabulary,
+         and AssessmentItemDefinitionConfig with strictQtiCompliance: { enabled: true, rejectUnknownExtensions: true }
   When: createAssessmentItemDefinition({ itemXml, role: 'candidate', strictQtiCompliance: { enabled: true, rejectUnknownExtensions: true } }) is called
-  Then: An error is thrown with a message indicating version mismatch
+  Then: A QtiComplianceError is thrown whose diagnostics name the finding (unsupported-version, unknown-element)
+        A clean QTI 2.2 or 3.0 item compiles with no diagnostics
 ```
 
 ### Security
@@ -320,9 +332,9 @@ AC-S2: <object> embeds blocked by default
 ```
 
 ```
-AC-S3: Parsing limits enforce max XML size when enabled
-  Given: An AssessmentItemDefinitionConfig with security.parsingLimits: { enabled: true, maxItemXmlBytes: 1024 }
-         and an itemXml string larger than 1024 bytes
+AC-S3: Parsing limits enforce max XML size by default
+  Given: An AssessmentItemDefinitionConfig with security.parsingLimits: { maxItemXmlBytes: 1024 }
+         (enabled left unset) and an itemXml string larger than 1024 bytes
   When: createAssessmentItemDefinition({ itemXml, role: 'candidate', security: { parsingLimits: ... } }) is called
   Then: An error is thrown before any XML parsing occurs
 ```

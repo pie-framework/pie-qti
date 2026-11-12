@@ -6,9 +6,9 @@
  * pre-conditions through bidirectional round-trips.
  */
 
-import type { TransformOutput } from '@pie-qti/transform-core';
-import { QtiToPiePlugin } from '../../qti2-to-pie/src/plugin.js';
-import { PieToQtiPlugin } from '../src/plugin.js';
+import type { TransformOutput } from '@pie-qti/transform-types';
+import { QtiToPiePlugin } from '@pie-qti/to-pie';
+import { PieToQtiPlugin } from '@pie-qti/pie-to-qti2';
 
 // Example 1: Simple Assessment with Scoring
 async function simpleAssessmentExample() {
@@ -89,12 +89,13 @@ async function simpleAssessmentExample() {
   );
   const reconstructed = pieResult.items[0].content;
 
+  const testPart = reconstructed.testParts[0];
   console.log('Round-trip verification:');
   console.log(`  ✓ Title: ${reconstructed.title}`);
-  console.log(`  ✓ Sections: ${reconstructed.sections.length}`);
-  console.log(`  ✓ Items: ${reconstructed.sections[0].itemRefs.length}`);
+  console.log(`  ✓ Sections: ${testPart.sections.length}`);
+  console.log(`  ✓ Items: ${testPart.sections[0].itemRefs.length}`);
   console.log(`  ✓ Has outcomeProcessing: ${!!reconstructed.outcomeProcessingXml}`);
-  console.log(`  ✓ Item weights preserved: ${reconstructed.sections[0].itemRefs[0].weight}\n`);
+  console.log(`  ✓ Item weights preserved: ${testPart.sections[0].itemRefs[0].weight}\n`);
 }
 
 // Example 2: Adaptive Assessment with Branch Rules
@@ -225,10 +226,11 @@ async function adaptiveAssessmentExample() {
   );
   const reconstructed = pieResult.items[0].content;
 
+  const screenerRefs = reconstructed.testParts[0].sections[0].itemRefs;
   console.log('Round-trip verification:');
-  console.log(`  ✓ Sections preserved: ${reconstructed.sections.length}`);
-  console.log(`  ✓ Branch rules preserved: ${!!reconstructed.sections[0].itemRefs[0].branchRule}`);
-  console.log(`  ✓ Branch rule count: ${reconstructed.sections[0].itemRefs.filter((ir: any) => ir.branchRule).length}\n`);
+  console.log(`  ✓ Sections preserved: ${reconstructed.testParts[0].sections.length}`);
+  console.log(`  ✓ Branch rules preserved: ${!!screenerRefs[0].branchRule?.length}`);
+  console.log(`  ✓ First branch rule target: ${screenerRefs[0].branchRule?.[0]?.target}\n`);
 }
 
 // Example 3: Conditional Display with Pre-Conditions
@@ -336,9 +338,10 @@ async function conditionalAssessmentExample() {
   );
   const reconstructed = pieResult.items[0].content;
 
+  const conditionalRefs = reconstructed.testParts[0].sections[0].itemRefs;
   console.log('Round-trip verification:');
-  console.log(`  ✓ Items preserved: ${reconstructed.sections[0].itemRefs.length}`);
-  console.log(`  ✓ Pre-conditions preserved: ${reconstructed.sections[0].itemRefs.filter((ir: any) => ir.preCondition).length}\n`);
+  console.log(`  ✓ Items preserved: ${conditionalRefs.length}`);
+  console.log(`  ✓ Pre-conditions preserved: ${conditionalRefs.filter((ir: any) => ir.preCondition).length}\n`);
 }
 
 // Example 4: Item Banking with Selection Rules
@@ -432,11 +435,12 @@ async function itemBankingExample() {
   );
   const reconstructed = pieResult.items[0].content;
 
+  const bankSections = reconstructed.testParts[0].sections;
   console.log('Round-trip verification:');
-  console.log(`  ✓ Sections preserved: ${reconstructed.sections.length}`);
-  console.log(`  ✓ Selection rules preserved: ${!!reconstructed.sections[0].selection}`);
-  console.log(`  ✓ Algebra pool select: ${reconstructed.sections[0].selection?.select}`);
-  console.log(`  ✓ Geometry pool select: ${reconstructed.sections[1].selection?.select}\n`);
+  console.log(`  ✓ Sections preserved: ${bankSections.length}`);
+  console.log(`  ✓ Selection rules preserved: ${!!bankSections[0].selection}`);
+  console.log(`  ✓ Algebra pool select: ${bankSections[0].selection?.select}`);
+  console.log(`  ✓ Geometry pool select: ${bankSections[1].selection?.select}\n`);
 }
 
 // Run all examples

@@ -5,6 +5,7 @@
  * Follows IMS Content Packaging v1.1.4 with the QTI 2.2 or QTI 3.0 content-packaging profile
  */
 
+import { escapeXmlAttribute } from '@pie-qti/qti-common/accessibility';
 import { v4 as uuid } from 'uuid';
 import type {
   AssessmentResource,
@@ -16,7 +17,13 @@ import type {
   Resource,
   ResourceDependency,
 } from '../types/manifest.js';
-import { LOM_NAMESPACE, LOM_SCHEMA_LOCATION, renderResourceLom } from '../utils/lom.js';
+import { QTI3_CSM_NAMESPACE } from '@pie-qti/transform-types';
+import {
+  LOM_NAMESPACE,
+  LOM_SCHEMA_LOCATION,
+  renderCurriculumStandardsMetadata,
+  renderResourceLom,
+} from '../utils/lom.js';
 
 /**
  * Generate IMS manifest XML from input
@@ -87,6 +94,8 @@ export function buildManifest(input: ManifestInput): ImsManifest {
       metadata,
       baseId: item.baseId,
       extensions: item.extensions,
+      curriculumStandards: item.curriculumStandards,
+      skillLevels: item.skillLevels,
       files: item.files?.map(f => ({ href: f })),
       dependencies: dependencies.length > 0 ? dependencies : undefined,
     });
@@ -137,6 +146,7 @@ const RESOURCE_TYPES = {
 
 export const QTI3_CP_NAMESPACE = 'http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1';
 const QTI3_CP_SCHEMA_LOCATION = 'https://purl.imsglobal.org/spec/qti/v3p0/schema/xsd/imsqtiv3p0_imscpv1p2_v1p0.xsd';
+const QTI3_CSM_SCHEMA_LOCATION = 'https://purl.imsglobal.org/spec/qti/v3p0/schema/xsd/imsqtiv3p0_csmv1p1_v1p0.xsd';
 
 /**
  * Convert manifest structure to XML
@@ -153,12 +163,14 @@ export function manifestToXml(manifest: ImsManifest): string {
   if (manifest.qtiVersion === '3.0') {
     // The QTI 3.0 profile requires the manifest metadata and fixes its values.
     lines.push(
-      `<manifest identifier="${escapeXml(manifest.identifier)}"`,
+      `<manifest identifier="${escapeXmlAttribute(manifest.identifier)}"`,
       `          xmlns="${QTI3_CP_NAMESPACE}"`,
       `          xmlns:imsmd="${LOM_NAMESPACE}"`,
+      `          xmlns:imscsmd="${QTI3_CSM_NAMESPACE}"`,
       '          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"',
       `          xsi:schemaLocation="${QTI3_CP_NAMESPACE} ${QTI3_CP_SCHEMA_LOCATION}`,
-      `                              ${LOM_NAMESPACE} ${LOM_SCHEMA_LOCATION}">`,
+      `                              ${LOM_NAMESPACE} ${LOM_SCHEMA_LOCATION}`,
+      `                              ${QTI3_CSM_NAMESPACE} ${QTI3_CSM_SCHEMA_LOCATION}">`,
       '  <metadata>',
       '    <schema>QTI Package</schema>',
       '    <schemaversion>3.0.0</schemaversion>',
@@ -166,7 +178,7 @@ export function manifestToXml(manifest: ImsManifest): string {
     );
   } else {
     lines.push(
-      '<manifest identifier="' + escapeXml(manifest.identifier) + '"',
+      '<manifest identifier="' + escapeXmlAttribute(manifest.identifier) + '"',
       '          xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"',
       `          xmlns:imsmd="${LOM_NAMESPACE}"`,
       '          xmlns:imsqti="http://www.imsglobal.org/xsd/imsqti_v2p2"',
@@ -182,7 +194,7 @@ export function manifestToXml(manifest: ImsManifest): string {
     if (manifest.metadata) {
       lines.push('  <metadata>');
       lines.push('    <schema>IMS Content</schema>');
-      lines.push('    <schemaversion>' + escapeXml(manifest.schemaVersion || '1.1') + '</schemaversion>');
+      lines.push('    <schemaversion>' + escapeXmlAttribute(manifest.schemaVersion || '1.1') + '</schemaversion>');
       lines.push('  </metadata>');
     }
   }
@@ -195,14 +207,17 @@ export function manifestToXml(manifest: ImsManifest): string {
 
   for (const resource of manifest.resources) {
     const resourceAttrs = [
-      `identifier="${escapeXml(resource.identifier)}"`,
-      `type="${escapeXml(resource.type)}"`,
-      `href="${escapeXml(resource.href)}"`,
+      `identifier="${escapeXmlAttribute(resource.identifier)}"`,
+      `type="${escapeXmlAttribute(resource.type)}"`,
+      `href="${escapeXmlAttribute(resource.href)}"`,
     ];
 
     lines.push('    <resource ' + resourceAttrs.join(' ') + '>');
 
-    // IEEE LOM, the metadata both QTI packaging profiles admit on a resource
+    // IEEE LOM, the metadata both QTI packaging profiles admit on a resource. Standards and skill
+    // levels are written for QTI 3 only, whose profile defines CSM 1.1; QTI 2.2 has the sidecar.
+    const qti3 = manifest.qtiVersion === '3.0';
+    const csm = qti3 ? renderCurriculumStandardsMetadata(resource.curriculumStandards, '        ') : [];
     const lom = renderResourceLom(
       {
         baseId: resource.baseId,
@@ -210,27 +225,29 @@ export function manifestToXml(manifest: ImsManifest): string {
         description: optionalString(resource.metadata?.description),
         language: optionalString(resource.metadata?.language),
         extensions: resource.extensions,
+        curriculumStandards: qti3 ? resource.curriculumStandards : undefined,
+        skillLevels: qti3 ? resource.skillLevels : undefined,
       },
       '        '
     );
-    if (lom.length > 0) {
-      lines.push('      <metadata>', ...lom, '      </metadata>');
+    if (csm.length > 0 || lom.length > 0) {
+      lines.push('      <metadata>', ...csm, ...lom, '      </metadata>');
     }
 
     // Main file
-    lines.push(`      <file href="${escapeXml(resource.href)}"/>`);
+    lines.push(`      <file href="${escapeXmlAttribute(resource.href)}"/>`);
 
     // Additional files
     if (resource.files && resource.files.length > 0) {
       for (const file of resource.files) {
-        lines.push(`      <file href="${escapeXml(file.href)}"/>`);
+        lines.push(`      <file href="${escapeXmlAttribute(file.href)}"/>`);
       }
     }
 
     // Dependencies
     if (resource.dependencies && resource.dependencies.length > 0) {
       for (const dep of resource.dependencies) {
-        lines.push(`      <dependency identifierref="${escapeXml(dep.identifierref)}"/>`);
+        lines.push(`      <dependency identifierref="${escapeXmlAttribute(dep.identifierref)}"/>`);
       }
     }
 
@@ -245,18 +262,6 @@ export function manifestToXml(manifest: ImsManifest): string {
 
 function optionalString(value: unknown): string | undefined {
   return value === undefined || value === null ? undefined : String(value);
-}
-
-/**
- * Escape XML special characters
- */
-function escapeXml(unsafe: string): string {
-  return String(unsafe)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
 }
 
 /**
@@ -307,7 +312,9 @@ export function generateSingleItemManifest(
  * @returns Manifest XML string
  */
 export function generateBatchManifest(
-  items: Array<Pick<ItemResource, 'id' | 'filePath' | 'dependencies' | 'baseId' | 'extensions'>>,
+  items: Array<
+    Pick<ItemResource, 'id' | 'filePath' | 'dependencies' | 'baseId' | 'extensions' | 'curriculumStandards' | 'skillLevels'>
+  >,
   passages: Array<Pick<PassageResource, 'id' | 'filePath' | 'baseId' | 'extensions'>>,
   options?: ManifestGenerationOptions
 ): string {
@@ -318,6 +325,8 @@ export function generateBatchManifest(
       dependencies: item.dependencies,
       baseId: item.baseId,
       extensions: item.extensions,
+      curriculumStandards: item.curriculumStandards,
+      skillLevels: item.skillLevels,
     })),
     passages: passages.map(p => ({
       id: p.id,
@@ -347,7 +356,9 @@ export function generateBatchManifest(
 export function generateAssessmentManifest(
   assessmentId: string,
   assessmentPath: string,
-  items: Array<Pick<ItemResource, 'id' | 'filePath' | 'dependencies' | 'baseId' | 'extensions'>>,
+  items: Array<
+    Pick<ItemResource, 'id' | 'filePath' | 'dependencies' | 'baseId' | 'extensions' | 'curriculumStandards' | 'skillLevels'>
+  >,
   passages: Array<Pick<PassageResource, 'id' | 'filePath' | 'baseId' | 'extensions'>> = [],
   options?: ManifestGenerationOptions
 ): string {
@@ -360,6 +371,8 @@ export function generateAssessmentManifest(
       dependencies: item.dependencies,
       baseId: item.baseId,
       extensions: item.extensions,
+      curriculumStandards: item.curriculumStandards,
+      skillLevels: item.skillLevels,
     })),
     passages: passages.map(p => ({
       id: p.id,

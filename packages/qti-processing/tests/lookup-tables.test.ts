@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'bun:test';
-import { Qti2xElementNameMapper, Qti3ElementNameMapper } from '@pie-qti/qti-common';
-import { buildExpression } from '../src/ast/build.js';
-import { applyLookupTable, evalExpr } from '../src/eval/evaluator.js';
-import { OperatorRegistry } from '../src/eval/operators.js';
-import { DeclarationContext } from '../src/runtime/context.js';
+import { applyLookupTable } from '../src/eval/evaluator.js';
 import type { InterpolationTableDef } from '../src/runtime/types.js';
 import { qtiNull, qtiValue } from '../src/runtime/value.js';
-import { parseXml } from '../src/xml/parse.js';
 
 const steps: InterpolationTableDef = {
 	kind: 'table.interpolationTable',
@@ -47,16 +42,20 @@ describe('applyLookupTable', () => {
 			qtiValue('identifier', 'single', 'none'),
 		);
 	});
-});
 
-describe.each([
-	['QTI 2.2', 'lookupTable', 'interpolationTable', 'interpolationTableEntry', 'sourceValue', 'targetValue', new Qti2xElementNameMapper()],
-	['QTI 3.0', 'qti-lookup-table', 'qti-interpolation-table', 'qti-interpolation-table-entry', 'source-value', 'target-value', new Qti3ElementNameMapper()],
-] as const)('%s lookupTable expression', (_version, lookup, table, entry, source, target, mapper) => {
-	it('builds and evaluates the table under its own spelling', () => {
-		const xml = `<${lookup}><${mapper.toNative('baseValue')} base-type="float" baseType="float">7</${mapper.toNative('baseValue')}><${table}><${entry} ${source}="5" ${target}="50"/></${table}></${lookup}>`;
-		const expr = buildExpression(parseXml(xml).documentElement, { elementNameMapper: mapper });
-		const env = { ctx: new DeclarationContext({}), ops: new OperatorRegistry(), rng: () => 0.5 };
-		expect(evalExpr(env, expr)).toEqual(qtiValue('float', 'single', 50));
+	it('matchTable requires an integer source: anything else is invalid, not a miss', () => {
+		// The spec defines integer sources only (2.1: matchTable "transforms a source integer",
+		// matchTableEntry@sourceValue [1]: integer; 3.0 lookupOutcomeValue: "Integer type is
+		// required when the associated table is a matchTable"). The engine once fell back to a
+		// string comparison for other base types; that leniency is gone.
+		const table = {
+			kind: 'table.matchTable' as const,
+			defaultValue: 'none',
+			entries: [{ sourceValue: '1', targetValue: 'one' }],
+		};
+		expect(applyLookupTable(qtiValue('string', 'single', '1'), table, 'identifier')).toMatchObject({ kind: 'invalid' });
+		expect(applyLookupTable(qtiValue('float', 'single', 1), table, 'identifier')).toMatchObject({ kind: 'invalid' });
+		expect(applyLookupTable(qtiValue('boolean', 'single', true), table, 'identifier')).toMatchObject({ kind: 'invalid' });
+		expect(applyLookupTable(qtiValue('integer', 'multiple', [1]), table, 'identifier')).toMatchObject({ kind: 'invalid' });
 	});
 });

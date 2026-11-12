@@ -18,8 +18,22 @@ describe('createItemPresentation', () => {
 				<choiceInteraction responseIdentifier="RESPONSE"><simpleChoice identifier="A">A</simpleChoice></choiceInteraction>
 			`,
 			interactions: [
-				{ type: 'inlineChoiceInteraction', responseId: 'INLINE', choices: [{ identifier: 'A', text: 'A' }] },
-				{ type: 'choiceInteraction', responseId: 'RESPONSE', choices: [{ identifier: 'A', text: 'A' }] },
+				{
+					type: 'inlineChoiceInteraction',
+					responseId: 'INLINE',
+					choices: [{ identifier: 'A', text: 'A' }],
+					shuffle: false,
+					label: null,
+				},
+				{
+					type: 'choiceInteraction',
+					responseId: 'RESPONSE',
+					choices: [{ identifier: 'A', text: 'A' }],
+					shuffle: false,
+					maxChoices: 1,
+					minChoices: 0,
+					prompt: null,
+				},
 			],
 			correctResponses: { RESPONSE: 'A', INLINE: 'A' },
 		});
@@ -35,13 +49,18 @@ describe('createItemPresentation', () => {
 				(node) => node.kind === 'interaction' && node.mount.renderer === 'inline-choice'
 			)
 		).toBe(true);
-		expect(presentationHtml(presentation)).toContain('qti-hidden-interaction');
+		// Every interaction element is replaced by the slot it mounts into; none is left as markup.
+		const html = presentationHtml(presentation);
+		expect(html).toContain('data-qti-interaction-slot="0"');
+		expect(html).toContain('data-qti-interaction-slot="1"');
+		expect(html).not.toContain('choiceInteraction');
 		const blockMounts = presentation.flow
 			.filter((node) => node.kind === 'interaction' && node.mount.placement === 'block')
 			.map((node) => node.kind === 'interaction' ? node.mount : null);
 		expect(blockMounts).toHaveLength(1);
 		expect(blockMounts[0]).toMatchObject({
 			tagName: 'pie-qti-choice',
+			slot: '1',
 			response: 'A',
 			correctResponse: 'A',
 			disabled: true,
@@ -82,25 +101,76 @@ describe('createItemPresentation', () => {
 		});
 	});
 
+	it('passes a text-entry stringIdentifier response back as its lexical companion', () => {
+		const source = presentationSource({
+			interactions: [{
+				type: 'textEntryInteraction',
+				responseId: 'NUM',
+				expectedLength: 8,
+				patternMask: null,
+				placeholderText: '',
+				baseType: 'float',
+				stringIdentifier: 'STR',
+			}],
+		});
+
+		const presentation = createItemPresentation({
+			source,
+			responses: { NUM: 3.5, STR: '3.50' },
+		});
+
+		const inline = presentation.flow.find(
+			(node) => node.kind === 'interaction' && node.mount.renderer === 'text-entry'
+		);
+		expect(inline && inline.kind === 'interaction' ? inline.mount : null).toMatchObject({
+			interaction: { stringIdentifier: 'STR' },
+			stringResponse: '3.50',
+		});
+	});
+
+	it('binds no lexical companion to a text entry without a stringIdentifier', () => {
+		const source = presentationSource({
+			interactions: [{
+				type: 'textEntryInteraction',
+				responseId: 'NUM',
+				expectedLength: 8,
+				patternMask: null,
+				placeholderText: '',
+			}],
+		});
+
+		const presentation = createItemPresentation({ source, responses: { NUM: 'x', STR: 'y' } });
+
+		const inline = presentation.flow.find(
+			(node) => node.kind === 'interaction' && node.mount.renderer === 'text-entry'
+		);
+		expect(inline && inline.kind === 'interaction' ? 'stringResponse' in inline.mount : null).toBe(false);
+	});
+
 	it('injects delivery-context styles and stimulus content before rendering inline segments', () => {
 		const deliveryContext: ResolvedItemDeliveryContext = {
 			itemHref: 'items/item.xml',
-			itemBasePath: 'items',
 			stimuli: {
 				stimulus1: {
 					identifier: 'stimulus1',
 					href: 'stimulus.xml',
+					resolvedHref: 'items/stimulus.xml',
 					bodyHtml: '<p data-catalog-idref="term">Shared stimulus</p>',
+					stylesheets: [],
+					validationMessages: [],
 				},
 			},
 			stylesheets: [
 				{
 					href: 'style.css',
+					resolvedHref: 'items/style.css',
+					xml: '<qti-stylesheet href="style.css" type="text/css"/>',
 					cssText: '.stem { color: red; }',
 					source: 'item',
 				},
 			],
 			catalogSources: [],
+			validationMessages: [],
 		};
 		const source = presentationSource({
 			bodyHtml: '<qti-assessment-stimulus-ref identifier="stimulus1" /><p class="stem">Stem</p>',

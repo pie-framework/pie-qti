@@ -1,0 +1,25 @@
+{
+  "id": "contains_subcontainer",
+  "cases": [
+    {
+      "name": "multiple contains [B,A]; ordered [A,B,C] contains [B,C]",
+      "responses": { "PICKS": ["A", "B", "C"], "STEPS": ["A", "B", "C"] },
+      "expect": { "outcomes": { "HAS_A_AND_B": 1, "HAS_B_TWICE": 0, "HAS_B_THEN_C": 1 } }
+    },
+    {
+      "name": "multiple without B; ordered [C,B,A] does not contain [B,C]",
+      "responses": { "PICKS": ["A", "C"], "STEPS": ["C", "B", "A"] },
+      "expect": { "outcomes": { "HAS_A_AND_B": 0, "HAS_B_TWICE": 0, "HAS_B_THEN_C": 0 } }
+    },
+    {
+      "name": "ordered [B,A,C]: B and C are not adjacent",
+      "responses": { "PICKS": ["B", "A"], "STEPS": ["B", "A", "C"] },
+      "expect": { "outcomes": { "HAS_A_AND_B": 1, "HAS_B_TWICE": 0, "HAS_B_THEN_C": 0 } }
+    },
+    {
+      "name": "unanswered responses are NULL and contain nothing",
+      "responses": { "PICKS": [] },
+      "expect": { "outcomes": { "HAS_A_AND_B": 0, "HAS_B_TWICE": 0, "HAS_B_THEN_C": 0 } }
+    }
+  ]
+}

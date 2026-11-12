@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import type { NavigationState } from '@pie-qti/assessment-player';
-	import { NavigationBar } from '$assessment-components';
+	import { NavigationBar } from '@pie-qti/assessment-player/components';
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
 
 	// Get i18n from context (provided by layout)
@@ -26,6 +26,7 @@
 		<NavigationBar
 			{navState}
 			{i18n}
+			showProgress={true}
 			onPrevious={() => (navState = { ...navState, currentIndex: Math.max(0, navState.currentIndex - 1) })}
 			onNext={() => (navState = { ...navState, currentIndex: Math.min(navState.totalItems - 1, navState.currentIndex + 1) })}
 			onSubmit={() => {}}

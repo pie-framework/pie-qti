@@ -4,7 +4,8 @@ import type { ExtractionRegistry } from './ExtractionRegistry.js';
 import { createExtractionContext } from './createContext.js';
 import { interactionAccessibility, readAloudAttributes } from './interactionAccessibility.js';
 import { finalizeInteractionDelivery } from './interactionSecurity.js';
-import type { VariableDeclaration as ExtractionVariableDeclaration } from './types.js';
+import { mergeDeliveryFields } from './mergeDeliveryFields.js';
+import type { ExtractionVariableDeclaration } from './types.js';
 import type { DeclarationMap } from '@pie-qti/qti-processing';
 import type { ExtractionConfig } from './types.js';
 import type {
@@ -35,6 +36,9 @@ export function extractInteractionData({
 	contentHandlers,
 }: InteractionExtractionPipelineInput): readonly BaseInteractionData[] {
 	const declMap = projectDeclarationsForExtraction(declarations);
+	// Discovery yields only registered element types that bind a response. Elements it skips (an
+	// unregistered type, or a QTI interaction without a responseIdentifier) are reported when the
+	// item compiles, by findUnextractableInteractions (see core/compliance.ts).
 	const elements = document.findExtractionElements(
 		getRegisteredElementTypes(extractionRegistry),
 		contentHandlers,
@@ -80,7 +84,7 @@ export function extractInteractionData({
 		interactions.push(
 			finalizeInteractionDelivery(
 				interaction,
-				mergeDeliveryFields(standardFields, extractorFields),
+				mergeDeliveryFields(extractorFields, standardFields),
 				config.security,
 				discovered.normalizedType,
 			)
@@ -88,19 +92,6 @@ export function extractInteractionData({
 	}
 
 	return Object.freeze(interactions);
-}
-
-function mergeDeliveryFields<T extends { kind: string; path: readonly (string | '*')[] }>(
-	standard: readonly T[],
-	extension: readonly T[]
-): T[] {
-	const fields = new Map<string, T>();
-	for (const field of [...extension, ...standard]) {
-		// An output path has one sink meaning. Authored standard policy is
-		// authoritative even when a plugin tries to change the field kind itself.
-		fields.set(JSON.stringify(field.path), field);
-	}
-	return [...fields.values()];
 }
 
 function getRegisteredElementTypes(extractionRegistry: ExtractionRegistry): string[] {

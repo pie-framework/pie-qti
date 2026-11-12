@@ -1,7 +1,7 @@
 # PIE-QTI
 
 ![QTI 2.1, 2.2 & 3.0 Coverage](https://img.shields.io/badge/QTI%202.1%2C%202.2%20%26%203.0-Partial-orange)
-![Interactions](https://img.shields.io/badge/Interaction%20extractors-21-blue)
+![Interactions](https://img.shields.io/badge/Interaction%20extractors-22-blue)
 ![Tests](https://img.shields.io/badge/Tests-2700%2B-success)
 ![Accessibility](https://img.shields.io/badge/Accessibility-Tested-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue)
@@ -212,10 +212,6 @@ Release behavior is lockstep and patch-only for publishable `packages/*`:
 - local full release flow: `bun run release:with-version`
 
 See [docs/development/publish-verification.md](docs/development/publish-verification.md) for full publish-readiness details.
-
-### Local PIE Players
-
-To test with [pie-players](https://github.com/pie-framework/pie-players) locally, clone both repos side-by-side. The postinstall script auto-links them.
 
 ### GitHub Pages Preview
 

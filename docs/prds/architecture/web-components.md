@@ -75,9 +75,11 @@ Svelte components compiled as custom elements receive complex data in two ways:
 1. **JS property assignment** (framework usage): `element.interaction = { responseId: 'R1', choices: [...] }` — the value is a live JavaScript object.
 2. **HTML attribute** (template/server-rendered usage): `<pie-qti-choice interaction='{"responseId":"R1",...}'>` — the value is a serialised JSON string.
 
-Svelte does not automatically JSON-parse attribute strings into typed props. Every component prop that can be complex data must call `parseJsonProp<T>(prop)` in a `$derived()` to handle both cases. If a component omits this call, it silently receives a raw string when set via an HTML attribute, producing broken behavior that is difficult to diagnose because it works fine in Svelte-to-Svelte usage.
+Svelte does not JSON-parse these attribute strings: no component declares an attribute type for its props. A prop whose value is always an object (`interaction`, `pnp`) therefore calls `parseJsonProp<T>(prop)` in a `$derived()` to handle both cases; for such a prop a string can only be its JSON text. If a component omits this call, it silently receives a raw string when set via an HTML attribute, producing broken behavior that is difficult to diagnose because it works fine in Svelte-to-Svelte usage.
 
-`parseJsonProp` also handles the string `"null"` (which HTML attributes can't represent as `null`) and non-JSON strings (which are returned as-is, covering string identifiers like `role`).
+`parseJsonProp` also handles the string `"null"` (which HTML attributes can't represent as `null`) and non-JSON strings (which are returned as-is).
+
+`response` and `correctResponse` are never parsed as arbitrary JSON: they go through `responseProp`, which keeps the value as given and reads only `null` as no response. A string response is the candidate's text or a choice identifier, and nothing in a string says whether it was meant as JSON. Reading responses as JSON rewrote a typed `1.50` as `1.5` and `1e5` as `100000` under the candidate's cursor, dropped the quotes of `"quoted"`, and lost the answer `null` and the choices identified `true`, `false` or `null`. The one exception is the identifier-list interactions (order, match, associate, gap match, the graphic interactions, a multiple-selection hotspot): their `listResponse` opt-in reads a string that reads as a JSON array as that list, because a list is never a bare string value and an HTML attribute carries a list as its JSON text. The item player, and every host in this repository, sets responses as JavaScript properties.
 
 ### Why `qti-change` fires from the root `<div>` rather than the input element
 
@@ -110,7 +112,7 @@ The component is included via `<ShadowBaseStyles />` at the top of each interact
 
 - **Spec version(s):** QTI 2.1 / 2.2 / 3.0
 - **Spec section(s):** §4 assessmentItem interaction rendering; QTI 3.0 §7 web component rendering model
-- **Known divergences:** QTI 3.0 defines a `qti-change` event contract with specific detail shape; this implementation follows that contract (`{ responseId, value, timestamp }`). The `composed: true` flag is not mentioned in QTI 2.2 but is required for Shadow DOM use.
+- **Known divergences:** none. QTI defines no DOM events for interaction changes; the QTI 3.0 Information Model has no event model at all. `qti-change`, with detail `{ responseId, value, timestamp }`, is this project's own contract. It is dispatched with `bubbles: true` and `composed: true` so it crosses shadow roots.
 
 ---
 
@@ -138,6 +140,7 @@ The component is included via `<ShadowBaseStyles />` at the top of each interact
 - **FR-14:** Interaction components in `disabled` state SHALL render non-interactive (native input elements with `disabled`, no `qti-change` events).
 - **FR-15:** `QtiItemPlayerElement.session` SHALL be a JavaScript-property-only injection point for a live item session created by `@pie-qti/item-player`. It SHALL NOT be reflected to or parsed from an HTML attribute, because live object identity is not serializable.
 - **FR-16:** When `session` is supplied, the item element SHALL render and dispatch commands through that exact object, ignore `responses` as a synchronization source, and leave disposal to the owner. When no session is supplied, the standalone path SHALL create and dispose its own definition/session from `itemXml`.
+- **FR-17:** Every interaction component SHALL take `response` and `correctResponse` as values, set as JavaScript properties. A string response SHALL be kept exactly as given, except that an interaction whose response is a list of identifiers SHALL read a string that reads as a JSON array as that list (the form an HTML attribute carries).
 
 ---
 
@@ -169,10 +172,10 @@ The component is included via `<ShadowBaseStyles />` at the top of each interact
 
 ### `parseJsonProp` as explicit call, not an automatic Svelte transform
 
-**Decision:** Each component explicitly calls `parseJsonProp<T>` in `$derived()` for every prop that can be complex data.
-**Rationale:** Making it explicit makes the dual-mode contract visible at the call site. An automatic transform (e.g., a preprocessor that wraps every prop) would be invisible and harder to debug.
+**Decision:** Each component explicitly calls `parseJsonProp<T>` in `$derived()` for every prop whose value is always an object (`interaction`, `pnp`), directly or through `createInteractionShell`. `response` and `correctResponse` go through `responseProp` instead, which keeps the value as given; the identifier-list interactions opt into reading attribute-carried list text (`listResponse`).
+**Rationale:** Making it explicit makes the dual-mode contract visible at the call site. An automatic transform (e.g., a preprocessor that wraps every prop) would be invisible and harder to debug, and would also parse responses, whose strings are values.
 **Alternatives considered:** Svelte preprocessor; custom store; property decorator.
-**Consequences:** New interaction components must remember to call `parseJsonProp` for complex props. Omitting it is a silent bug that only manifests when the component is used as an HTML custom element rather than a Svelte component.
+**Consequences:** New interaction components must remember to call `parseJsonProp` for object props. Omitting it is a silent bug that only manifests when the component is used as an HTML custom element rather than a Svelte component. Calling it on a response is a data-corruption bug: a string answer that reads as JSON is rewritten.
 
 ### `::part()` API as the only supported host-side CSS hook
 
@@ -211,12 +214,14 @@ The component is included via `<ShadowBaseStyles />` at the top of each interact
 Defined in `@pie-qti/item-player/web-components` as `QTIChangeEventDetail`:
 
 ```typescript
-interface QTIChangeEventDetail {
+interface QTIChangeEventDetail<TValue = InteractionResponseValue | null> {
   responseId: string;   // QTI response identifier (non-empty, required)
-  value: unknown;       // The response value (string, string[], number, etc. — type depends on interaction)
+  value: TValue;        // The raw component output; its type per interaction is InteractionValueMap[type]
   timestamp: number;    // Date.now() at dispatch time
 }
 ```
+
+`InteractionValueMap` (`packages/item-player/src/interactions/shared/types.ts`) records what each standard component emits — for example `"source target"` pair strings for match, `"x y"` point strings for position-object, and `null` when a component clears its answer. The player normalizes the value into the response declaration (`setResponse`); `Player.getResponses` returns that normalized form.
 
 The event is constructed by `createQtiChangeEvent(responseId, value)` in `src/shared/utils/eventHelpers.ts`. If `responseId` is empty or undefined, the function throws before constructing the event.
 
@@ -227,8 +232,8 @@ Every interaction component exposes at minimum:
 | Prop | Type | Notes |
 |------|------|-------|
 | `interaction` | `InteractionData \| string` | Primary QTI interaction data; always goes through `parseJsonProp` |
-| `response` | varies by type `\| string` | Current candidate response; bindable |
-| `correctResponse` | varies by type `\| string \| null` | Set by scorer role; null = not shown |
+| `response` | varies by type | Current candidate response, set as a JavaScript property; bindable. Never parsed: a string response is the text or identifier itself |
+| `correctResponse` | varies by type `\| null` | Set by scorer role, as a JavaScript property; null = not shown. Never parsed |
 | `disabled` | `boolean` | Disables all input |
 | `role` | `string` | QTI role: `'candidate'`, `'scorer'`, `'testConstructor'` |
 | `i18n` | `I18nProvider` | Translation provider from `@pie-qti/i18n` |
@@ -382,6 +387,16 @@ AC-E3: QtiItemPlayerElement disconnectedCallback cleans up
         AND no residual event listeners remain from the mounted component
         AND an element-owned standalone session is disposed
         AND an injected session is not disposed
+
+AC-E4: A string response that reads as JSON stays as written
+  Given: A <pie-qti-extended-text> bound to a string response
+  When: The candidate types 1.50, or the host sets element.response = '1.50'
+        (likewise '1e5', 'true', 'null', '"quoted"', '[1]')
+  Then: The field shows exactly that text
+        AND qti-change reports exactly that string
+  Given: A <pie-qti-choice> whose choices are identified "true", "false" and "null"
+  When: The host sets element.response to one of those identifiers
+  Then: That choice is selected
 ```
 
 ---

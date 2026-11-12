@@ -1,3 +1,4 @@
+import { escapeXmlAttribute } from '@pie-qti/qti-common/accessibility';
 import type { PieItem, PieModel } from '@pie-qti/transform-types';
 
 export function makePieItemPlayerReady(pieItem: PieItem): PieItem {
@@ -41,7 +42,7 @@ function markupFromModels(models: PieModel[], elements: Record<string, string>) 
       if (!element || !id || !Object.hasOwn(elements, element)) {
         return null;
       }
-      return `<${element} id="${escapeAttribute(id)}"></${element}>`;
+      return `<${element} id="${escapeXmlAttribute(id)}"></${element}>`;
     })
     .filter((entry): entry is string => Boolean(entry))
     .join('');
@@ -58,10 +59,3 @@ function packageName(packageSpec: string) {
   return versionAt > 0 ? packageSpec.slice(0, versionAt) : packageSpec;
 }
 
-function escapeAttribute(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}

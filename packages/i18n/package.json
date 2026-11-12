@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/i18n",
-  "version": "1.0.0-beta.4",
+  "version": "1.0.0-beta.5",
   "description": "Internationalization (i18n) package for PIE-QTI player ecosystem",
   "type": "module",
   "main": "./dist/index.js",
@@ -22,9 +22,10 @@
     "check": "svelte-check --tsconfig ./tsconfig.svelte.json",
     "check-translations": "bun run scripts/check-translations.ts",
     "check-translations:locale": "bun run scripts/check-translations.ts --locale",
+    "check-consumer-keys": "bun run scripts/check-consumer-keys.ts",
     "scan-hardcoded": "bun run scripts/scan-hardcoded-strings.ts",
     "check-physical-css": "bun run scripts/check-physical-css.ts",
-    "check:i18n": "bun run check-translations && bun run scan-hardcoded --strict && bun run check-physical-css"
+    "check:i18n": "bun run check-translations && bun run check-consumer-keys && bun run scan-hardcoded --strict && bun run check-physical-css"
   },
   "keywords": [
     "pie",

@@ -35,7 +35,9 @@ describe('SortableList under an Arabic provider', () => {
 		});
 		await settle();
 
-		expect(q(mounted, '#sortable-instructions')?.textContent?.trim()).toBe(
+		// Resolved through the list's aria-describedby, the path assistive technology follows.
+		const instructionsId = q(mounted, '[part="list"]')?.getAttribute('aria-describedby') ?? '';
+		expect(document.getElementById(instructionsId)?.textContent?.trim()).toBe(
 			'اضغط على مفتاح المسافة أو الإدخال للإمساك بعنصر. استخدم مفاتيح الأسهم لتحريك العنصر. اضغط على مفتاح المسافة أو الإدخال مرة أخرى للإفلات. اضغط على Escape للإلغاء.',
 		);
 
@@ -69,7 +71,17 @@ describe('MatchDragDrop under an Arabic provider', () => {
 		});
 		await settle();
 
-		expect(q(mounted, '[data-source-id="S1"]')?.getAttribute('aria-label')).toBe('Apple. مطابق مع Red وGreen.');
+		// The name comes from the rendered rich content (aria-labelledby); the match
+		// state is the describedby sentence with the Arabic conjunction list.
+		const source = q(mounted, '[data-source-id="S1"]');
+		const nameElement = source?.getAttribute('aria-labelledby')
+			? document.getElementById(source.getAttribute('aria-labelledby')!)
+			: null;
+		expect(nameElement?.textContent?.trim()).toBe('Apple');
+		const stateElement = source?.getAttribute('aria-describedby')
+			? document.getElementById(source.getAttribute('aria-describedby')!)
+			: null;
+		expect(stateElement?.textContent?.trim()).toBe('مطابق مع Red وGreen.');
 	});
 
 	test('creating a pair announces it in Arabic', async () => {

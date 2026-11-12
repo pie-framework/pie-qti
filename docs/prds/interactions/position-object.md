@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: positionObjectInteraction
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-11-09
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-11-09
 
 ---
 
@@ -27,6 +27,8 @@
 
 This is the most important thing to understand about `positionObjectInteraction`, and it is impossible to work around within the QTI 2.2 response model.
 
+> **Scope of the limitation (since G-17).** In the QTI content model each draggable object is its own `positionObjectInteraction` inside the shared `positionObjectStage`, bound to its own response variable, and the extractor follows that model. Several distinct objects on one stage, authored as one interaction each, therefore keep their identity: each object's points live in its own response variable and are scored against its own `areaMapping`. The identity-free response described below concerns the points of a single interaction, and becomes a real limitation only for renderer data that lists several different objects in one interaction (a non-standard extension; see Design decisions).
+
 The `responseDeclaration` for this interaction always has `baseType="point"`. A `point` value is a whitespace-separated pair of integers representing `x y` coordinates in the stage's natural pixel coordinate system. A `multiple`-cardinality response is therefore a flat array of coordinate strings, for example `["105 132", "210 195", "88 74"]`.
 
 **There is no field, attribute, or extension in QTI 2.2 that records which draggable object (which `positionObjectStage`) produced each coordinate.** The QTI 2.2 assessment item information model does not define any mechanism to bind a response value back to a source object identifier. The response is purely geometric.
@@ -41,7 +43,7 @@ When the item contains two or more `positionObjectStage` elements (each with a d
 
 **This implementation's non-standard workaround and its limits:**
 
-The component internally tracks an array of `{ stageId, x, y }` positions. The `stageId` field records which `positionObjectStage` the candidate dragged from. On change events the component strips `stageId` before emitting the QTI-format `string[]` response. When the component is initialised from a saved response (e.g. returning to a previously answered item), it attempts to reconstruct `stageId` from the array order: points 0..matchMax-1 are attributed to stage 0, points matchMax..2×matchMax-1 to stage 1, and so on. This reconstruction is order-dependent and fails silently if the candidate placed objects in a different order or if the response was produced by a different delivery engine. The visual display may be incorrect on restore; scoring is unaffected (it always uses coordinates). The internal `stageId` tracking is a UX convenience, not a scoring mechanism.
+The component internally tracks an array of `{ stageId, x, y }` positions. The `stageId` field records which `positionObjectStage` the candidate dragged from. On change events the component strips `stageId` before emitting the QTI-format `string[]` response. When the component is initialised from a saved response (e.g. returning to a previously answered item), it attempts to reconstruct `stageId` from the array order: points 0..matchMax-1 are attributed to stage 0, points matchMax..2×matchMax-1 to stage 1, and so on; a stage whose `matchMax` is 0 (unlimited) takes every remaining point. This reconstruction is order-dependent and fails silently if the candidate placed objects in a different order or if the response was produced by a different delivery engine. The visual display may be incorrect on restore; scoring is unaffected (it always uses coordinates). The internal `stageId` tracking is a UX convenience, not a scoring mechanism.
 
 **QTI 3.0 resolution — deferred:**
 
@@ -71,24 +73,26 @@ The only example in the IMS QTI 2.2 specification places multiple copies of an i
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `responseIdentifier` | ✅ Full | Extracted as `responseId`; used as the key in `qti-change` event payload |
-| `maxChoices` | ✅ Full | Maximum total placements across all stages. `0` = unlimited. Enforced by the component: the palette item becomes non-draggable when the limit is reached |
-| `minChoices` | ✅ Extracted, not enforced | Present in `PositionObjectInteractionData`. Not validated at submit time. See Known gaps |
-| `centerPoint` | ✅ Full | When `true` (the default), drop coordinates are adjusted so the object's center lands at the drop point. When `false`, the top-left corner lands at the drop point |
+| `maxChoices` | ✅ Full | Maximum total placements across all stages. `0` = unlimited. Enforced by the component: the palette item becomes non-draggable when the limit is reached, and a placement refused at the limit is announced (see FR-10) |
+| `minChoices` | ✅ Full | Minimum placements for a complete response. `Player.validateResponses()` reports the response incomplete while fewer than `minChoices` coordinates are placed; the component shows the requirement as a text hint and leaves submit gating to the host |
+| `centerPoint` | ✅ Full | The point on the object image treated as the object's position: an offset from the object image's top-left corner, in its own pixels, horizontal then vertical (IntegerList of two). That point is held under the pointer, placed on the recorded point, and recorded as the response. When absent, the spec default applies: the centre of the object image's bounding rectangle. Read in every spelling: `centerPoint` (QTI 2.2), `centrePoint` (QTI 2.1 schema), `center-point` (QTI 3.0) and `centre-point` (a QTI 2.1 item converted to QTI 3.0). A malformed value is treated as absent |
 
-### Supported attributes on `positionObjectStage`
+### `positionObjectStage` structure (spec nesting)
 
-`positionObjectStage` is the child element defining each draggable object. **Note: in standard QTI 2.2, `positionObjectStage` is a container element in the item body, not a direct child of `positionObjectInteraction`. This implementation extracts `positionObjectStage` as a direct child of the interaction for rendering purposes.** See Design Decisions.
+As in QTI 2.2 and 3.0, `positionObjectStage` is the **parent** of `positionObjectInteraction` (the stage holds the background `object`; each interaction holds its own draggable `object`). The extractor discovers the interaction below its parent stage and reads the shared background from that parent (`packages/item-player/src/interactions/position-object/extractor.ts`; gap G-17 in `docs/SPEC-GAPS-PLAN.md`, closed). A parent that is not a `positionObjectStage` containing the interaction is rejected, not silently treated as a stage.
 
-| Attribute | Support | Behaviour |
-|-----------|---------|-----------|
-| `identifier` | ✅ Full | Required. Used as internal tracking key for multi-stage scenarios |
-| `matchMax` | ✅ Full | Maximum number of times this specific stage can be placed. Defaults to `1`. Enforced per-stage: a fully-used stage becomes non-draggable |
-| `matchMin` | ✅ Extracted | Minimum placements required for this stage. Present in extracted data; not validated at submit time |
-| `class` | ✅ Extracted | CSS class list extracted and stored; not currently applied to the rendered stage element in the palette |
+| Extracted from the stage/interaction pair | Source | Behaviour |
+|-------------------------------------------|--------|-----------|
+| Stage identifier | `responseIdentifier` of the interaction | Internal tracking key for the one draggable object this interaction contributes (see Design decisions) |
+| Background image | stage's image child: `object` (QTI 2.x), or `img`/`picture` (QTI 3.0; a `<picture>` delivers its `<img>` fallback) | Rendered as the canvas; its declared `width`/`height` define the coordinate system |
+| Draggable object | interaction's image child: `object` (QTI 2.x), or `img`/`picture` (QTI 3.0; a `<picture>` delivers its `<img>` fallback) | Rendered in the palette; its declared `width`/`height` (default 50×50) size the placed box |
+| `label` | the draggable object's authored text alternative | Names the object in the palette and announcements; never falls back to the identifier (which can leak the answer key) |
+| `class` on the interaction | interaction element | Extracted into the stage entry's `classes`; not currently applied to the rendered palette element |
+| Placement limit | interaction `maxChoices` | Becomes the stage entry's `matchMax` (one draggable object, placed up to `maxChoices` times). `maxChoices="0"` ("no limit") arrives as `matchMax` 0, which the component reads as unlimited too |
 
-### Background image (`object` element)
+### Background image (`object` / `img` / `picture` element)
 
-The background image is the child `object` element of `positionObjectInteraction`. Both external image references (`type="image/png"`, `data="url"`) and inline SVG (`type="image/svg+xml"` with inline content) are supported. The declared `width` and `height` attributes define the natural coordinate system for all response point values.
+QTI 2.x authors the background image as the `object` child of `positionObjectStage`; the QTI 3.0 schema gives the stage (and the interaction's draggable) a choice of `object`, `img` or `picture` (3.0 XSD `PositionObjectStageDType` / `PositionObjectInteractionDType`). All three forms extract. Both external image references (`object type="image/png" data="url"` / `img src="url"`) and inline SVG (`object type="image/svg+xml"` with inline content) are supported; a `picture` delivers its required `<img>` fallback (its `src`, `alt` and dimensions), the content that renders when no `<source>` matches. The declared `width` and `height` attributes define the natural coordinate system for all response point values.
 
 **Critical: declared dimensions must match actual image dimensions.** The coordinate system of response point values is defined by the declared `width`/`height`. If the declared values differ from the actual rendered image pixels (e.g. the image is scaled by CSS), coordinate values in stored responses will not correspond to the correct visual positions when the item is replayed. The extractor emits a validation warning for external images reminding authors to verify dimension accuracy. See `positionObjectExtractor.ts` `validate()`.
 
@@ -120,12 +124,17 @@ For a single-object item, this scores each placement independently and sums matc
 
 ### Known gaps
 
-No `positionObjectInteraction`-specific items appear in `docs/SPEC-GAPS-PLAN.md` (G-01 through G-15). However, the following spec behaviors are not fully implemented:
+Remaining gaps against the specification and this PRD:
 
-- **`minChoices` not validated at submit time**: G-06 style gap. `minChoices` on the interaction and `matchMin` on stages are extracted but not checked before submission. The submit button does not become active/inactive based on minimum placement count.
-- **Keyboard placement not implemented**: The spec does not mandate a specific keyboard mechanism, but WCAG 2.2 requires all drag-and-drop operations to be operable without a mouse. See Non-functional requirements.
-- **`positionObjectStage` XML hierarchy**: Standard QTI 2.2 places `positionObjectStage` as a sibling of `positionObjectInteraction` in the item body. This implementation expects `positionObjectStage` elements as direct children of `positionObjectInteraction` during extraction. Items authored to strict spec structure may not extract correctly. See Design Decisions.
-- **Multi-session state restoration**: Because object identity is not encoded in the response, state restoration for multi-stage items uses best-effort array-order mapping. Positions may appear on the wrong stage after reload. Single-stage items restore correctly.
+- **Object identity in hand-built multi-object data**: the extractor delivers one draggable object per interaction, so extracted items restore exactly (every point of a response belongs to its interaction's one object). Renderer data built by hand with several `positionObjectStages` entries in one interaction is a non-standard extension: its points carry no object identity, and on restore the component maps them to entries by array order, so positions may appear on the wrong object after reload.
+- **`centerPoint` on an object without a declared size**: `centerPoint` is measured in the object image's pixels, but its natural size is only known from the declared `width`/`height`. An object that declares neither renders in the 50×50 fallback box, so an authored point is taken against that box and lands off by the image's scale. The response point is unaffected; only where the object is drawn around it shifts. Authors using `centerPoint` should declare the object's size.
+- **Restored responses are not clamped**: placements made in the component are clamped to the stage image, but a restored or programmatic response outside `[0, width] × [0, height]` is drawn where it says.
+
+Resolved since the previous review, and no longer gaps:
+
+- **Keyboard placement** (K-04): an object is selected in the palette with Enter or Space, moved on the canvas with the arrow keys and placed with Enter or Space; Escape cancels. A click or tap on the canvas places the selected object too (single-pointer alternative, WCAG 2.5.7). See Accessibility.
+- **`positionObjectStage` hierarchy** (G-17): extraction follows the spec nesting, with the stage as the interaction's parent (see `positionObjectStage` structure above).
+- **`minChoices` at submission**: `Player.validateResponses()` reports the response incomplete below `minChoices`.
 
 ---
 
@@ -133,19 +142,19 @@ No `positionObjectInteraction`-specific items appear in `docs/SPEC-GAPS-PLAN.md`
 
 - **FR-1:** The component SHALL render the background image at full container width, maintaining the declared aspect ratio (`width`/`height` from the `object` element), without distortion.
 - **FR-2:** The component SHALL render a palette panel listing each `positionObjectStage` with its label and a visual preview of its object image.
-- **FR-3:** A candidate SHALL be able to drag a stage from the palette and drop it at any coordinate on the canvas.
+- **FR-3:** A candidate SHALL be able to place an object from the palette at any coordinate on the canvas by dragging it (mouse or touch), or by selecting it (click, tap, Enter or Space) and then clicking/tapping the canvas or positioning it with the arrow keys and Enter.
 - **FR-4:** After each placement, the component SHALL emit a `qti-change` event carrying the `responseIdentifier` and the updated response array of `"x y"` strings in natural image coordinates.
 - **FR-5:** Coordinates recorded in the response SHALL be in the background image's natural coordinate system (i.e. scaled back from any CSS scaling applied to the container).
-- **FR-6:** When `centerPoint` is `true`, the recorded coordinate SHALL be the center of the dropped object, not its top-left corner.
+- **FR-6:** The recorded coordinate SHALL be the stage position of the object's reference point: its authored `centerPoint`, or the centre of its bounding rectangle when none is authored. The placed object SHALL render with that point on the recorded coordinate, for pointer, touch, click-to-place and keyboard placement alike.
 - **FR-7:** A placed object SHALL be re-draggable to a new position within the canvas. Moving an existing placement SHALL update its coordinate in the response array at the same index.
 - **FR-8:** A placed object SHALL have a remove button that removes it from the canvas and restores it as available in the palette.
-- **FR-9:** The palette item for a stage SHALL become non-draggable (visually dimmed, `draggable=false`) when that stage's `matchMax` placements have been used.
-- **FR-10:** The palette item for any stage SHALL become non-draggable when the interaction-level `maxChoices` total has been reached (and `maxChoices > 0`).
+- **FR-9:** The palette item for a stage SHALL become non-draggable (visually dimmed, `draggable=false`) when that stage's `matchMax` placements have been used. A `matchMax` of 0 — what an unlimited `maxChoices="0"` produces — never runs out: the object stays placeable and its usage is stated as unlimited ("Plane (2 used, unlimited)."), not as "2/0 used".
+- **FR-10:** The palette item for any stage SHALL become non-draggable when the interaction-level `maxChoices` total has been reached (and `maxChoices > 0`). A placement attempt refused at a cap — keyboard Enter, canvas click/tap or drag drop — SHALL be announced through the polite live region naming the maximum ("The maximum of {max} placements is reached."), never silently ignored; the crosshair placement mode stays active so Escape still works.
 - **FR-11:** When `role="scorer"` and `correctResponse` is non-empty, the component SHALL display correct-position ghost overlays (dashed green outline) at the correct coordinates for each stage.
 - **FR-12:** When `role="scorer"`, user-placed objects that fall within 5 pixels of a correct position SHALL display a visual match indicator (green border, checkmark badge).
 - **FR-13:** When `disabled=true`, all drag interactions SHALL be inert. The remove button SHALL not appear. Placed objects SHALL be visible but not interactive.
 - **FR-14:** When the `response` prop is set externally (e.g. on item load), the component SHALL initialise positions from the response array. For single-stage items this SHALL be exact. For multi-stage items, array-order reconstruction SHALL be used and is acknowledged as best-effort.
-- **FR-15:** The component SHALL display a `minChoices`/`maxChoices` counter indicating how many objects have been placed and how many are allowed or required.
+- **FR-15:** The component SHALL display a `minChoices`/`maxChoices` counter indicating how many objects have been placed and how many are allowed or required. The maximum is stated whenever `maxChoices > 0`, including items that declare no minimum (WCAG 3.3.2: the cap is known before the first refusal).
 
 ---
 
@@ -153,48 +162,35 @@ No `positionObjectInteraction`-specific items appear in `docs/SPEC-GAPS-PLAN.md`
 
 ### Accessibility
 
-Free drag-and-drop has no native keyboard equivalent. WCAG 2.2 Success Criterion 2.1.1 requires all functionality to be operable via keyboard. The drag-and-drop mechanism satisfies pointer input; keyboard access requires an alternative path.
+Free drag-and-drop has no native keyboard equivalent. WCAG 2.2 Success Criterion 2.1.1 requires all functionality to be operable via keyboard, and SC 2.5.7 requires a single-pointer alternative to dragging. Both are implemented (K-04; covered by `packages/default-components/tests/component/position-object.vitest.ts`):
 
-**Current keyboard support:**
-
-- Palette items are focusable (`tabindex=0`) and have `role="button"` with an `aria-label` including the stage label and usage count.
-- Placed objects on the canvas are focusable (`tabindex=0`) and have `role="button"` with an `aria-label` including stage label and coordinates.
-- The remove button on each placed object is keyboard-accessible.
-- **There is no keyboard mechanism to initiate a placement from the palette.** Pressing Enter/Space on a palette item does not begin a placement flow.
-
-**Required keyboard fallback (open gap):**
-
-A WCAG-compliant keyboard placement flow is not yet implemented. The minimum acceptable pattern for assessment contexts is:
-1. Pressing Enter/Space on a palette item marks it as "selected for placement".
-2. Arrow keys move a cursor or phantom indicator over the canvas.
-3. Pressing Enter/Space drops the object at the current cursor position.
-4. Escape cancels the placement.
-
-Until this is implemented, this interaction does not satisfy WCAG 2.2 SC 2.1.1 for keyboard-only users. This is an open accessibility gap that must be resolved before the interaction can be used in legally required accessible assessments.
+- Palette items are focusable (`tabindex=0`) and have `role="button"`, `aria-pressed` while selected, and an `aria-label` with the object name and usage count. A fully used item is `aria-disabled` and leaves the tab order.
+- **Keyboard placement:** Enter or Space on a palette item selects the object and moves focus to the canvas, which becomes a focusable `role="application"` (so screen readers pass the arrow keys through) with an instruction label. The arrow keys move a visible crosshair (5% steps, 1% with Shift), each move announced as a position; Enter or Space places the object at the crosshair, Escape cancels. The crosshair starts on the object's last placement, else the centre.
+- **Single-pointer placement:** after selecting an object, a click or tap on the canvas places it there; no dragging is needed.
+- Placed objects are `role="group"` elements named with the object and its position in percent of the stage ("Airport at 25%, 40%."), holding their remove button ("Remove Airport"), so no button nests inside a button.
+- Placements, removals, cancellations and refused placements are announced through a polite live region. A placement refused at the interaction's `maxChoices` names the maximum ("The maximum of {max} placements is reached."); pressing Enter again re-announces it, and the placement mode stays active, so Escape still cancels and the response is unchanged.
 
 **Other accessibility requirements:**
 
-- Canvas element MUST have `role="region"` and a descriptive `aria-label`.
-- Placed object elements MUST have `role="button"`, `aria-label` with object name and coordinates, and `aria-pressed` or similar state to indicate selection.
-- All instructional text (palette label, usage counts, placement hints) MUST be rendered in visible text, not only as visual indicators.
+- All instructional text (palette title, usage counts, placement hints) MUST be rendered in visible text, not only as visual indicators.
 - Color MUST NOT be the sole differentiator for correct/incorrect placement (the green border alone is insufficient; the checkmark badge serves as the non-color indicator).
 - Touch targets for the remove button MUST be at least 24×24 CSS pixels (WCAG 2.5.8).
 
 ### Performance
 
 - Stage images and background images are referenced by URL; no lazy-loading is handled by this component. The host is responsible for preloading.
-- Scale factor recalculation (`scaleFactor` derived state) re-runs whenever `imageContainer.offsetWidth` changes. This is driven by `$derived.by` and should not cause excessive computation in typical use.
+- Placed objects are positioned in percentages of the stage, so they scale with it without recalculation; pointer positions are mapped to natural image pixels from the canvas's bounding rectangle at the moment of placement.
 - Items with more than approximately 20 placed objects have not been tested; large placement counts may cause DOM performance issues.
 
 ### Cross-platform
 
-- Drag-and-drop relies on the HTML5 Drag and Drop API, which works on desktop browsers but is unreliable on iOS Safari (requires a polyfill or pointer-event fallback). Touch-based drag on mobile requires the use of `pointerdown`/`pointermove`/`pointerup` events or a library such as `@dnd-kit`. The current implementation uses HTML5 DnD only. Mobile support is an open gap.
-- The canvas scales fluidly (`width: 100%` with `aspect-ratio` CSS), so the background image always fits the viewport. Coordinate scaling is handled by `scaleFactor`.
+- Desktop pointers drag with the HTML5 Drag and Drop API. Touch drags use the shared `touchDrag` helper from `@pie-qti/qti-common`, which maps a touch drag onto the same drop handling, and tap-to-select then tap-to-place works without any drag.
+- The canvas scales fluidly (`width: 100%` with `aspect-ratio` CSS) up to the image's natural size, so the background image always fits the viewport.
+- The stage's pixel space is the stage image's declared `width`/`height`, else a raster image's natural size once loaded. When the size is neither declared nor knowable, nothing can be placed and an authoring diagnostic says so — a default stage size is never invented, because the response points and the scoring `areaMapping` live in the stage image's own pixel space. The draggable object keeps its 50×50 fallback box (it sizes a placement, not a scoring space).
 
 ### i18n
 
-- The palette title "Available Objects" and the placement hint "Drag objects onto the canvas to position them." are hardcoded English strings not routed through the i18n provider. These should be replaced with `i18n.t()` calls.
-- `aria-label` strings for the canvas, placed objects, and palette items use hardcoded English fallbacks. The i18n provider pattern used by other interactions should be applied here.
+- All visible text and accessible names (palette title and instructions, usage counts, minimum/maximum hints, canvas instructions, placed-object names, remove labels, image fallbacks and live announcements) are routed through the `@pie-qti/i18n` provider under `interactions.positionObject.*` and shared `accessibility.*` keys, in every shipped locale.
 - RTL layout: the flex layout switches from horizontal (`flex-row`) to vertical (`flex-col`) at small breakpoints; the palette appears to the right of the canvas on large screens. No RTL-specific layout testing has been done.
 
 ### Security
@@ -216,35 +212,35 @@ Until this is implemented, this interaction does not satisfy WCAG 2.2 SC 2.1.1 f
 
 **Consequences:** The `stageId` round-trip through QTI format is lossy. On response restoration, `stageId` must be inferred from array order. Items with a single stage are not affected. Items with multiple stages will have degraded state restoration fidelity if the candidate placed objects out of stage order.
 
-### `centerPoint` defaults to `true`
+### `centerPoint` is a point, defaulting to the object's centre
 
-**Decision:** The extractor defaults `centerPoint` to `true` when the attribute is absent.
+**Decision:** The extractor reads `centerPoint` as an `{ x, y }` offset in the object image's own pixels, or `null` when it is absent or malformed. The component treats `null` as the centre of the object's bounding rectangle.
 
-**Rationale:** The QTI 2.2 spec does not define a default for `centerPoint`. In practice, center-point placement is more natural: when a candidate drops a star icon, they intend the star's center to land at the drop location, not the star's top-left corner. Using `true` as the default matches this expectation and matches what item authors typically expect.
+**Rationale:** The QTI information model (QTI 2.2.4 ASI Information Model, Table 5.81.1) defines it: "The centrePoint attribute defines the point on the image being positioned that is to be treated as the centre as an offset from the top-left corner of the image in horizontal, vertical order. By default this is the centre of the image's bounding rectangle." An earlier version of this component modelled it as a boolean (`true` = centre, `false` = top-left corner), which could not express an authored point such as the tip of a pin.
 
-**Alternatives considered:** Defaulting to `false` (top-left) would match the spec's silence but produce counter-intuitive UX.
+**Alternatives considered:** Keeping the boolean alongside a new offset field was rejected: two fields for one concept, one of them not in the spec. The legacy top-left placement is expressible as `centerPoint="0 0"`.
 
-**Consequences:** Items where the author intended `centerPoint=false` but omitted the attribute will have a 0.5×width/height coordinate offset. Coordinates in existing `correctResponse` values must have been authored under the same `centerPoint` assumption.
+**Consequences:** `PositionObjectInteractionData.centerPoint` is `PositionObjectCenterPoint | null`. A host that hands the web component JSON with the legacy boolean gets the default (centre) placement. Coordinates in `correctResponse` and `areaMapping` are stage positions of the reference point, so they must be authored against the same `centerPoint`.
 
 ### Scale factor conversion on drop
 
-**Decision:** Drop event coordinates are converted from CSS-pixel space back to natural image coordinate space before being recorded in the response and before `centerPoint` adjustment is applied.
+**Decision:** Drop event coordinates are converted from CSS-pixel space back to natural image coordinate space before being recorded in the response. The pointer marks the object's reference point (the drag image is held by it), so no `centerPoint` adjustment is applied to the recorded point; the reference point only offsets where the object is drawn.
 
-**Rationale:** The canvas container scales the background image to fill available width. The `imageContainer.offsetWidth` divided by the declared image `width` gives the scale factor. All coordinates stored in the response and all `areaMapping` coordinates in the `responseDeclaration` reference natural image pixels. Failing to convert would produce responses that only score correctly when the canvas is at exactly 100% of the declared image width.
+**Rationale:** The canvas container scales the background image to fill available width. The canvas's rendered size (its bounding rectangle) against the declared image `width`/`height` gives the scale. All coordinates stored in the response and all `areaMapping` coordinates in the `responseDeclaration` reference natural image pixels. Failing to convert would produce responses that only score correctly when the canvas is at exactly 100% of the declared image width.
 
 **Alternatives considered:** Storing scaled coordinates was rejected because the scoring operator (`mapResponsePoint`) evaluates against `areaMapEntry` coordinates which are always in natural pixels.
 
 **Consequences:** If `imageContainer` is null at drop time (e.g. the component is partially unmounted), the drop is silently ignored.
 
-### `positionObjectStage` as child of `positionObjectInteraction`
+### `positionObjectStage` as the interaction's parent
 
-**Decision:** The extractor looks for `positionObjectStage` elements as direct children of `positionObjectInteraction`, not as siblings in the item body.
+**Decision:** The extractor follows the QTI content model: it discovers each `positionObjectInteraction` below its parent `positionObjectStage`, reads the shared background `object` from that parent and the draggable `object` from the interaction, and delivers that one draggable object as the single `positionObjectStages` entry of the interaction's data (G-17, closed).
 
-**Rationale:** The rendering model requires the stage definitions to be associated with the interaction. Passing them through a separate extraction path and assembling them at a higher level would add significant complexity to the item player's extraction pipeline.
+**Rationale:** The earlier extractor looked for `positionObjectStage` elements as children of the interaction, the reverse of the QTI 2.2/3.0 nesting, so schema-valid items (including the specification's airport example) did not extract. Keeping the renderer's `positionObjectStages` array as the delivery shape left the component unchanged.
 
-**Alternatives considered:** Extracting stages from the item body and joining them to the interaction by `responseIdentifier` was considered but rejected as over-engineering for an interaction type that is rarely used in practice.
+**Alternatives considered:** Requiring content to be restructured before delivery was rejected: schema-valid QTI must play as authored.
 
-**Consequences:** Items authored to strict QTI 2.2 spec structure (where `positionObjectStage` is a sibling element in the item body containing both the background and the interaction) may not extract correctly. Content that follows the structure shown in the spec's airport example — which nests `positionObjectInteraction` inside `positionObjectStage` — requires restructuring before this extractor can process it. See Open questions.
+**Consequences:** Several interactions on one stage each render their own canvas with the shared background and their own response variable. An interaction outside a `positionObjectStage`, or without a draggable `object`, fails extraction validation. Renderer data with several `positionObjectStages` entries in one interaction is only reachable by hand-built data (see Known gaps).
 
 ### Pixel rounding to integers
 
@@ -268,27 +264,32 @@ interface PositionObjectInteractionData extends BaseInteractionData {
   prompt: string | null;
   maxChoices: number;    // 0 = unlimited
   minChoices: number;    // 0 = no minimum
-  centerPoint: boolean;  // true = center drop point; default true
+  centerPoint: PositionObjectCenterPoint | null;  // null = centre of the object's bounding rectangle
   imageData: ImageData | null;
   positionObjectStages: PositionObjectStage[];
 }
 
+/** Offset from the object image's top-left corner, in its own pixels (QTI centerPoint). */
+interface PositionObjectCenterPoint {
+  x: number;
+  y: number;
+}
+
 interface PositionObjectStage {
   identifier: string;
-  matchMax: number;   // max placements for this stage; default 1
+  matchMax: number;   // max placements for this stage; default 1; 0 = unlimited
   objectData: { type: 'image' | 'svg'; src?: string; content?: HtmlContent; width?: string; height?: string } | null;
   label: string;      // text content of the stage element, or identifier as fallback
 }
 ```
 
-The response wire format (QTI) is `string[]` where each element is `"x y"` with integer coordinates in natural image pixels. The `InteractionValueMap` for this interaction type maps it as `Record<string, { x: number; y: number }>` but this is the internal map, not the QTI serialization format.
+The response wire format (QTI) is `string[]` where each element is `"x y"` with integer coordinates in natural image pixels. The `qti-change` event carries the same `string[]`, and `InteractionValueMap.positionObjectInteraction` (`packages/item-player/src/interactions/shared/types.ts`) types it as `string[]`.
 
 **Invariants:**
 - `response.length <= maxChoices` (when `maxChoices > 0`)
 - Each `"x y"` string in the response is a pair of integers separated by a single space
-- Coordinates are in the range `[0, imageData.width]` × `[0, imageData.height]` for correctly placed objects (unconstrained by the component — the candidate can technically drag outside the canvas)
-- `positionObjectStages` has at least one element (enforced by the extractor's `validate()`)
-- Each `positionObjectStage.identifier` is unique within the interaction (enforced by the extractor's `validate()`)
+- Coordinates are in the range `[0, imageData.width]` × `[0, imageData.height]`: placements made in the component are clamped to the stage image (restored responses are drawn as given)
+- Extracted data has exactly one `positionObjectStages` entry, the interaction's draggable object, identified by the interaction's `responseIdentifier`; the extractor's `validate()` rejects an interaction without a parent stage background or a draggable object
 
 ---
 
@@ -300,9 +301,9 @@ The response wire format (QTI) is `string[]` where each element is `"x y"` with 
 ```
 Given: An item with one positionObjectStage (maxChoices=1, stage matchMax=1)
 When: The candidate drags the stage from the palette and drops it at approximately (150, 80)
-Then: The response is ["150 80"] (or coordinates within ±1px of the drop point adjusted for centerPoint)
+Then: The response is ["150 80"] (or coordinates within ±1px of the drop point)
       The stage in the palette shows "1/1 used" and is non-draggable
-      The placed object is visible on the canvas at the correct position
+      The placed object is visible on the canvas with its reference point at the drop position
 ```
 
 **AC-2: Single object multiple placements**
@@ -319,7 +320,8 @@ Then: The response is an array of three "x y" strings
 Given: An item with two positionObjectStages each with matchMax=2, and maxChoices=2
 When: The candidate places one object from each stage (total 2 placements)
 Then: Both palette items become non-draggable regardless of per-stage matchMax
-      A third drag attempt produces no new placement
+      A third drag attempt produces no new placement and announces
+      "The maximum of 2 placements is reached."
 ```
 
 **AC-4: Per-stage matchMax enforced independently**
@@ -349,20 +351,20 @@ Then: The response is updated: the coordinate for that placement changes to "200
       The old position is no longer shown on the canvas
 ```
 
-**AC-7: centerPoint=true coordinate adjustment**
+**AC-7: Default reference point is the object centre**
 ```
-Given: An item with centerPoint=true and a stage object of width=24, height=24
+Given: An item without centerPoint and a stage object of width=24, height=24
 When: The candidate drops the object such that the pointer is at canvas coordinates (110, 90)
-Then: The recorded coordinate is "110 90" (center of the object lands at pointer)
-      Notes: The component subtracts half the object dimensions from the drop point before recording
+Then: The recorded coordinate is "110 90" and the object's centre is drawn at (110, 90)
+      Notes: The drag image is held by its centre; the box is shifted back by half its size
 ```
 
-**AC-8: centerPoint=false coordinate adjustment**
+**AC-8: Authored centerPoint is the placed and recorded point**
 ```
-Given: An item with centerPoint=false and a stage object of width=24, height=24
+Given: An item with centerPoint="12 24" and a stage object of width=24, height=24 (a pin whose tip is bottom-centre)
 When: The candidate drops the object such that the pointer is at canvas coordinates (110, 90)
-Then: The recorded coordinate is "110 90" (top-left of object lands at pointer)
-      Notes: No dimension adjustment is applied
+Then: The recorded coordinate is "110 90" and the pin's tip is drawn at (110, 90)
+      Notes: The drag image is held by the tip; keyboard placement records the crosshair the same way
 ```
 
 **AC-9: Coordinate scaling — canvas at 50% width**
@@ -377,7 +379,7 @@ Then: The response coordinate is "150 80" (scaled back to natural image coordina
 ```
 Given: An item with one positionObjectStage
 When: The component is initialised with response=["105 132"]
-Then: The placed object appears at (105 * scaleFactor, 132 * scaleFactor) on the canvas
+Then: The placed object's reference point appears at (105, 132) in stage pixels, scaled with the rendered stage
       The palette shows "1/matchMax used"
 ```
 
@@ -445,7 +447,8 @@ Then: An error message is displayed ("No interaction data provided" or i18n equi
 Given: An item with minChoices=2 and maxChoices=3
 When: The candidate has placed 1 object
 Then: The component displays "Minimum required: 2 | Maximum: 3"
-      Notes: This is a visual hint; the component does not block submission based on minChoices
+      Notes: This is a visual hint; the component does not block submission. Player.validateResponses()
+      reports the response incomplete until 2 objects are placed; gating submission on it is the host's choice
 ```
 
 **AC-19: qti-change event payload**
@@ -453,7 +456,7 @@ Then: The component displays "Minimum required: 2 | Maximum: 3"
 Given: A valid positionObjectInteraction
 When: The candidate places or removes an object
 Then: A "qti-change" CustomEvent is dispatched from the root element
-      event.detail.identifier equals the responseIdentifier from the interaction
+      event.detail.responseId equals the responseIdentifier from the interaction
       event.detail.value is an array of "x y" strings in natural image coordinates
 ```
 
@@ -467,11 +470,13 @@ Then: The response is ["50 60", "120 90"] (stageA first, stageB second, reflecti
 
 ### Accessibility
 
-**AC-A1: Canvas has accessible region role**
+**AC-A1: Keyboard placement**
 ```
-Given: The component renders normally
-When: An assistive technology reads the page
-Then: The canvas element has role="region" and aria-label="Positioning canvas" (or i18n equivalent)
+Given: The component renders with one object in the palette
+When: The user focuses the palette item, presses Enter, presses ArrowRight once, then presses Enter
+Then: Focus moves to the canvas, which has role="application" and an instruction label while placing
+      The object is placed 5% right of the stage centre, and the placement is announced in the live region
+      Escape instead of the second Enter cancels the placement and announces it
 ```
 
 **AC-A2: Palette items have role and accessible names**
@@ -483,12 +488,12 @@ Then: The announced label includes the stage name and usage count
       When the stage is non-draggable, tabindex=-1
 ```
 
-**AC-A3: Placed objects have accessible names with coordinates**
+**AC-A3: Placed objects have accessible names with their position**
 ```
-Given: An object is placed at (105, 132) on the canvas
-When: A screen reader focuses the placed object
-Then: The label includes the stage name and coordinates, e.g. "Positioned Airport Icon at (105, 132)"
-      If the position is correct (scorer role), the label includes "Correct position"
+Given: An object named "Airport" is placed at 25%, 40% of the stage
+When: A screen reader reaches the placed object
+Then: It is a group named "Airport at 25%, 40%." that contains its remove button (no button nests in a button)
+      If the position is correct (scorer role), the name ends with "Correct position."
 ```
 
 **AC-A4: Remove button accessible name**
@@ -513,14 +518,31 @@ Then: Correct positions have both a green border AND a checkmark badge (non-colo
       Ghost overlays for unplaced correct positions use dashed border AND are distinct from placed objects
 ```
 
+**AC-A7: A placement refused at maxChoices is announced (round 8)**
+```
+Given: maxChoices=1, the stage's matchMax allows more picks, and a restored response
+       already holds one placement
+When: The candidate picks the object in the palette and presses Enter on the canvas
+      (or taps/clicks the canvas, or drops a drag)
+Then: No second placement is recorded; the live region announces
+      "The maximum of 1 placement is reached."; the crosshair stays active and
+      Escape still cancels with the usual announcement
+```
+
+**AC-A8: The maximum is stated for a maxChoices-only item**
+```
+Given: minChoices=0 and maxChoices=2
+When: The component renders
+Then: The hint line shows "Maximum: 2" without any "Minimum required" text
+```
+
 ### Edge cases
 
-**AC-E1: Duplicate identifier in positionObjectStages**
+**AC-E1: Interaction outside a positionObjectStage**
 ```
-Given: The QTI XML contains two positionObjectStage elements with the same identifier
+Given: A positionObjectInteraction whose parent is not a positionObjectStage (even one holding an object)
 When: The extractor validates the extracted data
-Then: The extractor returns a validation error: "Duplicate positionObjectStage identifier: {id}"
-      The component renders the error state if invalid data reaches it
+Then: Validation fails: "positionObjectInteraction must have a parent positionObjectStage with a background object"
 ```
 
 **AC-E2: maxChoices=0 (unlimited)**
@@ -529,15 +551,15 @@ Given: maxChoices=0 (spec: no upper limit)
 When: The candidate places 10 objects (assuming stage matchMax is sufficient)
 Then: All 10 placements are accepted
       The response contains 10 "x y" strings
-      The palette does NOT show a "/" total count (or shows "10/∞")
+      The palette does NOT show a "/" total count: the object reads "10 used, unlimited"
+      and stays placeable (an extracted maxChoices="0" gives the object matchMax 0)
 ```
 
-**AC-E3: Missing background image**
+**AC-E3: Missing draggable object**
 ```
-Given: The positionObjectInteraction has no <object> element (imageData=null)
+Given: The positionObjectInteraction has no <object> child of its own
 When: The extractor validates the data
-Then: A validation warning is emitted: "positionObjectInteraction has no background image"
-      The component renders without a background (empty canvas area) but does not crash
+Then: Validation fails: "positionObjectInteraction must contain one draggable object"
 ```
 
 **AC-E4: Multi-stage state restoration — array order mismatch**
@@ -581,15 +603,11 @@ Then: A validation warning is emitted reminding the author to verify dimensions
 
 ## Open questions
 
-- [ ] **Strict QTI 2.2 `positionObjectStage` nesting**: The QTI 2.2 spec places `positionObjectStage` as a parent container in the item body with `positionObjectInteraction` as its child (i.e., the background image is on the stage, the draggable object is inside the interaction, which is inside the stage). The current extractor inverts this by looking for `positionObjectStage` as children of `positionObjectInteraction`. Item packages authored to strict QTI 2.2 spec nesting will not extract correctly. Decide: adapt the extractor to support the strict nesting, or document this as a permanent constraint and require content normalization?
+Resolved and removed since the previous review: strict `positionObjectStage` nesting (now extracted as the spec nests it, G-17), the keyboard placement pattern (select, arrow keys, Enter; K-04), mobile touch drag (the shared `touchDrag` helper plus tap-to-place), `minChoices` at submission (`Player.validateResponses()`), and clamping of placements (clamped to the stage image).
 
-- [ ] **Keyboard placement flow**: A keyboard alternative for drag-and-drop is required for WCAG 2.2 SC 2.1.1. No implementation exists. What is the approved interaction pattern? Options: (a) Select-then-arrow-keys with Enter to confirm; (b) Select-then-click on a grid overlay; (c) Coordinate text input fields. Needs UX decision before implementation.
+- [ ] **Restored out-of-bounds points**: Should a restored or programmatic response outside `[0, width] × [0, height]` be clamped, flagged, or drawn as given (current behaviour)?
 
-- [ ] **Mobile touch drag support**: The HTML5 Drag and Drop API does not work reliably on iOS Safari. Is mobile support required for this interaction? If yes, a pointer-event-based drag implementation (or a polyfill) is needed.
-
-- [ ] **`minChoices` submit-time validation**: Should the submit button be disabled or a warning shown when `minChoices > 0` and fewer placements exist? Currently only a text hint is shown. Should match the behavior of `minChoices` on other interactions.
-
-- [ ] **Coordinate out-of-bounds clamping**: Should coordinates be clamped to the `[0, width] × [0, height]` range? A candidate who places an object at the very edge may produce a coordinate slightly outside the image bounds. Currently unclamped.
+- [ ] **Hand-built multi-object data**: Should renderer data that lists several different objects in one interaction stay supported (with its array-order restoration), or be rejected now that extracted items always carry one object per interaction?
 
 ---
 
@@ -598,11 +616,12 @@ Then: A validation warning is emitted reminding the author to verify dimensions
 - QTI spec: §3.3.6 positionObjectInteraction — `docs/QTI_techguide.md`
 - Response processing: `map_response_point` template — `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
 - Implementation: `packages/default-components/src/plugins/position-object/`
-- Extractor: `packages/item-player/src/interactions/position-object/extractor.ts`
+- Component tests (keyboard, single-pointer and touch placement): `packages/default-components/tests/component/position-object.vitest.ts`
+- Extractor: `packages/item-player/src/interactions/position-object/extractor.ts` (tests: `packages/item-player/tests/extraction/extractors/positionObjectExtractor.test.ts`)
 - Types: `packages/item-player/src/interactions/shared/types.ts` — `PositionObjectInteractionData`, `PositionObjectStage`
 - Plugin README with limitation notes: `packages/default-components/src/plugins/position-object/README.md`
 - Eval scenarios: `docs/evals/default-components/position-object/evals.yaml`
-- Spec gaps plan: `docs/SPEC-GAPS-PLAN.md` (no position-object specific items; keyboard gap is analogous to the accessibility baseline)
+- Spec gaps plan: `docs/SPEC-GAPS-PLAN.md` §G-17 (`positionObjectStage` hierarchy, closed)
 - Adjacent PRDs:
   - `docs/prds/interactions/graphic-gap-match.md` — the recommended alternative for labeled object placement (`planned`)
   - `docs/prds/interactions/select-point.md` — simpler coordinate-click interaction when no draggable object is needed

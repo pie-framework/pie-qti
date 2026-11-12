@@ -3,9 +3,16 @@
 import fs from "node:fs";
 import path from "node:path";
 import { builtinModules } from "node:module";
+import { WORKSPACE_ALIAS_MAP_PATH, workspaceAliasEntries } from "./workspace-aliases.mjs";
 
 const ROOT = process.cwd();
 const rootManifestPath = path.join(ROOT, "package.json");
+
+const publishPolicyPath = path.join(ROOT, "scripts", "publish-policy.json");
+const publishPolicy = fs.existsSync(publishPolicyPath) ? readJson(publishPolicyPath) : {};
+const publishableWorkspaceRoots = new Set(publishPolicy.workspaceRoots ?? ["packages", "tools"]);
+const publishablePackageNamePrefix = publishPolicy.publishablePackageNamePrefix ?? "@pie-qti/";
+const forbiddenPublicExports = publishPolicy.forbiddenPublicExports ?? {};
 
 const SOURCE_EXTENSIONS = new Set([
 	".js",
@@ -150,6 +157,54 @@ function collectSpecifiers(content) {
 	return [...out];
 }
 
+function isTypeOnlyImportStatement(matchedText) {
+	return /^\s*(?:import|export)\s+type\s/.test(matchedText);
+}
+
+/**
+ * Specifiers imported as runtime values (as opposed to `import type` / `export type`,
+ * which are erased at compile time and therefore legitimately satisfied by a
+ * devDependency). Dynamic imports, require() and bare side-effect imports are
+ * always runtime.
+ */
+function collectValueImportSpecifiers(content) {
+	const out = new Set();
+	const cleanContent = stripComments(content);
+	const patterns = [
+		/import\s+[^'"`]*?\sfrom\s*['"]([^'"]+)['"]/g,
+		/import\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
+		/export\s+[^'"`]*?\sfrom\s*['"]([^'"]+)['"]/g,
+		/require\(\s*['"]([^'"]+)['"]\s*\)/g,
+		/^\s*import\s*['"]([^'"]+)['"]\s*;?\s*$/gm,
+	];
+
+	for (const re of patterns) {
+		let match;
+		while ((match = re.exec(cleanContent))) {
+			if (isTypeOnlyImportStatement(match[0])) continue;
+			out.add(match[1]);
+		}
+	}
+
+	return [...out];
+}
+
+/**
+ * True for files that end up in the shipped runtime path (src/ or lib/), excluding
+ * anything test-shaped. Only these files require a dependency to live in
+ * `dependencies`; tests, scripts and examples may use devDependencies.
+ */
+function isRuntimeSourceFile(workspaceDir, filePath) {
+	const relative = path.relative(workspaceDir, filePath);
+	const segments = relative.split(path.sep);
+	if (!segments.includes("src") && !segments.includes("lib")) return false;
+	if (segments.some((segment) => ["__tests__", "tests", "fixtures", "mocks"].includes(segment))) {
+		return false;
+	}
+	if (/\.(?:test|spec|vitest|stories)\.[cm]?[jt]sx?$/.test(relative)) return false;
+	return true;
+}
+
 function walkFiles(startDir, result, workspaceRoot = startDir) {
 	for (const entry of fs.readdirSync(startDir, { withFileTypes: true })) {
 		if (IGNORED_DIRS.has(entry.name)) continue;
@@ -270,6 +325,73 @@ function collectDanglingLinks(workspaceEntries) {
 	return dangling;
 }
 
+/** True when `specifier` is the alias `name`, or a module under it for a `name/*` entry. */
+function matchesWorkspaceAlias(specifier, name) {
+	if (!name.endsWith("/*")) return specifier === name;
+	const prefix = name.slice(0, -1);
+	return specifier.startsWith(prefix) && specifier.length > prefix.length;
+}
+
+/** The keys of a manifest's `exports` (`.` for a single export); null when it has no exports map. */
+function exportKeysOf(manifest) {
+	const { exports } = manifest;
+	if (exports === undefined || exports === null) return null;
+	if (typeof exports !== "object" || Array.isArray(exports)) return ["."];
+	const keys = Object.keys(exports);
+	return keys.some((key) => key.startsWith(".")) ? keys : ["."];
+}
+
+function isExportedSubpath(subpath, exportKeys) {
+	return exportKeys.some((key) => {
+		if (!key.includes("*")) return key === subpath;
+		const [before, after] = key.split("*");
+		return subpath.startsWith(before) && subpath.endsWith(after) && subpath.length > before.length + after.length;
+	});
+}
+
+/** The workspace whose directory contains `absolutePath` (the innermost one), if any. */
+function owningWorkspace(absolutePath, workspaceEntries) {
+	let owner = null;
+	for (const workspace of workspaceEntries) {
+		const inside = absolutePath === workspace.dir || absolutePath.startsWith(`${workspace.dir}${path.sep}`);
+		if (inside && (!owner || workspace.dir.length > owner.dir.length)) owner = workspace;
+	}
+	return owner;
+}
+
+/**
+ * The workspace alias map names unpublished source of a package. Each name must stay
+ * workspace-only — a subpath its package is forbidden to publish, so it can never shadow a
+ * published export — and must point at an existing file inside that package.
+ */
+function validateWorkspaceAliases(workspaceByName) {
+	const violations = [];
+	for (const { name, target } of workspaceAliasEntries()) {
+		const packageName = toPackageName(name);
+		const workspace = workspaceByName.get(packageName);
+		const reasons = [];
+		if (!workspace) {
+			reasons.push(`"${packageName}" is not a workspace package`);
+		} else {
+			const subpath = `.${name.slice(packageName.length)}`.replace(/\/\*$/, "");
+			const forbidden = forbiddenPublicExports[packageName] ?? [];
+			if (!forbidden.some((entry) => subpath === entry || subpath.startsWith(`${entry}/`))) {
+				reasons.push(
+					`"${subpath}" is not listed for ${packageName} in scripts/publish-policy.json forbiddenPublicExports, so it could shadow a published export`,
+				);
+			}
+			const targetPath = name.endsWith("/*") ? target.slice(0, -2) : target;
+			if (!fs.existsSync(targetPath)) {
+				reasons.push(`its target ${path.relative(ROOT, targetPath)} does not exist`);
+			} else if (!targetPath.startsWith(`${workspace.dir}${path.sep}`)) {
+				reasons.push(`its target ${path.relative(ROOT, targetPath)} lies outside ${path.relative(ROOT, workspace.dir)}`);
+			}
+		}
+		for (const reason of reasons) violations.push({ type: "invalid-workspace-alias", name, reason });
+	}
+	return violations;
+}
+
 function main() {
 	const warnOnly = process.argv.includes("--warn-only");
 
@@ -314,10 +436,21 @@ function main() {
 
 	workspaceEntries.sort((a, b) => a.dir.localeCompare(b.dir));
 	const workspacePackageNames = new Set(workspaceEntries.map((w) => w.name));
-	const violations = [];
+	const workspaceByName = new Map(workspaceEntries.map((w) => [w.name, w]));
+	const exportKeysByName = new Map(workspaceEntries.map((w) => [w.name, exportKeysOf(readJson(w.manifestPath))]));
+	const workspaceAliasNames = workspaceAliasEntries().map(({ name }) => name);
+	const violations = validateWorkspaceAliases(workspaceByName);
 
 	for (const workspace of workspaceEntries) {
 		const manifest = readJson(workspace.manifestPath);
+		const relativeDir = path.relative(ROOT, workspace.dir);
+		const isPublishableWorkspace =
+			publishableWorkspaceRoots.has(relativeDir.split(path.sep)[0]) &&
+			workspace.name.startsWith(publishablePackageNamePrefix);
+		const runtimeDependencies = new Set([
+			...Object.keys(manifest.dependencies ?? {}),
+			...Object.keys(manifest.peerDependencies ?? {}),
+		]);
 		const declared = new Set([
 			...Object.keys(manifest.dependencies ?? {}),
 			...Object.keys(manifest.devDependencies ?? {}),
@@ -338,6 +471,23 @@ function main() {
 			}
 
 			for (const specifier of collectSpecifiers(content)) {
+				// A relative import that reaches into another workspace package bypasses its
+				// published entry points and its dependency declaration. Shipped code imports
+				// another package by name — its unpublished source by a workspace-only name
+				// from tsconfig.workspace-aliases.json. (Tests may share support files.)
+				if (specifier.startsWith(".") && isRuntimeSourceFile(workspace.dir, filePath)) {
+					const owner = owningWorkspace(path.resolve(path.dirname(filePath), specifier), workspaceEntries);
+					if (owner && owner !== workspace) {
+						violations.push({
+							type: "cross-package-relative-import",
+							workspace: workspace.name,
+							file: path.relative(ROOT, filePath),
+							specifier,
+							packageName: owner.name,
+						});
+					}
+					continue;
+				}
 				if (!isExternalSpecifier(specifier)) continue;
 				if (isIgnoredSpecifier(specifier, aliasPrefixes)) continue;
 
@@ -367,12 +517,48 @@ function main() {
 							linkPath: path.relative(ROOT, linkPath),
 						});
 					}
-					// Deliberately no export-map check on the subpath here. Several
-					// specifiers (e.g. "@pie-qti/item-player/components") are resolved by
-					// bundler aliases in vite.config.ts rather than by
-					// the exports map, so validating against exports reports false
-					// positives. The published export surface is already covered properly
-					// by check-pack-exports, check-publint and check-attw.
+					// A subpath must be one the package publishes, or a workspace-only name for
+					// its unpublished source from the alias map (tsconfig.workspace-aliases.json),
+					// which Vite, tsc, svelte-check and Bun all resolve. The published export
+					// surface itself is covered by check-pack-exports, check-publint and check-attw.
+					const exportKeys = exportKeysByName.get(packageName);
+					const subpath = specifier === packageName ? "." : `.${specifier.slice(packageName.length)}`;
+					if (
+						exportKeys &&
+						!isExportedSubpath(subpath, exportKeys) &&
+						!workspaceAliasNames.some((name) => matchesWorkspaceAlias(specifier, name))
+					) {
+						violations.push({
+							type: "unexported-workspace-subpath",
+							workspace: workspace.name,
+							file: path.relative(ROOT, filePath),
+							specifier,
+							packageName,
+						});
+					}
+
+					// Section discipline: for a publishable package, a runtime value import
+					// of a workspace package must be declared in `dependencies` (or
+					// `peerDependencies`). Declaring it only in `devDependencies` used to
+					// pass this checker (which unions every section) while publishing a
+					// package that only works when hoisting resolves the undeclared runtime
+					// link — AGENTS.md documents this as the most common dependency
+					// mistake. Type-only imports are erased at compile time, so devDependencies
+					// remain valid for them.
+					if (
+						isPublishableWorkspace &&
+						isRuntimeSourceFile(workspace.dir, filePath) &&
+						collectValueImportSpecifiers(content).includes(specifier) &&
+						!runtimeDependencies.has(packageName)
+					) {
+						violations.push({
+							type: "workspace-runtime-import-outside-dependencies",
+							workspace: workspace.name,
+							file: path.relative(ROOT, filePath),
+							specifier,
+							packageName,
+						});
+					}
 					continue;
 				}
 
@@ -456,6 +642,11 @@ function main() {
 			logger(
 				`  [missing-dependency] ${violation.workspace}: ${violation.file} imports "${violation.specifier}" but "${violation.packageName}" is not declared.`,
 			);
+		} else if (violation.type === "workspace-runtime-import-outside-dependencies") {
+			logger(
+				`  [workspace-runtime-import-outside-dependencies] ${violation.workspace}: ${violation.file} value-imports "${violation.specifier}" at runtime, but "${violation.packageName}" is not in dependencies/peerDependencies (only in devDependencies or undeclared).\n` +
+					`      fix: move the entry to dependencies — a published package must not rely on hoisting to resolve its runtime imports.`,
+			);
 		} else if (violation.type === "unresolvable-workspace-import") {
 			const cause =
 				violation.state === "dangling"
@@ -470,6 +661,20 @@ function main() {
 		} else if (violation.type === "hoist-reliant-script") {
 			logger(
 				`  [hoist-reliant-script] ${violation.workspace}#${violation.scriptName}: ${violation.reason} -> ${violation.command}`,
+			);
+		} else if (violation.type === "cross-package-relative-import") {
+			logger(
+				`  [cross-package-relative-import] ${violation.workspace}: ${violation.file} imports "${violation.specifier}", a path into ${violation.packageName}.\n` +
+					`      fix: import it by package name; for unpublished source use a workspace-only name from ${path.relative(ROOT, WORKSPACE_ALIAS_MAP_PATH)}.`,
+			);
+		} else if (violation.type === "unexported-workspace-subpath") {
+			logger(
+				`  [unexported-workspace-subpath] ${violation.workspace}: ${violation.file} imports "${violation.specifier}", which "${violation.packageName}" does not export.\n` +
+					`      fix: import a published entry point, or add a workspace-only name to ${path.relative(ROOT, WORKSPACE_ALIAS_MAP_PATH)} for unpublished source.`,
+			);
+		} else if (violation.type === "invalid-workspace-alias") {
+			logger(
+				`  [invalid-workspace-alias] ${path.relative(ROOT, WORKSPACE_ALIAS_MAP_PATH)}: "${violation.name}": ${violation.reason}.`,
 			);
 		} else if (violation.type === "undeclared-script-binary") {
 			logger(

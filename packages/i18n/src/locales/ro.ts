@@ -55,14 +55,6 @@ export default {
 		errorNoData: 'Nu au fost furnizate date de interacțiune',
 	},
 
-	units: {
-		bytes: '{count} octeți',
-		kilobytes: '{count} KB',
-		megabytes: '{count} MB',
-		seconds: '{count} secunde',
-		minutes: '{count} minute',
-		hours: '{count} ore',
-	},
 
 	// Exemple de pluralizare
 	// Utilizați i18n.plural('plurals.items', { count: n }) pentru a accesa acestea
@@ -105,13 +97,6 @@ export default {
 		},
 	},
 
-	validation: {
-		required: 'Acest câmp este obligatoriu',
-		invalidFormat: 'Format invalid',
-		tooShort: 'Prea scurt (minim {min} caractere)',
-		tooLong: 'Prea lung (maxim {max} caractere)',
-		outOfRange: 'Valoarea trebuie să fie între {min} și {max}',
-	},
 
 	interactions: {
 		choice: {
@@ -122,6 +107,14 @@ export default {
 			correct: 'Corect',
 			revealChoice: 'Afișează opțiunea {index}',
 			groupLabel: 'Opțiuni de răspuns',
+			maxChoicesReached: 'Poți selecta cel mult {max}. Deselectează una pentru a alege alta.',
+			clearAnswer: 'Șterge răspunsul',
+			minChoicesHint: {
+				one: 'Selectează cel puțin un răspuns.',
+				few: 'Selectează cel puțin {count} răspunsuri.',
+				other: 'Selectează cel puțin {count} de răspunsuri.',
+			},
+			eliminateChoice: 'Elimină',
 		},
 
 		upload: {
@@ -138,6 +131,8 @@ export default {
 			errorReadFailed: 'Nu s-a putut citi fișierul',
 			errorTooLarge: 'Fișierul este prea mare (maxim {max} MB)',
 			unknownType: 'Tip de fișier necunoscut',
+			fileRemoved: 'Fișier eliminat.',
+			errorFileTooLarge: 'Fișierul {filename} este prea mare. Dimensiunea maximă este de {maxBytes} octeți.',
 		},
 
 		drawing: {
@@ -153,6 +148,8 @@ export default {
 			updated: 'Desen actualizat.',
 			cleared: 'Desen șters.',
 			generated: 'Generat:',
+			imageFallback: 'Fundalul desenului',
+			imageLoadError: 'Imaginea de fundal nu a putut fi încărcată.',
 		},
 
 		extendedText: {
@@ -164,15 +161,46 @@ export default {
 			underline: 'Subliniat',
 			bulletList: 'Listă cu marcatori',
 			numberedList: 'Listă numerotată',
-			insertMath: 'Inserează ecuație matematică',
 			insertInlineMath: 'Inserează matematică inline',
 			insertBlockMath: 'Inserează bloc matematic',
-			enterMathExpression: 'Introdu expresia ta matematică:',
-			latexSource: 'Sursă LaTeX:',
-			keyboard: 'Tastatură',
+			responseLabel: 'Răspuns',
+			responseNumber: 'Răspunsul {number}',
+			addResponse: 'Adaugă un răspuns',
+			removeResponseNumber: 'Elimină răspunsul {number}',
+			responseRemoved: 'Răspunsul {number} a fost eliminat.',
+			charactersRemaining: {
+				one: 'Mai este un caracter',
+				few: 'Mai sunt {count} caractere',
+				other: 'Mai sunt {count} de caractere',
+			},
+			expectedLengthReached: {
+				one: 'Ai atins lungimea așteptată de un caracter.',
+				few: 'Ai atins lungimea așteptată de {count} caractere.',
+				other: 'Ai atins lungimea așteptată de {count} de caractere.',
+			},
+			correctAnswerHeading: 'Răspuns corect:',
+			editMath: 'Editare matematică',
+			minStringsHint: {
+				one: 'Scrie cel puțin un răspuns.',
+				few: 'Scrie cel puțin {count} răspunsuri.',
+				other: 'Scrie cel puțin {count} de răspunsuri.',
+			},
+			minStringsRemoveRefused: 'Răspunsul nu a fost eliminat: sunt necesare cel puțin {count} răspunsuri.',
+			patternMismatch: 'Acest răspuns nu are formatul așteptat.',
+		},
+
+		mathInput: {
+			insertInlineTitle: 'Inserează matematică inline',
+			insertBlockTitle: 'Inserează bloc matematic',
+			editInlineTitle: 'Editează matematica inline',
+			editBlockTitle: 'Editează blocul matematic',
+			instructions: 'Scrie expresia sau deschide tastatura matematică. Apasă Escape pentru a renunța.',
+			fieldLabel: 'Expresie matematică',
+			latexSourceLabel: 'Sursă LaTeX',
+			latexEmpty: 'Codul LaTeX va apărea aici',
+			toggleKeyboard: 'Tastatură matematică',
 			update: 'Actualizează',
 			insert: 'Inserează',
-			correctAnswerHeading: 'Răspuns corect:',
 		},
 
 		slider: {
@@ -183,13 +211,17 @@ export default {
 			step: 'Pas: {step}',
 			ariaLabel: 'Valoare cursor de la {lowerBound} la {upperBound}',
 			statTitle: 'Valoare selectată',
+			noValueSelected: 'Nicio valoare selectată',
 		},
 
 		hottext: {
 			selected: 'Selectat:',
 			selectText: 'Selectează text din pasaj',
-			clearSelection: 'Șterge selecția',
 			ariaLabel: 'Interacțiune de selecție text',
+			maxChoicesReached: 'Poți selecta cel mult {max}. Deselectează una pentru a alege alta.',
+			// Fără bifa: HottextInteraction afișează propriul „✓ ” înaintea acestui badge.
+			minimumMet: 'Minim atins',
+			selectAtLeast: 'Selectează cel puțin {minChoices}',
 		},
 
 		hotspot: {
@@ -200,9 +232,20 @@ export default {
 			unknownImageDimensions:
 				'Acest hotspot nu poate fi afișat: dimensiunea imaginii sale este necunoscută, așa că regiunile selectabile nu pot fi poziționate. Adăugați lățime și înălțime imaginii sau furnizați dimensiunile fișierului.',
 			correctList: 'Corect: {ids}',
+			imageFallback: 'Imaginea acestei întrebări',
+			imageLoadError: 'Imaginea nu a putut fi încărcată.',
+			regionOfTotal: 'Regiunea {index} din {total}',
+			selectedRegion: 'Selectat: {region}',
+			maxChoicesReached: 'Poți selecta cel mult {max}. Deselectează una pentru a alege alta.',
+			minChoicesHint: {
+				one: 'Selectează cel puțin o regiune.',
+				few: 'Selectează cel puțin {count} regiuni.',
+				other: 'Selectează cel puțin {count} de regiuni.',
+			},
 		},
 
 		selectPoint: {
+			unknownImageDimensions: 'Această interacțiune de selectare a punctelor nu poate fi afișată: dimensiunea imaginii este necunoscută, deci punctele nu pot fi plasate corect. Adaugă lățime și înălțime imaginii sau furnizează dimensiunile fișierului.',
 			instruction: 'Clic pe imagine pentru a selecta puncte',
 			instructionAria: 'Clic pentru a selecta puncte pe imagine',
 			maxPointsReached: 'Număr maxim de puncte atins. Elimină un punct pentru a adăuga unul nou.',
@@ -217,6 +260,16 @@ export default {
 			minimumMet: '✓ Minim atins',
 			selectAtLeast: 'Selectează cel puțin {minChoices}',
 			correctPointAt: 'Punctul răspunsului corect la coordonatele {x}, {y}',
+			imageFallback: 'Imaginea acestei întrebări',
+			imageLoadError: 'Imaginea nu a putut fi încărcată.',
+			stageLabel: 'Zonă de selectare a punctelor',
+			keyboardInstructions: 'Fă clic pe imagine pentru a plasa un punct. De la tastatură, mută focalizarea pe imagine, deplasează cursorul în cruce cu tastele săgeți (ține apăsat Shift pentru pași mai mici) și apasă Enter sau Spațiu pentru a plasa un punct.',
+			placedPoints: 'Puncte plasate',
+			pointAtPercent: 'Punctul {index} la {x}%, {y}%',
+			percentPosition: '{x}%, {y}%',
+			pointPlaced: 'Punctul {index} a fost plasat la {x}%, {y}%.',
+			pointRemoved: 'Punctul {index} a fost eliminat.',
+			allPointsRemoved: 'Toate punctele au fost eliminate.',
 		},
 
 		match: {
@@ -241,18 +294,27 @@ export default {
 			navigateToTarget: 'Navighează la o țintă și apasă Spațiu sau Enter pentru a potrivi',
 			selectionCancelled: 'Selecție anulată',
 			matchCleared: 'Potrivire ștearsă pentru {item}',
-			maxReached: 'S-a atins numărul maxim de asocieri. Elimină o pereche pentru a adăuga una nouă.',
+			associationLimitReached: 'Asociere imposibilă: s-a atins limita de {max}.',
+			sourceLimitReached: 'Imposibil: {label} nu poate face parte din mai multe asocieri.',
 			pairCreated: '{source} potrivit cu {target}.',
+			minAssociationsHint: {
+				one: 'Creează cel puțin o potrivire.',
+				few: 'Creează cel puțin {count} potriviri.',
+				other: 'Creează cel puțin {count} de potriviri.',
+			},
+			minChoiceUsesHint: 'Mai are nevoie de potriviri: {items}.',
 			matchedWithSentence: 'Potrivit cu {targets}.',
 			selectedForMatchingSentence: 'Selectat pentru potrivire.',
 			availableForMatchingSentence: 'Disponibil pentru potrivire.',
 			notCompatibleSentence: 'Incompatibil cu sursa selectată.',
+			selectionCancelledItem: 'Selecția lui {item} a fost anulată.',
 		},
 
 		gapMatch: {
-			filledGapAriaLabelWithHeld: 'Spațiul {gapId}, completat cu {word}. Selectează pentru a înlocui cu {heldWord}.',
-			blankGapAriaLabelWithHeld: 'Spațiul {gapId}. Selectează pentru a plasa {heldWord} aici.',
-			placed: '{word} a fost plasat în spațiul {gapId}.',
+			filledGapAriaLabelWithHeld: 'Spațiul {position} din {total}, completat cu {word}. Selectează pentru a înlocui cu {heldWord}.',
+			blankGapAriaLabelWithHeld: 'Spațiul {position} din {total}. Selectează pentru a plasa {heldWord} aici.',
+			placed: '{word} a fost plasat în spațiul {position} din {total}.',
+			associationLimitReached: 'Asociere imposibilă: s-a atins limita de {max}.',
 			pointerInstructions: 'Selectează un cuvânt, apoi un spațiu liber. Poți și să tragi și să plasezi.',
 			instruction: 'Trage cuvinte pentru a completa spațiile libere',
 			available: 'Cuvinte disponibile',
@@ -262,8 +324,14 @@ export default {
 			removeFromBlanks: 'Elimină {word} din spațiile libere',
 			selectPlaceholder: 'Selectare...',
 			gapAriaLabel: 'Spațiu {gapId}',
-			blankGapAriaLabel: 'Spațiu liber {gapId}. Plasează un răspuns aici.',
-			filledGapAriaLabel: 'Spațiu liber {gapId}, completat cu {word}. Clic pentru a șterge.',
+			blankGapAriaLabel: 'Spațiu liber {position} din {total}. Plasează un răspuns aici.',
+			filledGapAriaLabel: 'Spațiu liber {position} din {total}, completat cu {word}. Selectează pentru a șterge.',
+			wordSelected: '{word} a fost apucat. Selectează un spațiu liber pentru a-l plasa, sau apasă Escape pentru a anula.',
+			pickUpCancelled: 'Preluarea lui {word} a fost anulată.',
+			minPlacementsHint: 'Mai sunt de plasat în spațiile libere: {words}.',
+			notCompatibleSentence: 'Incompatibil cu cuvântul selectat.',
+			wordRemovedFromBlanks: 'S-a eliminat {word} din spații.',
+			requiredBlanksLegend: 'Spațiile libere marcate cu * sunt obligatorii.',
 		},
 
 		graphicGapMatch: {
@@ -286,9 +354,8 @@ export default {
 			pickedUp: 'Apucat: {label}. Mergi cu Tab la un hotspot și apasă Enter pentru a-l plasa.',
 			alreadyPlacedSentence: 'Deja plasat pe un hotspot.',
 			unavailableSentence: 'Indisponibil din cauza unei restricții de grup de potrivire.',
-			heldHint: 'Apucat. Mergi cu Tab la un hotspot și apasă Enter pentru a-l plasa.',
+			heldHint: 'Mergi cu Tab la un hotspot și apasă Enter pentru a-l plasa.',
 			pickUpHint: 'Apasă Spațiu sau Enter pentru a apuca.',
-			selectedHint: 'Selectat pentru plasare.',
 			selectHint: 'Apasă Spațiu pentru a selecta.',
 			hotspotContains: 'Hotspot {number}. Conține {label}.',
 			hotspotCorrectAnswer: 'Hotspot {number}. Răspuns corect: {label}.',
@@ -298,11 +365,17 @@ export default {
 			placeLabelHint: 'Apasă Spațiu sau Enter pentru a plasa eticheta.',
 			labelFallback: 'Etichetă',
 			pickUpInstructions: 'Apasă Spațiu sau Enter pentru a prelua o etichetă. Tab până la un hotspot de pe imagine și apasă Enter pentru a o plasa. Apasă Escape pentru a anula.',
+			imageFallback: 'Imaginea acestei întrebări',
+			imageLoadError: 'Imaginea nu a putut fi încărcată.',
+			unknownImageDimensions: 'Hotspot-urile nu pot fi afișate: dimensiunea imaginii este necunoscută. Adăugați lățime și înălțime imaginii.',
+			minPlacementsHint: 'Încă de plasat pe zone: {labels}.',
+			associationLimitReached: 'Asociere imposibilă: s-a atins limita de {max}.',
 		},
 
 		order: {
-			moveEarlier: 'Mută înainte',
-			moveLater: 'Mută după',
+			moveEarlierItem: 'Mută {item} înainte',
+			moveLaterItem: 'Mută {item} după',
+			eliminateItem: 'Elimină {item}',
 			instruction: 'Folosește butoanele de mutare sau trage elementele pentru a le reordona.',
 			keyboardInstructions: 'Apasă Spațiu sau Enter pentru a apuca un element. Folosește săgețile pentru a muta elementul. Apasă din nou Spațiu sau Enter pentru a plasa. Apasă Escape pentru a anula.',
 			grabbed: 'Apucat. Folosește săgețile pentru a muta.',
@@ -317,9 +390,36 @@ export default {
 			itemDropped: '{item} plasat la poziția {position} din {total}',
 			itemMoved: '{item} mutat la poziția {position} din {total}',
 			selectionCancelled: 'Selecție {item} anulată',
-			itemPosition: '{item}. Poziția {position} din {total}.',
 			itemFallback: 'Element',
 			orderConfirmed: 'Ordine confirmată',
+			minChoicesHint: {
+				one: 'Pune în ordine cel puțin un element.',
+				few: 'Pune în ordine cel puțin {count} elemente.',
+				other: 'Pune în ordine cel puțin {count} de elemente.',
+			},
+			yourOrder: 'Ordinea ta',
+			notInOrder: 'În afara ordinii tale',
+			emptyOrder: 'Încă nu ai nimic în ordinea ta.',
+			addItem: 'Adaugă {item} în ordinea ta',
+			removeItem: 'Scoate {item} din ordinea ta',
+			itemAdded: '{item} adăugat în ordinea ta pe poziția {position} din {total}.',
+			itemRemoved: '{item} scos din ordinea ta.',
+			orderLimitReached: {
+				one: 'Ordinea ta poate avea un singur element. Scoate-l ca să adaugi altul.',
+				few: 'Ordinea ta poate avea cel mult {max} elemente. Scoate unul ca să adaugi altul.',
+				other: 'Ordinea ta poate avea cel mult {max} de elemente. Scoate unul ca să adaugi altul.',
+			},
+			correctOrder: 'Ordinea corectă',
+			subsetExactHint: {
+				one: 'Alege un element pentru ordinea ta.',
+				few: 'Alege {count} elemente și pune-le în ordine.',
+				other: 'Alege {count} de elemente și pune-le în ordine.',
+			},
+			subsetRangeHint: {
+				one: 'Alege între {min} și {max} element și pune-le în ordine.',
+				few: 'Alege între {min} și {max} elemente și pune-le în ordine.',
+				other: 'Alege între {min} și {max} de elemente și pune-le în ordine.',
+			},
 		},
 
 		associate: {
@@ -342,9 +442,26 @@ export default {
 			clickHotspotsToAssociate: 'Clic pe două hotspot-uri pe imagine pentru a crea o asociere.',
 			clickAnotherHotspot: 'Selectat: <strong>{label}</strong>. Clic pe un alt hotspot pentru a crea o asociere.',
 			removeAssociationBetween: 'Elimină asocierea dintre {first} și {second}',
+			inPairSentence: 'Face parte din o asociere.',
+			removedAssociationBetween: 'Asocierea dintre {first} și {second} a fost eliminată.',
+			minAssociationsHint: {
+				one: 'Creează cel puțin o asociere.',
+				few: 'Creează cel puțin {count} asocieri.',
+				other: 'Creează cel puțin {count} de asocieri.',
+			},
+			minChoiceUsesHint: 'Mai are nevoie de asocieri: {items}.',
+			maxAssociationsHint: {
+				one: 'Poți crea cel mult o asociere.',
+				few: 'Poți crea cel mult {count} asocieri.',
+				other: 'Poți crea cel mult {count} de asocieri.',
+			},
+			choiceLimitReached: 'Imposibil: {label} nu poate face parte din mai multe asocieri.',
+			associationLimitReached: 'Asociere imposibilă: s-a atins limita de {max}.',
+			notAvailableSentence: 'Indisponibil din cauza unei restricții de grup de potrivire.',
 		},
 
 		positionObject: {
+			unknownImageDimensions: 'Obiectele nu pot fi plasate: dimensiunea imaginii scenei este necunoscută. Adaugă lățime și înălțime imaginii sau furnizează dimensiunile fișierului.',
 			instruction: 'Trage obiecte pe imagine',
 			placeObject: 'Plasează {object} pe imagine',
 			removeObject: 'Elimină {object}',
@@ -354,25 +471,40 @@ export default {
 			positioned: '{label} poziționat la ({x}, {y})',
 			minimumRequired: 'Minim necesar: {minChoices}',
 			maximumAllowed: 'Maxim: {maxChoices}',
+			maxChoicesReached: {
+				one: 'Plasarea nu este posibilă: s-a atins limita de {max}.',
+				few: 'Plasarea nu este posibilă: s-a atins limita de {max}.',
+				other: 'Plasarea nu este posibilă: s-a atins limita de {max}.',
+			},
+			objectLimitReached: 'Imposibil: {object} nu poate fi plasat din nou.',
 			availableObjects: 'Obiecte disponibile',
-			objectUsage: '{label} ({usageCount}/{matchMax} folosit)',
 			availableObjectsCount: 'Obiecte disponibile ({count}/{max})',
 			dragObjectsInstruction: 'Trage obiectele pe canvas pentru a le poziționa.',
 			used: '{usageCount}/{matchMax} folosit',
+			usedUnlimited: '{usageCount} folosit, nelimitat',
 			objectSelected: '{object} selectat. Mergi cu Tab la canvas, apoi folosește săgețile pentru a-l poziționa. Apasă Enter pentru a-l plasa sau Escape pentru a anula.',
 			objectPlacedAt: '{object} plasat la {x}%, {y}%.',
 			placementCancelled: 'Plasare anulată.',
 			correctPositionFor: 'Poziția corectă pentru {label} la ({x}, {y})',
 			availableObjectsTotal: 'Obiecte disponibile ({count})',
 			paletteInstructions: 'Trage obiectele pe canvas sau apasă Enter ori Spațiu pe un obiect, apoi folosește tastele săgeți pentru a-l poziționa pe canvas.',
+			imageFallback: 'Imaginea acestei întrebări',
+			imageLoadError: 'Imaginea nu a putut fi încărcată.',
+			objectFallback: 'Obiectul {index}',
+			objectRemoved: '{object} a fost eliminat.',
+			canvasActiveLabel: 'Zonă de poziționare: folosește tastele săgeți pentru a muta cursorul în cruce, Enter pentru a plasa și Escape pentru a anula',
+			placedAtPercent: '{label} la {x}%, {y}%',
+			correctPositionAtPercent: 'Poziția corectă pentru {label}: {x}%, {y}%',
 		},
 
 		endAttempt: {
 			buttonLabel: 'Încheie încercarea',
 			ended: 'Încercare încheiată',
 			requested: 'Solicitat',
-			warningMessage: 'Încercarea ta a fost încheiată și nu mai poate fi modificată.',
+			warningMessage: 'Încercarea ta s-a încheiat.',
 			confirmMessage: 'Ești sigur că vrei să închei încercarea? Nu vei putea modifica răspunsurile.',
+			confirm: 'Da, încheie încercarea',
+			cancel: 'Anulare',
 		},
 
 		media: {
@@ -389,7 +521,6 @@ export default {
 			ariaLabel: 'Conținut media',
 			maxPlayLimitReached: 'Limită maximă de redare atinsă',
 			playCount: 'Număr de redări:',
-			remaining: 'Rămas:',
 			requirementMet: '✓ Cerință îndeplinită',
 			playAtLeastCount: {
 				one: 'Redați cel puțin {count} dată',
@@ -397,12 +528,30 @@ export default {
 				other: 'Redați cel puțin {count} de ori',
 			},
 			browserNoSupport: 'Browserul tău nu suportă acest tip de media.',
+			playsLeft: {
+				one: 'Mai este o redare disponibilă',
+				few: 'Mai sunt {count} redări disponibile',
+				other: 'Mai sunt {count} de redări disponibile',
+			},
+			playStartedOfMax: 'Redarea {count} din {max} a început.',
+			playStarted: 'Redarea {count} a început.',
+			requiredPlaysReached: 'Ai atins numărul de redări necesar.',
+			controls: 'Comenzi media',
+			captions: 'Subtitrări',
+			captionsOff: 'Dezactivate',
+			playsNeeded: {
+				one: 'Mai este necesară o redare',
+				few: 'Mai sunt necesare {count} redări',
+				other: 'Mai sunt necesare {count} de redări',
+			},
+			trackFallbackLabel: 'Pista {index}',
 			audioNoSupport: 'Browserul tău nu suportă elementul audio.',
 			videoNoSupport: 'Browserul tău nu suportă elementul video.',
 			objectDisabled: 'Acest element folosește un tip de obiect încorporat care este dezactivat în mod implicit din motive de securitate.',
 		},
 
 		graphicOrder: {
+			unknownImageDimensions: 'Zonele nu pot fi afișate: dimensiunea imaginii este necunoscută. Adaugă lățime și înălțime imaginii sau furnizează dimensiunile fișierului.',
 			instruction: 'Clic pe hotspot-uri pentru a le ordona',
 			diagramLabel: 'Diagramă de ordonare',
 			altText: 'Diagramă de ordonare',
@@ -411,6 +560,51 @@ export default {
 			confirmOrder: 'Confirmă ordinea',
 			confirmOrderNoChanges: 'Confirmă ordinea (Fără modificări)',
 			confirmAria: 'Confirmă această ordine ca răspuns',
+			imageFallback: 'Imaginea acestei întrebări',
+			imageLoadError: 'Imaginea nu a putut fi încărcată.',
+			unlabeledItem: 'Elementul {index}',
+			minChoicesHint: {
+				one: 'Pune în ordine cel puțin un element.',
+				few: 'Pune în ordine cel puțin {count} elemente.',
+				other: 'Pune în ordine cel puțin {count} de elemente.',
+			},
+			subsetExactHint: {
+				one: 'Alege un element pentru ordinea ta.',
+				few: 'Alege {count} elemente și pune-le în ordine.',
+				other: 'Alege {count} de elemente și pune-le în ordine.',
+			},
+			subsetRangeHint: {
+				one: 'Alege între {min} și {max} element și pune-le în ordine.',
+				few: 'Alege între {min} și {max} elemente și pune-le în ordine.',
+				other: 'Alege între {min} și {max} de elemente și pune-le în ordine.',
+			},
+		},
+
+		graphicAssociate: {
+			unknownImageDimensions: 'Această asociere grafică nu poate fi afișată: dimensiunea imaginii este necunoscută, deci zonele active nu pot fi plasate. Adaugă lățime și înălțime imaginii sau furnizează dimensiunile fișierului.',
+			imageFallback: 'Imaginea acestei întrebări',
+			imageLoadError: 'Imaginea nu a putut fi încărcată.',
+			unlabeledHotspot: 'Regiunea {index}',
+			hotspotConnections: '{label} ({usageCount}/{matchMax} conexiuni)',
+			hotspotConnectionsUnlimited: '{label} ({usageCount} conexiuni, nelimitate)',
+			notAvailableSentence: 'Indisponibil din cauza unei restricții de grup de potrivire.',
+			selectAnotherHotspot: 'Selectat: {label}. Selectează alt hotspot pentru a crea o asociere.',
+			associationsCount: 'Asocieri ({count}/{max})',
+			associationsCountUnlimited: 'Asocieri ({count})',
+			clickHotspotsToAssociate: 'Selectează două hotspot-uri pe imagine pentru a crea o asociere.',
+			pairDescription: '{first} asociat cu {second}',
+			removeAssociation: 'Elimină asocierea dintre {first} și {second}',
+			minimumRequired: 'Minim necesar: {minAssociations}',
+			associationMade: 'Asociere realizată.',
+			associationRemoved: 'Asociere eliminată.',
+			associationLimitReached: 'Asociere imposibilă: s-a atins limita de {max}.',
+			hotspotLimitReached: 'Imposibil: {label} nu poate face parte din mai multe asocieri.',
+			minAssociationsHint: {
+				one: 'Realizează cel puțin o asociere.',
+				few: 'Realizează cel puțin {count} asocieri.',
+				other: 'Realizează cel puțin {count} de asocieri.',
+			},
+			minHotspotUsesHint: 'Mai are nevoie de asocieri: {items}.',
 		},
 
 		custom: {
@@ -427,10 +621,24 @@ export default {
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: 'Selectare...',
-			textEntryLabel: 'Introducere text {id}',
-			choiceLabel: 'Alegere în text {id}',
-			formatHint: 'Format: {mask}',
+			blankLabel: 'Spațiul liber {index} din {count}',
+			patternMismatch: 'Acest răspuns nu are formatul așteptat.',
+			patternMismatchWithHint: 'Acest răspuns nu are formatul așteptat. Folosește acest format: {hint}',
+			correctChoice: 'Corect: {choice}',
 		},
+	},
+
+	/**
+	 * Anunț pentru cititoarele de ecran când o interacțiune nu poate fi afișată.
+	 * Traducere de reluat de un vorbitor nativ.
+	 */
+	interaction: {
+		renderError: 'Acest element interactiv ({type}) nu a putut fi afișat.',
+	},
+
+	/** Nume accesibil al grupului randat de o interacțiune personalizată portabilă (PCI). */
+	customInteraction: {
+		portableLabel: 'Interacțiune personalizată portabilă',
 	},
 
 	item: {
@@ -439,36 +647,34 @@ export default {
 		loadError: 'Eroare la încărcarea elementului: {error}',
 		parsingError: 'Nu s-a putut analiza QTI XML',
 		processingError: 'Nu s-au putut procesa răspunsurile',
+		submitError: 'Răspunsul tău nu a putut fi trimis. Încearcă din nou.',
 		submit: 'Trimitere',
 		complete: 'Completare',
 		completed: 'Completat',
 		attempt: 'Încercarea {numAttempts}',
 	},
 
-	itemSession: {
-		attempt: 'Încercarea {numAttempts}',
-		attemptsRemaining: '{attemptsRemaining} încercări rămase',
-		maxAttempts: 'Încercări maxime: {maxAttempts}',
-	},
 
 	feedback: {
+		title: 'Feedback',
 		close: 'Închide feedback-ul',
 		closeFeedback: 'Respinge feedback-ul',
 		testFeedback: 'Feedback test',
+		shown: 'Se afișează feedback.',
 	},
 
 	assessment: {
 		title: 'Evaluare',
 		loading: 'Se încarcă evaluarea...',
-		loadingError: 'Timeout la încărcarea evaluării. Această evaluare poate fi invalidă sau playerul nu a reușit să se inițializeze.',
+		loadingError: 'Această evaluare nu a putut fi încărcată. Încercați din nou.',
+		stillLoading: 'Se încarcă în continuare. Vă rugăm să așteptați o clipă.',
+		loadingRetry: 'Încercați din nou',
 		question: 'Întrebarea {current} din {total}',
 		questionAnnouncement: 'Întrebarea {current} din {total}',
 		section: 'Secțiunea {current} din {total}',
 		sectionDefault: 'Secțiunea {number}',
 		readingPassage: 'Pasaj de Lectură',
 		readingPassages: 'Pasaje de lectură',
-		expandPassage: 'Extinde pasajul',
-		collapsePassage: 'Restrânge pasajul',
 		closeMenu: 'Închide meniul',
 
 		attempts: {
@@ -479,6 +685,22 @@ export default {
 			maxReached: 'Încercări maxime atinse',
 			required: 'Trebuie să răspunzi înainte de a continua',
 			reviewNotAllowed: 'Nepermis odată trimis',
+			attemptOf: 'Încercarea {current} din {total}',
+			current: 'Încercarea {current}',
+		},
+
+		// Practice delivery: the item-level check control (stays on the item, shows feedback).
+		checkAnswer: {
+			button: 'Verifică răspunsul',
+			submittedAnnouncement: 'Răspunsul tău a fost predat.',
+			attemptsUsedUp: 'Ai folosit toate încercările pentru această întrebare.',
+		},
+
+		// QTI allowComment: the candidate comment disclosure.
+		comments: {
+			heading: 'Comentarii pentru echipa testului',
+			label: 'Comentariile tale',
+			placeholder: 'Scrie un comentariu pentru echipa testului (opțional).',
 		},
 
 		navigation: {
@@ -488,6 +710,64 @@ export default {
 			jumpTo: 'Salt la întrebarea {number}',
 			sectionMenu: 'Meniu secțiune',
 			progress: 'Progres: {percent}%',
+			answeredCount: '{answered} din {total} răspunse',
+		},
+
+		flag: {
+			label: 'Marchează pentru revizuire',
+			flaggedAnnouncement: 'Întrebarea {number} a fost marcată pentru revizuire.',
+			unflaggedAnnouncement: 'Marcajul întrebării {number} a fost eliminat.',
+		},
+
+		review: {
+			title: 'Verifică-ți răspunsurile',
+			open: 'Revizuiește întrebările',
+			backToQuestion: 'Înapoi la întrebare',
+			flagged: 'Marcată',
+			flaggedCount: '{count} marcate pentru revizuire',
+			questionsGroup: 'Întrebări',
+			linearNote: 'În această parte te poți deplasa doar înainte, deci aceste întrebări sunt listate doar pentru revizuire.',
+			goToItem: 'Mergi la întrebarea {number}',
+			currentItem: 'Întrebarea curentă',
+			statusAnswered: 'Răspunsă',
+			statusPartially: 'Parțial răspunsă',
+			statusUnanswered: 'Fără răspuns',
+			notVisited: 'Încă nevizitată',
+		},
+
+		submit: {
+			dialogTitle: 'Predai testul?',
+			dialogDescription: 'Nu mai poți modifica răspunsurile după predare.',
+			flaggedLine: '{count} întrebări marcate pentru revizuire',
+			unansweredHeading: '{count} întrebări fără răspuns',
+			unansweredHeadingOne: '1 întrebare fără răspuns',
+			needsAnswerHeading: '{count} întrebări au nevoie de un răspuns înainte de predare',
+			needsAnswerHeadingOne: '1 întrebare are nevoie de un răspuns înainte de predare',
+			incompleteHeadingOne: '1 răspuns este incomplet și trebuie completat înainte de predare',
+			incompleteHeading: '{count} răspunsuri sunt incomplete și trebuie completate înainte de predare',
+			requirement: {
+				minChoices: 'selectează cel puțin {count}',
+				minStrings: 'introdu cel puțin {count}',
+				minAssociations: 'asociază cel puțin {count}',
+				minPlays: 'redări minime: {count}',
+				incomplete: 'completează răspunsul',
+			},
+			incompleteJump: 'Mergi la întrebarea {number}: {requirement}',
+			incompleteEntry: 'Întrebarea {number}: {requirement}',
+			allAnswered: 'Ai răspuns la toate întrebările.',
+			confirm: 'Predă testul',
+			cancel: 'Continuă lucrul',
+		},
+
+		leavePart: {
+			title: 'Părăsești această parte?',
+			description: 'După ce continui, nu te mai poți întoarce la întrebările din această parte.',
+			confirm: 'Continuă',
+			cancel: 'Rămâi în această parte',
+			needsAnswerHeadingOne: '1 întrebare din această parte trebuie răspunsă înainte să o poți părăsi',
+			needsAnswerHeading: '{count} întrebări din această parte trebuie răspunse înainte să o poți părăsi',
+			incompleteHeadingOne: '1 răspuns din această parte este incomplet și trebuie completat înainte să o poți părăsi',
+			incompleteHeading: '{count} răspunsuri din această parte sunt incomplete și trebuie completate înainte să o poți părăsi',
 		},
 
 		sections: {
@@ -502,9 +782,77 @@ export default {
 			timeRemaining: 'Timp rămas: {time}',
 			timeElapsed: 'Timp scurs: {time}',
 			timeUp: 'Timpul s-a terminat!',
+			warningMinutesOne: 'A mai rămas 1 minut',
+			warningMinutes: 'Au mai rămas {count} min',
+			warningTime: 'A mai rămas: {time}',
+			paused: 'În pauză',
+			label: 'Cronometru',
+		},
+
+		start: {
+			begin: 'Începe',
+			resume: 'Reia',
+			timeMinutesOne: 'Ai la dispoziție 1 minut.',
+			timeMinutes: 'Ai la dispoziție {count} min.',
+			timeExact: 'Ai la dispoziție {time}.',
+			scopedTimeLimits: 'Unele părți ale acestui test au propria limită de timp.',
+			paused: 'Acest test este în pauză. Te rugăm să aștepți până când este reluat.',
+		},
+
+		timeExpiry: {
+			autoSubmitted: 'Timpul a expirat. Răspunsurile tale au fost predate.',
+			submitTitle: 'Timpul pentru acest test s-a încheiat',
+			submitDescription: 'Nu îți mai poți modifica răspunsurile. Predă testul pentru a încheia.',
+			partTitle: 'Timpul pentru această parte s-a încheiat',
+			sectionTitle: 'Timpul pentru această secțiune s-a încheiat',
+			questionTitle: 'Timpul pentru această întrebare s-a încheiat',
+			scopeDescription: 'Treci la următoarea parte a testului.',
+			movingToQuestion: 'Treci la întrebarea {number}.',
+			closedDescription: 'Nu mai poți schimba răspunsurile la întrebările sale.',
+			continue: 'Continuă',
+		},
+
+		pause: {
+			title: 'Evaluare în pauză',
+			message: 'Testul tău a fost pus pe pauză. Te rugăm să aștepți până când este reluat.',
+			announcement: 'Evaluarea este în pauză.',
+			withReason: 'Evaluarea este în pauză: {reason}',
+			resumed: 'Evaluarea a fost reluată.',
+		},
+
+		// Autosave: indicatorul de salvare lângă numărul de răspunsuri.
+		autosave: {
+			saved: 'Salvat · {time}',
+			savedShort: 'Salvat',
+			saving: 'Se salvează…',
+			notSaved: 'Nesalvat',
+		},
+
+		// O instantă restaurată cu răspunsuri salvate: continuați sau începeți din nou.
+		resume: {
+			title: 'Reluați testul?',
+			description: 'Aveți răspunsuri salvate de la {time}.',
+			descriptionNoTime: 'Aveți răspunsuri salvate dintr-o sesiune anterioară.',
+			resumeAction: 'Reluați de acolo unde ați rămas',
+			startOver: 'Începeți din nou',
+			confirmTitle: 'Începeți din nou și ștergeți răspunsurile salvate?',
+			confirmDescription:
+				'Răspunsurile salvate vor fi șterse, iar testul va începe de la început. Această acțiune nu poate fi anulată.',
+			confirmAction: 'Ștergeți și începeți din nou',
+			cancel: 'Păstrează răspunsurile salvate',
+			resumedAnnouncement: 'Răspunsurile salvate au fost restaurate.',
+			restartedAnnouncement: 'Testul a fost reluat de la început.',
+		},
+
+		// Conținutul unei întrebări a eșuat: limbaj clar, fără text tehnic, iar testul continuă.
+		itemError: {
+			title: 'Această întrebare nu a putut fi afișată.',
+			tryAgain: 'Încercați din nou',
+			continue: 'Continuați',
 		},
 
 		feedback: {
+			title: 'Feedback',
 			correct: 'Corect',
 			incorrect: 'Incorect',
 			partiallyCorrect: 'Parțial corect',
@@ -523,15 +871,74 @@ export default {
 			exit: 'Ieșire',
 		},
 
+		// The shell completion screen after finalization (+ the opt-in results summary).
+		complete: {
+			alreadySubmitted: 'Acest test a fost deja trimis.',
+			finished: 'Ai terminat testul.',
+			timeExpired: 'Timpul a expirat. Testul s-a încheiat, iar răspunsurile tale au fost predate.',
+			byProctor: 'Testul tău a fost predat de supervisorul tău.',
+			byProctorAnnouncement: 'Supervisorul tău a predat testul.',
+			resultsHeading: 'Rezumatul rezultatelor',
+			totalScore: 'Scor total: {score} din {maxScore}',
+			itemName: 'Întrebarea {number}',
+		},
+
 		errors: {
 			navigationFailed: 'Navigare eșuată. Te rugăm să încerci din nou.',
 			submitFailed: 'Trimiterea evaluării a eșuat. Te rugăm să încerci din nou.',
 			loadFailed: 'Încărcarea întrebării a eșuat.',
 			saveFailed: 'Salvarea răspunsului a eșuat.',
+			unexpected: 'Ceva nu a funcționat. Te rugăm să încerci din nou.',
+			supportCode: 'Cod de asistență: {code}',
+			codes: {
+				invalidNavigationTarget: 'Această întrebare sau secțiune nu este disponibilă.',
+				linearNavigationOnly: 'În această parte poți avansa doar la întrebarea următoare.',
+				navigationNotAllowed: 'Nu te poți deplasa acolo acum.',
+				navigationInFlight: 'Așteaptă o clipă înainte de a încerca din nou.',
+				testFinalized: 'Această evaluare a fost deja trimisă.',
+				minTimeNotElapsed: 'Rămâi pe acest conținut cel puțin {remaining} secunde în plus înainte de a continua.',
+				itemTimeExpired: 'Timpul limită pentru această întrebare a expirat.',
+				reviewNotAllowed: 'Nu te poți întoarce la această întrebare.',
+				responseRequired: 'Trebuie să răspunzi la această întrebare înainte de a continua.',
+				finalizeResponseRequired: 'Unele întrebări încă au nevoie de un răspuns înainte de predare: {items}.',
+				finalizeResponseInvalid: 'Unele răspunsuri nu sunt încă complete. Verifică aceste întrebări înainte de predare: {items}.',
+				leavePartResponseRequired: 'Unele întrebări din această parte nu au încă răspuns înainte de a continua: {items}.',
+				leavePartResponseInvalid: 'Unele răspunsuri din această parte nu sunt încă complete. Verifică-le înainte de a continua: {items}.',
+				attemptValidationFailed: 'Verifică-ți răspunsul. Este necesar un răspuns valid.',
+				maxAttemptsReached: 'Ai folosit toate încercările pentru această întrebare.',
+				itemSessionLocked: 'Această întrebare este închisă și nu mai poate fi modificată.',
+				commentsNotAllowed: 'Comentariile nu sunt permise la această întrebare.',
+				submitFailed: 'Răspunsurile tale nu au putut fi trimise. Răspunsurile tale sunt în continuare aici. Te rugăm să încerci din nou.',
+				finalizeFailed: 'Evaluarea nu a putut fi trimisă încă. Răspunsurile tale sunt în continuare aici. Te rugăm să încerci din nou.',
+				assessmentPaused: 'Evaluarea ta este în pauză. Te rugăm să aștepți până când este reluată.',
+				outcomeProcessingFailed: 'Răspunsurile tale au fost salvate, dar rezultatele nu au putut fi calculate. Contactează asistența dacă problema persistă.',
+			},
 		},
 		playerLabel: 'Player de evaluare',
 		instructions: 'Instrucțiuni',
 		rubrics: 'Rubrici',
+		skipToQuestion: 'Salt la întrebare',
+	},
+
+	// Section player chrome: passage/question panes and their headings.
+	sectionPlayer: {
+		passage: 'Pasaj',
+		passageNumbered: 'Pasajul {number}',
+		passages: 'Pasaje',
+		question: 'Întrebare',
+		passageAndQuestion: 'Pasaj și întrebare',
+		// The candidate's display settings tool and its dialog.
+		displaySettings: {
+			title: 'Setări de afișare',
+			description: 'Modificările se aplică imediat și rămân active pe parcursul acestei sesiuni.',
+			textSize: 'Dimensiunea textului',
+			sizeDefault: 'Implicit',
+			sizeLarge: 'Mare',
+			sizeLarger: 'Mai mare',
+			sizeLargest: 'Cel mai mare',
+			highContrast: 'Text cu contrast mai mare',
+			textSpacing: 'Spațiere mai mare a textului',
+		},
 	},
 
 	i18n: {
@@ -549,6 +956,7 @@ export default {
 		answerRecorded: 'Răspuns înregistrat',
 		resizer: 'Redimensionează panourile de pasaj și întrebare',
 		sentence: '{text}.',
+		choiceFallback: 'Opțiunea {index}',
 		correctAnswer: 'Răspuns corect.',
 		correctAnswerIs: 'Răspuns corect: {answer}.',
 		correctPosition: 'Poziție corectă.',
@@ -564,124 +972,6 @@ export default {
 		catalogRequestUsage: 'Solicită {usage}: {term}',
 	},
 
-	demo: {
-		selectSampleItem: 'Selectează element de probă',
-		configurationPanel: 'Panou de configurare',
-		viewingAs: 'Vizualizare ca',
-		role: 'Rol',
-		candidate: 'Candidat',
-		author: 'Autor',
-		proctor: 'Supraveghetor',
-		scorer: 'Evaluator',
-		tutor: 'Tutor',
-		showCorrectAnswers: 'Arată răspunsurile corecte',
-		showFeedback: 'Arată feedback',
-		settings_aria: 'Deschide meniul de setări',
-		xmlEditor: 'Editor XML',
-
-		// Navigation
-		appName: 'Player PIE QTI',
-		home: 'Acasă',
-		itemDemo: 'Demo Item',
-		assessmentDemo: 'Demo Evaluare',
-		likertDemo: 'Demo Plugin Likert',
-		iframeDemo: 'Demo Iframe',
-		theme: 'Temă',
-
-		// Home Page
-		homeTitle: 'Player QTI',
-		homeSubtitle: 'Un player modern, independent de framework, pentru elemente de evaluare QTI. Funcționează 100% pe partea clientului în mod implicit, cu hook-uri opționale pe partea serverului pentru utilizare în producție.',
-		homeMetaDescription: 'Player QTI modern cu integrare backend opțională',
-		tryItems: 'Încearcă Elemente',
-		tryAssessments: 'Încearcă Evaluări',
-		trySectionPlayer: 'Player de Secțiune',
-		pluginDemo: 'Demo Plugin',
-		dropQtiFile: 'Plasați fișierul QTI XML aici',
-		orClickToSelect: 'sau faceți clic pentru a selecta un fișier',
-		selectFile: 'Selectează Fișier',
-		selectedFile: 'Selectat:',
-		loadInPlayer: 'Încarcă în Player',
-		footerTitle: 'Player QTI',
-		footerLicense: 'Licență MIT • Open Source',
-
-		// Settings Panel
-		settings: 'Setări',
-		candidateStudent: 'Candidat (Elev)',
-		testConstructor: 'Constructor de Test',
-		controlsRubricVisibility: 'Controlează vizibilitatea rubricii și afișarea răspunsurilor corecte',
-		useBackendScoring: 'Folosește Evaluare pe Server',
-		scoreOnServer: 'Evaluează răspunsurile pe server în loc de client',
-		sessionManagement: 'Gestionare Sesiune',
-		saving: 'Se salvează...',
-		saveSession: 'Salvează Sesiunea',
-		loadSession: 'Încarcă Sesiunea',
-
-		// Export & Template
-		exportResponses: 'Exportă Răspunsuri',
-		json: 'JSON',
-		csv: 'CSV',
-		templateProcessing: 'Procesare Șablon',
-		rerunTemplateProcessing: 'Rulează din nou templateProcessing și resetează sesiunea itemului',
-		regenerateVariant: 'Regenerează Varianta',
-		templateVariablesDebug: 'Variabile Șablon (Depanare)',
-		variable: 'Variabilă',
-		value: 'Valoare',
-
-		// Keyboard Shortcuts
-		keyboardShortcuts: 'Comenzi Rapide',
-		submitAnswersShortcut: 'Trimite răspunsuri',
-		tryAgainShortcut: 'Încearcă din nou',
-		exportJsonShortcut: 'Exportă JSON',
-		saveSessionShortcut: 'Salvează sesiunea',
-		useCmdOnMacOS: 'Folosește <kbd class="kbd kbd-xs">Cmd</kbd> pe macOS',
-
-		// Results Panel
-		results: 'Rezultate',
-		score: 'Scor',
-		outcomeVariables: 'Variabile de Rezultat',
-
-		// Misc
-		format: 'Format',
-		selectItemOrPasteXml: 'Selectează un element de probă sau lipește XML personalizat pentru a începe.',
-		pageTitle: 'Demo Player - Player PIE QTI',
-
-		// Sample Item Descriptions
-		sampleItemDescriptions: {
-			'': 'Element personalizat încărcat',
-			'simple-choice': 'Problemă de bază de scădere cu distractori plauzibili',
-			'partial-credit': 'Alegere multiplă cu credit parțial folosind mapResponse',
-			'capital-cities': 'Întrebare de geografie cu opțiuni amestecate',
-			'text-entry': 'Întrebare de completare cu potrivire insensibilă la majuscule',
-			'extended-text': 'Întrebare de răspuns text pe mai multe linii',
-			'inline-choice': 'Meniu drop-down încorporat în text',
-			'order-interaction': 'Aranjează elementele în secvența corectă',
-			'match-interaction': 'Potrivește elementele din două coloane',
-			'associate-interaction': 'Creează asocieri între elemente',
-			'gap-match': 'Trage cuvinte în spațiile din text',
-			'graphic-gap-match-solar-system': 'Etichetează cele patru planete interioare ale sistemului nostru solar',
-			'slider': 'Selectează o valoare pe un cursor numeric',
-			'hotspot': 'Fă clic pe Planeta Albastră în această întrebare de astronomie',
-			'hotspot-partial-credit': 'Identifică planeta cu apă lichidă (credit parțial pentru planete terestre)',
-			'template-variable-demo': 'templateProcessing generează valori; responseProcessing le evaluează',
-			'upload-interaction': 'Încarcă un fișier ca răspuns (baseType=file)',
-			'drawing-interaction': 'Desenează pe o pânză (baseType=file, PNG dataUrl)',
-			'media-audio': 'Player audio cu urmărire număr de redări și cerință minPlays',
-			'media-video': 'Player video cu urmărire număr de redări și limită maxPlays',
-			'hottext-single': 'Fă clic pentru a selecta un singur cuvânt în text (întrebare de gramatică)',
-			'hottext-multiple': 'Fă clic pentru a selecta mai multe segmente de text (înțelegere lectură)',
-			'select-point': 'Fă clic pe imagine pentru a selecta o locație de punct (întrebare de geografie)',
-			'graphic-order': 'Trage pentru a rearanja elementele pe o imagine (straturi geologice)',
-			'graphic-associate': 'Fă clic pe perechi de zone active pentru a crea asocieri (potrivire organe)',
-			'position-object': 'Trage și poziționează obiecte de mobilier pe un plan de cameră',
-			'end-attempt': 'Buton pentru a încheia tentativa de evaluare',
-			'custom-interaction': 'Afișează o interfață de rezervă pentru customInteraction și permite un răspuns manual',
-			'choice-with-stimulus': 'Întrebare cu pasaj de lectură încorporat inline',
-			'math-inline': 'Alegere multiplă cu randare matematică MathML inline',
-			'math-extended': 'Răspuns extins cu MathML și editor text îmbogățit pentru a arăta munca matematică',
-			'math-fractions': 'Aritmetică fracții cu afișare bloc MathML',
-			'adaptive-capitals': 'Întrebare adaptivă cu mai multe încercări cu feedback și indicii progresive',
-		},
-	},
 
 	transform: {
 		// App title and navigation

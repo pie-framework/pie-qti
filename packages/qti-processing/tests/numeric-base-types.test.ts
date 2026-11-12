@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test';
 import { buildResponseProcessingAst } from '../src/ast/build.js';
-import { OperatorRegistry } from '../src/eval/operators.js';
 import { execProgram } from '../src/exec/execute.js';
 import { DeclarationContext } from '../src/runtime/context.js';
 import type { DeclarationMap, QtiValue } from '../src/runtime/types.js';
@@ -14,7 +13,7 @@ function responseProcessing(body: string): Element {
 function run(decls: DeclarationMap, body: string): DeclarationContext {
 	const ctx = new DeclarationContext(decls);
 	execProgram(
-		{ ctx, ops: new OperatorRegistry(), rng: () => 0.5 },
+		{ ctx, rng: () => 0.5 },
 		buildResponseProcessingAst(responseProcessing(body), {}),
 	);
 	return ctx;

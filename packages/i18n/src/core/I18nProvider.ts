@@ -20,10 +20,14 @@ export interface I18nProvider {
 
 	/**
 	 * Translate a message key with optional default and/or interpolation
-	 * @param key - Message key (e.g., 'common.submit', 'assessment.question')
+	 * @param key - Message key (e.g., 'common.submit', 'assessment.question').
+	 *   The runtime key namespace is the framework catalogs' `MessageKey` union
+	 *   plus keys a host supplies through `customMessages`; implementations that
+	 *   wrap only the framework catalogs type the parameter as `MessageKey`.
 	 * @param defaultOrValues - Optional default string or interpolation values
 	 * @param values - Optional interpolation values (if second arg is default string)
-	 * @returns Translated message, default, or key if not found
+	 * @returns Translated message, default, or key if not found. Values fill a
+	 *   default exactly as they fill a translated message.
 	 */
 	t(key: string, defaultOrValues?: Record<string, any> | string, values?: Record<string, any>): string;
 

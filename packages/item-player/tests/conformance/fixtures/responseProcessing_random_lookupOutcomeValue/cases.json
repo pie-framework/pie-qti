@@ -20,6 +20,15 @@
           "LOOKED": 99
         }
       }
+    },
+    {
+      "name": "lookupOutcomeValue_uses_defaultValue_when_no_entry_matches",
+      "responses": { "RESPONSE": "7" },
+      "expect": {
+        "outcomes": {
+          "LOOKED": 99
+        }
+      }
     }
   ]
 }

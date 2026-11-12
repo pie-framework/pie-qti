@@ -1,6 +1,9 @@
 import { expect, test } from './fixtures';
 
-test.describe('web component initialization', () => {
+/** Tagged @cross-browser: custom element registration and rendering also runs on WebKit and Firefox. */
+const CROSS_BROWSER = { tag: '@cross-browser' };
+
+test.describe('web component initialization', CROSS_BROWSER, () => {
 	test('wc item player registers and renders', async ({ page }) => {
 		await page.goto('wc-item');
 
@@ -32,7 +35,7 @@ test.describe('web component initialization', () => {
 </assessmentItem>`;
 		});
 
-		const input = item.locator('input[aria-label="Text entry RESPONSE"]');
+		const input = item.locator('input[aria-label="Blank 1 of 1"]');
 		await expect(input).toBeVisible();
 		await input.fill('007');
 		await expect

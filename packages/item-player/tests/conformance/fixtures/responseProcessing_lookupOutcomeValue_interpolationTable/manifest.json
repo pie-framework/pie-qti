@@ -1,0 +1,11 @@
+{
+  "source": "authored",
+  "license": "CC0-1.0",
+  "notes": "Minimal fixture to cover the lookupOutcomeValue rule with an interpolationTable on the outcome declaration (step lookup in document order, includeBoundary, defaultValue).",
+  "covers": [
+    "interpolationTable",
+    "lookupOutcomeValue",
+    "responseProcessing",
+    "stmt.lookupOutcomeValue"
+  ]
+}

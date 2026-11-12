@@ -4,10 +4,12 @@ import {
 	Qti3ElementNameMapper,
 } from '@pie-qti/qti-common';
 import { standardExtendedTextExtractor } from '../../../src/interactions/extended-text/extractor.js';
-import type { VariableDeclaration } from '../../../src/extraction/types.js';
+import type { ExtractionVariableDeclaration } from '../../../src/extraction/types.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
-function declarations(declaration: VariableDeclaration): Map<string, VariableDeclaration> {
+function declarations(
+	declaration: ExtractionVariableDeclaration
+): Map<string, ExtractionVariableDeclaration> {
 	return new Map([[declaration.identifier, declaration]]);
 }
 
@@ -102,9 +104,37 @@ describe('standardExtendedTextExtractor', () => {
 			minStrings: 0,
 			maxStrings: 1,
 			expectedLines: 3,
-			expectedLength: 200,
 			format: 'plain',
 		});
+	});
+
+	test('an absent expectedLength stays absent: it is a hint with no default in QTI 2.1, 2.2 or 3.0', () => {
+		for (const [xml, mappers] of [
+			['<extendedTextInteraction responseIdentifier="RESPONSE" class="qti-counter-up"/>', undefined],
+			[
+				'<qti-extended-text-interaction response-identifier="RESPONSE" class="qti-counter-down"/>',
+				{
+					elementNameMapper: new Qti3ElementNameMapper(),
+					attributeNameMapper: new Qti3AttributeNameMapper(),
+				},
+			],
+		] as const) {
+			const element = parseQTI(xml);
+			const context = createTestContext(
+				element,
+				'RESPONSE',
+				element,
+				declarations({ identifier: 'RESPONSE', cardinality: 'single', baseType: 'string' }),
+				mappers as any,
+			);
+
+			const result = standardExtendedTextExtractor.extract(element, context);
+			// No invented 200-character target for a qti-counter-up / qti-counter-down counter.
+			expect(result).not.toHaveProperty('expectedLength');
+			expect(result.expectedLength).toBeUndefined();
+			// Valid content: the absence is not an error.
+			expect(standardExtendedTextExtractor.validate!(result)).toEqual({ valid: true, errors: undefined, warnings: undefined });
+		}
 	});
 
 	test('recognizes QTI 2.x and QTI 3.0 element names', () => {
@@ -113,6 +143,48 @@ describe('standardExtendedTextExtractor', () => {
 
 		expect(standardExtendedTextExtractor.canHandle(qti2, createTestContext(qti2))).toBe(true);
 		expect(standardExtendedTextExtractor.canHandle(qti3, createTestContext(qti3))).toBe(true);
+	});
+
+	test('extracts the pattern mask and its QTI 3.0 data-patternmask-message', () => {
+		// QTI 3.0 §5.48.4: the mask is `pattern-mask` (mapped from `patternMask`) and the
+		// author's message is the data-* attribute `data-patternmask-message`, which no
+		// version renames.
+		const element = parseQTI(`
+			<qti-extended-text-interaction
+				response-identifier="RESPONSE"
+				pattern-mask="[0-9]+"
+				data-patternmask-message="Numbers only."
+			/>
+		`);
+		const context = createTestContext(
+			element,
+			'RESPONSE',
+			element,
+			declarations({ identifier: 'RESPONSE', cardinality: 'single', baseType: 'string' }),
+			{
+				elementNameMapper: new Qti3ElementNameMapper(),
+				attributeNameMapper: new Qti3AttributeNameMapper(),
+			} as any,
+		);
+
+		const result = standardExtendedTextExtractor.extract(element, context);
+
+		expect(result).toMatchObject({ patternMask: '[0-9]+', patternMaskMessage: 'Numbers only.' });
+	});
+
+	test('an absent pattern mask and message stay absent', () => {
+		const element = parseQTI('<extendedTextInteraction responseIdentifier="RESPONSE"/>');
+		const context = createTestContext(
+			element,
+			'RESPONSE',
+			element,
+			declarations({ identifier: 'RESPONSE', cardinality: 'single', baseType: 'string' }),
+		);
+
+		const result = standardExtendedTextExtractor.extract(element, context);
+
+		expect(result).not.toHaveProperty('patternMask');
+		expect(result).not.toHaveProperty('patternMaskMessage');
 	});
 
 	test('validates declaration, base, and string-count constraints', () => {

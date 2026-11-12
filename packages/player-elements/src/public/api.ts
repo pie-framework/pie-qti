@@ -1,13 +1,10 @@
 /** Framework-neutral public contracts for @pie-qti/player-elements. */
 
-export type QtiRole =
-	| 'candidate'
-	| 'scorer'
-	| 'proctor'
-	| 'testConstructor'
-	| 'tutor'
-	| 'author';
+export type QtiRole = import('@pie-qti/item-player').QTIRole;
 
+/** Deliberately a narrow structural subset of @pie-qti/i18n's I18nProvider: hosts may pass any
+ * object that can resolve keys with fallbacks; widening it to the full provider would break
+ * minimal implementers. */
 export interface QtiI18nProvider {
 	t(
 		key: string,
@@ -16,112 +13,39 @@ export interface QtiI18nProvider {
 	): string;
 }
 
-export interface QtiUrlPolicyConfig {
-	assetBaseUrl?: string;
-	allowHttps?: boolean;
-	allowHttp?: boolean;
-	allowProtocolRelative?: boolean;
-	allowDataImages?: boolean;
-	allowSvgDataImages?: boolean;
-	allowBlobImages?: boolean;
-	allowBlobMedia?: boolean;
-	allowedHosts?: string[];
-}
+export type QtiUrlPolicyConfig = import('@pie-qti/item-player').UrlPolicyConfig;
 
-export interface QtiParsingLimitsConfig {
-	enabled?: boolean;
-	rejectDoctype?: boolean;
-	maxItemXmlBytes?: number;
-	maxHtmlBytes?: number;
-	maxHtmlNodes?: number;
-	maxHtmlDepth?: number;
-}
+export type QtiParsingLimitsConfig = import('@pie-qti/item-player').ParsingLimitsConfig;
 
-export interface QtiPlayerSecurityConfig {
-	urlPolicy?: QtiUrlPolicyConfig;
-	allowObjectEmbeds?: boolean;
-	allowIframes?: boolean;
-	parsingLimits?: QtiParsingLimitsConfig;
-	trustedTypesPolicyName?: string;
-}
+export type QtiPlayerSecurityConfig = import('@pie-qti/item-player').PlayerSecurityConfig;
 
-export type QtiPciModulePathKind = 'primary' | 'fallback';
+// The item-player contract types this facade publishes are aliases to the exact
+// upstream types — the contracts are the source of truth, so the facade can
+// neither drift a member nor ship a hand copy (the drift pins in
+// tests/data-model-contracts.ts hold both halves). `QtiPciSandboxConfiguration`
+// and `QtiPciModulePolicy` come from item-player's `./pci` entry, which exports
+// them at their own names; the root entry does not carry them.
+export type QtiPnpProfile = import('@pie-qti/item-player').PnpProfile;
 
-export interface QtiPciModuleResolutionContext {
-	authoredPath: string;
-	kind: QtiPciModulePathKind;
-	responseIdentifier: string;
-	customInteractionTypeIdentifier: string;
-}
+export type QtiPciModulePathKind = import('@pie-qti/item-player').PciModulePathKind;
 
-export type QtiPciModuleResolver = (
-	resolvedUrl: string,
-	context: QtiPciModuleResolutionContext,
-) => Promise<unknown> | unknown;
+export type QtiPciModuleResolutionContext = import('@pie-qti/item-player').PciModuleResolutionContext;
 
-/** The sandboxed engine's variant: a policy over module URLs, never an in-page evaluation. */
-export type QtiPciModulePolicy = (resolvedUrl: string, context: QtiPciModuleResolutionContext) => void;
+export type QtiPciModuleResolver = import('@pie-qti/item-player').PciModuleResolver;
 
-/** Mirror of `@pie-qti/item-player`'s PciSandboxConfiguration. */
-export interface QtiPciSandboxConfiguration {
-	/** Absolute URL of the deployed `@pie-qti/pci-runner` page on a cookieless origin. */
-	runnerUrl: string;
-	handshakeTimeoutMs?: number;
-	pollIntervalMs?: number;
-	registrationTimeoutMs?: number;
-}
+export type QtiPciModulePolicy = import('@pie-qti/item-player/pci').PciModulePolicy;
 
-export interface QtiPciConfiguration {
-	baseUrl?: string;
-	/**
-	 * The host trust decision for executing a PCI module in the page realm.
-	 * Required unless `sandbox` is configured.
-	 */
-	moduleResolver?: QtiPciModuleResolver;
-	/** Opt-in hardened execution in a sandboxed cross-origin runner frame. */
-	sandbox?: QtiPciSandboxConfiguration;
-	/** Optional allow-list applied to module URLs handed to the sandbox runner. */
-	modulePolicy?: QtiPciModulePolicy;
-}
+export type QtiPciSandboxConfiguration = import('@pie-qti/item-player/pci').PciSandboxConfiguration;
 
-export interface QtiPnpProfile {
-	display?: {
-		colorScheme?: string;
-		magnification?: number;
-		interfaceLanguage?: string;
-		invertPolarity?: { foreground?: string; background?: string };
-		singleColumn?: boolean;
-		textAppearance?: {
-			fontSize?: number;
-			fontFamily?: string;
-			fontColor?: string;
-			backgroundColor?: string;
-			lineHeight?: number;
-			letterSpacing?: number;
-			wordSpacing?: number;
-		};
-	};
-	content?: {
-		glossaryOnScreen?: boolean;
-		keywordTranslation?: { active: boolean; languageCode: string };
-		illustratedGlossary?: boolean;
-		catalogSupports?: Record<
-			string,
-			boolean | { active?: boolean; languageCode?: string } | undefined
-		>;
-		extendedTime?: { active: boolean; multiplier: number; fixedMinutes?: number };
-	};
-	cognitive?: {
-		eliminationTool?: boolean;
-		answerMasking?: boolean;
-	};
-	tools?: {
-		supports?: string[];
-		prohibitedSupports?: string[];
-		activateAtInit?: string[];
-		toolParameters?: Record<string, Record<string, unknown>>;
-	};
-}
+/**
+ * The host's trust configuration for running PCI modules: the page-realm resolver
+ * that vouches for a module, or the sandboxed runner engine. Host-side, exactly
+ * `@pie-qti/item-player`'s `PciConfiguration` — a different thing from item-player's
+ * `QtiPciConfiguration`, which is the config object a PCI module's `getInstance()`
+ * factory receives (QTI 3.0 §6.1 module-facing contract). The round-4 rename keeps
+ * this facade's name, since the upstream name is taken by that unrelated contract.
+ */
+export type QtiPciHostConfiguration = import('@pie-qti/item-player').PciConfiguration;
 
 export interface QtiProcessingFragmentRequest {
 	href: string;
@@ -139,87 +63,18 @@ export interface QtiProcessingFragmentLimits {
 	maxCharacters?: number;
 }
 
-/**
- * Resolved package context passed through to the item renderer.
- * The contract is intentionally extensible because new QTI 3 delivery resources
- * can be added without coupling consumers to the internal package graph.
- */
-export interface QtiResolvedStylesheetRef {
-	href: string;
-	type?: string;
-	media?: string;
-	xml: string;
-	resolvedHref: string;
-	source: 'item' | 'stimulus';
-	stimulusIdentifier?: string;
-	cssText?: string;
-}
+export type QtiResolvedItemDeliveryContext = import('@pie-qti/item-player').ResolvedItemDeliveryContext;
 
-export interface QtiResolvedCatalogSource {
-	/**
-	 * `package` sources come from shared catalog files the manifest lists
-	 * (`imsqti_catalog_xmlv3p0`) and hold the lowest precedence; `item` sources
-	 * win identifier collisions over them (QTI 3.0 §6.3).
-	 */
-	scope: 'item' | 'stimulus' | 'package';
-	xml: string;
-	baseHref: string;
-	stimulusIdentifier?: string;
-}
-
-export interface QtiResolvedAssessmentStimulus {
-	identifier: string;
-	href: string;
-	resolvedHref: string;
-	title?: string;
-	lang?: string;
-	bodyHtml: string;
-	stylesheets: QtiResolvedStylesheetRef[];
-	catalogSource?: QtiResolvedCatalogSource;
-	validationMessages: string[];
-}
-
-export interface QtiResolvedItemDeliveryContext {
-	itemHref?: string;
-	stimuli: Record<string, QtiResolvedAssessmentStimulus>;
-	stylesheets: QtiResolvedStylesheetRef[];
-	catalogSources: QtiResolvedCatalogSource[];
-	validationMessages: string[];
-}
-
-export interface QtiScoringResult {
-	score: number;
-	maxScore: number;
-	completed: boolean;
-	outcomeValues: Record<string, unknown>;
-	modalFeedback?: QtiModalFeedback[];
-}
+export type QtiScoringResult = import('@pie-qti/item-player').ScoringResult;
 
 /** HTML already finalized by the item player's configured content policy. */
 export type QtiHtmlContent = import('@pie-qti/item-player').HtmlContent;
 
-export interface QtiModalFeedback {
-	identifier: string;
-	outcomeIdentifier: string;
-	showHide: 'show' | 'hide';
-	content: QtiHtmlContent;
-	title?: string;
-}
+export type QtiModalFeedback = import('@pie-qti/item-player').ModalFeedback;
 
-export type QtiCompletionStatus =
-	| 'not_attempted'
-	| 'unknown'
-	| 'incomplete'
-	| 'completed';
+export type QtiCompletionStatus = import('@pie-qti/item-player').CompletionStatus;
 
-export interface QtiAdaptiveAttemptResult extends QtiScoringResult {
-	numAttempts: number;
-	completionStatus: QtiCompletionStatus;
-	canContinue: boolean;
-}
-
-export type QtiItemPlayerResponseMap = Record<string, unknown>;
-export type QtiItemPlayerSubmissionResult = QtiScoringResult | QtiAdaptiveAttemptResult;
+export type QtiAdaptiveAttemptResult = import('@pie-qti/item-player').AdaptiveAttemptResult;
 
 /**
  * The authoritative live item session accepted by the item-player element.
@@ -229,40 +84,66 @@ export type QtiItemSessionReference = import('@pie-qti/item-player').ItemSession
 export type QtiAssessmentItemDefinitionPlugin =
 	import('@pie-qti/item-player').AssessmentItemDefinitionPlugin;
 
-export interface QtiItemPlayerResponseChangeDetail {
-	responseId: string;
-	value: unknown;
-	responses: QtiItemPlayerResponseMap;
-}
+/** String comparison folds beyond QTI's equality for the candidates' input. */
+export type QtiStringComparison =
+	import('@pie-qti/item-player').AssessmentItemDefinitionConfig['stringComparison'];
 
-export interface QtiItemPlayerSubmitDetail {
-	responses: QtiItemPlayerResponseMap;
-	result: QtiItemPlayerSubmissionResult;
-}
+import type {
+	QtiItemPlayerCompleteDetail,
+	QtiItemPlayerErrorCode,
+	QtiItemPlayerErrorDetail,
+	QtiItemPlayerEventMap,
+	QtiItemPlayerResponseChangeDetail,
+	QtiItemPlayerResponseMap,
+	QtiItemPlayerSubmissionResult,
+	QtiItemPlayerSubmitDetail,
+} from '../elements/QtiItemPlayerElement.js';
 
-export interface QtiItemPlayerCompleteDetail {
-	result: QtiAdaptiveAttemptResult;
-}
-
-export interface QtiItemPlayerEventMap {
-	'response-change': CustomEvent<QtiItemPlayerResponseChangeDetail>;
-	ready: CustomEvent<void>;
-	submit: CustomEvent<QtiItemPlayerSubmitDetail>;
-	complete: CustomEvent<QtiItemPlayerCompleteDetail>;
-}
+// The runtime element's declarations (via @pie-qti/item-player/element-class) are
+// the single source for the item player's event contract; re-exported here,
+// types only, so the published facade cannot drift from what the element
+// dispatches.
+export type {
+	QtiItemPlayerCompleteDetail,
+	QtiItemPlayerErrorCode,
+	QtiItemPlayerErrorDetail,
+	QtiItemPlayerEventMap,
+	QtiItemPlayerResponseChangeDetail,
+	QtiItemPlayerResponseMap,
+	QtiItemPlayerSubmissionResult,
+	QtiItemPlayerSubmitDetail,
+};
 
 export interface QtiItemPlayerElement extends HTMLElement {
 	itemXml: string | undefined;
 	session?: QtiItemSessionReference;
+	/**
+	 * The QTI view the item renders for. Declaratively the `qti-role` attribute: a bare `role`
+	 * attribute is the ARIA role. Unknown values render as `candidate`.
+	 */
 	role: QtiRole | null;
 	disabled: boolean | undefined;
+	/** Per-element interface locale, declaratively the `locale` attribute; needs `i18n`. */
+	locale?: string | null;
+	/**
+	 * Standalone opt-in for integrated feedback (`show-feedback`); QTI's
+	 * `itemSessionControl@showFeedback` default is false, so it is hidden unless set.
+	 */
+	showFeedback?: boolean;
+	/** Standalone opt-in to show correct responses once the attempt ends (`show-solution`). */
+	showSolution?: boolean;
 	renderItemBodyRubrics: boolean | undefined;
 	typeset?: (element: HTMLElement) => void;
 	i18n?: QtiI18nProvider;
 	security?: QtiPlayerSecurityConfig;
 	pnp?: QtiPnpProfile;
 	deliveryContext?: QtiResolvedItemDeliveryContext;
-	pci?: QtiPciConfiguration;
+	pci?: QtiPciHostConfiguration;
+	/**
+	 * String comparison folds beyond QTI's equality for the candidates' input, applied
+	 * when the element creates its own definition.
+	 */
+	stringComparison?: QtiStringComparison;
 	plugins?: readonly QtiAssessmentItemDefinitionPlugin[];
 	resolveProcessingFragment?: QtiProcessingFragmentResolver;
 	processingFragmentLimits?: QtiProcessingFragmentLimits;
@@ -286,290 +167,66 @@ export interface QtiItemPlayerElementConstructor {
 	readonly observedAttributes: string[];
 }
 
-export interface QtiTimeLimits {
-	minTime?: number;
-	maxTime?: number;
-	allowLateSubmission?: boolean;
-}
+export type QtiTimeLimits = import('@pie-qti/assessment-player').SecureTimeLimits;
 
-export interface QtiAssessmentRubricBlock {
-	identifier?: string;
-	content: string;
-	view: QtiRole[];
-	use?: string;
-}
+export type QtiAssessmentRubricBlock = import('@pie-qti/assessment-player').AssessmentRubricBlock;
 
-export interface QtiItemSessionControl {
-	maxAttempts?: number;
-	showFeedback?: boolean;
-	allowReview?: boolean;
-	showSolution?: boolean;
-	allowComment?: boolean;
-	allowSkipping?: boolean;
-	validateResponses?: boolean;
-}
+export type QtiItemSessionControl = import('@pie-qti/assessment-player').SecureItemSessionControl;
 
-export interface QtiSecureItemRef {
-	identifier: string;
-	itemXml: string;
-	role: QtiRole;
-	required?: boolean;
-	fixed?: boolean;
-	timeLimits?: QtiTimeLimits;
-	deliveryContext?: QtiResolvedItemDeliveryContext;
-	branchRule?: Array<{ target: string; conditionXml?: string }>;
-	preConditions?: string[];
-	weights?: Array<{ identifier: string; value: number }>;
-	categories?: string[];
-}
+export type QtiSecureItemRef = import('@pie-qti/assessment-player').SecureItemRef;
 
-export type QtiSecureSectionComponent =
-	| { type: 'item'; item: QtiSecureItemRef }
-	| { type: 'section'; section: QtiSecureSection };
+export type QtiSecureSectionComponent = import('@pie-qti/assessment-player').SecureSectionComponent;
 
-export interface QtiSecureSection {
-	identifier: string;
-	title?: string;
-	required?: boolean;
-	fixed?: boolean;
-	visible: boolean;
-	assessmentItemRefs: QtiSecureItemRef[];
-	sections?: QtiSecureSection[];
-	children?: QtiSecureSectionComponent[];
-	timeLimits?: QtiTimeLimits;
-	rubricBlocks?: QtiAssessmentRubricBlock[];
-	selection?: { select: number; withReplacement?: boolean };
-	ordering?: { shuffle: boolean };
-	preConditions?: string[];
-	itemSessionControl?: QtiItemSessionControl;
-}
+export type QtiSecureSection = import('@pie-qti/assessment-player').SecureSection;
 
-export interface QtiSecureTestPart {
-	identifier: string;
-	navigationMode?: 'linear' | 'nonlinear';
-	submissionMode?: 'individual' | 'simultaneous';
-	sections: QtiSecureSection[];
-	timeLimits?: QtiTimeLimits;
-	rubricBlocks?: QtiAssessmentRubricBlock[];
-	testFeedback?: QtiTestFeedback[];
-	itemSessionControl?: QtiItemSessionControl;
-}
+export type QtiSecureTestPart = import('@pie-qti/assessment-player').SecureTestPart;
 
-export interface QtiTestFeedback {
-	identifier: string;
-	outcomeIdentifier: string;
-	showHide: 'show' | 'hide';
-	access: 'atEnd' | 'during';
-	content: string;
-}
+export type QtiTestFeedback = import('@pie-qti/assessment-player').TestFeedbackItem;
 
 /**
  * A test-level outcome value: a scalar for single cardinality, an array for multiple and ordered,
  * an object for record, and `null` for NULL.
  */
-export type QtiTestOutcomeValue =
-	| string
-	| number
-	| boolean
-	| null
-	| Array<string | number | boolean | null>
-	| Record<string, unknown>;
+export type QtiTestOutcomeValue = import('@pie-qti/assessment-player').TestOutcomeValue;
 
-export interface QtiSecureAssessment {
-	identifier: string;
-	title: string;
-	navigationMode: 'linear' | 'nonlinear';
-	submissionMode: 'individual' | 'simultaneous';
-	testParts: QtiSecureTestPart[];
-	timeLimits?: QtiTimeLimits;
-	outcomeDeclarations?: Array<{
-		identifier: string;
-		baseType: string;
-		cardinality: string;
-		defaultValue?: unknown;
-	}>;
-	outcomeProcessingXml?: string;
-	baseUrl?: string;
-	testFeedback?: QtiTestFeedback[];
-}
+export type QtiSecureAssessment = import('@pie-qti/assessment-player').SecureAssessment;
 
 export type QtiAssessmentResponseValue = unknown;
 
-export interface QtiAssessmentScoringResult {
-	itemIdentifier: string;
-	score: number;
-	maxScore: number;
-	completed: boolean;
-	outcomeValues: Record<string, unknown>;
-	feedback?: Array<{
-		content: string;
-		type: 'correct' | 'incorrect' | 'hint' | 'solution';
-	}>;
-	correctResponse?: Record<string, QtiAssessmentResponseValue>;
-}
+export type QtiAssessmentScoringResult = import('@pie-qti/assessment-player').AssessmentScoringResult;
 
-export interface QtiAssessmentSessionState {
-	currentItemIdentifier: string;
-	visitedItems: string[];
-	itemResponses: Record<string, Record<string, QtiAssessmentResponseValue>>;
-	itemScores?: Record<string, QtiAssessmentScoringResult>;
-	itemSessionStates?: Record<
-		string,
-		{
-			itemIdentifier: string;
-			attemptCount: number;
-			isAnswered: boolean;
-			isSubmitted: boolean;
-			lastSubmissionTime?: number;
-		}
-	>;
-	itemSessions?: Record<string, QtiSerializedItemSessionState>;
-	timing: {
-		startedAt: number;
-		itemTimes: Record<string, number>;
-		sectionTimes?: Record<string, number>;
-		testPartTimes?: Record<string, number>;
-		totalTime: number;
-		currentItemIdentifier?: string;
-		currentSectionIdentifier?: string;
-		currentTestPartIdentifier?: string;
-		isPaused?: boolean;
-	};
-}
+export type QtiAssessmentSessionState = import('@pie-qti/assessment-player').AssessmentSessionState;
 
-export interface QtiAssessmentInitSessionRequest {
-	assessmentId: string;
-	candidateId: string;
-	resumeSessionId?: string;
-}
+export type QtiAssessmentInitSessionRequest = import('@pie-qti/assessment-player').InitSessionRequest;
 
-export interface QtiAssessmentInitSessionResponse {
-	sessionId: string;
-	assessment: QtiSecureAssessment;
-	restoredState?: QtiAssessmentSessionState;
-	outcomes?: Record<string, QtiTestOutcomeValue>;
-}
+export type QtiAssessmentInitSessionResponse = import('@pie-qti/assessment-player').InitSessionResponse;
 
-export interface QtiAssessmentSubmitResponsesRequest {
-	sessionId: string;
-	itemIdentifier: string;
-	responses: Record<string, QtiAssessmentResponseValue>;
-	submittedAt: number;
-	timeSpent?: number;
-	timing?: {
-		scope: 'assessment' | 'testPart' | 'section' | 'item';
-		elapsedMs: number;
-		limitSeconds?: number;
-		expired?: boolean;
-		allowLateSubmission?: boolean;
-	};
-	itemSession?: QtiSerializedItemSessionState;
-}
+export type QtiAssessmentSubmitResponsesRequest = import('@pie-qti/assessment-player').SubmitResponsesRequest;
 
-export interface QtiAssessmentSubmitResponsesResponse {
-	success: boolean;
-	result?: QtiAssessmentScoringResult;
-	nextItemIdentifier?: string;
-	updatedState?: QtiAssessmentSessionState;
-	outcomes?: Record<string, QtiTestOutcomeValue>;
-	error?: string;
-}
+export type QtiAssessmentSubmitResponsesResponse = import('@pie-qti/assessment-player').SubmitResponsesResponse;
 
-export interface QtiAssessmentFinalizeResponse {
-	success: boolean;
-	totalScore: number;
-	maxScore: number;
-	itemScores: Record<string, QtiAssessmentScoringResult>;
-	feedback?: string;
-	outcomes?: Record<string, QtiTestOutcomeValue>;
-	finalizedAt: number;
-}
+export type QtiAssessmentFinalizeResponse = import('@pie-qti/assessment-player').FinalizeAssessmentResponse;
 
-export interface QtiAssessmentBackend {
-	initSession(
-		request: QtiAssessmentInitSessionRequest,
-	): Promise<QtiAssessmentInitSessionResponse>;
-	submitResponses(
-		request: QtiAssessmentSubmitResponsesRequest,
-	): Promise<QtiAssessmentSubmitResponsesResponse>;
-	saveState(request: {
-		sessionId: string;
-		state: QtiAssessmentSessionState;
-	}): Promise<{ success: boolean; savedAt: number }>;
-	finalizeAssessment(request: { sessionId: string }): Promise<QtiAssessmentFinalizeResponse>;
-	resumeSession?(sessionId: string): Promise<QtiAssessmentInitSessionResponse>;
-	queryItemBank?(request: {
-		sessionId: string;
-		bankId: string;
-		count: number;
-		withReplacement?: boolean;
-		filters?: Record<string, unknown>;
-	}): Promise<{ items: QtiSecureItemRef[]; selectedAt: number }>;
-}
+export type QtiAssessmentBackend = import('@pie-qti/assessment-player').BackendAdapter;
 
-export interface QtiSectionToolConfig {
-	toolId: string;
-	label?: string;
-	view?: string[];
-	enabled?: boolean;
-	scope?: 'section' | 'passage' | 'item';
-	provider?: Record<string, unknown>;
-	renderParams?: Record<string, unknown>;
-}
+/** Section-player's contract type, at parity: `toolId` keeps its autocomplete literals. */
+export type QtiSectionToolConfig = import('@pie-qti/section-player').QtiSectionToolConfig;
 
-export interface QtiPackageResolveContext {
-	ownerHref?: string;
-	referenceKind:
-		| 'item'
-		| 'passage'
-		| 'stimulus'
-		| 'stylesheet'
-		| 'catalog-file'
-		| 'asset'
-		| 'source-xml';
-}
+export type QtiSectionActiveItemChangeEvent =
+	import('@pie-qti/section-player').QtiSectionActiveItemChangeEvent;
 
-export interface QtiSharedHtmlSanitizeContext {
-	source?: string;
-	kind: 'passage' | 'rubric' | 'stimulus' | 'test-feedback' | 'instructions';
-}
+export type QtiSectionFrameworkError = import('@pie-qti/section-player').QtiSectionFrameworkError;
 
-export interface QtiAssetUrlPolicyContext {
-	source?: string;
-	kind: 'img' | 'media' | 'object' | 'link' | 'any';
-}
+export type QtiSectionDisplaySettingsEvent =
+	import('@pie-qti/section-player').QtiSectionDisplaySettingsEvent;
 
-export interface QtiSectionActiveItemChangeEvent {
-	sectionIdentifier: string;
-	itemIdentifier: string;
-	itemIndex: number;
-	itemCount: number;
-}
+export type QtiSectionResponseDeltaEvent =
+	import('@pie-qti/section-player').QtiSectionResponseDeltaEvent;
 
-export interface QtiSectionFrameworkError {
-	sectionIdentifier?: string;
-	itemIdentifier?: string;
-	code: string;
-	message: string;
-	cause?: unknown;
-}
-
-export interface QtiSectionRuntimeHost {
-	resolvePackageUrl?(
-		href: string,
-		context: QtiPackageResolveContext,
-	): string | null;
-	readPackageFile?(
-		href: string,
-		context: QtiPackageResolveContext,
-	): Promise<string | Uint8Array | null>;
-	sanitizeSharedHtml?(html: string, context: QtiSharedHtmlSanitizeContext): string;
-	sanitizeAssetUrl?(href: string, context: QtiAssetUrlPolicyContext): string | null;
-	onResponseDelta?(event: QtiSectionResponseDeltaDetail): void;
-	onActiveItemChange?(event: QtiSectionActiveItemChangeEvent): void;
-	onSnapshotChange?(snapshot: QtiSectionSnapshot): void;
-	onFrameworkError?(error: QtiSectionFrameworkError): void;
-}
+/** The section runtime host, at its contract name: the identical object a host
+ * implements for the headless player's `sectionHost` and hands to the element. */
+export type QtiSectionRuntimeHostContract =
+	import('@pie-qti/section-player').QtiSectionRuntimeHostContract;
 
 export interface QtiAssessmentPlayerConfig {
 	role?: QtiRole;
@@ -577,23 +234,52 @@ export interface QtiAssessmentPlayerConfig {
 	 * Seeds selection and ordering when the element runs its built-in reference
 	 * backend (reference/preview mode). Ignored in authoritative-backend
 	 * delivery: there the backend draws selection and ordering at session
-	 * start. This mirrors the deprecated, ignored `rng` on the headless
-	 * assessment-player config.
+	 * start.
 	 */
 	rng?: () => number;
 	plugins?: readonly QtiAssessmentItemDefinitionPlugin[];
 	i18nProvider?: QtiI18nProvider;
 	security?: QtiPlayerSecurityConfig;
-	pci?: QtiPciConfiguration;
-	sectionHost?: QtiSectionRuntimeHost;
+	pci?: QtiPciHostConfiguration;
+	/**
+	 * String comparison folds beyond QTI's equality for the candidates' input, applied
+	 * by every item session the player opens (see the item player's
+	 * `AssessmentItemDefinitionConfig.stringComparison`). Exact when absent. Give the
+	 * scoring backend the same setting: it re-runs response processing on submitted items.
+	 */
+	stringComparison?: QtiStringComparison;
+	sectionHost?: QtiSectionRuntimeHostContract;
 	sectionTools?: QtiSectionToolConfig[];
 	passageTools?: QtiSectionToolConfig[];
 	itemTools?: QtiSectionToolConfig[];
+	/**
+	 * Send the serialized item session with each submission to a production backend (off by
+	 * default: template variables can hold answer keys). Reference mode always sends it —
+	 * its local backend scores from it (`requiresItemSession`).
+	 */
 	sendItemSessionToBackend?: boolean;
 	showSections?: boolean;
 	allowSectionNavigation?: boolean;
 	showProgress?: boolean;
+	/**
+	 * Seconds before a time limit expires at which a warning is announced. Default 60 when unset;
+	 * `0` turns this default warning off (`timeWarningThresholds` still announce).
+	 */
 	timeWarningThreshold?: number;
+	/** Additional warning thresholds in seconds, e.g. `[300, 60]`; each is announced once per limit. */
+	timeWarningThresholds?: number[];
+	/** Opt-in begin gate, like the `begin-gate` attribute: delivery and the clocks wait for Begin. */
+	beginGate?: boolean;
+	/**
+	 * Debounced autosave of the session snapshot through the backend's `saveState`,
+	 * with the shell's save indicator and resume prompt. Default ON when the backend
+	 * reports the save capability; `false` when the host persists state itself.
+	 */
+	autosave?: boolean;
+	/** Autosave debounce window in ms. Default 1500. */
+	autosaveIntervalMs?: number;
+	/** Deterministic clock for time-limit tracking. Defaults to `Date.now`. */
+	now?: () => number;
 	pnp?: QtiPnpProfile;
 	/**
 	 * Shared catalog files from the content package manifest (resource type
@@ -604,53 +290,59 @@ export interface QtiAssessmentPlayerConfig {
 	sharedCatalogs?: ReadonlyArray<{ href?: string; xml?: string }>;
 }
 
-export interface QtiAssessmentItemResult {
-	itemIdentifier: string;
-	score: number;
-	maxScore: number;
-	responses: Record<string, unknown>;
-}
+/** One item's score in the test results, as the assessment player reports it. */
+export type QtiAssessmentItemResult = import('@pie-qti/assessment-player').ItemResult;
 
-export interface QtiAssessmentResults {
-	totalScore: number;
-	maxScore: number;
-	itemResults: QtiAssessmentItemResult[];
-	completedAt: Date;
-}
+/**
+ * Why the test ended: the candidate's submit, a time expiry, a proctor's forced submit,
+ * or a QTI branch rule (`EXIT_TEST`, or an `EXIT_TESTPART`/`EXIT_SECTION` with nothing
+ * following). An end that collects a delivery the time already closed — the whole test
+ * expired, or a scope expiry left nothing open — is `expiry` whoever triggers it (the
+ * automatic submission, the candidate's Submit after it failed, a proctor's force-submit).
+ */
+export type QtiAssessmentEndReason = import('@pie-qti/assessment-player').AssessmentEndReason;
 
-export interface QtiAssessmentResponseChangeDetail {
-	responses: Record<string, unknown>;
-}
+/** The per-test scores a submission or finalization hands over. */
+export type QtiAssessmentResults = import('@pie-qti/assessment-player').AssessmentResults;
 
-export interface QtiAssessmentItemChangeDetail {
-	itemIndex: number;
-	totalItems: number;
-}
+/** The countdown state a proctor console reads (`getTimeState()`). */
+export type QtiAssessmentTimeState = import('@pie-qti/assessment-player').AssessmentTimeState;
 
-export interface QtiAssessmentSectionChangeDetail {
-	sectionIndex: number;
-	totalSections: number;
-}
+import type {
+	QtiAssessmentAutosaveChangeDetail,
+	QtiAssessmentAutosaveFailedDetail,
+	QtiAssessmentErrorDetail,
+	QtiAssessmentItemChangeDetail,
+	QtiAssessmentLoadErrorDetail,
+	QtiAssessmentPauseDetail,
+	QtiAssessmentPlayerEventMap,
+	QtiAssessmentResponseChangeDetail,
+	QtiAssessmentScopeTimeExpiredDetail,
+	QtiAssessmentSectionChangeDetail,
+	QtiAssessmentSessionFinalizedDetail,
+	QtiAssessmentSubmitDetail,
+	QtiAssessmentTimeExpiredDetail,
+} from '../elements/QtiAssessmentPlayerElement.js';
 
-export interface QtiAssessmentSubmitDetail {
-	results: QtiAssessmentResults;
-}
-
-export interface QtiAssessmentLoadErrorDetail {
-	message: string;
-}
-
-export interface QtiAssessmentPlayerEventMap {
-	ready: CustomEvent<void>;
-	'load-start': CustomEvent<void>;
-	'load-end': CustomEvent<void>;
-	'load-error': CustomEvent<QtiAssessmentLoadErrorDetail>;
-	'item-change': CustomEvent<QtiAssessmentItemChangeDetail>;
-	'section-change': CustomEvent<QtiAssessmentSectionChangeDetail>;
-	'response-change': CustomEvent<QtiAssessmentResponseChangeDetail>;
-	submit: CustomEvent<QtiAssessmentSubmitDetail>;
-	complete: CustomEvent<void>;
-}
+// The runtime element's declarations are the single source for the assessment
+// player's event contract — including the autosave notifications; re-exported
+// here, types only, so the published facade cannot drift from what the element
+// dispatches.
+export type {
+	QtiAssessmentAutosaveChangeDetail,
+	QtiAssessmentAutosaveFailedDetail,
+	QtiAssessmentErrorDetail,
+	QtiAssessmentItemChangeDetail,
+	QtiAssessmentLoadErrorDetail,
+	QtiAssessmentPauseDetail,
+	QtiAssessmentPlayerEventMap,
+	QtiAssessmentResponseChangeDetail,
+	QtiAssessmentScopeTimeExpiredDetail,
+	QtiAssessmentSectionChangeDetail,
+	QtiAssessmentSessionFinalizedDetail,
+	QtiAssessmentSubmitDetail,
+	QtiAssessmentTimeExpiredDetail,
+};
 
 export type QtiItemMap = Record<string, string>;
 
@@ -666,7 +358,28 @@ export interface QtiItemFetchPolicy {
 export interface QtiAssessmentPlayerElement extends HTMLElement {
 	config: QtiAssessmentPlayerConfig;
 	security?: QtiPlayerSecurityConfig;
-	pci?: QtiPciConfiguration;
+	pci?: QtiPciHostConfiguration;
+	/**
+	 * The QTI view every item renders for: `candidate`, `scorer`, `proctor`,
+	 * `testConstructor`, `tutor` or `author`. Declaratively the `qti-role`
+	 * attribute — a bare `role` attribute stays the ARIA role. Like the other
+	 * per-item injection properties it wins over the same-named `config` field.
+	 */
+	role: QtiRole | null;
+	/** The interface locale provider, shared by every item player in the assessment. */
+	i18n?: QtiI18nProvider;
+	/** The candidate's PNP profile, applied to every item session. */
+	pnp?: QtiPnpProfile;
+	/**
+	 * Definition-lifetime extractor and renderer extensions applied to every item
+	 * definition the player opens.
+	 */
+	plugins?: readonly QtiAssessmentItemDefinitionPlugin[];
+	/**
+	 * String comparison folds beyond QTI's equality for the candidates' input,
+	 * applied by every item session the player opens (see `config.stringComparison`).
+	 */
+	stringComparison?: QtiStringComparison;
 	backend?: QtiAssessmentBackend;
 	initSession?: QtiAssessmentInitSessionRequest;
 	assessmentId?: string;
@@ -676,16 +389,64 @@ export interface QtiAssessmentPlayerElement extends HTMLElement {
 	itemBaseUrl?: string;
 	items?: QtiItemMap;
 	itemFetchPolicy?: QtiItemFetchPolicy;
+	/** Fill the viewport (`100dvh`, safe-area aware) instead of the element's box. Reflects `full-viewport`. */
+	fullViewport: boolean;
+	/** Heading level (1–6) of the assessment title; passage and item titles follow one below. Reflects `heading-level`. */
+	headingLevel?: number;
+	/** Opt-in begin gate: a start screen holds delivery and the clocks until Begin. Reflects `begin-gate`. */
+	beginGate: boolean;
+	/**
+	 * Host opt-in: after finalization the completion screen may add a per-question
+	 * results summary (answered state plus the backend's scores). Off by default, so
+	 * high-stakes embeds keep showing no scores. Reflects `show-results-summary`.
+	 */
+	showResultsSummary: boolean;
+	/**
+	 * Whether the resume prompt offers "Start over" (default true). Start over clears the
+	 * candidate's answers but keeps the time accounting. Reflects `allow-start-over`.
+	 */
+	allowStartOver: boolean;
+	/**
+	 * Autosave of the candidate's draft through the backend's `saveState`, with the
+	 * shell's save indicator and resume prompt. Default ON when the backend reports
+	 * the save capability; `false` disables it for hosts that persist state
+	 * themselves. Reflects the `autosave` attribute.
+	 */
+	autosave: boolean | undefined;
+	/** Autosave debounce window in ms. Reflects the `autosave-interval-ms` attribute. */
+	autosaveIntervalMs: number | undefined;
 	next(): Promise<void>;
 	previous(): Promise<void>;
 	navigateTo(index: number): Promise<void>;
 	navigateToSection(sectionIdentifier: string): Promise<void>;
-	submit(): Promise<QtiAssessmentResults | undefined>;
+	/**
+	 * End the test. `{ force: true }` is the proctor's force-submit: it ends the test
+	 * during a pause too; a candidate's submit stays blocked while paused.
+	 */
+	submit(options?: { force?: boolean }): Promise<QtiAssessmentResults | undefined>;
 	getResponses(): Record<string, unknown> | undefined;
 	getState(): QtiAssessmentSessionState | undefined;
 	restoreState(
 		state: QtiAssessmentSessionState,
 	): Promise<void> | undefined;
+	/** Open the begin gate (as the candidate's Begin does): delivery and the clocks start. */
+	start(): Promise<void>;
+	/** Whether delivery has begun (false while the begin gate holds the start screen). */
+	hasStarted(): boolean;
+	/** Proctor pause: freeze every clock and block candidate input until `resume()`. */
+	pause(reason?: string): void;
+	/** End a proctor pause. */
+	resume(): void;
+	/** Whether a proctor pause is in force (a session restored paused reports it at mount). */
+	isPaused(): boolean;
+	/** The candidate-facing reason of the pause in force, if any. */
+	getPauseReason(): string | undefined;
+	/** Whether the session is terminal: finalized here, or restored already finalized. */
+	isFinalized(): boolean;
+	/** The countdown state for a proctor console; undefined before the session is ready. */
+	getTimeState(): QtiAssessmentTimeState | undefined;
+	/** Save the current draft now (best-effort). */
+	flushAutosave(): Promise<void>;
 	addEventListener<K extends keyof QtiAssessmentPlayerEventMap>(
 		type: K,
 		listener: (
@@ -707,171 +468,78 @@ export interface QtiAssessmentPlayerElementConstructor {
 	readonly observedAttributes: string[];
 }
 
-interface QtiSectionItemRefBase {
-	identifier: string;
-	sourcePath?: string;
-	href?: string;
-	title?: string;
-	itemXml: string;
-	deliveryContext?: QtiResolvedItemDeliveryContext;
-	tools?: QtiSectionToolConfig[];
-	diagnostics?: QtiSectionDiagnostic[];
-}
+// The section-player contract types the facade carries are aliases at their
+// contract names — the contracts are the source of truth, so a host learns one
+// name per concept and the facade cannot drift members or names. The runtime
+// element's own declarations (QtiSectionItemPaneReadyDetail,
+// QtiSectionPlayerEventMap) stay re-exported from the element file below.
+export type QtiSectionItemRef = import('@pie-qti/section-player').QtiSectionItemRef;
 
-export type QtiSectionItemRef =
-	| (QtiSectionItemRefBase & {
-			session: QtiItemSessionReference;
-			responses?: never;
-	  })
-	| (QtiSectionItemRefBase & {
-			session?: undefined;
-			responses?: Record<string, unknown>;
-	  });
+export type QtiSerializedItemSessionVariable = import('@pie-qti/item-player').SerializedItemSessionVariable;
 
-export interface QtiSerializedItemSessionVariable {
-	identifier: string;
-	kind: 'response' | 'outcome' | 'template' | 'context';
-	baseType?: string;
-	cardinality: 'single' | 'multiple' | 'ordered' | 'record';
-	value: unknown;
-	defaultValue?: unknown;
-}
-
-export interface QtiSerializedItemSessionState {
-	itemIdentifier?: string;
-	sessionGuid: string;
-	lifecycleStatus: 'initial' | 'interacting' | 'suspended' | 'closed' | 'review' | 'solution' | 'answer';
-	completionStatus: QtiCompletionStatus;
-	numAttempts: number;
-	duration: number;
-	responseVariables: Record<string, QtiSerializedItemSessionVariable>;
-	outcomeVariables: Record<string, QtiSerializedItemSessionVariable>;
-	templateVariables: Record<string, QtiSerializedItemSessionVariable>;
-	contextVariables: Record<string, QtiSerializedItemSessionVariable>;
-	validationMessages: unknown[];
-	savedAt: string;
-}
+export type QtiSerializedItemSessionState = import('@pie-qti/item-player').SerializedItemSessionState;
 
 export type QtiSectionDiagnosticSource =
-	| 'assessment-player'
-	| 'host'
-	| 'manifest'
-	| 'assessment-test'
-	| 'item'
-	| 'stimulus'
-	| 'security'
-	| 'section-player';
+	import('@pie-qti/section-player').QtiSectionDiagnosticSource;
 
-export interface QtiSectionDiagnostic {
-	severity: 'info' | 'warning' | 'error';
-	source: QtiSectionDiagnosticSource;
-	code: string;
-	message: string;
-	path?: string;
-}
+export type QtiSectionDiagnostic = import('@pie-qti/section-player').QtiSectionDiagnostic;
 
-export interface QtiSharedHtmlBlock {
-	identifier: string;
-	kind: 'passage' | 'instructions' | 'rubric' | 'stimulus' | 'test-feedback';
-	scope: 'assessment' | 'testPart' | 'section' | 'item' | 'stimulus';
-	source?: string;
-	view?: string[];
-	tools?: QtiSectionToolConfig[];
-	rawHtml?: string;
-	/** The block's content language, from its `xml:lang`; sets its `lang` and its read-aloud voice. */
-	language?: string;
-	html?: QtiHtmlContent;
-}
+export type QtiPackageResolveContext = import('@pie-qti/section-player').QtiPackageResolveContext;
 
-export interface QtiSharedStimulus {
-	identifier: string;
-	href?: string;
-	source?: string;
-	bodyHtml?: QtiHtmlContent;
-	rawBodyHtml?: string;
-	stylesheets?: QtiSectionResolvedStylesheetRef[];
-	catalogSource?: QtiSectionResolvedCatalogSource;
-	diagnostics?: QtiSectionDiagnostic[];
-}
+export type QtiSharedHtmlSanitizeContext =
+	import('@pie-qti/section-player').QtiSharedHtmlSanitizeContext;
 
-export interface QtiSectionResolvedStylesheetRef {
-	href: string;
-	resolvedHref?: string;
-	renderHref?: string;
-	browserHref?: string;
-	source?: string;
-}
+export type QtiAssetUrlPolicyContext = import('@pie-qti/section-player').QtiAssetUrlPolicyContext;
 
-export interface QtiSectionResolvedCatalogSource {
-	scope: 'item' | 'stimulus' | 'section';
-	xml: string;
-	baseHref?: string;
-	stimulusIdentifier?: string;
-}
+export type QtiSharedHtmlBlock = import('@pie-qti/section-player').QtiSharedHtmlBlock;
 
-export interface QtiSectionSharedContext {
-	passages: QtiSharedHtmlBlock[];
-	stimuli: QtiSharedStimulus[];
-	rubricBlocks: QtiSharedHtmlBlock[];
-	testFeedback: QtiSharedHtmlBlock[];
-	stylesheets: QtiSectionResolvedStylesheetRef[];
-	catalogSources: QtiSectionResolvedCatalogSource[];
-	assetDiagnostics: QtiSectionDiagnostic[];
-}
+export type QtiSharedStimulus = import('@pie-qti/section-player').QtiSharedStimulus;
 
-export interface QtiSectionModel {
-	identifier: string;
-	title?: string;
-	role?: QtiRole;
-	view?: string[];
-	layoutPreference?: 'split-pane' | 'vertical' | 'auto';
-	navigationMode?: 'linear' | 'nonlinear';
-	submissionMode?: 'individual' | 'simultaneous';
-	tools?: QtiSectionToolConfig[];
-	itemRefs: QtiSectionItemRef[];
-	sharedContext?: QtiSectionSharedContext;
-	diagnostics?: QtiSectionDiagnostic[];
-}
+export type QtiResolvedStylesheetRef = import('@pie-qti/section-player').QtiResolvedStylesheetRef;
 
-export interface QtiSectionSnapshot {
-	sectionIdentifier: string;
-	activeItemIdentifier: string;
-	activeItemIndex: number;
-	itemCount: number;
-	responses: Record<string, Record<string, unknown>>;
-}
+export type QtiResolvedCatalogSource = import('@pie-qti/section-player').QtiResolvedCatalogSource;
 
-export interface QtiSectionComposition {
-	section: QtiSectionModel;
-	activeItem: QtiSectionItemRef;
-	activeItemIndex: number;
-	sharedContext: QtiSectionSharedContext;
-	layout: 'split-pane' | 'vertical';
-	canPrevious: boolean;
-	canNext: boolean;
-	snapshot: QtiSectionSnapshot;
-	diagnostics: QtiSectionDiagnostic[];
-	security?: QtiPlayerSecurityConfig;
-	host?: QtiSectionRuntimeHost;
-}
+export type QtiSharedContext = import('@pie-qti/section-player').QtiSharedContext;
 
-export interface QtiSectionResponseDeltaDetail {
-	sectionIdentifier: string;
-	itemIdentifier: string;
-	responseIdentifier: string;
-	value: unknown;
-}
+export type QtiSectionModel = import('@pie-qti/section-player').QtiSectionModel;
 
-export interface QtiSectionPlayerEventMap {
-	'qti-section-response-delta': CustomEvent<QtiSectionResponseDeltaDetail>;
-}
+export type QtiSectionSnapshot = import('@pie-qti/section-player').QtiSectionSnapshot;
+
+export type ResolvedQtiSectionComposition =
+	import('@pie-qti/section-player').ResolvedQtiSectionComposition;
+
+import type {
+	QtiSectionItemPaneReadyDetail,
+	QtiSectionPlayerEventMap,
+} from '../elements/QtiSectionPlayerSplitPaneElement.js';
+
+// The runtime element's declarations are the single source for the rendered
+// item pane and the section player's event map; re-exported here, types only,
+// so the published facade cannot drift from what the element dispatches.
+export type {
+	QtiSectionItemPaneReadyDetail,
+	QtiSectionPlayerEventMap,
+};
 
 export interface QtiSectionPlayerElement extends HTMLElement {
-	composition: QtiSectionComposition | null;
+	composition: ResolvedQtiSectionComposition | null;
 	security?: QtiPlayerSecurityConfig;
-	pci?: QtiPciConfiguration;
+	pci?: QtiPciHostConfiguration;
 	i18n?: QtiI18nProvider;
 	typeset?: (root: HTMLElement) => void | Promise<void>;
+	/** Heading level (1–6) of the passage and item titles. Default 3. Reflects `heading-level`. */
+	headingLevel?: number;
+	/**
+	 * Whether the candidate gets the display settings tool. Default true.
+	 * `display-settings="false"` turns it off; the attribute reflects the property.
+	 */
+	displaySettings: boolean;
+	/**
+	 * Move focus to the active item, first selecting the question tab when the
+	 * panes are stacked. Shells use this for skip links and after navigation;
+	 * resolves whether focus moved.
+	 */
+	focusActiveItem(options?: FocusOptions): Promise<boolean>;
 	addEventListener<K extends keyof QtiSectionPlayerEventMap>(
 		type: K,
 		listener: (this: QtiSectionPlayerElement, event: QtiSectionPlayerEventMap[K]) => unknown,
@@ -931,4 +599,6 @@ export interface ResolveItemsForAssessmentOptions {
 	fetchPolicy?: QtiItemFetchPolicy;
 	fetch?: typeof globalThis.fetch;
 	signal?: AbortSignal;
+	/** Shared bounded resolver, allowing callers to reuse its cache for section/assets. */
+	resourceResolver?: (href: string) => Promise<string>;
 }

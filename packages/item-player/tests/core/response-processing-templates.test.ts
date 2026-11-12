@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { createAssessmentItemDefinition } from '../../src/core/AssessmentItemDefinition.js';
 import { Player } from '../../src/core/Player.js';
+import { UnsupportedResponseProcessingTemplateError } from '../../src/core/responseProcessingTemplates.js';
 
 const OFFICIAL_TEMPLATES = join(
 	import.meta.dir,
@@ -25,10 +27,13 @@ function itemXml({
 	processing,
 	maxScore = 5,
 	point = false,
+	multiple = false,
 }: {
 	processing: string;
 	maxScore?: number;
 	point?: boolean;
+	/** A multi-select RESPONSE whose mapping bounds clamp an empty selection away from 0. */
+	multiple?: boolean;
 }): string {
 	const responseDeclaration = point
 		? `<qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="point">
@@ -36,13 +41,20 @@ function itemXml({
 				<qti-area-map-entry shape="circle" coords="50,50,20" mapped-value="2"/>
 			</qti-area-mapping>
 		</qti-response-declaration>`
-		: `<qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">
-			<qti-correct-response><qti-value>A</qti-value></qti-correct-response>
-			<qti-mapping default-value="0">
-				<qti-map-entry map-key="A" mapped-value="2"/>
-				<qti-map-entry map-key="B" mapped-value="1"/>
-			</qti-mapping>
-		</qti-response-declaration>`;
+		: multiple
+			? `<qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="identifier">
+				<qti-mapping default-value="-2" lower-bound="1" upper-bound="3">
+					<qti-map-entry map-key="A" mapped-value="2"/>
+					<qti-map-entry map-key="B" mapped-value="1"/>
+				</qti-mapping>
+			</qti-response-declaration>`
+			: `<qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">
+				<qti-correct-response><qti-value>A</qti-value></qti-correct-response>
+				<qti-mapping default-value="0">
+					<qti-map-entry map-key="A" mapped-value="2"/>
+					<qti-map-entry map-key="B" mapped-value="1"/>
+				</qti-mapping>
+			</qti-response-declaration>`;
 
 	return `<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="template-test">
 		${responseDeclaration}
@@ -66,7 +78,7 @@ function itemXml({
 function process(
 	processing: string,
 	responses: Record<string, unknown>,
-	options: { maxScore?: number; point?: boolean } = {},
+	options: { maxScore?: number; point?: boolean; multiple?: boolean } = {},
 ) {
 	const player = new Player({ itemXml: itemXml({ processing, ...options }) });
 	player.setResponses(responses);
@@ -76,7 +88,7 @@ function process(
 function expectFixedTemplateToMatchOfficial(
 	name: string,
 	responses: Record<string, unknown>,
-	options: { maxScore?: number; point?: boolean } = {},
+	options: { maxScore?: number; point?: boolean; multiple?: boolean } = {},
 ) {
 	const actual = process(fixedTemplate(name), responses, options);
 	const oracle = process(officialTemplate(name), responses, options);
@@ -122,6 +134,33 @@ describe('fixed response-processing templates', () => {
 		expect(empty.SCORE).toBe(0);
 	});
 
+	test('map_response scores a cleared multi-select 0 like the official template, not the bounded empty mapping', () => {
+		// The official template guards with isNull, and an empty container is NULL (QTI ASI §5), so
+		// a cleared selection scores 0. Mapped, the empty container sums to 0 and lower-bound="1"
+		// would clamp it to 1: the guard, not the mapping, decides a cleared response.
+		const cleared = expectFixedTemplateToMatchOfficial('map_response', { RESPONSE: [], OTHER: 'X' }, { multiple: true });
+		expect(cleared.SCORE).toBe(0);
+		const mappedOnly = `<qti-response-processing>
+			<qti-set-outcome-value identifier="SCORE"><qti-map-response identifier="RESPONSE"/></qti-set-outcome-value>
+		</qti-response-processing>`;
+		expect(process(mappedOnly, { RESPONSE: [], OTHER: 'X' }, { multiple: true }).SCORE).toBe(1);
+
+		// A selection is still mapped, within the bounds.
+		const selected = expectFixedTemplateToMatchOfficial('map_response', { RESPONSE: ['A', 'B'], OTHER: 'X' }, { multiple: true });
+		expect(selected.SCORE).toBe(3);
+		const unmapped = expectFixedTemplateToMatchOfficial('map_response', { RESPONSE: ['Z'], OTHER: 'X' }, { multiple: true });
+		expect(unmapped.SCORE).toBe(1);
+	});
+
+	test('CC2_map_response scores a cleared multi-select 0 like the official template', () => {
+		const cleared = expectFixedTemplateToMatchOfficial(
+			'CC2_map_response',
+			{ RESPONSE: [], OTHER: 'X' },
+			{ multiple: true, maxScore: 3 },
+		);
+		expect(cleared).toMatchObject({ SCORE: 0, FEEDBACK: 'incorrect' });
+	});
+
 	test('map_response_point maps only the RESPONSE point and handles null as zero', () => {
 		const mapped = expectFixedTemplateToMatchOfficial(
 			'map_response_point',
@@ -152,5 +191,52 @@ describe('fixed response-processing templates', () => {
 
 		expect(correct).toMatchObject({ SCORE: 2, FEEDBACK: 'correct' });
 		expect(incorrect).toMatchObject({ SCORE: 1, FEEDBACK: 'incorrect' });
+	});
+});
+
+describe('unsupported response-processing templates', () => {
+	test('an unknown template URI fails compilation with a typed error', () => {
+		const templateUri = 'https://example.org/rptemplates/vendor_partial_credit.xml';
+		let caught: unknown;
+		try {
+			createAssessmentItemDefinition({
+				itemXml: itemXml({ processing: `<qti-response-processing template="${templateUri}"/>` }),
+			});
+		} catch (error) {
+			caught = error;
+		}
+		expect(caught).toBeInstanceOf(UnsupportedResponseProcessingTemplateError);
+		expect(caught).toMatchObject({
+			code: 'unsupported-response-processing-template',
+			templateUri,
+			itemIdentifier: 'template-test',
+		});
+	});
+
+	test('a direct Player construction rejects it too, instead of scoring defaults', () => {
+		expect(
+			() => new Player({ itemXml: itemXml({ processing: fixedTemplate('no_such_template') }) }),
+		).toThrow(UnsupportedResponseProcessingTemplateError);
+	});
+
+	test('a template URI with no file name is unsupported', () => {
+		expect(
+			() => new Player({ itemXml: itemXml({ processing: '<qti-response-processing template="https://example.org/"/>' }) }),
+		).toThrow(UnsupportedResponseProcessingTemplateError);
+	});
+
+	test('no_response_processing scores nothing, and completes the item', () => {
+		const outcomes = process(fixedTemplate('no_response_processing'), { RESPONSE: 'A' });
+		expect(outcomes.SCORE).toBe(0);
+		// FEEDBACK has no default and the empty template never assigns it: NULL.
+		expect(outcomes.FEEDBACK).toBeNull();
+		expect(outcomes.MAXSCORE).toBe(5);
+	});
+
+	test('inline rules take precedence over an unknown template reference', () => {
+		const processing = `<qti-response-processing template="https://example.org/rptemplates/unknown">
+			<qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">3</qti-base-value></qti-set-outcome-value>
+		</qti-response-processing>`;
+		expect(process(processing, { RESPONSE: 'B' }).SCORE).toBe(3);
 	});
 });

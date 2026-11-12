@@ -1,6 +1,6 @@
 {
 	"name": "@pie-qti/to-pie",
-	"version": "0.2.1",
+	"version": "1.0.0-beta.5",
 	"description": "QTI to PIE transformation plugin",
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
@@ -40,7 +40,7 @@
 		"fast-xml-parser": "^5.11.2",
 		"image-size": "^2.0.4",
 		"node-html-parser": "^9.0.5",
-		"uuid": "^14.0.1",
+		"uuid": "^14.0.3",
 		"xmllint-wasm": "^5.3.0"
 	},
 	"devDependencies": {

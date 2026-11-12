@@ -1,0 +1,12 @@
+---
+'@pie-qti/default-components': patch
+'@pie-qti/item-player': patch
+---
+
+Match/associate/gap-match fixes: instance-unique description ids and the shared matchGroup rule.
+
+- **Instance-unique description ids**: every interaction's authored description now lives under its own id. `interactionAria()` and `<InteractionDescription />` derive the id from the interaction object (`interactionDescriptionId()`), so in a composite item each interaction's `aria-describedby` resolves to its own description instead of the first interaction's, including several interactions in one DOM tree and two renderings of the same item. Custom components spread `interactionAria(interaction)` and give their description element `interactionDescriptionId(interaction)`.
+- **`matchGroup` in the UI is the rule response validation applies**: the delivered match, associate, gap-match, graphic-gap-match and graphic-associate renderers now decide every pairing with `isMatchGroupCompatible` (newly exported from `@pie-qti/item-player`) instead of a label-only reading, so the UI no longer blocks pairs the specification allows (a `matchGroup` names the identifiers a choice may be matched with — QTI 2.2 Table 5.98.5 and friends) and never offers a pair validation rejects. Gaps and hotspots are constrained too: gap-match delivers each gap's `matchGroup` as `gapMatchGroups` and graphic-gap-match delivers each hotspot's; a held or dragged label marks and refuses the targets that don't accept it (`aria-disabled`, drop refused, reason announced). Placing one label no longer makes unrelated labels unavailable.
+- **Associate pair removal is announced**: a polite live region announces "Removed association between X and Y." with the readable choice names (image alt text included), localized in all 8 locales; the existing focus-after-removal behavior is unchanged, and removing the same pair again re-announces.
+- **Gap-match `gaps` type fixed**: `GapMatchInteractionData.gaps` is now the `string[]` of gap identifiers the extractor actually delivers (it was typed `{identifier, index}[]`), with a compile-time check in the extractor proving the delivered data satisfies the contract; hosts passing the previously typed shape must pass identifier strings.
+- **PRDs reconciled with the implementation**: position-object known gaps (keyboard placement K-04, spec stage hierarchy G-17, `minChoices` at validation, touch drag, i18n) and the interaction PRDs' `matchGroup`/`gapImg` sections.

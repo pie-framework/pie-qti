@@ -52,32 +52,6 @@ export interface WriteOptions {
 }
 
 /**
- * Stream options
- */
-export interface StreamOptions {
-	/** Start byte offset for reading */
-	start?: number;
-	/** End byte offset for reading */
-	end?: number;
-	/** Encoding for text streams */
-	encoding?: BufferEncoding;
-	/** High water mark for stream buffer */
-	highWaterMark?: number;
-}
-
-/**
- * Transaction interface for atomic operations
- */
-export interface Transaction {
-	/** Commit the transaction */
-	commit(): Promise<void>;
-	/** Rollback the transaction */
-	rollback(): Promise<void>;
-	/** Execute an operation within the transaction */
-	execute<T>(operation: () => Promise<T>): Promise<T>;
-}
-
-/**
  * Core storage backend interface
  * Implementations provide different storage mechanisms (filesystem, S3, database)
  */
@@ -106,10 +80,10 @@ export interface StorageBackend {
 
 	// Streaming operations (for large content)
 	/** Create a readable stream for a resource */
-	createReadStream(uri: string, options?: StreamOptions): Promise<Readable>;
+	createReadStream(uri: string): Promise<Readable>;
 
 	/** Create a writable stream for a resource */
-	createWriteStream(uri: string, options?: StreamOptions): Promise<Writable>;
+	createWriteStream(uri: string): Promise<Writable>;
 
 	// Metadata operations
 	/** Get full metadata for a resource */
@@ -136,10 +110,6 @@ export interface StorageBackend {
 		writes: Array<{ uri: string; content: string | Buffer; options?: WriteOptions }>
 	): Promise<void>;
 
-	// Transactions (optional, for databases)
-	/** Begin a transaction for atomic operations */
-	beginTransaction?(): Promise<Transaction>;
-
 	// Directory operations (optional, for filesystem-like backends)
 	/** List all files in a directory (not recursive) */
 	listFiles?(path: string): Promise<string[]>;
@@ -149,81 +119,4 @@ export interface StorageBackend {
 
 	/** Get total size of all files in a directory recursively */
 	getDirectorySize?(path: string): Promise<number>;
-}
-
-/**
- * Session-aware storage wrapper
- * Provides convenience methods for working with session-based storage
- */
-export interface SessionStorage {
-	/** Get the root path for a session */
-	getSessionPath(sessionId: string): string;
-
-	/** Get the uploads path for a session */
-	getUploadsPath(sessionId: string): string;
-
-	/** Get the extracted files path for a session */
-	getExtractedPath(sessionId: string): string;
-
-	/** Get the outputs path for a session */
-	getOutputsPath(sessionId: string): string;
-
-	/** Read session metadata */
-	readSessionMetadata(sessionId: string): Promise<Session | null>;
-
-	/** Write session metadata */
-	writeSessionMetadata(sessionId: string, session: Session): Promise<void>;
-
-	/** Delete an entire session and all its files */
-	deleteSession(sessionId: string): Promise<void>;
-
-	/** List all sessions */
-	listSessions(): Promise<Session[]>;
-
-	/** Get total size of a session in bytes */
-	getSessionSize(sessionId: string): Promise<number>;
-}
-
-/**
- * Session metadata
- */
-export interface Session {
-	id: string;
-	createdAt: string; // ISO 8601 timestamp
-	lastAccessedAt?: string; // ISO 8601 timestamp
-	status: string; // Extensible session status
-	extractedFiles?: string[];
-	error?: string;
-}
-
-/**
- * Result of ZIP extraction
- */
-export interface ExtractionResult {
-	/** Whether extraction was successful */
-	success: boolean;
-	/** List of extracted file paths (relative to extraction directory) */
-	files: string[];
-	/** Total number of files extracted */
-	totalFiles: number;
-	/** Total size of extracted files in bytes */
-	totalSize: number;
-}
-
-/**
- * ZIP extractor interface
- * Handles extraction of ZIP archives to storage backend
- */
-export interface ZipExtractor {
-	/**
-	 * Extract a ZIP archive to a target directory
-	 * @param zipPath Path to the ZIP file
-	 * @param targetPath Target directory for extraction
-	 * @param storage Storage backend to use
-	 */
-	extract(
-		zipPath: string,
-		targetPath: string,
-		storage: StorageBackend,
-	): Promise<ExtractionResult>;
 }

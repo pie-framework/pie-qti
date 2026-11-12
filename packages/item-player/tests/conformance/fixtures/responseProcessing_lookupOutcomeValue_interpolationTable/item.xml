@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+	xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+	identifier="lookupOutcomeValue_interpolationTable"
+	title="lookupOutcomeValue interpolationTable"
+	adaptive="false"
+	timeDependent="false">
+	<responseDeclaration identifier="R" cardinality="single" baseType="float" />
+
+	<!-- The interpolationTable lives on the outcome declaration (QTI OutcomeDeclaration.Type);
+	     lookupOutcomeValue reads it, not an expression. -->
+	<outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+		<defaultValue>
+			<value>0</value>
+		</defaultValue>
+		<interpolationTable defaultValue="0">
+			<interpolationTableEntry sourceValue="10" targetValue="100" />
+			<interpolationTableEntry sourceValue="5" targetValue="50" includeBoundary="false" />
+			<interpolationTableEntry sourceValue="0" targetValue="10" />
+		</interpolationTable>
+	</outcomeDeclaration>
+
+	<itemBody>
+		<p>Interpolation table test</p>
+	</itemBody>
+
+	<responseProcessing>
+		<lookupOutcomeValue identifier="SCORE">
+			<variable identifier="R" />
+		</lookupOutcomeValue>
+	</responseProcessing>
+</assessmentItem>

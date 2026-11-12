@@ -1,3 +1,6 @@
+import type { PnpProfile } from '@pie-qti/item-player';
+import { warnOnce } from '@pie-qti/qti-common';
+
 export const defaultSectionTtsProviderConfig = {
 	backend: 'server',
 	serverProvider: 'polly',
@@ -57,51 +60,53 @@ export function pollyVoiceForLanguage(language: string | undefined): string | un
 	return POLLY_VOICES[tag] ?? POLLY_VOICES[tag.split('-')[0] as string];
 }
 
-function asRecord(value: unknown): Record<string, unknown> {
-	return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-}
-
 /**
- * The pre-1.0 toolkit shape mapped onto the 1.0 one, which rejects a string `provider` and
- * reads no `settings` or `validateEndpoint`: a string `provider` names the backend or the
- * server provider, and `settings` move to the top level.
+ * The assessment a section tool bar binds to its toolkit: the host's assessment
+ * identity, and the candidate's PNP tool supports as its personal needs profile.
+ * With PNP enforcement on, the toolkit reads the profile to protect granted tools
+ * (they skip its content-relevance check, so a granted ruler shows on an item
+ * without math markup) and to withdraw prohibited ones.
  */
-function liftLegacyProviderKeys(provider: Record<string, unknown>): Record<string, unknown> {
-	const { provider: legacyProvider, settings, validateEndpoint, ...rest } = provider;
-	const lifted: Record<string, unknown> = { ...asRecord(settings), ...rest };
-	if (typeof legacyProvider === 'string') {
-		if (legacyProvider === 'browser') lifted.backend ??= 'browser';
-		else {
-			lifted.backend ??= 'server';
-			lifted.serverProvider ??= legacyProvider;
-		}
-	} else if (legacyProvider !== undefined) {
-		lifted.provider = legacyProvider;
+export function toolkitAssessmentOf(
+	assessmentId: string,
+	pnp: PnpProfile | undefined,
+): { id: string; personalNeedsProfile?: Record<string, unknown> } {
+	const tools = pnp?.tools;
+	const supports = tools?.supports ?? [];
+	const prohibitedSupports = tools?.prohibitedSupports ?? [];
+	const activateAtInit = tools?.activateAtInit ?? [];
+	if (supports.length === 0 && prohibitedSupports.length === 0 && activateAtInit.length === 0) {
+		return { id: assessmentId };
 	}
-	if (validateEndpoint === false) lifted.endpointValidationMode ??= 'none';
-	return lifted;
+	return {
+		id: assessmentId,
+		personalNeedsProfile: {
+			supports: [...supports],
+			...(prohibitedSupports.length > 0 ? { prohibitedSupports: [...prohibitedSupports] } : {}),
+			...(activateAtInit.length > 0 ? { activateAtInit: [...activateAtInit] } : {}),
+			...(tools?.toolParameters ? { toolParameters: tools.toolParameters } : {}),
+		},
+	};
 }
 
-import { warnOnce } from '@pie-qti/qti-common';
-
 /**
- * The TTS provider config for one scope. The content language sets the synthesis language and,
- * for Polly, the voice; a voice the host configures wins.
+ * The TTS provider config for one scope: the host's record, in the toolkit's own shape, over the
+ * defaults. The content language sets the synthesis language and, for Polly, the voice; a voice
+ * the host configures wins.
  */
 export function resolveSectionTtsProviderConfig(
 	provider: Record<string, unknown> = {},
 	language?: string,
 ): Record<string, unknown> {
-	const hostConfig = liftLegacyProviderKeys(provider);
-	const resolved: Record<string, unknown> = { ...defaultSectionTtsProviderConfig, ...hostConfig };
+	const resolved: Record<string, unknown> = { ...defaultSectionTtsProviderConfig, ...provider };
 	const polly = resolved.backend === 'server' && resolved.serverProvider === 'polly';
-	if (polly && resolved.endpointMode === 'synthesizePath' && resolved.apiEndpoint === defaultSectionTtsProviderConfig.apiEndpoint && !('apiEndpoint' in hostConfig)) {
+	if (polly && resolved.endpointMode === 'synthesizePath' && resolved.apiEndpoint === defaultSectionTtsProviderConfig.apiEndpoint && !('apiEndpoint' in provider)) {
 		warnOnce(
 			'section-player:tts-default-endpoint',
 			`TTS tool uses the default host-served endpoint ${String(defaultSectionTtsProviderConfig.apiEndpoint)}: the host must serve that route (Polly-backed) or override sectionTools[].provider.apiEndpoint.`,
 		);
 	}
-	const voice = typeof hostConfig.defaultVoice === 'string' ? undefined : polly ? pollyVoiceForLanguage(language) : undefined;
+	const voice = typeof provider.defaultVoice === 'string' ? undefined : polly ? pollyVoiceForLanguage(language) : undefined;
 
 	return {
 		...resolved,

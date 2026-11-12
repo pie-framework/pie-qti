@@ -269,16 +269,23 @@ describe('late-submission combinations', () => {
 	});
 });
 
-describe('TimeManager.formatTime digits', () => {
-	test('pads with Western digits by default', () => {
-		expect(TimeManager.formatTime(65)).toBe('1:05');
-		expect(TimeManager.formatTime(3725)).toBe('1:02:05');
-	});
-
-	test('takes the locale digits from a number formatter', () => {
-		const format = (value: number, options?: Intl.NumberFormatOptions) =>
-			new Intl.NumberFormat('ar-EG-u-nu-arab', options).format(value);
-		expect(TimeManager.formatTime(65, format)).toBe('١:٠٥');
-		expect(TimeManager.formatTime(3725, format)).toBe('١:٠٢:٠٥');
+describe('TimeManager warning thresholds', () => {
+	test('fires exactly the thresholds it is given, each once', async () => {
+		let now = 1_000;
+		const warnings: number[] = [];
+		const manager = new TimeManager({
+			assessmentTimeLimits: { maxTime: 100 },
+			warningThresholds: [30],
+			now: () => now,
+			onWarning: (remainingSeconds) => warnings.push(remainingSeconds),
+		});
+		// 45 s remain: past no threshold the manager was given, so nothing fires.
+		now += 55_000;
+		await new Promise((resolve) => setTimeout(resolve, 1_100));
+		expect(warnings).toEqual([]);
+		now += 20_000;
+		await new Promise((resolve) => setTimeout(resolve, 1_100));
+		expect(warnings).toEqual([25]);
+		manager.destroy();
 	});
 });

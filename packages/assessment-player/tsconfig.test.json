@@ -1,0 +1,20 @@
+{
+	// Type-checks src and the bun:test suites without emitting; tsconfig.json stays the build config.
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"rootDir": ".",
+		"noEmit": true,
+		// Tests run on Bun, which provides ES2022. src is still checked against the ES2020
+		// build lib by the `tsc --noEmit` that runs first in `typecheck`.
+		"lib": ["ES2022", "DOM"]
+	},
+	"include": ["src/**/*.ts", "tests/**/*.ts"],
+	"exclude": [
+		"node_modules",
+		"dist",
+		"**/*.svelte",
+		"src/components/index.ts",
+		// Vitest component tests that mount .svelte files; svelte-check and Vitest cover them.
+		"tests/component/**"
+	]
+}

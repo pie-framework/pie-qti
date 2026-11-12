@@ -3,7 +3,10 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardChoiceExtractor } from '../../../src/interactions/choice/extractor.js';
+import { Player } from '../../../src/core/Player.js';
+import { type ChoiceData, standardChoiceExtractor } from '../../../src/interactions/choice/extractor.js';
+import type { ChoiceInteractionData } from '../../../src/interactions/shared/types.js';
+import type { ItemSessionEngineConfig } from '../../../src/types/index.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardChoiceExtractor', () => {
@@ -127,6 +130,58 @@ describe('standardChoiceExtractor', () => {
 		expect(result.choices[1].classes).toBeUndefined();
 	});
 
+	describe('maxChoices default for an absent attribute (per QTI version)', () => {
+		const xml = `
+			<choiceInteraction responseIdentifier="RESPONSE">
+				<simpleChoice identifier="A">A</simpleChoice>
+				<simpleChoice identifier="B">B</simpleChoice>
+				<simpleChoice identifier="C">C</simpleChoice>
+			</choiceInteraction>
+		`;
+		function extractWith(qtiVersion: string | undefined, cardinality?: 'single' | 'multiple') {
+			const element = parseQTI(xml);
+			const declarations = new Map(
+				cardinality ? [['RESPONSE', { identifier: 'RESPONSE', cardinality, baseType: 'identifier' }]] : [],
+			);
+			const config = (qtiVersion ? { qtiVersion } : {}) as ItemSessionEngineConfig;
+			return standardChoiceExtractor.extract(
+				element,
+				createTestContext(element, 'RESPONSE', element, declarations as any, config),
+			);
+		}
+
+		test('QTI 2.2 and 3.0: absent maxChoices is 1 (Default = "1")', () => {
+			expect(extractWith('2.2', 'multiple').maxChoices).toBe(1);
+			expect(extractWith('3.0', 'multiple').maxChoices).toBe(1);
+			expect(extractWith(undefined, 'multiple').maxChoices).toBe(1);
+		});
+
+		test('QTI 2.1: absent maxChoices is 0, no restriction (maxChoices [0..1] = 0)', () => {
+			expect(extractWith('2.1', 'multiple').maxChoices).toBe(0);
+		});
+
+		test('QTI 2.1: a single-cardinality response holds one choice, so absent maxChoices is 1', () => {
+			expect(extractWith('2.1', 'single').maxChoices).toBe(1);
+		});
+
+		test('an authored maxChoices is honoured in QTI 2.1', () => {
+			const element = parseQTI(xml.replace('responseIdentifier="RESPONSE"', 'responseIdentifier="RESPONSE" maxChoices="2"'));
+			const context = createTestContext(element, 'RESPONSE', element, new Map(), {
+				qtiVersion: '2.1',
+			} as ItemSessionEngineConfig);
+			expect(standardChoiceExtractor.extract(element, context).maxChoices).toBe(2);
+		});
+
+		test('a QTI 2.1 item delivered through the Player reads the 2.1 default', () => {
+			const itemXml = `<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" identifier="choice21" title="t" adaptive="false" timeDependent="false">
+				<responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="identifier"/>
+				<itemBody>${xml}</itemBody>
+			</assessmentItem>`;
+			const [interaction] = new Player({ itemXml }).getInteractionData() as readonly ChoiceInteractionData[];
+			expect(interaction?.maxChoices).toBe(0);
+		});
+	});
+
 	describe('canHandle predicate', () => {
 		test('handles choice interaction with simpleChoice children', () => {
 			const xml = `
@@ -155,13 +210,14 @@ describe('standardChoiceExtractor', () => {
 
 	describe('validation', () => {
 		test('validates correct choice data', () => {
-			const data = {
+			const data: ChoiceData = {
 				choices: [
 					{ identifier: 'A', text: 'Choice A' },
 					{ identifier: 'B', text: 'Choice B' },
 				],
 				shuffle: false,
 				maxChoices: 1,
+				minChoices: 0,
 				prompt: null,
 			};
 
@@ -172,10 +228,11 @@ describe('standardChoiceExtractor', () => {
 		});
 
 		test('reports error for empty choices', () => {
-			const data = {
+			const data: ChoiceData = {
 				choices: [],
 				shuffle: false,
 				maxChoices: 1,
+				minChoices: 0,
 				prompt: null,
 			};
 
@@ -186,13 +243,14 @@ describe('standardChoiceExtractor', () => {
 		});
 
 		test('reports error for missing choice identifiers', () => {
-			const data = {
+			const data: ChoiceData = {
 				choices: [
 					{ identifier: '', text: 'Choice A' },
 					{ identifier: 'B', text: 'Choice B' },
 				],
 				shuffle: false,
 				maxChoices: 1,
+				minChoices: 0,
 				prompt: null,
 			};
 
@@ -203,13 +261,14 @@ describe('standardChoiceExtractor', () => {
 		});
 
 		test('reports error for duplicate identifiers', () => {
-			const data = {
+			const data: ChoiceData = {
 				choices: [
 					{ identifier: 'A', text: 'Choice A' },
 					{ identifier: 'A', text: 'Choice B' },
 				],
 				shuffle: false,
 				maxChoices: 1,
+				minChoices: 0,
 				prompt: null,
 			};
 
@@ -220,13 +279,14 @@ describe('standardChoiceExtractor', () => {
 		});
 
 		test('reports warning when maxChoices exceeds choice count', () => {
-			const data = {
+			const data: ChoiceData = {
 				choices: [
 					{ identifier: 'A', text: 'Choice A' },
 					{ identifier: 'B', text: 'Choice B' },
 				],
 				shuffle: false,
 				maxChoices: 5,
+				minChoices: 0,
 				prompt: null,
 			};
 

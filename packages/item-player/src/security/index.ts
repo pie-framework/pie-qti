@@ -11,6 +11,7 @@ export {
 	type NormalizedParsingLimits,
 } from '../core/parsingLimits.js';
 export { toTrustedHtml, htmlToString };
+export { escapeHtmlAttribute } from './escapeHtml.js';
 export {
 	normalizeCssPixelLength,
 	normalizePixelDimension,

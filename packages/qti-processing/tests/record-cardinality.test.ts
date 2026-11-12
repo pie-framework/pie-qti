@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { buildExpression } from '../src/ast/build.js';
 import { evalExpr } from '../src/eval/evaluator.js';
-import { OperatorRegistry } from '../src/eval/operators.js';
 import { DeclarationContext } from '../src/runtime/context.js';
 import type { DeclarationMap } from '../src/runtime/types.js';
 import { qtiNull, qtiValue } from '../src/runtime/value.js';
@@ -14,39 +13,46 @@ function record(fields: Record<string, ReturnType<typeof qtiValue>>) {
 function env(declarations: DeclarationMap = {}) {
 	return {
 		ctx: new DeclarationContext(declarations),
-		ops: new OperatorRegistry(),
 		rng: () => 0.5,
 	};
 }
 
 describe('record cardinality evaluation', () => {
-	test('record expressions have record cardinality and fieldValue preserves the field type', () => {
+	test('fieldValue reads a record variable field and keeps the field type', () => {
+		// A record value reaches expressions through a record-typed variable (the host or the
+		// delivery data holds it) — no QTI version defines an authored record constructor.
+		const declarations: DeclarationMap = {
+			REC: {
+				identifier: 'REC',
+				cardinality: 'record',
+				value: record({
+					label: qtiValue('string', 'single', 'A'),
+					points: qtiValue('float', 'single', 2.5),
+				}),
+			},
+		};
 		const expression = buildExpression(
-			parseXml(`
-				<fieldValue fieldIdentifier="points">
-					<record>
-						<fieldValue fieldIdentifier="label"><baseValue baseType="string">A</baseValue></fieldValue>
-						<fieldValue fieldIdentifier="points"><baseValue baseType="float">2.5</baseValue></fieldValue>
-					</record>
-				</fieldValue>
-			`).documentElement,
+			parseXml('<fieldValue fieldIdentifier="points"><variable identifier="REC"/></fieldValue>').documentElement,
 			{ scope: 'item' },
 		);
 
-		expect(evalExpr(env(), expression)).toEqual(qtiValue('float', 'single', 2.5));
+		expect(evalExpr(env(declarations), expression)).toEqual(qtiValue('float', 'single', 2.5));
 	});
 
 	test('fieldValue returns NULL for a missing field', () => {
+		const declarations: DeclarationMap = {
+			REC: {
+				identifier: 'REC',
+				cardinality: 'record',
+				value: record({ present: qtiValue('string', 'single', 'A') }),
+			},
+		};
 		const expression = buildExpression(
-			parseXml(`
-				<fieldValue fieldIdentifier="missing">
-					<record><fieldValue fieldIdentifier="present"><baseValue baseType="string">A</baseValue></fieldValue></record>
-				</fieldValue>
-			`).documentElement,
+			parseXml('<fieldValue fieldIdentifier="missing"><variable identifier="REC"/></fieldValue>').documentElement,
 			{ scope: 'item' },
 		);
 
-		expect(evalExpr(env(), expression)).toEqual(qtiNull());
+		expect(evalExpr(env(declarations), expression)).toEqual(qtiNull());
 	});
 
 	test('match compares record fields by identifier rather than XML/object order', () => {

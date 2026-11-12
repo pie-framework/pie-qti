@@ -22,6 +22,7 @@ export {
 export { isShownByIdentifier, matchesIdentifier } from './feedback/visibility.js';
 export {
 	cleanFeedbackText,
+	feedbackInlineAttr,
 	processFeedbackInline,
 	DEFAULT_FEEDBACK_OUTCOME_ID,
 	DEFAULT_FEEDBACK_TRANSFORMS,
@@ -30,8 +31,20 @@ export {
 } from './feedback/feedback-text.js';
 
 // Version detection
-export { detectQtiVersion } from './version-detection/detectQtiVersion.js';
-export type { QtiVersion } from './version-detection/detectQtiVersion.js';
+export { detectQtiVersion, detectQtiVersionDetailed } from './version-detection/detectQtiVersion.js';
+export type {
+	QtiVersion,
+	QtiVersionDetection,
+	QtiVersionDetectionBasis,
+	QtiVersionDetectionConfidence,
+} from './version-detection/detectQtiVersion.js';
+export {
+	isQtiVocabularyElement,
+	QTI2_ELEMENTS,
+	QTI2_XHTML_ELEMENTS,
+	QTI3_ELEMENTS,
+	type QtiVocabularyVersion,
+} from './version-detection/vocabulary.js';
 
 // XML attribute utilities
 export {

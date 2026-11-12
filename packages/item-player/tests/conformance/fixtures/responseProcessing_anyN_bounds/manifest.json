@@ -1,0 +1,19 @@
+{
+	"id": "responseProcessing_anyN_bounds",
+	"title": "responseProcessing: anyN min/max bounds",
+	"description": "Covers anyN(min/max) boolean aggregation in responseProcessing branching, including the at-most-N bound spelled anyN(min=\"0\", max=\"N\") — QTI defines no allN operator.",
+	"spec": "QTI 2.2.2",
+	"provenance": {
+		"source": "authored",
+		"license": "CC0-1.0"
+	},
+	"covers": [
+		"anyN",
+		"baseValue",
+		"expr.anyN",
+		"expr.baseValue",
+		"expr.variable",
+		"stmt.responseCondition",
+		"stmt.setOutcomeValue"
+	]
+}

@@ -7,6 +7,7 @@
 import { sanitizeHtml } from '../../core/sanitizer.js';
 import type { QTIElement } from '../shared/types.js';
 import type { ElementExtractor } from '../../extraction/types.js';
+import { validateUniqueIdentifiers } from '../../extraction/utils.js';
 
 /**
  * Hottext data extracted from hottextInteraction elements
@@ -116,16 +117,7 @@ export const standardHottextExtractor: ElementExtractor<HottextData> = {
 
 		// Validate hottext identifiers
 		if (data.hottextChoices) {
-			const identifiers = new Set<string>();
-			for (const hottext of data.hottextChoices) {
-				if (!hottext.identifier) {
-					errors.push('All hottext elements must have an identifier');
-				} else if (identifiers.has(hottext.identifier)) {
-					errors.push(`Duplicate hottext identifier: ${hottext.identifier}`);
-				} else {
-					identifiers.add(hottext.identifier);
-				}
-			}
+			validateUniqueIdentifiers(data.hottextChoices, errors, { plural: 'hottext elements', noun: 'hottext' });
 		}
 
 		// Validate maxChoices

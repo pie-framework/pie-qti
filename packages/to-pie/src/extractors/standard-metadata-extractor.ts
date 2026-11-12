@@ -5,7 +5,7 @@
  * This serves as the default metadata extractor and can be overridden by vendor-specific extractors.
  */
 
-import type { MetadataExtractor, VendorInfo } from '../types/vendor-extensions.js';
+import type { MetadataExtractor, VendorInfo } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import {
 	extractTitleFromQtiXml,

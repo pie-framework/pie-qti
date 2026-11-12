@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
-import { buildScopedStylesheetCss, scopeCssRules } from '../../src/components/utils/stylesheetRender.js';
+import { buildScopedStylesheetCss, scopeCssRules } from '../../src/presentation/stylesheetRender.js';
 
 describe('QTI stylesheet runtime rendering helpers', () => {
 	test('scopes simple stylesheet rules to the item player root', () => {

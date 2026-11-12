@@ -1,13 +1,11 @@
 {
   "source": "custom-authored",
   "license": "CC0-1.0",
-  "notes": "Minimal fixture proving the <default> expression returns a declaration's defaultValue, independent of the current value.",
+  "notes": "Minimal fixture proving the <default> expression returns a declaration's defaultValue, independent of the current value (the mutated outcome, the candidate's response).",
   "covers": [
     "default",
     "expr.default",
     "setOutcomeValue",
-    "setResponseValue",
-    "stmt.setOutcomeValue",
-    "stmt.setResponseValue"
+    "stmt.setOutcomeValue"
   ]
 }

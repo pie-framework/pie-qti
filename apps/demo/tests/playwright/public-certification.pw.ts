@@ -7,7 +7,7 @@ async function selectAssessmentSample(page: Page, sampleId: string) {
 }
 
 async function openSection(page: Page, sectionTitle: string) {
-	const sectionsButton = page.locator('button.btn:has(svg path[d*="M4 6h16M4 12h16M4 18h16"])').first();
+	const sectionsButton = page.locator('button.section-menu-toggle').first();
 	await expect(sectionsButton).toBeVisible({ timeout: 10000 });
 	await sectionsButton.click();
 	const sectionButton = page.locator(`button.section-item:has-text("${sectionTitle}")`).first();
@@ -18,7 +18,7 @@ async function openSection(page: Page, sectionTitle: string) {
 test.describe('public QTI certification browser coverage', () => {
 	test('renders section rubric and item-level stimulus in the assessment shell', async ({ page }) => {
 		await selectAssessmentSample(page, 'interaction-showcase-1');
-		await expect(page.getByRole('heading', { name: 'SHOWCASE-001' })).toBeVisible({ timeout: 10000 });
+		await expect(page.getByRole('heading', { name: 'Interaction Showcase' })).toBeVisible({ timeout: 10000 });
 
 		await expect(page.getByText('Reading Passage (Standalone Rubric)')).toBeVisible();
 		await openSection(page, 'Inline Stimulus');
@@ -27,7 +27,7 @@ test.describe('public QTI certification browser coverage', () => {
 
 	test('renders advanced interaction affordances in the browser', async ({ page }) => {
 		await selectAssessmentSample(page, 'interaction-showcase-1');
-		await expect(page.getByRole('heading', { name: 'SHOWCASE-001' })).toBeVisible({ timeout: 10000 });
+		await expect(page.getByRole('heading', { name: 'Interaction Showcase' })).toBeVisible({ timeout: 10000 });
 
 		await openSection(page, 'Hotspot');
 		await expect(page.locator('pie-qti-hotspot').first()).toBeVisible({ timeout: 15000 });
@@ -51,7 +51,8 @@ test.describe('public QTI certification browser coverage', () => {
 		await expect(page.locator('svg').first()).toBeVisible({ timeout: 10000 });
 
 		await page.locator('#sample-select').selectOption('math-inline');
-		await expect(page.locator('.katex').first()).toBeVisible({ timeout: 10000 });
+		// Authored (m:-prefixed) MathML renders natively; the KaTeX adapter only typesets LaTeX.
+		await expect(page.locator('math').first()).toBeVisible({ timeout: 10000 });
 	});
 
 	test('renders QTI 2 and QTI 3 choice prompts through the item player', async ({ page }) => {

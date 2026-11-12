@@ -4,13 +4,13 @@
   Status: current
   Type: system
   Packages: @pie-qti/assessment-player
-  Last reviewed: 2026-07-13
+  Last reviewed: 2026-11-09
 -->
 
 **Status:** current
 **Type:** system
 **Packages:** `@pie-qti/assessment-player`
-**Last reviewed:** 2026-07-13
+**Last reviewed:** 2026-11-09
 
 ---
 
@@ -25,11 +25,16 @@ submission behavior at test-part boundaries while keeping a simple item index fo
 save/resume.
 
 - `linear` navigation is one-way: the candidate may remain on the current item or advance to the
-  immediately following item, but may not skip ahead or return to an earlier item.
+  next item the delivery rules deliver (the immediately following item unless a branch rule or a
+  precondition skips it), but may not skip ahead or return to an earlier item.
 - `nonlinear` navigation permits arbitrary movement within the current test part, subject to item
   session controls.
 - Test parts themselves are always entered in document order. A candidate may cross into the next
-  part only through the adjacent next item and may not return to a completed part.
+  part only through the forward step and may not return to a completed part; a part whose
+  precondition fails is skipped, never entered.
+- Branch rules and preconditions decide every forward move: the backend's `nextItemIdentifier` for
+  a move that submits the item, the decision kept from the item's practice check (or counted
+  end-attempt) for a move on that submits nothing, else the same rules evaluated by the player.
 - `individual` submission is applied from the current test part when `next()` is used.
 - `simultaneous` responses are retained until final submission. Mixed-mode test-part finalization is
   not yet complete; see Remaining gaps.
@@ -99,9 +104,10 @@ rejecting hard-limit submissions from assessment elapsed time or submitted timin
 
 | QTI concept | Current status | Implementation notes |
 |---|---|---|
-| `testPart.navigationMode=linear` | Implemented | Current item or immediate next item only; no backward navigation |
+| `testPart.navigationMode=linear` | Implemented | Current item or the next item the delivery rules deliver only; no backward navigation |
 | `testPart.navigationMode=nonlinear` | Implemented | Arbitrary in-bounds navigation within the current test part |
-| Sequential test-part delivery | Implemented | Only the adjacent first item of the next part may be entered; completed parts cannot be revisited |
+| Sequential test-part delivery | Implemented | Only the forward step out of a part (its first item the rules deliver) may be entered; completed parts cannot be revisited |
+| `preCondition` / `branchRule` | Implemented | The backend decides the moves that submit (`nextItemIdentifier`); a practice check or counted end-attempt keeps its decision for the move on (a later counted submission voids it; the decision is persisted with the session state, so a restored session lands identically); a simultaneous part's crossing follows the decision its flush returned for the part's last item; a move without a backend decision applies the same rules in the player (`testStructure.ts`, shared with the backend's `test-navigation.ts`), so a part whose precondition fails is never entered |
 | Per-test-part `submissionMode=individual` | Implemented during `next()` | The current item is submitted before advancing; backend branching may choose the next item |
 | Per-test-part `submissionMode=simultaneous` | Partial | Navigation defers item submission, but flushing is assessment-final rather than test-part-final |
 | `timeLimits.minTime` | Implemented with limitations | Item transition, section/test-part exit, and final assessment submission are guarded; see Remaining gaps |
@@ -109,8 +115,9 @@ rejecting hard-limit submissions from assessment elapsed time or submitted timin
 | `timeLimits.allowLateSubmission` | Partial | Used for expiry callbacks/evidence; the default shell does not itself block or auto-submit |
 | Save/resume of timing | Implemented | Total, item, section, and test-part elapsed milliseconds plus active identifiers and pause state are persisted |
 | PNP extended time | Implemented for `maxTime` | Finite multipliers apply to every active max-time scope; `Infinity` removes those client limits |
-| `itemSessionControl.allowSkipping` | Partial | `next()` blocks an unanswered item when false; direct nonlinear navigation can bypass that path |
-| `itemSessionControl.allowReview` | Partial | Consulted for nonlinear review through `AssessmentPlayer`; the standalone `NavigationManager` has no session-control policy |
+| `itemSessionControl.allowSkipping` | Implemented (individual parts) | Gates submission, not navigation: `next()`, `submitCurrentItem()`, `checkCurrentItem()` and the end of the test never submit a skipped item (every response NULL, empty or equal to its declared default) while false; the end of the test rejects naming the reachable items, and leaving the part rejects naming the part's (a left part cannot be re-entered). A nonlinear jump within the part is navigation and stays allowed; a question no longer reachable is collected as it stands (`unreachable`); time expiry and a proctor's forced submit collect the item as skipped. Not applicable to simultaneous parts (QTI) |
+| `itemSessionControl.validateResponses` | Implemented (individual parts) | An answered item whose responses do not satisfy its interactions is not submitted by `next()`, `submitCurrentItem()`, `checkCurrentItem()` or the end of the test (rejected naming the items), nor left behind when the part is left; not applicable to simultaneous parts (QTI) |
+| `itemSessionControl.allowReview` | Partial | Consulted for nonlinear review through `AssessmentPlayer`, and only once an item's session is over: after its last attempt (an adaptive item: once completed) — while attempts remain the candidate may return to use them. The standalone `NavigationManager` has no session-control policy |
 
 ### Compatibility fields
 
@@ -123,21 +130,42 @@ first test part. New code must treat `SecureTestPart.navigationMode` and
 
 ## Functional requirements
 
-- **FR-1:** In a linear test part, navigation must allow only the current item or the immediately
-  following item. It must reject backward navigation and forward skips.
+- **FR-1:** In a linear test part, navigation must allow only the current item or the next item the
+  delivery rules deliver (the immediately following one unless a branch rule or precondition skips
+  it). It must reject backward navigation and forward skips.
 - **FR-2:** In a nonlinear test part, navigation may target any in-bounds item in that same part,
   subject to the applicable item-session controls and minimum-time guards.
 - **FR-3:** Test parts must be delivered in order. Navigation may cross a part boundary only from the
-  final item of one part to the adjacent first item of the next part, and may not return to an earlier
-  part.
+  final item of one part through the forward step, landing on the first item the delivery rules
+  deliver next: a part whose precondition fails is skipped, never entered (a jump into it is a coded
+  `navigationNotAllowed`). Navigation may not return to an earlier part.
 - **FR-4:** Navigation state must set `canPrevious=false` throughout a linear part and at a test-part
   boundary. In a nonlinear part, Previous is available only when the preceding item is reviewable.
 - **FR-5:** In an individual-submission part, `next()` must submit the current item before changing
-  the index. A backend `nextItemIdentifier` decision takes precedence over the adjacent item.
+  the index. A backend `nextItemIdentifier` decision takes precedence over the adjacent item. A
+  `next()` that submits nothing (the response unchanged since a practice check) follows the decision
+  kept from that check (FR-17).
 - **FR-6:** In a simultaneous-submission part, normal navigation must retain responses without
-  calling `submitResponses()` for each move.
-- **FR-7:** `next()` must prevent leaving an unanswered item when the effective
-  `itemSessionControl.allowSkipping` is false.
+  calling `submitResponses()` for each move. Leaving the part on Next is the crossing: the part's
+  pending responses go out first, and the decision the backend returned for the part's last item
+  (its testPart branchRule) is what delivery follows — through the same part-leave and `EXIT_*`
+  guards as a submitting move. The end of the test's own collection never navigates and stores no
+  decision.
+- **FR-7:** In an individual-submission part, no candidate-initiated submission may send an
+  unanswered item (every response NULL, empty or equal to its declared default) when the effective
+  `itemSessionControl.allowSkipping` is false: `next()` is rejected before it submits, and the end
+  of the test is rejected naming the reachable items. Navigation within a part is not submission:
+  in a nonlinear part the candidate may jump away from an unanswered item, and the gate applies when
+  the item would be submitted. Leaving the part is gated too — a left part cannot be re-entered, so
+  Next, a jump into the next part, or a branch decision leaving it is refused while a question of
+  the part the candidate can still reach owes an answer (`leavePartResponseRequired`). A question
+  that is no longer reachable holds neither the way out of the part nor the end of the test; it is
+  collected as it stands
+  (`submissionReason: 'unreachable'`). Simultaneous parts are not gated (QTI scopes
+  `allowSkipping` and `validateResponses` to individual submission).
+- **FR-7a:** `allowReview=false` applies only once an item's session is over (after its last
+  attempt; an adaptive item once completed). With attempts left, returning to the item stays
+  allowed and it reopens attemptable.
 - **FR-8:** Effective item-session controls must use section values over test-part values when both
   are declared.
 - **FR-9:** `TimeManager` must accumulate assessment, test-part, section, and item elapsed time
@@ -160,6 +188,16 @@ first test part. New code must treat `SecureTestPart.navigationMode` and
 - **FR-16:** `NavigationBar` must use the semantic `disabled` attribute for unavailable Previous and
   Next actions. `SectionMenu` navigation must still pass through `AssessmentPlayer.navigateTo()` so
   mode and minimum-time checks cannot be bypassed by the UI.
+- **FR-17:** Branch rules and preconditions must hold on every forward move. A counted submission
+  that stays on the item (a practice check, a counted end-attempt) keeps the backend's decision —
+  one at a time, replaced by any later counted submission — and the next forward move from the item
+  that submits nothing follows it. A move without a backend decision (a nonlinear jump into the
+  next part, a move on from a simultaneous part, a resumed session, a backend that returns none)
+  applies the reference rules (`testStructure.ts`, shared with the backend's `test-navigation.ts`)
+  in the player against the backend's last test
+  outcomes and the recorded item results. `next()`, `canNext`, the forward-transition info, jump
+  legality and the scope-expiry hop share that forward step; with nothing eligible after the item,
+  `canNext` is false and Submit is the way on.
 
 ---
 
@@ -187,8 +225,9 @@ first test part. New code must treat `SecureTestPart.navigationMode` and
 
 ### Linear mode prohibits backtracking
 
-**Decision:** Linear navigation accepts `targetIndex === currentIndex` and
-`targetIndex === currentIndex + 1` only.
+**Decision:** Linear navigation accepts `targetIndex === currentIndex` and the forward step only:
+`currentIndex + 1`, unless a branch rule or a precondition (the backend's decision for the item,
+else the same rules evaluated by the player) delivers a later item.
 
 **Rationale:** This directly models QTI's one-way linear delivery and prevents a host from restoring
 backtracking merely by calling an imperative API instead of the standard buttons.
@@ -296,6 +335,22 @@ Then: Navigation is rejected with an actionable error
 And: The current item remains displayed
 ```
 
+**AC-6a: A practice check's decision is followed on the move on**
+```
+Given: A linear individual part q1, q2 (preCondition false), q3 with maxAttempts=2
+When: The candidate checks q1 and invokes next() without changing the response
+Then: q3 is displayed and q1 is not submitted again
+```
+
+**AC-6b: A part whose precondition fails is never entered**
+```
+Given: A nonlinear part [q1], a part [q2] whose preCondition is false, and a part [q3]
+When: The host navigates from q1 to the first item of the second part
+Then: Navigation is rejected and q1 remains displayed
+When: The candidate moves forward (Next, or the jump to q3)
+Then: q3 is displayed
+```
+
 ### Scoped timing
 
 **AC-7: Scope clocks accumulate independently**
@@ -391,9 +446,10 @@ And: No warning or expiry callback is emitted
   crossed, and an assessment that mixes individual and simultaneous parts is therefore not fully
   modeled.
 
-- [ ] **Test-part end lifecycle is implicit.** Crossing from one part to the next is an adjacent
-  item transition; there is no explicit part-end confirmation, part-scoped simultaneous processing,
-  or part result state.
+- [ ] **Test-part end lifecycle is partly implicit.** Crossing from one part to the next is an
+  adjacent item transition. The shell confirms it ("Leave this part?", naming the part's questions
+  that still owe an answer, and the core refuses the step while they do), and a simultaneous part
+  commits its responses when it is left; there is no part result state.
 
 - [ ] **Nested ancestor section clocks are not represented.** A flat item retains its direct
   containing section only. A `timeLimits` declaration on an ancestor of a nested section is not an
@@ -413,17 +469,27 @@ And: No warning or expiry callback is emitted
   the shortest active limiting scope, not all active scope clocks and limits. A production backend
   must use server-owned assessment structure and timestamps to validate every parent deadline.
 
-- [ ] **Direct navigation bypasses the `allowSkipping` guard.** `next()` calls
-  `canNavigateAway()`, but an imperative `navigateTo()` or section-menu jump in nonlinear mode does
-  not check whether the current item may be skipped.
+- [x] **Direct navigation and `allowSkipping` (resolved 2026-11-08).** The rule is precise now:
+  `allowSkipping` (and `validateResponses`) gate *submission* in individual parts, never
+  navigation within a part. A nonlinear `navigateTo()` or section-menu jump away from an
+  unanswered item is allowed because it submits nothing; the item cannot be submitted unanswered
+  later either — the end of the test refuses (`finalizeResponseRequired` /
+  `finalizeResponseInvalid`, naming the items) instead of force-submitting it from NULL, and the
+  shell's submit confirmation lists those items with jumps. Leaving the part refuses the same way
+  (round 4), so such an item can never be stranded in a part that cannot be re-entered; one that is
+  unreachable anyway (a session restored from before that gate) is collected as it stands
+  (`unreachable`) and never holds Submit. Only an administrative end (time expiry, a proctor's
+  forced submit) collects them as skipped.
 
 - [ ] **Parent minimums are not checked by `submitCurrentItem()`.** That method checks item
   `minTime`; section, test-part, and assessment minimums are checked on scope exit or final
   `submit()`. Hosts that expose direct item submission must not treat it as part completion.
 
-- [ ] **Timer event history is not persisted.** Elapsed clocks and active identifiers survive
-  restore, but per-scope warning/expiration-emitted sets do not. A restored session can therefore
-  announce a threshold again.
+- [ ] **Warning history is not persisted.** Elapsed clocks and active identifiers survive restore,
+  and expiries are recomputed from the restored clocks (since 2026-11-08: every scope whose clock
+  already ran past its hard maximum locks before any item is entered, and the live timer does not
+  fire it again). The per-scope warning-emitted set is not persisted, so a restored session can
+  announce a warning threshold again.
 
 - [ ] **Top-level mode fields remain redundant.** They are needed for compatibility today, but they
   make it possible for hand-built `SecureAssessment` values to disagree with their test parts. The

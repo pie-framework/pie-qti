@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="responseProcessing_null_conditions" title="NULL operands in response conditions" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse><value>A</value></correctResponse>
+  </responseDeclaration>
+  <responseDeclaration identifier="PICKS" cardinality="multiple" baseType="identifier">
+    <correctResponse><value>A</value><value>B</value></correctResponse>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="FEEDBACK" cardinality="single" baseType="identifier">
+    <defaultValue><value>none</value></defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="PICKS_FEEDBACK" cardinality="single" baseType="identifier">
+    <defaultValue><value>none</value></defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="AND_FALSE_WINS" cardinality="single" baseType="identifier">
+    <defaultValue><value>none</value></defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="OR_TRUE_WINS" cardinality="single" baseType="identifier">
+    <defaultValue><value>none</value></defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="NOT_OR_UNKNOWN" cardinality="single" baseType="identifier">
+    <defaultValue><value>none</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+      <prompt>Pick one.</prompt>
+      <simpleChoice identifier="A">A</simpleChoice>
+      <simpleChoice identifier="B">B</simpleChoice>
+    </choiceInteraction>
+    <choiceInteraction responseIdentifier="PICKS" maxChoices="0">
+      <prompt>Pick all that apply.</prompt>
+      <simpleChoice identifier="A">A</simpleChoice>
+      <simpleChoice identifier="B">B</simpleChoice>
+      <simpleChoice identifier="C">C</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+
+  <responseProcessing>
+    <!-- not(match(NULL, correct)) is NULL, which is not true: an unanswered response takes the else branch -->
+    <responseCondition>
+      <responseIf>
+        <not>
+          <match>
+            <variable identifier="RESPONSE"/>
+            <correct identifier="RESPONSE"/>
+          </match>
+        </not>
+        <setOutcomeValue identifier="FEEDBACK">
+          <baseValue baseType="identifier">wrong</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+      <responseElseIf>
+        <match>
+          <variable identifier="RESPONSE"/>
+          <correct identifier="RESPONSE"/>
+        </match>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="float">1</baseValue>
+        </setOutcomeValue>
+        <setOutcomeValue identifier="FEEDBACK">
+          <baseValue baseType="identifier">right</baseValue>
+        </setOutcomeValue>
+      </responseElseIf>
+      <responseElse>
+        <setOutcomeValue identifier="FEEDBACK">
+          <baseValue baseType="identifier">unanswered</baseValue>
+        </setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+
+    <!-- the same for a multiple response; a cleared selection is an empty container, which is NULL -->
+    <responseCondition>
+      <responseIf>
+        <not>
+          <member>
+            <baseValue baseType="identifier">A</baseValue>
+            <variable identifier="PICKS"/>
+          </member>
+        </not>
+        <setOutcomeValue identifier="PICKS_FEEDBACK">
+          <baseValue baseType="identifier">missing_a</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+      <responseElseIf>
+        <isNull>
+          <variable identifier="PICKS"/>
+        </isNull>
+        <setOutcomeValue identifier="PICKS_FEEDBACK">
+          <baseValue baseType="identifier">unanswered</baseValue>
+        </setOutcomeValue>
+      </responseElseIf>
+      <responseElse>
+        <setOutcomeValue identifier="PICKS_FEEDBACK">
+          <baseValue baseType="identifier">has_a</baseValue>
+        </setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+
+    <!-- and is false when an operand is false, even beside a NULL one: not(and(NULL, false)) is true -->
+    <responseCondition>
+      <responseIf>
+        <not>
+          <and>
+            <match>
+              <variable identifier="RESPONSE"/>
+              <correct identifier="RESPONSE"/>
+            </match>
+            <baseValue baseType="boolean">false</baseValue>
+          </and>
+        </not>
+        <setOutcomeValue identifier="AND_FALSE_WINS">
+          <baseValue baseType="identifier">taken</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+      <responseElse>
+        <setOutcomeValue identifier="AND_FALSE_WINS">
+          <baseValue baseType="identifier">skipped</baseValue>
+        </setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+
+    <!-- or is true when an operand is true, even beside a NULL one -->
+    <responseCondition>
+      <responseIf>
+        <or>
+          <match>
+            <variable identifier="RESPONSE"/>
+            <correct identifier="RESPONSE"/>
+          </match>
+          <baseValue baseType="boolean">true</baseValue>
+        </or>
+        <setOutcomeValue identifier="OR_TRUE_WINS">
+          <baseValue baseType="identifier">taken</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+      <responseElse>
+        <setOutcomeValue identifier="OR_TRUE_WINS">
+          <baseValue baseType="identifier">skipped</baseValue>
+        </setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+
+    <!-- or(NULL, false) is NULL, so its negation is NULL too and the branch is skipped -->
+    <responseCondition>
+      <responseIf>
+        <not>
+          <or>
+            <match>
+              <variable identifier="RESPONSE"/>
+              <baseValue baseType="identifier">B</baseValue>
+            </match>
+            <baseValue baseType="boolean">false</baseValue>
+          </or>
+        </not>
+        <setOutcomeValue identifier="NOT_OR_UNKNOWN">
+          <baseValue baseType="identifier">taken</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+      <responseElse>
+        <setOutcomeValue identifier="NOT_OR_UNKNOWN">
+          <baseValue baseType="identifier">skipped</baseValue>
+        </setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>

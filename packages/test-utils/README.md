@@ -1,6 +1,6 @@
 # @pie-qti/test-utils
 
-Shared test utilities for PIE-QTI packages. Provides mocks, helpers, fixtures, and assertions to make testing transformations, plugins, and storage implementations easier.
+Shared test utilities for PIE-QTI packages. Provides mock implementations, QTI XML builders, and transform assertions used by the repo's own test suites.
 
 ## Installation
 
@@ -14,42 +14,34 @@ bun add -D @pie-qti/test-utils
 ```typescript
 import {
   MockStorageBackend,
+  MockTransformPlugin,
   createMockPlugin,
-  createTestEngine,
   expectSuccessfulTransform,
 } from '@pie-qti/test-utils';
 
-test('vendor plugin transforms correctly', async () => {
-  // Create mock storage with fixtures
+test('mock plugin transforms into mock storage', async () => {
   const storage = new MockStorageBackend({
     'input.xml': '<assessmentItem>...</assessmentItem>',
   });
 
-  // Create test engine with plugins
-  const engine = createTestEngine({
-    plugins: [createMockPlugin('test', 'qti22', 'pie')],
-    storage,
+  const plugin = new MockTransformPlugin('test', 'qti22', 'pie', {
+    mockItems: [{ id: 'item-1', element: 'extended-text' }],
   });
 
-  // Run transformation
-  const handle = await engine.transform('input content', {
-    sourceFormat: 'qti22',
-    targetFormat: 'pie',
+  const result = await plugin.transform({
+    content: await storage.readText('input.xml'),
+    format: 'qti22',
   });
-  const result = await handle.result();
 
-  // Assert results
-  expectSuccessfulTransform(result);
+  expectSuccessfulTransform(result, 1);
 });
 ```
 
 ## API Reference
 
-### Mock Implementations
+### MockStorageBackend
 
-#### MockStorageBackend
-
-In-memory storage backend for testing. Implements the full `StorageBackend` interface.
+In-memory storage backend for testing. Implements the full `StorageBackend` interface (`@pie-qti/transform-types`).
 
 ```typescript
 import { MockStorageBackend } from '@pie-qti/test-utils';
@@ -72,7 +64,7 @@ const allFiles = storage.listAllFiles();
 storage.clear();
 ```
 
-**Test Helpers:**
+**Test helpers:**
 - `getFile(path)` - Get file Buffer directly
 - `hasFile(path)` - Check if file exists (synchronous)
 - `listAllFiles()` - Get all file paths
@@ -80,14 +72,14 @@ storage.clear();
 - `getFileCount()` - Count files
 - `isInitialized()` - Check initialization status
 
-#### MockTransformPlugin
+### MockTransformPlugin
 
-Configurable mock plugin for testing plugin registry, engine, and orchestration.
+Configurable mock implementation of the `TransformPlugin` contract (`@pie-qti/transform-types`) for testing plugin registries, engines, and orchestration.
 
 ```typescript
 import { MockTransformPlugin, createMockPlugin } from '@pie-qti/test-utils';
 
-// Simple mock
+// Simple mock (options object optional)
 const plugin = createMockPlugin('my-plugin', 'qti22', 'pie', 500); // priority 500
 
 // Custom behavior
@@ -115,92 +107,30 @@ expect(plugin.getLastInput()).toMatchObject({ ... });
 plugin.resetCounters();
 ```
 
-**Factory Functions:**
-- `createMockPlugin(id, source, target, priority?)` - Simple mock
-- `createRejectingPlugin(id, source, target)` - Always rejects canHandle
-- `createFailingPlugin(id, source, target, message?)` - Throws error on transform
+**Factory:** `createMockPlugin(id, sourceFormat, targetFormat, priority?)` builds a `MockTransformPlugin` with default behavior (`canHandle` returns true, `transform` returns an empty item list).
 
-#### Mock Loggers
+### SilentLogger
 
-```typescript
-import { CaptureLogger, SilentLogger, ConsoleLogger } from '@pie-qti/test-utils';
-
-// Capture logs for assertions
-const logger = new CaptureLogger();
-logger.info('test message', 'item-123');
-expect(logger.hasMessage('test message')).toBe(true);
-expect(logger.getLogsByLevel('info').length).toBe(1);
-
-// Silent logger (default for tests)
-const silent = new SilentLogger();
-
-// Console logger (for debugging)
-const console = new ConsoleLogger('[MY-TEST]');
-```
-
-### Test Helpers
-
-#### createTestEngine
-
-Factory for creating pre-configured TransformEngine instances.
+Re-exported from `@pie-qti/logger/server`. A `ServerLogger` whose methods are no-ops — useful as the default logger in tests that must produce no output.
 
 ```typescript
-import { createTestEngine, MockStorageBackend } from '@pie-qti/test-utils';
+import { SilentLogger } from '@pie-qti/test-utils';
 
-const engine = createTestEngine({
-  plugins: [myPlugin, otherPlugin],
-  storage: new MockStorageBackend(),
-  logger: new SilentLogger(),
-});
+const logger = new SilentLogger();
+logger.info('never printed anywhere');
 ```
 
-#### Fixture Loading
+### QTI XML Builders
 
-Load test fixtures from packages or shared locations.
-
-```typescript
-import { loadFixture, loadSharedFixture } from '@pie-qti/test-utils';
-
-// Load from specific package
-const qti = loadFixture('to-pie', 'multiple-choice/basic.xml');
-
-// Load from shared test-utils fixtures
-const vendorQti = loadSharedFixture('vendors/pearson/hotspot-001.xml');
-
-// Load binary files
-import { loadFixtureBuffer, loadSharedFixtureBuffer } from '@pie-qti/test-utils';
-const imageBuffer = loadSharedFixtureBuffer('assets/test-image.png');
-```
-
-**Shared Fixture Structure:**
-```
-packages/test-utils/fixtures/
-├── qti/                     # Standard QTI samples
-│   ├── multiple-choice/
-│   ├── hotspot/
-│   └── extended-text/
-├── vendors/                 # Vendor-specific samples
-│   ├── aa/
-│   ├── bb/
-│   └── cc/
-└── pie/                     # PIE model samples
-    ├── multiple-choice/
-    └── hotspot/
-```
-
-#### QTI Helpers
-
-Utilities for creating and parsing QTI XML in tests.
+Utilities for constructing QTI assessmentItem XML strings in tests.
 
 ```typescript
 import {
-  parseQtiItem,
   createQtiWrapper,
   createResponseDeclaration,
   createChoiceInteraction,
 } from '@pie-qti/test-utils';
 
-// Create QTI XML
 const qti = createQtiWrapper(`
   ${createResponseDeclaration('RESPONSE', 'single', ['A'])}
   ${createChoiceInteraction('RESPONSE', [
@@ -208,119 +138,47 @@ const qti = createQtiWrapper(`
     { id: 'B', text: 'Wrong answer' },
   ])}
 `, 'test-001', 'Test Item');
-
-// Parse QTI
-const element = parseQtiItem(qti);
-expect(element.getAttribute('identifier')).toBe('test-001');
 ```
 
-**Available Functions:**
-- `parseQtiItem(xml)` - Parse and return assessmentItem element
-- `createQtiWrapper(content, id?, title?)` - Wrap content in assessmentItem
-- `createResponseDeclaration(id, cardinality, correctValues, baseType?)` - Create response declaration
-- `createOutcomeDeclaration(id, baseType, defaultValue?)` - Create outcome declaration
-- `createChoiceInteraction(responseId, choices, shuffle?)` - Create choice interaction
-- `parseElement(xml)` - Parse any XML element
+**Available functions:**
+- `createQtiWrapper(content, id?, title?)` - Wrap content in an `assessmentItem` element (QTI 2.2 namespace)
+- `createResponseDeclaration(id, cardinality, correctValues, baseType?)` - Create a response declaration
+- `createChoiceInteraction(responseId, choices, shuffle?)` - Create a choice interaction
 
 ### Assertion Helpers
 
-Common assertions for testing transforms and PIE models.
+Common assertions for transform outputs and PIE models.
 
 ```typescript
-import {
-  expectValidPieModel,
-  expectSuccessfulTransform,
-  expectLosslessRoundTrip,
-  expectValidChoiceInteraction,
-} from '@pie-qti/test-utils';
+import { expectValidPieModel, expectSuccessfulTransform } from '@pie-qti/test-utils';
 
 // Validate PIE model structure
 expectValidPieModel(pieModel);
 
-// Validate transform output
-expectSuccessfulTransform(result, 3); // Expect 3 items
-
-// Test round-trip transformation
-await expectLosslessRoundTrip(originalQti, engine);
-
-// Validate choice interaction
-expectValidChoiceInteraction(model, 4); // Expect 4 choices
+// Validate transform output (metadata present, items array populated)
+expectSuccessfulTransform(result, 3); // Expect exactly 3 items
 ```
 
-**Available Assertions:**
-- `expectValidPieModel(model)` - Validate PIE model structure
-- `expectSuccessfulTransform(result, count?)` - Validate transform output
-- `expectLosslessRoundTrip(qti, engine, normalizeWs?)` - Test QTI → PIE → QTI
-- `expectValidChoiceInteraction(interaction, count?)` - Validate choice interaction
-- `expectTransformError(result, message?)` - Validate error result
-- `expectMetadata(metadata, fields)` - Validate metadata fields
-- `expectArrayContains(array, property, values)` - Check array contains values
+**Available assertions:**
+- `expectValidPieModel(model)` - Validate PIE model structure (`id`, `element`, optional flags)
+- `expectSuccessfulTransform(result, count?)` - Validate a `TransformOutput` (items array, `metadata.sourceFormat`/`targetFormat`/`pluginId`/`timestamp`)
 
 ## Common Patterns
 
-### Testing a Vendor Plugin
-
-```typescript
-import {
-  MockStorageBackend,
-  createTestEngine,
-  loadSharedFixture,
-  expectSuccessfulTransform,
-} from '@pie-qti/test-utils';
-import { MyVendorPlugin } from '../src/plugin';
-
-test('vendor plugin transforms correctly', async () => {
-  const storage = new MockStorageBackend({
-    'input.xml': loadSharedFixture('vendors/myvendor/example-001.xml'),
-  });
-
-  const engine = createTestEngine({
-    plugins: [new MyVendorPlugin()],
-    storage,
-  });
-
-  const handle = await engine.transform(
-    await storage.readText('input.xml'),
-    { sourceFormat: 'qti22', targetFormat: 'pie' }
-  );
-  const result = await handle.result();
-
-  expectSuccessfulTransform(result);
-  expect(result.items[0].element).toBe('my-vendor-element');
-});
-```
-
-### Testing Plugin Priority
-
-```typescript
-import { createMockPlugin, createTestEngine } from '@pie-qti/test-utils';
-
-test('higher priority plugin is selected', () => {
-  const lowPriority = createMockPlugin('low', 'qti22', 'pie', 100);
-  const highPriority = createMockPlugin('high', 'qti22', 'pie', 500);
-
-  const engine = createTestEngine({
-    plugins: [lowPriority, highPriority],
-  });
-
-  // Verify high priority plugin would be selected
-  const registry = (engine as any).registry;
-  const selected = registry.findPlugin('qti22', 'pie');
-  expect(selected?.id).toBe('high');
-});
-```
-
-### Testing Storage Operations
+### Testing a Plugin Against Mock Storage
 
 ```typescript
 import { MockStorageBackend } from '@pie-qti/test-utils';
+import { MyVendorPlugin } from '../src/plugin';
 
-test('plugin writes output to storage', async () => {
+test('vendor plugin writes output to storage', async () => {
   const storage = new MockStorageBackend({
     'input.xml': '<assessmentItem>...</assessmentItem>',
   });
 
-  await myPlugin.transform(input, { storage });
+  const plugin = new MyVendorPlugin(storage);
+
+  await plugin.run('input.xml');
 
   expect(storage.hasFile('output.json')).toBe(true);
   const output = await storage.readText('output.json');
@@ -329,89 +187,40 @@ test('plugin writes output to storage', async () => {
 });
 ```
 
-### Testing with Captured Logs
+### Testing Plugin Selection by Priority
 
 ```typescript
-import { CaptureLogger, createTestEngine } from '@pie-qti/test-utils';
+import { createMockPlugin } from '@pie-qti/test-utils';
+import { PluginRegistry } from '@pie-qti/transform-core';
 
-test('plugin logs transformation steps', async () => {
-  const logger = new CaptureLogger();
-  const engine = createTestEngine({
-    plugins: [myPlugin],
-    logger,
-  });
+test('higher priority plugin is selected', () => {
+  const lowPriority = createMockPlugin('low', 'qti22', 'pie', 100);
+  const highPriority = createMockPlugin('high', 'qti22', 'pie', 500);
 
-  await engine.transform(input, {
-    sourceFormat: 'qti22',
-    targetFormat: 'pie',
-  });
+  const registry = new PluginRegistry();
+  registry.register(lowPriority);
+  registry.register(highPriority);
 
-  expect(logger.hasMessage('Starting transformation')).toBe(true);
-  expect(logger.getLogsByLevel('error').length).toBe(0);
+  const selected = registry.findPlugin('qti22', 'pie');
+  expect(selected?.id).toBe('high');
 });
 ```
-
-### Round-Trip Testing
-
-```typescript
-import {
-  loadSharedFixture,
-  createTestEngine,
-  expectLosslessRoundTrip,
-} from '@pie-qti/test-utils';
-
-test('QTI round-trip is lossless', async () => {
-  const qti = loadSharedFixture('qti/multiple-choice/basic.xml');
-  const engine = createTestEngine({
-    plugins: [qti22ToPiePlugin, pieToQti22Plugin],
-  });
-
-  await expectLosslessRoundTrip(qti, engine);
-});
-```
-
-## Benefits for Vendor Extensions
-
-Before test-utils (typical vendor plugin test):
-```typescript
-// ~140 lines of boilerplate
-class TestStorage implements StorageBackend { /* 50+ lines */ }
-function createMockPlugin(...) { /* 30+ lines */ }
-function loadFixture(...) { /* 20+ lines */ }
-// ... plus QTI helpers, assertions, etc.
-```
-
-After test-utils (same test):
-```typescript
-import {
-  MockStorageBackend,
-  createMockPlugin,
-  createTestEngine,
-  loadSharedFixture,
-  expectSuccessfulTransform,
-} from '@pie-qti/test-utils';
-
-// ~10-20 lines of actual test code
-```
-
-**Result**: Vendor plugin tests are **5-10x shorter** and more maintainable.
 
 ## Contributing
 
 When adding new test utilities:
 
-1. Add implementation to appropriate directory:
+1. Add the implementation to the appropriate directory:
    - `src/mocks/` - Mock implementations of interfaces
-   - `src/helpers/` - Helper functions and factories
-   - `fixtures/` - Shared test fixtures
+   - `src/helpers/` - Helper functions and assertions
 
-2. Export from `src/index.ts`
+2. Export it from `src/index.ts`
 
 3. Add tests in `tests/`
 
 4. Update this README with examples
 
-5. Consider adding to `TEST-UTILITIES-OVERVIEW.md` if it's a major feature
+Keep the exported surface minimal: an export without a consumer in the workspace gets removed (see the repo's no-legacy policy).
 
 ## License
 

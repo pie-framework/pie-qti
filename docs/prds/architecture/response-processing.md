@@ -37,7 +37,7 @@ Floating-point arithmetic in JavaScript produces surprising results for rounding
 
 ### Why scope enforcement at parse time
 
-The `buildStatements` function in `build.ts` takes a `mode` parameter (`'response'`, `'outcome'`, or `'template'`). Statements and expressions that are not legal in a given processing scope (e.g. `setResponseValue` inside `<outcomeProcessing>`) are silently skipped or cause a parse-time error. This means:
+The `buildStatements` function in `build.ts` takes a `mode` parameter (`'response'`, `'outcome'`, or `'template'`). Statements and expressions that are not legal in a given processing scope (e.g. `setOutcomeValue` inside `<templateProcessing>`) are silently skipped or cause a parse-time error. This means:
 
 - Malformed content is rejected early, before execution, not mid-run.
 - The executor (`execute.ts`) does not need to check scope at runtime; it can assume the program was built with the correct mode.
@@ -74,10 +74,9 @@ The QTI processing model is inherently stateful: `setOutcomeValue` and `setTempl
 |---|---|---|
 | `setOutcomeValue` | `<setOutcomeValue>` | response, outcome |
 | `lookupOutcomeValue` | `<lookupOutcomeValue>` | response, outcome |
-| `setResponseValue` | `<setResponseValue>` | response |
 | `setTemplateValue` | `<setTemplateValue>` | template |
 | `setCorrectResponse` | `<setCorrectResponse>` | template |
-| `setDefaultValue` | `<setDefaultValue>` | response, outcome, template |
+| `setDefaultValue` | `<setDefaultValue>` | template |
 | `exitResponse` | `<exitResponse>` | response |
 | `exitTemplate` | `<exitTemplate>` | template |
 | `exitTest` | `<exitTest>` | outcome |
@@ -97,31 +96,31 @@ The QTI processing model is inherently stateful: `setOutcomeValue` and `setTempl
 `testVariables`, `outcomeMinimum`, `outcomeMaximum`, `numberCorrect`, `numberIncorrect`, `numberPresented`, `numberResponded`, `numberSelected`
 
 **Comparison**  
-`match`, `equal`, `equalRounded`, `notEqual`, `lt`, `lte`, `gt`, `gte`
+`match`, `equal`, `equalRounded`, `lt`, `lte`, `gt`, `gte` (negation is `not(...)` — QTI defines no `notEqual`)
 
 **Arithmetic**  
-`sum`, `subtract`, `product`, `divide`, `power`, `mod`, `integerDivide`, `integerModulus`, `integerToFloat`, `round`, `roundTo`, `truncate`, `mathOperator` (sin/cos/tan/asin/acos/atan/atan2/exp/ln/log/signum/floor/ceil/abs/toDegrees/toRadians), `mathConstant` (pi/e)
+`sum`, `subtract`, `product`, `divide`, `power`, `integerDivide`, `integerModulus`, `integerToFloat`, `round`, `roundTo`, `truncate`, `mathOperator` (sin/cos/tan/asin/acos/atan/atan2/exp/ln/log/signum/floor/ceil/abs/toDegrees/toRadians), `mathConstant` (pi/e)
 
 **Logic**  
-`and`, `or`, `not`, `anyN`, `allN`
+`and`, `or`, `not`, `anyN` (the at-most-N bound is `anyN` with `min="0"` — QTI defines no `allN`)
 
 **Container**  
-`ordered`, `multiple`, `containerSize`, `index`, `member`, `contains`, `deleteValue`, `repeat`, `fieldValue`, `record`
+`ordered`, `multiple`, `containerSize`, `index`, `member`, `contains`, `deleteValue`, `repeat`, `fieldValue` (over a record-valued expression, in practice a record-typed variable — QTI has no authored record constructor)
 
 **String**  
 `stringMatch`, `patternMatch`, `substring`
 
 **Statistics**  
-`mean`, `sampleVariance`, `sampleSD`, `popVariance`, `popSD`
+`statsOperator` with `name="mean|sampleVariance|sampleSD|popVariance|popSD"` — the only spelling any QTI version defines
 
 **Type utilities**  
-`isNull`, `isNotNull`, `isTypeOf`
+`isNull` (negation is `not(isNull(...))` — QTI defines no `isNotNull`)
 
 **Response mapping (QTI-specific)**  
-`mapResponse`, `mapResponsePoint`, `mapOutcome`
+`mapResponse`, `mapResponsePoint` (mappings exist on response declarations only; there is no `mapOutcome`)
 
 **Lookup tables**  
-`lookupOutcomeValue` over the outcome's `matchTable` or `interpolationTable`: an exact match, or the first entry in document order whose `sourceValue` the source exceeds (or equals, unless `includeBoundary="false"`), else `defaultValue`, else NULL, coerced to the outcome's base type. The `lookupTable` expression wrapping either table is a non-QTI extension with the same semantics.
+`lookupOutcomeValue` over the outcome's `matchTable` or `interpolationTable`: an exact match, or the first entry in document order whose `sourceValue` the source exceeds (or equals, unless `includeBoundary="false"`), else `defaultValue`, else NULL, coerced to the outcome's base type.
 
 **Random**  
 `random`, `randomInteger`, `randomFloat`
@@ -132,21 +131,23 @@ The QTI processing model is inherently stateful: `setOutcomeValue` and `setTempl
 **Math**  
 `gcd`, `lcm`
 
-**Conditionals (expression form)**  
-`preCondition`
-
 **Extension**  
 `customOperator` (dispatches to `EvalEnv.customOperators` registry)
 
+### External processing fragments (`xi:include`)
+
+`xi:include` in `<responseProcessing>`, `<templateProcessing>` or `<outcomeProcessing>` is resolved (G-24). The builder recognizes `include` and `fallback` only in the XInclude namespace. It resolves each include through the host-owned `resolveProcessingFragment` callback; assessment delivery derives a package-contained resolver from the item's packaged fragments. An authored `xi:fallback` runs when a fragment cannot be resolved. A missing resolver without a fallback, a fragment of the wrong mode, a cycle, and excessive depth or size are parse errors.
+
 ### Deliberately omitted
 
-- `xi:include` in processing XML: `xi:include` references in `<responseProcessing>` or `<outcomeProcessing>` throw a parse-time error with a message explaining why (the engine does not resolve external resources for item-only processing). Content authors must inline the rules.
-- `preCondition` / `branchRule` at the test level: these are `testPart`- and `assessmentSection`-level QTI constructs controlled by the assessment player, not by the processing engine.
+- `preCondition` / `branchRule` at the test level: these are `testPart`- and `assessmentSection`-level QTI constructs controlled by the assessment player, not by the processing engine. No QTI version defines either as a processing expression; the engine never accepted one.
 
 ### Known divergences from spec
 
+None. The notes below record architecture choices the specification leaves to the delivery system.
+
 - **`outcomeProcessing` inputs are the backend's (G-11):** the test-level expressions evaluate over whatever `TestItemState` the backend supplies. `ReferenceBackendAdapter` supplies one per delivered item, submitted or not, with typed variables, section path, categories, weights, declared normal bounds and the presented/responded/correct/incorrect/selected flags; a production backend must build the same from its authoritative session state. `outcomeMinimum` and `outcomeMaximum` read the declared `normalMinimum`/`normalMaximum`.
-- **`xi:include` is a parse error, not a no-op:** The spec implies `xi:include` should be resolved. The engine throws instead of silently ignoring it, to surface content authoring errors early.
+- **Built-in scope durations (G-22, supported as QTI defines them):** test-level outcome processing can read the QTI built-in `duration` of the test, each testPart (`TESTPART_ID.duration`) and each section (`SECTION_ID.duration`), plus each item's own `duration` as `ITEM_ID.duration`. All are `duration` baseType in **seconds** (QTI), declared by the assessment layer from the persisted timing clocks — those clocks themselves stay in milliseconds. Authored identifiers are never replaced: a test that declares its own `duration` outcome wins.
 
 ---
 
@@ -158,11 +159,11 @@ The QTI processing model is inherently stateful: `setOutcomeValue` and `setTempl
 - **FR-4:** `evalExpr(env, expr)` must return `QtiValue` with `kind: 'invalid'` (not throw) when an operator receives operands of incompatible types unless the spec defines NULL propagation for that operator.
 - **FR-5:** `execProgram(env, program)` must treat `QtiExit` (thrown by `exitResponse`, `exitTemplate`, `exitTest`) as a normal program termination, not as an unhandled error.
 - **FR-6:** `templateConstraint` must restart the entire `templateProcessing` program from statement 0 if the constraint evaluates to false or NULL, resetting all template variables to their default values. It must stop retrying after 100 iterations.
-- **FR-7:** `OperatorRegistry.register(name, impl)` must accept names case-insensitively. `OperatorRegistry.get(name)` must look up names case-insensitively.
+- **FR-7:** `customOperator` dispatch must consult `EvalEnv.customOperators` by the operator's `class` attribute (falling back to `definition`), trimmed; an expression with no registered handler evaluates to NULL.
 - **FR-8:** `DeclarationContext.resetToDefault(id)` must restore the variable's value to a clone of its `defaultValue`, not to the same object reference.
 - **FR-9:** `round` and `equalRounded` operators must use `ROUND_HALF_UP` semantics via `decimal.js`, not native `Math.round`.
 - **FR-10:** `mapResponse` must apply `lowerBound` and `upperBound` from the response declaration's mapping, clamping the result.
-- **FR-11:** `patternMatch` must compare the response value against the pattern using ECMAScript `RegExp` (not XSD regex). Differences between XSD and ECMAScript regex syntax may cause content-specific divergences; this is a known limitation.
+- **FR-11:** `patternMatch` must match the whole response against the pattern as an XML Schema regular expression (XML Schema Part 2, appendix F, which QTI cites for `patternMatch` and `patternMask`). `xsdPatternToRegExp` (`runtime/xsd-pattern.ts`) translates the constructs ECMAScript reads differently before it compiles the pattern: `^` and `$` are ordinary characters; `.`, `\s`, `\d`, `\w`, `\i`, `\c` and their complements keep their XSD character sets (`\i` and `\c` from the XML 1.0 letter tables XSD 1.0 cites); `\p{IsX}` is a block of the XSD 1.0 block table, and an unrecognized block name denotes every character (XSD 1.1 §G.4.2.4); `[G-[C]]` subtracts class `C` from group `G`. A pattern that does not compile after translation is not valid XSD: it compiles as written without the `u` flag, and one that does not compile at all never matches.
 - **FR-12:** Unknown processing statement tags must throw a parse-time error with the tag name and mode, rather than silently skipping, to surface coverage gaps.
 
 ---
@@ -200,12 +201,12 @@ The QTI processing model is inherently stateful: `setOutcomeValue` and `setTempl
 **Alternatives considered:** Immutable context with structural sharing. Rejected.  
 **Consequences:** Callers that need snapshot/rollback semantics (e.g. adaptive items that retry) must clone the declarations before calling `execProgram`. The item session does this when dispatching `{ action: 'submitAttempt' }`.
 
-### `OperatorRegistry` is a simple `Map<string, OperatorImpl>`, not a plugin system
+### `customOperator` dispatch is a plain record on `EvalEnv`, not a plugin system
 
-**Decision:** `OperatorRegistry` wraps a `Map`. Extension is done by calling `register()` before calling `evalExpr`.  
-**Rationale:** The full operator set for QTI 2.x/3.0 is finite and known. The registry exists primarily to support `<customOperator>` extensions by content authors or vendors, not to make the built-in operators swappable.  
-**Alternatives considered:** Immutable operator table compiled into the evaluator. This would prevent `customOperator` support.  
-**Consequences:** The default `EvalEnv` passed to `evalExpr` does not pre-populate the registry with built-in operators — built-in operator logic is inline in `evalExpr` switch cases. `OperatorRegistry` is only consulted for `customOperator` dispatch. This is the current design; built-in operators could be moved into the registry in future if the switch case grows unwieldy.
+**Decision:** `EvalEnv.customOperators` is an optional `Record<string, OperatorImpl>`; `customOperator` looks up by `class`/`definition` and evaluates to NULL when nothing is registered.  
+**Rationale:** The full operator set for QTI 2.x/3.0 is finite and known. The record exists to support `<customOperator>` extensions by content authors or vendors, not to make the built-in operators swappable. A never-read `OperatorRegistry` class used to sit in the public API next to it; it was removed in the 2026-11 round-2 structural review (nothing could ever register into it — the evaluator only ever consulted `customOperators`).  
+**Alternatives considered:** An immutable operator table compiled into the evaluator. Rejected — it would prevent `customOperator` support.  
+**Consequences:** Built-in operator logic is inline in `evalExpr` switch cases; built-in operators could move into the record in future if the switch cases grow unwieldy.
 
 ### `elementNameMapper` defaults to `Qti2xElementNameMapper` at build time
 
@@ -228,7 +229,6 @@ The QTI processing model is inherently stateful: `setOutcomeValue` and `setTempl
 | Extension point | Interface/type | How to use | Example |
 |---|---|---|---|
 | Custom operators | `EvalEnv.customOperators: Record<string, (args, meta) => QtiValue>` | Populate the `customOperators` map before calling `evalExpr`. Keys are the operator `class` attribute or `definition` URI from the QTI XML. | Map `class="my:weighted"` to a custom scoring function |
-| `OperatorRegistry` | `OperatorRegistry` in `eval/operators.ts` | Call `registry.register(name, impl)` to add or override an operator. Pass the registry as `EvalEnv.ops`. | Override `round` to use a different rounding mode |
 | Element name mapping | `ElementNameMapper` (from `@pie-qti/qti-common`) | Implement and pass via `BuildOptions.elementNameMapper` | Support a content vendor's non-standard element names |
 | Test-level context | `TestEvalContext` in `test/types.ts` | Populate one `TestItemState` per delivered item and pass as `EvalEnv.test` | `ReferenceBackendAdapter.buildTestItems` |
 
@@ -245,7 +245,7 @@ Defined in `src/runtime/types.ts`. Three kinds: `'null'` (no value), `'value'` (
   - `cardinality: 'single'`, `baseType: 'integer'` → `value` is a JS `number` (integer).
   - `cardinality: 'single'`, `baseType: 'float'` → `value` is a JS `number`.
   - `cardinality: 'single'`, `baseType: 'boolean'` → `value` is a JS `boolean`.
-  - `cardinality: 'single'`, `baseType: 'duration'` → `value` is a JS `number` representing milliseconds (NOT an ISO 8601 string; see `coerceBaseValue`).
+  - `cardinality: 'single'`, `baseType: 'duration'` → `value` is a JS `number` of seconds, as QTI defines durations (`coerceBaseValue` reads `30` and, leniently, ISO 8601 `PT30S` to `30`).
   - `cardinality: 'multiple' | 'ordered'` → `value` is an array of the scalar type above.
   - `cardinality: 'single'`, `baseType: 'pair'` → `value` is a string `"A B"` with identifiers sorted (unordered).
   - `cardinality: 'single'`, `baseType: 'directedPair'` → `value` is a string `"A B"` (ordered).
@@ -265,7 +265,7 @@ Defined in `src/ast/types.ts`. A flat list of `StatementNode[]`. The scope (`res
 
 Defined in `src/eval/evaluator.ts`. The environment passed to `evalExpr`:
 - `ctx: DeclarationContext` — mutable variable state
-- `ops: OperatorRegistry` — for `customOperator` dispatch
+- `customOperators?: Record<string, OperatorImpl>` — for `customOperator` dispatch, keyed by the operator's `class` or `definition`
 - `rng: () => number` — injectable RNG (default: `Math.random`; inject a seeded RNG for reproducible templates)
 - `test?: TestEvalContext` — optional test-level context for aggregation expressions
 
@@ -350,10 +350,11 @@ AC-12: outcomeCondition with elseIf branches
   When: execProgram is called
   Then: PASSED is false
 
-AC-13: OperatorRegistry lookup is case-insensitive
-  Given: An OperatorRegistry with 'MyOp' registered
-  When: registry.get('myop') is called
-  Then: The registered impl is returned
+AC-13: customOperator dispatch uses the class attribute and defaults to NULL
+  Given: An EvalEnv with customOperators['my:weighted'] registered
+  When: evalExpr evaluates <customOperator class="my:weighted">…
+  Then: The registered impl is called with the evaluated operand values
+  And: the same expression with nothing registered for its class or definition evaluates to NULL
 ```
 
 ### Edge cases
@@ -370,10 +371,10 @@ AC-E2: invalid kind does not propagate as boolean true
   When: evalExpr is called
   Then: The result is not kind 'value' with value true; it must be either kind 'invalid' or kind 'null'
 
-AC-E3: duration values are stored as milliseconds, compared correctly
-  Given: Two duration values PT5S and PT3S
-  When: durationLT(PT3S, PT5S) is evaluated
-  Then: The result is kind 'value' with value true
+AC-E3: duration values are stored as seconds, compared correctly
+  Given: Two duration values 5 and PT3S
+  When: durationLT(PT3S, 5) is evaluated
+  Then: The result is kind 'value' with value true; a malformed duration operand gives kind 'invalid'
 
 AC-E4: pair normalization makes A B == B A
   Given: Two single pair values 'X Y' and 'Y X'
@@ -395,8 +396,8 @@ AC-E6: buildOutcomeProcessingAst with scope 'test' allows outcomeCondition
 
 ## Open questions
 
-- [ ] **G-11 wiring**: The infrastructure for `buildOutcomeProcessingAst` and `TestEvalContext` is complete. The remaining work is in `@pie-qti/assessment-player`: parse `<outcomeProcessing>` from the assessmentTest XML, build a `TestEvalContext` from current item scores/attempts, and call `execProgram`. What is the blocking dependency — is there a concrete content-bank item that requires this?
-- [ ] **`patternMatch` XSD vs ECMAScript regex divergence**: QTI uses XSD 1.1 regular expressions; JavaScript uses ECMAScript regex. Known differences include character class syntax and anchoring behaviour. Should we add a thin compatibility layer, or document the divergence and leave content authors responsible for using a compatible subset?
+- [x] **G-11 wiring** (resolved; `docs/SPEC-GAPS-PLAN.md` §G-11 is Done): the assessment layer parses `<outcomeProcessing>` from the assessmentTest XML, builds a `TestEvalContext` from the delivered items, and executes it; the reference backend adapter runs it, and a production backend stays authoritative.
+- [x] **`patternMatch` XSD vs ECMAScript regex divergence** (resolved 2026-11-09): a compatibility layer, not a documented divergence, because QTI is clear that the pattern is an XSD regular expression. `runtime/xsd-pattern.ts` translates every appendix F construct ECMAScript reads differently (FR-11), and the same translation gives the HTML `pattern` attribute its source for `patternMask`.
 - [ ] **`customOperator` error handling**: If a registered custom operator throws, `evalExpr` will propagate the exception. Should it be caught and returned as `kind: 'invalid'` instead? This would make the behaviour consistent with built-in type errors but would also hide bugs in custom operator implementations.
 
 ---
@@ -407,8 +408,7 @@ AC-E6: buildOutcomeProcessingAst with scope 'test' allows outcomeCondition
 - Implementation:
   - `packages/qti-processing/src/ast/build.ts` — XML to AST
   - `packages/qti-processing/src/ast/types.ts` — AST node types
-  - `packages/qti-processing/src/eval/evaluator.ts` — expression evaluation
-  - `packages/qti-processing/src/eval/operators.ts` — `OperatorRegistry`
+  - `packages/qti-processing/src/eval/evaluator.ts` — expression evaluation and `customOperator` dispatch
   - `packages/qti-processing/src/exec/execute.ts` — statement execution
   - `packages/qti-processing/src/runtime/context.ts` — `DeclarationContext`
   - `packages/qti-processing/src/runtime/value.ts` — `QtiValue` helpers, type coercion

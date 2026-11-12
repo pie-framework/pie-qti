@@ -26,8 +26,9 @@ export interface PnpProfile {
 			| 'whitenav'
 			| 'medgray';
 		/**
-		 * CSS zoom factor (1.0 = 100%). Deferred — set by browser zoom or host stylesheet.
-		 * Stored here for forward-compatibility but not yet applied by the player.
+		 * AfA `magnification`: CSS zoom factor (1.0 = 100%). Set on the player root as
+		 * `data-qti-magnification` and `--qti-magnification` for host stylesheets; the default
+		 * stylesheet does not render it, leaving zoom to the browser or operating system.
 		 */
 		magnification?: number;
 		/** AfA `language-of-interface`: the language the host renders the player's own text in. */
@@ -42,12 +43,14 @@ export interface PnpProfile {
 		/** AfA `text-appearance`, applied as custom properties on the player root. */
 		textAppearance?: PnpTextAppearance;
 		/**
-		 * Present each interaction's answer set as a labelled ARIA group for assistive
-		 * technology: the choice and match interactions wrap their answers in a
-		 * `role="group"` labelled by the interaction prompt, and the match columns get
-		 * visible, programmatically associated sub-labels. Neither APIP 1.0 nor AfA PNP
-		 * 3.0 defines a structured-label term; this is a player extension, so hosts set
-		 * it in the JSON profile (it has no AfA XML feature).
+		 * Present the match interaction's answer set as a labelled ARIA group for
+		 * assistive technology: match wraps its answers in a `role="group"` labelled
+		 * by the interaction prompt, and its columns get visible, programmatically
+		 * associated sub-labels. (Choice always names its group by the prompt, so
+		 * the flag does not affect it.)
+		 * Neither APIP 1.0 nor AfA PNP 3.0 defines a structured-label term; this is
+		 * a player extension, so hosts set it in the JSON profile (it has no AfA
+		 * XML feature).
 		 */
 		structuredLabelSupport?: boolean;
 	};
@@ -76,6 +79,11 @@ export interface PnpProfile {
 		eliminationTool?: boolean;
 		/** AfA `answer-masking`: each choice of a choiceInteraction stays masked until the candidate reveals it. */
 		answerMasking?: boolean;
+		/**
+		 * AfA `spell-checker-on-screen`: the browser's spell check and autocorrect are
+		 * allowed in the candidate's response fields (the extended text interaction).
+		 */
+		spellChecker?: boolean;
 	};
 	/**
 	 * Tool supports in pie-players' `PersonalNeedsProfile` terms, from AfA `calculator-on-screen`,

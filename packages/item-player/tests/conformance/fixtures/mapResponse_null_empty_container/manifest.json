@@ -1,0 +1,16 @@
+{
+  "id": "mapResponse_null_empty_container",
+  "title": "mapResponse: a NULL container maps as the empty container",
+  "specVersion": "imsqti_v2p2",
+  "license": "CC0-1.0",
+  "source": "authored",
+  "notes": "QTI treats a container with no values as NULL, and a mapping's lowerBound/upperBound bound the result of mapping a container. Without an isNull guard, an unanswered multiple response maps as the empty container (sum 0, clamped), not to the mapping defaultValue.",
+  "covers": [
+    "expr.mapResponse",
+    "mapResponse",
+    "mapping.defaultValue",
+    "mapping.lowerBound",
+    "mapping.upperBound",
+    "stmt.setOutcomeValue"
+  ]
+}

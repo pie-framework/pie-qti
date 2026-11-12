@@ -10,8 +10,8 @@ export {
 	type ComponentPlugin,
 	ComponentRegistry,
 	createComponentRegistry,
+	DEFAULT_COMPONENT_TAGS_BY_TYPE,
 } from './core/ComponentRegistry.js';
-export * from './core/constants.js';
 // Export drawing utilities
 export * from './utils/drawingUtils.js';
 export {
@@ -21,6 +21,14 @@ export {
 	type AssessmentItemDefinitionPlugin,
 } from './core/AssessmentItemDefinition.js';
 export {
+	QtiComplianceError,
+	type QtiItemDiagnostic,
+	type QtiItemDiagnosticCode,
+	type QtiItemDiagnosticSeverity,
+} from './core/compliance.js';
+export { UnsupportedResponseProcessingTemplateError } from './core/responseProcessingTemplates.js';
+export {
+	UnknownResponseIdentifierError,
 	type ItemPresentationView,
 	type ItemSession,
 	type ItemSessionCommand,
@@ -33,11 +41,34 @@ export {
 } from './core/ItemSession.js';
 export type {
 	FinalItemBodyHtml,
+	InlineInteractionPosition,
 	ItemInteractionMount,
 	ItemPresentation,
 	ItemPresentationFlowNode,
 } from './presentation/itemPresentationPlan.js';
-export { getRoleCapabilities, type RoleCapabilities } from './core/rolePolicy.js';
+export type { ShownFeedback } from './presentation/feedbackAnnouncement.js';
+/** The attribute on the empty slot that marks an interaction's authored position in the body. */
+export { INTERACTION_SLOT_ATTRIBUTE } from './presentation/itemPresentationPlan.js';
+export {
+	isQtiRole,
+	parseQtiRole,
+	getRoleCapabilities,
+	type RoleCapabilities,
+} from './core/rolePolicy.js';
+// The pure matchGroup pairing rule shared by response validation and the renderers,
+// so the delivered UI can never allow a pair validation rejects nor block one it accepts.
+export { isMatchGroupCompatible, type MatchGroupChoice } from './core/matchGroups.js';
+// The pure order-subset rule (minChoices/maxChoices) shared by response validation and the
+// order renderers, for the same reason (QTI 2.2 ASI §5.73, §5.42).
+export {
+	orderChoiceLimits,
+	type OrderChoiceLimits,
+	type OrderSubsetInteraction,
+} from './interactions/order/limits.js';
+// The XSD pattern scan shared by the inline text-entry and extended-text mobile
+// keyboards: a numeric pad is only safe when the authored patternMask provably
+// excludes `-` (phone number pads offer no minus key).
+export { classExcludesMinus, patternExcludesMinus } from './interactions/text-entry/inputMode.js';
 // Render-facing interaction contracts. Standard extractors remain implementation details.
 export type * from './interactions/shared/types.js';
 export {
@@ -58,7 +89,7 @@ export type {
 	InteractionDeliveryPathSegment,
 	InteractionDeliverySchema,
 	ValidationResult,
-	VariableDeclaration,
+	ExtractionVariableDeclaration,
 } from './extraction/index.js';
 export {
 	createExtractionContext,
@@ -67,8 +98,6 @@ export {
 	ExtractionError,
 	ExtractionRegistry,
 	htmlField,
-	isErrorResult,
-	isSuccessResult,
 	urlField,
 } from './extraction/index.js';
 // NOTE:
@@ -76,20 +105,15 @@ export {
 // If you need non-web-component rendering, build it externally against the public extraction APIs.
 // Export all types including adaptive item types
 export * from './types/index.js';
-// Export utilities
-export {
-	globalPerformanceMonitor,
-	type PerformanceEntry,
-	PerformanceMonitor,
-	type PerformanceMonitorConfig,
-	type PerformanceReport,
-} from './utils/PerformanceMonitor.js';
-
-export { isResponseEmpty } from './utils/responseUtils.js';
-
 // PNP profile (AfA PNP 3.0, QTI 3's per-candidate profile)
 export type { PnpProfile, PnpTextAppearance, PnpToolSupports } from './pnp/types.js';
-export { applyPnpToRoot } from './pnp/applyPnp.js';
+export {
+	applyPnpToRoot,
+	applyPnpToSurface,
+	clearPnpSurface,
+	isWithinPnpSurface,
+	PNP_SURFACE_ATTRIBUTE,
+} from './pnp/applyPnp.js';
 export type { AfaPnpRecord } from './pnp/parsePnpXml.js';
 export { AFA_PNP_NAMESPACE, parseAfaPnpXml, parsePnpXml, pnpProfileFromAfa } from './pnp/parsePnpXml.js';
 
@@ -134,6 +158,7 @@ export {
 } from './pci/resolutionConfig.js';
 export type { PciResolutionConfig, PciResolutionShim } from './pci/resolutionConfig.js';
 export { toQtiVariableJson, fromQtiVariableJson } from './pci/qtiVariableJson.js';
+export type { QtiRecordField } from './pci/qtiVariableJson.js';
 
 // Re-export QTI heuristics from @pie-qti/ims-cp-core for convenience
 // (heuristics are now in the shared ingestion layer)

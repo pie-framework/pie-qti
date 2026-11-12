@@ -1,5 +1,34 @@
 # @pie-qti/ims-cp-browser
 
+## 1.0.0-beta.5
+
+### Patch Changes
+
+- e7188e4: Harden and unify the archive-safety boundary that was duplicated per platform:
+  
+  - **Shared limit rules**: `resolveLimit` and `exceedsCompressionRatio` (entry-count, size, and compression-bomb caps for untrusted packages) now live once in `@pie-qti/ims-cp-core`; the Node and browser packages import them instead of carrying drifted copies.
+  - **Node manifest hrefs fail closed**: `loadResolvedManifest` previously normalized hostile hrefs — an absolute href like `/etc/passwd` was silently rewritten to `etc/passwd` inside the package. Absolute, protocol-bearing, or encoded-traversal `href`/`file`/`xml:base` values are now rejected with an error, matching the browser's grammar (which drops them). Escape attempts keep throwing.
+  - **Browser persistence is opt-in**: `openPackage` no longer saves every opened package to `sessionStorage` by default (a quota-bound, text-only snapshot that dropped all binary files on restore — large packages failed to open at all). Pass `persist: true` to keep the old behavior.
+- 93df941: Packaging and back-compat shim removal (legacy audit PR 5, `docs/plans/legacy-audit-2026-11.md` rows A5, A6, A7). No QTI-observable behaviour changes for current-format content.
+  
+  **Breaking: removed deprecated image-path helper** (beta prerelease; migrate before upgrading):
+  
+  - `@pie-qti/ims-cp-browser` no longer exports `tryResolveImagePath`. It had been `@deprecated` since path resolution moved to `@pie-qti/ims-cp-core` and had no callers in the repo. Resolve package image references with `buildPackageFileIndex` and `resolvePackageReference` from `@pie-qti/ims-cp-core` (as `resolveImagesInXml` already does); the documented lenient path-resolution heuristics are unchanged.
+  
+  **Breaking: removed the historical vendor-extension type path** (beta prerelease; migrate before upgrading):
+  
+  - `@pie-qti/to-pie` no longer re-exports `VendorInfo`, `VendorDetector`, `VendorTransformer`, `ResolvedAsset`, `AssetResolver`, `VendorClasses`, `CssClassExtractor`, `MetadataExtractor`, `CustomAttributes` or `VendorExtensionHooks`; the `src/types/vendor-extensions.ts` shim that preserved the pre-move import path is gone. Import these types from `@pie-qti/transform-types`, where they live.
+  
+  **Breaking: pre-rename extensions metadata is no longer read** (beta prerelease; migrate before upgrading):
+  
+  - Packages exported while the PIE metadata bag was still named `searchMetaData` no longer import their extensions metadata: the `?? sourceModel.searchMetaData` fallbacks in `@pie-qti/ims-cp-core`'s `extractExtensionsFromQtiXml` and `@pie-qti/to-pie`'s `extractExtensions`, and the `pie:searchMetaData:` LOM source prefix in `@pie-qti/to-pie`'s `readPieResourceLom`, are gone; only `extensions` and the `pie:extension:` prefix are read. `@pie-qti/transform-types` no longer exports `PIE_LOM_LEGACY_EXTENSION_SOURCE`. The QTI package writer (`@pie-qti/pie-to-qti2`) only ever wrote the current forms, so content written by any current release is unaffected.
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies [e7188e4]
+- Updated dependencies [93df941]
+- Updated dependencies
+- Updated dependencies [b668938]
+  - @pie-qti/ims-cp-core@1.0.0-beta.5
+
 ## 1.0.0-beta.4
 
 ### Patch Changes

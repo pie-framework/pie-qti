@@ -5,6 +5,7 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import { validateUniqueIdentifiers } from '../../extraction/utils.js';
 import { maybeShuffle } from '../../core/shuffle.js';
 
 /**
@@ -17,6 +18,7 @@ export interface AssociateData {
 		matchMax: number;
 		matchMin?: number;
 		matchGroup?: string[];
+		fixed?: boolean;
 		classes?: string[];
 	}>;
 	shuffle: boolean;
@@ -55,6 +57,7 @@ export const standardAssociateExtractor: ElementExtractor<AssociateData> = {
 			const matchMin = utils.getNumberAttribute(choice, 'matchMin', 0);
 			const matchGroupRaw = utils.getAttribute(choice, 'matchGroup', '');
 			const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
+			const fixed = utils.getBooleanAttribute(choice, 'fixed');
 
 			return {
 				identifier: utils.getAttribute(choice, 'identifier', ''),
@@ -62,13 +65,18 @@ export const standardAssociateExtractor: ElementExtractor<AssociateData> = {
 				matchMax,
 				...(matchMin > 0 ? { matchMin } : {}),
 				...(matchGroup.length > 0 ? { matchGroup } : {}),
+				// Authored fixed pins the choice under shuffle (QTI fixed.SimpleAssociableChoice.Attr).
+				...(fixed ? { fixed } : {}),
 				...(classes.length > 0 ? { classes } : {}),
 			};
 		});
 
-		// Extract attributes with proper defaults
+		// Extract attributes with proper defaults. maxAssociations is optional with default 1
+		// in every spec that defines it: QTI 2.1 XSD (`use="optional" default="1"`),
+		// QTI 2.2 ASI Information Model Table 5.6.2 and QTI 3.0 Table 5.8.2
+		// (`Default = "1"`); 0 means no restriction.
 		const shuffle = utils.getBooleanAttribute(element, 'shuffle');
-		const maxAssociations = utils.getNumberAttribute(element, 'maxAssociations', 0);
+		const maxAssociations = utils.getNumberAttribute(element, 'maxAssociations', 1);
 		const minAssociations = utils.getNumberAttribute(element, 'minAssociations', 0);
 
 		// Extract prompt (optional)
@@ -94,16 +102,9 @@ export const standardAssociateExtractor: ElementExtractor<AssociateData> = {
 
 		// Validate choice identifiers
 		if (data.choices) {
-			const identifiers = new Set<string>();
-			for (const choice of data.choices) {
-				if (!choice.identifier) {
-					errors.push('All choices must have an identifier');
-				} else if (identifiers.has(choice.identifier)) {
-					errors.push(`Duplicate choice identifier: ${choice.identifier}`);
-				} else {
-					identifiers.add(choice.identifier);
-				}
+			validateUniqueIdentifiers(data.choices, errors, { plural: 'choices', noun: 'choice' });
 
+			for (const choice of data.choices) {
 				// Validate matchMax
 				if (choice.matchMax < 0) {
 					errors.push(`matchMax must be non-negative for choice ${choice.identifier}`);

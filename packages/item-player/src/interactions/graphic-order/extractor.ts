@@ -5,7 +5,10 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import { validateUniqueIdentifiers } from '../../extraction/utils.js';
 import { normalizePixelDimension } from '../../security/styleValues.js';
+import { extractImageAlternative, imgAlternativeSource } from '../shared/imageAlt.js';
+import { findInteractionImage } from '../shared/interactionImage.js';
 
 /**
  * Image data for graphic order interaction
@@ -16,6 +19,12 @@ export interface ImageData {
 	content?: string;
 	width?: string;
 	height?: string;
+	/** Short text alternative extracted from the QTI source. */
+	alt?: string;
+	/** Longer description for complex images (SVG <desc>, aria description). */
+	altDescription?: string;
+	/** True only when the author explicitly marked the image decorative (`<img alt="">`). */
+	decorative?: boolean;
 }
 
 /**
@@ -25,6 +34,11 @@ export interface GraphicOrderData {
 	imageData: ImageData | null;
 	hotspotChoices: Array<{
 		identifier: string;
+		/**
+		 * The hotspot's authored text. Empty when the author gave none: the
+		 * renderer then names it by position. Never the identifier, which can
+		 * leak the answer key to assistive technology.
+		 */
 		label: string;
 		shape: string;
 		coords: string;
@@ -32,6 +46,10 @@ export interface GraphicOrderData {
 		classes?: string[];
 	}>;
 	prompt: string | null;
+	/** Minimum number of hotspots the response must order (QTI minChoices); omitted when 0. */
+	minChoices?: number;
+	/** Maximum number of hotspots the response may order (QTI maxChoices); omitted when 0. */
+	maxChoices?: number;
 }
 
 /**
@@ -51,43 +69,53 @@ export const standardGraphicOrderExtractor: ElementExtractor<GraphicOrderData> =
 	},
 
 	extract(element, context) {
-		const { utils } = context;
+		const { utils, dom } = context;
 
-		// Extract image data from object element
-		const objectElements = utils.getChildrenByTag(element, 'object');
+		// Extract image data from the object element (QTI 2.x) or an img element
+		// (QTI 3.0, plain or as a <picture>'s fallback img)
+		const interactionImage = findInteractionImage(element, utils);
 		let imageData: ImageData | null = null;
 
-		if (objectElements.length > 0) {
-			const objectElement = objectElements[0];
+		if (interactionImage?.kind === 'object') {
+			const objectElement = interactionImage.element;
 			const type = utils.getAttribute(objectElement, 'type', '');
 			const data = utils.getAttribute(objectElement, 'data', '');
-			const width = normalizePixelDimension(
-				utils.getAttribute(objectElement, 'width', ''),
-				'500',
-			);
-			const height = normalizePixelDimension(
-				utils.getAttribute(objectElement, 'height', ''),
-				'300',
-			);
+			// The stage's pixel space: the authored width/height, when declared. Without
+			// them the renderer stages the raster at its natural size; a default here
+			// would silently place areas in a guessed space.
+			const width = normalizePixelDimension(utils.getAttribute(objectElement, 'width', ''));
+			const height = normalizePixelDimension(utils.getAttribute(objectElement, 'height', ''));
+			const content = type.startsWith('image/svg') ? utils.getHtmlContent(objectElement) : '';
 
-			if (type.startsWith('image/svg')) {
-				// Extract inline SVG content - get full content including <svg> tag
-				const content = utils.getHtmlContent(objectElement);
+			if (/<svg[\s>]/i.test(content)) {
+				// Inline SVG: <object type="image/svg+xml"><svg>...</svg></object>
 				imageData = {
 					type: 'svg',
 					content,
 					width,
 					height,
+					...extractImageAlternative(objectElement, utils, dom, { inlineSvgContent: content }),
 				};
 			} else {
-				// External image reference
+				// External image (or SVG file) reference; the <object>'s text is its alternative
 				imageData = {
 					type: 'image',
 					src: data,
 					width,
 					height,
+					...extractImageAlternative(objectElement, utils, dom),
 				};
 			}
+		} else if (interactionImage) {
+			// QTI 3.0 <img>: the alt attribute is the text alternative (alt="" = decorative)
+			const imgElement = interactionImage.element;
+			imageData = {
+				type: 'image',
+				src: utils.getAttribute(imgElement, 'src', ''),
+				width: normalizePixelDimension(utils.getAttribute(imgElement, 'width', '')),
+				height: normalizePixelDimension(utils.getAttribute(imgElement, 'height', '')),
+				...extractImageAlternative(imgElement, utils, dom, imgAlternativeSource(imgElement)),
+			};
 		}
 
 		// Extract hotspotChoice children
@@ -99,9 +127,10 @@ export const standardGraphicOrderExtractor: ElementExtractor<GraphicOrderData> =
 			const coords = utils.getAttribute(hotspot, 'coords', '0,0,50,50');
 			const fixed = utils.getBooleanAttribute(hotspot, 'fixed');
 
-			// Get text content as label, use identifier as fallback
-			const textContent = utils.getTextContent(hotspot).trim();
-			const label = textContent || identifier;
+			// The authored label: hotspotLabel (QTI 2.2 / 3.0), else the choice's text.
+			// No identifier fallback — identifiers can reveal the answer key.
+			const label =
+				utils.getAttribute(hotspot, 'hotspotLabel', '').trim() || utils.getTextContent(hotspot).trim();
 
 			return {
 				identifier,
@@ -117,10 +146,15 @@ export const standardGraphicOrderExtractor: ElementExtractor<GraphicOrderData> =
 		const promptElements = utils.getChildrenByTag(element, 'prompt');
 		const prompt = promptElements.length > 0 ? utils.getHtmlContent(promptElements[0]) : null;
 
+		const minChoices = utils.getNumberAttribute(element, 'minChoices', 0);
+		const maxChoices = utils.getNumberAttribute(element, 'maxChoices', 0);
+
 		return {
 			imageData,
 			hotspotChoices,
 			prompt,
+			...(minChoices > 0 ? { minChoices } : {}),
+			...(maxChoices > 0 ? { maxChoices } : {}),
 		};
 	},
 
@@ -144,16 +178,9 @@ export const standardGraphicOrderExtractor: ElementExtractor<GraphicOrderData> =
 
 		// Validate hotspot choice identifiers and coords
 		if (data.hotspotChoices) {
-			const identifiers = new Set<string>();
-			for (const hotspot of data.hotspotChoices) {
-				if (!hotspot.identifier) {
-					errors.push('All hotspot choices must have an identifier');
-				} else if (identifiers.has(hotspot.identifier)) {
-					errors.push(`Duplicate hotspot identifier: ${hotspot.identifier}`);
-				} else {
-					identifiers.add(hotspot.identifier);
-				}
+			validateUniqueIdentifiers(data.hotspotChoices, errors, { plural: 'hotspot choices', noun: 'hotspot' });
 
+			for (const hotspot of data.hotspotChoices) {
 				if (!hotspot.coords) {
 					errors.push(`Hotspot ${hotspot.identifier} must have coords`);
 				}

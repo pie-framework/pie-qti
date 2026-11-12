@@ -14,6 +14,47 @@ export type JsonValue = string | number | boolean | null | JsonValue[] | { [key:
 export type ContentExtensions = Record<string, JsonValue>;
 
 /**
+ * A standard or skill the content is aligned to: QTI 3 Curriculum Standards Metadata 1.1, one
+ * entry per `labelledGUID`. `providerId` + `guid` is the key, an absent `providerId` reading as
+ * "AB"; GUIDs compare case-insensitively.
+ * Mirrors `CurriculumStandard` in `@pie-players/pie-players-shared/types`.
+ */
+export interface CurriculumStandard {
+  /**
+   * CSM `curriculumStandardsMetadata@providerId`: who issued `guid`, e.g. "AB", "CASE". Absent
+   * means "AB" (Academic Benchmarks), as CSM 1.1 leaves the attribute optional.
+   */
+  providerId?: string;
+  /** CSM `labelledGUID/GUID`, as the provider issued it. */
+  guid: string;
+  /** CSM `labelledGUID/caseItemURI`, for a CASE framework item. */
+  caseItemURI?: string;
+  /** CSM `labelledGUID/label`: a display code, never a key. */
+  label?: string;
+  /** LOM classification purpose. Absent means "educational objective". */
+  purpose?: 'educational objective' | 'prerequisite' | (string & {});
+  // PIE extensions; QTI 3 has no equivalent.
+  /** The entry the alignment is reported under; at most one per `providerId`. */
+  primary?: boolean;
+  provenance?: 'authored' | 'derived' | 'imported';
+  /** The alignment this one was derived from. */
+  derivedFrom?: { providerId?: string; guid: string };
+}
+
+/**
+ * A cognitive-complexity classification: LOM classification purpose "skill level".
+ * Mirrors `SkillLevel` in `@pie-players/pie-players-shared/types`.
+ */
+export interface SkillLevel {
+  /** LOM `taxonPath/source`: "webb-dok", "blooms-revised", "blooms-original", or a host taxonomy. */
+  source: string;
+  /** LOM `taxon/id`: "1".."4" for webb-dok; "remember".."create" for blooms-revised. */
+  id: string;
+  /** Why the level was assigned. A PIE extension. */
+  rationale?: string;
+}
+
+/**
  * PIE Item - root structure for an assessment item
  */
 export interface PieItem {
@@ -37,6 +78,15 @@ export interface PieItem {
 
   /** Host-owned key/value pairs that PIE carries and never interprets */
   extensions?: ContentExtensions;
+
+  /**
+   * Standards and skills the content is aligned to. Absent means no data; `[]` means the writer
+   * states that none applies.
+   */
+  curriculumStandards?: CurriculumStandard[];
+
+  /** DOK and Bloom's classifications, on the same terms. */
+  skillLevels?: SkillLevel[];
 
   /** Collection IDs this item belongs to */
   collectionIds?: string[];
@@ -105,6 +155,15 @@ export interface PiePassageStimulus {
   config: PiePassageConfig;
   /** Host-owned key/value pairs that PIE carries and never interprets */
   extensions?: ContentExtensions;
+
+  /**
+   * Standards and skills the content is aligned to. Absent means no data; `[]` means the writer
+   * states that none applies.
+   */
+  curriculumStandards?: CurriculumStandard[];
+
+  /** DOK and Bloom's classifications, on the same terms. */
+  skillLevels?: SkillLevel[];
 }
 
 /**

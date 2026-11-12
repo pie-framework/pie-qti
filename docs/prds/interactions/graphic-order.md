@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: graphicOrderInteraction
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-11-09
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-11-09
 
 ---
 
@@ -19,21 +19,21 @@
 
 `graphicOrderInteraction` / `qti-graphic-order-interaction` is a QTI interaction type that asks a candidate to arrange labelled regions of an image into a specific sequence. The candidate is shown a background image overlaid with `associableHotspot` regions; they interact with those regions (by clicking/tapping or dragging in the reorder list) to establish an order. The response is an `ordered`-cardinality variable of `identifier` baseType — a ranked list of hotspot identifiers. This interaction is the graphical counterpart of `orderInteraction`: the choices are spatial regions on an image rather than plain text labels.
 
-In this implementation, the hotspot coordinates are used by the extractor to record spatial metadata but the primary candidate-facing UI is a sortable list panel rendered beside (or below) the image. Candidates drag list items or use keyboard controls to establish the sequence; sequence numbers (1, 2, …) are shown as badges on each list item. The image serves as the visual context that motivates the ordering task but is not itself the interactive surface.
+In this implementation the primary candidate-facing UI is a sortable list panel rendered beside (or below) the image. Candidates drag list items or use keyboard controls to establish the sequence; sequence numbers (1, 2, …) are shown as badges on each list item. The image shows every hotspot's area, outlined, and each placed area carries the same sequence number as its list item, so the candidate sees which area each entry names; the image is not itself the interactive surface.
 
 ---
 
 ## Background and rationale
 
-### Why coordinates are metadata, not the interactive surface
+### Why coordinates draw the areas but are not the interactive surface
 
-The QTI spec defines `associableHotspot` regions with `shape` and `coords` attributes and notes that delivery engines should "display numbers or other indicators showing the selection order." The spec is deliberately silent on the precise interaction modality — click-in-sequence on the image, drag-and-drop, or a separate list are all valid implementations.
+The QTI spec defines `associableHotspot` regions with `shape` and `coords` attributes and notes that delivery engines should "display numbers or other indicators showing the selection order." The spec is deliberately silent on the precise interaction modality — click-in-sequence on the image, drag-and-drop, or a separate list are all valid implementations. It does require that "the delivery engine must clearly indicate all defined area(s) of the image" (QTI 3.0 §5.61).
 
-A click-in-sequence approach (click hotspot 1, click hotspot 2, …) requires pixel-accurate hit-testing of arbitrarily shaped regions rendered on a responsive image. Image scaling, fractional device pixels, and the need to deselect and re-sequence make this fragile on mobile and complex to make accessible. Instead, the implementation renders a separate sortable list beneath the image. The image provides the ordering context (a soil cross-section, a process diagram, a flowchart); the list provides the sequencing surface. Hotspot `shape`/`coords` attributes are extracted and stored for future use (e.g. rendering sequence number overlays on the image, or for custom renderers that do prefer click-in-sequence), but the default component does not use them for interaction.
+A click-in-sequence approach (click hotspot 1, click hotspot 2, …) requires pixel-accurate hit-testing of arbitrarily shaped regions rendered on a responsive image. Image scaling, fractional device pixels, and the need to deselect and re-sequence make this fragile on mobile and complex to make accessible. Instead, the implementation renders a separate sortable list beneath the image. The image provides the ordering context (a soil cross-section, a process diagram, a flowchart); the list provides the sequencing surface. Hotspot `shape`/`coords` draw each area on the image (an SVG overlay in the image's own pixel space) with its position in the order; custom renderers that prefer click-in-sequence can use them for interaction.
 
 ### Why the image is passive, not interactive
 
-Making the image interactive at the hotspot level requires the component to composite sequence-number badges at the correct image coordinates on every screen size and device pixel ratio. This is possible but adds significant complexity, particularly for SVG content where coordinates are in the SVG viewBox space, not CSS pixels. Deferring that complexity to a future enhancement (or to custom renderers) keeps the default component simple, accessible by default, and mobile-safe. The image is still present and visible — it is the semantic anchor that gives the list items their meaning.
+The areas overlay is visual only — hidden from assistive technology and taking no pointer input — because the list already gives every hotspot a keyboard-, pointer- and screen-reader-operable control, and a second, image-based control for the same choice would duplicate it. The overlay uses the same `viewBox` sizing as the hotspot interaction, so the browser scales the areas with the image at any screen size; badges are drawn at a constant CSS size. The image remains the semantic anchor that gives the list items their meaning.
 
 ### Why a confirmation step exists
 
@@ -41,7 +41,7 @@ WCAG 2.2 SC 3.3.4 (Error Prevention) requires that submissions of legal commitme
 
 ### Why the visual order panel shows numbered badges
 
-The sortable list renders a position badge (1, 2, …) in front of each item, updated live as the candidate reorders. This fulfils the spec's requirement to "display numbers or other indicators showing the selection order" without requiring image-coordinate overlays. Candidates can always see the current sequence state without needing to track which hotspot corresponds to which position in memory.
+The sortable list renders a position badge (1, 2, …) in front of each item, updated live as the candidate reorders. Candidates can always see the current sequence state without needing to track which hotspot corresponds to which position in memory.
 
 ### Use cases in K-12 assessment
 
@@ -59,8 +59,8 @@ The sortable list renders a position badge (1, 2, …) in front of each item, up
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `responseIdentifier` | ✅ Full | Extracted as `responseId` on `BaseInteractionData`; used in `qti-change` event payload |
-| `maxChoices` | ❌ Not extracted | Spec: maximum number of hotspots the candidate may include in their ordered response (0 = all). Not in `GraphicOrderInteractionData`. See Known gaps. |
-| `minChoices` | ❌ Not extracted | Spec: minimum number of hotspots that must appear in the response. Not in `GraphicOrderInteractionData`. See Known gaps. |
+| `maxChoices` | ✅ Full | Extracted as `maxChoices` (omitted when 0). Caps subset ordering (clamped to the hotspot count; 0 = up to all): adding past it is refused and announced, and validation rejects a longer response. Ignored when `minChoices` is unspecified, as the spec requires. |
+| `minChoices` | ✅ Full | Extracted as `minChoices` (omitted when 0). From 1 up to fewer than the hotspots it requests subset ordering: the candidate chooses which hotspots to order ("Your order") and the rest stay in "Not in your order" without a position number. Unspecified, or at or above the hotspot count, every hotspot is ordered. Validation enforces the same minimum, through the `orderChoiceLimits` rule shared with `orderInteraction` (see [order.md](order.md)). |
 
 ### Supported attributes on `hotspotChoice` / `associableHotspot`
 
@@ -69,9 +69,9 @@ The QTI 2.x spec uses `hotspotChoice` as the child element name for `graphicOrde
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `identifier` | ✅ Full | Required; deduplicated; becomes the response value for this hotspot position |
-| `shape` | ✅ Extracted | Extracted and stored in `GraphicOrderChoice.shape`. Supported values: `rect`, `circle`, `poly`, `ellipse`. Default: `rect`. Not used for hit-testing in the default component; available for custom renderers. |
-| `coords` | ✅ Extracted | Extracted and stored in `GraphicOrderChoice.coords`. Default: `0,0,50,50`. Not used for rendering in the default component; available for custom renderers. |
-| `fixed` | ✅ Extracted (boolean) | Extracted and stored as `fixed?: boolean`. The sortable list does not enforce position-locking of fixed hotspots — this is a known gap (see below). |
+| `shape` | ✅ Full | Extracted and stored in `GraphicOrderChoice.shape`. Supported values: `rect`, `circle`, `poly`, `ellipse`, `default` (the whole image). Default: `rect`. Drawn on the image as the area's outline; not used for hit-testing (the list is the control). |
+| `coords` | ✅ Full | Extracted and stored in `GraphicOrderChoice.coords`. Default: `0,0,50,50`. Places the area's outline and position badge on the image. |
+| `fixed` | ✅ Extracted (boolean) | Extracted and stored as `fixed?: boolean`. In QTI 2.x, `fixed` (inherited from `choice`) holds a choice's position against the delivery engine's shuffling. `graphicOrderInteraction` does not shuffle, so it has no effect here, and QTI 3.0 drops it from hotspot choices (§5.67). It never stops the candidate reordering. |
 | `matchMax` | ❌ Not applicable | `matchMax` is an attribute of `associableHotspot` (used in `graphicAssociateInteraction`), not `hotspotChoice`. Not present on graphic order hotspots. |
 | text content | ✅ Full | Text content of the `hotspotChoice` element becomes `label`; falls back to `identifier` if empty. Used as the visible text in the sortable list. |
 | CSS classes | ✅ Extracted | Element classes extracted as `classes?: string[]` for custom renderer detection. Not rendered as CSS classes in the default component. |
@@ -98,14 +98,16 @@ The `coords` attribute uses the same HTML image map coordinate convention as `ho
 - **`poly`**: `x1,y1,x2,y2,...,xN,yN` — polygon vertices in image pixels
 - **`ellipse`**: `cx,cy,rx,ry` — center plus x-radius and y-radius in image pixels
 
-Coordinates are in the natural (un-scaled) image pixel space. When the image is displayed at a different size than its natural dimensions, a consumer of these coordinates is responsible for applying the scale factor.
+Coordinates are in the natural (un-scaled) image pixel space. The areas overlay is an SVG whose `viewBox` is that space (the image's authored `width` and `height`), positioned exactly over the image, so the browser applies the scale factor at any rendered size.
 
 ### Known gaps
 
-- **`maxChoices` not extracted or enforced:** The spec allows item authors to require the candidate to order only a subset of hotspots (e.g. pick the top 3 of 5 and order them). This is not supported. All hotspots are included in the sortable list and all must appear in the response.
-- **`minChoices` not extracted or enforced:** The spec defines this as a completeness constraint. Not extracted or validated.
-- **`fixed` hotspot position-locking not enforced:** When a `hotspotChoice` has `fixed=true`, its position in the order should be locked and the candidate should not be able to move it. The extractor reads and stores `fixed`, but the sortable list does not enforce it.
-- **No image-level sequence overlays:** The spec says delivery engines should display sequence indicators on the image. The default implementation shows sequence badges in the list panel only. Coordinates are extracted and available for implementers who want to overlay numbers on the image.
+None in the delivered behaviour above.
+
+Resolved since the previous review, and no longer gaps:
+
+- **The image shows the hotspots**: QTI 3.0 §5.61 — "The delivery engine must clearly indicate all defined area(s) of the image." Every area is outlined over the image (the shared `HotspotShape`), each placed one with its position in the order the list shows (see FR-17).
+- **`fixed` hotspot position-locking**: not a spec requirement. `fixed` constrains the delivery engine's shuffling, which this interaction does not do, and never the candidate (see the attribute table).
 - **`matchGroup` not applicable here:** `matchGroup` is an attribute of `associableHotspot` (used in `graphicAssociateInteraction` and related interactions), not `hotspotChoice`. It is not a gap for this interaction.
 
 ---
@@ -125,8 +127,10 @@ Coordinates are in the natural (un-scaled) image pixel space. When the image is 
 - **FR-11:** Accept a `response` prop (`string[]`) and synchronise the list order to it without re-emitting `qti-change`.
 - **FR-12:** When `response` is cleared (set to `null` or `[]`), reset the list to the authored order and clear the confirmed state.
 - **FR-13:** When `disabled=true`, all drag handles and the confirm button must be non-interactive. Disabled state must be visually distinct (reduced opacity, `cursor: not-allowed`).
-- **FR-14:** When `role='scorer'` and `correctResponse` is provided, visually distinguish each item that is in its correct position (green highlight, "Correct" badge). Do not reveal correct order to any other role.
+- **FR-14:** When `role='scorer'` and `correctResponse` is provided (correct-answer mode, the `createInteractionShell` rule shared by every interaction), visually distinguish each item that is in its correct position (green highlight, "Correct" badge). A scorer view without a correct response is the plain interaction. Do not reveal correct order to any other role.
 - **FR-15:** Render the `prompt` HTML content above the image when present.
+- **FR-16 (subset mode):** When `minChoices` is at least 1 and below the hotspot count, render the panel as two labelled zones — "Your order" (the sortable list, holding only the ordered hotspots, with position badges) and "Not in your order" (the other hotspots by label, with no position number) — shared with `orderInteraction` (see [order.md](order.md), FR-16 to FR-21). The order starts empty and the response is `null` until the candidate adds a hotspot; an emptied order is `null` again. Adding past the cap is refused and announced; the limits are stated where the unmet-minimum hint goes. Both statements are localized only: `graphicOrderInteraction` defines no `data-*-selections-message` attribute in any QTI version, so an authored one is ignored (unlike `orderInteraction`). There is no confirm control in subset mode, and the scorer view lists the authored subset under "Correct order".
+- **FR-17 (areas on the image):** Over the image, an SVG overlay in the image's natural pixel space (`viewBox` from the image's width and height, positioned exactly over it and scaling with it) outlines every hotspot's area in its shape — a light halo under the outline, visible on any image. Each placed area carries a badge with its position in the order the list shows: every hotspot in full ordering, only the ordered ones in subset ordering, whose other areas are dashed. Badges keep a constant CSS size at any image scale. The overlay is visual only: `aria-hidden`, no focusable content, `pointer-events: none`, so the list's keyboard and pointer controls are unchanged. No overlay is drawn over an image that failed to load.
 
 ---
 
@@ -136,8 +140,8 @@ Coordinates are in the natural (un-scaled) image pixel space. When the image is 
 
 - **Image alt text:** The `<img>` element must have a descriptive `alt` attribute. The default value is `'Ordering diagram'`; item authors should provide a more specific description via the `i18n` provider key `interactions.graphicOrder.altText`. SVG content embedded directly does not use an `<img>` element and should carry its own `<title>` element as the accessible name.
 - **List semantics:** The sortable list must have `role="list"` with an accessible label (`aria-label`). Each item must have `role="listitem"`. This pattern communicates to screen readers that the items form an ordered collection.
-- **Item accessible names:** Each list item (button) must have a descriptive `aria-label` that includes: the item's text content, its current numeric position in the sequence (e.g. "Position 2 of 3"), and a hint when the item is grabbed ("Grabbed. Use arrow keys to move."). This is provided by the `SortableList` component.
-- **Drag status:** The `aria-grabbed` attribute must be set to `true` when an item is keyboard-grabbed and `false` otherwise.
+- **Item accessible names:** Each list item (button) must be named by its text content (`aria-labelledby`, so image alt text and MathML `alttext` participate). Its `aria-describedby` target carries its current numeric position in the sequence (e.g. "Position 2 of 3") and, while the item is grabbed, a hint ("Grabbed. Use arrow keys to move."). This is provided by the `SortableList` component.
+- **Grab state:** `aria-grabbed` is deprecated in ARIA and must not be used. The grabbed state is exposed through the item's description (the "Grabbed…" hint above) and the live announcements below; `data-grabbed` on the item is the styling hook and also shows the state to tests and theme authors.
 - **Live announcements:** A `role="status"` (or `aria-live="polite"`) region must announce position changes and grab/drop events to screen readers. The `SortableList` component provides this via its `announceText` state.
 - **Instructions for keyboard users:** A visually hidden element with keyboard instructions ("Press Space or Enter to grab an item. Use arrow keys to move…") must be associated with the list via `aria-describedby`.
 - **Confirm button:** The confirm button must have a descriptive `aria-label` (e.g. "Confirm this order as your answer") separate from its visible label to avoid ambiguity.
@@ -154,7 +158,7 @@ Coordinates are in the natural (un-scaled) image pixel space. When the image is 
 
 - Drag-and-drop must be operable via touch on iOS Safari and Chrome for Android using the `touchDrag` action from `@pie-qti/qti-common`.
 - The layout must be usable on 375px viewport width (portrait phone) without horizontal scrolling.
-- The image container must scale down proportionally when the viewport is narrower than the image's natural width.
+- The image container must scale down proportionally when the viewport is narrower than the image's natural width; the areas overlay scales with it (it covers exactly the image box, whose aspect ratio is the image's), so areas stay on their features and badges stay legible at 320 px.
 
 ### Security
 
@@ -172,7 +176,11 @@ All user-visible strings are injectable via the `I18nProvider`. Default fallback
 | `interactions.graphicOrder.confirmOrderNoChanges` | `'Confirm Order (No Changes)'` |
 | `interactions.graphicOrder.confirmAria` | `'Confirm this order as your answer'` |
 | `interactions.graphicOrder.instruction` | `'Drag to reorder, or click to confirm'` |
+| `interactions.graphicOrder.subsetExactHint` | plural: `'Choose {count} items and put them in order.'` |
+| `interactions.graphicOrder.subsetRangeHint` | plural: `'Choose between {min} and {max} items and put them in order.'` |
 | `common.errorNoData` | `'No interaction data provided'` |
+
+The subset zones' own labels, control names and announcements are the shared `interactions.order.*` keys (see [order.md](order.md)), as the sortable list's are.
 
 ---
 
@@ -183,7 +191,7 @@ All user-visible strings are injectable via the `I18nProvider`. Default fallback
 **Decision:** The primary interaction surface is a text list rendered beside/below the image, not clickable hotspot regions overlaid on the image.  
 **Rationale:** Click-in-sequence requires pixel-accurate hit-testing of potentially overlapping, arbitrarily shaped regions on a scaled image. On mobile, finger precision makes this error-prone; on desktop, overlap between adjacent regions makes the expected click target unclear. A sortable list is familiar (drag handles are a known UX pattern), reliable, and straightforwardly accessible via keyboard and screen reader. The image still provides the visual context that makes the ordering meaningful.  
 **Alternatives considered:** (1) Click-to-assign-sequence-number on each hotspot region — rejected due to hit-testing complexity and lack of a clear deselection model. (2) Drag from image to a slot list — rejected as it conflates two interaction patterns and is hard to operate one-handed on mobile.  
-**Consequences:** The hotspot `shape` and `coords` attributes are extracted and stored but are not used by the default rendering. A future enhancement or custom renderer could use them to overlay sequence badges on the image at the correct positions.
+**Consequences:** The hotspot `shape` and `coords` attributes draw each area and its position on the image (FR-17) but are not used for interaction. A custom renderer could use them for click-in-sequence.
 
 ### Auto-confirm on drag; explicit confirm button for initial/unchanged state
 
@@ -199,11 +207,11 @@ All user-visible strings are injectable via the `I18nProvider`. Default fallback
 **Alternatives considered:** Start with `null` and require the candidate to establish an order from scratch — rejected because it breaks "confirm default order" as a valid candidate action (a candidate who agrees with the authored order would need to drag something to establish any response at all).  
 **Consequences:** Scoring works correctly out of the box — `RESPONSE` will always be a non-null ordered array. However, the `$dirty` flag is not set until `hasConfirmed` becomes true, ensuring that an interaction the candidate never touched is not submitted as a committed response.
 
-### Props accept both parsed objects and JSON strings
+### Interaction data accepts an object or its JSON; responses are values
 
-**Decision:** `interaction`, `response`, `correctResponse`, and `i18n` are each processed with `parseJsonProp` before use.  
-**Rationale:** When used as a native web component via HTML attributes, all prop values arrive as strings. When used as a Svelte component inside the item player, they arrive as typed objects. `parseJsonProp` handles both cases transparently. Without this, the web component usage would require a separate wrapper.  
-**Consequences:** Small runtime cost of attempting `JSON.parse` on every render for the web component case. Negligible for the number of hotspots typical in K-12 items (2–8).
+**Decision:** `interaction` is processed by `createInteractionShell` (`parseJsonProp`) before use; `response` and `correctResponse` pass through it as values. Their lists arrive as JavaScript properties, or as the JSON text an HTML attribute carries: a string reading as a JSON array is read as that list, any other string stays as given. The shell also gives correct-answer mode: the `scorer` role with a correct response.  
+**Rationale:** An HTML attribute carries the interaction data as JSON text; inside the item player it arrives as an object, and `parseJsonProp` handles both cases. Without this, the web component usage would require a separate wrapper. Responses are values the item player sets as JavaScript properties; a string in a response is never re-read as arbitrary JSON — only list text is read as a list.  
+**Consequences:** Small runtime cost of attempting `JSON.parse` on the interaction data for the web component case. Negligible for the number of hotspots typical in K-12 items (2–8).
 
 ### `qti-change` events dispatched from the root element inside shadow DOM
 
@@ -223,7 +231,7 @@ interface GraphicOrderChoice {
   shape: string;        // 'rect' | 'circle' | 'poly' | 'ellipse'; default 'rect'
   coords: string;       // image-pixel coordinates; default '0,0,50,50'
   label: string;        // text content of hotspotChoice; falls back to identifier if empty
-  fixed?: boolean;      // from fixed attribute; if true, position should be locked (not enforced)
+  fixed?: boolean;      // from fixed attribute (QTI 2.x); no effect: the interaction does not shuffle
   classes?: string[];   // CSS class list from the element (for custom renderer detection)
 }
 ```
@@ -236,14 +244,16 @@ interface GraphicOrderInteractionData extends BaseInteractionData {
   prompt: string | null;         // HTML content of <prompt> child, or null
   imageData: ImageData | null;   // background image; null produces a warning
   hotspotChoices: GraphicOrderChoice[];  // ordered by XML document order
+  minChoices?: number;           // omitted when 0; 1..N-1 requests subset ordering
+  maxChoices?: number;           // omitted when 0; caps subset ordering, ignored without minChoices
 }
 
 interface ImageData {
   type: 'image' | 'svg';
   src?: string;           // for type='image': URL of the raster image
   content?: string;       // for type='svg': full SVG markup including <svg> root element
-  width?: string;         // natural width in pixels (string); default '500'
-  height?: string;        // natural height in pixels (string); default '300'
+  width?: string;         // natural width in pixels (string); absent when the item declares none
+  height?: string;        // natural height in pixels (string); absent when the item declares none
 }
 ```
 
@@ -255,8 +265,7 @@ interface ImageData {
 - `imageData === null` produces a warning, not an error (SVG-only items without an `object` element are unusual but not structurally invalid)
 
 **Invariants not enforced (gaps):**
-- `maxChoices` and `minChoices` are absent from the type
-- `fixed` is extracted but not enforced by the UI
+- `fixed` has no effect: the interaction does not shuffle, and `fixed` never stops the candidate reordering
 
 ### Response variable
 
@@ -267,7 +276,7 @@ responseDeclaration identifier="RESPONSE"
   correctResponse > value: the correct identifier sequence (one per value element, in order)
 ```
 
-The player stores the response as `string[]` in `declarations[responseIdentifier].value`. The `qti-change` event `detail.value` carries the same `string[]`.
+The player stores the response as `string[]` in `declarations[responseIdentifier].value`. The `qti-change` event `detail.value` carries the same `string[]`, or `null` once a subset order is emptied (FR-16).
 
 ---
 
@@ -459,12 +468,14 @@ AC-E7: Large coordinate values do not break layout
   Then: the image and list render without CSS overflow or layout breakage;
         the coords are stored correctly in the extracted data
 
-AC-E8: Partial ordering when maxChoices is smaller than hotspot count
-  Given: a graphicOrderInteraction with maxChoices=2 and 4 hotspotChoices
-  When: the item renders (noting maxChoices is not currently enforced)
-  Then: all 4 items appear in the list; the response includes all 4 identifiers;
-  Notes: this is a known gap — maxChoices enforcement is not implemented. This AC
-         documents the current (non-enforcing) behaviour as the baseline until the gap is closed.
+AC-E8: Subset ordering when minChoices is below the hotspot count
+  Given: a graphicOrderInteraction with minChoices=1, maxChoices=2 and 4 hotspotChoices
+  When: the item renders
+  Then: "Your order" starts empty and all 4 hotspots wait in "Not in your order" with no
+        position number; the candidate may order 1 or 2 of them, a third add is refused and
+        announced, and the response is the ordered subset (null while empty)
+  Notes: with maxChoices but no minChoices every hotspot is ordered and maxChoices is ignored,
+         as the spec requires; validateResponses rejects a restored response over the cap
 
 AC-E9: Response reflects confirmed drag order on subsequent re-render
   Given: the item with 3 hotspots; the user drags TOPSOIL to position 1 (qti-change fires)
@@ -476,9 +487,9 @@ AC-E9: Response reflects confirmed drag order on subsequent re-render
 
 ## Open questions
 
-- [ ] Should the default component overlay sequence number badges on the image at the hotspot coordinates (in addition to the list badges)? This requires coordinate-to-CSS-pixel scaling and increases complexity, but would better match the spec intent of "display indicators showing the selection order" on the image itself.
-- [ ] Should `maxChoices` and `minChoices` be extracted and enforced? Currently neither is in `GraphicOrderInteractionData`. Enforcing `maxChoices < N` would require a "pick k of n" UI (candidates select which hotspots to include in their sequence), which is a materially different interaction model from the current "order all of them" approach.
-- [ ] Should `fixed` hotspot position-locking be enforced in the sortable list? A fixed hotspot should not be draggable. This requires `SortableList` to accept a `lockedIds` prop.
+- [x] Should the default component overlay sequence number badges on the image at the hotspot coordinates (in addition to the list badges)? (resolved) Yes: QTI requires the areas be clearly indicated (QTI 3.0 §5.61), so every area is outlined on the image and each placed one carries its position (FR-17).
+- [x] Should `maxChoices` and `minChoices` be extracted and enforced? Yes — both are extracted; a `minChoices` below the hotspot count switches the panel to the two-zone "pick k of n" UI shared with `orderInteraction`, and response validation enforces the same limits.
+- [x] Should `fixed` hotspot position-locking be enforced in the sortable list? (resolved) No: in QTI 2.x `fixed` constrains the delivery engine's shuffling, not the candidate, and QTI 3.0 hotspot choices have no `fixed` (§5.67).
 - [ ] Should the image be clickable (click-in-sequence) as an alternative input modality alongside the sortable list? This would require hit-testing and deselection logic.
 
 ---
@@ -487,9 +498,10 @@ AC-E9: Response reflects confirmed drag order on subsequent re-render
 
 - QTI spec: `docs/QTI_techguide.md` §3.3.3 graphicOrderInteraction
 - Response processing: `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`
-- Spec gaps: `docs/SPEC-GAPS-PLAN.md` — no gap items currently assigned to graphicOrderInteraction; the `maxChoices`/`minChoices`/`fixed` gaps documented above are not yet tracked
+- Spec gaps: `docs/SPEC-GAPS-PLAN.md` — no gap items assigned to graphicOrderInteraction; the area-marking gap this PRD once listed is resolved
 - Component: `packages/default-components/src/plugins/graphic-order/GraphicOrderInteraction.svelte`
-- Shared component: `packages/default-components/src/shared/components/SortableList.svelte`
+- Shared components: `packages/default-components/src/shared/components/SortableList.svelte`; `HotspotShape.svelte` (the area outlines)
+- Browser checks: `apps/demo/tests/playwright/graphic-interactions.pw.ts` (the areas follow the list; the overlay scales with the image on a 320 px touch screen)
 - Extractor: `packages/item-player/src/interactions/graphic-order/extractor.ts`
 - Type: `packages/item-player/src/interactions/shared/types.ts` — `GraphicOrderInteractionData`, `GraphicOrderChoice`
 - Extractor tests: `packages/item-player/tests/extraction/extractors/graphicOrderExtractor.test.ts`

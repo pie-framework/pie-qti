@@ -1,0 +1,21 @@
+{
+  "id": "isNull_not",
+  "qtiVersion": "2.2",
+  "title": "isNull / not(isNull)",
+  "description": "Covers null checks in responseProcessing: isNull, and its negation as not(isNull(...)) — QTI defines no isNotNull operator.",
+  "source": {
+    "type": "custom",
+    "license": "CC0-1.0"
+  },
+  "covers": [
+    "baseValue",
+    "expr.baseValue",
+    "expr.isNull",
+    "expr.not",
+    "expr.variable",
+    "isNull",
+    "not",
+    "stmt.responseCondition",
+    "stmt.setOutcomeValue"
+  ]
+}

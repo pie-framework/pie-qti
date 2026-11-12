@@ -14,8 +14,7 @@ import {
 } from '@pie-qti/test-utils';
 import { createTestEngine } from './test-utils.js';
 import { QtiToPiePlugin } from '../src/plugin';
-import type { CssClassExtractor, VendorDetector } from '../src/types/vendor-extensions';
-import { type QtiSourceProfile, sourceDigest } from '@pie-qti/transform-types';
+import { type CssClassExtractor, type QtiSourceProfile, sourceDigest, type VendorDetector } from '@pie-qti/transform-types';
 
 // Create sample QTI using test utilities
 const sampleQtiXml = createQtiWrapper(
@@ -814,7 +813,7 @@ describe('QtiToPiePlugin', () => {
     );
 
     await expect(promise).rejects.toThrow(/Unsupported customInteraction with standard interaction\(s\): choiceInteraction/);
-    await expect(promise).rejects.toThrow(/customInteractionIdentifierType: urn:vendor:graph/);
+    await expect(promise).rejects.toThrow(/customInteractionTypeIdentifier: urn:vendor:graph/);
   });
 
   test('should reject a namespace-prefixed interaction beside a choiceInteraction', async () => {

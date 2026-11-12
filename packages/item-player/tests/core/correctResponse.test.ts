@@ -1,7 +1,23 @@
-import { describe, expect, test } from 'bun:test';
-import { Player } from '../../src/core/Player.js';
+/**
+ * Correct responses as a session exposes them: live, from the session's declarations, through a
+ * presentation for a role allowed to see them (scorer). A candidate presentation carries none.
+ */
 
-describe('Player - Correct Response Access', () => {
+import { describe, expect, test } from 'bun:test';
+import { createAssessmentItemDefinition } from '../../src/core/AssessmentItemDefinition.js';
+import type { QTIRole } from '../../src/types/index.js';
+
+/** The correct responses a presentation for `role` carries, keyed by response identifier. */
+function presentedCorrectResponses(itemXml: string, role: QTIRole = 'scorer'): Readonly<Record<string, any>> {
+	const session = createAssessmentItemDefinition({ itemXml, role }).openSession();
+	try {
+		return session.present().correctResponses;
+	} finally {
+		session.dispose();
+	}
+}
+
+describe('Correct responses through a scorer-role presentation', () => {
 	describe('Single value responses', () => {
 		test('choiceInteraction with single correct answer', () => {
 			const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -16,8 +32,8 @@ describe('Player - Correct Response Access', () => {
     </choiceInteraction>
   </itemBody>
 </assessmentItem>`;
-			const player = new Player({ itemXml: xml });
-			expect(player.getCorrectResponse('RESPONSE')).toBe('A');
+			const correctResponses = presentedCorrectResponses(xml);
+			expect(correctResponses.RESPONSE).toBe('A');
 		});
 
 		test('textEntryInteraction with correct text', () => {
@@ -30,8 +46,8 @@ describe('Player - Correct Response Access', () => {
     <p>Capital of France: <textEntryInteraction responseIdentifier="RESPONSE" /></p>
   </itemBody>
 </assessmentItem>`;
-			const player = new Player({ itemXml: xml });
-			expect(player.getCorrectResponse('RESPONSE')).toBe('Paris');
+			const correctResponses = presentedCorrectResponses(xml);
+			expect(correctResponses.RESPONSE).toBe('Paris');
 		});
 
 		test('sliderInteraction with correct integer value', () => {
@@ -44,8 +60,8 @@ describe('Player - Correct Response Access', () => {
     <sliderInteraction responseIdentifier="RESPONSE" lowerBound="0" upperBound="100" />
   </itemBody>
 </assessmentItem>`;
-			const player = new Player({ itemXml: xml });
-			expect(player.getCorrectResponse('RESPONSE')).toBe(50);
+			const correctResponses = presentedCorrectResponses(xml);
+			expect(correctResponses.RESPONSE).toBe(50);
 		});
 	});
 
@@ -67,8 +83,8 @@ describe('Player - Correct Response Access', () => {
     </choiceInteraction>
   </itemBody>
 </assessmentItem>`;
-			const player = new Player({ itemXml: xml });
-			const correct = player.getCorrectResponse('RESPONSE');
+			const correctResponses = presentedCorrectResponses(xml);
+			const correct = correctResponses.RESPONSE;
 			expect(Array.isArray(correct)).toBe(true);
 			expect(correct).toContain('A');
 			expect(correct).toContain('C');
@@ -93,8 +109,8 @@ describe('Player - Correct Response Access', () => {
     </orderInteraction>
   </itemBody>
 </assessmentItem>`;
-			const player = new Player({ itemXml: xml });
-			const correct = player.getCorrectResponse('RESPONSE');
+			const correctResponses = presentedCorrectResponses(xml);
+			const correct = correctResponses.RESPONSE;
 			expect(correct).toEqual(['First', 'Second', 'Third']);
 		});
 
@@ -116,8 +132,8 @@ describe('Player - Correct Response Access', () => {
     </hotspotInteraction>
   </itemBody>
 </assessmentItem>`;
-			const player = new Player({ itemXml: xml });
-			const correct = player.getCorrectResponse('RESPONSE');
+			const correctResponses = presentedCorrectResponses(xml);
+			const correct = correctResponses.RESPONSE;
 			expect(Array.isArray(correct)).toBe(true);
 			expect(correct).toContain('A');
 			expect(correct).toContain('C');
@@ -125,7 +141,7 @@ describe('Player - Correct Response Access', () => {
 	});
 
 	describe('Edge cases', () => {
-		test('returns undefined for response with no correctResponse', () => {
+		test('has no entry for a response without a correctResponse', () => {
 			const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="test">
   <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="string" />
@@ -133,11 +149,11 @@ describe('Player - Correct Response Access', () => {
     <extendedTextInteraction responseIdentifier="RESPONSE" />
   </itemBody>
 </assessmentItem>`;
-			const player = new Player({ itemXml: xml });
-			expect(player.getCorrectResponse('RESPONSE')).toBeUndefined();
+			const correctResponses = presentedCorrectResponses(xml);
+			expect(correctResponses.RESPONSE).toBeUndefined();
 		});
 
-		test('returns undefined for non-existent responseId', () => {
+		test('has no entry for an undeclared response identifier', () => {
 			const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="test">
   <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
@@ -149,11 +165,11 @@ describe('Player - Correct Response Access', () => {
     </choiceInteraction>
   </itemBody>
 </assessmentItem>`;
-			const player = new Player({ itemXml: xml });
-			expect(player.getCorrectResponse('NONEXISTENT')).toBeUndefined();
+			const correctResponses = presentedCorrectResponses(xml);
+			expect(correctResponses.NONEXISTENT).toBeUndefined();
 		});
 
-		test('getCorrectResponses returns only responses with correctResponse', () => {
+		test('carries only the responses that declare a correctResponse', () => {
 			const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="test">
   <responseDeclaration identifier="RESP1" cardinality="single" baseType="identifier">
@@ -175,15 +191,14 @@ describe('Player - Correct Response Access', () => {
     </choiceInteraction>
   </itemBody>
 </assessmentItem>`;
-			const player = new Player({ itemXml: xml });
-			const allCorrect = player.getCorrectResponses();
+			const allCorrect = presentedCorrectResponses(xml);
 			expect(allCorrect.RESP1).toBe('A');
 			expect(allCorrect.RESP2).toBe('B');
 			expect(allCorrect.RESP3).toBeUndefined();
 			expect(Object.keys(allCorrect).length).toBe(2);
 		});
 
-		test('getCorrectResponses returns empty object when no correct responses', () => {
+		test('is empty when no response declares a correctResponse', () => {
 			const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="test">
   <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="string" />
@@ -191,9 +206,24 @@ describe('Player - Correct Response Access', () => {
     <extendedTextInteraction responseIdentifier="RESPONSE" />
   </itemBody>
 </assessmentItem>`;
-			const player = new Player({ itemXml: xml });
-			const allCorrect = player.getCorrectResponses();
+			const allCorrect = presentedCorrectResponses(xml);
 			expect(Object.keys(allCorrect).length).toBe(0);
+		});
+
+		test('a candidate presentation carries no correct responses', () => {
+			const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="test">
+  <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+    <correctResponse><value>A</value></correctResponse>
+  </responseDeclaration>
+  <itemBody>
+    <choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+      <simpleChoice identifier="A">Choice A</simpleChoice>
+    </choiceInteraction>
+  </itemBody>
+</assessmentItem>`;
+			expect(presentedCorrectResponses(xml, 'candidate')).toEqual({});
+			expect(presentedCorrectResponses(xml).RESPONSE).toBe('A');
 		});
 	});
 
@@ -220,8 +250,8 @@ describe('Player - Correct Response Access', () => {
     </matchInteraction>
   </itemBody>
 </assessmentItem>`;
-			const player = new Player({ itemXml: xml });
-			const correct = player.getCorrectResponse('RESPONSE');
+			const correctResponses = presentedCorrectResponses(xml);
+			const correct = correctResponses.RESPONSE;
 			expect(Array.isArray(correct)).toBe(true);
 			expect(correct).toContain('A X');
 			expect(correct).toContain('B Y');
@@ -245,8 +275,8 @@ describe('Player - Correct Response Access', () => {
     </associateInteraction>
   </itemBody>
 </assessmentItem>`;
-			const player = new Player({ itemXml: xml });
-			const correct = player.getCorrectResponse('RESPONSE');
+			const correctResponses = presentedCorrectResponses(xml);
+			const correct = correctResponses.RESPONSE;
 			expect(Array.isArray(correct)).toBe(true);
 			expect(correct.length).toBe(2);
 		});
@@ -261,7 +291,7 @@ describe('Player - Correct Response Access', () => {
     </correctResponse>
   </responseDeclaration>
   <itemBody>
-    <gapMatchInteraction responseIdentifier="RESPONSE">
+    <gapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="2">
       <gapText identifier="W1">word1</gapText>
       <gapText identifier="W2">word2</gapText>
       <blockquote>
@@ -270,8 +300,8 @@ describe('Player - Correct Response Access', () => {
     </gapMatchInteraction>
   </itemBody>
 </assessmentItem>`;
-			const player = new Player({ itemXml: xml });
-			const correct = player.getCorrectResponse('RESPONSE');
+			const correctResponses = presentedCorrectResponses(xml);
+			const correct = correctResponses.RESPONSE;
 			expect(Array.isArray(correct)).toBe(true);
 			expect(correct).toContain('W1 G1');
 			expect(correct).toContain('W2 G2');

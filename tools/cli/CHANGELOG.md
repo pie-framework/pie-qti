@@ -1,5 +1,39 @@
 # @pie-qti/transform-cli
 
+## 1.0.0-beta.5
+
+### Patch Changes
+
+- 88f849c: The transformation packages join the 1.0 beta line: every publishable `@pie-qti/*` package now releases at one version, so these move from `0.2.x` to `1.0.0-beta.5` and publish under the `beta` dist-tag with the players. Hosts that pin them exactly need the new version; a `^0.2` range does not pick it up.
+- 565d621: Remove the unused `@oclif/plugin-help` runtime dependency. `--help` is provided natively by
+  `@oclif/core`; the help plugin was never registered in the CLI's `oclif` config (`plugins` is
+  absent), so it was never loaded at runtime. Also removes the three `package.json` dev scripts
+  (`analyze-qti`, `discover-qti`, `batch-transform`) that required the undeclared `ts-node` package
+  and therefore never ran; the commands themselves are unchanged CLI subcommands
+  (`pie-transform analyze-qti`, `pie-transform discover-qti`, `pie-transform batch-transform`).
+- Updated dependencies [310b975]
+- Updated dependencies [af63915]
+- Updated dependencies [90bf9ab]
+- Updated dependencies [9c75e43]
+- Updated dependencies [e2e2b78]
+- Updated dependencies [1f1d8f0]
+- Updated dependencies [e2e2b78]
+- Updated dependencies [795c767]
+- Updated dependencies [e7188e4]
+- Updated dependencies [88f849c]
+- Updated dependencies [93df941]
+- Updated dependencies
+- Updated dependencies [684738a]
+- Updated dependencies [684738a]
+- Updated dependencies [684738a]
+- Updated dependencies [9ec0f69]
+- Updated dependencies [b668938]
+  - @pie-qti/to-pie@1.0.0-beta.5
+  - @pie-qti/transform-types@1.0.0-beta.5
+  - @pie-qti/transform-core@1.0.0-beta.5
+  - @pie-qti/logger@1.0.0-beta.5
+  - @pie-qti/ims-cp-node@1.0.0-beta.5
+
 ## 0.2.1
 
 ### Patch Changes

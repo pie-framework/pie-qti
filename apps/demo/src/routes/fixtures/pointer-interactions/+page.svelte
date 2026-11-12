@@ -17,7 +17,7 @@
 	};
 	const gap: GapMatchInteractionData = {
 		type: 'gapMatchInteraction', responseId: 'GAP', prompt: null, shuffle: false,
-		promptText: '<p>The sky is [GAP:sky].</p>', gaps: [{ identifier: 'sky', index: 0 }],
+		promptText: '<p>The sky is [GAP:sky].</p>', gaps: ['sky'],
 		gapTexts: [{ identifier: 'blue', text: 'Blue', matchMax: 1 }, { identifier: 'green', text: 'Green', matchMax: 1 }],
 	};
 	const graphic: GraphicGapMatchInteractionData = {

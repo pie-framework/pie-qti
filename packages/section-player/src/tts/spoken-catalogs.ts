@@ -1,5 +1,6 @@
 /// <reference lib="dom" />
 
+import { contentLanguageAttributes } from '@pie-qti/i18n';
 import { enforceItemXmlLimits } from '@pie-qti/item-player/security';
 import type { PlayerSecurityConfig } from '@pie-qti/item-player';
 import { type ContentLink, prepareContentMarkup, readApipAccessElements } from '@pie-qti/qti-common/accessibility';
@@ -110,10 +111,14 @@ function nativeSpokenCatalogs(document: Document, serializer: XMLSerializerLike 
 /**
  * A passage's markup as it reads aloud, and the spoken catalogs its SSML makes: `data-ssml`
  * and inline SSML dock under generated idrefs, the item player's preparation of item content.
+ * Its `xml:lang` is restated as `lang` (with `dir` where the direction changes against the
+ * passage's own `language`), with or without SSML: HTML ignores `xml:lang`.
  */
-export function prepareReadableBlock(rawHtml: string): { html: string; catalogs: SpokenCatalog[] } {
-	if (!/ssml|synthesis/.test(rawHtml)) return { html: rawHtml, catalogs: [] };
-	const open = '<qti-stimulus-body>';
+export function prepareReadableBlock(rawHtml: string, language?: string): { html: string; catalogs: SpokenCatalog[] } {
+	if (!/ssml|synthesis|xml:lang/.test(rawHtml)) return { html: rawHtml, catalogs: [] };
+	// The passage's direction is the one its nested languages are compared against.
+	const dir = contentLanguageAttributes(language)?.dir;
+	const open = dir ? `<qti-stimulus-body dir="${dir}">` : '<qti-stimulus-body>';
 	const close = '</qti-stimulus-body>';
 	const prepared = prepareContentMarkup(`${open}${rawHtml}${close}`, [], { hidingStyles: false });
 	const start = prepared.xml.indexOf(open);
@@ -152,4 +157,56 @@ export function extractItemSpeech(itemXml?: string, options: ItemSpeechOptions =
 	catalogs.unshift(...nativeSpokenCatalogs(document, getSerializer(options)));
 	const language = contentLanguageOf(document);
 	return { catalogs, ...(language ? { language } : {}) };
+}
+
+/** The outcome of `tryExtractItemSpeech`: the speech, or the reported failure. */
+export type ItemSpeechOutcome =
+	| { ok: true; speech: ItemSpeech }
+	| { ok: false; message: string; cause: unknown };
+
+/**
+ * `extractItemSpeech` for section shells: a security rejection (a `<!DOCTYPE>`, an
+ * item over the parsing limit) comes back as a failure instead of a throw, so a
+ * section layout can report it and keep rendering the item — the item player
+ * degrades to its own per-item alert for the same item — simply without
+ * read-aloud catalogs.
+ */
+export function tryExtractItemSpeech(itemXml?: string, options: ItemSpeechOptions = {}): ItemSpeechOutcome {
+	try {
+		return { ok: true, speech: extractItemSpeech(itemXml, options) };
+	} catch (error) {
+		return {
+			ok: false,
+			message: error instanceof Error ? error.message : 'Unable to prepare the item for read-aloud.',
+			cause: error,
+		};
+	}
+}
+
+/** The outcome of `tryPrepareReadableBlock`: the readable markup, or `rawHtml` with the failure. */
+export type ReadableBlockOutcome =
+	| { ok: true; html: string; catalogs: SpokenCatalog[] }
+	| { ok: false; html: string; message: string; cause: unknown };
+
+/**
+ * `prepareReadableBlock` for section shells: markup a safe preparer rejects comes
+ * back as authored (no catalogs) with the failure reported, so a passage, rubric
+ * or feedback block degrades instead of taking the section layout's render down.
+ * `prepare` is the preparation to run; it defaults to `prepareReadableBlock`.
+ */
+export function tryPrepareReadableBlock(
+	rawHtml: string,
+	language?: string,
+	prepare: typeof prepareReadableBlock = prepareReadableBlock,
+): ReadableBlockOutcome {
+	try {
+		return { ok: true, ...prepare(rawHtml, language) };
+	} catch (error) {
+		return {
+			ok: false,
+			html: rawHtml,
+			message: error instanceof Error ? error.message : 'Unable to prepare the block for read-aloud.',
+			cause: error,
+		};
+	}
 }

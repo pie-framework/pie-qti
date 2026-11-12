@@ -1,11 +1,14 @@
 import type {
 	QtiAssessmentLoadErrorDetail,
 	QtiAssessmentResponseChangeDetail,
+	QtiAssessmentScopeTimeExpiredDetail,
+	QtiAssessmentSessionFinalizedDetail,
 	QtiAssessmentSubmitDetail,
 	QtiItemPlayerCompleteDetail,
+	QtiItemPlayerErrorDetail,
 	QtiItemPlayerResponseChangeDetail,
 	QtiItemPlayerSubmitDetail,
-	QtiSectionResponseDeltaDetail,
+	QtiSectionResponseDeltaEvent,
 } from '../src/index.js';
 
 export function assertItemCustomElementTypes(element: HTMLElementTagNameMap['pie-qti-item-player']) {
@@ -29,6 +32,13 @@ export function assertItemCustomElementTypes(element: HTMLElementTagNameMap['pie
 	element.addEventListener('complete', (event) => {
 		const detail: QtiItemPlayerCompleteDetail = event.detail;
 		void detail.result.numAttempts;
+	});
+
+	element.addEventListener('error', (event) => {
+		const detail: QtiItemPlayerErrorDetail = event.detail;
+		void detail.code;
+		void detail.message;
+		void detail.itemIdentifier;
 	});
 
 	// @ts-expect-error item-player notifications are exposed only as DOM events
@@ -74,6 +84,35 @@ export function assertAssessmentCustomElementTypes(
 	element.addEventListener('complete', (event) => {
 		void event.detail;
 	});
+
+	// The proctor console surface.
+	element.addEventListener('scope-time-expired', (event) => {
+		const detail: QtiAssessmentScopeTimeExpiredDetail = event.detail;
+		void detail.deliveryContinues;
+	});
+
+	element.addEventListener('session-finalized', (event) => {
+		const detail: QtiAssessmentSessionFinalizedDetail = event.detail;
+		void detail.restored;
+		void detail.results.totalScore;
+	});
+
+	element.addEventListener('player-pause', (event) => {
+		void event.detail.reason;
+	});
+
+	const paused: boolean = element.isPaused();
+	const reason: string | undefined = element.getPauseReason();
+	const finished: boolean = element.isFinalized();
+	const remaining: number | null | undefined = element.getTimeState()?.remainingSeconds;
+	const allowStartOver: boolean = element.allowStartOver;
+	void paused;
+	void reason;
+	void finished;
+	void remaining;
+	void allowStartOver;
+	void element.flushAutosave();
+	void element.submit({ force: true });
 }
 
 export function assertSectionCustomElementTypes(
@@ -87,7 +126,7 @@ export function assertSectionCustomElementTypes(
 	};
 
 	element.addEventListener('qti-section-response-delta', (event) => {
-		const detail: QtiSectionResponseDeltaDetail = event.detail;
+		const detail: QtiSectionResponseDeltaEvent = event.detail;
 		void detail.responseIdentifier;
 	});
 }

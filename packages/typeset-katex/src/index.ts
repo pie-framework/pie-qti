@@ -1,8 +1,17 @@
 let loaded: Promise<typeof import('katex/contrib/auto-render')> | null = null;
 
-async function loadAutoRender() {
+/**
+ * Single-flight loader for the KaTeX auto-render chunk. While pending,
+ * concurrent callers share one import. A rejected import clears the cached
+ * promise: a transient chunk failure (blocked network, stale-deploy 404) must
+ * not poison the page for its lifetime — the next typeset pass retries.
+ */
+function loadAutoRender(): Promise<typeof import('katex/contrib/auto-render')> {
 	if (!loaded) {
-		loaded = import('katex/contrib/auto-render');
+		loaded = import('katex/contrib/auto-render').catch((error: unknown) => {
+			loaded = null;
+			throw error;
+		});
 	}
 	return loaded;
 }
@@ -15,156 +24,185 @@ export interface TypesetMathOptions {
 	enableSingleDollar?: boolean;
 }
 
+const MATHML_NAMESPACE = 'http://www.w3.org/1998/Math/MathML';
+
+/** MathML element names, used to re-namespace prefixed MathML such as `<m:math>`. */
+const MATHML_ELEMENT_NAMES = new Set([
+	'annotation',
+	'annotation-xml',
+	'maction',
+	'maligngroup',
+	'malignmark',
+	'math',
+	'menclose',
+	'merror',
+	'mfenced',
+	'mfrac',
+	'mglyph',
+	'mi',
+	'mlabeledtr',
+	'mlongdiv',
+	'mmultiscripts',
+	'mn',
+	'mo',
+	'mover',
+	'mpadded',
+	'mphantom',
+	'mprescripts',
+	'mroot',
+	'mrow',
+	'ms',
+	'mscarries',
+	'mscarry',
+	'msgroup',
+	'msline',
+	'mspace',
+	'msqrt',
+	'msrow',
+	'mstack',
+	'mstyle',
+	'msub',
+	'msubsup',
+	'msup',
+	'mtable',
+	'mtd',
+	'mtext',
+	'mtr',
+	'munder',
+	'munderover',
+	'none',
+	'semantics',
+]);
+
 /**
- * Convert MathML element to LaTeX string.
- * This is a basic converter for common QTI 2.2/3.0 MathML patterns.
- *
- * NOTE: This is intentionally minimal; if you need comprehensive MathML support,
- * consider integrating a dedicated MathML→LaTeX library in your host app.
+ * Elements KaTeX auto-render never descends into. `math` keeps authored MathML
+ * native: LaTeX-looking text inside it (for example in `<mtext>`) is content,
+ * not markup to typeset. `option` matches KaTeX's own default list.
  */
-function mathmlToLatex(mathElement: Element): string {
-	const tagName = mathElement.tagName.toLowerCase().replace(/^m:/, '');
+const IGNORED_TAGS = ['script', 'noscript', 'style', 'textarea', 'pre', 'code', 'option', 'math'];
 
-	// Handle <math> root element
-	if (tagName === 'math') {
-		const children = Array.from(mathElement.children);
-		// Only process element children, never include textContent directly
-		const results = children.map((c) => mathmlToLatex(c)).filter(r => r.trim() !== '');
-		return results.join(' ');
-	}
+/** Editable regions and KaTeX output are never rewritten. */
+function isProtected(element: Element): boolean {
+	return element.closest('[contenteditable="true"], .katex') !== null;
+}
 
-	// Handle container elements that only affect grouping or presentation.
-	if (tagName === 'mrow' || tagName === 'mstyle') {
-		const children = Array.from(mathElement.children);
-		const results = children.map((c) => mathmlToLatex(c)).filter(r => r.trim() !== '');
-		return results.join(' ');
-	}
-
-	// Handle <mi> (identifier), <mn> (number), <mo> (operator)
-	if (tagName === 'mi' || tagName === 'mn' || tagName === 'mo') {
-		// Trim to avoid whitespace issues and normalize common MathML operators to KaTeX-friendly LaTeX.
-		const text = (mathElement.textContent || '').trim();
-		if (tagName === 'mo') {
-			if (text === '⁡') return '';
-			if (text === '×') return '\\times';
-			if (text === '−') return '-';
-		}
-		if (tagName === 'mi' && text === 'π') return '\\pi';
-		return text;
-	}
-
-	// Handle <msup> (superscript: base^exponent)
-	if (tagName === 'msup') {
-		const children = Array.from(mathElement.children);
-		if (children.length === 2) {
-			const base = mathmlToLatex(children[0]);
-			const exp = mathmlToLatex(children[1]);
-			return `{${base}}^{${exp}}`;
-		}
-	}
-
-	// Handle <msub> (subscript: base_subscript)
-	if (tagName === 'msub') {
-		const children = Array.from(mathElement.children);
-		if (children.length === 2) {
-			const base = mathmlToLatex(children[0]);
-			const sub = mathmlToLatex(children[1]);
-			return `{${base}}_{${sub}}`;
-		}
-	}
-
-	// Handle <mfrac> (fraction)
-	if (tagName === 'mfrac') {
-		const children = Array.from(mathElement.children);
-		if (children.length === 2) {
-			const num = mathmlToLatex(children[0]);
-			const den = mathmlToLatex(children[1]);
-			return `\\frac{${num}}{${den}}`;
-		}
-	}
-
-	// Handle <msqrt> (square root)
-	if (tagName === 'msqrt') {
-		const children = Array.from(mathElement.children);
-		const content = children.map((c) => mathmlToLatex(c)).join(' ');
-		return `\\sqrt{${content}}`;
-	}
-
-	// Handle <mroot> (nth root)
-	if (tagName === 'mroot') {
-		const children = Array.from(mathElement.children);
-		if (children.length === 2) {
-			const base = mathmlToLatex(children[0]);
-			const index = mathmlToLatex(children[1]);
-			return `\\sqrt[${index}]{${base}}`;
-		}
-	}
-
-	// Handle <mfenced> (parentheses, brackets, etc.)
-	if (tagName === 'mfenced') {
-		const open = mathElement.getAttribute('open') || '(';
-		const close = mathElement.getAttribute('close') || ')';
-		const children = Array.from(mathElement.children);
-		const content = children.map((c) => mathmlToLatex(c)).join(', ');
-		return `${open}${content}${close}`;
-	}
-
-	// Fallback: return text content
-	return mathElement.textContent || '';
+function unprefixedName(element: Element): string {
+	const name = element.localName.toLowerCase();
+	return name.slice(name.indexOf(':') + 1);
 }
 
 /**
- * Convert MathML elements to LaTeX delimited strings in place.
- * This pre-processes the DOM before KaTeX auto-render runs.
+ * Rebuild a prefixed MathML subtree (`<m:math>`, `<m:mi>`, ...) that the HTML
+ * parser created as unknown HTML elements, as real MathML elements so the
+ * browser's MathML Core renderer can display it. Attributes (including
+ * `alttext` and `display`) are kept; namespace declarations are dropped.
  */
-function convertMathMLToLatex(root: HTMLElement): void {
-	// Find all <math> elements (with or without namespace prefix)
-	// Try multiple selectors to handle different browser parsing behaviors
-	const mathElements = Array.from(root.querySelectorAll('math, m\\:math, [xmlns*="MathML"]'));
+function toNativeMathML(source: Element): Element {
+	const target = source.ownerDocument.createElementNS(MATHML_NAMESPACE, unprefixedName(source));
+	for (const attribute of Array.from(source.attributes)) {
+		if (attribute.name === 'xmlns' || attribute.name.startsWith('xmlns:')) continue;
+		target.setAttribute(attribute.name, attribute.value);
+	}
+	for (const child of Array.from(source.childNodes)) {
+		const isMathElement =
+			child.nodeType === 1 &&
+			(child as Element).namespaceURI !== MATHML_NAMESPACE &&
+			MATHML_ELEMENT_NAMES.has(unprefixedName(child as Element));
+		target.appendChild(isMathElement ? toNativeMathML(child as Element) : child);
+	}
+	return target;
+}
 
-	for (const mathEl of mathElements) {
-		try {
-			// Skip KaTeX-rendered elements (they contain <semantics> as a child)
-			// KaTeX wraps its output in <math><semantics>...</semantics></math>
-			const hasSemantics = mathEl.querySelector('semantics') !== null;
-			if (hasSemantics) {
-				continue;
-			}
+function nativizePrefixedMathML(root: HTMLElement): void {
+	const roots = Array.from(root.querySelectorAll('*')).filter((element) => {
+		const name = element.localName.toLowerCase();
+		return name.includes(':') && unprefixedName(element) === 'math';
+	});
+	for (const element of roots) {
+		// Nested candidates leave the document when their outer root is rebuilt.
+		if (!root.contains(element) || isProtected(element)) continue;
+		element.replaceWith(toNativeMathML(element));
+	}
+}
 
-			const latex = mathmlToLatex(mathEl);
+function createOperator(doc: Document, text: string, role: 'fence' | 'separator'): Element {
+	const operator = doc.createElementNS(MATHML_NAMESPACE, 'mo');
+	operator.setAttribute(role, 'true');
+	operator.textContent = text;
+	return operator;
+}
 
-			// Determine if this should be display or inline math
-			const display = mathEl.getAttribute('display') === 'block';
-			// Create text node with LaTeX delimiters
-			const latexText = display ? `\\[${latex}\\]` : `\\(${latex}\\)`;
-			const textNode = document.createTextNode(latexText);
-			// Replace MathML element with LaTeX text
-			mathEl.replaceWith(textNode);
-		} catch (error) {
-			console.error('Failed to convert MathML to LaTeX:', error, mathEl);
-			// Leave the original MathML in place on error
+/**
+ * Expand `<mfenced>` into its MathML 3 equivalent (MathML 3, section 3.3.8):
+ * an `mrow` with fence and separator `mo` elements. MathML Core, and therefore
+ * Chromium, does not render `mfenced`, so its fences would otherwise vanish.
+ */
+function expandMfenced(mfenced: Element): void {
+	const doc = mfenced.ownerDocument;
+	const open = mfenced.getAttribute('open') ?? '(';
+	const close = mfenced.getAttribute('close') ?? ')';
+	const separators = Array.from((mfenced.getAttribute('separators') ?? ',').replace(/\s+/g, ''));
+	const args = Array.from(mfenced.children);
+
+	const outer = doc.createElementNS(MATHML_NAMESPACE, 'mrow');
+	for (const attribute of Array.from(mfenced.attributes)) {
+		if (attribute.name === 'open' || attribute.name === 'close' || attribute.name === 'separators') continue;
+		outer.setAttribute(attribute.name, attribute.value);
+	}
+
+	if (open) outer.appendChild(createOperator(doc, open, 'fence'));
+	const inner = args.length > 1 ? doc.createElementNS(MATHML_NAMESPACE, 'mrow') : outer;
+	args.forEach((arg, index) => {
+		if (index > 0 && separators.length > 0) {
+			const separator = separators[Math.min(index - 1, separators.length - 1)];
+			inner.appendChild(createOperator(doc, separator, 'separator'));
+		}
+		inner.appendChild(arg);
+	});
+	if (inner !== outer) outer.appendChild(inner);
+	if (close) outer.appendChild(createOperator(doc, close, 'fence'));
+
+	mfenced.replaceWith(outer);
+}
+
+/**
+ * Authored MathML is never converted to LaTeX: it stays native MathML (MathML
+ * Core renders in evergreen browsers), so authored structure and `alttext`
+ * reach sighted and assistive-technology users intact. Only two lossless
+ * normalisations are applied so it can render natively: prefixed MathML is
+ * re-created in the MathML namespace, and `mfenced` is expanded.
+ * Idempotent: a second pass finds nothing to change.
+ */
+function normalizeMathML(root: HTMLElement): void {
+	const html = root.innerHTML;
+	if (html.includes(':math')) {
+		nativizePrefixedMathML(root);
+	}
+	if (html.includes('mfenced')) {
+		for (const mfenced of Array.from(root.querySelectorAll('mfenced'))) {
+			if (!isProtected(mfenced)) expandMfenced(mfenced);
 		}
 	}
 }
 
-function containsMathDelimiters(root: HTMLElement, options: TypesetMathOptions) {
-	// Cheap pre-check to avoid loading KaTeX on pages with no math.
+function containsLatexDelimiters(root: HTMLElement, options: TypesetMathOptions) {
+	// Cheap pre-check to avoid loading KaTeX on pages with no LaTeX.
 	// We check innerHTML for backslashes because textContent would drop them in some cases.
 	const s = root.innerHTML;
 	if (s.includes('\\(') || s.includes('\\[') || s.includes('$$')) return true;
 	if (options.enableSingleDollar && s.includes('$')) return true;
 	// Common LaTeX environments
 	if (s.includes('\\begin{') || s.includes('\\frac') || s.includes('\\sqrt')) return true;
-	// MathML tags (QTI 2.2 standard)
-	if (s.includes('<math') || s.includes('<m:math')) return true;
 	return false;
 }
 
+/**
+ * Typeset LaTeX delimiters in text with KaTeX and leave authored MathML native.
+ */
 export async function typesetMathInElement(root: HTMLElement, options: TypesetMathOptions = {}) {
-	if (!containsMathDelimiters(root, options)) return;
+	normalizeMathML(root);
 
-	// Pre-process: Convert MathML to LaTeX before KaTeX typesetting
-	convertMathMLToLatex(root);
+	if (!containsLatexDelimiters(root, options)) return;
 
 	const autoRenderModule = await loadAutoRender();
 	const renderMathInElement = (autoRenderModule as any).default || autoRenderModule;
@@ -175,22 +213,26 @@ export async function typesetMathInElement(root: HTMLElement, options: TypesetMa
 	const editable = Array.from(root.querySelectorAll<HTMLElement>('[contenteditable="true"]'));
 	for (const el of editable) el.classList.add(EDITOR_IGNORE_CLASS);
 
-	renderMathInElement(root, {
-		// Prefer explicit delimiters to avoid false positives
-		delimiters: [
-			{ left: '\\(', right: '\\)', display: false },
-			{ left: '\\[', right: '\\]', display: true },
-			{ left: '$$', right: '$$', display: true },
-			...(options.enableSingleDollar ? [{ left: '$', right: '$', display: false }] : []),
-		],
-		// Don't try to parse in code-ish areas
-		ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
-		// Avoid re-processing already rendered KaTeX nodes
-		ignoredClasses: ['katex', 'katex-display', EDITOR_IGNORE_CLASS],
-		throwOnError: false,
-	});
-
-	for (const el of editable) el.classList.remove(EDITOR_IGNORE_CLASS);
+	try {
+		renderMathInElement(root, {
+			// Prefer explicit delimiters to avoid false positives
+			delimiters: [
+				{ left: '\\(', right: '\\)', display: false },
+				{ left: '\\[', right: '\\]', display: true },
+				{ left: '$$', right: '$$', display: true },
+				...(options.enableSingleDollar ? [{ left: '$', right: '$', display: false }] : []),
+			],
+			// Don't parse in code-ish areas or inside authored MathML
+			ignoredTags: IGNORED_TAGS,
+			// Avoid re-processing already rendered KaTeX nodes
+			ignoredClasses: ['katex', 'katex-display', EDITOR_IGNORE_CLASS],
+			throwOnError: false,
+		});
+	} finally {
+		// The exclusion class must never outlive this pass: a render that
+		// throws (unexpected DOM shapes) would otherwise leave every editable
+		// region in `ignoredClasses` permanently — all later passes would skip
+		// them and math would silently stop rendering for the session.
+		for (const el of editable) el.classList.remove(EDITOR_IGNORE_CLASS);
+	}
 }
-
-

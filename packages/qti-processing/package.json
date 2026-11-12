@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/qti-processing",
-  "version": "1.0.0-beta.4",
+  "version": "1.0.0-beta.5",
   "description": "Shared QTI processing engine for 2.x and 3.0 (AST builder + evaluator + executor + runtime types)",
   "type": "module",
   "main": "./dist/index.js",
@@ -20,8 +20,8 @@
     "decimal.js": "^10.6.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.6.2",
-    "@types/node": "^26.6.4",
+    "@biomejs/biome": "^2.6.4",
+    "@types/node": "^26.6.6",
     "typescript": "^5.9.3"
   },
   "exports": {

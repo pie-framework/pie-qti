@@ -60,6 +60,7 @@ Architecture and authoring guide for QTI source profiles. Covers:
 ### Other active docs in this folder
 
 - `QTI_techguide.md` (technical reference — covers QTI 2.1, 2.2, and 3.0)
+- `QTI_attribute_defaults.md` (audited interaction attribute defaults per QTI version, and what the player applies)
 - `IMS_Content_Packages_techguide.md` (IMS Content Packaging)
 - `LOM_techguide.md` (IEEE LOM metadata)
 - `QTI-RESPONSE-TRACKING-AND-SCORING.md` (scoring/response tracking)
@@ -70,7 +71,8 @@ Architecture and authoring guide for QTI source profiles. Covers:
 
 Subdirectories:
 
-- `plans/` (1.0 plan of record; the PCI runtime/sandbox decision record)
+- `plans/` (1.0 plan of record; the PCI runtime/sandbox and player-cleanup decision records; the
+  legacy audit)
 - `certification/` (public coverage matrix and gate)
 - `evals/` (browser interaction eval cases)
 
@@ -81,6 +83,7 @@ Subdirectories:
 - **Getting Started:** See main [README.md](../README.md) in repo root
 - **App deployability checks:** See root `verify:apps:deploy` command (builds docs/demo production outputs)
 - **Publish verification:** [development/publish-verification.md](./development/publish-verification.md) — `verify:publish`, publint, attw, pack checks
+- **Accessibility testing:** [development/accessibility-testing.md](./development/accessibility-testing.md) — what the automated suites cover (including WebKit/Firefox) and what still needs manual screen-reader testing
 - **Trusted publishing (npm OIDC):** [development/trusted-publishing.md](./development/trusted-publishing.md) — how releases authenticate, and claiming a record before a new package's first release
 - **CLI Tools:** See [`../tools/cli/README.md`](../tools/cli/README.md)
 

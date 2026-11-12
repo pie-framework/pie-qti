@@ -6,6 +6,9 @@
 
 import type { ElementExtractor } from '../../extraction/types.js';
 import { normalizePixelDimension } from '../../security/styleValues.js';
+import { extractImageAlternative, imgAlternativeSource } from '../shared/imageAlt.js';
+import { findInteractionImage } from '../shared/interactionImage.js';
+import { predatesQti22, unrestrictedLimitDefault } from '../shared/specDefaults.js';
 
 /**
  * Image data for select point interaction
@@ -16,6 +19,12 @@ export interface ImageData {
 	content?: string;
 	width?: string;
 	height?: string;
+	/** Short text alternative extracted from the QTI source. */
+	alt?: string;
+	/** Longer description for complex images (SVG <desc>, aria description). */
+	altDescription?: string;
+	/** True only when the author explicitly marked the image decorative (`<img alt="">`). */
+	decorative?: boolean;
 }
 
 /**
@@ -45,66 +54,67 @@ export const standardSelectPointExtractor: ElementExtractor<SelectPointData> = {
 	},
 
 	extract(element, context) {
-		const { utils } = context;
+		const { utils, dom } = context;
 
-		// Extract image data from object or img element
-		const objectElements = utils.getChildrenByTag(element, 'object');
-		const imgElements = utils.getChildrenByTag(element, 'img');
+		// Extract image data from the object element (QTI 2.x) or an img element
+		// (QTI 3.0, plain or as a <picture>'s fallback img)
+		const interactionImage = findInteractionImage(element, utils);
 		let imageData: ImageData | null = null;
 
-		if (objectElements.length > 0) {
-			const objectElement = objectElements[0];
+		if (interactionImage?.kind === 'object') {
+			const objectElement = interactionImage.element;
 			const type = utils.getAttribute(objectElement, 'type', '');
 			const data = utils.getAttribute(objectElement, 'data', '');
-			const width = normalizePixelDimension(
-				utils.getAttribute(objectElement, 'width', ''),
-				'500',
-			);
-			const height = normalizePixelDimension(
-				utils.getAttribute(objectElement, 'height', ''),
-				'300',
-			);
+			// The stage's pixel space: the authored width/height, when declared. Without
+			// them the renderer stages the raster at its natural size; a default here
+			// would silently place points in a guessed space.
+			const width = normalizePixelDimension(utils.getAttribute(objectElement, 'width', ''));
+			const height = normalizePixelDimension(utils.getAttribute(objectElement, 'height', ''));
+			const content = type.startsWith('image/svg') ? utils.getHtmlContent(objectElement) : '';
 
-			if (type.startsWith('image/svg')) {
-				// Extract inline SVG content - get full content including <svg> tag
-				const content = utils.getHtmlContent(objectElement);
+			if (/<svg[\s>]/i.test(content)) {
+				// Inline SVG: <object type="image/svg+xml"><svg>...</svg></object>
 				imageData = {
 					type: 'svg',
 					content,
 					width,
 					height,
+					...extractImageAlternative(objectElement, utils, dom, { inlineSvgContent: content }),
 				};
 			} else {
-				// External image reference
+				// External image (or SVG file) reference; the <object>'s text is its alternative
 				imageData = {
 					type: 'image',
 					src: data,
 					width,
 					height,
+					...extractImageAlternative(objectElement, utils, dom),
 				};
 			}
-		} else if (imgElements.length > 0) {
-			// Handle img element as fallback
-			const imgElement = imgElements[0];
+		} else if (interactionImage) {
+			// QTI 3.0 <img>: the alt attribute is the text alternative (alt="" = decorative)
+			const imgElement = interactionImage.element;
 			const src = utils.getAttribute(imgElement, 'src', '');
-			const width = normalizePixelDimension(
-				utils.getAttribute(imgElement, 'width', ''),
-				'500',
-			);
-			const height = normalizePixelDimension(
-				utils.getAttribute(imgElement, 'height', ''),
-				'300',
-			);
+			const width = normalizePixelDimension(utils.getAttribute(imgElement, 'width', ''));
+			const height = normalizePixelDimension(utils.getAttribute(imgElement, 'height', ''));
 			imageData = {
 				type: 'image',
 				src,
 				width,
 				height,
+				...extractImageAlternative(imgElement, utils, dom, imgAlternativeSource(imgElement)),
 			};
 		}
 
-		// Extract attributes
-		const maxChoices = utils.getNumberAttribute(element, 'maxChoices', 1);
+		// Extract attributes. Absent maxChoices: "0" (no restriction) in QTI 2.2 (Table 5.95.2)
+		// and QTI 3.0 (Table 5.128.2), resolved to 1 for a single-cardinality response, which
+		// holds one point. QTI 2.1 keeps 1: its information model (`maxChoices [1] = 1`) and
+		// its XSD (default "0") disagree, so 2.1 has no clear default to apply.
+		const maxChoices = utils.getNumberAttribute(
+			element,
+			'maxChoices',
+			predatesQti22(context) ? 1 : unrestrictedLimitDefault(context),
+		);
 		const minChoices = utils.getNumberAttribute(element, 'minChoices', 0);
 
 		// Extract prompt (optional)

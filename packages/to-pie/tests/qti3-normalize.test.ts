@@ -412,7 +412,7 @@ describe('QTI 3.0 item conversion', () => {
         (error as QtiItemTransformError).sourceDiagnostics.map((diagnostic) => diagnostic.code)
       ).toContain('QTI_CUSTOM_INTERACTION_UNSUPPORTED');
     }
-    expect(message).toContain('customInteractionIdentifierType: urn:acme:dial');
+    expect(message).toContain('customInteractionTypeIdentifier: urn:acme:dial');
     expect(message).toContain('moduleRefs: acme-dial, modules/dial.js');
   });
 

@@ -255,6 +255,47 @@ describe('response validation and progress rules', () => {
 		expect(satisfied.entries.RESPONSE.complete).toBe(true);
 	});
 
+	test('validateResponses enforces matchMin on graphicGapMatch hotspots and gapImages', () => {
+		// matchMin exists on associableHotspot and gapImg (2.1 XSD 2519/2825; 3.0 XSD
+		// 950/3167, default 0). Validation folds the interaction's `hotspots` field in
+		// alongside its gapTexts/gapImages.
+		const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="ggm-matchmin"
+  title="Graphic gap match matchMin"
+  adaptive="false"
+  timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair" />
+  <itemBody>
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="4">
+      <object type="image/png" data="planets.png" width="200" height="100"/>
+      <gapText identifier="W1" matchMax="2">Mercury</gapText>
+      <gapText identifier="W2" matchMax="2">Venus</gapText>
+      <associableHotspot identifier="H1" shape="circle" coords="40,50,20" matchMax="3" matchMin="2"/>
+      <associableHotspot identifier="H2" shape="circle" coords="140,50,20" matchMax="2"/>
+    </graphicGapMatchInteraction>
+  </itemBody>
+</assessmentItem>`;
+		const player = new Player({ itemXml: xml });
+
+		// H1 used once despite matchMin=2: incomplete and, at attempt time, invalid.
+		const underUsed = player.validateResponses({ RESPONSE: ['W1 H1', 'W2 H2'] });
+		expect(underUsed.entries.RESPONSE.required).toBe(true);
+		expect(underUsed.entries.RESPONSE.complete).toBe(false);
+		const attempt = (
+			player as unknown as {
+				validateAttemptResponses(responses: Record<string, unknown>): typeof underUsed;
+			}
+		).validateAttemptResponses({ RESPONSE: ['W1 H1', 'W2 H2'] });
+		expect(attempt.entries.RESPONSE.valid).toBe(false);
+		expect(attempt.issues.some((issue) => issue.code === 'incomplete')).toBe(true);
+
+		// H1 used twice — satisfied
+		const satisfied = player.validateResponses({ RESPONSE: ['W1 H1', 'W2 H1'] });
+		expect(satisfied.entries.RESPONSE.complete).toBe(true);
+	});
+
 	test('validateResponses enforces matchMin on matchInteraction source and target sets', () => {
 		const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem

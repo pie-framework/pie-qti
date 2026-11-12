@@ -74,6 +74,31 @@ describe('DefaultI18nProvider — lookup and interpolation', () => {
 		expect(i18n.t('some.missing.key', 'Fallback text')).toBe('Fallback text');
 	});
 
+	test('interpolates a missing key’s default exactly like a translated string', () => {
+		// The fallback is real message text: a missing catalog entry must not leak
+		// literal "{index}" placeholders to candidates.
+		expect(i18n.t('some.missing.key', 'Blank {index} of {count}', { index: 2, count: 5 })).toBe(
+			'Blank 2 of 5',
+		);
+	});
+
+	test('formats numbers in a missing key’s default with the locale’s digits', async () => {
+		const ar = new DefaultI18nProvider('ar-EG');
+		await ar.loadLocale('ar-EG');
+		expect(ar.t('some.missing.key', '{count} remaining', { count: 3 })).toBe('٣ remaining');
+	});
+
+	test('leaves an unfilled placeholder of a missing key’s default in place', () => {
+		// Same authoring-bug visibility as the translated path.
+		expect(i18n.t('some.missing.key', 'Blank {index} of {count}', { index: 1 })).toBe(
+			'Blank 1 of {count}',
+		);
+	});
+
+	test('returns the key when a missing key has values but no default string', () => {
+		expect(i18n.t('some.missing.key', { index: 1 })).toBe('some.missing.key');
+	});
+
 	test('prefers the translation over the supplied default', () => {
 		expect(i18n.t('common.submit', 'Fallback text')).toBe('Submit');
 	});

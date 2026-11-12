@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { A11Y_FIXTURES, type A11yFixtureId } from '#lib/a11y/fixtures.js';
+	import AssessmentDialogFixture from '#lib/a11y/fixtures/AssessmentDialogFixture.svelte';
 	import AssessmentNavigationBarFixture from '#lib/a11y/fixtures/AssessmentNavigationBarFixture.svelte';
 	import AssessmentSectionMenuFixture from '#lib/a11y/fixtures/AssessmentSectionMenuFixture.svelte';
 	import AssessmentShellFixture from '#lib/a11y/fixtures/AssessmentShellFixture.svelte';
@@ -9,7 +10,6 @@
 	import CustomInteractionFallbackFixture from '#lib/a11y/fixtures/CustomInteractionFallbackFixture.svelte';
 	import DrawingCanvasFixture from '#lib/a11y/fixtures/DrawingCanvasFixture.svelte';
 	import FileUploadFixture from '#lib/a11y/fixtures/FileUploadFixture.svelte';
-	import GraphicGapMatchFixture from '#lib/a11y/fixtures/GraphicGapMatchFixture.svelte';
 	import InlineInteractionRendererFixture from '#lib/a11y/fixtures/InlineInteractionRendererFixture.svelte';
 	import MatchDragDropFixture from '#lib/a11y/fixtures/MatchDragDropFixture.svelte';
 	import SortableListFixture from '#lib/a11y/fixtures/SortableListFixture.svelte';
@@ -21,6 +21,7 @@
 	import MediaInteractionFixture from '#lib/a11y/fixtures/MediaInteractionFixture.svelte';
 	import ModalFeedbackFixture from '#lib/a11y/fixtures/ModalFeedbackFixture.svelte';
 	import PnpCatalogStimulusFixture from '#lib/a11y/fixtures/PnpCatalogStimulusFixture.svelte';
+	import SectionPnpDisplayFixture from '#lib/a11y/fixtures/SectionPnpDisplayFixture.svelte';
 	import SectionRubricDisplayFixture from '#lib/a11y/fixtures/SectionRubricDisplayFixture.svelte';
 
 	interface Props {
@@ -52,8 +53,6 @@
 				<SortableListFixture />
 			{:else if fixture === 'match-drag-drop'}
 				<MatchDragDropFixture />
-			{:else if fixture === 'graphic-gap-match'}
-				<GraphicGapMatchFixture />
 			{:else if fixture === 'inline-interaction-renderer'}
 				<InlineInteractionRendererFixture />
 			{:else if fixture === 'file-upload'}
@@ -88,8 +87,12 @@
 				<AssessmentTimerFixture />
 			{:else if fixture === 'assessment-shell'}
 				<AssessmentShellFixture />
+			{:else if fixture === 'assessment-dialog'}
+				<AssessmentDialogFixture />
 			{:else if fixture === 'pnp-catalog-stimulus'}
 				<PnpCatalogStimulusFixture />
+			{:else if fixture === 'section-pnp-display'}
+				<SectionPnpDisplayFixture />
 			{:else}
 				<div class="alert alert-error">
 					Unknown fixture: <code class="font-mono">{data.fixture}</code>

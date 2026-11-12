@@ -1,20 +1,13 @@
 import {
-	type AreaMapEntry,
-	type AreaMapping,
 	type BaseType,
 	buildOutcomeProcessingAst,
 	buildResponseProcessingAst,
 	buildTemplateProcessingAst,
 	type Cardinality,
-	coerceBaseValue,
 	DeclarationContext,
 	type DeclarationMap,
-	evalExpr,
-	execProgram,
-	findDescendants,
-	findFirstDescendant,
-	getAttr,
-	OperatorRegistry,
+	findAssessmentItem,
+	parseXml,
 	type ProcessingProgram,
 	type QtiValue,
 	qtiNull,
@@ -23,25 +16,21 @@ import {
 	toNumber,
 	toStringValue,
 } from '@pie-qti/qti-processing';
-import type { ElementNameMapper, AttributeNameMapper } from '@pie-qti/qti-common';
+import type { ElementNameMapper, AttributeNameMapper, QtiVersion } from '@pie-qti/qti-common';
 import { prepareContentMarkup } from '@pie-qti/qti-common/accessibility';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 import { DefaultI18nProvider, type I18nProvider } from '@pie-qti/i18n';
 import {
-	Qti2xElementNameMapper,
-	Qti2xAttributeNameMapper,
-	Qti3ElementNameMapper,
-	Qti3AttributeNameMapper,
 	detectQtiVersion,
-	isShownByIdentifier,
+	detectQtiVersionDetailed,
+	type QtiVersionDetection,
 } from '@pie-qti/qti-common';
 import type {
 	AssessmentItemDocument,
 	ResponseProcessingDescriptor,
 } from '../document/AssessmentItemDocument.js';
 import { parseAssessmentItemDocument } from '../document/AssessmentItemDocument.js';
-import type { ContentHandler, ContentHandlers } from '../document/contentPass.js';
-import { printVariable, readPrintedVariableOptions } from '../document/printedVariable.js';
+import type { ContentHandlers } from '../document/contentPass.js';
 import {
 	createExtractionRegistry,
 	registerFrameworkDeliveryFields,
@@ -57,7 +46,6 @@ import type {
 	ItemSessionActionCommand,
 	ItemLifecycleStatus,
 	ItemSessionActionResult,
-	ItemSessionState,
 	ModalFeedback,
 	ItemSessionEngineConfig,
 	PlayerSecurityConfig,
@@ -68,41 +56,54 @@ import type {
 	SerializedItemSessionState,
 	SerializedItemSessionVariable,
 } from '../types/index.js';
-import type { BaseInteractionData } from '../interactions/shared/types.js';
+import type { BaseInteractionData, TextEntryInteractionData } from '../interactions/shared/types.js';
 import type { ResponseValidationResult } from '../types/responseValidation.js';
 import type { ComponentRegistry } from './ComponentRegistry.js';
 import { createComponentRegistry } from './ComponentRegistry.js';
+import { collectItemDiagnostics, type QtiItemDiagnostic, reportItemDiagnostics } from './compliance.js';
+import { type MatchGroupConstraints, readMatchGroupConstraints } from './matchGroups.js';
 import { createSeededRng } from './random.js';
 import { sanitizeHtml } from './sanitizer.js';
-import { toTrustedHtml } from './trustedTypes.js';
-import { sanitizeResourceUrl } from './urlPolicy.js';
 import { enforceItemXmlLimits } from './parsingLimits.js';
 import type { PnpProfile } from '../pnp/types.js';
 import { applyPnpToRoot } from '../pnp/applyPnp.js';
 import type { CatalogIndex } from '../catalog/types.js';
-import { extractCatalog, extractCatalogFromItemXml, mergeCatalogs } from '../catalog/catalogExtractor.js';
-import { getCatalogEntryWithAliases } from '../catalog/catalogLookup.js';
+import { buildSessionCatalogIndexes, catalogEntryOf } from '../catalog/sessionCatalog.js';
 import { PciHost } from '../pci/PciHost.js';
-import type { ExtractedPci, PciInteractionStatus } from '../pci/types.js';
+import { cloneValue } from '../utils/cloneFreeze.js';
+import { attributeNameMapperForVersion, elementNameMapperForVersion } from './nameMappers.js';
+import { contentHandlers } from './rendering/contentPass.js';
+import { itemBodyHtml, modalFeedbackOf, rubricsOf } from './rendering/htmlRender.js';
 import {
-	createExtendedTextNumericRecord,
-	EXTENDED_TEXT_RECORD_FIELD_TYPES,
-} from '../interactions/extended-text/response.js';
-
-type DeclKind = 'response' | 'outcome' | 'template' | 'context';
-
-/** Choices a template variable can show or hide, by canonical name. */
-const TEMPLATE_CHOICES = [
-	'simplechoice',
-	'simpleassociablechoice',
-	'gaptext',
-	'gapimg',
-	'gap',
-	'hottext',
-	'inlinechoice',
-	'hotspotchoice',
-	'associablehotspot',
-] as const;
+	applySerializedVariables,
+	freezeDuration,
+	isContextSerialized,
+	serializeItemSession,
+	updateDuration,
+} from './serialization/sessionState.js';
+import { qtiValueEquals, qtiValueToPci, qtiValueToPublic } from './serialization/valueForms.js';
+import {
+	buildDeclarationMap,
+	ensureBuiltinDeclarations,
+} from './declarations/declarationBuilder.js';
+import { coerceToDeclarationValue } from './declarations/declarationValues.js';
+import {
+	isAttempted,
+	validateAttemptResponses,
+	validateResponses,
+} from './processing/responseValidation.js';
+import {
+	assertSupportedResponseProcessing,
+	execTemplateProcessingProgram,
+	resetOutcomesToDefault,
+	resetResponsesToDefault,
+	resetTemplatesToDefault,
+	restoreDeclaredTemplateRuleTargets,
+	runResponseProcessing,
+} from './processing/responseProcessing.js';
+import type { ExtractedPci, PciInteractionStatus } from '../pci/types.js';
+import { PciHostSession } from '../pci/sessionHosts.js';
+import { createTextEntryStringResponse, textEntryStringIdentifier } from '../interactions/text-entry/response.js';
 
 /** Immutable source-derived artifacts shared by sessions from one definition. */
 interface PreparedPlayerDefinition {
@@ -117,6 +118,8 @@ interface PreparedPlayerDefinition {
 	readonly outcomeProcessingProgram: ProcessingProgram | null;
 	readonly catalogIndex: CatalogIndex;
 	readonly stimulusCatalogIndexes: Map<string, CatalogIndex>;
+	readonly diagnostics: readonly QtiItemDiagnostic[];
+	readonly matchGroupConstraints: ReadonlyMap<string, MatchGroupConstraints>;
 }
 
 interface PlayerConstructionOptions {
@@ -148,38 +151,86 @@ export function createPlayerFromPreparedInternal(
 }
 
 export class Player {
-	private role: QTIRole;
-	private config: ItemSessionEngineConfig;
+	/** @internal Rendering resolves rubric views against the session's role. */
+	role: QTIRole;
+	/** @internal Engine modules read the resolved configuration through the host. */
+	config: ItemSessionEngineConfig;
 	private itemXml: string;
-	private itemDocument: AssessmentItemDocument;
-	private decls: DeclarationMap;
-	private sourceDeclarations: DeclarationMap;
-	private ctx: DeclarationContext;
-	private rng: () => number;
-	private ops: OperatorRegistry;
+	/** @internal Engine modules read the parsed item document through the host. */
+	itemDocument: AssessmentItemDocument;
+	/** @internal Engine modules read the session's declarations through the host. */
+	decls: DeclarationMap;
+	/** @internal The declarations as compiled from the item source, before any template rule changed them. */
+	sourceDeclarations: DeclarationMap;
+	/** @internal Engine modules read the variable context through the host. */
+	ctx: DeclarationContext;
+	/** @internal Engine modules read the session's random stream through the host. */
+	rng: () => number;
 	private extractionRegistry: ExtractionRegistry;
 	private interactionDataCache: readonly BaseInteractionData[] | null = null;
-	/** Template variables declared with `mathVariable`, substituted into MathML. */
-	private mathVariableIds: ReadonlySet<string> | null = null;
+	/** Template variables declared with `mathVariable`, substituted into MathML. @internal */
+	mathVariableIds: ReadonlySet<string> | null = null;
+	/** Template variables declared with `paramVariable`, substituted into `<param>` values. @internal */
+	paramVariableIds: ReadonlySet<string> | null = null;
 	private componentRegistry: ComponentRegistry;
-	private i18nProvider: any; // I18nProvider from @pie-qti/i18n
-	private mapper: ElementNameMapper;
+	private i18nProvider: I18nProvider;
+	/** @internal Engine modules resolve canonical element names through the host. */
+	mapper: ElementNameMapper;
+	/** The item's detected QTI version ('unknown' when nothing identified it). */
+	private qtiVersion: QtiVersion;
 
-	private warnedImpliedZeroMaxScore = false;
-	private responseProcessingProgram: ProcessingProgram | null = null;
-	private responseProcessing: ResponseProcessingDescriptor;
-	private templateProcessingProgram: ProcessingProgram | null = null;
-	private outcomeProcessingProgram: ProcessingProgram | null = null;
+	/** @internal Set once the implied-zero MAXSCORE warning has fired. */
+	warnedImpliedZeroMaxScore = false;
+	/** @internal Compiled processing programs, shared by the sessions of one definition. */
+	responseProcessingProgram: ProcessingProgram | null = null;
+	/** @internal */
+	responseProcessing: ResponseProcessingDescriptor;
+	/** @internal */
+	templateProcessingProgram: ProcessingProgram | null = null;
+	/** @internal */
+	outcomeProcessingProgram: ProcessingProgram | null = null;
 	private _pnp: PnpProfile | undefined;
 	private _rootEl: HTMLElement | undefined;
 	private _catalogIndex: CatalogIndex = new Map();
 	private _stimulusCatalogIndexes: Map<string, CatalogIndex> = new Map();
-	private _pciHosts: Map<string, PciHost> = new Map();
+	/** @internal The PCI hosts of this session, by response identifier. */
+	private readonly pciSession = new PciHostSession();
 	private _pnpChangeListeners = new Set<(pnp: PnpProfile | undefined) => void>();
-	private sessionGuid: string;
-	private lifecycleStatus: ItemLifecycleStatus = 'initial';
-	private sessionStartedAt: number;
-	private accumulatedDurationMs = 0;
+	/** @internal The shuffle seed, persisted in saved state and restored. */
+	sessionGuid: string;
+	/** @internal The item-session lifecycle stage; action orchestration mutates it. */
+	lifecycleStatus: ItemLifecycleStatus = 'initial';
+	/**
+	 * End-attempt responses the candidate turned true since the attempt last ended: the
+	 * interactions that invoke the next response processing (see settleEndAttemptResponses).
+	 * @internal Response resets read and clear it through the host.
+	 */
+	readonly endAttemptActivations = new Set<string>();
+	private diagnostics: readonly QtiItemDiagnostic[] = [];
+	/** @internal matchGroup constraints of the item's pairing interactions, by response identifier. */
+	matchGroupConstraints: ReadonlyMap<string, MatchGroupConstraints> = new Map();
+	/** @internal When the current duration clock window started. */
+	sessionStartedAt: number;
+	/** @internal Time on task accumulated before the current clock window. */
+	accumulatedDurationMs = 0;
+	/** Time on task at the last duration update, in milliseconds. @internal */
+	durationMs = 0;
+	/**
+	 * Bumped at every change to the session's response values (candidate input, restore,
+	 * template rules, PCI writes, attempt settlement) and wherever the interaction data
+	 * regenerates; keys the response-validation memo.
+	 */
+	private responseRevision = 0;
+	private interactionDataGeneration = 0;
+	/** The base validation of the engine's current responses, memoized per revision. */
+	private engineValidationMemo: { revision: number; generation: number; result: ResponseValidationResult } | null = null;
+	/** The last base validation computed for an explicit responses record. */
+	private validationMemo: {
+		responses: Record<string, any>;
+		revision: number;
+		generation: number;
+		result: ResponseValidationResult;
+	} | null = null;
 
 	constructor(config: ItemSessionEngineConfig);
 	/** @internal Definition-backed sessions use the module-local factory above. */
@@ -201,32 +252,27 @@ export class Player {
 		this.rng = config.rng ?? (typeof config.seed === 'number' ? createSeededRng(config.seed) : Math.random);
 
 		// Resolve QTI-version mappers without mutating caller-owned configuration.
-		if (prepared) {
-			this.mapper = prepared.mapper;
-		} else if (!config.elementNameMapper) {
-			const version = detectQtiVersion(this.itemXml);
-			if (version === '3.0') {
-				this.mapper = new Qti3ElementNameMapper();
-			} else {
-				this.mapper = new Qti2xElementNameMapper();
-			}
-		} else {
-			this.mapper = config.elementNameMapper as ElementNameMapper;
-		}
-		const attributeMapper = prepared?.attributeMapper ??
+		// The detected version also drives per-version spec defaults during extraction
+		// (e.g. graphicGapMatchInteraction maxAssociations); detect it once, here.
+		this.qtiVersion = config.qtiVersion ?? detectQtiVersion(this.itemXml);
+		this.mapper =
+			prepared?.mapper ??
+			config.elementNameMapper ??
+			elementNameMapperForVersion(this.qtiVersion);
+		const attributeMapper =
+			prepared?.attributeMapper ??
 			config.attributeNameMapper ??
-			(this.mapper.version === '3.0'
-				? new Qti3AttributeNameMapper()
-				: new Qti2xAttributeNameMapper());
+			attributeNameMapperForVersion(this.mapper.version);
 		this.config = {
 			...config,
 			elementNameMapper: this.mapper,
 			attributeNameMapper: attributeMapper,
+			qtiVersion: this.qtiVersion,
 		};
 
 		if (prepared) {
 			this.itemDocument = prepared.itemDocument;
-			this.decls = cloneDeclarationMap(prepared.declarations);
+			this.decls = cloneValue(prepared.declarations);
 		} else {
 			// Read-aloud markup: suppression restated as the attribute the PIE tools read, and SSML
 			// docked as catalog idrefs and unwrapped from the visible body. The section player derives
@@ -239,14 +285,17 @@ export class Player {
 				attributeNameMapper: attributeMapper as AttributeNameMapper,
 				security: this.config.security,
 			});
-			this.decls = this.buildDeclarations();
-			this.ensureBuiltinDeclarations(this.decls);
+			this.decls = buildDeclarationMap({
+				itemDocument: this.itemDocument,
+				mapper: this.mapper,
+				attributeMapper: this.config.attributeNameMapper,
+			});
+			ensureBuiltinDeclarations(this.decls);
 		}
 		this.applyContextVariables(config.contextVariables);
 		this.applyTemplateDefaults(config.templateDefaults);
-		this.sourceDeclarations = cloneDeclarationMap(this.decls);
+		this.sourceDeclarations = cloneValue(this.decls);
 		this.ctx = new DeclarationContext(this.decls);
-		this.ops = new OperatorRegistry();
 
 		// Extraction + rendering registries (for interaction rendering)
 		// Pass the element name mapper to the extraction registry for QTI version handling
@@ -297,6 +346,7 @@ export class Player {
 
 		const responseProcessing = prepared ? null : this.itemDocument.getProcessingElement('response');
 		this.responseProcessing = prepared?.responseProcessing ?? this.itemDocument.describeResponseProcessing();
+		if (!prepared) assertSupportedResponseProcessing(this);
 		this.responseProcessingProgram =
 			prepared?.responseProcessingProgram ??
 			(responseProcessing
@@ -310,15 +360,9 @@ export class Player {
 				? buildOutcomeProcessingAst(outcomeProcessing, processingBuildOptions)
 				: null);
 
-		// Detect and log QTI version for compatibility awareness
-		const detectedVersion = prepared ? null : this.detectQTIVersion();
-		if (detectedVersion === 'unknown') {
-			console.warn('[QTI Player] Could not detect QTI version. Assuming QTI 2.2 compatibility.');
-		} else if (detectedVersion === '2.0') {
-			console.warn(
-				'[QTI Player] QTI 2.0 detected. Some features may not be fully supported. QTI 2.2 is recommended.'
-			);
-		} else if (detectedVersion === '2.1') {
+		// QTI 2.1 is delivered through the QTI 2.2 code path; other version findings are diagnostics.
+		const versionDetection = prepared ? null : detectQtiVersionDetailed(config.itemXml ?? '');
+		if (versionDetection?.version === '2.1' && !this.config.strictQtiCompliance?.enabled) {
 			console.info(
 				'[QTI Player] QTI 2.1 detected. Using QTI 2.2 compatibility mode with CC2 template support.'
 			);
@@ -336,35 +380,20 @@ export class Player {
 			this._catalogIndex = prepared.catalogIndex;
 			this._stimulusCatalogIndexes = prepared.stimulusCatalogIndexes;
 		} else {
-			let mergedCatalog: CatalogIndex = new Map();
-			let deliveryItemCatalog: CatalogIndex = new Map();
-			for (const source of this.config.deliveryContext?.catalogSources ?? []) {
-				const sourceCatalog = extractCatalog(source.xml);
-				if (source.scope === 'stimulus' && source.stimulusIdentifier) {
-					const existing = this._stimulusCatalogIndexes.get(source.stimulusIdentifier) ?? new Map();
-					this._stimulusCatalogIndexes.set(
-						source.stimulusIdentifier,
-						mergeCatalogs(existing, sourceCatalog),
-					);
-				} else if (source.scope === 'package') {
-					mergedCatalog = mergeCatalogs(mergedCatalog, sourceCatalog);
-				} else {
-					deliveryItemCatalog = mergeCatalogs(deliveryItemCatalog, sourceCatalog);
-				}
-			}
-			if (this.config.catalogXml) {
-				mergedCatalog = mergeCatalogs(
-					mergedCatalog,
-					extractCatalogFromItemXml(this.config.catalogXml),
-				);
-			}
-			mergedCatalog = mergeCatalogs(mergedCatalog, extractCatalogFromItemXml(this.itemXml));
-			this._catalogIndex = mergeCatalogs(mergedCatalog, deliveryItemCatalog);
+			const indexes = buildSessionCatalogIndexes({ config: this.config, itemXml: this.itemXml });
+			this._catalogIndex = indexes.catalogIndex;
+			this._stimulusCatalogIndexes = indexes.stimulusCatalogIndexes;
 		}
 
-		// Check strict compliance if enabled
-		if (!prepared && this.config.strictQtiCompliance?.enabled) {
-			this.validateStrictCompliance();
+		// Checks that read the item as authored, before the content pass: matchGroup constraints, and
+		// compliance findings, reported (or rejected, in strict mode) once, when the item compiles.
+		if (prepared) {
+			this.matchGroupConstraints = prepared.matchGroupConstraints;
+			this.diagnostics = prepared.diagnostics;
+		} else {
+			const sourceItem = findAssessmentItem(parseXml(config.itemXml ?? ''));
+			this.matchGroupConstraints = readMatchGroupConstraints(sourceItem, this.mapper);
+			this.diagnostics = this.compileDiagnostics(config.itemXml ?? '', sourceItem, versionDetection ?? undefined);
 		}
 	}
 
@@ -379,14 +408,21 @@ export class Player {
 			mapper: this.mapper,
 			attributeMapper: this.config.attributeNameMapper as AttributeNameMapper,
 			itemDocument: this.itemDocument,
-			declarations: cloneDeclarationMap(this.sourceDeclarations),
+			declarations: cloneValue(this.sourceDeclarations),
 			responseProcessing: this.responseProcessing,
 			responseProcessingProgram: this.responseProcessingProgram,
 			templateProcessingProgram: this.templateProcessingProgram,
 			outcomeProcessingProgram: this.outcomeProcessingProgram,
 			catalogIndex: this._catalogIndex,
 			stimulusCatalogIndexes: this._stimulusCatalogIndexes,
+			diagnostics: this.diagnostics,
+			matchGroupConstraints: this.matchGroupConstraints,
 		});
+	}
+
+	/** The item's QTI compliance findings from compilation; empty when it compiled cleanly. */
+	public getDiagnostics(): readonly QtiItemDiagnostic[] {
+		return this.diagnostics;
 	}
 
 	/**
@@ -445,90 +481,38 @@ export class Player {
 		lang?: string,
 		options?: { stimulusIdentifier?: string }
 	): HtmlContent | null {
-		const stimulusHtml = options?.stimulusIdentifier
-			? getCatalogEntryWithAliases(this._stimulusCatalogIndexes.get(options.stimulusIdentifier) ?? new Map(), idref, usage, lang)
-			: null;
-		const html =
-			stimulusHtml ?? getCatalogEntryWithAliases(this._catalogIndex, idref, usage, lang);
-		if (html === null) return null;
-		if (looksLikeCatalogUrl(html)) {
-			return sanitizeResourceUrl(html.trim(), this.config.security?.urlPolicy, 'img');
-		}
-		return toTrustedHtml(
-			this.sanitizeHtmlContent(html),
-			this.config.security?.trustedTypesPolicyName,
+		return catalogEntryOf(
+			{ catalogIndex: this._catalogIndex, stimulusCatalogIndexes: this._stimulusCatalogIndexes },
+			idref,
+			usage,
+			lang,
+			options,
+			this.config.security,
 		);
 	}
 
-	/** Sanitize externally resolved item-adjacent HTML before it reaches a rendering sink. */
 	public sanitizeHtmlContent(html: string): string {
 		return sanitizeHtml(html, { security: this.config.security });
 	}
 
-	/**
-	 * Create a PciHost for an extracted PCI and register it for response tracking.
-	 * The caller is responsible for calling host.load() and
-	 * host.initialize(domNode) once the DOM element is available.
-	 */
 	public createPciHost(data: ExtractedPci): PciHost {
-		const host = new PciHost(data, {
-			baseUrl: this.config.pci?.baseUrl,
-			moduleResolver: this.config.pci?.moduleResolver,
-			sandbox: this.config.pci?.sandbox,
-			modulePolicy: this.config.pci?.modulePolicy,
-			responseDeclaration: (() => {
-				const d = this.decls[data.responseIdentifier];
-				return d ? { baseType: d.baseType, cardinality: d.cardinality } : undefined;
-			})(),
-			status: () => this.pciInteractionStatus(),
+		return this.pciSession.create(data, {
+			pci: this.config.pci,
+			decls: this.decls,
+			lifecycleStatus: () => this.lifecycleStatus,
+			interactionStatus: () => this.pciInteractionStatus(),
+			contentLanguage: () => this.getContentLanguage(),
+			coerceToDeclarationValue: (baseType, cardinality, raw, identifier) =>
+				this.coerceToDeclarationValue(baseType, cardinality, raw, identifier),
+			onResponseApplied: () => {
+				// A mounted PCI module reporting its own change is a candidate response change,
+				// so the attempt has begun (beginAttempt's spec citation applies).
+				this.beginAttempt();
+				this.touchResponses();
+			},
 		});
-
-		// Wire response changes back into the player's declaration context
-		host.onResponseChange((responseId: string, value: unknown) => {
-			if (this.lifecycleStatus !== 'initial' && this.lifecycleStatus !== 'interacting') return;
-			const d = this.decls[responseId];
-			if (d) {
-				d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, value, d.identifier);
-			}
-		});
-
-		this._pciHosts.set(data.responseIdentifier, host);
-		return host;
 	}
 
-	/**
-	 * Offer a response value to the PCI identified by responseIdentifier. A
-	 * mounted module that has already reported a response keeps it.
-	 */
-	public offerPciResponse(responseIdentifier: string, value: unknown): void {
-		this._pciHosts.get(responseIdentifier)?.offerResponse(value);
-	}
-
-	/**
-	 * Authoritatively replace a PCI's response, discarding in-progress candidate
-	 * state. Session restore and reset-to-default use this.
-	 */
-	public restorePciResponse(responseIdentifier: string, value: unknown): void {
-		this._pciHosts.get(responseIdentifier)?.restore(value);
-	}
-
-	/**
-	 * Disable/enable all PCI hosts based on role.
-	 * 'candidate' = enabled; any other role = disabled.
-	 */
-	public syncPciDisabledState(): void {
-		const disabled = this.role !== 'candidate';
-		for (const host of this._pciHosts.values()) {
-			if (disabled) host.disable(); else host.enable();
-		}
-	}
-
-	/**
-	 * The QTI 3.0 §6.1 interaction status a PCI instantiates with: 'solution' when
-	 * correct responses are exposed, 'review' for non-candidate roles otherwise,
-	 * 'closed' once the attempt finished, 'interacting' while the candidate works.
-	 * Hosts that know better pass their own `status` to the PciHost options.
-	 */
 	private pciInteractionStatus(): PciInteractionStatus {
 		if (this.role !== 'candidate') return 'review';
 		if (this.lifecycleStatus === 'closed') return 'closed';
@@ -536,13 +520,26 @@ export class Player {
 	}
 
 	/**
+	 * Offer a response value to the PCI identified by responseIdentifier. A
+	 * mounted module that has already reported a response keeps it.
+	 */
+	public offerPciResponse(responseIdentifier: string, value: unknown): void {
+		this.pciSession.offer(responseIdentifier, value);
+	}
+
+	/**
+	 * Authoritatively replace a PCI's response, discarding in-progress candidate
+	 * state. Session restore and reset-to-default use this.
+	 */
+	public restorePciResponse(responseIdentifier: string, value: unknown): void {
+		this.pciSession.restore(responseIdentifier, value);
+	}
+
+	/**
 	 * Destroy all PCI hosts. Call on player teardown.
 	 */
 	public destroyPciHosts(): void {
-		for (const host of this._pciHosts.values()) {
-			host.destroy();
-		}
-		this._pciHosts.clear();
+		this.pciSession.destroyAll();
 	}
 
 	/** Breaking-change API: returns the typed declaration map */
@@ -559,7 +556,14 @@ export class Player {
 	 * in-progress module state.
 	 */
 	public setResponses(responses: Record<string, unknown>): void {
+		const endAttemptIds = this.getEndAttemptResponseIdentifiers().filter((id) => id in responses);
+		const wasTrue = new Set(endAttemptIds.filter((id) => this.isResponseTrue(id)));
 		this.applyResponses(responses, (id, value) => this.offerPciResponse(id, value));
+		for (const id of endAttemptIds) {
+			if (!this.isResponseTrue(id)) this.endAttemptActivations.delete(id);
+			else if (!wasTrue.has(id)) this.endAttemptActivations.add(id);
+		}
+		this.beginAttempt();
 	}
 
 	/**
@@ -568,6 +572,8 @@ export class Player {
 	 */
 	public restoreResponses(responses: Record<string, unknown>): void {
 		this.applyResponses(responses, (id, value) => this.restorePciResponse(id, value));
+		// A replaced value is the state as it stands, not the candidate activating an interaction.
+		for (const id of Object.keys(responses)) this.endAttemptActivations.delete(id);
 	}
 
 	private applyResponses(
@@ -578,8 +584,62 @@ export class Player {
 			const d = this.decls[id];
 			if (!d) continue;
 			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
-			applyToPci(id, this.qtiValueToPublic(d.value));
+			// Only a response a textEntryInteraction binds can carry a stringIdentifier companion.
+			if (this.itemDocument.getTextEntryBase(id) !== undefined) this.applyTextEntryStringResponse(id, raw);
+			applyToPci(id, this.qtiValueToPci(d.value));
 		}
+		this.touchResponses();
+	}
+
+	/**
+	 * QTI ASI §5.2.1 built-in `completionStatus` transitions, as the specification's table names
+	 * them: `not_attempted` when the item session is registered, `unknown` once the attempt has
+	 * begun, and `completed` when response processing completes the attempt (the submission of a
+	 * non-adaptive item; an adaptive item reaches `completed` only through its own response
+	 * processing rules). This engine begins the attempt when the candidate changes a response
+	 * (every candidate write goes through setResponses, a mounted PCI reporting its own change
+	 * included) and when a suspended handoff is activated for interaction; response processing
+	 * completes it (responseProcessing.ts).
+	 *
+	 * Documented reading of an ambiguous edge: `openSession({ responses })` pre-seeds through
+	 * setResponses, so it counts as the attempt having begun. `restoreResponses` deliberately
+	 * does not begin an attempt — it replaces saved state ("the state as it stands"), and the
+	 * restored completionStatus travels with that state.
+	 */
+	private beginAttempt(): void {
+		if (this.getCompletionStatus() === 'not_attempted') {
+			this.ctx.setValue('completionStatus', qtiValue('identifier', 'single', 'unknown'));
+		}
+	}
+
+	/** Response values changed: the response snapshot and its memoized validation drop. */
+	private touchResponses(): void {
+		this.responseRevision += 1;
+		this.responseSnapshotState = null;
+		this.engineValidationMemo = null;
+	}
+
+	/**
+	 * textEntryInteraction@stringIdentifier (QTI ASI §5.122.3; `string-identifier` in QTI 3.0):
+	 * writing the text entry's response also writes the response its stringIdentifier names, with
+	 * the text as entered before the numeric response reads it — "3.50" where the float response
+	 * is 3.5 — or NULL for an empty field, so response processing can score that lexical form. A
+	 * stringIdentifier that repeats the response, or names no declared response, is ignored.
+	 */
+	private applyTextEntryStringResponse(responseId: string, raw: unknown): void {
+		const interaction = this.getInteractionData().find(
+			(candidate): candidate is TextEntryInteractionData =>
+				candidate.type === 'textEntryInteraction' && candidate.responseId === responseId,
+		);
+		const stringIdentifier = interaction ? textEntryStringIdentifier(interaction) : undefined;
+		const companion = stringIdentifier ? this.decls[stringIdentifier] : undefined;
+		if (!interaction || !companion || (companion as any).__kind !== 'response') return;
+		companion.value = this.coerceToDeclarationValue(
+			companion.baseType,
+			companion.cardinality,
+			createTextEntryStringResponse(raw, interaction),
+			companion.identifier,
+		);
 	}
 
 	/**
@@ -601,7 +661,8 @@ export class Player {
 
 	public restoreItemSession(state: SerializedItemSessionState): void {
 		this.sessionGuid = state.sessionGuid;
-		this.interactionDataCache = null;
+		this.invalidateInteractionData();
+		this.endAttemptActivations.clear();
 		this.lifecycleStatus = state.lifecycleStatus;
 		this.accumulatedDurationMs = Math.max(0, Number(state.duration) || 0);
 		this.sessionStartedAt = Date.now();
@@ -609,6 +670,7 @@ export class Player {
 		this.applySerializedVariables(state.outcomeVariables);
 		this.applySerializedVariables(state.templateVariables);
 		this.applySerializedVariables(state.contextVariables);
+		this.touchResponses();
 		this.updateDuration();
 	}
 
@@ -619,21 +681,15 @@ export class Player {
 
 	/** @internal ItemSession uses this to resume a suspended delivery handoff. */
 	public activateAttempt(): void {
-		if (this.lifecycleStatus === 'suspended') this.lifecycleStatus = 'interacting';
+		if (this.lifecycleStatus === 'suspended') {
+			this.lifecycleStatus = 'interacting';
+			// Resuming hands the item back to the candidate: the attempt has begun
+			// (beginAttempt's spec citation applies), even before a first response change.
+			this.beginAttempt();
+		}
 	}
 
-	public suspendAttempt(): ItemSessionActionResult {
-		return this.runItemSessionAction({ action: 'suspendAttempt' });
-	}
-
-	public endAttempt(options: { countAttempt?: boolean; validateResponses?: boolean } = {}): ItemSessionActionResult {
-		return this.runItemSessionAction({ action: 'endAttempt', ...options });
-	}
-
-	public scoreAttempt(): ItemSessionActionResult {
-		return this.runItemSessionAction({ action: 'scoreAttempt' });
-	}
-
+	/** Test seam (paramVariable delivery); sessions dispatch newTemplate through ItemSession. */
 	public newTemplate(options: { resetResponses?: boolean } = {}): ItemSessionActionResult {
 		return this.runItemSessionAction({ action: 'newTemplate', ...options });
 	}
@@ -654,7 +710,7 @@ export class Player {
 	}
 
 	private runSuspendAttemptAction(): ItemSessionActionResult {
-		const validation = this.validateResponses(this.getResponses());
+		const validation = this.currentResponsesValidation();
 		this.lifecycleStatus = 'suspended';
 		const sessionState = this.saveItemSession();
 		return this.createItemSessionActionResult('suspendAttempt', sessionState, { validation });
@@ -662,16 +718,22 @@ export class Player {
 
 	private runEndAttemptAction(options: { countAttempt?: boolean; validateResponses?: boolean }): ItemSessionActionResult {
 		const validate = options.validateResponses ?? false;
-		const validation = validate ? this.validateResponses(this.getResponses()) : undefined;
+		const validation = validate ? this.validateAttemptResponses(this.responseSnapshot()) : undefined;
 		if (validation && !validation.valid) {
 			return this.createItemSessionActionResult('endAttempt', this.saveItemSession(), { validation });
 		}
 
+		// QTI countAttempt=false (hint / "show me"): response processing runs so outcomes and
+		// feedback compute, but the attempt is not counted and the session stays open for the
+		// candidate to continue — only a counted attempt finalizes a non-adaptive item.
+		const countAttempt = options.countAttempt ?? true;
+		// The adaptive path settles the end-attempt responses in runAdaptiveSubmitAttempt.
+		if (!this.isAdaptive()) this.settleEndAttemptResponses();
 		const scoring = this.isAdaptive()
-			? this.runAdaptiveSubmitAttempt(options.countAttempt ?? true)
+			? this.runAdaptiveSubmitAttempt(countAttempt)
 			: this.runResponseProcessing({
-					finalizeNonAdaptiveAttempt: true,
-					countAttempt: options.countAttempt ?? true,
+					finalizeNonAdaptiveAttempt: countAttempt,
+					countAttempt,
 				});
 		this.lifecycleStatus = scoring.completed ? 'closed' : 'interacting';
 
@@ -691,6 +753,7 @@ export class Player {
 	}
 
 	private runNewTemplateAction(options: { resetResponses?: boolean }): ItemSessionActionResult {
+		this.restoreDeclaredTemplateRuleTargets();
 		this.resetOutcomesToDefault();
 		if (options.resetResponses ?? true) {
 			this.resetResponsesToDefault();
@@ -741,34 +804,12 @@ export class Player {
 		return this.config.security;
 	}
 
-	public getTrustedTypesPolicyName(): string | undefined {
-		return this.config.security?.trustedTypesPolicyName;
-	}
-
 	/**
 	 * Get the i18n provider instance
 	 * @returns I18nProvider instance
 	 */
-	public getI18nProvider(): any {
+	public getI18nProvider(): I18nProvider {
 		return this.i18nProvider;
-	}
-
-	/**
-	 * Get attribute value with QTI version support.
-	 * Tries the attribute mapper's native form first, then falls back to direct lookup.
-	 * @param el - Element to get attribute from
-	 * @param canonicalName - Canonical (lowercase) attribute name
-	 * @returns Attribute value or null
-	 */
-	private getAttrMapped(el: Element, canonicalName: string): string | null {
-		// Try mapped attribute name first (e.g., 'mapkey' -> 'map-key' for QTI 3.0)
-		if (this.config.attributeNameMapper) {
-			const nativeName = this.config.attributeNameMapper.toNative(canonicalName);
-			const value = el.getAttribute(nativeName);
-			if (value !== null) return value;
-		}
-		// Fallback to canonical name (for QTI 2.x compatibility)
-		return getAttr(el, canonicalName);
 	}
 
 	/**
@@ -780,157 +821,66 @@ export class Player {
 	}
 
 	/**
-	 * Detects the QTI version from the assessmentItem element.
-	 * Checks both namespace URI and version attribute.
-	 *
-	 * @returns QTI version string ('2.0', '2.1', '2.2') or 'unknown'
+	 * The item's QTI compliance findings (see `collectItemDiagnostics`): errors in strict mode,
+	 * warnings otherwise. Strict mode with `rejectUnknownExtensions` throws a `QtiComplianceError`
+	 * on any finding; otherwise they are logged unless `logDeviations` is false.
 	 */
-	private detectQTIVersion(): string {
-		return this.itemDocument.detectVersion();
-	}
-
-	/**
-	 * Validates strict QTI 2.2 compliance if enabled in configuration.
-	 * Logs warnings or throws errors based on config settings.
-	 */
-	private validateStrictCompliance(): void {
-		const config = this.config.strictQtiCompliance;
-		if (!config?.enabled) return;
-
-		const version = this.detectQTIVersion();
-		if (version !== '2.2') {
-			const message = `[QTI Player] Strict compliance enabled but item version is ${version}, not 2.2`;
-			if (config.rejectUnknownExtensions) {
-				throw new Error(message);
-			} else if (config.logDeviations !== false) {
-				console.warn(message);
-			}
-		}
-
-		// Future: Add validation for non-standard elements/attributes
+	private compileDiagnostics(
+		sourceXml: string,
+		sourceItem: Element,
+		versionDetection?: QtiVersionDetection,
+	): readonly QtiItemDiagnostic[] {
+		const compliance = this.config.strictQtiCompliance;
+		const strict = compliance?.enabled === true;
+		const diagnostics = Object.freeze(
+			collectItemDiagnostics({
+				itemXml: sourceXml,
+				item: sourceItem,
+				versionDetection,
+				elementNameMapper: this.mapper,
+				extractionRegistry: this.extractionRegistry,
+				responseIdentifiers: new Set(
+					Object.values(this.decls)
+						.filter((d) => (d as any).__kind === 'response')
+						.map((d) => d.identifier),
+				),
+				strict,
+			}),
+		);
+		reportItemDiagnostics(diagnostics, {
+			itemIdentifier: this.itemDocument.getAssessmentItemAttribute('identifier') ?? undefined,
+			reject: strict && compliance?.rejectUnknownExtensions === true,
+			log: compliance?.logDeviations !== false,
+		});
+		return diagnostics;
 	}
 
 	private resetOutcomesToDefault(): void {
-		for (const d of Object.values(this.decls)) {
-			if ((d as any).__kind !== 'outcome') continue;
-			// Built-in stateful variables must survive across processing runs.
-			// They are updated by the runtime (adaptive attempt tracking), not by outcome defaults.
-			if (d.identifier === 'numAttempts' || d.identifier === 'completionStatus' || d.identifier === 'duration') continue;
-			this.ctx.resetToDefault(d.identifier);
-		}
+		resetOutcomesToDefault(this);
 	}
 
 	private resetResponsesToDefault(): void {
-		for (const d of Object.values(this.decls)) {
-			if ((d as any).__kind !== 'response') continue;
-			this.ctx.resetToDefault(d.identifier);
-			this.restorePciResponse(d.identifier, d.value.kind === 'value' ? d.value.value : null);
-		}
+		resetResponsesToDefault(this);
+		this.touchResponses();
 	}
 
 	private resetTemplatesToDefault(): void {
-		for (const d of Object.values(this.decls)) {
-			if (!d.isTemplate) continue;
-			this.ctx.resetToDefault(d.identifier);
-		}
+		resetTemplatesToDefault(this);
 	}
 
-	/**
-	 * A MAXSCORE declared without a <defaultValue> is 0 per the numeric outcome rule, so an item
-	 * that never assigns it scores against a maximum of zero. That is the spec-correct reading of
-	 * under-specified content, and silently substituting 1 would make this engine disagree with a
-	 * conformant one — so surface the authoring gap instead of masking it.
-	 */
-	private warnOnceOnImpliedZeroMaxScore(outcomes: Record<string, unknown>): void {
-		if (this.warnedImpliedZeroMaxScore) return;
-		if (!this.decls.MAXSCORE?.impliedNumericDefault) return;
-		if (outcomes.MAXSCORE !== 0) return;
-		this.warnedImpliedZeroMaxScore = true;
-		console.warn(
-			`[QTI Player] MAXSCORE is 0 for item "${this.itemDocument.getAssessmentItemAttribute('identifier') ?? 'unknown'}": its outcomeDeclaration ` +
-				'has no <defaultValue>, so QTI initializes it to 0 and response processing never assigned it. ' +
-				'Declare <defaultValue> on the MAXSCORE outcomeDeclaration to score against a real maximum.',
-		);
+	private restoreDeclaredTemplateRuleTargets(): void {
+		restoreDeclaredTemplateRuleTargets(this);
 	}
 
 	private runResponseProcessing(options: {
 		finalizeNonAdaptiveAttempt: boolean;
 		countAttempt?: boolean;
 	}): ScoringResult {
-		this.updateDuration();
-		// Spec-aligned behavior: each processing run starts from outcome defaults.
-		// This prevents stale outcomes when response/outcome processing doesn't set every variable.
-		this.resetOutcomesToDefault();
-
-		// Execute response processing if present
-		if (this.responseProcessing.present) {
-			// If responseProcessing has explicit statements, run the compiled program.
-			// Otherwise, fall back to template-based processing (responseProcessing@template).
-			if (this.responseProcessing.hasStatements) {
-				this.execResponseProcessingProgram();
-			} else if (this.responseProcessing.template) {
-				this.execResponseProcessingTemplate(this.responseProcessing.template);
-			}
-		}
-
-		// Execute outcome processing if present (runs after responseProcessing)
-		this.execOutcomeProcessingProgram();
-
-		// Compatibility: processResponses() has historically finalized non-adaptive items.
-		// New scoreAttempt() uses this same engine with finalization disabled.
-		if (!this.isAdaptive() && options.finalizeNonAdaptiveAttempt) {
-			this.ctx.setValue('completionStatus', qtiValue('identifier', 'single', 'completed'));
-			if (options.countAttempt ?? true) {
-				const currentAttempts = this.getNumAttempts();
-				this.ctx.setValue('numAttempts', qtiValue('integer', 'single', currentAttempts + 1));
-			}
-		}
-
-		const outcomes = this.collectOutcomes();
-
-		this.warnOnceOnImpliedZeroMaxScore(outcomes);
-
-		const score = Number(outcomes.SCORE ?? 0);
-		const maxScore = Number(outcomes.MAXSCORE ?? 1);
-		const completionStatus = (outcomes.completionStatus as CompletionStatus | undefined) ?? 'not_attempted';
-		const completed = completionStatus === 'completed' || (!this.isAdaptive() && options.finalizeNonAdaptiveAttempt);
-
-		return {
-			score,
-			maxScore,
-			completed,
-			outcomeValues: outcomes,
-			correct: this.responsesMatchCorrect(),
-			modalFeedback: this.getModalFeedback(outcomes),
-		};
-	}
-
-	/**
-	 * QTI item correctness, as test-level `numberCorrect` reads it: every declared response matches
-	 * its correct response. Undefined when the item has no response or one declares no correct
-	 * response.
-	 */
-	private responsesMatchCorrect(): boolean | undefined {
-		const responses = Object.values(this.decls).filter((d) => (d as any).__kind === 'response');
-		if (responses.length === 0 || responses.some((d) => d.correctResponse?.kind !== 'value')) return undefined;
-		const env = this.processingEnv();
-		return responses.every((d) =>
-			toBoolean(
-				evalExpr(env, {
-					kind: 'expr.match',
-					id: `correct-${d.identifier}`,
-					a: { kind: 'expr.variable', id: `correct-${d.identifier}-response`, identifier: d.identifier },
-					b: { kind: 'expr.correct', id: `correct-${d.identifier}-correct`, identifier: d.identifier },
-				} as any),
-			),
-		);
+		return runResponseProcessing(this, options);
 	}
 
 	public getItemBodyHtml(): HtmlContent {
-		const inner = this.itemDocument.serializeItemBodyChildren(this.contentHandlers({ feedback: false }));
-		if (!inner) return '';
-
-		return this.renderHtmlContent(inner);
+		return itemBodyHtml(this, this.contentHandlers({ feedback: false }));
 	}
 
 	/**
@@ -942,34 +892,11 @@ export class Player {
 	 * the rendered item body flow.
 	 */
 	public getRubrics(options: RubricBlockOptions = {}): RubricBlock[] {
-		const role = this.role;
-		const rubrics = this.itemDocument.readRubricBlocks(this.contentHandlers());
-		if (rubrics.length === 0) return [];
-
-		const blocks: RubricBlock[] = [];
-		for (const rubric of rubrics) {
-			const { scope } = rubric;
-			if (options.scope && options.scope !== 'all' && scope !== options.scope) continue;
-
-			const view = [...rubric.view];
-
-			// If view is specified, show only when it includes the current role.
-			if (view.length > 0 && role && !view.includes(role)) continue;
-
-			const html = this.renderHtmlContent(rubric.content);
-
-			blocks.push({ view, html, scope, use: rubric.use });
-		}
-
-		return blocks;
+		return rubricsOf(this, this.contentHandlers(), options);
 	}
 
 	public getComponentRegistry(): ComponentRegistry {
 		return this.componentRegistry;
-	}
-
-	public getExtractionRegistry(): ExtractionRegistry {
-		return this.extractionRegistry;
 	}
 
 	/**
@@ -1017,9 +944,77 @@ export class Player {
 			.map((i: any) => i.responseIdentifier);
 	}
 
+	private getEndAttemptResponseIdentifiers(): string[] {
+		return this.getInteractions()
+			.filter((i) => i.type === 'endAttemptInteraction')
+			.map((i) => i.responseIdentifier);
+	}
+
+	private isResponseTrue(responseIdentifier: string): boolean {
+		return toBoolean(this.ctx.getValue(responseIdentifier));
+	}
+
+	/**
+	 * QTI endAttemptInteraction (QTI 3.0 §5.45): "If the candidate invokes response processing
+	 * using an end-attempt interaction then the associated response variable is set to true. If
+	 * response processing is invoked in any other way […] then the associated response variable
+	 * is set to false. The default value of the response variable is always ignored." The
+	 * interactions that invoke this attempt's processing are the ones the candidate turned true
+	 * since the attempt last ended; a value restored with the session invokes nothing. Rescoring
+	 * (scoreAttempt) replays the last submission and leaves these responses as they are.
+	 */
+	private settleEndAttemptResponses(): void {
+		for (const id of this.getEndAttemptResponseIdentifiers()) {
+			const d = this.decls[id];
+			if (!d) continue;
+			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, this.endAttemptActivations.has(id), d.identifier);
+		}
+		this.endAttemptActivations.clear();
+		this.touchResponses();
+	}
+
 	public getResponseIdentifiers(): string[] {
 		return this.getResponseInteractions().map((i) => i.responseIdentifier);
 	}
+
+	/**
+	 * Response identifiers the item's content prints live: the `printedVariable` targets of the
+	 * body and rubric content that are declared responses. Their values are substituted while
+	 * `getItemBodyHtml()` serializes (the content pass reads the live context), so they are the
+	 * part of the response state a presentation's markup actually renders — presentation
+	 * consumers (ItemBody) can key caching on them. The declared response set is fixed per
+	 * session, so the filtered set is computed once.
+	 */
+	public getResponseIdentifiersPrintedInContent(): ReadonlySet<string> {
+		this.printedResponseIdentifiers ??= new Set(
+			[...this.itemDocument.printedVariableIdentifiers()].filter(
+				(identifier) => (this.decls[identifier] as any)?.__kind === 'response'
+			)
+		);
+		return this.printedResponseIdentifiers;
+	}
+
+	private printedResponseIdentifiers?: ReadonlySet<string>;
+
+	/**
+	 * Context identifiers the item's content prints live: the `printedVariable` targets of the
+	 * body and rubric content the session reports as context state — the QTI built-ins
+	 * (`duration`, `numAttempts`, `completionStatus`) and declared context variables. Their
+	 * values are substituted while `getItemBodyHtml()` serializes (the content pass reads the
+	 * live context), so they are the part of the context state a presentation's markup actually
+	 * renders — presentation consumers (ItemBody) can key caching on them. The context
+	 * declaration set is fixed per session, so the filtered set is computed once.
+	 */
+	public getContextIdentifiersPrintedInContent(): ReadonlySet<string> {
+		this.printedContextIdentifiers ??= new Set(
+			[...this.itemDocument.printedVariableIdentifiers()].filter((identifier) =>
+				isContextSerialized(this.decls[identifier])
+			)
+		);
+		return this.printedContextIdentifiers;
+	}
+
+	private printedContextIdentifiers?: ReadonlySet<string>;
 
 	public isAdaptive(): boolean {
 		return (this.itemDocument.getAssessmentItemAttribute('adaptive') || '').toLowerCase() === 'true';
@@ -1042,6 +1037,7 @@ export class Player {
 		if (this.isCompleted()) {
 			throw new Error('Cannot submit: item is already completed');
 		}
+		this.settleEndAttemptResponses();
 
 		// QTI adaptive semantics: numAttempts should reflect the attempt being processed.
 		if (this.isAdaptive() && countAttempt) {
@@ -1053,7 +1049,10 @@ export class Player {
 			}
 		}
 
-		const base = this.processResponses();
+		// A non-adaptive item counts (and finalizes) only a counted attempt, as endAttempt does.
+		const base = this.isAdaptive()
+			? this.processResponses()
+			: this.runResponseProcessing({ finalizeNonAdaptiveAttempt: countAttempt, countAttempt });
 		const completionStatus = this.getCompletionStatus();
 		const completed = completionStatus === 'completed';
 		const canContinue = this.isAdaptive() ? !completed : false;
@@ -1071,8 +1070,9 @@ export class Player {
 		const out: Record<string, any> = {};
 		for (const d of Object.values(this.decls)) {
 			if ((d as any).__kind !== 'response') continue;
-			const pciHost = this._pciHosts.get(d.identifier);
+			const pciHost = this.pciSession.get(d.identifier);
 			if (pciHost) {
+				const before = d.value;
 				const currentResponse = pciHost.getResponse();
 				d.value = this.coerceToDeclarationValue(
 					d.baseType,
@@ -1080,6 +1080,8 @@ export class Player {
 					currentResponse,
 					d.identifier
 				);
+				// Adopting a different mounted-module response is a response change.
+				if (!qtiValueEquals(before, d.value)) this.touchResponses();
 			}
 			out[d.identifier] = this.qtiValueToPublic(d.value);
 		}
@@ -1087,18 +1089,20 @@ export class Player {
 	}
 
 	/**
-	 * Get correct response for a specific response identifier
-	 * @param responseId - The response identifier
-	 * @returns The correct response value, or undefined if not available
+	 * The engine's current responses, stable within one response revision: the serializer and
+	 * the end-attempt gate read the same record, so their validations memoize together.
+	 * @internal Serialization reads it through the host.
 	 */
-	public getCorrectResponse(responseId: string): any | undefined {
-		const decl = this.decls[responseId];
-		if (!decl || (decl as any).__kind !== 'response') return undefined;
-		const respDecl = decl as any; // ResponseDeclaration from qti-processing
-		if (!respDecl.correctResponse) return undefined;
-		if (respDecl.correctResponse.kind !== 'value') return undefined;
-		return this.qtiValueToPublic(respDecl.correctResponse);
+	responseSnapshot(): Record<string, any> {
+		if (this.responseSnapshotState && this.responseSnapshotState.revision === this.responseRevision) {
+			return this.responseSnapshotState.responses;
+		}
+		const responses = this.getResponses();
+		this.responseSnapshotState = { revision: this.responseRevision, responses };
+		return responses;
 	}
+
+	private responseSnapshotState: { revision: number; responses: Record<string, any> } | null = null;
 
 	/**
 	 * Get all correct responses as a map
@@ -1115,17 +1119,8 @@ export class Player {
 		return out;
 	}
 
-	public getTemplateVariables(): Record<string, any> {
-		const out: Record<string, any> = {};
-		for (const d of Object.values(this.decls)) {
-			if (!d.isTemplate) continue;
-			out[d.identifier] = this.qtiValueToPublic(d.value);
-		}
-		return out;
-	}
-
 	public setTemplateVariables(vars: Record<string, any>): void {
-		this.interactionDataCache = null;
+		this.invalidateInteractionData();
 		for (const [id, raw] of Object.entries(vars)) {
 			const d = this.decls[id];
 			if (!d?.isTemplate) continue;
@@ -1133,144 +1128,67 @@ export class Player {
 		}
 	}
 
-	public getSessionState(): ItemSessionState {
-		const out: ItemSessionState = {};
-		for (const d of Object.values(this.decls)) {
-			out[d.identifier] = this.qtiValueToPublic(d.value);
+	public validateResponses(responses: Record<string, any>): ResponseValidationResult {
+		const memo = this.validationMemo;
+		if (
+			memo &&
+			memo.responses === responses &&
+			memo.revision === this.responseRevision &&
+			memo.generation === this.interactionDataGeneration
+		) {
+			return memo.result;
 		}
-		return out;
+		const result = validateResponses(this, responses);
+		this.validationMemo = {
+			responses,
+			revision: this.responseRevision,
+			generation: this.interactionDataGeneration,
+			result,
+		};
+		return result;
 	}
 
-	public validateResponses(responses: Record<string, any>): ResponseValidationResult {
-		const interactions = this.getInteractions();
-		const entries: ResponseValidationResult['entries'] = {};
-		const issues: ResponseValidationResult['issues'] = [];
-
-		for (const i of interactions) {
-			const responseId = i.responseIdentifier;
-			const decl = this.decls[responseId];
-			const value = responses[responseId];
-			const isMeaningfulEntry = (entry: unknown): boolean => {
-				if (entry === null || entry === undefined) return false;
-				if (typeof entry !== 'string') return true;
-				const comparable = i.type === 'extendedTextInteraction' && i.format === 'xhtml'
-					? entry.replace(/<[^>]*>/g, '').replace(/&nbsp;|&#160;/gi, ' ')
-					: entry;
-				return comparable.trim().length > 0;
-			};
-
-			const constrainedChoices: Array<{ identifier: string; matchMin?: number }> = [
-				...(i.choices ?? []),
-				...(i.gapTexts ?? []),
-				...(i.gapImages ?? []),
-				...(i.sourceSet ?? []),
-				...(i.targetSet ?? []),
-				...(i.associableHotspots ?? []),
-			];
-			const minimum = Math.max(
-				0,
-				Number(i.minChoices ?? 0),
-				Number(i.minAssociations ?? 0),
-				Number(i.minStrings ?? 0),
-				Number(i.minPlays ?? 0),
-			);
-			const required =
-				i.type !== 'endAttemptInteraction' &&
-				(minimum > 0 || constrainedChoices.some((choice) => Number(choice.matchMin ?? 0) > 0));
-
-			let complete = !required;
-			if (i.type === 'mediaInteraction' && required) {
-				const minPlays = Number(i.minPlays || 0);
-				complete = Number(value || 0) >= minPlays;
-			} else if (required) {
-				if (Array.isArray(value)) {
-					const nonEmptyValues = value.filter(isMeaningfulEntry);
-					complete = nonEmptyValues.length > 0;
-					// Enforce minChoices / minAssociations where applicable
-						const minChoices = Math.max(
-							Number(i.minChoices ?? 0),
-							Number(i.minAssociations ?? 0),
-							Number(i.minStrings ?? 0),
-						);
-					if (complete && minChoices > 0) {
-						complete = nonEmptyValues.length >= minChoices;
-					}
-					// Enforce matchMin per-choice: each pairing entry "id1 id2" in value must
-					// appear at least matchMin times for the relevant choice.
-					// Collect all choice arrays that can carry matchMin across all pairing interaction types.
-						for (const choice of constrainedChoices) {
-						const min = Number(choice.matchMin || 0);
-						if (min > 0) {
-							const count = (value as string[]).filter((p) => {
-								const parts = p.split(' ');
-								return parts[0] === choice.identifier || parts[1] === choice.identifier;
-							}).length;
-							if (count < min) {
-								complete = false;
-								break;
-							}
-						}
-					}
-				} else if (decl?.cardinality === 'record') {
-					const stringValue = value && typeof value === 'object'
-						? (value as Record<string, unknown>).stringValue
-						: undefined;
-					complete = isMeaningfulEntry(stringValue);
-				} else {
-					complete = isMeaningfulEntry(value);
-				}
-			}
-
-			const errors: string[] = [];
-			const warnings: string[] = [];
-
-			if (decl) {
-				if (decl.cardinality === 'multiple' || decl.cardinality === 'ordered') {
-					if (!(value === null || value === undefined || Array.isArray(value))) {
-						errors.push(`Expected an array for ${decl.cardinality} response '${responseId}'`);
-					}
-				} else if (decl.cardinality === 'record') {
-					if (!(value === null || value === undefined || (typeof value === 'object' && !Array.isArray(value)))) {
-						errors.push(`Expected an object for record response '${responseId}'`);
-					}
-				} else {
-					if (Array.isArray(value)) {
-						errors.push(`Expected a single value for response '${responseId}'`);
-					}
-				}
-			}
-			if (
-				i.type === 'extendedTextInteraction' &&
-				Array.isArray(value) &&
-				Number(i.maxStrings ?? 0) > 0 &&
-				value.filter(isMeaningfulEntry).length > Number(i.maxStrings)
-			) {
-				errors.push(`Response '${responseId}' exceeds maxStrings=${i.maxStrings}`);
-			}
-
-			const valid = errors.length === 0;
-			entries[responseId] = {
-				responseId,
-				interactionType: i.type,
-				required,
-				complete,
-				valid,
-				errors,
-				warnings,
-			};
-
-			for (const e of errors) {
-				issues.push({
-					responseId,
-					code: 'invalid_shape',
-					message: e,
-					severity: 'error',
-				});
-			}
+	/**
+	 * The base validation of the engine's current responses, memoized per response revision
+	 * and interaction-data generation: serialization and the suspend path read it repeatedly
+	 * at unchanged state. The end-attempt gate (validateAttemptResponses) stays a separate
+	 * derivation, so its `incomplete` issues never reach the memoized base result.
+	 */
+	private currentResponsesValidation(): ResponseValidationResult {
+		const memo = this.engineValidationMemo;
+		if (
+			memo &&
+			memo.revision === this.responseRevision &&
+			memo.generation === this.interactionDataGeneration
+		) {
+			return memo.result;
 		}
+		const result = this.validateResponses(this.responseSnapshot());
+		this.engineValidationMemo = {
+			revision: this.responseRevision,
+			generation: this.interactionDataGeneration,
+			result,
+		};
+		return result;
+	}
 
-		const allValid = Object.values(entries).every((e) => e.valid);
-		return { valid: allValid, entries, issues };
+	/**
+	 * The validation `dispatch({ action: 'endAttempt', validateResponses: true })` gates on
+	 * (QTI ASI §4
+	 * itemSessionControl validateResponses). An invalid response "does not satisfy the
+	 * constraints imposed by the interaction": beyond a malformed value or a matchGroup
+	 * pairing (`validateResponses`), an interaction that requires input — minChoices,
+	 * minAssociations, minStrings, minPlays, matchMin — rejects an incomplete one. Those
+	 * entries turn invalid with an `incomplete` issue, so the result reads invalid through
+	 * the same channel as every other rejection.
+	 *
+	 * An item with no response at all is a skip, which allowSkipping governs ("delivery
+	 * engines must ensure that the candidate can choose to submit no response" when it is
+	 * true). The item cannot see allowSkipping, so completeness applies only once the
+	 * candidate has responded and a skip is the caller's decision.
+	 */
+	private validateAttemptResponses(responses: Record<string, any>): ResponseValidationResult {
+		return validateAttemptResponses(this, responses);
 	}
 
 	public getProgress(responses: Record<string, any>): { total: number; answered: number; unanswered: number } {
@@ -1292,253 +1210,34 @@ export class Player {
 	 * Used by assessment/session controllers to track "answered" state.
 	 */
 	public isAttempted(responses: Record<string, any>): boolean {
-		for (const i of this.getResponseInteractions()) {
-			const id = i.responseIdentifier;
-			const v = responses[id];
-			const isMeaningful = (entry: unknown): boolean => {
-				if (entry === null || entry === undefined) return false;
-				if (typeof entry !== 'string') return true;
-				const comparable = i.type === 'extendedTextInteraction' && i.format === 'xhtml'
-					? entry.replace(/<[^>]*>/g, '').replace(/&nbsp;|&#160;/gi, ' ')
-					: entry;
-				return comparable.trim().length > 0;
-			};
-			if (i.type === 'mediaInteraction') {
-				if (Number(v || 0) > 0) return true;
-				continue;
-			}
-			if (Array.isArray(v)) {
-				if (v.some(isMeaningful)) return true;
-				continue;
-			}
-			if (v && typeof v === 'object') {
-				const record = v as Record<string, unknown>;
-				if (
-					Object.values(record).some(isMeaningful)
-				) return true;
-				continue;
-			}
-			if (isMeaningful(v)) return true;
-		}
-		return false;
+		return isAttempted(this, responses);
 	}
 
 	// ----------------------------------------------------------------------------
 	// Execution
 	// ----------------------------------------------------------------------------
 
-	/** The evaluator's environment, which reads responses in the item's content language. */
-	private processingEnv() {
-		return {
-			ctx: this.ctx,
-			ops: this.ops,
-			rng: this.rng,
-			language: this.getContentLanguage(),
-			customOperators: this.config.customOperators,
-		};
-	}
-
+	/**
+	 * Template processing re-extracts the item's interactions, so the interaction cache
+	 * drops before the program runs. Template rules can also change response values
+	 * (setDefaultValue), so the response revision moves with it.
+	 */
 	private execTemplateProcessing(): void {
+		this.invalidateInteractionData();
+		execTemplateProcessingProgram(this);
+		this.responseRevision += 1;
+		this.responseSnapshotState = null;
+	}
+
+	private invalidateInteractionData(): void {
 		this.interactionDataCache = null;
-		if (!this.templateProcessingProgram) return;
-		execProgram(
-			this.processingEnv(),
-			this.templateProcessingProgram
-		);
-	}
-
-	private execResponseProcessingProgram(): void {
-		if (!this.responseProcessingProgram) return;
-		execProgram(
-			this.processingEnv(),
-			this.responseProcessingProgram
-		);
-	}
-
-	private execOutcomeProcessingProgram(): void {
-		if (!this.outcomeProcessingProgram) return;
-		execProgram(
-			this.processingEnv(),
-			this.outcomeProcessingProgram
-		);
-	}
-
-	private execResponseProcessingTemplate(templateUrl: string): void {
-		const name = templateUrl.split('/').pop()?.toLowerCase().replace(/\.xml$/, '');
-		if (!name) {
-			console.warn(`[QTI Player] Could not extract template name from URL: ${templateUrl}`);
-			return;
-		}
-
-		const responseMatchesCorrect = (): boolean => {
-			const expression = {
-				kind: 'expr.match',
-				id: 'fixed-template-match',
-				a: { kind: 'expr.variable', id: 'fixed-template-response', identifier: 'RESPONSE' },
-				b: { kind: 'expr.correct', id: 'fixed-template-correct', identifier: 'RESPONSE' },
-			} as any;
-			return toBoolean(
-				evalExpr(
-					this.processingEnv(),
-					expression,
-				),
-			);
-		};
-
-		const setScore = (value: number): void => {
-			this.ctx.setValue('SCORE', qtiValue('float', 'single', value));
-		};
-
-		const setIdentifierOutcome = (identifier: string, value: string): void => {
-			this.ctx.setValue(identifier, qtiValue('identifier', 'single', value));
-		};
-
-		const mapResponse = (point: boolean): number => {
-			const response = this.ctx.getValue('RESPONSE');
-			if (response.kind === 'null') return 0;
-			const mapped = evalExpr(
-				this.processingEnv(),
-				{
-					kind: point ? 'expr.mapResponsePoint' : 'expr.mapResponse',
-					id: point ? 'fixed-template-map-response-point' : 'fixed-template-map-response',
-					identifier: 'RESPONSE',
-				} as any,
-			);
-			const value = toNumber(mapped);
-			return Number.isFinite(value) ? value : 0;
-		};
-
-		switch (name) {
-			case 'match_correct':
-			case 'cc2_match': {
-				setScore(responseMatchesCorrect() ? 1 : 0);
-				return;
-			}
-			case 'cc2_match_basic': {
-				if (responseMatchesCorrect()) {
-					const maxScore = toNumber(this.ctx.getValue('MAXSCORE'));
-					this.ctx.setValue(
-						'SCORE',
-						Number.isFinite(maxScore) ? qtiValue('float', 'single', maxScore) : qtiNull('float', 'single'),
-					);
-					setIdentifierOutcome('FEEDBACKBASIC', 'correct');
-				} else {
-					setIdentifierOutcome('FEEDBACKBASIC', 'incorrect');
-				}
-				return;
-			}
-			case 'match_nothing':
-			case 'cc2_match_nothing': { // QTI 2.1 compatibility
-				const isEmptyResponse = (v: QtiValue | undefined): boolean => {
-					if (!v) return true;
-					if (v.kind === 'null') return true;
-					if (v.kind === 'invalid') return false;
-					if (v.value === null || v.value === undefined) return true;
-					if (Array.isArray(v.value)) return v.value.length === 0;
-					if (typeof v.value === 'string') return v.value.trim().length === 0;
-					return false;
-				};
-
-				const allEmpty = isEmptyResponse(this.ctx.getValue('RESPONSE'));
-				const max = toNumber(this.ctx.getValue('MAXSCORE'));
-				this.ctx.setValue('SCORE', qtiValue('float', 'single', allEmpty ? (Number.isFinite(max) ? max : 1) : 0));
-				return;
-			}
-			case 'map_response': {
-				setScore(mapResponse(false));
-				return;
-			}
-			case 'cc2_map_response': {
-				const score = mapResponse(false);
-				setScore(score);
-				const maxScore = toNumber(this.ctx.getValue('MAXSCORE'));
-				setIdentifierOutcome(
-					'FEEDBACK',
-					Number.isFinite(maxScore) && score === maxScore ? 'correct' : 'incorrect',
-				);
-				return;
-			}
-			case 'map_response_point':
-			case 'cc2_map_response_point': { // QTI 2.1 compatibility
-				setScore(mapResponse(true));
-				return;
-			}
-			default:
-				console.warn(`[QTI Player] Unsupported response processing template: ${name}`);
-				return;
-		}
+		this.interactionDataGeneration += 1;
+		this.responseSnapshotState = null;
 	}
 
 	// ----------------------------------------------------------------------------
 	// Declarations
 	// ----------------------------------------------------------------------------
-
-	private buildDeclarations(): DeclarationMap {
-		const decls: DeclarationMap = {};
-
-		const addDecl = (kind: DeclKind, el: Element) => {
-			const identifier = this.getAttrMapped(el, 'identifier');
-			const cardinality = (this.getAttrMapped(el, 'cardinality') || 'single') as Cardinality;
-			const baseType = cardinality === 'record'
-				? undefined
-				: (this.getAttrMapped(el, 'baseType') || 'string') as BaseType;
-			if (!identifier) return;
-
-			const declaredDefault = this.parseDefaultValue(el, baseType, cardinality);
-			const impliedNumericDefault = !declaredDefault && this.hasImpliedNumericDefault(kind, baseType, cardinality);
-			const defaultValue = declaredDefault ?? this.impliedDefaultValue(kind, baseType, cardinality);
-			decls[identifier] = {
-				identifier,
-				...(baseType ? { baseType } : {}),
-				cardinality,
-				defaultValue,
-				value: defaultValue,
-				isTemplate: kind === 'template',
-				impliedNumericDefault,
-				// @ts-expect-error internal marker for templates
-				__kind: kind,
-			};
-
-			// Response + outcome declarations may define mappings used by mapResponse/mapOutcome.
-			// (Templates do not participate in mapping.)
-			if (kind === 'response' || kind === 'outcome') {
-				const mappingEl = findFirstDescendant(el, this.mapper.toNative('mapping'));
-				if (mappingEl && baseType) {
-					decls[identifier].mapping = this.parseMapping(mappingEl, baseType);
-				}
-			}
-
-			// Outcome declarations may define a lookup table (matchTable or interpolationTable)
-			// used by the lookupOutcomeValue rule.
-			if (kind === 'outcome') {
-				const matchTableEl = findFirstDescendant(el, this.mapper.toNative('matchtable'));
-				const interpolationTableEl = findFirstDescendant(el, this.mapper.toNative('interpolationtable'));
-				if (matchTableEl) {
-					decls[identifier].lookupTable = this.parseMatchTable(matchTableEl);
-				} else if (interpolationTableEl) {
-					decls[identifier].lookupTable = this.parseInterpolationTable(interpolationTableEl);
-				}
-			}
-
-			if (kind === 'response') {
-				const correctEl = findFirstDescendant(el, this.mapper.toNative('correctresponse'));
-				if (correctEl) {
-					decls[identifier].correctResponse = this.parseCorrectResponse(correctEl, baseType, cardinality);
-				}
-				const areaMappingEl = findFirstDescendant(el, this.mapper.toNative('areamapping'));
-				if (areaMappingEl) {
-					decls[identifier].areaMapping = this.parseAreaMapping(areaMappingEl);
-				}
-			}
-		};
-
-		for (const el of this.itemDocument.findDeclarationElements('response')) addDecl('response', el);
-		for (const el of this.itemDocument.findDeclarationElements('outcome')) addDecl('outcome', el);
-		for (const el of this.itemDocument.findDeclarationElements('template')) addDecl('template', el);
-		for (const el of this.itemDocument.findDeclarationElements('context')) addDecl('context', el);
-
-		return decls;
-	}
 
 	/** Host-supplied context values, e.g. `QTI_CONTEXT`; identifiers that are not context variables are ignored. */
 	private applyContextVariables(values: Readonly<Record<string, unknown>> | undefined): void {
@@ -1559,625 +1258,60 @@ export class Player {
 		}
 	}
 
-	private parseMatchTable(el: Element) {
-		return {
-			kind: 'table.matchTable' as const,
-			defaultValue: (getAttr(el, 'defaultValue') || '').trim() || undefined,
-			entries: findDescendants(el, this.mapper.toNative('matchtableentry')).map((e) => ({
-				sourceValue: (getAttr(e, 'sourceValue') || '').trim(),
-				targetValue: (getAttr(e, 'targetValue') || '').trim(),
-			})),
-		};
-	}
-
-	private parseInterpolationTable(el: Element) {
-		return {
-			kind: 'table.interpolationTable' as const,
-			defaultValue: (getAttr(el, 'defaultValue') || '').trim() || undefined,
-			entries: findDescendants(el, this.mapper.toNative('interpolationtableentry'))
-				.map((e) => ({
-					sourceValue: Number((getAttr(e, 'sourceValue') || '').trim() || Number.NaN),
-					targetValue: (getAttr(e, 'targetValue') || '').trim(),
-					includeBoundary: (getAttr(e, 'includeBoundary') || '').trim() !== 'false',
-				}))
-				.filter((e) => Number.isFinite(e.sourceValue)),
-		};
-	}
-
-	private ensureBuiltinDeclarations(decls: DeclarationMap): void {
-		// completionStatus + numAttempts are defined in QTI (esp. adaptive items) and commonly used
-		// without explicit outcomeDeclaration in authoring content.
-		if (!decls.completionStatus) {
-			decls.completionStatus = {
-				identifier: 'completionStatus',
-				baseType: 'identifier',
-				cardinality: 'single',
-				value: qtiValue('identifier', 'single', 'not_attempted'),
-				isTemplate: false,
-				// @ts-expect-error internal marker
-				__kind: 'outcome',
-			};
-		}
-
-		if (!decls.numAttempts) {
-			decls.numAttempts = {
-				identifier: 'numAttempts',
-				baseType: 'integer',
-				cardinality: 'single',
-				defaultValue: qtiValue('integer', 'single', 0),
-				value: qtiValue('integer', 'single', 0),
-				isTemplate: false,
-				// @ts-expect-error internal marker
-				__kind: 'outcome',
-			};
-		}
-
-		if (!decls.duration) {
-			decls.duration = {
-				identifier: 'duration',
-				baseType: 'duration',
-				cardinality: 'single',
-				defaultValue: qtiValue('duration', 'single', 0),
-				value: qtiValue('duration', 'single', 0),
-				isTemplate: false,
-				// @ts-expect-error internal marker
-				__kind: 'outcome',
-			};
-		}
-
-		// QTI 3 built-in context variable, set by the delivery system.
-		if (!decls.QTI_CONTEXT) {
-			decls.QTI_CONTEXT = {
-				identifier: 'QTI_CONTEXT',
-				cardinality: 'record',
-				defaultValue: qtiNull(undefined, 'record'),
-				value: qtiNull(undefined, 'record'),
-				isTemplate: false,
-				// @ts-expect-error internal marker
-				__kind: 'context',
-			};
-		}
-
-		// Common scoring defaults
-		if (!decls.SCORE) {
-			decls.SCORE = {
-				identifier: 'SCORE',
-				baseType: 'float',
-				cardinality: 'single',
-				value: qtiValue('float', 'single', 0),
-				isTemplate: false,
-				// @ts-expect-error internal marker
-				__kind: 'outcome',
-			};
-		}
-		if (!decls.MAXSCORE) {
-			decls.MAXSCORE = {
-				identifier: 'MAXSCORE',
-				baseType: 'float',
-				cardinality: 'single',
-				value: qtiValue('float', 'single', 1),
-				isTemplate: false,
-				// @ts-expect-error internal marker
-				__kind: 'outcome',
-			};
-		}
-	}
-
-	private applySessionState(state: ItemSessionState): void {
-		for (const [id, raw] of Object.entries(state)) {
-			const d = this.decls[id];
-			if (!d) continue;
-			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, raw, d.identifier);
-		}
-		const restoredDuration = Number(state.duration);
-		if (Number.isFinite(restoredDuration) && restoredDuration >= 0) {
-			this.accumulatedDurationMs = restoredDuration;
-			this.sessionStartedAt = Date.now();
-			this.updateDuration();
-		}
-	}
-
 	private applySerializedVariables(vars: Record<string, SerializedItemSessionVariable>): void {
-		for (const v of Object.values(vars)) {
-			const d = this.decls[v.identifier];
-			if (!d) continue;
-			d.value = this.coerceToDeclarationValue(d.baseType, d.cardinality, v.value, d.identifier);
-			if ((d as any).__kind === 'response') {
-				this.restorePciResponse(d.identifier, this.qtiValueToPublic(d.value));
-			}
-		}
+		applySerializedVariables(this, vars);
 	}
 
 	private serializeItemSession(): SerializedItemSessionState {
-		const responseVariables: Record<string, SerializedItemSessionVariable> = {};
-		const outcomeVariables: Record<string, SerializedItemSessionVariable> = {};
-		const templateVariables: Record<string, SerializedItemSessionVariable> = {};
-		const contextVariables: Record<string, SerializedItemSessionVariable> = {};
-		const contextIds = new Set(['completionStatus', 'numAttempts', 'duration']);
-
-		for (const d of Object.values(this.decls)) {
-			const variable = this.serializeVariable(d);
-			if (d.isTemplate) {
-				templateVariables[d.identifier] = { ...variable, kind: 'template' };
-			} else if (contextIds.has(d.identifier) || (d as any).__kind === 'context') {
-				contextVariables[d.identifier] = { ...variable, kind: 'context' };
-			} else if ((d as any).__kind === 'response') {
-				responseVariables[d.identifier] = { ...variable, kind: 'response' };
-			} else if ((d as any).__kind === 'outcome') {
-				outcomeVariables[d.identifier] = { ...variable, kind: 'outcome' };
-			}
-		}
-
-		const validation = this.validateResponses(this.getResponses());
-		return {
-			itemIdentifier: this.itemDocument.getAssessmentItemAttribute('identifier') ?? undefined,
-			sessionGuid: this.sessionGuid,
-			lifecycleStatus: this.lifecycleStatus,
-			completionStatus: this.getCompletionStatus(),
-			numAttempts: this.getNumAttempts(),
-			duration: this.getDuration(),
-			responseVariables,
-			outcomeVariables,
-			templateVariables,
-			contextVariables,
-			validationMessages: validation.issues,
-			savedAt: new Date().toISOString(),
-		};
+		return serializeItemSession(this);
 	}
 
-	private serializeVariable(d: DeclarationMap[string]): SerializedItemSessionVariable {
-		return {
-			identifier: d.identifier,
-			kind: ((d as any).__kind ?? (d.isTemplate ? 'template' : 'context')) as SerializedItemSessionVariable['kind'],
-			...(d.baseType ? { baseType: d.baseType } : {}),
-			cardinality: d.cardinality,
-			value: this.qtiValueToSerializable(d.value),
-			defaultValue: this.qtiValueToSerializable(d.defaultValue),
-		};
+	/** @internal Value forms shared with PCI hosts and the serializer. */
+	qtiValueToPci(value: QtiValue | undefined): unknown {
+		return qtiValueToPci(value);
 	}
 
-	private qtiValueToSerializable(value: QtiValue | undefined): any {
-		if (!value || value.kind !== 'value') return null;
-		if (value.cardinality !== 'record') return cloneRuntimeValue(value.value);
-
-		const serialized: Record<string, unknown> = {};
-		for (const [fieldIdentifier, fieldValue] of Object.entries(value.value as Record<string, QtiValue>)) {
-			serialized[fieldIdentifier] = {
-				...(fieldValue.baseType ? { baseType: fieldValue.baseType } : {}),
-				cardinality: fieldValue.cardinality ?? 'single',
-				value: this.qtiValueToSerializable(fieldValue),
-			};
-		}
-		return serialized;
+	/** @internal */
+	qtiValueToPublic(value: QtiValue | undefined): any {
+		return qtiValueToPublic(value);
 	}
 
-	private qtiValueToPublic(value: QtiValue | undefined): any {
-		if (!value || value.kind !== 'value') return null;
-		if (value.cardinality !== 'record') return cloneRuntimeValue(value.value);
-
-		const record: Record<string, unknown> = {};
-		for (const [fieldIdentifier, fieldValue] of Object.entries(value.value as Record<string, QtiValue>)) {
-			record[fieldIdentifier] = this.qtiValueToPublic(fieldValue);
-		}
-		return record;
-	}
-
-	private updateDuration(): void {
-		const elapsedMs = Math.max(0, Date.now() - this.sessionStartedAt);
-		const durationMs = this.accumulatedDurationMs + elapsedMs;
-		this.ctx.setValue('duration', qtiValue('duration', 'single', durationMs));
+	/** @internal Response processing runs start by bringing the duration variable current. */
+	updateDuration(): void {
+		updateDuration(this);
 	}
 
 	private freezeDuration(): number {
-		this.updateDuration();
-		const duration = this.getDuration();
-		this.accumulatedDurationMs = duration;
-		this.sessionStartedAt = Date.now();
-		return duration;
+		return freezeDuration(this);
 	}
 
+	/** Time on task in whole milliseconds, as the host-facing session fields report it. */
 	private getDuration(): number {
-		const value = this.ctx.getValue('duration');
-		return Math.max(0, Math.floor(toNumber(value) || 0));
+		return this.durationMs;
 	}
 
-	/**
-	 * QTI 2.1 §5.2, carried into 2.2 and 3.0: an outcome variable with no declared default is
-	 * initialized to NULL unless it is of a numeric type, in which case it is initialized to 0.
-	 * Response and template variables keep NULL — an unanswered numeric response must stay
-	 * distinguishable from an answered zero.
-	 */
-	private hasImpliedNumericDefault(
-		kind: DeclKind,
-		baseType: BaseType | undefined,
-		cardinality: Cardinality,
-	): boolean {
-		if (kind !== 'outcome' || cardinality !== 'single') return false;
-		return baseType === 'integer' || baseType === 'float';
-	}
-
-	private impliedDefaultValue(
-		kind: DeclKind,
-		baseType: BaseType | undefined,
-		cardinality: Cardinality,
-	): QtiValue {
-		if (this.hasImpliedNumericDefault(kind, baseType, cardinality)) {
-			return qtiValue(baseType as 'integer' | 'float', 'single', 0);
-		}
-		return qtiNull(baseType, cardinality);
-	}
-
-	/** Returns undefined when the declaration carries no <defaultValue> at all. */
-	private parseDefaultValue(
-		declEl: Element,
-		baseType: BaseType | undefined,
-		cardinality: Cardinality,
-	): QtiValue | undefined {
-		const defaultEl = findFirstDescendant(declEl, this.mapper.toNative('defaultvalue'));
-		if (!defaultEl) return undefined;
-		return this.parseDeclarationValues(defaultEl, baseType, cardinality);
-	}
-
-	private parseCorrectResponse(
-		correctEl: Element,
-		baseType: BaseType | undefined,
-		cardinality: Cardinality,
-	): QtiValue {
-		return this.parseDeclarationValues(correctEl, baseType, cardinality);
-	}
-
-	private parseDeclarationValues(
-		container: Element,
-		baseType: BaseType | undefined,
-		cardinality: Cardinality,
-	): QtiValue {
-		const valueElements = findDescendants(container, this.mapper.toNative('value'));
-		if (cardinality === 'record') {
-			const record: Record<string, QtiValue> = {};
-			for (const valueElement of valueElements) {
-				const fieldIdentifier = this.getAttrMapped(valueElement, 'fieldIdentifier');
-				const fieldBaseType = this.getAttrMapped(valueElement, 'baseType') as BaseType | null;
-				if (!fieldIdentifier || !fieldBaseType) continue;
-				record[fieldIdentifier] = coerceBaseValue(fieldBaseType, valueElement.textContent || '', this.getContentLanguage());
-			}
-			return Object.keys(record).length > 0
-				? qtiValue(undefined, 'record', record)
-				: qtiNull(undefined, 'record');
-		}
-
-		if (!baseType) return qtiNull(undefined, cardinality);
-		const values = valueElements.map((value) => (value.textContent || '').trim());
-		if (cardinality === 'multiple' || cardinality === 'ordered') {
-			return qtiValue(
-				baseType,
-				cardinality,
-				values.map((t) => {
-					const v = coerceBaseValue(baseType, t, this.getContentLanguage());
-					return v.kind === 'value' ? v.value : null;
-				})
-			);
-		}
-		return coerceBaseValue(baseType, values[0] ?? '', this.getContentLanguage());
-	}
-
-	private parseMapping(mappingEl: Element, baseType: BaseType) {
-		const defaultValue = Number(this.getAttrMapped(mappingEl, 'defaultValue') || 0);
-		const lowerBound = this.getAttrMapped(mappingEl, 'lowerBound') ? Number(this.getAttrMapped(mappingEl, 'lowerBound')) : undefined;
-		const upperBound = this.getAttrMapped(mappingEl, 'upperBound') ? Number(this.getAttrMapped(mappingEl, 'upperBound')) : undefined;
-		const mappingCaseSensitive = this.getAttrMapped(mappingEl, 'caseSensitive') || 'true';
-		const entries: Record<string, any> = {};
-
-		const normalizePairKey = (k: string): string => {
-			const parts = k.trim().split(/\s+/).filter(Boolean);
-			if (parts.length === 2) return [...parts].sort().join(' ');
-			return k.trim();
-		};
-
-		const normalizeDirectedPairKey = (k: string): string => {
-			const parts = k.trim().split(/\s+/).filter(Boolean);
-			if (parts.length >= 2) return `${parts[0]} ${parts[1]}`;
-			return k.trim();
-		};
-
-		for (const e of findDescendants(mappingEl, this.mapper.toNative('mapentry'))) {
-			const mapKey = this.getAttrMapped(e, 'mapKey');
-			const mappedValue = this.getAttrMapped(e, 'mappedValue');
-			if (!mapKey || mappedValue === null) continue;
-			const effectiveCaseSensitive = this.getAttrMapped(e, 'caseSensitive') || mappingCaseSensitive || 'true';
-			const storedKey =
-				baseType === 'pair'
-					? normalizePairKey(mapKey)
-					: baseType === 'directedPair'
-						? normalizeDirectedPairKey(mapKey)
-						: mapKey;
-			entries[storedKey] = { mapKey: storedKey, mappedValue: Number(mappedValue), caseSensitive: effectiveCaseSensitive };
-			if (effectiveCaseSensitive !== 'true') {
-				const lowerKey = storedKey.toLowerCase();
-				entries[lowerKey] = {
-					mapKey: lowerKey,
-					mappedValue: Number(mappedValue),
-					caseSensitive: effectiveCaseSensitive,
-				};
-			}
-		}
-
-		return { defaultValue, lowerBound, upperBound, caseSensitive: mappingCaseSensitive, entries };
-	}
-
-	private parseAreaMapping(areaMappingEl: Element): AreaMapping {
-		const defaultValue = Number(getAttr(areaMappingEl, 'defaultValue') || 0);
-		const lowerBound = getAttr(areaMappingEl, 'lowerBound')
-			? Number(getAttr(areaMappingEl, 'lowerBound'))
-			: undefined;
-		const upperBound = getAttr(areaMappingEl, 'upperBound')
-			? Number(getAttr(areaMappingEl, 'upperBound'))
-			: undefined;
-
-		const entries: AreaMapEntry[] = [];
-		for (const e of findDescendants(areaMappingEl, this.mapper.toNative('areamapentry'))) {
-			const shape = (getAttr(e, 'shape') || 'default') as AreaMapEntry['shape'];
-			const coords = String(getAttr(e, 'coords') || '');
-			const mappedValue = Number(getAttr(e, 'mappedValue') || 0);
-			entries.push({ shape, coords, mappedValue });
-		}
-
-		return { defaultValue, lowerBound, upperBound, entries };
-	}
-
+	/** Raw values read as a declaration's QTI base type and cardinality; see declarations/declarationValues. */
 	private coerceToDeclarationValue(
 		baseType: BaseType | undefined,
 		cardinality: Cardinality,
 		raw: unknown,
 		identifier?: string,
 	): QtiValue {
-		if (raw === null || raw === undefined) return qtiNull(baseType, cardinality);
-
-		// Allow callers to pass fully-formed QtiValue (e.g. session restore).
-		if (typeof raw === 'object' && raw && 'kind' in raw) {
-			return cloneRuntimeValue(raw as QtiValue);
-		}
-
-		const extendedTextBase = identifier ? this.getExtendedTextBase(identifier) : undefined;
-		if (cardinality === 'record') {
-			return this.coerceRecordValue(raw, extendedTextBase ?? 10);
-		}
-
-		if (!baseType) return qtiNull(undefined, cardinality);
-
-		// For file types, preserve QTIFileResponse objects directly
-		if (baseType === 'file') {
-			if (cardinality === 'multiple' || cardinality === 'ordered') {
-				const arr = Array.isArray(raw) ? raw : [raw];
-				return qtiValue(
-					baseType,
-					cardinality,
-					cloneRuntimeValue(arr.filter((v) => v !== null && v !== undefined)),
-				);
-			}
-			return qtiValue(baseType, cardinality, cloneRuntimeValue(raw));
-		}
-
-		if (cardinality === 'multiple' || cardinality === 'ordered') {
-			const arr = Array.isArray(raw) ? raw : [raw];
-			const coerced = arr
-				.map((v) => String(v ?? '').trim())
-				.filter((s) => s.length > 0)
-				.map((t) => {
-					if (extendedTextBase && (baseType === 'integer' || baseType === 'float')) {
-						const numeric = createExtendedTextNumericRecord(t, extendedTextBase, this.getContentLanguage());
-						return baseType === 'integer' ? numeric.integerValue : numeric.floatValue;
-					}
-					const v = coerceBaseValue(baseType, t, this.getContentLanguage());
-					return v.kind === 'value' ? v.value : null;
-				})
-				.filter((v) => v !== null);
-			// Multiple/ordered can legitimately be an empty container (distinct from null).
-			return qtiValue(baseType, cardinality, coerced);
-		}
-
-		const t = String(raw ?? '').trim();
-		if (t.length === 0) return qtiNull(baseType, cardinality);
-		if (extendedTextBase && (baseType === 'integer' || baseType === 'float')) {
-			const numeric = createExtendedTextNumericRecord(t, extendedTextBase, this.getContentLanguage());
-			const value = baseType === 'integer' ? numeric.integerValue : numeric.floatValue;
-			return value === null ? qtiNull(baseType, 'single') : qtiValue(baseType, 'single', value);
-		}
-		return coerceBaseValue(baseType, t, this.getContentLanguage());
+		return coerceToDeclarationValue({ itemDocument: this.itemDocument }, baseType, cardinality, raw, identifier);
 	}
 
-	private getExtendedTextBase(responseIdentifier: string): number | undefined {
-		return this.itemDocument.getExtendedTextBase(responseIdentifier);
-	}
-
-	private coerceRecordValue(raw: unknown, base: number): QtiValue {
-		let source = raw;
-		if (typeof source === 'string') {
-			const stringSource = source;
-			if (stringSource.trim().length === 0) return qtiNull(undefined, 'record');
-			if (stringSource.trimStart().startsWith('{')) {
-				try {
-					source = JSON.parse(stringSource);
-				} catch {
-					return qtiNull(undefined, 'record');
-				}
-			} else {
-				source = createExtendedTextNumericRecord(stringSource, base, this.getContentLanguage());
-			}
-		}
-		if (!source || typeof source !== 'object' || Array.isArray(source)) {
-			return qtiNull(undefined, 'record');
-		}
-
-		const fields: Record<string, QtiValue> = {};
-		for (const [fieldIdentifier, rawField] of Object.entries(source)) {
-			if (rawField && typeof rawField === 'object' && 'kind' in rawField) {
-				fields[fieldIdentifier] = rawField as QtiValue;
-				continue;
-			}
-
-			let fieldBaseType = EXTENDED_TEXT_RECORD_FIELD_TYPES[
-				fieldIdentifier as keyof typeof EXTENDED_TEXT_RECORD_FIELD_TYPES
-			] as BaseType | undefined;
-			let fieldValue = rawField;
-			if (rawField && typeof rawField === 'object' && !Array.isArray(rawField) && 'value' in rawField) {
-				const serializedField = rawField as {
-					baseType?: BaseType;
-					cardinality?: Cardinality;
-					value: unknown;
-				};
-				fieldBaseType = serializedField.baseType ?? fieldBaseType;
-				fieldValue = serializedField.value;
-			}
-
-			if (!fieldBaseType) {
-				fieldBaseType = typeof fieldValue === 'boolean'
-					? 'boolean'
-					: typeof fieldValue === 'number'
-						? (Number.isInteger(fieldValue) ? 'integer' : 'float')
-						: 'string';
-			}
-			if (fieldValue === null || fieldValue === undefined) {
-				fields[fieldIdentifier] = qtiNull(fieldBaseType, 'single');
-			} else if (fieldBaseType === 'file' && typeof fieldValue === 'object') {
-				fields[fieldIdentifier] = qtiValue('file', 'single', fieldValue);
-			} else {
-				fields[fieldIdentifier] = coerceBaseValue(fieldBaseType, String(fieldValue), this.getContentLanguage());
-			}
-		}
-
-		return Object.keys(fields).length > 0
-			? qtiValue(undefined, 'record', fields)
-			: qtiNull(undefined, 'record');
-	}
-
-	private collectOutcomes(): Record<string, unknown> {
-		const out: Record<string, unknown> = {};
-		for (const d of Object.values(this.decls)) {
-			if ((d as any).__kind !== 'outcome') continue;
-			if (d.value.kind === 'value') out[d.identifier] = this.qtiValueToPublic(d.value);
-			else if (d.value.kind === 'null') out[d.identifier] = null;
-		}
-		// Ensure MAXSCORE always has a value (fallback to 1.0 if null or missing)
-		if (out.MAXSCORE === null || out.MAXSCORE === undefined) {
-			out.MAXSCORE = 1.0;
-		}
-		return out;
-	}
 
 	// ----------------------------------------------------------------------------
 	// Item content pass: printedVariable, feedback, templates
 	// ----------------------------------------------------------------------------
 
-	/**
-	 * The item content pass's handlers, reading the session's current variable values. QTI 3 wraps
-	 * rubric content in `qti-content-body`, which is unwrapped so a rubric renders as in QTI 2.2.
-	 * Feedback resolves here for rubric and modal feedback content; item body and choice feedback
-	 * resolve in presentation, which takes the outcome values to present as input.
-	 */
 	private contentHandlers({ feedback = true }: { feedback?: boolean } = {}): ContentHandlers {
-		const conditional = (variable: string) => (element: Element) =>
-			this.isShownByVariable(element, variable, getAttr(element, 'identifier')) ? Array.from(element.childNodes) : [];
-		const handlers = new Map<string, ContentHandler>([
-			['printedvariable', (element) => this.printedVariableNodes(element)],
-			['contentbody', (element) => Array.from(element.childNodes)],
-			['templateinline', conditional('templateIdentifier')],
-			['templateblock', conditional('templateIdentifier')],
-		]);
-		for (const choice of TEMPLATE_CHOICES) {
-			handlers.set(choice, (element) =>
-				!getAttr(element, 'templateIdentifier') ||
-				this.isShownByVariable(element, 'templateIdentifier', getAttr(element, 'identifier'))
-					? undefined
-					: [],
-			);
-		}
-		if (this.mathVariables().size > 0) {
-			handlers.set('mi', (element) => this.mathVariableNodes(element, 'mn'));
-			handlers.set('ci', (element) => this.mathVariableNodes(element, 'cn'));
-		}
-		if (feedback) {
-			handlers.set('feedbackinline', conditional('outcomeIdentifier'));
-			handlers.set('feedbackblock', conditional('outcomeIdentifier'));
-		}
-		return handlers;
+		return contentHandlers(this, { feedback });
 	}
 
-	/**
-	 * Whether `element` shows: the variable named by its `variableAttribute` against `identifier`,
-	 * by the shared visibility rule. A missing variable or identifier hides it.
-	 */
-	private isShownByVariable(element: Element, variableAttribute: string, identifier: string | null): boolean {
-		const variable = (getAttr(element, variableAttribute) || '').trim();
-		const id = (identifier || '').trim();
-		if (!variable || !id) return false;
-		const current = this.ctx.getValue(variable);
-		return isShownByIdentifier(current.kind === 'value' ? current.value : null, id, getAttr(element, 'showHide'));
-	}
-
-	private mathVariables(): ReadonlySet<string> {
-		this.mathVariableIds ??= new Set(
-			this.itemDocument
-				.findDeclarationElements('template')
-				.filter((el) => getAttr(el, 'mathVariable')?.trim() === 'true')
-				.map((el) => (getAttr(el, 'identifier') || '').trim()),
-		);
-		return this.mathVariableIds;
-	}
-
-	/**
-	 * A MathML `mi` or `ci` naming a math variable, with the variable's single value in its place:
-	 * a number as `mn` or `cn` (`numberName`), any other value as the element's text. NULL and
-	 * container values leave the element as authored.
-	 */
-	private mathVariableNodes(element: Element, numberName: string): Node[] | undefined {
-		const identifier = (element.textContent || '').trim();
-		const document = element.ownerDocument;
-		if (!document || !this.mathVariables().has(identifier)) return undefined;
-		const value = this.ctx.getValue(identifier);
-		if (value.kind !== 'value' || value.cardinality !== 'single') return undefined;
-		const text = String(value.value);
-		if (value.baseType !== 'integer' && value.baseType !== 'float') {
-			// The pass resolves a copy, and the element is not walked again, so this cannot cycle.
-			element.textContent = text;
-			return undefined;
-		}
-		const name = element.prefix ? `${element.prefix}:${numberName}` : numberName;
-		const replacement = document.createElementNS(element.namespaceURI, name);
-		replacement.appendChild(document.createTextNode(text));
-		return [replacement];
-	}
-
-	private printedVariableNodes(element: Element): Node[] {
-		const identifier = (getAttr(element, 'identifier') || '').trim();
-		const document = element.ownerDocument;
-		if (!identifier || !document) return [];
-		const variable = (id: string): QtiValue => this.ctx.getValue(id);
-		const printed = printVariable(variable(identifier), readPrintedVariableOptions(element, variable));
-		return printed.map((segment) => {
-			if (typeof segment === 'string') return document.createTextNode(segment);
-			const sup = document.createElementNS(element.namespaceURI, 'sup');
-			sup.appendChild(document.createTextNode(segment.superscript));
-			return sup;
-		});
-	}
-
-	private renderHtmlContent(html: string): HtmlContent {
-		const sanitized = sanitizeHtml(html, { security: this.config.security });
-		return toTrustedHtml(sanitized, this.config.security?.trustedTypesPolicyName);
-	}
-
-	private getModalFeedback(outcomes: Record<string, any>): ModalFeedback[] {
-		const active: ModalFeedback[] = [];
-
-		for (const feedback of this.itemDocument.readModalFeedback(this.contentHandlers())) {
-			const { identifier, outcomeIdentifier, showHide, title } = feedback;
-			const content = this.renderHtmlContent(feedback.content);
-
-			if (isShownByIdentifier(outcomes[outcomeIdentifier], identifier, showHide) && content) {
-				active.push({ identifier, outcomeIdentifier, showHide, content, title });
-			}
-		}
-		return active;
+	/** @internal Scoring resolves the attempt's active modal feedback. */
+	getModalFeedback(outcomes: Record<string, any>): ModalFeedback[] {
+		return modalFeedbackOf(this, this.contentHandlers(), outcomes);
 	}
 }
 
@@ -2221,18 +1355,3 @@ function createSessionGuid(): string {
 	);
 }
 
-function cloneDeclarationMap(declarations: DeclarationMap): DeclarationMap {
-	return structuredClone(declarations);
-}
-
-/** Detach serializable runtime values from caller- and declaration-owned references. */
-function cloneRuntimeValue<T>(value: T): T {
-	if (!value || typeof value !== 'object') return value;
-	return structuredClone(value);
-}
-
-function looksLikeCatalogUrl(value: string): boolean {
-	const trimmed = value.trim();
-	return /^(https?:\/\/|\/\/|\/|\.{0,2}\/|data:|blob:)/i.test(trimmed) ||
-		/\.(png|jpe?g|gif|webp|svg|mp3|wav|ogg|mp4|webm|pdf)(\?.*)?$/i.test(trimmed);
-}

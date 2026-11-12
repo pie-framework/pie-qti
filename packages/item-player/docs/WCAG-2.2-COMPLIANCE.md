@@ -228,6 +228,23 @@ WCAG 2.2 AA requires 24×24 CSS px targets for SC 2.5.8. The project accessibili
 
 ---
 
+## Integrated Feedback Announcements (4.1.3 Status Messages - Level AA)
+
+**Requirement:** A status message is programmatically determinable through role or properties, so assistive technology can present it without it receiving focus.
+
+**Current Status:** ✅ **IMPLEMENTED**
+
+`feedbackInline` and `feedbackBlock` shown after an attempt are the result of the candidate's action. The presentation plan splices them into the item body HTML, which moves no focus. The item body therefore announces them through one persistent live region: `.qti-feedback-announcer`, with `role="status"`, `aria-live="polite"` and `aria-atomic="true"`, visually hidden.
+
+- **Where:** `ItemBody` renders the region, in the DOM from the item's first render so that a later change is announced. Every path that shows an item gets it: `ItemPlayer`, the `<pie-qti-item-player>` element, the section player's `ItemRenderer` (which renders that element), and so the assessment player, as well as any host that renders `ItemBody` directly.
+- **When:** the candidate's own attempt, meaning a submit or end-attempt, which covers every attempt of an adaptive item, an uncounted one included. The same feedback shown again by a new attempt is announced again: a repeat toggles a trailing zero-width space, so the region still changes. Initial render, restore, review and scorer views, and re-renders such as a response change, never announce. An attempt that shows no feedback clears the region.
+- **What:** the accessible text of the shown feedback, in document order: visible text plus image `alt` text. Shown feedback with no text, such as an image with no alt, is announced as the localized `feedback.shown`, "Feedback is shown."
+- **Language (3.1.2):** feedback text is item content, so the region carries the item's `lang` and `dir`. The fallback phrase is interface text and carries the interface locale's. The region holds one language at a time, so an announcement that contains any feedback text takes the item's language. A language change inside the feedback, through a nested `xml:lang`, is read in the item's language, because the announcement is plain text.
+- **Modal feedback** is unchanged: it opens a real dialog that takes focus.
+- **Custom renderers** that render `session.present()` themselves can read the same data from `ItemPresentation.shownFeedback` (`{ shown, text }`).
+
+---
+
 ## Component-Specific Compliance Summary
 
 ### SortableList.svelte ✅ WCAG 2.2 Level AA Compliant

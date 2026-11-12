@@ -5,6 +5,7 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import { validateUniqueIdentifiers } from '../../extraction/utils.js';
 import { maybeShuffle } from '../../core/shuffle.js';
 
 /**
@@ -15,6 +16,10 @@ export interface InlineChoiceData {
 	shuffle: boolean;
 	/** Text from the QTI <label> child element; used as the placeholder "Select…" option */
 	label: string | null;
+	/** Choices a valid response selects (QTI 3.0 min-choices; required="true" is 1); omitted when 0. */
+	minChoices?: number;
+	/** The author's `data-min-selections-message` (QTI 3.0, inlineChoiceInteraction); omitted when none is authored. */
+	minSelectionsMessage?: string;
 }
 
 /**
@@ -53,16 +58,30 @@ export const standardInlineChoiceExtractor: ElementExtractor<InlineChoiceData> =
 
 		// data-prompt: alternative placeholder for the dropdown default option
 		const dataPrompt = utils.getAttribute(element, 'data-prompt', '') || null;
+		// An authored title names the dropdown when no aria label is authored.
+		const title = utils.getAttribute(element, 'title', '').trim();
 
 		// Extract attributes
 		const shuffle = utils.getBooleanAttribute(element, 'shuffle');
 		const interactionClasses = utils.getClasses(element);
+		// A valid response selects a choice when `required` (QTI 2.1; QTI 3.0 §5.74.2) or at
+		// least `min-choices` (QTI 3.0 §5.74.3).
+		const minChoices = Math.max(
+			utils.getNumberAttribute(element, 'minChoices', 0),
+			utils.getBooleanAttribute(element, 'required', false) ? 1 : 0,
+		);
+		// QTI 3.0 defines data-min-selections-message (and no max) on inlineChoiceInteraction:
+		// it describes the requirement a valid response must meet.
+		const minSelectionsMessage = utils.getAttribute(element, 'data-min-selections-message', '') || null;
 
 		return {
 			choices: maybeShuffle(choices, shuffle, context.shuffleRng),
 			shuffle,
 			label,
+			...(minChoices > 0 ? { minChoices } : {}),
+			...(minSelectionsMessage ? { minSelectionsMessage } : {}),
 			...(dataPrompt ? { dataPrompt } : {}),
+			...(title ? { title } : {}),
 			...(interactionClasses.length > 0 ? { interactionClasses } : {}),
 		};
 	},
@@ -78,16 +97,7 @@ export const standardInlineChoiceExtractor: ElementExtractor<InlineChoiceData> =
 
 		// Validate choice identifiers
 		if (data.choices) {
-			const identifiers = new Set<string>();
-			for (const choice of data.choices) {
-				if (!choice.identifier) {
-					errors.push('All choices must have an identifier');
-				} else if (identifiers.has(choice.identifier)) {
-					errors.push(`Duplicate choice identifier: ${choice.identifier}`);
-				} else {
-					identifiers.add(choice.identifier);
-				}
-			}
+			validateUniqueIdentifiers(data.choices, errors, { plural: 'choices', noun: 'choice' });
 
 			// Warn if too many choices
 			if (data.choices.length >= 10) {

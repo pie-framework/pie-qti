@@ -1,4 +1,5 @@
 <script lang="ts">
+	import '../styles/srOnly.js';
 	/**
 	 * File upload component for uploadInteraction
 	 *
@@ -6,7 +7,8 @@
 	 */
 
 	import type { QTIFileResponse } from '@pie-qti/item-player';
-	import type { I18nProvider } from '@pie-qti/i18n';
+	import { translate, type I18nProvider } from '@pie-qti/i18n';
+	import { createAnnouncer } from '../utils/announcer.svelte';
 
 	const DEFAULT_MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 
@@ -40,20 +42,26 @@
 		i18n,
 	}: Props = $props();
 
-	// Translations
+	// Translations: every string carries an English fallback, so a missing catalog
+	// entry never reaches a candidate as a raw key.
 	const translations = $derived({
-		label: i18n?.t('interactions.upload.label') ?? 'interactions.upload.label',
-		allowedTypes: i18n?.t('interactions.upload.allowedTypes') ?? 'interactions.upload.allowedTypes',
-		selectedFile: i18n?.t('interactions.upload.selectedFile') ?? 'interactions.upload.selectedFile',
-		unknownType: i18n?.t('interactions.upload.unknownType') ?? 'interactions.upload.unknownType',
-		removeFile: i18n?.t('interactions.upload.removeFile') ?? 'interactions.upload.removeFile',
-		errorInvalidType: (types: string) => i18n?.t('interactions.upload.errorInvalidType', { types }) ?? `interactions.upload.errorInvalidType ${types}`,
+		label: translate(i18n, 'interactions.upload.label', 'Upload a file'),
+		allowedTypes: translate(i18n, 'interactions.upload.allowedTypes', 'Allowed file types:'),
+		selectedFile: translate(i18n, 'interactions.upload.selectedFile', 'Selected:'),
+		unknownType: translate(i18n, 'interactions.upload.unknownType', 'Unknown file type'),
+		removeFile: translate(i18n, 'interactions.upload.removeFile', 'Remove file'),
+		fileRemoved: translate(i18n, 'interactions.upload.fileRemoved', 'File removed.'),
+		errorReadFailed: translate(i18n, 'interactions.upload.errorReadFailed', 'Failed to read file'),
+		errorInvalidType: (types: string) =>
+			translate(i18n, 'interactions.upload.errorInvalidType', 'File type not allowed. Allowed: {types}', { types }),
 		errorFileTooLarge: (filename: string, maxBytes: number) =>
-			i18n?.t(
+			translate(
+				i18n,
 				'interactions.upload.errorFileTooLarge',
 				'File {filename} is too large. Maximum size is {maxBytes} bytes.',
 				{ filename, maxBytes },
-			) ?? `File ${filename} is too large. Maximum size is ${maxBytes} bytes.`,
+			),
+		fileSize: (size: number) => translate(i18n, 'interactions.upload.fileSize', '{size} bytes', { size }),
 	});
 
 	// Use label prop or fallback to translated text
@@ -67,6 +75,13 @@
 
 	let error = $state<string>('');
 
+	// The native file input, bound: resetting its value needs the element itself (see clear).
+	let inputElement: HTMLInputElement | null = $state(null);
+
+	// Polite announcement of a removal, for the live region below: the remove button
+	// deletes itself with the response, so the region is what reports what happened.
+	const removalAnnouncer = createAnnouncer();
+
 	const acceptAttr = $derived(fileTypes.length > 0 ? fileTypes.join(',') : undefined);
 	const allowedTypesId = $derived(fileTypes.length > 0 ? `upload-${responseId}-allowed-types` : undefined);
 	const errorId = $derived(error ? `upload-${responseId}-error` : undefined);
@@ -76,7 +91,7 @@
 		const dataUrl = await new Promise<string>((resolve, reject) => {
 			const reader = new FileReader();
 			reader.onload = () => resolve(String(reader.result || ''));
-			reader.onerror = () => reject(new Error(i18n?.t('interactions.upload.errorReadFailed') ?? 'Failed to read file'));
+			reader.onerror = () => reject(new Error(translations.errorReadFailed));
 			reader.readAsDataURL(file);
 		});
 
@@ -131,8 +146,14 @@
 	function clear() {
 		error = '';
 		onChange(null);
-		const el = document.getElementById(`upload-${responseId}`) as HTMLInputElement | null;
-		if (el) el.value = '';
+		// The remove button deletes itself with the response, which would drop keyboard
+		// focus to the document; the native input is the interaction's surviving control.
+		inputElement?.focus();
+		// A bound reference, not document.getElementById: the component renders inside the
+		// interaction's shadow root, where a document lookup cannot see the input.
+		// Resetting the value also lets the candidate re-choose the same file.
+		if (inputElement) inputElement.value = '';
+		removalAnnouncer.announce(translations.fileRemoved);
 	}
 </script>
 
@@ -142,6 +163,7 @@
 	</label>
 
 	<input
+		bind:this={inputElement}
 		id={`upload-${responseId}`}
 		data-testid={testId}
 		class="file-input file-input-bordered w-full"
@@ -152,6 +174,9 @@
 		disabled={disabled}
 		onchange={handleFileChange}
 	/>
+
+	<!-- Polite removal announcements that survive the removed control itself. -->
+	<div aria-live="polite" aria-atomic="true" class="qti-upload-live-region">{removalAnnouncer.message}</div>
 
 	{#if fileTypes.length > 0}
 		<div id={allowedTypesId} class="text-xs text-base-content/70">
@@ -171,7 +196,7 @@
 				<div><strong>{translations.selectedFile}</strong> {value.name}</div>
 				<div class="text-xs text-base-content/70">
 					{value.type || translations.unknownType} •
-					{i18n?.t('interactions.upload.fileSize', { size: value.size }) ?? `${value.size} bytes`}
+					{translations.fileSize(value.size)}
 				</div>
 			</div>
 			<button type="button" class="btn btn-sm" onclick={clear} disabled={disabled}>
@@ -180,3 +205,6 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+</style>

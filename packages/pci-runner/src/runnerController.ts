@@ -31,6 +31,16 @@ import {
 	type QtiPciInstance,
 } from '@pie-qti/item-player/pci';
 
+/**
+ * How an opaque origin serializes in `event.origin`. A host page without a
+ * tuple origin — the LTI-style embed where the player itself sits in a
+ * sandboxed, `allow-scripts`-only iframe, the deployment this sandbox
+ * architecture exists for (`SandboxedPciSession`'s `defaultParentOrigin`
+ * anticipates exactly this `location.origin === 'null'` spelling) — sends its
+ * `hello` under `origin: "null"`.
+ */
+const OPAQUE_ORIGIN = 'null';
+
 /** Transport half the controller talks through; `main.ts` binds it to the window. */
 export interface PciRunnerTransport {
 	/** Send a structured-cloneable message to the parent window. */
@@ -53,6 +63,18 @@ export interface PciRunnerEnvironment {
 	evaluateScript(url: string): Promise<void>;
 	/** Where the registry global is installed; defaults to `globalThis`. */
 	registryTarget?: object;
+	/**
+	 * The frame document whose language, direction and title follow the init payload
+	 * (WCAG 3.1.1/2.4.2). Defaults to the realm's `document`; injectable so tests can
+	 * observe it without a DOM.
+	 */
+	frameDocument?: PciRunnerFrameDocument;
+}
+
+/** The slice of the frame document the runner states its language and name on. */
+export interface PciRunnerFrameDocument {
+	documentElement: { lang?: string; dir?: string };
+	title: string;
 }
 
 type Snapshot = { response: unknown; state: unknown };
@@ -72,12 +94,30 @@ export function createPciRunnerController(environment: PciRunnerEnvironment) {
 	let pollTimer: ReturnType<typeof setInterval> | undefined;
 	let lastSnapshotJson: string | null = null;
 
+	/**
+	 * The targetOrigin every runner→host message is posted with.
+	 *
+	 * A locked tuple origin addresses the parent exactly. The opaque `"null"`
+	 * serialization can never be used as a targetOrigin: parsing it yields no
+	 * origin that is ever same-origin with the parent window, so a locked target
+	 * would silently drop 100% of the bridge traffic and the handshake could
+	 * never complete — the mirror image of the frame side's argument in
+	 * item-player's `iframeConnector.ts`. With `'*'` the recipient is still
+	 * bounded by the transport, which posts to `window.parent` alone, and
+	 * identity in the reply direction is anchored on `event.source ===
+	 * window.parent`, which a sender cannot forge.
+	 */
+	function outboundTargetOrigin(): string {
+		if (!lockedParentOrigin || lockedParentOrigin === OPAQUE_ORIGIN) return '*';
+		return lockedParentOrigin;
+	}
+
 	function send(type: Parameters<typeof createSandboxEnvelope>[0], payload: unknown): void {
 		const message = createSandboxEnvelope(type, payload);
 		try {
 			// Before the lock there is nothing to address the parent by: the only
 			// message is `runner-ready`, which carries no secrets.
-			environment.transport.postToParent(message, lockedParentOrigin ?? '*');
+			environment.transport.postToParent(message, outboundTargetOrigin());
 		} catch {
 			// A payload a structured clone refuses (a function-bearing response)
 			// must not kill the bridge; retry without the uncloneable snapshot.
@@ -85,7 +125,7 @@ export function createPciRunnerController(environment: PciRunnerEnvironment) {
 				try {
 					environment.transport.postToParent(
 						createSandboxEnvelope(type, { response: null }),
-						lockedParentOrigin ?? '*'
+						outboundTargetOrigin()
 					);
 				} catch {
 					// The parent is unreachable; nothing further can be reported.
@@ -99,6 +139,11 @@ export function createPciRunnerController(environment: PciRunnerEnvironment) {
 		if (!lockedParentOrigin) {
 			if (event.data.type !== 'hello' || !event.isParentSource) return;
 			if (typeof event.origin !== 'string' || event.origin.length === 0) return;
+			// The lock keeps the origin as spelled by the parent — including the
+			// opaque `"null"` serialization. Inbound that spelling is a valid
+			// filter: every later message from the same opaque parent carries it,
+			// and a foreign origin matches neither spelling. Only the outbound
+			// direction cannot use it as a target (see `outboundTargetOrigin`).
 			lockedParentOrigin = event.origin;
 			return;
 		}
@@ -133,8 +178,33 @@ export function createPciRunnerController(environment: PciRunnerEnvironment) {
 		}
 	}
 
+	/**
+	 * State the frame document's language, directionality and accessible name from the
+	 * init payload before the interaction instantiates (WCAG 3.1.1, 2.4.2): the frame
+	 * is the candidate's document, and it must not assume English just because the
+	 * static runner page does. Absent fields leave the static defaults untouched.
+	 */
+	function applyFrameLanguage(payload: PciSandboxInitPayload): void {
+		const frameDocument =
+			environment.frameDocument ??
+			((globalThis as { document?: PciRunnerFrameDocument }).document ?? null);
+		if (!frameDocument) return;
+		if (typeof payload.language === 'string' && payload.language.length > 0) {
+			frameDocument.documentElement.lang = payload.language;
+		}
+		if (payload.direction === 'ltr' || payload.direction === 'rtl') {
+			frameDocument.documentElement.dir = payload.direction;
+		}
+		if (typeof payload.frameTitle === 'string' && payload.frameTitle.length > 0) {
+			frameDocument.title = payload.frameTitle;
+		}
+	}
+
 	async function handleInit(payload: PciSandboxInitPayload): Promise<void> {
 		init = payload;
+		// Before the module loads, let alone instantiates: the document reads correctly
+		// from the first painted moment of the interaction.
+		applyFrameLanguage(payload);
 		try {
 			registration = await loadModule(payload);
 			send('module-loaded', { typeIdentifier: payload.typeIdentifier });
@@ -276,7 +346,10 @@ export function createPciRunnerController(environment: PciRunnerEnvironment) {
 		stopPolling();
 		(instance as { destroy?: () => void } | null)?.destroy?.();
 		instance = null;
-		container?.replaceChildren();
+		// Remove the container, not just its contents: an emptied wrapper left in
+		// the mount accumulates one dead <div> per re-instantiation in a
+		// long-lived frame across item reloads.
+		container?.remove();
 		container = null;
 		lastSnapshotJson = null;
 	}

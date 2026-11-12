@@ -6,6 +6,7 @@
  */
 
 import { HTMLElement, parse } from 'node-html-parser';
+import { createInvalidContentError, type QtiErrorContext } from './qti-errors.js';
 
 export const PIE_NAMESPACE = 'https://github.com/pie-framework/pie-elements';
 export const PIE_PREFIX = 'pie';
@@ -67,57 +68,56 @@ export function extractPieExtension(qtiXml: string): PieExtensionData {
     };
   }
 
-  try {
-    const doc = parse(qtiXml, {
-      lowerCaseTagName: false,
-      comment: false,
-    });
+  const doc = parse(qtiXml, {
+    lowerCaseTagName: false,
+    comment: false,
+  });
 
-    // Find the root element - try all supported QTI root element types
-    // Note: Use getElementsByTagName since querySelector doesn't work well with case-sensitive tags
-    let root: HTMLElement | null = null;
-    for (const elementType of QTI_ROOT_ELEMENTS) {
-      root = doc.getElementsByTagName(elementType)[0];
-      if (root) break;
-    }
+  // Find the root element - try all supported QTI root element types
+  // Note: Use getElementsByTagName since querySelector doesn't work well with case-sensitive tags
+  let root: HTMLElement | null = null;
+  for (const elementType of QTI_ROOT_ELEMENTS) {
+    root = doc.getElementsByTagName(elementType)[0];
+    if (root) break;
+  }
 
-    if (!root) {
-      return {
-        sourceModel: null,
-        hasExtension: false,
-      };
-    }
-
-    // Extract sourceModel
-    const sourceModel = extractSourceModel(root);
-    if (!sourceModel) {
-      return {
-        sourceModel: null,
-        hasExtension: false,
-      };
-    }
-
-    // Extract metadata
-    const metadata = extractMetadata(root);
-
-    return {
-      sourceModel,
-      metadata,
-      hasExtension: true,
-    };
-  } catch (error) {
-    console.error('Failed to extract PIE extension:', error);
+  if (!root) {
     return {
       sourceModel: null,
       hasExtension: false,
     };
   }
+
+  // Metadata first, so a corrupt sourceModel error can name the interaction from it.
+  const metadata = extractMetadata(root);
+
+  // Extract sourceModel
+  const sourceModel = extractSourceModel(root, {
+    itemId: root.getAttribute('identifier') ?? undefined,
+    interactionType: metadata?.elementType,
+  });
+  if (!sourceModel) {
+    return {
+      sourceModel: null,
+      hasExtension: false,
+    };
+  }
+
+  return {
+    sourceModel,
+    metadata,
+    hasExtension: true,
+  };
 }
 
 /**
  * Extract PIE source model from CDATA
+ *
+ * An absent or empty element reads as no extension. An element holding malformed JSON throws:
+ * silently reporting no extension would drop the interaction's custom data as if the author had
+ * embedded none.
  */
-function extractSourceModel(root: HTMLElement): any {
+function extractSourceModel(root: HTMLElement, context: QtiErrorContext): any {
   // Try both with and without namespace prefix
   const sourceModelElement =
     findElementByTagName(root, `${PIE_PREFIX}:sourceModel`) ||
@@ -129,27 +129,36 @@ function extractSourceModel(root: HTMLElement): any {
     return null;
   }
 
+  // Get raw text content (includes CDATA wrapper)
+  const rawText = sourceModelElement.rawText || sourceModelElement.text;
+  if (!rawText) {
+    return null;
+  }
+
+  // Remove CDATA wrapper: <![CDATA[...]]>
+  let json = rawText.trim();
+  if (json.startsWith('<![CDATA[') && json.endsWith(']]>')) {
+    json = json.substring(9, json.length - 3); // Remove <![CDATA[ and ]]>
+  }
+  if (!json.trim()) {
+    return null;
+  }
+
   try {
-    // Get raw text content (includes CDATA wrapper)
-    const rawText = sourceModelElement.rawText || sourceModelElement.text;
-    if (!rawText) {
-      return null;
-    }
-
-    // Remove CDATA wrapper: <![CDATA[...]]>
-    let json = rawText.trim();
-    if (json.startsWith('<![CDATA[') && json.endsWith(']]>')) {
-      json = json.substring(9, json.length - 3); // Remove <![CDATA[ and ]]>
-    }
-
     // Parse JSON
     return JSON.parse(json.trim());
   } catch (error) {
-    console.error('Failed to parse PIE sourceModel JSON:', error, {
-      rawText: sourceModelElement.rawText?.substring(0, 200),
-      text: sourceModelElement.text?.substring(0, 200),
-    });
-    return null;
+    const interaction = context.interactionType
+      ? ` of the ${context.interactionType} interaction`
+      : '';
+    throw createInvalidContentError(
+      'pie:sourceModel',
+      `the embedded <${PIE_PREFIX}:sourceModel> JSON${interaction} is malformed and the interaction's custom data would be lost`,
+      {
+        ...context,
+        details: `JSON.parse failed: ${(error as Error).message}. Content starts with: ${json.trim().substring(0, 80)}`,
+      }
+    );
   }
 }
 

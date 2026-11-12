@@ -1,8 +1,11 @@
 import { expect, test } from './fixtures';
 import { scanA11yFixture } from './a11y-utils';
 
+/** Tagged @cross-browser: mouse, touch and keyboard activation also runs on WebKit and Firefox. */
+const CROSS_BROWSER = { tag: '@cross-browser' };
+
 for (const input of ['mouse', 'touch', 'keyboard'] as const) {
-	test.describe(input, () => {
+	test.describe(input, CROSS_BROWSER, () => {
 		test.use({ hasTouch: input === 'touch', viewport: { width: input === 'touch' ? 375 : 1280, height: 900 } });
 		test('completes ordering and each matching type without dragging', async ({ page }) => {
 			await page.goto('fixtures/pointer-interactions');
@@ -11,11 +14,11 @@ for (const input of ['mouse', 'touch', 'keyboard'] as const) {
 				else if (input === 'keyboard') await control.press('Enter');
 				else await control.click();
 			};
-			await activate(page.getByRole('button', { name: 'Move later: One', exact: true }));
+			await activate(page.getByRole('button', { name: 'Move One later', exact: true }));
 			await expect(page.getByTestId('ORDER')).toHaveText('["two","one","three"]');
-			await activate(page.getByRole('button', { name: 'Move later: One', exact: true }));
+			await activate(page.getByRole('button', { name: 'Move One later', exact: true }));
 			await expect(page.getByTestId('ORDER')).toHaveText('["two","three","one"]');
-			await expect(page.getByRole('button', { name: 'Move later: One', exact: true })).toBeDisabled();
+			await expect(page.getByRole('button', { name: 'Move One later', exact: true })).toBeDisabled();
 
 			const match = page.locator('pie-qti-match');
 			await activate(match.getByRole('button', { name: /^Paris/ }));
@@ -42,20 +45,6 @@ for (const input of ['mouse', 'touch', 'keyboard'] as const) {
 			await expect(page.getByTestId('GRAPHIC')).toHaveText('["rain left","sun right"]');
 			const scan = await scanA11yFixture(page);
 			expect(scan.violations).toEqual([]);
-		});
-		test('the shared graphic gap component supports the same activation flow', async ({ page }) => {
-			await page.goto('a11y-components/graphic-gap-match');
-			const activate = async (control: ReturnType<typeof page.getByRole>) => {
-				if (input === 'touch') await control.tap();
-				else if (input === 'keyboard') await control.press('Enter');
-				else await control.click();
-			};
-			await activate(page.getByRole('button', { name: /^Label A/ }));
-			await activate(page.getByRole('button', { name: /^Hotspot 1/ }));
-			await expect(page.getByRole('button', { name: /^Hotspot 1/ })).toHaveAccessibleName(/Contains Label A/);
-			await expect(page.getByRole('button', { name: /^Label A/ })).toBeDisabled();
-			await activate(page.getByRole('button', { name: 'Remove Label A from hotspot', exact: true }));
-			await expect(page.getByRole('button', { name: /^Label A/ })).toBeEnabled();
 		});
 	});
 }

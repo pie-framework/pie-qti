@@ -45,6 +45,7 @@ the QTI 2.1 certification line in 2023–2024; only 2.2 and 3.0 are certifiable.
   - [7.1 Conformance Profiles](#71-conformance-profiles)
   - [7.2 Common Implementation Issues](#72-common-implementation-issues)
   - [7.3 Best Practices](#73-best-practices)
+  - [7.4 Deviations from the QTI Specification](#74-deviations-from-the-qti-specification)
 - [Conclusion](#conclusion)
 
 ---
@@ -199,6 +200,23 @@ The **assessmentItem** represents a single question and contains the complete de
 - **individual:** Submits each item immediately upon completion
 - **simultaneous:** Batches all responses until the test part concludes
 
+**Item session controls** (`itemSessionControl`) that gate a submission apply only in individual
+submission mode:
+
+- **allowSkipping:** when `false`, an item with no response at all (every response NULL or at its
+  default) cannot be submitted.
+- **validateResponses:** when `true`, a response that "does not satisfy the constraints imposed by
+  the interaction" cannot be submitted: a malformed value, a pairing a `matchGroup` forbids, or
+  fewer selections, associations, strings or plays than `minChoices`, `minAssociations`,
+  `matchMin`, `minStrings` or `minPlays` require.
+
+In the item player, a session's `dispatch({ action: 'endAttempt', validateResponses: true })`
+rejects such a response. The result's `validation.valid` is `false`, with one issue per offending response (`incomplete`,
+`invalid_shape` or `match_group`). The attempt is not counted, no response processing runs, and the
+session stays writable for the candidate to correct it. An item with no response at all is a skip,
+which `allowSkipping` governs; the item cannot see that control, so it leaves a skip to the caller
+instead of rejecting it.
+
 ---
 
 # Part III: Interaction Types Reference
@@ -206,6 +224,8 @@ The **assessmentItem** represents a single question and contains the complete de
 QTI supports **21 standard interaction types** organized into four functional categories. Each interaction binds to a response variable through the required `responseIdentifier` attribute (QTI 2.x) / `response-identifier` attribute (QTI 3.0).
 
 Examples in this section use QTI 2.x syntax. For QTI 3.0, apply the naming conventions from the mapping table in Part I.
+
+Attribute defaults below are summaries. The audited, per-version defaults for every interaction attribute (QTI 2.1, 2.2 and 3.0 XSDs and information models), with what this player applies, are in [`QTI_attribute_defaults.md`](QTI_attribute_defaults.md).
 
 ## 3.1 Simple Selection Interactions
 
@@ -221,7 +241,7 @@ Examples in this section use QTI 2.x syntax. For QTI 3.0, apply the naming conve
 |-----------|----------|-------------|
 | `responseIdentifier` | Required | Identifier binding to responseDeclaration |
 | `shuffle` | Optional | If true, randomizes choice order on delivery. Default: false |
-| `maxChoices` | Optional | Maximum selections allowed. 0=unlimited, 1=single-choice (radio). Default: 1 |
+| `maxChoices` | Optional | Maximum selections allowed. 0=unlimited, 1=single-choice (radio). Default: 1 (QTI 2.2/3.0); 0 in QTI 2.1 |
 | `minChoices` | Optional | Minimum selections required for valid response. Default: 0 |
 | `orientation` | Optional | Visual hint: 'horizontal' or 'vertical' |
 
@@ -425,13 +445,14 @@ Examples in this section use QTI 2.x syntax. For QTI 3.0, apply the naming conve
 | Attribute | Required | Description |
 |-----------|----------|-------------|
 | `responseIdentifier` | Required | Identifier binding to responseDeclaration |
-| `base` | Optional | Numeric base for integer responses (default: 10) |
+| `base` | Optional | Number base for an integer or float response (default: 10) |
+| `stringIdentifier` | Optional | Identifier of a companion string response that captures the text as entered |
 | `expectedLength` | Optional | Hint for rendering field width (in characters) |
 | `patternMask` | Optional | Regular expression for input validation |
 | `placeholderText` | Optional | Hint text displayed when field is empty |
 | `format` | Optional | (QTI 2.2+) Display format hint |
 
-**Implementation Notes:** Use `stringMatch` or `patternMatch` operators in response processing for text comparison. Set `caseSensitive` attribute as appropriate. The `patternMask` provides client-side validation but should also be validated server-side.
+**Implementation Notes:** Use `stringMatch` or `patternMatch` operators in response processing for text comparison. Set `caseSensitive` attribute as appropriate. The `patternMask` provides client-side validation but should also be validated server-side. With `base`, the player reads the text the candidate enters in that base (`101` in base 2 is 5); values that are already numbers, such as a restored response or the declared correct response, are not read again. With `stringIdentifier`, every change to the field also sets the named string response to the text as entered, before the numeric response reads it (`3.50` where a float response is 3.5, `101` where a base-2 integer response is 5), or NULL when the field is empty. Response processing can score that text, and a restored session shows it in the field. Completion and validation read the main response only. A `stringIdentifier` that repeats `responseIdentifier` or names no declared response is ignored.
 
 ---
 
@@ -448,7 +469,7 @@ declaration-level baseType; it captures the numeric lexical response as named, t
 | Attribute | Required | Description |
 |-----------|----------|-------------|
 | `responseIdentifier` | Required | Identifier binding to responseDeclaration |
-| `base` | Optional | Numeric base for integer responses |
+| `base` | Optional | Number base for integer or float responses (default: 10). Applies to the text the candidate enters; restored and declared values are already numbers |
 | `stringIdentifier` | Optional | Identifier of a companion string response that preserves the lexical input |
 | `expectedLength` | Optional | Expected character count (for sizing) |
 | `expectedLines` | Optional | Expected line count (for sizing) |
@@ -563,7 +584,7 @@ Graphical interactions involve a background image with defined regions (hotspots
 | Attribute | Required | Description |
 |-----------|----------|-------------|
 | `responseIdentifier` | Required | Identifier binding to responseDeclaration |
-| `maxChoices` | Optional | Maximum points selectable. 0=unlimited. Default: 1 |
+| `maxChoices` | Optional | Maximum points selectable. 0=unlimited. Default: 0 (QTI 2.2/3.0) |
 | `minChoices` | Optional | Minimum points required. Default: 0 |
 
 **Scoring with areaMapping:**
@@ -808,16 +829,98 @@ It is omitted on a `record` declaration because every record field declares its 
 | `pair` | Two unordered identifiers | Associate interactions |
 | `directedPair` | Two ordered identifiers | Match interactions |
 | `file` | File reference | Upload, drawing |
-| `duration` | Time interval | Built-in duration tracking |
+| `duration` | Time interval in seconds, a float (`xsd:double`), fractional allowed | Built-in duration tracking |
 | `uri` | URI reference | External resources |
 
 ### Built-in Variables
 
 These variables are automatically available in every item session:
 
-- **numAttempts** (integer): Number of attempts made
-- **duration** (float): Time spent on item in seconds
-- **completionStatus** (identifier): not_attempted, unknown, incomplete, completed
+- **numAttempts** (response variable, integer): the number of attempts. It starts at 0 and is
+  incremented at the start of each attempt (QTI ASI §5.1), so the response processing that ends an
+  attempt reads that attempt's own number: 1 on the first attempt, 2 on the second. Rules such as
+  `<gt><variable identifier="numAttempts"/><baseValue baseType="integer">1</baseValue></gt>` gate
+  credit for a later attempt. An attempt that is not counted (`countAttempt="false"`) does not
+  increment it.
+- **duration** (response variable, base-type `duration`): accumulated time on the item in seconds,
+  fractional and truncated, excluding time the session was suspended. QTI requires a resolution of at
+  least 1 s (0.1 s or finer recommended); this player keeps milliseconds. Expressions compare it with
+  seconds, e.g. `<durationLT><variable identifier="duration"/><baseValue baseType="duration">60</baseValue></durationLT>`.
+- **completionStatus** (outcome variable, identifier): not_attempted, unknown, incomplete, completed
+
+In the item player, a counted attempt (`endAttempt` or `submitAttempt`) increments `numAttempts`
+before response processing for adaptive and non-adaptive items alike; `scoreAttempt` and an
+uncounted attempt run response processing with the current count. A saved item session carries the
+count in `contextVariables.numAttempts`, which is where a restored session reads it from, so a
+session reopened for the next attempt must carry the count of the attempts already made.
+
+At test level, `duration` is the time spent on the whole test, and `PART.duration` / `SECTION.duration`
+the time spent in a test part or section, also in seconds. Both QTI versions report all of them in
+Results Reporting as `responseVariable` elements.
+
+### Outcome Values Between Response-Processing Runs
+
+Before each invocation of response processing, a non-adaptive item's outcome variables are reset
+to their defaults. An adaptive item's outcomes "retain the values that were assigned to them during
+the previous invocation" (QTI ASI §5.2), so its rules can build on earlier attempts, for example a
+try counter that gates partial credit:
+
+```xml
+<setOutcomeValue identifier="TRIES">
+  <sum>
+    <variable identifier="TRIES"/>
+    <baseValue baseType="integer">1</baseValue>
+  </sum>
+</setOutcomeValue>
+```
+
+In the item player, an adaptive item's outcomes start from their defaults at session start and on
+`newTemplate`. A saved item session carries them, and a restored one continues from them. Every
+response-processing run of an adaptive item builds on the current values, `scoreAttempt` included,
+so rescoring a restored adaptive session applies its rules again; report such a session's score
+from its restored outcome values. The built-in `numAttempts`, `completionStatus` and `duration` are
+maintained by the player and are never reset by response processing.
+
+### New Template Instances
+
+Template processing runs on a fresh instance of the item, whose variables start from their
+declarations (QTI ASI §10.3 with §5.1). The item player's `newTemplate` therefore starts the new
+instance from the declared defaults and correct responses: a default set by `setDefaultValue` or a
+correct response set by `setCorrectResponse` in the previous instance does not carry over, so a new
+draw that skips such a rule scores against the declared key. An `assessmentItemRef`'s
+`templateDefault` values apply to every instance, including those of a restored session.
+
+### Template Variables in Item Content
+
+The item body, rubric blocks and modal feedback resolve template variables at delivery, so the
+markup always carries the value the session holds when it renders. `<printedVariable>` prints any
+variable's current value; a MathML `<mi>` or `<ci>` naming a template variable declared with
+`mathVariable="true"` is replaced by the variable's value (a numeric value becomes an `mn`/`cn`).
+
+A `<param>` inside an `<object>` whose `value` names a template variable declared with
+`paramVariable="true"` (QTI 2.2 ASI TemplateDeclaration `paramVariable`; QTI 3.0 `param-variable`)
+is delivered with the variable's current value in place of the variable's name, so a plugin-style
+object receives its computed parameter instead of a literal:
+
+```xml
+<templateDeclaration identifier="LEVEL" cardinality="single" baseType="integer" paramVariable="true"/>
+...
+<object data="widget.swf" type="application/x-plugin">
+  <!-- delivered as value="4" when the session's LEVEL is 4 -->
+  <param name="level" value="LEVEL" valuetype="DATA"/>
+</object>
+```
+
+In the item player, this resolves in the same content pass as `printedVariable`, so the delivered
+parameter tracks `setTemplateVariables`, `newTemplate` and a restored session without re-parsing
+the item. Substitution applies to a single, non-NULL value of any base type. The specification
+defines the substitution for a `param` value naming a declared `paramVariable` variable and is
+silent otherwise; this player delivers the authored value unchanged when the name declares no
+template variable, the declaration lacks `paramVariable="true"`, or the variable's current value is
+NULL or a container (a `param` carries one opaque string, and joining container values would be
+invented semantics). Object embeds themselves still follow the delivery security configuration
+(`security.allowObjectEmbeds`): without it the sanitized body drops the `object` and its `param`
+elements, substitution included.
 
 ## 4.2 Standard Response Processing Templates
 
@@ -853,6 +956,27 @@ Uses a `mapping` element to assign point values to each possible response value,
 <responseProcessing
     template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/map_response"/>
 ```
+
+The template sets `SCORE` to 0 when `RESPONSE` is NULL and maps it otherwise. Its `isNull` test reads
+an empty container or an empty string as NULL as well, so a cleared selection scores 0 even when
+`lowerBound` is above 0. Rules that call `mapResponse` directly on an unanswered
+multiple or ordered variable map it as the empty container, because QTI treats a container with no
+values as NULL: the result is 0, clamped to `lowerBound` and `upperBound`, not the mapping's
+`defaultValue`, which applies to a value with no `mapEntry`. `mapResponsePoint` treats a NULL point
+container the same way.
+
+Each `mapEntry` matches as its `caseSensitive` attribute says. The spec default is "false": the QTI
+2.2 XSD declares the attribute optional with `default="false"`, and QTI 3.0 says "The default value
+is false" (§7.21.3). So an authored mapping matches case-insensitively unless an entry says
+`caseSensitive="true"`. A case-sensitive entry matches only its own spelling, so a response in
+another case takes the `defaultValue`. `<mapping>` itself has no `caseSensitive` attribute in any
+QTI version, so none is read there. Identifier values never fold case (QTI ASI §17), whatever the
+entry says: only string matching loosens. Apart from case, a string response must be the entry's
+key, up to Unicode canonical equivalence (see
+[String comparison](#string-comparison) for the host's opt-in folds). Mapping a container counts
+repeated values once (§15.3). Under case-insensitive matching, the values an entry matches count
+once too: {Paris, paris} maps Paris once, not twice. A value that no entry matches keeps its case,
+so {London, LONDON} is two values.
 
 ### map_response_point
 
@@ -908,9 +1032,68 @@ For custom scoring logic, use `responseCondition` with expressions:
 | Comparison | `match`, `equal`, `lt`, `gt`, `lte`, `gte` |
 | Logic | `and`, `or`, `not` |
 | Arithmetic | `sum`, `product`, `divide`, `subtract` |
-| Container | `contains`, `member`, `containerSize` |
+| Container | `contains`, `member`, `containerSize`, `delete`, `multiple`, `ordered` |
 | String | `stringMatch`, `patternMatch`, `substring` |
+| Spatial | `inside` |
 | Null handling | `isNull`, `null` |
+
+### NULL Operands
+
+A variable with no value is NULL, and QTI reads an empty container or an empty string as NULL as
+well (QTI ASI §5), so a multiple response the candidate cleared is as unanswered as one never
+touched. The operators carry NULL through (§15.3):
+
+- `match`, `equal`, `member`, `contains`, `stringMatch`, `patternMatch`, `lt`, `lte`, `gt`, `gte`
+  and `not` result in NULL when an operand is NULL. `delete` results in NULL as well.
+- `and` is false when any operand is false and otherwise NULL when any operand is NULL; `or` is true
+  when any operand is true and otherwise NULL when any operand is NULL.
+- `anyN` is false when more than `max` operands are true or more than n − `min` are false (n operands
+  in all), true when at least `min` are true, and otherwise NULL: with `min` 3 and `max` 4,
+  `{true,true,false,NULL}` is NULL, `{true,false,false,NULL}` is false and `{true,true,true,NULL}`
+  is true. `min` and `max` may name a template variable (`min="MIN"` or `min="{MIN}"`).
+- The numeric operators — `sum`, `product`, `subtract`, `divide`, `max`, `min`, `gcd`, `lcm`,
+  `power`, `integerDivide`, `integerModulus`, `mathOperator`, `round`, `truncate` and `roundTo` —
+  result in NULL when an operand is NULL, the empty string included: `subtract("", 3)` is NULL, not
+  -3. `substring` is NULL for a NULL string, start or length.
+- An undefined result is NULL, not an error: `divide` by 0, `integerDivide` and `integerModulus` by
+  0, and a `divide` or `power` result outside the float range. `max`, `min`, `gcd` and `lcm` are
+  NULL for an operand that is not a number. `integerDivide` divides the operands as they are and
+  rounds the quotient down: -7 divided by 2 is -4, and `integerModulus` of the two is 1; the
+  operands themselves are not truncated, so `integerDivide(6.9, 1.9)` is 3 and only an actual zero
+  divisor is NULL (0.9 divides).
+- A NULL condition is not true: `responseIf`, `responseElseIf` and their outcome and template
+  counterparts pass to the next branch, and a NULL `templateConstraint` restarts template
+  processing.
+
+So `not(match(RESPONSE, correct))` is NULL for an unanswered response, not true: a rule that reads
+it as "the answer is wrong" does not apply. Branch on `isNull` to handle an unanswered response
+explicitly.
+
+`multiple` and `ordered` ignore NULL sub-expressions and are NULL when every sub-expression is NULL.
+`round` and `truncate` result in an integer (`round(6.5)` is 7, `round(-6.5)` is -6,
+`truncate(-6.8)` is -6), so `match(round(SCORE_FLOAT), 3)` compares integers; `roundTo` results in a
+float.
+
+### Container Operators
+
+- `contains(container1, container2)` is true when the first container contains the second. Multiple
+  containers compare without regard to order, counting repeated values: `[A,B,C]` contains `[C,A]`
+  but not `[B,B]`, which `[A,B,B,C]` does. For ordered containers the second must be a contiguous
+  sub-sequence of the first: `[A,B,C]` contains `[B,C]` but not `[C,A]` or `[A,C]`.
+- `delete(value, container)` takes the value to remove first and the container second:
+  `delete(A, {B,A,C,A})` is `{B,C}`. A value that is not in the container leaves it unchanged;
+  removing every value leaves the empty container, which is NULL.
+- `member(value, container)` is true when the value is in the container.
+- `sum`, `product`, `max`, `min`, `gcd` and `lcm` take single, multiple or ordered operands, and a
+  container takes part with each of its values: `max({1,5,3}, 7)` is 7 and `gcd({12,18})` is 6. An
+  empty container is NULL, so it makes the result NULL.
+
+### Spatial Operators
+
+- `inside` is true when its point lies within the area its `shape` and `coords` describe, in the
+  coordinate formats of the hotspot shapes. `shape="default"` is the entire area of the image: it
+  takes no coordinates (`coords` may be empty or absent) and every point is inside it. A NULL point
+  gives NULL.
 
 ---
 
@@ -1025,6 +1208,28 @@ For custom scoring logic, use `responseCondition` with expressions:
 </assessmentTest>
 ```
 
+#### Item variables and weights in test outcome processing
+
+Test-level `outcomeProcessing` reads one item's variable as `ITEMREF.VARIABLE`, the
+`assessmentItemRef` identifier and the variable identifier joined by a period:
+`<variable identifier="item1.SCORE"/>`. An `assessmentItemRef` may bind named weights
+(`<weight identifier="W" value="2"/>`), and a `variable` or `testVariables` expression selects one
+with `weightIdentifier`:
+
+```xml
+<setOutcomeValue identifier="SCORE">
+  <sum>
+    <variable identifier="item1.SCORE" weightIdentifier="W"/>
+    <variable identifier="item2.SCORE" weightIdentifier="W"/>
+  </sum>
+</setOutcomeValue>
+```
+
+Weights apply only to integer and float values. They are treated as float, so a weighted value is
+float, and a multiple or ordered value is weighted element by element. An itemRef that defines no
+weight with that identifier weighs 1.0. A variable of any other type, or one that is not read
+through an itemRef prefix, ignores the weight.
+
 ### Content Package Manifest
 
 ```xml
@@ -1089,65 +1294,35 @@ The key advance over `customInteraction` is **portability**: a PCI carries its r
 
 ### Module Interface
 
-Every PCI module must implement the `IMSGLOBAL.PCI` interface:
+A PCI module registers itself with the page's `qtiCustomInteractionContext` as its code evaluates.
+The player instantiates it through the registered `getInstance` factory; state goes in at
+instantiation and comes out through `getResponse()` / `getState()`. There is no setter: to apply a
+different response, the player instantiates the module again with that response as its state.
 
 ```javascript
 // pci-modules/chem-editor/index.js
-export default {
-  /**
-   * Called once after the DOM scaffold is ready.
-   * @param {HTMLElement} dom - The element matching qti-interaction-markup
-   * @param {Object} config - Properties from qti-pci-properties
-   * @param {Object} boundTo - Map of response variable identifiers to initial values
-   */
-  initialize(dom, config, boundTo) {
-    // Set up the interaction UI
-    this._editor = new ChemEditor(dom, config);
-    if (boundTo.RESPONSE) {
-      this._editor.loadState(boundTo.RESPONSE);
-    }
-  },
+qtiCustomInteractionContext.register({
+  typeIdentifier: 'org.example.chem-editor',
 
   /**
-   * Called by the player when it needs the current response value.
-   * Must return a value compatible with the responseDeclaration baseType/cardinality.
-   * @returns {*} The current response
+   * @param {HTMLElement} dom - The element holding the qti-interaction-markup scaffold
+   * @param {Object} configuration - responseIdentifier, status ('interacting' | 'closed' |
+   *   'solution' | 'review'), properties (from qti-pci-properties), onready, ondone
+   * @param {*} state - A previous getState() snapshot, or the restored response as
+   *   QTI variable JSON; undefined on a fresh attempt
    */
-  getResponse() {
-    return this._editor.getState();
+  getInstance(dom, configuration, state) {
+    const editor = new ChemEditor(dom, configuration.properties, state);
+    const instance = {
+      // The current response as QTI variable JSON (see below); undefined when there is none.
+      getResponse: () => editor.response(),
+      // Optional: whatever the module needs to rebuild itself at the next getInstance.
+      getState: () => editor.snapshot(),
+    };
+    configuration.onready(instance);
+    return instance;
   },
-
-  /**
-   * Called by the player to restore a previously saved response.
-   * @param {*} response - Previously returned getResponse() value
-   */
-  setResponse(response) {
-    this._editor.loadState(response);
-  },
-
-  /**
-   * Called when the item enters a state where interaction is not allowed
-   * (e.g., after submission, review mode).
-   */
-  disable() {
-    this._editor.setReadOnly(true);
-  },
-
-  /**
-   * Called when the interaction should resume accepting input.
-   */
-  enable() {
-    this._editor.setReadOnly(false);
-  },
-
-  /**
-   * Optional. Called when the player destroys the item.
-   * Clean up event listeners, timers, etc.
-   */
-  destroy() {
-    this._editor.teardown();
-  }
-};
+});
 ```
 
 ### Response Declaration
@@ -1162,6 +1337,29 @@ The response variable for a PCI is declared like any other, with the baseType an
   </qti-correct-response>
 </qti-response-declaration>
 ```
+
+### Response Values at the PCI Boundary
+
+`getResponse()` answers, and `getInstance` state is seeded, in the QTI variable JSON binding of
+PCI v1.0 Appendix A, which QTI 3.0 adopts. The value must match the response declaration's base
+type and cardinality:
+
+| Cardinality | JSON | Example |
+|-------------|------|---------|
+| `single` | `{"base": {"<baseType>": value}}` | `{"base": {"identifier": "A"}}` |
+| NULL | `{"base": null}` | |
+| `multiple`, `ordered` | `{"list": {"<baseType>": [value, ...]}}` | `{"list": {"pair": [["A", "B"], ["C", "D"]]}}` |
+| `record` | `{"record": [{"name": "<field>", "base" or "list": ...}]}` | `{"record": [{"name": "x", "base": {"integer": 1}}]}` |
+
+Base-type values are JSON scalars, except that `pair` and `directedPair` are `["A", "B"]`,
+`point` is `[x, y]`, `duration` is an ISO 8601 duration such as `"PT1M30S"`, and `file` is
+`{"data": "<base64>", "mime": "text/plain", "name": "notes.txt"}`.
+
+The player converts by base type in both directions. Inside the player a pair or point is the
+string `"A B"`, a duration a number of seconds, a file a `QTIFileResponse`, and a record field
+keeps its base type (`{baseType, cardinality, value}`), because a record declaration types none of
+its fields. A module value outside the binding reads as NULL: a pair or point that is not an
+array, a duration that is not an ISO 8601 string, or a record that is not an array of named members.
 
 ### Scoring PCI Responses
 
@@ -1205,7 +1403,7 @@ PCI modules are packaged within the standard QTI content package. All module fil
 | Module delivery | Platform-specific, external | Self-contained, in-package |
 | Interface contract | None (platform defines) | Standardized IMSGLOBAL.PCI interface |
 | Portability | None — platform coupling required | Full — runs in any conformant player |
-| State management | Platform-specific | Standardized getResponse/setResponse |
+| State management | Platform-specific | `getInstance` state in, `getResponse`/`getState` out (QTI variable JSON) |
 | Fallback support | None | `fallback-path` on module element |
 | Discovery | Out-of-band | `custom-interaction-type-identifier` |
 
@@ -1308,7 +1506,7 @@ semantics.
 </div>
 ```
 
-**Structured Labels:** Part of the wider PNP model, but not implemented by the current player.
+**Structured Labels:** `pnp.display.structuredLabelSupport: true` (a player extension: neither APIP 1.0 nor AfA PNP 3.0 defines a structured-label feature) makes the match interaction one `role="group"` named by its prompt and names each answer column by its visible heading. The choice interaction needs no flag: its answer set is always one `role="group"`, named by an authored accessibility label, else by its prompt. See [PNP: structured labels](../packages/item-player/docs/PNP.md#structured-labels).
 
 **Keyword Translation:** When `keywordTranslation` is active, terms linked to catalog entries (see Section 6.3) are automatically presented with translations in the specified language.
 
@@ -1544,6 +1742,129 @@ QTI 3.0 introduces its own certification program with additional conformance lev
 - **1EdTech online validator** (members only) — Official certification testing
 - **QTIWorks validator** — Public alternative validation for QTI 2.x
 - **Official XSD schemas** — Available at imsglobal.org
+
+## 7.4 Deviations from the QTI Specification
+
+These are the places where this project's scoring engine (`@pie-qti/qti-processing`) and item
+player (`@pie-qti/item-player`) differ from, or go beyond, the letter of QTI 2.2 and 3.0. The
+project follows the specification wherever it is clear, so each entry carries its status:
+
+- **String comparison** follows the specification by default. It makes one choice where QTI is
+  silent (Unicode normalization), and it offers the host an opt-in to fold Arabic-script input.
+- **The other entries** only give a meaning to content QTI does not allow (a lexical form, an
+  operator use or a `matchGroup` value outside the specification), or are an architecture choice.
+  Conforming content scores and validates as the specification says.
+
+### String comparison
+
+QTI compares `string` values for equality. `match` is true "if the two expressions represent the
+same value" (QTI 3.0 §6.9.21), and `member` (§6.9.33) and `contains` (§6.9.25) compare the same
+way. `stringMatch` compares "according to the comparison rules" its attributes give (§6.9.48), and
+folds case only when `case-sensitive` is false (§5.138.1). A `mapEntry` matches case-insensitively
+unless its `case-sensitive` is true: "The default value is false" (§7.21.3). The engine compares
+`string` values this way in all of these operators, in `delete`, and when `mapResponse` looks up a
+mapping entry (`runtime/normalize.ts`, `normalizeResponse`, applied by `eval/evaluator.ts`).
+Case folding uses the content language, so Turkish and Azerbaijani fold the dotted and dotless i
+correctly. `patternMatch` and `patternMask` test the string as the candidate entered it, because the
+regular expression is the author's.
+
+One choice goes beyond the letter of QTI:
+
+- **Canonical equivalence.** Both values are composed to NFC before they are compared. So `é` typed
+  as `e` plus a combining accent is the same value as a precomposed `é`. Status: a choice where the
+  specification is silent. QTI says nothing about Unicode normalization. Unicode conformance clause
+  C6 says canonically equivalent sequences must not be treated as distinct, and input methods
+  differ in which of the two forms they produce.
+
+Typed numbers are read separately from string comparison. Text typed into an `integer` or `float`
+response can use digits in any script, the Arabic decimal and thousands separators, and the content
+language's own decimal and group marks (`parseResponseNumber`). Status: the delivery system's part.
+QTI leaves it to the delivery system to read typed text as a number, and the response stores the
+number.
+
+#### The `stringComparison` host option
+
+Folding more than that changes the score of conforming content. So any further folding is a
+delivery option that the host sets, and it is off by default:
+
+- `foldScriptInput` removes bidirectional controls (ALM, LRM, RLM, and the embeddings, overrides
+  and isolates) and tatweel. It folds Arabic presentation forms to their base letters, every Unicode
+  decimal digit (`\p{Nd}`, for example Arabic-Indic `٣`) to its ASCII digit, and the Arabic decimal
+  and thousands separators (`٫`, `٬`) to the content language's marks.
+- `foldLetterVariants` folds Arabic spelling variants: the hamza and madda alef forms become bare
+  alef, tashkeel is removed, `ة` becomes `ه` and `ى` becomes `ي`. This changes which spellings count
+  as correct.
+
+The option exists for right-to-left input methods that insert invisible marks or presentation
+forms, and for deployments that accept other scripts' digits in string answers. QTI string equality
+is exact, so the engine cannot assume either on the host's behalf.
+
+You can set the option on `createAssessmentItemDefinition` (both the client and the server entry
+points), on the `ItemPlayer` component and the `<pie-qti-item-player>` element, on
+`AssessmentPlayer.create` (or the `config` of the assessment shell and of
+`<pie-qti-assessment-player>`), and on the scorer (`ReferenceBackendAdapter`,
+`scoreAssessmentItem`). Give the player and the scorer the same value. The player's item sessions
+compute feedback and an adaptive item's outcomes, and the scorer re-runs response processing on
+the other items.
+
+```js
+createAssessmentItemDefinition({ itemXml, stringComparison: { foldScriptInput: true } });
+```
+
+Status: an opt-in for the host. Without it, the engine compares strings as QTI defines.
+
+### Duration units and lexical forms
+
+QTI defines a duration as a float of seconds (`xsd:double`). The engine stores every duration as a
+number of seconds, including the built-in `duration` variable. Item XML is read as QTI writes it:
+`90` or `90.5`, and an ISO 8601 literal such as `PT1M30S` there is an invalid duration. ISO 8601 is
+read only at the PCI variable-JSON boundary, which PCI v1.0 Appendix A encodes that way. Beyond the
+letter of QTI, the engine:
+
+- compares durations by their seconds in `match`, `equal`, `member` and `contains`, which QTI says
+  must not be used on durations (`match`, `member`, `contains`) or are defined for numeric base
+  types only (`equal`); `durationLT` / `durationGTE` are the specified comparisons;
+- keeps the built-in `duration` up to date for items that are not `timeDependent`, where QTI says it
+  must not be used in expressions (it is still reported, as Results Reporting asks).
+
+Status: both only affect content that uses durations where QTI forbids it.
+
+The player's host-facing `duration` fields — `SerializedItemSessionState.duration`,
+`ItemSessionActionResult.duration`, `ItemSessionView.duration`, and the assessment player's
+`timing` totals — are **milliseconds**. The QTI variable values (`contextVariables.duration`,
+`outcomeValues.duration`, and every duration in Results Reporting output) are **seconds**.
+
+### matchGroup in response validation
+
+QTI defines `matchGroup` as the identifiers of the choices, gaps or hotspots a choice may be
+matched with. Content, and this project's default renderers, also use the tokens as shared group
+labels. Response validation refuses a pairing only when neither reading allows it, so it never
+rejects a response the delivered interface lets a candidate build.
+
+Status: affects only non-conforming content. When the `matchGroup` lists name identifiers of the
+other side, as QTI defines, the two readings accept the same pairs: identifiers are unique within an
+interaction, so a choice's list and a gap's list share no token.
+
+### A single value as a container in `contains` and `delete`
+
+QTI defines `contains` on two containers of the same cardinality and `delete` on a single value and
+a container. The engine also reads a single value where a container is expected as a container of
+that one value: `contains(RESPONSE, A)`, which content writes for "A is among the choices", is true
+when `member(A, RESPONSE)` is. A container as the first operand of `delete` removes each of its
+values. Two containers of different cardinality are an error in `contains`.
+
+Status: affects only non-conforming content. QTI requires `contains` to compare two containers
+(QTI 3.0 §6.9.25) and `delete` to take a single value first (§6.9.20). This reading gives the other
+operand shapes a meaning instead of an error.
+
+### Compliance checks without an XSD engine
+
+`strictQtiCompliance` does not run the QTI XSDs. It checks the item's QTI namespace, its element
+names against the XSD-verified QTI 2.2 / 3.0 vocabulary, and the response binding and
+extractability of every interaction; attributes, content models and value spaces are not checked.
+Status: an architecture choice. QTI does not require a delivery engine to validate content against
+its schemas.
+See [`packages/item-player/docs/QTI-COMPLIANCE.md`](../packages/item-player/docs/QTI-COMPLIANCE.md#strict-mode).
 
 ---
 

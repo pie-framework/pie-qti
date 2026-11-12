@@ -1,14 +1,15 @@
 {
   "name": "@pie-qti/assessment-player",
-  "version": "1.0.0-beta.4",
+  "version": "1.0.0-beta.5",
   "description": "QTI Assessment Player supporting QTI 2.2 and 3.0 - Multi-item test player with navigation, sections, and rubric blocks",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "bun test --preload ./tests/setup.ts",
-    "typecheck": "tsc --noEmit",
+    "test": "bun test --preload ./tests/setup.ts && bun run test:component",
+    "test:component": "vitest run",
+    "typecheck": "tsc --noEmit && tsc -p ./tsconfig.test.json --noEmit",
     "check": "svelte-check --tsconfig ./tsconfig.svelte.json",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
@@ -34,14 +35,19 @@
     "@pie-qti/item-player": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
     "@pie-qti/qti-processing": "workspace:*",
-    "@pie-qti/section-player": "workspace:*"
+    "@pie-qti/section-player": "workspace:*",
+    "node-html-parser": "^9.0.5"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.6.2",
-    "@types/node": "^26.6.4",
+    "@biomejs/biome": "^2.6.4",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@types/node": "^26.6.6",
+    "jsdom": "^30.1.3",
     "svelte": "^5.57.1",
     "svelte-check": "^4.7.7",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
   },
   "exports": {
     ".": {

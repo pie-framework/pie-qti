@@ -55,25 +55,22 @@ function parseDigits(text: string, base: number): number | null {
 }
 
 /**
+ * The number base the candidate's text is read and written in: the authored `base` when a number
+ * can be written in it (an integer from 2 through 36: digits 0-9, then A-Z), else the default 10.
+ * Interaction data with an absent or unusable base still reads numbers instead of throwing.
+ */
+function numberBase(base: unknown): number {
+	return typeof base === 'number' && Number.isInteger(base) && base >= 2 && base <= 36 ? base : 10;
+}
+
+/**
  * Parse the lexical numeric response used by QTI string interactions.
  *
  * An exponent is recognized for base 10. For other bases, letters such as E
  * are digits and therefore cannot unambiguously introduce an exponent.
  */
-function parseNumericString(input: string, base: number): ParsedNumericString {
-	if (!Number.isInteger(base) || base < 2 || base > 36) {
-		return {
-			valid: false,
-			value: null,
-			integerValue: null,
-			leftDigits: null,
-			rightDigits: null,
-			ndp: null,
-			nsf: null,
-			exponent: null,
-		};
-	}
-
+function parseNumericString(input: string, authoredBase: number): ParsedNumericString {
+	const base = numberBase(authoredBase);
 	const lexical = input.trim();
 	const match = base === 10
 		? /^([+-]?)([0-9]*)(?:\.([0-9]*))?(?:[eE]([+-]?\d+))?$/.exec(lexical)
@@ -143,11 +140,13 @@ function parseNumericString(input: string, base: number): ParsedNumericString {
 }
 
 /**
- * The number as `parseNumericString` reads it: digits in any script folded to
- * 0-9, and the content language's decimal mark read as a point.
+ * The number as `parseNumericString` reads it: script input folded (digits in any script to 0-9,
+ * bidi controls and tatweel removed), and the content language's decimal mark read as a point.
+ * Reading typed text into a number is the delivery system's part, which QTI leaves to it, so this
+ * does not depend on the host's string comparison options.
  */
 function asciiNumberText(input: string, language: string | undefined): string {
-	const folded = normalizeResponse(input, { language });
+	const folded = normalizeResponse(input, { language, foldScriptInput: true });
 	const { decimal } = numberMarks(language);
 	return decimal !== '.' && !folded.includes('.') ? folded.replace(decimal, '.') : folded;
 }
@@ -194,8 +193,9 @@ export function extendedTextResponseToStrings(
 		return response.length > 0 ? response.map((value) => String(value ?? '')) : [''];
 	}
 	if (response === null || response === undefined) return [''];
-	if (typeof response === 'number' && interaction.base !== 10 && Number.isInteger(response)) {
-		return [response.toString(interaction.base)];
+	const base = numberBase(interaction.base);
+	if (typeof response === 'number' && base !== 10 && Number.isInteger(response)) {
+		return [response.toString(base)];
 	}
 	return [String(response)];
 }

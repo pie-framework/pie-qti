@@ -8,29 +8,25 @@
 		PlayerSecurityConfig,
 		PortableCustomInteractionData,
 	} from '@pie-qti/item-player';
+	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
 	import { PciHost } from '@pie-qti/item-player/pci';
 	import { sanitizeSharedHtml } from '@pie-qti/item-player/security';
 	import type { I18nProvider } from '@pie-qti/i18n';
+	import type { ResponseOnlyInteractionProps } from '../../shared/utils/interactionProps';
 	import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
-	import { createQtiChangeEvent } from '../../shared/utils/eventHelpers';
-	import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
+	import { parseJsonProp, responseProp } from '../../shared/utils/webComponentHelpers';
 	import { interactionAria } from '../../shared/utils/interactionAria';
 	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
 
 	type PciHostFactory = (data: ExtractedPci) => PciHostController;
 	type LoadStatus = 'idle' | 'loading' | 'ready' | 'error';
 
-	interface Props {
-		interaction?: PortableCustomInteractionData | string;
-		response?: unknown;
-		disabled?: boolean;
-		i18n?: I18nProvider;
+	interface Props extends ResponseOnlyInteractionProps<'portableCustomInteraction'> {
 		security?: PlayerSecurityConfig;
 		/** Player-owned factory used when rendered inside pie-qti-item-player. */
 		createPciHost?: PciHostFactory;
 		/** Standalone custom-element trust configuration. Set as a JavaScript property. */
 		pci?: PciConfiguration;
-		onChange?: (value: unknown) => void;
 	}
 
 	let {
@@ -47,7 +43,8 @@
 	const parsedInteraction = $derived(
 		parseJsonProp<PortableCustomInteractionData>(interaction)
 	);
-	const parsedResponse = $derived(parseJsonProp<unknown>(response));
+	// The response is the module's own value: a string (JSON text included) is offered back as is.
+	const parsedResponse = $derived(responseProp(response));
 	const safeMarkup = $derived.by(() => {
 		const markup = parsedInteraction?.markup ?? '';
 		return typeof markup === 'string' ? sanitizeSharedHtml(markup, security) : markup;

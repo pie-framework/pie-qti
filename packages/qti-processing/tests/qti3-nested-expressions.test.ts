@@ -1,0 +1,199 @@
+/**
+ * QTI 3.0 nested expressions: operators must hand their `options` — which carry the QTI 3
+ * kebab-case name mapping — to every nested `buildExpression` call. A dropped argument falls
+ * back to the QTI 2.x mapper, which cannot read `qti-*` tags, so e.g. a `<qti-variable>`
+ * inside `<qti-integer-modulus>` failed with "Unknown processing expression tag". The
+ * item-player validation golden surfaced this on the conformance fixtures converted to QTI 3.0.
+ *
+ * Two layers:
+ * - the affected operators, compiled with the QTI 3 element mapper the item player passes and
+ *   evaluated, with QTI 3 kebab-case children;
+ * - a guard walking every expression tag the builder supports (one row per `buildExpression`
+ *   switch case), spelled for QTI 3 and carrying `qti-variable` children wherever the element
+ *   takes child expressions, asserting it compiles. A dropped `options` anywhere makes the
+ *   nested `qti-variable` build throw.
+ */
+
+import { describe, expect, it } from 'bun:test';
+import { Qti3ElementNameMapper } from '@pie-qti/qti-common';
+import { buildExpression } from '../src/ast/build.js';
+import { evalExpr } from '../src/eval/evaluator.js';
+import type { ProcessingScope } from '../src/ast/types.js';
+import { DeclarationContext } from '../src/runtime/context.js';
+import type { DeclarationMap, QtiValue } from '../src/runtime/types.js';
+import { qtiValue } from '../src/runtime/value.js';
+import { parseXml } from '../src/xml/parse.js';
+
+const mapper = new Qti3ElementNameMapper();
+
+function evaluate(body: string, decls: DeclarationMap = {}): QtiValue {
+	const expression = buildExpression(parseXml(body).documentElement, { elementNameMapper: mapper });
+	return evalExpr({ ctx: new DeclarationContext(decls), rng: () => 0.5 }, expression);
+}
+
+function declared(identifier: string, baseType: 'integer' | 'float' | 'string', value: unknown): DeclarationMap {
+	return {
+		[identifier]: {
+			identifier,
+			baseType,
+			cardinality: 'single',
+			value: qtiValue(baseType, 'single', value),
+		},
+	};
+}
+
+describe('affected operators with QTI 3.0 kebab-case children', () => {
+	it('qti-integer-modulus builds both operands with the QTI 3 mapper', () => {
+		expect(
+			evaluate(
+				'<qti-integer-modulus><qti-variable identifier="A"/><qti-base-value base-type="integer">3</qti-base-value></qti-integer-modulus>',
+				declared('A', 'integer', 7),
+			),
+		).toEqual(qtiValue('integer', 'single', 1));
+	});
+
+	it('qti-integer-to-float builds its operand', () => {
+		expect(
+			evaluate('<qti-integer-to-float><qti-variable identifier="A"/></qti-integer-to-float>', declared('A', 'integer', 7)),
+		).toEqual(qtiValue('float', 'single', 7));
+	});
+
+	it('qti-round-to builds its value operand', () => {
+		expect(
+			evaluate(
+				'<qti-round-to rounding-mode="decimalPlaces" figures="2"><qti-variable identifier="F"/></qti-round-to>',
+				declared('F', 'float', 123.4567),
+			),
+		).toEqual(qtiValue('float', 'single', 123.46));
+	});
+
+	it('qti-substring tests containment: the first expression inside the second, per spec', () => {
+		expect(
+			evaluate(
+				'<qti-substring><qti-base-value base-type="string">ell</qti-base-value><qti-base-value base-type="string">Hello</qti-base-value></qti-substring>',
+			),
+		).toEqual(qtiValue('boolean', 'single', true));
+		expect(
+			evaluate(
+				'<qti-substring><qti-base-value base-type="string">Hello</qti-base-value><qti-base-value base-type="string">ell</qti-base-value></qti-substring>',
+			),
+		).toEqual(qtiValue('boolean', 'single', false));
+	});
+
+	it('qti-field-value reads a record variable field, the way a record value reaches expressions', () => {
+		// Records are a declaration cardinality, not a constructible container: a record value
+		// reaches processing through a record-typed variable (host-delivered), never through an
+		// authored element — no QTI version defines a <record> constructor, and the builder
+		// rejects it like any unknown element.
+		const rec = qtiValue(undefined, 'record', {
+			x: qtiValue('integer', 'single', 42),
+			y: qtiValue('string', 'single', 'B'),
+		});
+		expect(
+			evaluate('<qti-field-value field-identifier="x"><qti-variable identifier="REC"/></qti-field-value>', {
+				REC: { identifier: 'REC', cardinality: 'record', value: rec },
+			}),
+		).toEqual(qtiValue('integer', 'single', 42));
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Guard: every expression tag the builder supports compiles on the QTI 3 path
+// ---------------------------------------------------------------------------
+
+const ONE = '<qti-variable identifier="A"/>';
+const TWO = `${ONE}${ONE}`;
+
+/** Test-level outcome processing expressions: the builder only accepts them at test scope. */
+const TEST_LEVEL = new Set([
+	'numbercorrect',
+	'numberincorrect',
+	'numberpresented',
+	'numberresponded',
+	'numberselected',
+	'outcomemaximum',
+	'outcomeminimum',
+	'testvariables',
+]);
+
+/**
+ * One row per `buildExpression` switch case: [canonical tag, attributes, body]. `mapper.toNative`
+ * spells the QTI 3.0 element name of every tag the builder supports — the builder accepts no
+ * element beyond the three schemas' element inventories. Every child expression is spelled
+ * kebab-case, so a nested call that drops `options` throws.
+ */
+const GUARD: ReadonlyArray<readonly [tag: string, attrs: string, body: string]> = [
+	['and', '', TWO],
+	['anyn', 'min="1" max="2"', TWO],
+	['basevalue', 'base-type="integer"', '1'],
+	['containersize', '', ONE],
+	['contains', '', TWO],
+	['correct', 'identifier="A"', ''],
+	['customoperator', 'definition="https://example.com/op"', ONE],
+	['default', 'identifier="A"', ''],
+	['delete', '', TWO],
+	['divide', '', TWO],
+	['durationgte', '', TWO],
+	['durationlt', '', TWO],
+	['equal', '', TWO],
+	['equalrounded', 'figures="2"', TWO],
+	['fieldvalue', 'field-identifier="x"', ONE],
+	['gcd', '', TWO],
+	['gt', '', TWO],
+	['gte', '', TWO],
+	['index', 'n="1"', ONE],
+	['inside', 'shape="default"', ONE],
+	['integerdivide', '', TWO],
+	['integermodulus', '', TWO],
+	['integertofloat', '', ONE],
+	['isnull', '', ONE],
+	['lcm', '', TWO],
+	['lt', '', TWO],
+	['lte', '', TWO],
+	['mapresponse', 'identifier="RESPONSE"', ''],
+	['mapresponsepoint', 'identifier="RESPONSE"', ''],
+	['match', '', TWO],
+	['mathconstant', 'name="pi"', ''],
+	['mathoperator', 'name="ln"', ONE],
+	['max', '', TWO],
+	['member', '', TWO],
+	['min', '', TWO],
+	['multiple', '', TWO],
+	['not', '', ONE],
+	['null', '', ''],
+	['numbercorrect', '', ''],
+	['numberincorrect', '', ''],
+	['numberpresented', '', ''],
+	['numberresponded', '', ''],
+	['numberselected', '', ''],
+	['or', '', TWO],
+	['ordered', '', TWO],
+	['outcomemaximum', 'outcome-identifier="SCORE"', ''],
+	['outcomeminimum', 'outcome-identifier="SCORE"', ''],
+	['patternmatch', 'pattern=".*"', ONE],
+	['power', '', TWO],
+	['product', '', TWO],
+	['random', '', ONE],
+	['randomfloat', 'max="1.0"', ''],
+	['randominteger', 'max="10"', ''],
+	['repeat', 'number-repeats="2"', ONE],
+	['round', '', ONE],
+	['roundto', 'rounding-mode="decimalPlaces" figures="2"', ONE],
+	['statsoperator', 'name="mean"', ONE],
+	['stringmatch', '', TWO],
+	['substring', '', '<qti-base-value base-type="string">ABCDE</qti-base-value><qti-base-value base-type="string">BC</qti-base-value>'],
+	['subtract', '', TWO],
+	['sum', '', TWO],
+	['testvariables', 'variable-identifier="A"', ''],
+	['truncate', '', ONE],
+	['variable', 'identifier="A"', ''],
+];
+
+describe.each(GUARD)('qti3 path compiles %s', (tag, attrs, body) => {
+	it('compiles with the QTI 3 element mapper', () => {
+		const name = mapper.toNative(tag);
+		const xml = `<${name}${attrs ? ` ${attrs}` : ''}>${body}</${name}>`;
+		const scope: ProcessingScope = TEST_LEVEL.has(tag) ? 'test' : 'item';
+		expect(() => buildExpression(parseXml(xml).documentElement, { elementNameMapper: mapper, scope })).not.toThrow();
+	});
+});

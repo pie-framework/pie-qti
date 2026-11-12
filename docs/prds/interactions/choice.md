@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: choiceInteraction
-  Last reviewed: 2026-04-27
+  Last reviewed: 2026-11-07
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-04-27
+**Last reviewed:** 2026-11-07
 
 ---
 
@@ -29,7 +29,7 @@
 
 **Why `maxChoices=0` means unlimited (not zero)**: The QTI spec explicitly defines `0` as meaning "no upper bound on the number of selections". This is an authoring footgun — item authors who intend "no limit" write `0`, but authors who have not read the spec carefully may write `0` when they mean to write the pool size. The extractor emits a warning when `maxChoices=0` is encountered; the validator also warns when `maxChoices > choices.length`, since both conditions suggest authoring errors. The component renders checkboxes for `maxChoices=0` without enforcing any upper bound, which is spec-correct.
 
-**Why `minChoices` is not extracted or enforced**: The QTI spec defines `minChoices` as a validation hint — the number of choices the candidate must select before the response is considered complete. This attribute is present in the spec but is absent from `ChoiceInteractionData` and not extracted by the choice extractor. This is an unimplemented gap, not an intentional omission. See [Known gaps](#known-gaps). Other interactions (e.g. `selectPointInteraction`) do extract and surface `minChoices`.
+**How `minChoices` is enforced**: QTI defines `minChoices` as the number of choices the candidate must select to form a valid response. The extractor delivers it in `ChoiceInteractionData`, and `Player.validateResponses()` reports a response with fewer selections incomplete. The component states the minimum ("Select at least N answers") while the response is short of it. With `minChoices=1` it shows only an authored message, since a radio group already says "pick one".
 
 **Why `shuffle` does not re-randomize on each render**: The QTI spec requires `shuffle` to produce a consistent random order for a given item session — not a new random order each time the item is rendered. Shuffling happens at extraction time using a PRNG seeded from the item session GUID (`packages/item-player/src/core/shuffle.ts`). Because `Player` persists that GUID in its saved state and restores it, the order is reproduced for the whole session — including after a reload — while a different candidate or a new attempt gets a different order. No separate shuffle state has to be serialised: the order is a pure function of the session GUID and the `responseIdentifier`.
 
@@ -50,10 +50,12 @@
 
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
-| `responseIdentifier` | ✅ Full | Extracted as `responseId`; used as radio `name` attribute and in `qti-change` event payload |
+| `responseIdentifier` | ✅ Full | Extracted as `responseId`; used in the `qti-change` event payload. The radio group `name` is unique per rendered instance instead, so two renderings of the same item never share a radio group |
 | `shuffle` | ✅ Full | Shuffles choice order at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads |
-| `maxChoices` | ✅ Full | `1` → radio buttons; `>1` or `0` → checkboxes; `0` triggers a validator warning |
-| `minChoices` | ❌ Not extracted | Spec defines this as a completeness constraint. Not in `ChoiceInteractionData`; not enforced. See Known gaps. |
+| `maxChoices` | ✅ Full | `1` → radio buttons; `>1` or `0` → checkboxes; `0` triggers a validator warning. An absent attribute takes the per-version spec default: 1 in QTI 2.2/3.0, 0 (no restriction) in QTI 2.1 — or 1 when the response is single cardinality, which holds one choice |
+| `minChoices` | ✅ Full | Delivered in `ChoiceInteractionData`. Response validation reports fewer selections incomplete, and the component states the minimum while the response is short of it. |
+| `data-max-selections-message` | ✅ Full | QTI 3.0 §5.40.4: "rendered upon violation of the max-choices constraint". Stated at the cap through one `role="alert"` (for any cardinality) and announced on a refused selection; without it, the localized default shows only where a selection can actually be refused (`maxChoices>1`). |
+| `data-min-selections-message` | ✅ Full | Replaces the localized minimum hint while the response selects fewer than `minChoices`. |
 | `orientation` | ❌ Not extracted | Visual hint (`horizontal`/`vertical`). Not in `ChoiceInteractionData`. The component always renders vertically. Low priority since most K-12 content doesn't use it. |
 
 ### Supported attributes on `simpleChoice`
@@ -82,16 +84,16 @@
 
 ### Known gaps
 
-- **G-09 (PNP elimination tool):** Implemented for `choiceInteraction`; when `pnp.cognitive.eliminationTool` is enabled, each choice can be visually eliminated without removing it from the response pool.
-- **G-13 (PNP structural labels):** Done. When `pnp.display.structuredLabelSupport` is enabled, the choice set is announced as one `role="group"` named by the prompt (i18n fallback otherwise; an authored accessibility name still wins). Markup contract and NVDA checklist in `packages/item-player/docs/PNP.md`; tracked as Done in `docs/SPEC-GAPS-PLAN.md`.
-- **`minChoices` not enforced:** The spec requires the player to treat the response as incomplete if fewer than `minChoices` identifiers are selected. Not extracted or validated.
+- **G-09 (PNP elimination tool):** Implemented for `choiceInteraction`; when `pnp.cognitive.eliminationTool` is enabled, each choice can be visually eliminated without removing it from the response pool. Each toggle is named from its localized action ("Eliminate") plus the rendered choice text via `aria-labelledby`; the name is the same in both states, and `aria-pressed` says whether the choice is eliminated (the visible ✕ never changes either). It is a 44×44 px target.
+- **G-13 (PNP structural labels):** Done. The choice set is always announced as one `role="group"` associated with the prompt via `aria-labelledby`; `pnp.display.structuredLabelSupport` does not change choice rendering (it switches only the match interaction's group and column labels). Without a prompt the group gets a localized generic name; an authored accessibility name still wins. Markup contract and NVDA checklist in `packages/item-player/docs/PNP.md`; tracked as Done in `docs/SPEC-GAPS-PLAN.md`.
+- **`minChoices`** (resolved): extracted, stated by the component, and enforced by response validation.
 
 ---
 
 ## Functional requirements
 
-- **FR-1:** When `maxChoices=1`, render choices as mutually exclusive radio buttons within a named group. Selecting one deselects all others.
-- **FR-2:** When `maxChoices>1` or `maxChoices=0`, render choices as independent checkboxes.
+- **FR-1:** When `maxChoices=1`, render choices as mutually exclusive radio buttons within a named group. Selecting one deselects all others. Re-activating the selected radio keeps it selected (single cardinality does not toggle off); the FR-11 "Clear answer" button is the way to retract the answer.
+- **FR-2:** When `maxChoices>1` or `maxChoices=0`, render choices as independent checkboxes. Unchecking a selected checkbox removes it from the response.
 - **FR-3:** On each selection change, emit a `qti-change` CustomEvent with `{ responseIdentifier, value }` from the root element. The event must bubble.
 - **FR-4:** Accept a `response` prop (string for single, string[] for multiple) and reflect it as checked state without requiring a re-render of the whole component.
 - **FR-5:** When `disabled=true`, all inputs must be non-interactive. Disabled state must be visually distinct.
@@ -99,15 +101,20 @@
 - **FR-7:** When `role='scorer'` and `correctResponse` is provided, visually distinguish correct choices (green highlight, badge). Do not reveal correct answers to any other role.
 - **FR-8:** Render `feedbackInline` elements inside choice text, in either QTI spelling, conditionally on `outcomeValues` by the shared visibility rule.
 - **FR-9:** Render the `prompt` HTML content above the choice list when present.
+- **FR-10:** When a selection is refused because `maxChoices` is reached, show and announce (`role="alert"`) the authored `maxSelectionsMessage`, or a localized default ("You can select up to {max}. Deselect one to choose another.") when none is authored. A refused selection must never be silent.
+- **FR-11:** For single-cardinality items with a selection, render a localized "Clear answer" button that emits a `null` response and returns focus to the choice list.
+- **FR-12:** Each choice row is a target of at least 44 px height with a selected state that does not rely on color alone (border weight + background + the native checked control), and base choice text of at least 1rem.
+- **FR-13:** Keyboard focus is always visible, including under the QTI 3.0 `qti-input-control-hidden` shared-vocabulary class: the row shows the focus indicator via `:has(input:focus-visible)` (with a `:focus-within` fallback).
+- **FR-14:** `qti-choices-stacking-N` and horizontal layouts collapse to a single column when the interaction container is narrow (container query, with a media-query fallback), per WCAG 1.4.10 reflow.
 
 ---
 
 ## Non-functional requirements
 
-- **Accessibility:** Each choice must be a native `<input type="radio">` or `<input type="checkbox">` wrapped in a `<label>`. The label must contain both the input and the choice text so the entire label is clickable. Radio inputs sharing the same `name` attribute form an ARIA radio group. Touch targets must be at least 44×44 CSS px (WCAG 2.2 SC 2.5.8). The component must be operable by keyboard: Tab to reach the group, arrow keys to navigate within radio groups, Space to toggle checkboxes.
+- **Accessibility:** Each choice must be a native `<input type="radio">` or `<input type="checkbox">` wrapped in a `<label>`. The label must contain both the input and the choice text so the entire label is clickable. Radio inputs sharing the same `name` attribute form an ARIA radio group; the name and every id the component references (prompt, choice text, elimination verb) are unique per rendered instance, so several interactions, or two renderings of one item, can share a document. Touch targets must be at least 44×44 CSS px (WCAG 2.2 SC 2.5.8): the whole choice row is the target, and the elimination toggle is a 44×44 px circle. The component must be operable by keyboard: Tab to reach the group, arrow keys to navigate within radio groups, Space to toggle checkboxes. Keyboard focus must stay visible on the row even when the native control is hidden (`qti-input-control-hidden`), and the selection-limit alert uses the `--pie-qti-warning-text` token for WCAG 1.4.3 contrast.
 - **Performance:** Extraction and rendering must complete in under 16 ms for up to 10 choices on a mid-range mobile device. Shadow DOM means no layout recalculation from host-page style changes.
-- **Cross-platform:** Touch selection (tap to choose) must work identically to mouse click. The interaction must be usable on both portrait and landscape mobile orientations.
-- **i18n:** The "Correct" badge label is translated via the `i18n` provider under key `interactions.choice.correct`. Falls back to the string `'Correct'` when no provider is supplied.
+- **Cross-platform:** Touch selection (tap to choose) must work identically to mouse click. The interaction must be usable on both portrait and landscape mobile orientations. Multi-column shared-vocabulary layouts collapse to one column on narrow containers (WCAG 1.4.10).
+- **i18n:** Candidate-visible strings are translated via the `i18n` provider: `interactions.choice.correct`, `interactions.choice.groupLabel`, `interactions.choice.maxChoicesReached` ({max} interpolated), `interactions.choice.clearAnswer`, `interactions.choice.eliminateChoice`, `interactions.choice.revealChoice`. Each falls back to its English string when no provider is supplied.
 - **Security:** Choice text is rendered via `{@html}`. Content is sanitized upstream by the item player's HTML sanitizer before reaching the component. The component trusts the `interaction.choices[*].text` values as safe HTML.
 
 ---
@@ -121,11 +128,11 @@
 **Alternatives considered:** Read `cardinality` from a passed `ResponseDeclaration`. Rejected: adds coupling and requires an additional prop.  
 **Consequences:** If a non-conformant QTI item declares `maxChoices=1` with `multiple` cardinality (which is invalid per spec), the component will render radios and produce a single-string response, which will mismatch the declared cardinality. This is an authoring error and the extractor's validator will flag `maxChoices` inconsistencies.
 
-### Props accept both parsed objects and JSON strings
+### Interaction data accepts an object or its JSON; responses are values
 
-**Decision:** `interaction`, `response`, `correctResponse`, and `i18n` are each parsed with `parseJsonProp` before use.  
-**Rationale:** When the component is used as a native web component (via HTML attributes), all prop values arrive as strings. When used as a Svelte component inside the item player, they arrive as typed objects. `parseJsonProp` handles both transparently. Without this, the web component usage would require a separate wrapper component.  
-**Consequences:** There is a small runtime cost of attempting JSON.parse on every render for the web component case. This is negligible for the number of choices involved.
+**Decision:** `interaction` is parsed with `parseJsonProp` before use (through `createInteractionShell`). `response` and `correctResponse` are values and are never parsed.  
+**Rationale:** An HTML attribute carries the interaction data as JSON text; inside the item player it arrives as an object, and `parseJsonProp` handles both. A response is a choice identifier, and identifiers such as `true`, `false` and `null` are valid: read as JSON they would become a boolean or no answer, and the candidate's selection would vanish. The item player sets responses as JavaScript properties.  
+**Consequences:** Hosts set `response` and `correctResponse` as JavaScript properties. There is a small runtime cost of attempting JSON.parse on the interaction data for the web component case, negligible for the number of choices involved.
 
 ### `qti-change` events are dispatched from the root `<div>`, not the `<input>`
 
@@ -143,7 +150,7 @@ interface ChoiceInteractionData extends BaseInteractionData {
   type: 'choiceInteraction';
   responseId: string;           // from responseIdentifier attribute
   shuffle: boolean;             // shuffled order applied at extraction time
-  maxChoices: number;           // 1 = single (radio), >1 or 0 = multiple (checkbox)
+  maxChoices: number;           // 1 = single (radio), >1 or 0 = multiple (checkbox); absent: 1 (QTI 2.2/3.0), 0 (QTI 2.1)
   prompt: string | null;        // HTML content of <prompt> child, or null
   choices: Array<{
     identifier: string;         // from simpleChoice identifier attribute
@@ -160,8 +167,6 @@ interface ChoiceInteractionData extends BaseInteractionData {
 - `maxChoices >= 0` (error if negative)
 
 **Invariants that are NOT enforced (gaps):**
-- `minChoices` is not in the type and not checked
-- `fixed` per choice is not in the type
 - The number of selected choices vs `maxChoices` is not validated at response-collection time
 
 ---
@@ -260,6 +265,27 @@ AC-A5: Disabled state is conveyed
   Given: the item rendered with disabled=true
   When: a screen reader reaches a choice input
   Then: the input is announced as disabled
+
+AC-A6: Focus is visible with hidden input controls
+  Given: an item whose choiceInteraction carries the qti-input-control-hidden class
+  When: the user Tabs to a choice
+  Then: the choice row shows a visible focus indicator (2px outline on the row)
+
+AC-A7: The group is named by the prompt
+  Given: an item whose choiceInteraction has a prompt
+  When: a screen reader reaches the answer set
+  Then: the set is announced as one group whose accessible name is the prompt text
+
+AC-A8: A refused selection is announced
+  Given: a multi-select item at maxChoices with no authored message
+  When: the user attempts one more selection
+  Then: the refusal is shown and announced via a localized role="alert" message
+
+AC-A9: The elimination toggle names its choice
+  Given: the elimination tool is enabled
+  When: a screen reader reaches a toggle
+  Then: it is announced as "Eliminate" followed by the choice text, as a toggle button whose
+        pressed state says whether the choice is eliminated; the name does not change once used
 ```
 
 ### Edge cases
@@ -300,8 +326,8 @@ AC-E6: Candidate role does not reveal correct answers
 
 ## Open questions
 
-- [ ] Should `minChoices` be extracted and surfaced as a validation hint in the component (e.g. "Select at least N options")? Currently not implemented. The spec intends this as a completeness constraint that delivery engines should surface.
-- [ ] Should `fixed` on `simpleChoice` be extracted? Deferred because most K-12 content doesn't use it, but "None of the above" items authored with `fixed=true` will be shuffled incorrectly if `shuffle=true`.
+- [x] Should `minChoices` be extracted and surfaced as a validation hint in the component (e.g. "Select at least N options")? (resolved) Yes: it is delivered, stated by the component and enforced by response validation.
+- [x] Should `fixed` on `simpleChoice` be extracted? (resolved) Yes: `fixed=true` choices keep their authored index when `shuffle=true`.
 - [ ] Should `orientation=horizontal` be honoured with a CSS grid or flex layout? Deferred; most items are vertical.
 
 ---

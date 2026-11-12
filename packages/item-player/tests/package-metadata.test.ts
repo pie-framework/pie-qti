@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 
 const packageJson = JSON.parse(
 	readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
@@ -39,5 +39,23 @@ describe('item-player package metadata', () => {
 		expect(rootDeclaration).not.toContain('standardChoiceExtractor');
 		expect(rootDeclaration).not.toContain("./interactions/index.js");
 		expect(securityDeclaration).not.toContain('applyInteractionSecurity');
+	});
+
+	test('element bundles import the tsc-emitted modules instead of inlining a second copy', () => {
+		// A host loading both the root entry and ./element(-class) must get one
+		// Player, ItemSession and PCI registry, so the vite-built element chunks may
+		// inline only the Svelte components and the element entries themselves.
+		const distDir = new URL('../dist/', import.meta.url);
+		const elementMaps = readdirSync(distDir).filter((name) => /^element.*\.js\.map$/.test(name));
+		expect(elementMaps.length).toBeGreaterThan(0);
+
+		const inlinedOwnModules = elementMaps.flatMap((name) => {
+			const map = JSON.parse(readFileSync(new URL(name, distDir), 'utf8')) as { sources: string[] };
+			return map.sources.filter(
+				(source) =>
+					/^\.\.\/src\/.*\.ts$/.test(source) && !/^\.\.\/src\/element(-class)?\.ts$/.test(source),
+			);
+		});
+		expect(inlinedOwnModules).toEqual([]);
 	});
 });

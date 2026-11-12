@@ -159,7 +159,12 @@ function buildStatements(
 			case 'setoutcomevalue': {
 				const identifier = getAttr(el, 'identifier');
 				const exprEl = firstChildElement(el);
-				if (!identifier || !exprEl) break;
+				if (!identifier || !exprEl) {
+					// identifier and expression [1] are required (setOutcomeValue.Type): a rule without
+					// them is malformed, and silently skipping it would leave the outcome at its
+					// default and change scoring with no signal.
+					throw new Error('<setOutcomeValue> requires an identifier and one child expression');
+				}
 				out.push({
 					kind: 'stmt.setOutcomeValue',
 					id: newAstId('stmt'),
@@ -172,22 +177,11 @@ function buildStatements(
 				if (mode !== 'outcome' && mode !== 'response') break;
 				const identifier = getAttr(el, 'identifier');
 				const exprEl = firstChildElement(el);
-				if (!identifier || !exprEl) break;
+				if (!identifier || !exprEl) {
+					throw new Error('<lookupOutcomeValue> requires an identifier and one child expression');
+				}
 				out.push({
 					kind: 'stmt.lookupOutcomeValue',
-					id: newAstId('stmt'),
-					identifier,
-					expr: buildExpression(exprEl, options),
-				});
-				break;
-			}
-			case 'setresponsevalue': {
-				if (mode !== 'response') break;
-				const identifier = getAttr(el, 'identifier');
-				const exprEl = firstChildElement(el);
-				if (!identifier || !exprEl) break;
-				out.push({
-					kind: 'stmt.setResponseValue',
 					id: newAstId('stmt'),
 					identifier,
 					expr: buildExpression(exprEl, options),
@@ -197,7 +191,9 @@ function buildStatements(
 			case 'settemplatevalue': {
 				const identifier = getAttr(el, 'identifier');
 				const exprEl = firstChildElement(el);
-				if (!identifier || !exprEl) break;
+				if (!identifier || !exprEl) {
+					throw new Error('<setTemplateValue> requires an identifier and one child expression');
+				}
 				out.push({
 					kind: 'stmt.setTemplateValue',
 					id: newAstId('stmt'),
@@ -210,7 +206,9 @@ function buildStatements(
 				if (mode !== 'template') break;
 				const identifier = getAttr(el, 'identifier');
 				const exprEl = firstChildElement(el);
-				if (!identifier || !exprEl) break;
+				if (!identifier || !exprEl) {
+					throw new Error('<setCorrectResponse> requires an identifier and one child expression');
+				}
 				out.push({
 					kind: 'stmt.setCorrectResponse',
 					id: newAstId('stmt'),
@@ -220,13 +218,19 @@ function buildStatements(
 				break;
 			}
 			case 'setdefaultvalue': {
-				// Commonly used in responseProcessing to reset a response to its declared <defaultValue>
+				// QTI ASI §10.3: setDefaultValue is a template rule — like setCorrectResponse,
+				// it carries expression [1] and only exists in templateProcessing.
+				if (mode !== 'template') break;
 				const identifier = getAttr(el, 'identifier');
-				if (!identifier) break;
+				const exprEl = firstChildElement(el);
+				if (!identifier || !exprEl) {
+					throw new Error('<setDefaultValue> requires an identifier and one child expression');
+				}
 				out.push({
 					kind: 'stmt.setDefaultValue',
 					id: newAstId('stmt'),
 					identifier,
+					expr: buildExpression(exprEl, options),
 				});
 				break;
 			}
@@ -282,16 +286,6 @@ function buildStatements(
 					id: newAstId('stmt'),
 					expr: buildExpression(exprEl, options),
 				});
-				break;
-			}
-			case 'console': {
-				if (mode !== 'response') {
-					throw new Error(`Unknown processing statement tag: <${tag}> (mode=${mode})`);
-				}
-				if (childElements(el).length > 0) {
-					throw new Error('Unsupported processing statement tag: <console> with child elements');
-				}
-				// Diagnostic/vendor trace marker found in legacy fixtures; it has no QTI processing effect.
 				break;
 			}
 			default:
@@ -516,11 +510,14 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		return defaultValue;
 	};
 
-	const numAttr = (name: string, defaultValue: number): number => {
+	// QTI integerOrVariableRef (ASI §10.2): an integer literal, or the identifier of the variable
+	// holding the integer, kept for the evaluator to read. The braced {TEMPLATE} spelling is
+	// accepted too, as patternMatch accepts it for its StringOrVariableRef pattern.
+	const integerOrVariableRefAttr = (name: string, defaultValue: number): number | string => {
 		const raw = (getAttr(el, name) || '').trim();
 		if (!raw) return defaultValue;
-		const n = Number(raw);
-		return Number.isFinite(n) ? n : defaultValue;
+		if (/^[+-]?\d+$/.test(raw)) return Number(raw);
+		return /^\{([^{}\s]+)\}$/.exec(raw)?.[1] ?? raw;
 	};
 
 	const strAttr = (name: string): string | undefined => {
@@ -597,7 +594,10 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		}
 		case 'variable': {
 			const identifier = getAttr(el, 'identifier') || '';
-			return { kind: 'expr.variable', id, identifier };
+			const weightIdentifier = (getAttr(el, 'weightIdentifier') || '').trim();
+			return weightIdentifier
+				? { kind: 'expr.variable', id, identifier, weightIdentifier }
+				: { kind: 'expr.variable', id, identifier };
 		}
 		case 'correct': {
 			const identifier = getAttr(el, 'identifier') || '';
@@ -644,11 +644,6 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 				values: kids.map((k) => buildExpression(k, options)),
 			};
 		}
-		case 'precondition': {
-			const exprEl = kids[0];
-			if (!exprEl) throw new Error('<preCondition> missing expression');
-			return { kind: 'expr.preCondition', id, expr: buildExpression(exprEl, options) };
-		}
 		case 'match': {
 			return { kind: 'expr.match', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
@@ -674,34 +669,24 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			};
 		}
 		case 'equalrounded': {
-			// QTI 2.2.2: roundingMode is optional (default="significantFigures").
-			// For compatibility with QTI 2.1 and real-world content, accept singular forms and normalize.
+			// The XSDs (2.1 line 1268, 2.2 line 7505, 3.0 EqualRoundedDType) enumerate exactly
+			// decimalPlaces and significantFigures, defaulting to significantFigures. Singular or
+			// differently-cased spellings are invalid content: they are a compile error, like
+			// roundTo's roundingMode — the same attribute read strictly right below.
 			const roundingModeRaw = (getAttr(el, 'roundingMode') || 'significantFigures').trim();
 			const figures = getAttr(el, 'figures') || '';
 			if (!figures) throw new Error('<equalRounded> requires figures');
-			const rm = roundingModeRaw.toLowerCase();
-			const roundingMode =
-				rm === 'decimalplace' || rm === 'decimalplaces'
-					? 'decimalPlaces'
-					: rm === 'significantfigure' || rm === 'significantfigures'
-						? 'significantFigures'
-						: null;
-			if (!roundingMode) {
-				throw new Error(
-					'<equalRounded> roundingMode must be "decimalPlaces"|"significantFigures"',
-				);
+			if (roundingModeRaw !== 'decimalPlaces' && roundingModeRaw !== 'significantFigures') {
+				throw new Error('<equalRounded> roundingMode must be "decimalPlaces"|"significantFigures"');
 			}
 			return {
 				kind: 'expr.equalRounded',
 				id,
 				a: buildExpression(kids[0]!, options),
 				b: buildExpression(kids[1]!, options),
-				roundingMode,
+				roundingMode: roundingModeRaw as 'decimalPlaces' | 'significantFigures',
 				figures,
 			};
-		}
-		case 'notequal': {
-			return { kind: 'expr.notEqual', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
 		case 'member': {
 			return {
@@ -752,11 +737,13 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			return { kind: 'expr.multiple', id, values: kids.map((k) => buildExpression(k, options)) };
 		}
 		case 'delete': {
+			// QTI: "The first sub-expression must have single cardinality and the second must be a
+			// multiple or ordered container": delete(A, {B,A,C,A}) is {B,C}.
 			return {
 				kind: 'expr.delete',
 				id,
-				container: buildExpression(kids[0]!, options),
-				value: buildExpression(kids[1]!, options),
+				value: buildExpression(kids[0]!, options),
+				container: buildExpression(kids[1]!, options),
 			};
 		}
 		case 'repeat': {
@@ -786,7 +773,9 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			const shape = (getAttr(el, 'shape') || '').trim() as any;
 			const coords = (getAttr(el, 'coords') || '').trim();
 			if (!shape) throw new Error('<inside> requires shape attribute');
-			if (!coords) throw new Error('<inside> requires coords attribute');
+			// Shape vocabulary (QTI 2.2 ASI §5.54.2): "default" is the entire area of the image,
+			// so it takes no coordinates; every other shape is defined by its coords.
+			if (!coords && shape !== 'default') throw new Error('<inside> requires coords attribute');
 			if (kids.length !== 1) throw new Error('<inside> requires exactly one child expression');
 			return { kind: 'expr.inside', id, shape, coords, value: buildExpression(kids[0]!, options) };
 		}
@@ -796,116 +785,30 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			if (kids.length !== 1) throw new Error('<statsOperator> requires exactly one child expression');
 			return { kind: 'expr.statsOperator', id, name, values: buildExpression(kids[0]!, options) };
 		}
-		case 'record': {
-			// QTI record: children are <fieldValue fieldIdentifier="...">VALUE</fieldValue>
-			const fields = childElements(el)
-				.filter((c) => (localName(c) || '').toLowerCase() === 'fieldvalue')
-				.map((c) => ({
-					fieldIdentifier: getAttr(c, 'fieldIdentifier') || '',
-					value: buildExpression(childElements(c)[0] ?? c),
-				}))
-				.filter((f) => Boolean(f.fieldIdentifier));
-			return { kind: 'expr.record', id, fields };
-		}
 		case 'fieldvalue': {
 			const fieldIdentifier = getAttr(el, 'fieldIdentifier') || '';
 			return { kind: 'expr.fieldValue', id, fieldIdentifier, record: buildExpression(kids[0]!, options) };
 		}
 		case 'substring': {
+			// QTI 2.1 §4.10 (2.2 §2.12.3.46, 3.0 §2.11.3.46): substring takes exactly two string
+			// sub-expressions and tests containment — true when the first expression is a substring
+			// of the second — with caseSensitive [1]: boolean = true (the required `case-sensitive`
+			// in the 3.0 XSD). No QTI version defines a (string, start, length) extraction form or
+			// an optional third operand, so that shape is a compile error.
+			if (kids.length !== 2) throw new Error('<substring> requires exactly two child expressions');
 			return {
 				kind: 'expr.substring',
 				id,
-				value: buildExpression(kids[0]!, options),
-				start: buildExpression(kids[1]!, options),
-				length: kids[2] ? buildExpression(kids[2]) : undefined,
+				a: buildExpression(kids[0]!, options),
+				b: buildExpression(kids[1]!, options),
+				caseSensitive: boolAttr('caseSensitive', true),
 			};
-		}
-		case 'lookuptable': {
-			const source = buildExpression(kids[0]!, options);
-			const tableEl = kids[1];
-			if (!tableEl) {
-				throw new Error('<lookupTable> is missing its table element child');
-			}
-			const canonical = (node: Element) => mapper.toCanonical(localName(node) || '').toLowerCase();
-			const tableTag = canonical(tableEl);
-			const tableKids = childElements(tableEl);
-			const defaultValue = (getAttr(tableEl, 'defaultValue') || '').trim() || undefined;
-
-			if (tableTag === 'matchtable') {
-				const entries = tableKids
-					.filter((e) => canonical(e) === 'matchtableentry')
-					.map((e) => ({
-						sourceValue: getAttr(e, 'sourceValue') || '',
-						targetValue: getAttr(e, 'targetValue') || '',
-					}));
-
-				return {
-					kind: 'expr.lookupTable',
-					id,
-					source,
-					table: {
-						kind: 'table.matchTable',
-						defaultValue,
-						entries,
-					},
-				};
-			}
-
-			if (tableTag === 'interpolationtable') {
-				const entries = tableKids
-					.filter((e) => canonical(e) === 'interpolationtableentry')
-					.map((e) => ({
-						sourceValue: Number((getAttr(e, 'sourceValue') || '').trim() || Number.NaN),
-						targetValue: (getAttr(e, 'targetValue') || '').trim(),
-						includeBoundary: (getAttr(e, 'includeBoundary') || '').trim() !== 'false',
-					}))
-					.filter((e) => Number.isFinite(e.sourceValue));
-
-				return {
-					kind: 'expr.lookupTable',
-					id,
-					source,
-					table: {
-						kind: 'table.interpolationTable',
-						defaultValue,
-						entries,
-					},
-				};
-			}
-
-			throw new Error(`<lookupTable> unsupported table element: <${tableTag}>`);
 		}
 		case 'power': {
 			return { kind: 'expr.power', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
-		case 'mod': {
-			return { kind: 'expr.mod', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
-		}
 		case 'integerdivide': {
 			return { kind: 'expr.integerDivide', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
-		}
-		case 'mean': {
-			return { kind: 'expr.mean', id, values: buildExpression(kids[0]!, options) };
-		}
-		case 'samplevariance': {
-			return { kind: 'expr.sampleVariance', id, values: buildExpression(kids[0]!, options) };
-		}
-		case 'samplesd': {
-			return { kind: 'expr.sampleSD', id, values: buildExpression(kids[0]!, options) };
-		}
-		case 'popvariance': {
-			return { kind: 'expr.popVariance', id, values: buildExpression(kids[0]!, options) };
-		}
-		case 'popsd': {
-			return { kind: 'expr.popSD', id, values: buildExpression(kids[0]!, options) };
-		}
-		case 'istypeof': {
-			return {
-				kind: 'expr.isTypeOf',
-				id,
-				value: buildExpression(kids[0]!, options),
-				baseType: buildExpression(kids[1]!, options),
-			};
 		}
 		case 'stringmatch': {
 			return {
@@ -928,19 +831,18 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 					? { kind: 'expr.baseValue', id: newAstId('expr'), baseType: 'string', text: raw }
 					: kids[1] && buildExpression(kids[1], options);
 			if (!kids[0] || !pattern) return { kind: 'expr.null', id };
+			// No caseSensitive attribute here: patternMatch has exactly one attribute in every QTI
+			// version (`pattern` — 2.1 info model "Attribute : pattern [1]: stringOrVariableRef";
+			// 3.0 PatternMatchDType), and XSD regular expressions are case-sensitive by nature.
 			return {
 				kind: 'expr.patternMatch',
 				id,
 				value: buildExpression(kids[0], options),
 				pattern,
-				caseSensitive: boolAttr('caseSensitive', true),
 			};
 		}
 		case 'isnull': {
 			return { kind: 'expr.isNull', id, expr: buildExpression(kids[0]!, options) };
-		}
-		case 'isnotnull': {
-			return { kind: 'expr.isNotNull', id, expr: buildExpression(kids[0]!, options) };
 		}
 		case 'lt': {
 			return { kind: 'expr.lt', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
@@ -964,15 +866,14 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			return { kind: 'expr.not', id, expr: buildExpression(kids[0]!, options) };
 		}
 		case 'anyn': {
-			// QTI anyN: true if min <= #true(children) <= max
-			const min = numAttr('min', 1);
-			const max = numAttr('max', kids.length);
-			return { kind: 'expr.anyN', id, min, max, ops: kids.map((k) => buildExpression(k, options)) };
-		}
-		case 'alln': {
-			// Historical/non-standard: true if #true(children) <= max
-			const max = numAttr('max', kids.length);
-			return { kind: 'expr.allN', id, max, ops: kids.map((k) => buildExpression(k, options)) };
+			// QTI anyN: true if min <= #true(children) <= max. Both bounds are integerOrVariableRef.
+			return {
+				kind: 'expr.anyN',
+				id,
+				min: integerOrVariableRefAttr('min', 1),
+				max: integerOrVariableRefAttr('max', kids.length),
+				ops: kids.map((k) => buildExpression(k, options)),
+			};
 		}
 		case 'sum': {
 			return { kind: 'expr.sum', id, values: kids.map((k) => buildExpression(k, options)) };
@@ -1005,40 +906,39 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		case 'mapresponse': {
 			return { kind: 'expr.mapResponse', id, identifier: getAttr(el, 'identifier') || '' };
 		}
-		case 'mapoutcome': {
-			return { kind: 'expr.mapOutcome', id, identifier: getAttr(el, 'identifier') || '' };
-		}
 		case 'mapresponsepoint': {
 			return { kind: 'expr.mapResponsePoint', id, identifier: getAttr(el, 'identifier') || '' };
 		}
 		case 'randominteger': {
-			// QTI 2.2.2: randomInteger is an empty element with min/max/step attributes.
-			// For compatibility with older/variant content, also accept the legacy child-expression form.
-			const minAttr = attrAsExpr('min', 'integer');
-			const maxAttr = attrAsExpr('max', 'integer');
-			const stepAttr = attrAsExpr('step', 'integer');
-			if (minAttr && maxAttr) {
-				return { kind: 'expr.randomInteger', id, min: minAttr, max: maxAttr, step: stepAttr };
-			}
-			if (!kids[0] || !kids[1]) throw new Error('<randomInteger> requires min/max attributes or 2 child expressions');
-			return {
-				kind: 'expr.randomInteger',
-				id,
-				min: buildExpression(kids[0]),
-				max: buildExpression(kids[1]),
-				step: kids[2] ? buildExpression(kids[2]) : undefined,
+			// Every QTI version defines randomInteger as an empty element (2.1 RandomInteger.Type
+			// extends EmptyPrimitiveType, line 9317; 2.2 line 16462; 3.0 RandomIntegerDType line
+			// 8487): its attributes are its only input, and a child-expression form is invalid. Only
+			// max is required. min is optional with default "0" (2.1 line 3364, 2.2 line 8515, 3.0
+			// line 8490), so an absent min reads as that literal, in the shape attrAsExpr gives a
+			// numeric attribute. step is optional with default "1" (2.1 line 3394, 2.2 line 8530, 3.0
+			// line 8514); the evaluator applies it when the node has no step.
+			const max = attrAsExpr('max', 'integer');
+			if (!max) throw new Error('<randomInteger> requires a max attribute');
+			const min: ExpressionNode = attrAsExpr('min', 'integer') ?? {
+				kind: 'expr.baseValue',
+				id: newAstId('expr'),
+				baseType: 'integer',
+				text: '0',
 			};
+			return { kind: 'expr.randomInteger', id, min, max, step: attrAsExpr('step', 'integer') };
 		}
 		case 'randomfloat': {
-			// QTI 2.2.2: empty element with min/max attributes.
-			// For compatibility with older/variant content, also accept the legacy child-expression form.
-			const minAttr = attrAsExpr('min', 'float');
-			const maxAttr = attrAsExpr('max', 'float');
-			if (minAttr && maxAttr) {
-				return { kind: 'expr.randomFloat', id, min: minAttr, max: maxAttr };
-			}
-			if (!kids[0] || !kids[1]) throw new Error('<randomFloat> requires min/max attributes or 2 child expressions');
-			return { kind: 'expr.randomFloat', id, min: buildExpression(kids[0]), max: buildExpression(kids[1]) };
+			// Like randomInteger, an empty element: max is required, and min is optional with default
+			// "0" (2.1 line 3409, 2.2 line 8485, 3.0 line 8459), read as that literal when absent.
+			const max = attrAsExpr('max', 'float');
+			if (!max) throw new Error('<randomFloat> requires a max attribute');
+			const min: ExpressionNode = attrAsExpr('min', 'float') ?? {
+				kind: 'expr.baseValue',
+				id: newAstId('expr'),
+				baseType: 'float',
+				text: '0',
+			};
+			return { kind: 'expr.randomFloat', id, min, max };
 		}
 		case 'mathconstant': {
 			const name = (getAttr(el, 'name') || '').trim().toLowerCase();
@@ -1055,11 +955,11 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 		}
 		case 'integermodulus': {
 			if (!kids[0] || !kids[1]) throw new Error('<integerModulus> requires 2 child expressions');
-			return { kind: 'expr.integerModulus', id, a: buildExpression(kids[0]), b: buildExpression(kids[1]) };
+			return { kind: 'expr.integerModulus', id, a: buildExpression(kids[0]!, options), b: buildExpression(kids[1]!, options) };
 		}
 		case 'integertofloat': {
 			if (!kids[0]) throw new Error('<integerToFloat> requires 1 child expression');
-			return { kind: 'expr.integerToFloat', id, value: buildExpression(kids[0]) };
+			return { kind: 'expr.integerToFloat', id, value: buildExpression(kids[0]!, options) };
 		}
 		case 'gcd': {
 			if (kids.length < 1) throw new Error('<gcd> requires at least one child expression');
@@ -1079,7 +979,7 @@ export function buildExpression(el: Element, options?: { scope?: ProcessingScope
 			const figuresAttr = attrAsExpr('figures', 'integer');
 			if (!figuresAttr) throw new Error('<roundTo> requires figures attribute');
 			if (!kids[0]) throw new Error('<roundTo> requires a single child expression');
-			return { kind: 'expr.roundTo', id, value: buildExpression(kids[0]), roundingMode, figures: figuresAttr };
+			return { kind: 'expr.roundTo', id, value: buildExpression(kids[0]!, options), roundingMode, figures: figuresAttr };
 		}
 		default: {
 			// Unknown expression tags in processing are almost always a correctness bug.

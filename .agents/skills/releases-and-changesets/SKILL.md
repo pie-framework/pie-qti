@@ -79,7 +79,7 @@ Before a release, confirm:
 
 - working tree and branch are intentional,
 - pending changesets have the expected bump levels,
-- `.env` contains the npm token required by `bun run check:npm-auth`,
+- npm auth works: `check:npm-auth` uses `NPM_TOKEN`/`NODE_AUTH_TOKEN` from `.env` when present (the CI path), but locally a normal `npm login` is enough — with no token and an interactive TTY it runs `npm whoami` and falls back to interactive `npm login` on failure (see `AUTO_LOGIN_ENABLED` in `scripts/check-npm-auth.mjs`). CI has no TTY, so there the token is required,
 - `bun run verify:publish` passes,
 - `bun run test` passes when preparing an actual publish.
 

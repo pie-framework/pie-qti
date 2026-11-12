@@ -100,7 +100,7 @@ bun install
 cd apps/demo
 bun run dev
 
-# Open browser to http://localhost:5173
+# Open browser to http://localhost:5200
 ```
 
 ### Building

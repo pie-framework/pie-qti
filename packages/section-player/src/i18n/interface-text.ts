@@ -1,0 +1,27 @@
+import { type I18nProvider, translate } from '@pie-qti/i18n';
+
+/**
+ * Interface text for a candidate-facing label: the host provider's translation of `key`,
+ * else the English `fallback`.
+ *
+ * `translate` covers a provider that hands the default back. The `I18nProvider` contract
+ * also lets a provider answer a key it cannot serve with the key itself, and a section
+ * renders under whatever provider its host composes. Rendered as a label, that key would
+ * read as text (a passage headed "sectionPlayer.passage"). A key is never a translation, so
+ * it counts as a miss here too, as it already does for `translatePlural`.
+ *
+ * `key` stays `string`, like `translate`'s: hosts pass keys from their own
+ * `customMessages` catalogs, and call sites hold keys in string-typed label tables.
+ * Literal-key correctness is enforced by the `check-consumer-keys` scan in
+ * `check:i18n` (it recognizes `interfaceText(` call sites) and by the provider's
+ * unconditional missing-key warning at runtime.
+ */
+export function interfaceText(
+	i18n: I18nProvider | undefined,
+	key: string,
+	fallback: string,
+	values?: Record<string, unknown>,
+): string {
+	const message = translate(i18n, key, fallback, values);
+	return message === key ? translate(undefined, key, fallback, values) : message;
+}

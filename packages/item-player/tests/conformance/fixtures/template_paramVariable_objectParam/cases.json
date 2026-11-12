@@ -1,0 +1,29 @@
+{
+  "id": "template_paramVariable_objectParam",
+  "seed": 123,
+  "cases": [
+    {
+      "name": "param_value_receives_the_paramVariable_template_value",
+      "responses": { "RESPONSE": 4 },
+      "security": { "allowObjectEmbeds": true },
+      "expect": {
+        "outcomes": { "SCORE": 1 },
+        "itemBodyContains": [
+          "<param name=\"level\" value=\"4\" valuetype=\"DATA\">"
+        ]
+      }
+    },
+    {
+      "name": "non_paramVariable_and_undeclared_param_values_stay_literal",
+      "responses": { "RESPONSE": null },
+      "security": { "allowObjectEmbeds": true },
+      "expect": {
+        "outcomes": { "SCORE": 0 },
+        "itemBodyContains": [
+          "<param name=\"plain\" value=\"PLAIN\" valuetype=\"DATA\">",
+          "<param name=\"ghost\" value=\"UNDECLARED\" valuetype=\"DATA\">"
+        ]
+      }
+    }
+  ]
+}

@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardGraphicOrderExtractor } from '../../../src/interactions/graphic-order/extractor.js';
+import { type GraphicOrderData, standardGraphicOrderExtractor } from '../../../src/interactions/graphic-order/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardGraphicOrderExtractor', () => {
@@ -85,7 +85,7 @@ describe('standardGraphicOrderExtractor', () => {
 		]);
 	});
 
-	test('uses default values when attributes are missing', () => {
+	test('keeps hotspot defaults but invents no image dimensions when attributes are missing', () => {
 		const xml = `
 			<graphicOrderInteraction responseIdentifier="RESPONSE">
 				<object data="test.png" type="image/png"/>
@@ -98,13 +98,17 @@ describe('standardGraphicOrderExtractor', () => {
 
 		const result = standardGraphicOrderExtractor.extract(element, context);
 
-		expect(result.imageData?.width).toBe('500');
-		expect(result.imageData?.height).toBe('300');
+		// The stage's pixel space stays the image's own: a default would place the
+		// areas in a guessed space. The renderer stages the raster at its natural size.
+		expect(result.imageData?.width).toBeUndefined();
+		expect(result.imageData?.height).toBeUndefined();
 		expect(result.hotspotChoices[0].shape).toBe('rect');
 		expect(result.hotspotChoices[0].coords).toBe('0,0,50,50');
 	});
 
-	test('uses identifier as label if text content is empty', () => {
+	test('never uses the identifier as label when the hotspot has no text', () => {
+		// Identifiers can reveal the answer key to assistive technology; the
+		// renderer names an unlabelled hotspot by position instead.
 		const xml = `
 			<graphicOrderInteraction responseIdentifier="RESPONSE">
 				<object data="test.png" type="image/png"/>
@@ -117,7 +121,52 @@ describe('standardGraphicOrderExtractor', () => {
 
 		const result = standardGraphicOrderExtractor.extract(element, context);
 
-		expect(result.hotspotChoices[0].label).toBe('ITEM_A');
+		expect(result.hotspotChoices[0].label).toBe('');
+	});
+
+	test('uses the authored hotspotLabel as label', () => {
+		const xml = `
+			<graphicOrderInteraction responseIdentifier="RESPONSE">
+				<object data="test.png" type="image/png"/>
+				<hotspotChoice identifier="ITEM_A" shape="rect" coords="0,0,50,50" hotspotLabel="Mercury"/>
+			</graphicOrderInteraction>
+		`;
+
+		const element = parseQTI(xml);
+		const result = standardGraphicOrderExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+		expect(result.hotspotChoices[0].label).toBe('Mercury');
+	});
+
+	test('keeps the image text alternative from the object fallback text', () => {
+		const xml = `
+			<graphicOrderInteraction responseIdentifier="RESPONSE">
+				<object data="planets.png" type="image/png" width="400" height="200">The four inner planets</object>
+				<hotspotChoice identifier="A" shape="rect" coords="0,0,50,50"/>
+			</graphicOrderInteraction>
+		`;
+
+		const element = parseQTI(xml);
+		const result = standardGraphicOrderExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+		expect(result.imageData?.alt).toBe('The four inner planets');
+		expect(result.imageData?.decorative).toBeUndefined();
+	});
+
+	test('reads an external SVG object as an image and keeps its fallback text as alt', () => {
+		const xml = `
+			<graphicOrderInteraction responseIdentifier="RESPONSE">
+				<object data="planets.svg" type="image/svg+xml" width="400" height="200">Planet diagram</object>
+				<hotspotChoice identifier="A" shape="rect" coords="0,0,50,50"/>
+			</graphicOrderInteraction>
+		`;
+
+		const element = parseQTI(xml);
+		const result = standardGraphicOrderExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+		expect(result.imageData?.type).toBe('image');
+		expect(result.imageData?.src).toBe('planets.svg');
+		expect(result.imageData?.alt).toBe('Planet diagram');
 	});
 
 	test('handles missing prompt', () => {
@@ -134,6 +183,39 @@ describe('standardGraphicOrderExtractor', () => {
 		const result = standardGraphicOrderExtractor.extract(element, context);
 
 		expect(result.prompt).toBeNull();
+	});
+
+	test('reads maxChoices alongside minChoices, which request ordering a subset', () => {
+		const xml = `
+			<graphicOrderInteraction responseIdentifier="RESPONSE" minChoices="1" maxChoices="2">
+				<object data="test.png" type="image/png"/>
+				<hotspotChoice identifier="A" shape="circle" coords="10,10,5" hotspotLabel="Harbour"/>
+				<hotspotChoice identifier="B" shape="circle" coords="30,10,5" hotspotLabel="Station"/>
+				<hotspotChoice identifier="C" shape="circle" coords="50,10,5" hotspotLabel="Museum"/>
+			</graphicOrderInteraction>
+		`;
+
+		const element = parseQTI(xml);
+		const result = standardGraphicOrderExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+		expect(result.minChoices).toBe(1);
+		expect(result.maxChoices).toBe(2);
+	});
+
+	test('omits maxChoices when unspecified or 0, as it does minChoices', () => {
+		const xml = `
+			<graphicOrderInteraction responseIdentifier="RESPONSE" maxChoices="0">
+				<object data="test.png" type="image/png"/>
+				<hotspotChoice identifier="A" shape="circle" coords="10,10,5"/>
+				<hotspotChoice identifier="B" shape="circle" coords="30,10,5"/>
+			</graphicOrderInteraction>
+		`;
+
+		const element = parseQTI(xml);
+		const result = standardGraphicOrderExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+		expect(result).not.toHaveProperty('minChoices');
+		expect(result).not.toHaveProperty('maxChoices');
 	});
 
 	describe('canHandle predicate', () => {
@@ -160,7 +242,7 @@ describe('standardGraphicOrderExtractor', () => {
 
 	describe('validation', () => {
 		test('validates correct graphicOrder data', () => {
-			const data = {
+			const data: GraphicOrderData = {
 				hotspotChoices: [
 					{ identifier: 'A', label: 'A', shape: 'rect', coords: '0,0,100,100' },
 					{ identifier: 'B', label: 'B', shape: 'rect', coords: '100,0,200,100' },
@@ -176,7 +258,7 @@ describe('standardGraphicOrderExtractor', () => {
 		});
 
 		test('reports error for insufficient hotspots', () => {
-			const data = {
+			const data: GraphicOrderData = {
 				hotspotChoices: [{ identifier: 'A', label: 'A', shape: 'rect', coords: '0,0,100,100' }],
 				imageData: { type: 'image', src: 'test.png', width: '500', height: '400' },
 				prompt: null,
@@ -189,7 +271,7 @@ describe('standardGraphicOrderExtractor', () => {
 		});
 
 		test('reports error for duplicate identifiers', () => {
-			const data = {
+			const data: GraphicOrderData = {
 				hotspotChoices: [
 					{ identifier: 'A', label: 'A', shape: 'rect', coords: '0,0,100,100' },
 					{ identifier: 'A', label: 'B', shape: 'rect', coords: '100,0,200,100' },
@@ -205,7 +287,7 @@ describe('standardGraphicOrderExtractor', () => {
 		});
 
 		test('reports warning for missing image data', () => {
-			const data = {
+			const data: GraphicOrderData = {
 				hotspotChoices: [
 					{ identifier: 'A', label: 'A', shape: 'rect', coords: '0,0,100,100' },
 					{ identifier: 'B', label: 'B', shape: 'rect', coords: '100,0,200,100' },

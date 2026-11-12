@@ -10,9 +10,9 @@
   </itemBody>
 
   <responseProcessing>
-    <!-- equalRounded: significantFigure example -->
+    <!-- equalRounded: significantFigures example -->
     <setOutcomeValue identifier="ROUNDED_SIG">
-      <equalRounded roundingMode="significantFigure" figures="3">
+      <equalRounded roundingMode="significantFigures" figures="3">
         <variable identifier="RESPONSE"/>
         <baseValue baseType="float">3.183</baseValue>
       </equalRounded>

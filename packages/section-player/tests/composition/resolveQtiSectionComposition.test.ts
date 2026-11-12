@@ -311,4 +311,18 @@ describe('resolveQtiSectionComposition', () => {
 		expect(composition.sharedContext.stylesheets[0]?.renderHref).toBeUndefined();
 		expect(composition.diagnostics.some((diagnostic) => diagnostic.code === 'shared-asset-url-blocked')).toBe(true);
 	});
+
+	test('carries the assessment and the candidate PNP to the layouts', () => {
+		const pnp = { display: { colorScheme: 'yellowblue' as const } };
+		const composition = resolveQtiSectionComposition({ section, assessmentId: 'assessment-1', pnp });
+		expect(composition.assessmentId).toBe('assessment-1');
+		expect(composition.pnp).toBe(pnp);
+
+		// The section model's own assessment identity is the fallback.
+		expect(resolveQtiSectionComposition({ section: { ...section, assessmentId: 'assessment-2' } }).assessmentId).toBe(
+			'assessment-2',
+		);
+		expect(resolveQtiSectionComposition({ section }).assessmentId).toBeUndefined();
+	});
 });
+

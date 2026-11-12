@@ -2,14 +2,11 @@
  * Tests for mock implementations
  */
 
-import { describe, expect, test, beforeEach } from 'bun:test';
+import { describe, expect, test, beforeEach, spyOn } from 'bun:test';
 import {
 	MockStorageBackend,
 	MockTransformPlugin,
 	createMockPlugin,
-	createRejectingPlugin,
-	createFailingPlugin,
-	CaptureLogger,
 	SilentLogger,
 } from '../src/index.js';
 
@@ -183,85 +180,31 @@ describe('MockTransformPlugin', () => {
 		expect(plugin.getTransformCallCount()).toBe(0);
 		expect(plugin.getLastInput()).toBeUndefined();
 	});
-
-	test('creates rejecting plugin', async () => {
-		const plugin = createRejectingPlugin('test', 'qti22', 'pie');
-		const result = await plugin.canHandle({ content: 'test' });
-		expect(result).toBe(false);
-	});
-
-	test('creates failing plugin', async () => {
-		const plugin = createFailingPlugin('test', 'qti22', 'pie', 'Test error');
-		expect(plugin.transform({ content: 'test' })).rejects.toThrow('Test error');
-	});
 });
 
-describe('Loggers', () => {
-	test('CaptureLogger captures messages', () => {
-		const logger = new CaptureLogger();
+describe('SilentLogger', () => {
+	test('writes nothing to the console', () => {
+		const spies = [
+			spyOn(console, 'info'),
+			spyOn(console, 'warn'),
+			spyOn(console, 'error'),
+			spyOn(console, 'debug'),
+		];
 
-		logger.info('info message', 'item-1');
-		logger.warn('warn message');
-		logger.error('error message', new Error('test error'), 'item-2');
-		logger.debug('debug message');
+		try {
+			const logger = new SilentLogger();
+			logger.info('test');
+			logger.warn('test');
+			logger.error('test');
+			logger.debug('test');
 
-		expect(logger.getLogCount()).toBe(4);
-		expect(logger.hasMessage('info message')).toBe(true);
-		expect(logger.hasMessage('missing')).toBe(false);
-	});
-
-	test('CaptureLogger filters by level', () => {
-		const logger = new CaptureLogger();
-
-		logger.info('info1');
-		logger.info('info2');
-		logger.error('error1');
-
-		expect(logger.getLogsByLevel('info')).toHaveLength(2);
-		expect(logger.getLogsByLevel('error')).toHaveLength(1);
-		expect(logger.getLogsByLevel('warn')).toHaveLength(0);
-	});
-
-	test('CaptureLogger filters by item ID', () => {
-		const logger = new CaptureLogger();
-
-		logger.info('message1', { itemId: 'item-1' });
-		logger.info('message2', { itemId: 'item-2' });
-		logger.info('message3', { itemId: 'item-1' });
-
-		const item1Logs = logger.getLogsByItemId('item-1');
-		expect(item1Logs).toHaveLength(2);
-	});
-
-	test('CaptureLogger gets errors', () => {
-		const logger = new CaptureLogger();
-
-		logger.info('info');
-		logger.error('error1', new Error('test1'));
-		logger.error('error2', new Error('test2'));
-
-		const errors = logger.getErrors();
-		expect(errors).toHaveLength(2);
-	});
-
-	test('CaptureLogger clears logs', () => {
-		const logger = new CaptureLogger();
-
-		logger.info('test');
-		logger.warn('test');
-
-		logger.clear();
-
-		expect(logger.getLogCount()).toBe(0);
-	});
-
-	test('SilentLogger does nothing', () => {
-		const logger = new SilentLogger();
-
-		// Should not throw
-		logger.info('test');
-		logger.warn('test');
-		logger.error('test');
-		logger.debug('test');
+			for (const spy of spies) {
+				expect(spy).not.toHaveBeenCalled();
+			}
+		} finally {
+			for (const spy of spies) {
+				spy.mockRestore();
+			}
+		}
 	});
 });

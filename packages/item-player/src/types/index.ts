@@ -2,17 +2,19 @@
  * Core QTI types for the player
  */
 
+import type { I18nProvider } from '@pie-qti/i18n';
 import type {
 	BaseType as ProcessingBaseType,
 	Cardinality as ProcessingCardinality,
 	ProcessingFragmentResolver,
 	QtiValue,
+	StringComparisonOptions,
 } from '@pie-qti/qti-processing';
 import type {
 	AttributeNameMapper,
 	ElementNameMapper,
+	QtiVersion,
 } from '@pie-qti/qti-common';
-import type { I18nProvider } from '@pie-qti/i18n';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
 import type { PciConfiguration } from '../pci/types.js';
 import type { ComponentRegistry } from '../core/ComponentRegistry.js';
@@ -46,11 +48,6 @@ export interface Mapping {
 	defaultValue?: number;
 	lowerBound?: number;
 	upperBound?: number;
-	/**
-	 * QTI attribute on <mapping>. When "false", string mappings are case-insensitive by default.
-	 * Stored as raw string to match XML attribute values ("true"/"false").
-	 */
-	caseSensitive?: string;
 	entries: Record<string, MapEntry>;
 }
 
@@ -77,15 +74,6 @@ export interface ResponseDeclaration extends VariableDeclaration {
 	correctResponse?: any;
 }
 
-export interface OutcomeDeclaration extends VariableDeclaration {
-	interpretation?: string;
-	longInterpretation?: string;
-	normalMaximum?: number;
-	normalMinimum?: number;
-	masteryValue?: number;
-	views?: string[];
-}
-
 /** @internal Private engine snapshot shape; use SerializedItemSessionState. */
 export interface ItemSessionState {
 	[variableId: string]: any;
@@ -102,7 +90,23 @@ export interface SerializedItemSessionVariable {
 	baseType?: VariableBaseType;
 	cardinality: VariableCardinality;
 	value: any;
-	defaultValue?: any;
+	/**
+	 * The variable's default value for this session, which a setDefaultValue
+	 * template rule can change (QTI 2.1 ASI §8 / QTI 3.0 ASI §10: template-rule
+	 * effects are fixed for the session); null when the variable has no default
+	 * value. Restore applies it as-is, so null restores a NULL default rather
+	 * than the default parsed from the item XML.
+	 */
+	defaultValue: any;
+	/**
+	 * The response declaration's correct response for this session, including one
+	 * computed by a setCorrectResponse template rule (QTI 2.1 ASI §8 / QTI 3.0 ASI
+	 * §10: template-rule effects are fixed for the session). Present on every
+	 * response variable that has or had a correct response, with null meaning the
+	 * correct response is NULL; absent when the variable has no correct response.
+	 * Restore applies it as-is when present.
+	 */
+	correctResponse?: any;
 }
 
 export interface SerializedItemSessionState {
@@ -112,7 +116,8 @@ export interface SerializedItemSessionState {
 	completionStatus: CompletionStatus;
 	numAttempts: number;
 	/**
-	 * Time-on-task in milliseconds, stored as the QTI built-in duration variable value.
+	 * Time on task in milliseconds. The QTI built-in `duration` variable (in
+	 * `contextVariables.duration`) holds the same time in seconds, as QTI defines it.
 	 */
 	duration: number;
 	responseVariables: Record<string, SerializedItemSessionVariable>;
@@ -142,16 +147,12 @@ export interface ItemSessionActionResult {
 	lifecycleStatus: ItemLifecycleStatus;
 	completionStatus: CompletionStatus;
 	numAttempts: number;
+	/** Time on task in milliseconds; the QTI `duration` variable holds it in seconds. */
 	duration: number;
 	completed: boolean;
 	sessionState: SerializedItemSessionState;
 	validation?: ResponseValidationResult;
 	scoring?: ScoringResult;
-}
-
-/** @internal Private engine response map. */
-export interface InteractionResponse {
-	[responseId: string]: any;
 }
 
 /**
@@ -232,6 +233,37 @@ export interface AdaptiveAttemptResult extends ScoringResult {
  */
 export type QTIRole = 'candidate' | 'scorer' | 'proctor' | 'testConstructor' | 'tutor' | 'author';
 
+/**
+ * Why an item player reported a failure, as `error.code`. The `message` is raw engine or
+ * parser text for host logs only — never render it to candidates.
+ */
+export type ItemPlayerErrorCode =
+	| 'item-load-failed'
+	| 'response-processing-failed'
+	| 'response-dispatch-failed'
+	| 'submission-failed'
+	| 'render-failed';
+
+/** A player failure as hosts receive it: a stable `code`, the raw `message`, and the item when known. */
+export interface ItemPlayerErrorDetail {
+	code: ItemPlayerErrorCode;
+	/** Raw message, for logs and host diagnostics — never render it to candidates. */
+	message: string;
+	itemIdentifier?: string;
+}
+
+/**
+ * A failure the item body reports to its player: the stable `code` the element's
+ * `error` event carries, plus the raw cause for host logs. `render-failed` covers
+ * interaction mount/update and component-registry failures; the item keeps
+ * rendering with a visible placeholder for the failed interaction.
+ * `response-dispatch-failed` covers a rejected response write.
+ */
+export interface ItemBodyError {
+	code: Extract<ItemPlayerErrorCode, 'render-failed' | 'response-dispatch-failed'>;
+	cause: unknown;
+}
+
 export type RubricBlockScope = 'direct' | 'itemBody';
 
 /** @internal Private engine rubric query. */
@@ -251,17 +283,27 @@ export interface RubricBlock {
 }
 
 /**
- * QTI specification compliance configuration.
- * Controls whether the player enforces strict QTI 2.2 spec or allows vendor extensions.
+ * QTI compliance checks run once, when the item compiles. They are not an XSD validator: they check
+ * the version's namespace, every element name against the XSD-verified QTI 2.2 / 3.0 vocabulary
+ * (unknown QTI-namespace elements, and unknown `qti-` elements in QTI 3.0), interactions whose
+ * `responseIdentifier` names no responseDeclaration, QTI interactions with no
+ * `responseIdentifier`, and response-bound elements no registered extractor renders.
+ *
+ * Findings are listed on `AssessmentItemDefinition.diagnostics`: warnings by default, errors in
+ * strict mode. An unsupported `responseProcessing@template` always fails compilation with an
+ * `UnsupportedResponseProcessingTemplateError`, strict or not.
  */
 export interface QTIComplianceConfig {
-	/** Enable strict QTI 2.2 compliance mode. Default: false (lenient) */
+	/**
+	 * Strict mode: findings are errors, and items in versions other than QTI 2.2 and 3.0 (the
+	 * certifiable versions) are findings too. Default: false (findings are warnings).
+	 */
 	enabled?: boolean;
 
-	/** Reject items with unknown or non-standard elements. Default: false */
+	/** In strict mode, throw a `QtiComplianceError` listing every finding instead of compiling. Default: false */
 	rejectUnknownExtensions?: boolean;
 
-	/** Log warnings for spec deviations and vendor extensions. Default: true */
+	/** Write findings to the console (errors in strict mode, warnings otherwise). Default: true */
 	logDeviations?: boolean;
 }
 
@@ -314,6 +356,12 @@ export interface ItemSessionEngineConfig {
 	 * @since 0.3.0
 	 */
 	attributeNameMapper?: AttributeNameMapper;
+	/**
+	 * The item's detected QTI version, applied by extractors that carry per-version spec
+	 * defaults (e.g. graphicGapMatchInteraction maxAssociations). Detected from the item
+	 * XML when not supplied.
+	 */
+	qtiVersion?: QtiVersion;
 	/** Optional web component registry for custom interaction components */
 	componentRegistry?: ComponentRegistry;
 	/** Optional extraction registry for custom element extractors */
@@ -328,6 +376,8 @@ export interface ItemSessionEngineConfig {
 	 * Keyed by operator `class` (preferred) or `definition` URI.
 	 */
 	customOperators?: Record<string, (args: QtiValue[], meta: { class?: string; definition?: string }) => QtiValue>;
+	/** String comparison folds beyond QTI's equality; see `AssessmentItemDefinitionConfig.stringComparison`. */
+	stringComparison?: StringComparisonOptions;
 	/**
 	 * Host-controlled resolver for xi:include processing fragments.
 	 * The player never fetches an authored href directly; package hosts must resolve
@@ -353,8 +403,7 @@ export interface ItemSessionEngineConfig {
 	security?: PlayerSecurityConfig;
 
 	/**
-	 * QTI specification compliance settings.
-	 * Set strictQtiCompliance.enabled = true for strict QTI 2.2 validation.
+	 * QTI compliance checks; see `QTIComplianceConfig`. Set `enabled` for strict mode.
 	 */
 	strictQtiCompliance?: QTIComplianceConfig;
 }
@@ -399,8 +448,8 @@ export interface PlayerSecurityConfig {
 	/** Allow <iframe> usage (default false) */
 	allowIframes?: boolean;
 	/**
-	 * Optional parsing/processing guardrails to reduce DoS risk from untrusted QTI.
-	 * Disabled by default for compatibility.
+	 * Parsing/processing guardrails that reduce DoS risk from untrusted QTI. On by default;
+	 * `parsingLimits.enabled: false` opts out.
 	 */
 	parsingLimits?: ParsingLimitsConfig;
 	/**
@@ -414,38 +463,31 @@ export interface PlayerSecurityConfig {
 
 export interface ParsingLimitsConfig {
 	/**
-	 * Enables parsing limits. When false/undefined, the player behaves exactly as before (compat default).
+	 * The limits apply unless this is `false`. Opt out only for trusted content that needs more
+	 * than the limits allow (or a DOCTYPE), never to accept untrusted QTI.
 	 */
 	enabled?: boolean;
 	/**
-	 * Reject any XML containing <!DOCTYPE ...> (case-insensitive) when enabled.
+	 * Reject any XML containing <!DOCTYPE ...> (case-insensitive). Default true.
 	 * Helps reduce entity-expansion and other parser edge-case risks.
 	 */
 	rejectDoctype?: boolean;
 	/**
-	 * Maximum bytes for `itemXml` input (UTF-8). Enforced when enabled.
+	 * Maximum bytes for `itemXml` input (UTF-8). Default 10,000,000.
 	 */
 	maxItemXmlBytes?: number;
 	/**
-	 * Maximum bytes for HTML strings passed to sanitizer (UTF-8). Enforced when enabled.
+	 * Maximum bytes for HTML strings passed to the sanitizer (UTF-8). Default 5,000,000.
 	 */
 	maxHtmlBytes?: number;
 	/**
-	 * Maximum number of element nodes sanitized per HTML input. Enforced when enabled.
+	 * Maximum number of element nodes sanitized per HTML input. Default 200,000.
 	 */
 	maxHtmlNodes?: number;
 	/**
-	 * Maximum element depth sanitized per HTML input. Enforced when enabled.
+	 * Maximum element depth sanitized per HTML input. Default 200.
 	 */
 	maxHtmlDepth?: number;
-}
-
-export interface InteractionContext {
-	responseIdentifier: string;
-	maxChoices?: number;
-	minChoices?: number;
-	shuffle?: boolean;
-	orientation?: 'horizontal' | 'vertical';
 }
 
 export * from './responseValidation.js';

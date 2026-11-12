@@ -220,7 +220,7 @@ export interface PciHostOptions {
 	 * evaluates anything in the page; throwing denies the module.
 	 */
 	modulePolicy?: PciModulePolicy;
-	/** The bound response declaration, for QTI variable JSON conversion at the boundary. */
+	/** The bound response declaration; the held response seeds `getInstance` as QTI variable JSON by it. */
 	responseDeclaration?: PciResponseDeclarationInfo;
 	/**
 	 * The interaction status `getInstance` receives, fixed at instantiation. A
@@ -239,6 +239,12 @@ export interface PciHostOptions {
 	frameConnector?: PciFrameConnector;
 	/** The page origin the runner locks to; defaults to `location.origin`. Tests inject one. */
 	parentOrigin?: () => string;
+	/**
+	 * The item's content language, handed to a sandbox runner frame so its document
+	 * states the language and direction instead of assuming English/LTR (WCAG 3.1.1,
+	 * 3.1.2). The page realm needs no threading: content inherits the item's `lang`.
+	 */
+	contentLanguage?: string;
 }
 
 /**

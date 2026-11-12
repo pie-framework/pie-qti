@@ -1,7 +1,6 @@
 export type A11yFixtureId =
 	| 'sortable-list'
 	| 'match-drag-drop'
-	| 'graphic-gap-match'
 	| 'inline-interaction-renderer'
 	| 'file-upload'
 	| 'drawing-canvas'
@@ -19,7 +18,9 @@ export type A11yFixtureId =
 	| 'section-rubric-display'
 	| 'assessment-timer'
 	| 'assessment-shell'
-	| 'pnp-catalog-stimulus';
+	| 'assessment-dialog'
+	| 'pnp-catalog-stimulus'
+	| 'section-pnp-display';
 
 export interface A11yFixture {
 	id: A11yFixtureId;
@@ -29,7 +30,6 @@ export interface A11yFixture {
 export const A11Y_FIXTURES: A11yFixture[] = [
 	{ id: 'sortable-list', title: 'SortableList component fixture' },
 	{ id: 'match-drag-drop', title: 'MatchDragDrop component fixture' },
-	{ id: 'graphic-gap-match', title: 'GraphicGapMatch component fixture' },
 	{ id: 'inline-interaction-renderer', title: 'Inline interactions through ItemBody' },
 	{ id: 'file-upload', title: 'FileUpload component fixture' },
 	{ id: 'drawing-canvas', title: 'DrawingCanvas component fixture' },
@@ -47,6 +47,8 @@ export const A11Y_FIXTURES: A11yFixture[] = [
 	{ id: 'section-rubric-display', title: 'RubricDisplay (section-player)' },
 	{ id: 'assessment-timer', title: 'AssessmentTimer (assessment-player)' },
 	{ id: 'assessment-shell', title: 'AssessmentShell (assessment-player)' },
+	{ id: 'assessment-dialog', title: 'AssessmentDialog (assessment-player)' },
 	{ id: 'pnp-catalog-stimulus', title: 'PNP catalog and shared stimulus runtime' },
+	{ id: 'section-pnp-display', title: 'Section PNP display and display settings (section-player)' },
 ];
 

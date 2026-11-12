@@ -17,9 +17,18 @@ import type {
 	AssessmentItemDefinitionPlugin,
 } from './core/AssessmentItemDefinition.js';
 import type { ItemSession } from './core/ItemSession.js';
+import { isQtiRole, parseQtiRole } from './core/rolePolicy.js';
 import type { PnpProfile } from './pnp/types.js';
+import {
+	SESSION_INPUTS,
+	type SessionInputKey,
+	type SessionInputRaw,
+	type SessionInputValues,
+} from './session-inputs.js';
 import type {
 	AdaptiveAttemptResult,
+	ItemPlayerErrorCode,
+	ItemPlayerErrorDetail,
 	PlayerSecurityConfig,
 	QTIRole,
 	ScoringResult,
@@ -29,6 +38,8 @@ const HTMLElementBase: typeof HTMLElement = globalThis.HTMLElement ?? (class {} 
 
 export type PieQtiItemPlayerResponseMap = Record<string, unknown>;
 export type PieQtiItemPlayerSubmissionResult = ScoringResult | AdaptiveAttemptResult;
+export type PieQtiItemPlayerErrorDetail = ItemPlayerErrorDetail;
+export type PieQtiItemPlayerErrorCode = ItemPlayerErrorCode;
 
 export interface PieQtiItemPlayerResponseChangeDetail {
 	responseId: string;
@@ -50,6 +61,11 @@ export interface PieQtiItemPlayerEventMap {
 	ready: CustomEvent<void>;
 	submit: CustomEvent<PieQtiItemPlayerSubmitDetail>;
 	complete: CustomEvent<PieQtiItemPlayerCompleteDetail>;
+	/**
+	 * A load, response-processing, submission or render failure. The detail carries the raw
+	 * `message` for host logs; the candidate sees a localized generic message instead.
+	 */
+	error: CustomEvent<PieQtiItemPlayerErrorDetail>;
 }
 
 type ItemPlayerElementProps = {
@@ -66,12 +82,20 @@ type ItemPlayerElementProps = {
 	resolveProcessingFragment: AssessmentItemDefinitionConfig['resolveProcessingFragment'];
 	processingFragmentLimits: AssessmentItemDefinitionConfig['processingFragmentLimits'];
 	pci: AssessmentItemDefinitionConfig['pci'];
+	stringComparison: AssessmentItemDefinitionConfig['stringComparison'];
 	plugins: readonly AssessmentItemDefinitionPlugin[] | undefined;
 	responses: PieQtiItemPlayerResponseMap | undefined;
 	onResponseChange: (id: string, value: unknown) => void;
 	onSubmit: (responses: PieQtiItemPlayerResponseMap, result: PieQtiItemPlayerSubmissionResult) => void;
 	showSubmit: boolean;
 	onComplete: (result: AdaptiveAttemptResult) => void;
+	showFeedback: boolean | undefined;
+	showSolution: boolean | undefined;
+	onReady: () => void;
+	onError: (error: PieQtiItemPlayerErrorDetail) => void;
+	onOwnedSession: (session: ItemSession) => void;
+	onOwnedSessionRelease: (session: ItemSession) => void;
+	resumeSession: () => ItemSession | undefined;
 };
 
 type ItemPlayerComponentInstance = {
@@ -80,7 +104,7 @@ type ItemPlayerComponentInstance = {
 
 export class PieQtiItemPlayerElement extends HTMLElementBase {
 	static get observedAttributes() {
-		return ['item-xml', 'role', 'disabled', 'locale'];
+		return ['item-xml', 'qti-role', 'disabled', 'locale', 'show-feedback', 'show-solution'];
 	}
 
 	#mountController = createSvelteMountController<ItemPlayerElementProps, ItemPlayerComponentInstance>({
@@ -91,8 +115,6 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 	});
 
 	// Attribute-backed props
-	#itemXml = '';
-	#role: QTIRole = 'candidate';
 	#disabled = false;
 	#locale: string | undefined;
 	#renderItemBodyRubrics = true;
@@ -100,31 +122,63 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 	// JS-only props
 	#typeset: ((el: HTMLElement) => void) | undefined;
 	#i18n: I18nProvider | undefined;
-	#security: PlayerSecurityConfig | undefined;
-	#pnp: PnpProfile | undefined;
-	#deliveryContext: ResolvedItemDeliveryContext | undefined;
-	#resolveProcessingFragment: AssessmentItemDefinitionConfig['resolveProcessingFragment'];
-	#processingFragmentLimits: AssessmentItemDefinitionConfig['processingFragmentLimits'];
-	#pci: AssessmentItemDefinitionConfig['pci'];
-	#plugins: readonly AssessmentItemDefinitionPlugin[] | undefined;
 	#session: ItemSession | undefined;
+
+	/**
+	 * The definition-fixed session inputs (see `src/session-inputs.ts` for the canonical
+	 * list and its change semantics). The setters below store through `SESSION_INPUTS`:
+	 * `changed` decides whether a write is a new definition, and only then is the owned
+	 * session retired. Unchanged writes keep the stored value, so a re-assigned equal
+	 * list or options record pushes an identical prop and the player's session effect
+	 * does not re-run.
+	 */
+	#inputs: SessionInputValues = {
+		itemXml: '',
+		role: 'candidate',
+		security: undefined,
+		pnp: undefined,
+		deliveryContext: undefined,
+		resolveProcessingFragment: undefined,
+		processingFragmentLimits: undefined,
+		pci: undefined,
+		stringComparison: undefined,
+		plugins: undefined,
+		showFeedback: undefined,
+		showSolution: undefined,
+	};
+	/**
+	 * The session the player owns on this element's behalf. The component hands it over when
+	 * it opens one and returns it undisposed when it unmounts, so reconnecting the element
+	 * resumes the attempt instead of opening a fresh session.
+	 */
+	#owned: ItemSession | undefined;
+	/**
+	 * A definition-fixed input changed since `#owned` was opened: it no longer matches the item
+	 * and is not resumed. The mounted player's re-open supersedes and closes it.
+	 */
+	#ownedStale = false;
 	/** The provider and locale whose view's `ready` this element already awaits. */
 	#awaited: { i18n: I18nProvider; locale: string } | undefined;
 	#responses: PieQtiItemPlayerResponseMap | undefined;
 
 	get itemXml() {
-		return this.#itemXml;
+		return this.#inputs.itemXml;
 	}
 	set itemXml(value: string | undefined) {
-		this.#itemXml = value ?? '';
+		this.#writeSessionInput('itemXml', value);
 		this.#update();
 	}
 
+	/**
+	 * The QTI view the item renders for: `candidate`, `scorer`, `proctor`, `testConstructor`,
+	 * `tutor` or `author`. Declaratively this is the `qti-role` attribute — a bare `role`
+	 * attribute is the ARIA role. Unknown values render as `candidate` with a diagnostic.
+	 */
 	get role(): QTIRole {
-		return this.#role;
+		return this.#inputs.role;
 	}
 	set role(value: QTIRole | null) {
-		this.#role = value ?? 'candidate';
+		this.#writeSessionInput('role', value);
 		this.#update();
 	}
 
@@ -169,6 +223,32 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 		this.#update();
 	}
 
+	/**
+	 * Standalone integrated-feedback policy, declaratively the `show-feedback` attribute. QTI
+	 * `itemSessionControl@showFeedback` defaults to false, so feedbackInline and feedbackBlock
+	 * stay hidden unless the host opts in. Changing it re-opens the session the element owns.
+	 */
+	get showFeedback(): boolean | undefined {
+		return this.#inputs.showFeedback;
+	}
+	set showFeedback(value: boolean | undefined) {
+		this.#writeSessionInput('showFeedback', value);
+		this.#update();
+	}
+
+	/**
+	 * Standalone correct-response policy, declaratively the `show-solution` attribute: true
+	 * exposes correct responses once the attempt has ended. Changing it re-opens the session
+	 * the element owns.
+	 */
+	get showSolution(): boolean | undefined {
+		return this.#inputs.showSolution;
+	}
+	set showSolution(value: boolean | undefined) {
+		this.#writeSessionInput('showSolution', value);
+		this.#update();
+	}
+
 	get typeset() {
 		return this.#typeset;
 	}
@@ -186,26 +266,26 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 	}
 
 	get security() {
-		return this.#security;
+		return this.#inputs.security;
 	}
 	set security(value: PlayerSecurityConfig | undefined) {
-		this.#security = value;
+		this.#writeSessionInput('security', value);
 		this.#update();
 	}
 
 	get pnp() {
-		return this.#pnp;
+		return this.#inputs.pnp;
 	}
 	set pnp(value: PnpProfile | undefined) {
-		this.#pnp = value;
+		this.#writeSessionInput('pnp', value);
 		this.#update();
 	}
 
 	get deliveryContext() {
-		return this.#deliveryContext;
+		return this.#inputs.deliveryContext;
 	}
 	set deliveryContext(value: ResolvedItemDeliveryContext | undefined) {
-		this.#deliveryContext = value;
+		this.#writeSessionInput('deliveryContext', value);
 		this.#update();
 	}
 
@@ -214,34 +294,46 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 	 * functions such as moduleResolver cannot be represented safely as attributes.
 	 */
 	get pci() {
-		return this.#pci;
+		return this.#inputs.pci;
 	}
 	set pci(value: AssessmentItemDefinitionConfig['pci']) {
-		this.#pci = value;
+		this.#writeSessionInput('pci', value);
+		this.#update();
+	}
+
+	/**
+	 * String comparison folds beyond QTI's equality for the candidates' input, applied when the
+	 * element creates its own definition (see `AssessmentItemDefinitionConfig.stringComparison`).
+	 */
+	get stringComparison() {
+		return this.#inputs.stringComparison;
+	}
+	set stringComparison(value: AssessmentItemDefinitionConfig['stringComparison']) {
+		this.#writeSessionInput('stringComparison', value);
 		this.#update();
 	}
 
 	get plugins() {
-		return this.#plugins;
+		return this.#inputs.plugins;
 	}
 	set plugins(value: readonly AssessmentItemDefinitionPlugin[] | undefined) {
-		this.#plugins = value ? Object.freeze([...value]) : undefined;
+		this.#writeSessionInput('plugins', value);
 		this.#update();
 	}
 
 	get resolveProcessingFragment() {
-		return this.#resolveProcessingFragment;
+		return this.#inputs.resolveProcessingFragment;
 	}
 	set resolveProcessingFragment(value: AssessmentItemDefinitionConfig['resolveProcessingFragment']) {
-		this.#resolveProcessingFragment = value;
+		this.#writeSessionInput('resolveProcessingFragment', value);
 		this.#update();
 	}
 
 	get processingFragmentLimits() {
-		return this.#processingFragmentLimits;
+		return this.#inputs.processingFragmentLimits;
 	}
 	set processingFragmentLimits(value: AssessmentItemDefinitionConfig['processingFragmentLimits']) {
-		this.#processingFragmentLimits = value;
+		this.#writeSessionInput('processingFragmentLimits', value);
 		this.#update();
 	}
 
@@ -252,11 +344,19 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 	/**
 	 * Live session injection point for assessment/section composition.
 	 * Set as a JavaScript property; the element never owns or disposes an injected session.
+	 * Injecting one supersedes the session the element opened for itself.
 	 */
 	get session() {
 		return this.#session;
 	}
 	set session(value: ItemSession | undefined) {
+		// A mounted player returns its own session as it switches to the injected one, and
+		// #releaseOwnedSession closes it there; detached, nothing will, so close it here.
+		if (value && this.#owned && !this.isConnected) {
+			this.#owned.dispose();
+			this.#owned = undefined;
+			this.#ownedStale = false;
+		}
 		this.#session = value;
 		this.#update();
 	}
@@ -266,23 +366,26 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 	}
 
 	connectedCallback() {
+		this.#warnLegacyRoleAttribute();
 		this.#mountController.mountOrUpdate(this.#getProps());
-		queueMicrotask(() => {
-			if (!this.isConnected) return;
-			this.dispatchEvent(new CustomEvent<void>('ready', { bubbles: true, composed: true }));
-		});
 	}
 
 	disconnectedCallback() {
+		// Unmounting hands the session the player owns to #releaseOwnedSession, which keeps it
+		// alive so a reattach resumes the attempt. A removed element's session closes with the page.
 		this.#mountController.teardown({ removeContainer: true });
 	}
 
 	attributeChangedCallback(name: string, _old: string | null, value: string | null) {
-		if (name === 'item-xml') this.#itemXml = value ?? '';
-		else if (name === 'role') this.#role = (value ?? 'candidate') as QTIRole;
-		else if (name === 'disabled') this.#disabled = value !== null;
-		else if (name === 'locale') this.#locale = value ?? undefined;
-		this.#update();
+		if (name === 'item-xml') this.itemXml = value ?? '';
+		else if (name === 'qti-role') this.role = parseQtiRole(value);
+		else if (name === 'disabled') this.disabled = value !== null;
+		else if (name === 'locale') {
+			// Not the property setter: markup may carry `locale` before the host assigns `i18n`.
+			this.#locale = value ?? undefined;
+			this.#update();
+		} else if (name === 'show-feedback') this.showFeedback = value === null ? undefined : true;
+		else if (name === 'show-solution') this.showSolution = value === null ? undefined : true;
 	}
 
 	/** Score the current responses and emit `submit` (and, when applicable, `complete`). */
@@ -337,33 +440,127 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 		});
 	}
 
+	/** The `role` attribute is the ARIA role now; QTI-role values there used to configure the player. */
+	#warnLegacyRoleAttribute() {
+		const legacy = this.getAttribute('role');
+		if (legacy && isQtiRole(legacy)) {
+			warnOnce(
+				'item-player:role-attribute',
+				`The 'role' attribute is the ARIA role and no longer configures the player. Use qti-role="${legacy}" to render the ${legacy} view.`,
+			);
+		}
+	}
+
+	/**
+	 * The session the element kept for a remount, if it still matches the item. Read once per
+	 * effect run, so the session adopted at mount is not a reactive dependency.
+	 */
+	#resumableSession = (): ItemSession | undefined => {
+		return this.#session || this.#ownedStale ? undefined : this.#owned;
+	};
+
+	/** The player opened, adopted or replaced the session it owns for this element. */
+	#takeOwnedSession = (session: ItemSession) => {
+		if (this.#owned && this.#owned !== session) this.#owned.dispose();
+		this.#owned = session;
+		this.#ownedStale = false;
+	};
+
+	/**
+	 * The player's own session left its effect. Superseded by a host-injected session, or
+	 * already closed, it is spent; otherwise it stays alive so reconnecting the element
+	 * resumes the attempt.
+	 */
+	#releaseOwnedSession = (session: ItemSession) => {
+		if (this.#session || session.state().disposed) {
+			session.dispose();
+			if (this.#owned === session) {
+				this.#owned = undefined;
+				this.#ownedStale = false;
+			}
+			return;
+		}
+		this.#owned = session;
+	};
+
+	/** A definition-fixed input changed: the session the element kept no longer matches the item. */
+	#retireOwnedSession() {
+		if (!this.#owned) return;
+		if (this.isConnected) {
+			// The mounted player still renders it; its re-open supersedes and closes it.
+			this.#ownedStale = true;
+			return;
+		}
+		this.#owned.dispose();
+		this.#owned = undefined;
+		this.#ownedStale = false;
+	}
+
+	/**
+	 * Store one definition-fixed session input through its `SESSION_INPUTS` semantics
+	 * (src/session-inputs.ts): a write the descriptor's `changed` rejects is a no-op that
+	 * keeps the stored value and the session; a write it accepts replaces the stored
+	 * value and retires the session the element owns.
+	 */
+	#writeSessionInput<K extends SessionInputKey>(key: K, value: SessionInputRaw<K>) {
+		const input = SESSION_INPUTS[key];
+		const next = input.store(value);
+		if (!input.changed(this.#inputs[key], next)) return;
+		this.#inputs[key] = next;
+		this.#retireOwnedSession();
+	}
+
 	#getProps(): ItemPlayerElementProps {
 		return {
-			itemXml: this.#itemXml,
+			itemXml: this.#inputs.itemXml,
 			session: this.#session,
-			role: this.#role,
+			role: this.#inputs.role,
 			disabled: this.#disabled,
 			renderItemBodyRubrics: this.#renderItemBodyRubrics,
 			typeset: this.#typeset,
 			i18n: this.#resolveI18n(),
-			security: {
-				...(this.#security ?? {}),
-				parsingLimits: {
-					enabled: true,
-					...(this.#security?.parsingLimits ?? {}),
-				},
-			},
-			pnp: this.#pnp,
-			deliveryContext: this.#deliveryContext,
-			resolveProcessingFragment: this.#resolveProcessingFragment,
-			processingFragmentLimits: this.#processingFragmentLimits,
-			pci: this.#pci,
-			plugins: this.#plugins,
+			security: this.#inputs.security,
+			pnp: this.#inputs.pnp,
+			deliveryContext: this.#inputs.deliveryContext,
+			resolveProcessingFragment: this.#inputs.resolveProcessingFragment,
+			processingFragmentLimits: this.#inputs.processingFragmentLimits,
+			pci: this.#inputs.pci,
+			stringComparison: this.#inputs.stringComparison,
+			plugins: this.#inputs.plugins,
 			responses: this.#responses,
+			showFeedback: this.#inputs.showFeedback,
+			showSolution: this.#inputs.showSolution,
+			onReady: () => {
+				// Deferred so hosts that listen after appending still observe the first render.
+				queueMicrotask(() => {
+					if (!this.isConnected) return;
+					this.dispatchEvent(new CustomEvent<void>('ready', { bubbles: true, composed: true }));
+				});
+			},
+			onError: (error) => {
+				this.dispatchEvent(
+					new CustomEvent<PieQtiItemPlayerErrorDetail>('error', {
+						detail: error,
+						bubbles: true,
+						composed: true,
+					}),
+				);
+			},
+			onOwnedSession: this.#takeOwnedSession,
+			onOwnedSessionRelease: this.#releaseOwnedSession,
+			resumeSession: this.#resumableSession,
 			onResponseChange: (responseId, value) => {
-				const responses = this.#session
-					? { ...this.#session.state().responses }
-					: { ...(this.#responses ?? {}), [responseId]: value };
+				const owned = this.#session ?? this.#owned;
+				let sessionSnapshot: PieQtiItemPlayerResponseMap | null = null;
+				if (owned) {
+					try {
+						sessionSnapshot = { ...owned.state().responses } as PieQtiItemPlayerResponseMap;
+					} catch {
+						sessionSnapshot = null; // the session closed between the dispatch and this event
+					}
+				}
+				const responses =
+					sessionSnapshot ?? { ...(this.#responses ?? {}), [responseId]: value };
 				this.#responses = responses;
 				this.dispatchEvent(
 					new CustomEvent<PieQtiItemPlayerResponseChangeDetail>('response-change', {

@@ -5,19 +5,19 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: orderInteraction
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-11-09
 -->
 
 **Status:** draft
 **Type:** interaction
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-11-09
 
 ---
 
 ## Summary
 
-`orderInteraction` is the QTI interaction type for sequencing tasks: the candidate must arrange a set of choices into a specific order. It is used for timeline questions, process-step sequencing, and ranked ordering. The implementation renders `simpleChoice` elements as a drag-and-drop sortable list with full keyboard and touch support, emits `qti-change` events on every reorder, requires explicit confirmation before the response is committed, and uses an `ordered`-cardinality response variable (position matters, not just membership) for all-or-nothing `MATCH_CORRECT` scoring.
+`orderInteraction` is the QTI interaction type for sequencing tasks: the candidate must arrange a set of choices into a specific order. It is used for timeline questions, process-step sequencing, and ranked ordering. The implementation renders `simpleChoice` elements as a drag-and-drop sortable list with full keyboard and touch support, emits `qti-change` events on every reorder, requires explicit confirmation before the response is committed, and uses an `ordered`-cardinality response variable (position matters, not just membership) for all-or-nothing `MATCH_CORRECT` scoring. When `minChoices` asks for a subset ("rank your top 2 of 5"), the candidate instead chooses which choices to order from a pool and orders only those.
 
 ---
 
@@ -33,7 +33,7 @@
 
 **Why `shuffle` is applied during extraction, not by the component**: The `shuffle` attribute signals that the author wants choices presented in a randomized initial order. That randomization has to happen before the data reaches the component, so the order can be reproduced on resume rather than re-rolled on every render. It is therefore applied at extraction time by `maybeShuffle` (`packages/item-player/src/core/shuffle.ts`), using a PRNG seeded from the item session GUID and the `responseIdentifier`. `Player` persists that GUID in its saved state and restores it, so the candidate sees the same order on resume while a different candidate or attempt gets a different one. `fixed=true` choices keep their authored index. The component deliberately does not shuffle: doing so would re-order on every re-render and double-shuffle the already-shuffled array. The `SortableList` component receives `orderedIds` (the display order), populated from the response on resume, so the resume path continues to work once an order has been confirmed.
 
-**Why `minChoices` and `maxChoices` are not extracted into `OrderInteractionData`**: The QTI spec allows `orderInteraction` to have fewer choices in the response than are presented — `minChoices` sets the lower bound, `maxChoices` the upper bound, on the number of items the candidate must place. Both are absent from `OrderInteractionData` (the type used by the component) and are not extracted by `standardOrderExtractor`. This is an unimplemented gap. In the common case all choices must be ordered (no `minChoices`/`maxChoices` constraints), which is why this was not prioritised. Items that use these attributes to present a "pick and rank" UI (e.g., "select and rank the top 3 from this list of 6") will silently ignore the constraints and require all choices to be placed.
+**Why `minChoices` switches to a two-zone subset UI**: QTI 2.2 ASI §5.73 lets an `orderInteraction` ask for a subset: "If specified, minChoices must be 1 or greater but must not exceed the number of choices available. If unspecified, all of the choices must be ordered and maxChoices is ignored", and §2.4.1.2: "When specified the candidate must select a subset of the choices and impose an ordering on them." A full permutation can never answer such an item: a 5-item response to "rank your top 2 of 5" never matches a 2-item correct response, so the item scores wrong. Subset mode therefore applies when `minChoices` is at least 1 and below the number of choices; the candidate may then order between `minChoices` and the cap, which is `maxChoices` (0 = no limit) clamped to the number of choices. The rule lives in one pure function, `orderChoiceLimits` (`packages/item-player/src/interactions/order/limits.ts`), exported from `@pie-qti/item-player` and read by both the renderer and response validation, so the delivered UI can never produce a response validation rejects. With `minChoices` unspecified, or at or above the number of choices, the interaction stays the full-permutation list described below, unchanged.
 
 **Why a separate `OrderData` extractor type exists alongside `OrderInteractionData`**: The extractor produces `OrderData` (from `packages/item-player/src/interactions/order/extractor.ts`), which includes `fixed` per choice and `orientation`. The component uses `OrderInteractionData` (from `packages/item-player/src/interactions/shared/types.ts`), which does not declare `fixed` or `orientation`. `Player.getInteractions()` spreads the extracted data onto the base type at line 489 of `Player.ts`, so `fixed` and `orientation` are present at runtime on the object the component receives — they are just not in the TypeScript type. This means `fixed` is silently passed to the component but the component does not use it: `SortableList` treats all choices as shuffleable regardless of their `fixed` flag.
 
@@ -53,15 +53,18 @@
 | `responseIdentifier` | Full | Extracted as `responseId`; used in `qti-change` event payload |
 | `shuffle` | ✅ Full | Extracted as `shuffle: boolean` and applied at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads. `fixed=true` choices keep their authored index. |
 | `orientation` | Partial | Extracted by `standardOrderExtractor` as `orientation` (`'vertical'` \| `'horizontal'`); defaults to `'vertical'`. Reached component via runtime spread but not in `OrderInteractionData` TypeScript type. The `SortableList` component reads `orientation` and adjusts arrow-key axis and flex layout direction accordingly. |
-| `minChoices` | Not extracted | Spec defines minimum number of choices in the response. Not in `OrderInteractionData`. Not enforced. All choices are always required. See Known gaps. |
-| `maxChoices` | Not extracted | Spec defines maximum number of choices in the response. Not in `OrderInteractionData`. Not enforced. See Known gaps. |
+| `minChoices` | ✅ Full | Extracted as `minChoices` (0 when unspecified). From 1 up to fewer than the choices it requests subset ordering (two-zone UI); unspecified, or at or above the number of choices, every choice is ordered. Response validation enforces the same minimum. |
+| `maxChoices` | ✅ Full | Extracted as `maxChoices` (0 when unspecified). Caps subset ordering (clamped to the number of choices; 0 = up to all); adding past it is refused and announced, and validation rejects a longer response. Ignored when `minChoices` is unspecified, as the spec requires. |
+| `data-min-selections-message` | ✅ Full | QTI 3.0 (Table on `qti-order-interaction`). Replaces the localized minimum hint, and the range statement of subset mode, while the order holds fewer items than `minChoices` requires. |
+| `data-max-selections-message` | ✅ Full | QTI 3.0 (Table on `qti-order-interaction`). Announced when an add is refused at the subset cap, instead of the localized "Your order can hold up to {max} items…". |
+| `data-choices-container-width` | ❌ Not implemented | Defined by QTI 3.0 on `qti-order-interaction` (3.0 XSD line 5013): the width of the choices container for the `qti-choices-top/bottom/left/right` side-by-side layouts (optional Level 3 conformance). This component ships no side-by-side layout by PRD decision, so the attribute has nothing to size and is not delivered; an authored value is ignored. |
 
 ### Supported attributes on `simpleChoice`
 
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `identifier` | Full | Required; deduplicated; used as list item key, in `qti-change` payload, and in response |
-| `fixed` | Partial | Extracted by `standardOrderExtractor` as `fixed?: boolean` on the choice object; passed to component via runtime spread. **The component does not honour `fixed`** — all choices are draggable regardless. See Known gaps. |
+| `fixed` | Full | Extracted by `standardOrderExtractor` as `fixed?: boolean` on the choice object. The extraction-time shuffle keeps a fixed choice at its authored index. QTI's `fixed` binds the delivery engine ("the position of this choice within the interaction must not be changed by the delivery engine even if the immediately enclosing interaction supports the shuffling of choices", QTI 3.0 §5.132.2), not the candidate, so every choice stays draggable. |
 | class (CSS classes) | Partial | Extracted as `classes?: string[]`; not rendered as CSS classes by default component but available for custom renderer detection |
 | `templateIdentifier` | Full | A choice whose template variable hides it is dropped before extraction, by the shared visibility rule. |
 | `showHide` | Full | Inverts `templateIdentifier` visibility. |
@@ -70,9 +73,10 @@
 
 - **baseType:** `identifier`
 - **cardinality:** `ordered`
-- **Value format:** `string[]` — an ordered array of `identifier` strings, one per placed choice
-- **Null/empty:** `null` before any interaction; `[]` after clearing a response. The component treats `null` and `[]` equivalently as "unconfirmed".
+- **Value format:** `string[]` — an ordered array of `identifier` strings, one per placed choice; in subset mode only the ordered subset
+- **Null/empty:** `null` before any interaction; `[]` after clearing a response. The component treats `null` and `[]` equivalently as "unconfirmed". In subset mode an empty order is reported as `null`.
 - **Scoring:** The `match` operator on `ordered` cardinality performs positional equality. `["A","B","C"]` matches only `["A","B","C"]`; partial matches score 0.
+- **Validation:** `Player.validateResponses` counts an order that has begun against its mode's minimum — every choice without a subset, `minChoices` with one — and in subset mode rejects a response longer than the cap (`exceeds maxChoices=N`). An untouched order is a skip, governed by `allowSkipping`.
 
 ### Standard response processing templates
 
@@ -82,11 +86,9 @@
 ### Known gaps
 
 
-- **`fixed` does not restrict dragging:** `fixed=true` is honoured when the initial shuffle is applied (the choice keeps its authored index), but `SortableList` still lets the candidate drag it afterwards. The spec constrains the shuffle, not candidate interaction, so this is a deliberate limitation rather than a defect.
+- **`fixed` does not restrict dragging (not a divergence):** `fixed=true` is honoured when the initial shuffle is applied (the choice keeps its authored index), and `SortableList` still lets the candidate drag it afterwards. QTI constrains the delivery engine's shuffling, not candidate interaction (QTI 2.1 choice; QTI 3.0 §5.132.2), so this follows the specification.
 
-- **`minChoices`/`maxChoices` not extracted (unimplemented):** Items that require the candidate to rank a subset of choices (e.g., "order the top 3 from this list of 6") cannot be represented. Both constraints are absent from `OrderInteractionData`. When present in QTI XML, they are silently ignored and all choices are treated as required.
-
-- **G-09 (PNP elimination tool):** Implemented for `orderInteraction`; when `pnp.cognitive.eliminationTool` is enabled, an eliminate/dismiss button appears per choice without changing the response value.
+- **G-09 (PNP elimination tool):** Implemented for `orderInteraction`; when `pnp.cognitive.eliminationTool` is enabled, an eliminate/dismiss button appears per choice without changing the response value. In subset mode each choice keeps exactly one toggle, in whichever zone it is.
 
 ---
 
@@ -107,6 +109,12 @@
 - **FR-13:** Accept a `response` prop (string[]) and restore the displayed order from it on mount without emitting a `qti-change` event.
 - **FR-14:** Reset confirmation state when `response` is externally cleared (set to `null` or `[]`).
 - **FR-15:** Support vertical orientation (default) and horizontal orientation, controlled by the `orientation` value from extracted data.
+- **FR-16 (subset mode):** When `minChoices` is at least 1 and below the number of choices, render two labelled zones: "Your order" (the SortableList, holding only the ordered subset, with position badges) and "Not in your order" (every other choice, in presentation order, with no position badge). The order starts empty and the response is `null` until the candidate adds an item.
+- **FR-17 (subset mode):** Each pool row is one add control named "Add {item} to your order"; each order row gains a remove control named "Remove {item} from your order". Adding appends the item at the end of the order; removing returns it to its pool position. Each add, remove or reorder emits `qti-change` with the ordered subset, or `null` when the order is empty. Names come from the choice's rendered text (image alt and MathML included), never its identifier.
+- **FR-18 (subset mode):** Adding past the cap is refused and announced ("Your order can hold up to {max} items. Remove one to add another."); at the cap the remaining add controls stay focusable with `aria-disabled="true"`.
+- **FR-19 (subset mode):** State the limits up front where the unmet-minimum hint goes — "Choose {count} items and put them in order." when `minChoices` equals the cap, else "Choose between {min} and {max} items and put them in order." — until the minimum is met; the author's `data-min-selections-message` wins.
+- **FR-20 (subset mode):** No confirm control: every ordered item got there by an explicit, reversible add (see Design decisions).
+- **FR-21 (subset mode):** With `role='scorer'` and a `correctResponse`, list the authored subset under "Correct order" (read-only), beside the candidate's subset marked position by position.
 
 ---
 
@@ -119,12 +127,13 @@ WCAG 2.2 Level AA compliance is mandatory for all default components.
 - **Keyboard drag pattern (SC 2.1.1):** The grab → move → drop pattern with Space/Enter and arrow keys is mandatory. Arrow keys must respect orientation: Up/Down for `vertical`, Left/Right for `horizontal`. Horizontal keys follow the inline direction: under `rtl`, ArrowRight moves earlier.
 - **Focus management (SC 2.4.3):** After a keyboard drop, focus must remain on the dropped item at its new position.
 - **Live region announcements (SC 4.1.3):** All position changes must be announced via `aria-live="polite"` with messages in the format: `"{item} moved to position {N} of {total}"`. Grab, drop, and cancel must each have their own message. Messages are i18n-keyed (see `interactions.order.*` keys).
-- **Static instructions for screen readers:** An `aria-describedby` pointing to a visually hidden instructions element must be present on the list container. The instructions explain the grab → arrow → drop pattern.
-- **`aria-grabbed` (SC 4.1.2):** Each list item button must carry `aria-grabbed={isGrabbed}` to reflect grab state.
+- **Static instructions for screen readers:** An `aria-describedby` pointing to a visually hidden instructions element must be present on the list container. The instructions explain the grab → arrow → drop pattern. Its id, like every name and state id in the list, is unique per list instance, so several lists in one document never share it.
+- **Grab state (SC 4.1.2):** The `aria-grabbed` attribute (deprecated since WAI-ARIA 1.1, unreliable in current screen readers) is not used. Grab state is exposed through the item's `aria-describedby` state sentence ("Grabbed. Use arrow keys to move."), the `data-grabbed` styling hook, and the grab, drop and cancel live-region announcements.
 - **Touch targets (SC 2.5.8):** Each sortable item must be at least 44×44 CSS px on a 375-px viewport.
 - **`disabled` accessibility:** When `disabled=true`, items must have `disabled` attribute (native button disabled) so assistive technologies announce them as non-interactive.
 - **Confirmation button (SC 3.3.4):** The "Confirm Order" button must have an `aria-label` that fully describes the action (`'Confirm this order as your answer'`) and must be reachable by Tab.
 - **Colour-only feedback (SC 1.4.1):** Correct-position highlighting must not rely on colour alone. The implementation uses both a colour change and a "Correct" badge text label.
+- **Subset mode (SC 2.1.1, 2.4.3, 2.5.8, 3.3.2, 4.1.3):** Add and remove are native buttons (keyboard operable), at least 44×44 CSS px. Focus follows the moved item: an add lands on the new row's remove control, a remove on the returned item's add control. Add, remove and refusal announce through the component's polite live region, toggling a trailing zero-width space so a repeated refusal is announced again; moves keep the SortableList's own announcements. On narrow screens a row's controls wrap under the item (SC 1.4.10). The at-cap add controls keep a `GrayText` state under forced colors, and the zones use logical CSS so they mirror under `rtl`.
 
 ### Performance
 
@@ -153,6 +162,17 @@ All user-visible strings pass through the `i18n` provider. The keys used are:
 | `interactions.order.itemDropped` | `'{item} dropped at position {position} of {total}'` | Live region — item dropped |
 | `interactions.order.itemMoved` | `'{item} moved to position {position} of {total}'` | Live region — item moved by arrow key |
 | `interactions.order.selectionCancelled` | `'{item} selection cancelled'` | Live region — Escape pressed |
+| `interactions.order.yourOrder` | `'Your order'` | Subset mode — label of the ordered zone |
+| `interactions.order.notInOrder` | `'Not in your order'` | Subset mode — label of the pool |
+| `interactions.order.emptyOrder` | `'Nothing is in your order yet.'` | Subset mode — empty order, also its list description |
+| `interactions.order.addItem` | `'Add {item} to your order'` | Subset mode — add control name |
+| `interactions.order.removeItem` | `'Remove {item} from your order'` | Subset mode — remove control name |
+| `interactions.order.itemAdded` | `'{item} added to your order at position {position} of {total}.'` | Live region — item added |
+| `interactions.order.itemRemoved` | `'{item} removed from your order.'` | Live region — item removed |
+| `interactions.order.orderLimitReached` | plural: `'Your order can hold up to {max} items. Remove one to add another.'` | Live region — add refused at the cap |
+| `interactions.order.correctOrder` | `'Correct order'` | Subset mode — scorer's correct-response list |
+| `interactions.order.subsetExactHint` | plural: `'Choose {count} items and put them in order.'` | Subset mode — limits when `minChoices` equals the cap |
+| `interactions.order.subsetRangeHint` | plural: `'Choose between {min} and {max} items and put them in order.'` | Subset mode — limits as a range |
 
 All locales in `packages/i18n/src/locales/` carry translations for the `interactions.order` namespace.
 
@@ -163,6 +183,24 @@ Choice text is rendered via `{@html}` (via `SortableList`). Content is sanitized
 ---
 
 ## Design decisions
+
+### Subset ordering uses two zones, not an include toggle per item
+
+**Decision:** In subset mode the candidate moves choices between "Not in your order" and "Your order" with explicit add and remove controls; "Your order" is the existing SortableList.
+
+**Rationale:** The spec's wording — "select a subset of the choices and impose an ordering on them" — names two gestures, and the two zones map onto them one to one: membership is which zone an item is in, order is the position within "Your order". Reusing the SortableList keeps every established ordering behaviour (drag, touch, the grab/move/drop keys, move buttons, RTL key mirroring, forced-colors grab state, focus retention, position announcements) and keeps positions meaningful: "Position 2 of 2" counts only ordered items.
+
+**Alternatives considered:** An include toggle on each item of a single list. Rejected: excluded items would still sit between ordered ones, so positions, badges and "position N of M" announcements would need to skip them, and dragging past an excluded item would be ambiguous.
+
+**Consequences:** Ordering a subset takes one more gesture per item (add, then optionally move). The pool keeps presentation order, so a removed item returns to where it was.
+
+### No confirm step in subset mode
+
+**Decision:** Subset mode renders no "Confirm Order" control; each add, remove and reorder records the response at once, and an empty order is `null`.
+
+**Rationale:** Full mode needs the confirm step because the presented order is itself a plausible answer a candidate might mean to keep untouched (WCAG 2.2 SC 3.3.4). In subset mode nothing is ordered until the candidate adds an item, every ordered item got there by an explicit add, and every act is reversible (remove, move) until submission — the "reversible" branch of SC 3.3.4.
+
+**Consequences:** A restored subset response does not ask to be confirmed again.
 
 ### Drag auto-confirms; first render requires explicit confirmation
 
@@ -192,13 +230,13 @@ Choice text is rendered via `{@html}` (via `SortableList`). Content is sanitized
 
 **Consequences:** Each arrow-key press emits a `qti-change` event. Consumers who listen to `qti-change` for analytics purposes should be aware that multiple events may fire during a single keyboard drag session.
 
-### Props accept both parsed objects and JSON strings (web component compatibility)
+### Interaction data accepts an object or its JSON; responses are values (web component compatibility)
 
-**Decision:** `interaction`, `response`, `correctResponse`, and `i18n` are each parsed with `parseJsonProp` before use.
+**Decision:** `interaction` is parsed with `parseJsonProp` before use (through `createInteractionShell`). `response` and `correctResponse` are values and are never parsed.
 
-**Rationale:** When the component is used as a native web component (via HTML attributes), prop values arrive as strings. When used as a Svelte component inside the item player, they arrive as typed objects. `parseJsonProp` handles both transparently. This avoids a separate web-component wrapper.
+**Rationale:** An HTML attribute carries the interaction data as JSON text; inside the item player it arrives as an object, and `parseJsonProp` handles both. This avoids a separate web-component wrapper. A response is a value that the item player sets as a JavaScript property; across the interactions, strings in responses are identifiers or the candidate's text, which must never be re-read as JSON.
 
-**Consequences:** There is a small runtime cost of attempting JSON.parse on every reactive update for the web component case. This is negligible for the data sizes involved.
+**Consequences:** Hosts set `response` and `correctResponse` as JavaScript properties. There is a small runtime cost of attempting JSON.parse on the interaction data for the web component case. This is negligible for the data sizes involved.
 
 ### Position badges are visible numbers, not ARIA-only
 
@@ -219,6 +257,8 @@ interface OrderInteractionData extends BaseInteractionData {
   type: 'orderInteraction';
   responseId: string;     // from responseIdentifier attribute
   shuffle: boolean;       // authored shuffle preference (applied at extraction time)
+  minChoices: number;     // 0 when unspecified; 1..N-1 requests subset ordering
+  maxChoices: number;     // 0 when unspecified; caps subset ordering, ignored without minChoices
   prompt: string | null;  // HTML content of <prompt> child, or null
   choices: Array<{
     identifier: string;   // from simpleChoice identifier attribute
@@ -241,17 +281,19 @@ interface OrderInteractionData extends BaseInteractionData {
 **Response type:**
 ```typescript
 // In InteractionValueMap (packages/item-player/src/interactions/shared/types.ts)
-orderInteraction: string[]
-// An ordered array of simpleChoice identifiers in candidate-selected order.
-// Null-equivalent: null before confirmation, [] after response clear.
+orderInteraction: string[] | null
+// The ordered array of simpleChoice identifiers in candidate-selected order;
+// null in subset mode once the candidate has ordered nothing. Nothing is emitted
+// before the first confirm or reorder, so the response stays null until then.
 ```
 
 **`qti-change` event payload:**
 ```typescript
 {
   detail: {
-    responseIdentifier: string,  // from parsedInteraction.responseId
-    value: string[]              // ordered array of identifiers
+    responseId: string,      // from parsedInteraction.responseId
+    value: string[] | null,  // ordered identifiers; null for an empty subset order
+    timestamp: number
   }
 }
 ```
@@ -339,7 +381,8 @@ AC-12: Prompt renders above the list
 AC-A1: Keyboard grab and move — vertical orientation
   Given: the item from AC-1 rendered with orientation=vertical (default)
   When: the candidate Tabs to ChoiceC and presses Space
-  Then: ChoiceC is "grabbed" (aria-grabbed=true; visual highlight; live announcement reads
+  Then: ChoiceC is "grabbed" (its description gains "Grabbed. Use arrow keys to move.";
+        data-grabbed="true"; visual highlight; no aria-grabbed; live announcement reads
         "ChoiceC grabbed. Current position 3 of 4. Use arrow keys to move, Space or Enter to drop.")
   When: the candidate presses ArrowUp
   Then: ChoiceC moves to position 2; ChoiceB moves to position 3;
@@ -352,7 +395,7 @@ AC-A2: Keyboard cancel with Escape
   Given: ChoiceC has been grabbed as in AC-A1
   When: the candidate presses Escape before dropping
   Then: ChoiceC returns to its original position; live region announces "ChoiceC selection cancelled";
-        aria-grabbed becomes false
+        the "Grabbed." sentence leaves its description (data-grabbed="false")
 
 AC-A3: Keyboard move — horizontal orientation
   Given: an item with orientation=horizontal
@@ -418,7 +461,7 @@ AC-E5: fixed attribute is extracted on choices
   Given: an orderInteraction where the third choice has fixed="true"
   When: standardOrderExtractor.extract() is called
   Then: choices[2].fixed === true; other choices have no fixed property
-  Notes: the component currently ignores fixed; all items remain draggable
+  Notes: the extraction-time shuffle keeps a fixed choice in place; the candidate may still drag it (QTI binds only the delivery engine)
 
 AC-E6: HTML content in choice text renders
   Given: a simpleChoice whose text contains <strong> and <em> HTML tags
@@ -430,7 +473,7 @@ AC-E7: QTI 3.0 kebab-case element names are accepted
          and max-choices="4" min-choices="4" attributes
   When: the item is parsed and rendered
   Then: the interaction renders identically to a QTI 2.x item with the same content;
-        max-choices and min-choices are silently ignored (not extracted)
+        min-choices equal to the number of choices is full ordering, so every choice is ordered
 
 AC-E8: Response clear resets confirm state when response transitions null → populated → null
   Given: a rendered item where the candidate has confirmed an order
@@ -447,6 +490,20 @@ AC-E10: Fractions-order sample (math content, no shuffle)
         which uses MATCH_CORRECT and correctResponse=["A","C","B","D"]
   When: the candidate orders the fractions A, C, B, D and confirms
   Then: qti-change fires with value=["A","C","B","D"]; SCORE=1.0 on scoring
+
+AC-E11: Rank your top 2 of 5 (subset ordering)
+  Given: the order-subset-top-two sample (minChoices="2" maxChoices="2", five planets,
+         correctResponse=["MERCURY","VENUS"])
+  When: the candidate adds Venus and Mercury by keyboard, moves Mercury first, and submits
+  Then: the pool keeps Earth, Jupiter and Mars with no position numbers; a third add is refused
+        and announced; RESPONSE=["MERCURY","VENUS"]; SCORE=1.0
+  Notes: covered by apps/demo/tests/playwright/order-subset.pw.ts
+
+AC-E12: Subset bounds are validated
+  Given: an orderInteraction with minChoices="2" maxChoices="2" over five choices
+  When: a restored or programmatic RESPONSE orders three choices
+  Then: validateResponses reports it invalid ("exceeds maxChoices=2"); with minChoices
+        unspecified, a started RESPONSE of fewer than all choices is incomplete
 ```
 
 ---
@@ -454,7 +511,7 @@ AC-E10: Fractions-order sample (math content, no shuffle)
 ## Open questions
 
 - [x] Should `shuffle` be applied as a post-extraction transformation using a seeded RNG? Yes — implemented in `packages/item-player/src/core/shuffle.ts` and applied by the extractors. The seed is derived from the item session GUID, which `Player` already persists and restores, so no extra session field was needed.
-- [ ] Should `minChoices`/`maxChoices` be extracted into `OrderInteractionData` and surfaced as a partial-placement UI (where the candidate picks N items from a longer list to rank)? This is a significant UX change that affects `SortableList` — it would need a "placed" vs "available" pool UI.
+- [x] Should `minChoices`/`maxChoices` be extracted into `OrderInteractionData` and surfaced as a partial-placement UI (where the candidate picks N items from a longer list to rank)? Yes — both are extracted and a `minChoices` below the number of choices renders the two-zone "Your order" / "Not in your order" UI (see Design decisions).
 - [ ] Should `fixed` choices be rendered with a lock icon and prevented from being dragged once `shuffle` is honoured? This requires changes to both `SortableList` (conditional `draggable` per item) and the keyboard handler (skip fixed positions during arrow-key movement).
 
 ---
@@ -466,6 +523,8 @@ AC-E10: Fractions-order sample (math content, no shuffle)
 - Spec gaps: `docs/SPEC-GAPS-PLAN.md` — G-09 (PNP elimination tool)
 - Component: `packages/default-components/src/plugins/order/OrderInteraction.svelte`
 - Shared subcomponent: `packages/default-components/src/shared/components/SortableList.svelte`
+- Subset-mode subcomponent: `packages/default-components/src/shared/components/OrderSubset.svelte`
+- Subset rule shared with validation: `packages/item-player/src/interactions/order/limits.ts` — `orderChoiceLimits`
 - Touch drag utility: `packages/qti-common/src/dom/touchDrag.ts`
 - Extractor: `packages/item-player/src/interactions/order/extractor.ts`
 - Type (component-facing): `packages/item-player/src/interactions/shared/types.ts` — `OrderInteractionData`

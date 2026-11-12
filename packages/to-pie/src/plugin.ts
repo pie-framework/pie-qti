@@ -6,7 +6,10 @@
 
 import type { AnalyzedContentPackage } from '@pie-qti/ims-cp-core';
 import type {
+  AssetResolver,
   ConversionTrace,
+  CssClassExtractor,
+  MetadataExtractor,
   PieItem,
   PieModel,
   QtiSourceProfile,
@@ -17,21 +20,17 @@ import type {
   TransformPlugin,
   TransformWarning,
   ValidationResult,
+  VendorDetector,
   VendorExtensionConfig,
+  VendorExtensionHooks,
+  VendorInfo,
+  VendorTransformer,
 } from '@pie-qti/transform-types';
 import { sourceDigest } from '@pie-qti/transform-types';
 import type { HTMLElement } from 'node-html-parser';
 import { parse } from 'node-html-parser';
-import type {
-  AssetResolver,
-  CssClassExtractor,
-  MetadataExtractor,
-  VendorDetector,
-  VendorExtensionHooks,
-  VendorInfo,
-  VendorTransformer,
-} from './types/vendor-extensions.js';
 import { prepareQtiAccessibility, withQtiAccessibility } from './utils/accessibility-catalogs.js';
+import { detectQtiVersion, type QtiVersion } from './utils/qti-version.js';
 import { withAccessibilityAudit } from './utils/accessibility-inventory.js';
 import { removeUnmappedFeedback } from './utils/feedback-removal.js';
 import {
@@ -1301,11 +1300,9 @@ export class QtiToPiePlugin implements TransformPlugin {
   }
 }
 
-type QtiVersion = '2.1' | '2.2' | '3.0' | 'unknown';
-
 interface CustomInteractionEvidence {
   responseIdentifier?: string;
-  customInteractionIdentifierType?: string;
+  customInteractionTypeIdentifier?: string;
   moduleRefs: string[];
 }
 
@@ -1399,13 +1396,6 @@ function collectInteractionNames(node: HTMLElement, found: string[]): void {
     }
     collectInteractionNames(element, found);
   }
-}
-
-function detectQtiVersion(qtiXml: string): QtiVersion {
-  if (qtiXml.includes('imsqtiasi_v3p0') || qtiXml.includes('imsqti_v3p0')) return '3.0';
-  if (qtiXml.includes('imsqti_v2p2')) return '2.2';
-  if (qtiXml.includes('imsqti_v2p1')) return '2.1';
-  return 'unknown';
 }
 
 function qtiVersionToSourceFormat(version: QtiVersion): string {
@@ -1527,15 +1517,15 @@ function hasAncestorLocalName(element: HTMLElement, localName: string): boolean 
 }
 
 /**
- * A portable custom interaction's type identifier, in the spellings the item player reads: QTI
- * 2.2's, then QTI 3.0's kebab-case, which normalization leaves as authored, then a variant seen
- * in exported content.
+ * A portable custom interaction's type identifier, in the schema-defined spellings the item
+ * player reads: QTI 2.2's, then QTI 3.0's kebab-case, which normalization leaves as authored.
+ * No QTI or PCI version defines another spelling.
  */
 function pciTypeIdentifier(pci: HTMLElement | undefined): string | undefined {
   return (
     pci?.getAttribute('customInteractionTypeIdentifier') ??
     pci?.getAttribute('custom-interaction-type-identifier') ??
-    pci?.getAttribute('customInteractionIdentifierType')
+    undefined
   );
 }
 
@@ -1549,9 +1539,7 @@ function customInteractionEvidence(customInteraction: HTMLElement): CustomIntera
   ].filter((value): value is string => Boolean(value));
   return {
     responseIdentifier: customInteraction.getAttribute('responseIdentifier'),
-    customInteractionIdentifierType:
-      customInteraction.getAttribute('customInteractionIdentifierType') ??
-      pciTypeIdentifier(nestedPortable),
+    customInteractionTypeIdentifier: pciTypeIdentifier(nestedPortable),
     moduleRefs: [...new Set(moduleRefs)],
   };
 }
@@ -1566,7 +1554,7 @@ function portableCustomInteractionEvidence(pci: HTMLElement): CustomInteractionE
   ].filter((value): value is string => Boolean(value));
   return {
     responseIdentifier: pci.getAttribute('responseIdentifier'),
-    customInteractionIdentifierType: pciTypeIdentifier(pci),
+    customInteractionTypeIdentifier: pciTypeIdentifier(pci),
     moduleRefs: [...new Set(moduleRefs)],
   };
 }
@@ -1588,8 +1576,8 @@ function formatCustomInteractionEvidence(
   const parts = [
     sourcePath ? `sourcePath: ${sourcePath}` : undefined,
     first.responseIdentifier ? `responseIdentifier: ${first.responseIdentifier}` : undefined,
-    first.customInteractionIdentifierType
-      ? `customInteractionIdentifierType: ${first.customInteractionIdentifierType}`
+    first.customInteractionTypeIdentifier
+      ? `customInteractionTypeIdentifier: ${first.customInteractionTypeIdentifier}`
       : undefined,
     first.moduleRefs.length > 0 ? `moduleRefs: ${first.moduleRefs.join(', ')}` : undefined,
   ].filter(Boolean);

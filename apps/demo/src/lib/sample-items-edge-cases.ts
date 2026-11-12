@@ -514,6 +514,63 @@ export const ORDER_UNICODE = `<?xml version="1.0" encoding="UTF-8"?>
   </responseProcessing>
 </assessmentItem>`;
 
+// Subset ordering (QTI 2.2 ASI §5.73, §2.4.1.2): minChoices below the number of choices asks
+// the candidate to select a subset and impose an order on it — "rank your top 2 of 5".
+export const ORDER_SUBSET_TOP_TWO = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem
+  xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
+  identifier="order-subset-top-two"
+  title="Rank the Two Closest Planets"
+  adaptive="false"
+  timeDependent="false">
+
+  <responseDeclaration identifier="RESPONSE" cardinality="ordered" baseType="identifier">
+    <correctResponse>
+      <value>MERCURY</value>
+      <value>VENUS</value>
+    </correctResponse>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0.0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <outcomeDeclaration identifier="MAXSCORE" cardinality="single" baseType="float">
+    <defaultValue><value>1.0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Which two of these planets are closest to the Sun?</p>
+    <orderInteraction responseIdentifier="RESPONSE" shuffle="false" minChoices="2" maxChoices="2">
+      <prompt>Choose two planets and put the closest one first.</prompt>
+      <simpleChoice identifier="EARTH">Earth</simpleChoice>
+      <simpleChoice identifier="JUPITER">Jupiter</simpleChoice>
+      <simpleChoice identifier="MARS">Mars</simpleChoice>
+      <simpleChoice identifier="MERCURY">Mercury</simpleChoice>
+      <simpleChoice identifier="VENUS">Venus</simpleChoice>
+    </orderInteraction>
+  </itemBody>
+
+  <responseProcessing>
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="RESPONSE"/>
+          <correct identifier="RESPONSE"/>
+        </match>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="float">1.0</baseValue>
+        </setOutcomeValue>
+      </responseIf>
+      <responseElse>
+        <setOutcomeValue identifier="SCORE">
+          <baseValue baseType="float">0.0</baseValue>
+        </setOutcomeValue>
+      </responseElse>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>`;
+
 // =============================================================================
 // SLIDER INTERACTION - Edge Cases
 // =============================================================================
@@ -1124,7 +1181,7 @@ export const GAP_MATCH_MANY_GAPS = `<?xml version="1.0" encoding="UTF-8"?>
 
   <itemBody>
     <p>Fill in the blanks with the correct part of speech. Drag words to complete the sentence:</p>
-    <gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+    <gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="12">
       <gapText identifier="noun" matchMax="0">NOUN</gapText>
       <gapText identifier="verb" matchMax="0">VERB</gapText>
       <gapText identifier="adjective" matchMax="0">ADJECTIVE</gapText>
@@ -1187,7 +1244,7 @@ export const GAP_MATCH_REUSABLE_GAPS = `<?xml version="1.0" encoding="UTF-8"?>
 
   <itemBody>
     <p>Complete the descriptions of water molecules using H (hydrogen) and O (oxygen). Each element can be used multiple times. Drag elements to complete the formulas:</p>
-    <gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+    <gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false" maxAssociations="6">
       <gapText identifier="hydrogen" matchMax="0">H</gapText>
       <gapText identifier="oxygen" matchMax="0">O</gapText>
 
@@ -1568,6 +1625,14 @@ export const EDGE_CASE_ITEMS: SampleItem[] = [
     xml: ORDER_UNICODE,
     edgeCase: true,
     testCategory: 'extreme-content',
+  },
+  {
+    id: 'order-subset-top-two',
+    title: 'Order - Rank Your Top 2 of 5 (Constraint Test)',
+    description: 'Tests subset ordering (minChoices=maxChoices=2 of 5) - choose which items to order, then order them',
+    xml: ORDER_SUBSET_TOP_TWO,
+    edgeCase: true,
+    testCategory: 'constraint-extremes',
   },
 
   // Slider Interaction Edge Cases

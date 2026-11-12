@@ -55,14 +55,6 @@ export default {
 		errorNoData: 'ไม่มีข้อมูลการโต้ตอบที่จัดเตรียมไว้',
 	},
 
-	units: {
-		bytes: '{count} ไบต์',
-		kilobytes: '{count} KB',
-		megabytes: '{count} MB',
-		seconds: '{count} วินาที',
-		minutes: '{count} นาที',
-		hours: '{count} ชั่วโมง',
-	},
 
 	// ตัวอย่างรูปแบบพหูพจน์
 	// ใช้ i18n.plural('plurals.items', { count: n }) เพื่อเข้าถึงข้อความเหล่านี้
@@ -106,13 +98,6 @@ export default {
 		},
 	},
 
-	validation: {
-		required: 'ฟิลด์นี้จำเป็นต้องกรอก',
-		invalidFormat: 'รูปแบบไม่ถูกต้อง',
-		tooShort: 'สั้นเกินไป (ขั้นต่ำ {min} ตัวอักษร)',
-		tooLong: 'ยาวเกินไป (สูงสุด {max} ตัวอักษร)',
-		outOfRange: 'ค่าต้องอยู่ระหว่าง {min} และ {max}',
-	},
 
 	interactions: {
 		choice: {
@@ -123,6 +108,13 @@ export default {
 			correct: 'ถูกต้อง',
 			revealChoice: 'แสดงตัวเลือก {index}',
 			groupLabel: 'ตัวเลือกคำตอบ',
+			maxChoicesReached: 'คุณเลือกได้สูงสุด {max} รายการ ให้ยกเลิกการเลือกหนึ่งรายการเพื่อเลือกรายการอื่น',
+			clearAnswer: 'ล้างคำตอบ',
+			minChoicesHint: {
+				one: 'เลือกคำตอบอย่างน้อย {count} ข้อ',
+				other: 'เลือกคำตอบอย่างน้อย {count} ข้อ',
+			},
+			eliminateChoice: 'ตัดออก',
 		},
 
 		upload: {
@@ -139,6 +131,8 @@ export default {
 			errorReadFailed: 'อ่านไฟล์ไม่สำเร็จ',
 			errorTooLarge: 'ไฟล์ใหญ่เกินไป (สูงสุด {max} MB)',
 			unknownType: 'ประเภทไฟล์ไม่รู้จัก',
+			fileRemoved: 'ลบไฟล์แล้ว',
+			errorFileTooLarge: 'ไฟล์ {filename} ใหญ่เกินไป ขนาดสูงสุดคือ {maxBytes} ไบต์',
 		},
 
 		drawing: {
@@ -154,6 +148,8 @@ export default {
 			updated: 'อัปเดตภาพวาดแล้ว',
 			cleared: 'ล้างภาพวาดแล้ว',
 			generated: 'สร้างแล้ว:',
+			imageFallback: 'พื้นหลังของภาพวาด',
+			imageLoadError: 'ไม่สามารถโหลดรูปภาพพื้นหลังได้',
 		},
 
 		extendedText: {
@@ -165,15 +161,43 @@ export default {
 			underline: 'ขีดเส้นใต้',
 			bulletList: 'รายการสัญลักษณ์แสดงหัวข้อย่อย',
 			numberedList: 'รายการลำดับเลข',
-			insertMath: 'แทรกสมการคณิตศาสตร์',
 			insertInlineMath: 'แทรกสมการคณิตศาสตร์แบบอินไลน์',
 			insertBlockMath: 'แทรกบล็อกคณิตศาสตร์',
-			enterMathExpression: 'ป้อนนิพจน์ทางคณิตศาสตร์:',
-			latexSource: 'ซอร์ส LaTeX:',
-			keyboard: 'แป้นพิมพ์',
+			responseLabel: 'คำตอบ',
+			responseNumber: 'คำตอบที่ {number}',
+			addResponse: 'เพิ่มคำตอบ',
+			removeResponseNumber: 'ลบคำตอบที่ {number}',
+			responseRemoved: 'ลบคำตอบที่ {number} แล้ว',
+			charactersRemaining: {
+				one: 'เหลืออีก {count} ตัวอักษร',
+				other: 'เหลืออีก {count} ตัวอักษร',
+			},
+			expectedLengthReached: {
+				one: 'ครบความยาวที่กำหนด {count} ตัวอักษรแล้ว',
+				other: 'ครบความยาวที่กำหนด {count} ตัวอักษรแล้ว',
+			},
+			correctAnswerHeading: 'คำตอบที่ถูกต้อง:',
+			editMath: 'แก้ไขสูตรคณิตศาสตร์',
+			minStringsHint: {
+				one: 'เขียนอย่างน้อย {count} คำตอบ',
+				other: 'เขียนอย่างน้อย {count} คำตอบ',
+			},
+			minStringsRemoveRefused: 'ไม่ได้ลบคำตอบ: ต้องมีอย่างน้อย {count} คำตอบ',
+			patternMismatch: 'คำตอบนี้ไม่อยู่ในรูปแบบที่กำหนด',
+		},
+
+		mathInput: {
+			insertInlineTitle: 'แทรกสมการคณิตศาสตร์แบบอินไลน์',
+			insertBlockTitle: 'แทรกบล็อกคณิตศาสตร์',
+			editInlineTitle: 'แก้ไขสมการคณิตศาสตร์แบบอินไลน์',
+			editBlockTitle: 'แก้ไขบล็อกคณิตศาสตร์',
+			instructions: 'พิมพ์นิพจน์หรือเปิดคีย์บอร์ดคณิตศาสตร์ กด Escape เพื่อยกเลิก',
+			fieldLabel: 'นิพจน์ทางคณิตศาสตร์',
+			latexSourceLabel: 'ซอร์ส LaTeX',
+			latexEmpty: 'โค้ด LaTeX จะปรากฏที่นี่',
+			toggleKeyboard: 'คีย์บอร์ดคณิตศาสตร์',
 			update: 'อัปเดต',
 			insert: 'แทรก',
-			correctAnswerHeading: 'คำตอบที่ถูกต้อง:',
 		},
 
 		slider: {
@@ -184,13 +208,17 @@ export default {
 			step: 'ขั้น: {step}',
 			ariaLabel: 'ค่าแถบเลื่อนจาก {lowerBound} ถึง {upperBound}',
 			statTitle: 'ค่าที่เลือก',
+			noValueSelected: 'ยังไม่ได้เลือกค่า',
 		},
 
 		hottext: {
 			selected: 'เลือกแล้ว:',
 			selectText: 'เลือกข้อความจากข้อความ',
-			clearSelection: 'ล้างการเลือก',
 			ariaLabel: 'การโต้ตอบการเลือกข้อความ',
+			maxChoicesReached: 'คุณเลือกได้สูงสุด {max} รายการ ให้ยกเลิกการเลือกหนึ่งรายการเพื่อเลือกรายการอื่น',
+			// ไม่มีเครื่องหมายถูก: HottextInteraction แสดง "✓ " นำหน้าป้ายนี้เอง
+			minimumMet: 'ถึงขั้นต่ำแล้ว',
+			selectAtLeast: 'เลือกอย่างน้อย {minChoices}',
 		},
 
 		hotspot: {
@@ -201,9 +229,19 @@ export default {
 			unknownImageDimensions:
 				'ไม่สามารถแสดงฮอตสปอตนี้ได้: ไม่ทราบขนาดของรูปภาพ จึงไม่สามารถกำหนดตำแหน่งพื้นที่ที่เลือกได้ โปรดเพิ่มความกว้างและความสูงให้กับรูปภาพ หรือระบุขนาดของไฟล์',
 			correctList: 'ถูกต้อง: {ids}',
+			imageFallback: 'รูปภาพสำหรับคำถามนี้',
+			imageLoadError: 'ไม่สามารถโหลดรูปภาพได้',
+			regionOfTotal: 'พื้นที่ {index} จาก {total}',
+			selectedRegion: 'เลือกแล้ว: {region}',
+			maxChoicesReached: 'คุณเลือกได้สูงสุด {max} รายการ ให้ยกเลิกการเลือกหนึ่งรายการเพื่อเลือกรายการอื่น',
+			minChoicesHint: {
+				one: 'เลือกพื้นที่อย่างน้อย {count} พื้นที่',
+				other: 'เลือกพื้นที่อย่างน้อย {count} พื้นที่',
+			},
 		},
 
 		selectPoint: {
+			unknownImageDimensions: 'ไม่สามารถแสดงการโต้ตอบจุดเลือกนี้ได้: ไม่ทราบขนาดของรูปภาพ จึงวางจุดได้ไม่ถูกต้อง โปรดเพิ่มความกว้างและความสูงให้รูปภาพ หรือระบุขนาดของไฟล์',
 			instruction: 'คลิกที่ภาพเพื่อเลือกจุด',
 			instructionAria: 'คลิกเพื่อเลือกจุดบนภาพ',
 			maxPointsReached: 'ถึงจำนวนจุดสูงสุดแล้ว ลบจุดเพื่อเพิ่มจุดใหม่',
@@ -218,6 +256,16 @@ export default {
 			minimumMet: '✓ ถึงขั้นต่ำแล้ว',
 			selectAtLeast: 'เลือกอย่างน้อย {minChoices}',
 			correctPointAt: 'จุดคำตอบที่ถูกต้องที่พิกัด {x}, {y}',
+			imageFallback: 'รูปภาพสำหรับคำถามนี้',
+			imageLoadError: 'ไม่สามารถโหลดรูปภาพได้',
+			stageLabel: 'พื้นที่เลือกจุด',
+			keyboardInstructions: 'คลิกที่รูปภาพเพื่อวางจุด หากใช้แป้นพิมพ์ ให้โฟกัสที่รูปภาพ ใช้ปุ่มลูกศรเพื่อเลื่อนเป้าเล็ง (กด Shift ค้างไว้เพื่อเลื่อนทีละน้อย) แล้วกด Enter หรือ Space เพื่อวางจุด',
+			placedPoints: 'จุดที่วางแล้ว',
+			pointAtPercent: 'จุดที่ {index} ที่ {x}%, {y}%',
+			percentPosition: 'ตำแหน่ง {x}%, {y}%',
+			pointPlaced: 'วางจุดที่ {index} ที่ {x}%, {y}% แล้ว',
+			pointRemoved: 'ลบจุดที่ {index} แล้ว',
+			allPointsRemoved: 'ลบจุดทั้งหมดแล้ว',
 		},
 
 		match: {
@@ -242,18 +290,26 @@ export default {
 			navigateToTarget: 'นำทางไปยังเป้าหมายและกด Space หรือ Enter เพื่อจับคู่',
 			selectionCancelled: 'ยกเลิกการเลือก',
 			matchCleared: 'ล้างการจับคู่สำหรับ {item} แล้ว',
-			maxReached: 'ถึงจำนวนการจับคู่สูงสุดแล้ว ลบคู่หนึ่งออกเพื่อเพิ่มคู่ใหม่',
+			associationLimitReached: 'สร้างความเชื่อมโยงไม่ได้: ถึงขีดจำกัด {max} แล้ว',
+			sourceLimitReached: 'ไม่สามารถทำได้: {label} ไม่สามารถอยู่ในความเชื่อมโยงเพิ่มเติมได้',
 			pairCreated: 'จับคู่ {source} กับ {target} แล้ว',
+			minAssociationsHint: {
+				one: 'จับคู่อย่างน้อย {count} คู่',
+				other: 'จับคู่อย่างน้อย {count} คู่',
+			},
+			minChoiceUsesHint: 'ต้องจับคู่เพิ่มเติม: {items}',
 			matchedWithSentence: 'จับคู่กับ {targets}',
 			selectedForMatchingSentence: 'เลือกเพื่อจับคู่แล้ว',
 			availableForMatchingSentence: 'พร้อมสำหรับการจับคู่',
 			notCompatibleSentence: 'ไม่เข้ากันกับต้นทางที่เลือก',
+			selectionCancelledItem: 'ยกเลิกการเลือก {item} แล้ว',
 		},
 
 		gapMatch: {
-			filledGapAriaLabelWithHeld: 'ช่องว่าง {gapId} มีคำว่า {word} เลือกเพื่อแทนที่ด้วย {heldWord}',
-			blankGapAriaLabelWithHeld: 'ช่องว่าง {gapId} เลือกเพื่อวาง {heldWord} ที่นี่',
-			placed: 'วาง {word} ในช่องว่าง {gapId} แล้ว',
+			filledGapAriaLabelWithHeld: 'ช่องว่างที่ {position} จาก {total} มีคำว่า {word} เลือกเพื่อแทนที่ด้วย {heldWord}',
+			blankGapAriaLabelWithHeld: 'ช่องว่างที่ {position} จาก {total} เลือกเพื่อวาง {heldWord} ที่นี่',
+			placed: 'วาง {word} ในช่องว่างที่ {position} จาก {total} แล้ว',
+			associationLimitReached: 'สร้างความเชื่อมโยงไม่ได้: ถึงขีดจำกัด {max} แล้ว',
 			pointerInstructions: 'เลือกคำ แล้วเลือกช่องว่าง หรือใช้การลากและวาง',
 			instruction: 'ลากคำเพื่อเติมช่องว่าง',
 			available: 'คำที่พร้อมใช้งาน',
@@ -263,8 +319,14 @@ export default {
 			removeFromBlanks: 'ลบ {word} จากช่องว่าง',
 			selectPlaceholder: 'เลือก...',
 			gapAriaLabel: 'ช่องว่าง {gapId}',
-			blankGapAriaLabel: 'ช่องว่าง {gapId} วางคำตอบที่นี่',
-			filledGapAriaLabel: 'ช่องว่าง {gapId} เติมด้วย {word} แล้ว คลิกเพื่อล้าง',
+			blankGapAriaLabel: 'ช่องว่างที่ {position} จาก {total} วางคำตอบที่นี่',
+			filledGapAriaLabel: 'ช่องว่างที่ {position} จาก {total} เติมด้วย {word} แล้ว เลือกเพื่อล้าง',
+			wordSelected: 'หยิบ {word} แล้ว เลือกช่องว่างเพื่อวาง หรือกด Escape เพื่อยกเลิก',
+			pickUpCancelled: 'ยกเลิกการหยิบ {word} แล้ว',
+			minPlacementsHint: 'ยังต้องวางในช่องว่าง: {words}',
+			notCompatibleSentence: 'ไม่เข้ากันกับคำที่เลือก',
+			wordRemovedFromBlanks: 'ลบ {word} ออกจากช่องว่างแล้ว',
+			requiredBlanksLegend: 'ช่องว่างที่มีเครื่องหมาย * จำเป็นต้องเติม',
 		},
 
 		graphicGapMatch: {
@@ -287,9 +349,8 @@ export default {
 			pickedUp: 'หยิบ {label} แล้ว กด Tab ไปยังฮอตสปอตแล้วกด Enter เพื่อวาง',
 			alreadyPlacedSentence: 'วางบนฮอตสปอตแล้ว',
 			unavailableSentence: 'ไม่พร้อมใช้งานเนื่องจากข้อจำกัดของกลุ่มการจับคู่',
-			heldHint: 'หยิบแล้ว กด Tab ไปยังฮอตสปอตแล้วกด Enter เพื่อวาง',
+			heldHint: 'กด Tab ไปยังฮอตสปอตแล้วกด Enter เพื่อวาง',
 			pickUpHint: 'กด Space หรือ Enter เพื่อหยิบ',
-			selectedHint: 'เลือกเพื่อวางแล้ว',
 			selectHint: 'กด Space เพื่อเลือก',
 			hotspotContains: 'ฮอตสปอต {number} มี {label}',
 			hotspotCorrectAnswer: 'ฮอตสปอต {number} คำตอบที่ถูกต้อง: {label}',
@@ -299,11 +360,17 @@ export default {
 			placeLabelHint: 'กด Space หรือ Enter เพื่อวางป้ายกำกับ',
 			labelFallback: 'ป้ายกำกับ',
 			pickUpInstructions: 'กด Space หรือ Enter เพื่อหยิบป้ายกำกับ กด Tab ไปยังฮอตสปอตบนภาพแล้วกด Enter เพื่อวาง กด Escape เพื่อยกเลิก',
+			imageFallback: 'รูปภาพสำหรับคำถามนี้',
+			imageLoadError: 'ไม่สามารถโหลดรูปภาพได้',
+			unknownImageDimensions: 'ไม่สามารถแสดงฮอตสปอตได้: ไม่ทราบขนาดของรูปภาพ โปรดเพิ่มความกว้างและความสูงให้กับรูปภาพ',
+			minPlacementsHint: 'ยังต้องวางบนพื้นที่: {labels}',
+			associationLimitReached: 'สร้างความเชื่อมโยงไม่ได้: ถึงขีดจำกัด {max} แล้ว',
 		},
 
 		order: {
-			moveEarlier: 'เลื่อนไปก่อนหน้า',
-			moveLater: 'เลื่อนไปถัดไป',
+			moveEarlierItem: 'เลื่อน {item} ไปก่อนหน้า',
+			moveLaterItem: 'เลื่อน {item} ไปถัดไป',
+			eliminateItem: 'ตัด {item} ออก',
 			instruction: 'ใช้ปุ่มเลื่อนหรือลากรายการเพื่อจัดลำดับใหม่',
 			keyboardInstructions: 'กด Space หรือ Enter เพื่อจับรายการ ใช้ปุ่มลูกศรเพื่อย้ายรายการ กด Space หรือ Enter อีกครั้งเพื่อวาง กด Escape เพื่อยกเลิก',
 			grabbed: 'จับแล้ว ใช้ปุ่มลูกศรเพื่อย้าย',
@@ -318,9 +385,32 @@ export default {
 			itemDropped: 'วาง {item} ที่ตำแหน่ง {position} จาก {total} แล้ว',
 			itemMoved: 'ย้าย {item} ไปยังตำแหน่ง {position} จาก {total} แล้ว',
 			selectionCancelled: 'ยกเลิกการเลือก {item}',
-			itemPosition: '{item} ตำแหน่ง {position} จาก {total}',
 			itemFallback: 'รายการ',
 			orderConfirmed: 'ยืนยันลำดับแล้ว',
+			minChoicesHint: {
+				one: 'จัดลำดับรายการอย่างน้อย {count} รายการ',
+				other: 'จัดลำดับรายการอย่างน้อย {count} รายการ',
+			},
+			yourOrder: 'ลำดับของคุณ',
+			notInOrder: 'ไม่อยู่ในลำดับของคุณ',
+			emptyOrder: 'ยังไม่มีรายการในลำดับของคุณ',
+			addItem: 'เพิ่ม {item} ลงในลำดับของคุณ',
+			removeItem: 'นำ {item} ออกจากลำดับของคุณ',
+			itemAdded: 'เพิ่ม {item} ลงในลำดับของคุณที่ตำแหน่ง {position} จาก {total} แล้ว',
+			itemRemoved: 'นำ {item} ออกจากลำดับของคุณแล้ว',
+			orderLimitReached: {
+				one: 'ลำดับของคุณมีได้ {max} รายการ นำรายการนั้นออกก่อนเพื่อเพิ่มรายการอื่น',
+				other: 'ลำดับของคุณมีได้สูงสุด {max} รายการ นำออกหนึ่งรายการก่อนเพื่อเพิ่มรายการอื่น',
+			},
+			correctOrder: 'ลำดับที่ถูกต้อง',
+			subsetExactHint: {
+				one: 'เลือก {count} รายการสำหรับลำดับของคุณ',
+				other: 'เลือก {count} รายการแล้วจัดเรียงตามลำดับ',
+			},
+			subsetRangeHint: {
+				one: 'เลือก {min} ถึง {max} รายการแล้วจัดเรียงตามลำดับ',
+				other: 'เลือก {min} ถึง {max} รายการแล้วจัดเรียงตามลำดับ',
+			},
 		},
 
 		associate: {
@@ -343,9 +433,24 @@ export default {
 			clickHotspotsToAssociate: 'คลิกสองฮอตสปอตบนภาพเพื่อสร้างความสัมพันธ์',
 			clickAnotherHotspot: 'เลือกแล้ว: <strong>{label}</strong> คลิกฮอตสปอตอื่นเพื่อสร้างความสัมพันธ์',
 			removeAssociationBetween: 'ลบความสัมพันธ์ระหว่าง {first} และ {second}',
+			inPairSentence: 'อยู่ในความสัมพันธ์แล้ว',
+			removedAssociationBetween: 'ลบความสัมพันธ์ระหว่าง {first} และ {second} แล้ว',
+			minAssociationsHint: {
+				one: 'สร้างความสัมพันธ์อย่างน้อย {count} รายการ',
+				other: 'สร้างความสัมพันธ์อย่างน้อย {count} รายการ',
+			},
+			minChoiceUsesHint: 'ต้องเชื่อมโยงเพิ่มเติม: {items}',
+			maxAssociationsHint: {
+				one: 'คุณสร้างความสัมพันธ์ได้สูงสุด {count} รายการ',
+				other: 'คุณสร้างความสัมพันธ์ได้สูงสุด {count} รายการ',
+			},
+			choiceLimitReached: 'ไม่สามารถทำได้: {label} ไม่สามารถอยู่ในความสัมพันธ์เพิ่มเติมได้',
+			associationLimitReached: 'สร้างความสัมพันธ์ไม่ได้: ถึงขีดจำกัด {max} แล้ว',
+			notAvailableSentence: 'ไม่พร้อมใช้งานเนื่องจากข้อจำกัดของกลุ่มการจับคู่',
 		},
 
 		positionObject: {
+			unknownImageDimensions: 'ไม่สามารถวางวัตถุได้: ไม่ทราบขนาดของรูปภาพพื้นหลัง โปรดเพิ่มความกว้างและความสูงให้รูปภาพ หรือระบุขนาดของไฟล์',
 			instruction: 'ลากวัตถุบนภาพ',
 			placeObject: 'วาง {object} บนภาพ',
 			removeObject: 'ลบ {object}',
@@ -355,25 +460,39 @@ export default {
 			positioned: 'วาง {label} ที่ ({x}, {y})',
 			minimumRequired: 'จำเป็นขั้นต่ำ: {minChoices}',
 			maximumAllowed: 'สูงสุด: {maxChoices}',
+			maxChoicesReached: {
+				one: 'วางไม่ได้แล้ว: ถึงขีดจำกัด {max} แล้ว',
+				other: 'วางไม่ได้แล้ว: ถึงขีดจำกัด {max} แล้ว',
+			},
+			objectLimitReached: 'ไม่สามารถทำได้: ไม่สามารถวาง {object} อีกได้',
 			availableObjects: 'วัตถุที่พร้อมใช้งาน',
-			objectUsage: '{label} ({usageCount}/{matchMax} ใช้แล้ว)',
 			availableObjectsCount: 'วัตถุที่พร้อมใช้งาน ({count}/{max})',
 			dragObjectsInstruction: 'ลากวัตถุบนแคนวาสเพื่อวางตำแหน่ง',
 			used: '{usageCount}/{matchMax} ใช้แล้ว',
+			usedUnlimited: '{usageCount} ใช้แล้ว, ไม่จำกัด',
 			objectSelected: 'เลือก {object} แล้ว กด Tab ไปที่แคนวาส แล้วใช้ปุ่มลูกศรเพื่อจัดตำแหน่ง กด Enter เพื่อวางหรือ Escape เพื่อยกเลิก',
 			objectPlacedAt: 'วาง {object} ที่ {x}%, {y}% แล้ว',
 			placementCancelled: 'ยกเลิกการวางแล้ว',
 			correctPositionFor: 'ตำแหน่งที่ถูกต้องของ {label} ที่ ({x}, {y})',
 			availableObjectsTotal: 'วัตถุที่พร้อมใช้งาน ({count})',
 			paletteInstructions: 'ลากวัตถุไปบนแคนวาส หรือกด Enter หรือ Space บนวัตถุ แล้วใช้ปุ่มลูกศรเพื่อวางตำแหน่งบนแคนวาส',
+			imageFallback: 'รูปภาพสำหรับคำถามนี้',
+			imageLoadError: 'ไม่สามารถโหลดรูปภาพได้',
+			objectFallback: 'วัตถุ {index}',
+			objectRemoved: 'ลบ {object} แล้ว',
+			canvasActiveLabel: 'พื้นที่จัดตำแหน่ง: ใช้ปุ่มลูกศรเพื่อเลื่อนเป้าเล็ง กด Enter เพื่อวาง หรือ Escape เพื่อยกเลิก',
+			placedAtPercent: '{label} ที่ {x}%, {y}%',
+			correctPositionAtPercent: 'ตำแหน่งที่ถูกต้องของ {label}: {x}%, {y}%',
 		},
 
 		endAttempt: {
 			buttonLabel: 'สิ้นสุดการพยายาม',
 			ended: 'การพยายามสิ้นสุดแล้ว',
 			requested: 'ร้องขอแล้ว',
-			warningMessage: 'การพยายามของคุณสิ้นสุดแล้วและไม่สามารถแก้ไขได้อีก',
+			warningMessage: 'การพยายามของคุณสิ้นสุดแล้ว',
 			confirmMessage: 'คุณแน่ใจหรือไม่ว่าต้องการสิ้นสุดการพยายาม? คุณจะไม่สามารถเปลี่ยนคำตอบได้',
+			confirm: 'ใช่ ให้สิ้นสุดการพยายาม',
+			cancel: 'ยกเลิก',
 		},
 
 		media: {
@@ -390,19 +509,34 @@ export default {
 			ariaLabel: 'เนื้อหาสื่อ',
 			maxPlayLimitReached: 'ถึงขีดจำกัดการเล่นสูงสุดแล้ว',
 			playCount: 'จำนวนครั้งที่เล่น:',
-			remaining: 'เหลืออยู่:',
 			requirementMet: '✓ ตรงตามข้อกำหนดแล้ว',
 			playAtLeastCount: {
 				one: 'เล่นอย่างน้อย {count} ครั้ง',
 				other: 'เล่นอย่างน้อย {count} ครั้ง',
 			},
 			browserNoSupport: 'เบราว์เซอร์ของคุณไม่รองรับประเภทสื่อนี้',
+			playsLeft: {
+				one: 'เหลืออีก {count} ครั้ง',
+				other: 'เหลืออีก {count} ครั้ง',
+			},
+			playStartedOfMax: 'เริ่มเล่นครั้งที่ {count} จาก {max} แล้ว',
+			playStarted: 'เริ่มเล่นครั้งที่ {count} แล้ว',
+			requiredPlaysReached: 'ครบจำนวนครั้งที่กำหนดแล้ว',
+			controls: 'ปุ่มควบคุมสื่อ',
+			captions: 'คำบรรยายและคำแปล',
+			captionsOff: 'ปิด',
+			playsNeeded: {
+				one: 'ต้องเล่นอีก {count} ครั้ง',
+				other: 'ต้องเล่นอีก {count} ครั้ง',
+			},
+			trackFallbackLabel: 'แทร็ก {index}',
 			audioNoSupport: 'เบราว์เซอร์ของคุณไม่รองรับองค์ประกอบเสียง',
 			videoNoSupport: 'เบราว์เซอร์ของคุณไม่รองรับองค์ประกอบวิดีโอ',
 			objectDisabled: 'รายการนี้ใช้ประเภทออบเจ็กต์แบบฝังที่ถูกปิดใช้งานโดยค่าเริ่มต้นด้วยเหตุผลด้านความปลอดภัย',
 		},
 
 		graphicOrder: {
+			unknownImageDimensions: 'ไม่สามารถแสดงพื้นที่ได้: ไม่ทราบขนาดของรูปภาพ โปรดเพิ่มความกว้างและความสูงให้รูปภาพ หรือระบุขนาดของไฟล์',
 			instruction: 'คลิกฮอตสปอตเพื่อจัดเรียง',
 			diagramLabel: 'แผนภาพการจัดเรียง',
 			altText: 'แผนภาพการจัดเรียง',
@@ -411,6 +545,47 @@ export default {
 			confirmOrder: 'ยืนยันลำดับ',
 			confirmOrderNoChanges: 'ยืนยันลำดับ (ไม่มีการเปลี่ยนแปลง)',
 			confirmAria: 'ยืนยันลำดับนี้เป็นคำตอบของคุณ',
+			imageFallback: 'รูปภาพสำหรับคำถามนี้',
+			imageLoadError: 'ไม่สามารถโหลดรูปภาพได้',
+			unlabeledItem: 'รายการ {index}',
+			minChoicesHint: {
+				one: 'จัดลำดับรายการอย่างน้อย {count} รายการ',
+				other: 'จัดลำดับรายการอย่างน้อย {count} รายการ',
+			},
+			subsetExactHint: {
+				one: 'เลือก {count} รายการสำหรับลำดับของคุณ',
+				other: 'เลือก {count} รายการแล้วจัดเรียงตามลำดับ',
+			},
+			subsetRangeHint: {
+				one: 'เลือก {min} ถึง {max} รายการแล้วจัดเรียงตามลำดับ',
+				other: 'เลือก {min} ถึง {max} รายการแล้วจัดเรียงตามลำดับ',
+			},
+		},
+
+		graphicAssociate: {
+			unknownImageDimensions: 'ไม่สามารถแสดงการเชื่อมโยงกราฟิกนี้ได้: ไม่ทราบขนาดของรูปภาพ จึงวางจุดฮอตสปอตได้ โปรดเพิ่มความกว้างและความสูงให้รูปภาพ หรือระบุขนาดของไฟล์',
+			imageFallback: 'รูปภาพสำหรับคำถามนี้',
+			imageLoadError: 'ไม่สามารถโหลดรูปภาพได้',
+			unlabeledHotspot: 'พื้นที่ {index}',
+			hotspotConnections: '{label} ({usageCount}/{matchMax} การเชื่อมต่อ)',
+			hotspotConnectionsUnlimited: '{label} ({usageCount} การเชื่อมต่อ, ไม่จำกัด)',
+			notAvailableSentence: 'ไม่พร้อมใช้งานเนื่องจากข้อจำกัดของกลุ่มการจับคู่',
+			selectAnotherHotspot: 'เลือกแล้ว: {label} เลือกฮอตสปอตอื่นเพื่อสร้างความสัมพันธ์',
+			associationsCount: 'ความสัมพันธ์ ({count}/{max})',
+			associationsCountUnlimited: 'ความสัมพันธ์ ({count})',
+			clickHotspotsToAssociate: 'เลือกฮอตสปอตสองจุดบนภาพเพื่อสร้างความสัมพันธ์',
+			pairDescription: '{first} สัมพันธ์กับ {second}',
+			removeAssociation: 'ลบความสัมพันธ์ระหว่าง {first} และ {second}',
+			minimumRequired: 'จำเป็นขั้นต่ำ: {minAssociations}',
+			associationMade: 'สร้างความเชื่อมโยงแล้ว',
+			associationRemoved: 'ลบความเชื่อมโยงแล้ว',
+			associationLimitReached: 'สร้างความเชื่อมโยงไม่ได้: ถึงขีดจำกัด {max} แล้ว',
+			hotspotLimitReached: 'ไม่สามารถทำได้: {label} ไม่สามารถอยู่ในความเชื่อมโยงเพิ่มเติมได้',
+			minAssociationsHint: {
+				one: 'สร้างอย่างน้อย {count} ความเชื่อมโยง',
+				other: 'สร้างอย่างน้อย {count} ความเชื่อมโยง',
+			},
+			minHotspotUsesHint: 'ต้องการความเชื่อมโยงเพิ่มเติม: {items}',
 		},
 
 		custom: {
@@ -427,10 +602,24 @@ export default {
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: 'เลือก...',
-			textEntryLabel: 'ช่องป้อนข้อความ {id}',
-			choiceLabel: 'ตัวเลือกในบรรทัด {id}',
-			formatHint: 'รูปแบบ: {mask}',
+			blankLabel: 'ช่องว่างที่ {index} จาก {count}',
+			patternMismatch: 'คำตอบนี้ไม่อยู่ในรูปแบบที่กำหนด',
+			patternMismatchWithHint: 'คำตอบนี้ไม่อยู่ในรูปแบบที่กำหนด ใช้รูปแบบนี้: {hint}',
+			correctChoice: 'ถูกต้อง: {choice}',
 		},
+	},
+
+	/**
+	 * ประกาศสำหรับโปรแกรมอ่านหน้าจอเมื่อแสดงการโต้ตอบไม่ได้
+	 * คำแปลควรได้รับการตรวจทานโดยเจ้าของภาษา
+	 */
+	interaction: {
+		renderError: 'ไม่สามารถแสดงองค์ประกอบอินเทอร์แอกทีฟ ({type}) นี้ได้',
+	},
+
+	/** ชื่อสำหรับการเข้าถึงของกลุ่มที่การโต้ตอบแบบกำหนดเองที่พกพาได้ (PCI) แสดง */
+	customInteraction: {
+		portableLabel: 'การโต้ตอบแบบกำหนดเองที่พกพาได้',
 	},
 
 	item: {
@@ -439,36 +628,34 @@ export default {
 		loadError: 'ข้อผิดพลาดในการโหลดรายการ: {error}',
 		parsingError: 'แยกวิเคราะห์ QTI XML ไม่สำเร็จ',
 		processingError: 'ประมวลผลคำตอบไม่สำเร็จ',
+		submitError: 'ส่งคำตอบของคุณไม่สำเร็จ โปรดลองอีกครั้ง',
 		submit: 'ส่ง',
 		complete: 'เสร็จสมบูรณ์',
 		completed: 'เสร็จสมบูรณ์แล้ว',
 		attempt: 'ความพยายาม {numAttempts}',
 	},
 
-	itemSession: {
-		attempt: 'ความพยายาม {numAttempts}',
-		attemptsRemaining: 'เหลือ {attemptsRemaining} ความพยายาม',
-		maxAttempts: 'ความพยายามสูงสุด: {maxAttempts}',
-	},
 
 	feedback: {
+		title: 'คำติชม',
 		close: 'ปิดคำติชม',
 		closeFeedback: 'ละเว้นคำติชม',
 		testFeedback: 'คำติชมการทดสอบ',
+		shown: 'มีการแสดงคำติชม',
 	},
 
 	assessment: {
 		title: 'การประเมิน',
 		loading: 'กำลังโหลดการประเมิน...',
-		loadingError: 'หมดเวลาการโหลดการประเมิน การประเมินนี้อาจไม่ถูกต้องหรือเครื่องเล่นไม่สามารถเริ่มต้นได้',
+		loadingError: 'ไม่สามารถโหลดการประเมินนี้ได้ กรุณาลองอีกครั้ง',
+		stillLoading: 'ยังคงโหลดอยู่ กรุณารอสักครู่',
+		loadingRetry: 'ลองอีกครั้ง',
 		question: 'คำถาม {current} จาก {total}',
 		questionAnnouncement: 'คำถาม {current} จาก {total}',
 		section: 'ส่วนที่ {current} จาก {total}',
 		sectionDefault: 'ส่วนที่ {number}',
 		readingPassage: 'ข้อความสำหรับอ่าน',
 		readingPassages: 'ข้อความสำหรับอ่าน',
-		expandPassage: 'ขยายข้อความ',
-		collapsePassage: 'ย่อข้อความ',
 		closeMenu: 'ปิดเมนู',
 
 		attempts: {
@@ -479,6 +666,22 @@ export default {
 			maxReached: 'ถึงความพยายามสูงสุดแล้ว',
 			required: 'ต้องตอบก่อนดำเนินการต่อ',
 			reviewNotAllowed: 'ไม่อนุญาตเมื่อส่งแล้ว',
+			attemptOf: 'ครั้งที่ {current} จาก {total}',
+			current: 'ครั้งที่ {current}',
+		},
+
+		// Practice delivery: the item-level check control (stays on the item, shows feedback).
+		checkAnswer: {
+			button: 'ตรวจคำตอบ',
+			submittedAnnouncement: 'ส่งคำตอบของคุณแล้ว',
+			attemptsUsedUp: 'คุณใช้จำนวนครั้งที่ตอบได้สำหรับคำถามนี้ครบแล้ว',
+		},
+
+		// QTI allowComment: the candidate comment disclosure.
+		comments: {
+			heading: 'ความคิดเห็นถึงทีมจัดทำข้อสอบ',
+			label: 'ความคิดเห็นของคุณ',
+			placeholder: 'เขียนความคิดเห็นถึงทีมจัดทำข้อสอบ (ไม่บังคับ)',
 		},
 
 		navigation: {
@@ -488,6 +691,64 @@ export default {
 			jumpTo: 'ข้ามไปที่คำถาม {number}',
 			sectionMenu: 'เมนูส่วน',
 			progress: 'ความคืบหน้า: {percent}%',
+			answeredCount: 'ตอบแล้ว {answered} จาก {total} ข้อ',
+		},
+
+		flag: {
+			label: 'ทำเครื่องหมายเพื่อทบทวน',
+			flaggedAnnouncement: 'ทำเครื่องหมายคำถามข้อ {number} เพื่อทบทวนแล้ว',
+			unflaggedAnnouncement: 'ลบเครื่องหมายคำถามข้อ {number} แล้ว',
+		},
+
+		review: {
+			title: 'ตรวจทานคำตอบของคุณ',
+			open: 'ทบทวนคำถาม',
+			backToQuestion: 'กลับไปที่คำถาม',
+			flagged: 'ทำเครื่องหมายไว้',
+			flaggedCount: 'ทำเครื่องหมายไว้ {count} ข้อ',
+			questionsGroup: 'คำถาม',
+			linearNote: 'ในส่วนนี้คุณเดินหน้าได้อย่างเดียว จึงแสดงคำถามเหล่านี้เพื่อทบทวนเท่านั้น',
+			goToItem: 'ไปที่คำถามข้อ {number}',
+			currentItem: 'คำถามปัจจุบัน',
+			statusAnswered: 'ตอบแล้ว',
+			statusPartially: 'ตอบบางส่วน',
+			statusUnanswered: 'ยังไม่ได้ตอบ',
+			notVisited: 'ยังไม่ได้เปิดดู',
+		},
+
+		submit: {
+			dialogTitle: 'ส่งข้อสอบของคุณหรือไม่?',
+			dialogDescription: 'คุณจะไม่สามารถเปลี่ยนคำตอบได้หลังจากส่งแล้ว',
+			flaggedLine: 'ทำเครื่องหมายเพื่อทบทวน {count} ข้อ',
+			unansweredHeading: 'ยังไม่ได้ตอบ {count} ข้อ',
+			unansweredHeadingOne: 'ยังไม่ได้ตอบ 1 ข้อ',
+			needsAnswerHeading: 'มี {count} ข้อที่ต้องตอบก่อนจึงจะส่งได้',
+			needsAnswerHeadingOne: 'มี 1 ข้อที่ต้องตอบก่อนจึงจะส่งได้',
+			incompleteHeadingOne: 'คำตอบ 1 ข้อยังไม่สมบูรณ์ และต้องทำให้สมบูรณ์ก่อนส่ง',
+			incompleteHeading: 'คำตอบ {count} ข้อยังไม่สมบูรณ์ และต้องทำให้สมบูรณ์ก่อนส่ง',
+			requirement: {
+				minChoices: 'เลือกอย่างน้อย {count} ข้อ',
+				minStrings: 'กรอกอย่างน้อย {count} ช่อง',
+				minAssociations: 'จับคู่อย่างน้อย {count} รายการ',
+				minPlays: 'จำนวนครั้งที่ต้องเล่น: {count}',
+				incomplete: 'ทำคำตอบให้สมบูรณ์',
+			},
+			incompleteJump: 'ไปที่ข้อ {number}: {requirement}',
+			incompleteEntry: 'ข้อ {number}: {requirement}',
+			allAnswered: 'คุณตอบครบทุกข้อแล้ว',
+			confirm: 'ส่งข้อสอบ',
+			cancel: 'ทำต่อไป',
+		},
+
+		leavePart: {
+			title: 'ออกจากส่วนนี้หรือไม่?',
+			description: 'เมื่อดำเนินการต่อไป คุณจะไม่สามารถกลับมาที่คำถามในส่วนนี้ได้',
+			confirm: 'ดำเนินการต่อ',
+			cancel: 'อยู่ในส่วนนี้ต่อไป',
+			needsAnswerHeadingOne: 'มีคำถามในส่วนนี้ 1 ข้อที่ยังต้องตอบก่อนออกจากส่วนนี้',
+			needsAnswerHeading: 'มีคำถามในส่วนนี้ {count} ข้อที่ยังต้องตอบก่อนออกจากส่วนนี้',
+			incompleteHeadingOne: 'คำตอบในส่วนนี้ 1 ข้อยังไม่สมบูรณ์ และต้องทำให้สมบูรณ์ก่อนออกจากส่วนนี้',
+			incompleteHeading: 'คำตอบในส่วนนี้ {count} ข้อยังไม่สมบูรณ์ และต้องทำให้สมบูรณ์ก่อนออกจากส่วนนี้',
 		},
 
 		sections: {
@@ -502,9 +763,77 @@ export default {
 			timeRemaining: 'เวลาที่เหลือ: {time}',
 			timeElapsed: 'เวลาที่ผ่านไป: {time}',
 			timeUp: 'หมดเวลา!',
+			warningMinutesOne: 'เหลือเวลา 1 นาที',
+			warningMinutes: 'เหลือเวลา {count} นาที',
+			warningTime: 'เหลือเวลา {time}',
+			paused: 'หยุดชั่วคราว',
+			label: 'ตัวจับเวลา',
+		},
+
+		start: {
+			begin: 'เริ่ม',
+			resume: 'ทำต่อ',
+			timeMinutesOne: 'คุณมีเวลา 1 นาที',
+			timeMinutes: 'คุณมีเวลา {count} นาที',
+			timeExact: 'คุณมีเวลา {time}',
+			scopedTimeLimits: 'บางส่วนของข้อสอบนี้มีการจำกัดเวลาของตัวเอง',
+			paused: 'ข้อสอบนี้หยุดชั่วคราว กรุณารอจนกว่าจะดำเนินการต่อ',
+		},
+
+		timeExpiry: {
+			autoSubmitted: 'หมดเวลาแล้ว ระบบได้ส่งคำตอบของคุณแล้ว',
+			submitTitle: 'หมดเวลาทำข้อสอบนี้แล้ว',
+			submitDescription: 'คุณไม่สามารถเปลี่ยนคำตอบได้อีกแล้ว กรุณาส่งข้อสอบเพื่อสิ้นสุด',
+			partTitle: 'หมดเวลาสำหรับส่วนนี้แล้ว',
+			sectionTitle: 'หมดเวลาสำหรับหมวดนี้แล้ว',
+			questionTitle: 'หมดเวลาสำหรับคำถามนี้แล้ว',
+			scopeDescription: 'คุณจะไปยังส่วนถัดไปของข้อสอบ',
+			movingToQuestion: 'คุณกำลังไปที่ข้อ {number}',
+			closedDescription: 'คุณไม่สามารถเปลี่ยนคำตอบของคำถามในส่วนนี้ได้อีกแล้ว',
+			continue: 'ดำเนินการต่อ',
+		},
+
+		pause: {
+			title: 'การประเมินหยุดชั่วคราว',
+			message: 'ข้อสอบของคุณถูกหยุดชั่วคราว กรุณารอจนกว่าจะดำเนินการต่อ',
+			announcement: 'การประเมินหยุดชั่วคราว',
+			withReason: 'การประเมินหยุดชั่วคราว: {reason}',
+			resumed: 'การประเมินดำเนินการต่อแล้ว',
+		},
+
+		// Autosave: ตัวบอกสถานะการบันทึกถัดจำนวนข้อที่ตอบแล้ว
+		autosave: {
+			saved: 'บันทึกแล้ว · {time}',
+			savedShort: 'บันทึกแล้ว',
+			saving: 'กำลังบันทึก…',
+			notSaved: 'ยังไม่ได้บันทึก',
+		},
+
+		// สแนปช็อตที่กู้คืนมีคำตอบที่บันทึกไว้: ทำต่อหรือเริ่มใหม่
+		resume: {
+			title: 'ทำแบบทดสอบต่อหรือไม่',
+			description: 'คุณมีคำตอบที่บันทึกไว้ตั้งแต่เวลา {time}',
+			descriptionNoTime: 'คุณมีคำตอบที่บันทึกไว้จากครั้งก่อน',
+			resumeAction: 'ทำต่อจากที่ค้างไว้',
+			startOver: 'เริ่มใหม่',
+			confirmTitle: 'เริ่มใหม่และลบคำตอบที่บันทึกไว้หรือไม่',
+			confirmDescription:
+				'คำตอบที่บันทึกไว้จะถูกลบ และแบบทดสอบจะเริ่มต้นใหม่ตั้งแต่ต้น การกระทำนี้ย้อนกลับไม่ได้',
+			confirmAction: 'ลบและเริ่มใหม่',
+			cancel: 'เก็บคำตอบที่บันทึกไว้',
+			resumedAnnouncement: 'คืนคำตอบที่บันทึกไว้แล้ว',
+			restartedAnnouncement: 'เริ่มแบบทดสอบใหม่ตั้งแต่ต้นแล้ว',
+		},
+
+		// เนื้อหาของคำถามขัดข้อง: ใช้ถ้อยคำที่เข้าใจง่าย ไม่แสดงข้อความสำหรับนักพัฒนา และแบบทดสอบยังดำเนินต่อได้
+		itemError: {
+			title: 'ไม่สามารถแสดงคำถามข้อนี้ได้',
+			tryAgain: 'ลองอีกครั้ง',
+			continue: 'ทำต่อ',
 		},
 
 		feedback: {
+			title: 'คำติชม',
 			correct: 'ถูกต้อง',
 			incorrect: 'ไม่ถูกต้อง',
 			partiallyCorrect: 'ถูกต้องบางส่วน',
@@ -523,15 +852,74 @@ export default {
 			exit: 'ออก',
 		},
 
+		// The shell completion screen after finalization (+ the opt-in results summary).
+		complete: {
+			alreadySubmitted: 'ส่งข้อสอบนี้ไปแล้ว',
+			finished: 'คุณทำข้อสอบเสร็จแล้ว',
+			timeExpired: 'หมดเวลาแล้ว ข้อสอบสิ้นสุดลงและระบบได้ส่งคำตอบของคุณแล้ว',
+			byProctor: 'การทดสอบของคุณถูกส่งโดยผู้คุมสอบ',
+			byProctorAnnouncement: 'ผู้คุมสอบได้ส่งการทดสอบของคุณแล้ว',
+			resultsHeading: 'สรุปผลลัพธ์',
+			totalScore: 'คะแนนรวม: {score} จาก {maxScore}',
+			itemName: 'คำถามที่ {number}',
+		},
+
 		errors: {
 			navigationFailed: 'การนำทางล้มเหลว โปรดลองอีกครั้ง',
 			submitFailed: 'ส่งการประเมินไม่สำเร็จ โปรดลองอีกครั้ง',
 			loadFailed: 'โหลดคำถามไม่สำเร็จ',
 			saveFailed: 'บันทึกคำตอบไม่สำเร็จ',
+			unexpected: 'เกิดข้อผิดพลาดบางอย่าง กรุณาลองอีกครั้ง',
+			supportCode: 'รหัสสนับสนุน: {code}',
+			codes: {
+				invalidNavigationTarget: 'คำถามหรือส่วนนี้ไม่พร้อมใช้งาน',
+				linearNavigationOnly: 'ในส่วนนี้คุณไปที่คำถามถัดไปได้เท่านั้น',
+				navigationNotAllowed: 'ขณะนี้คุณไปที่นั่นไม่ได้',
+				navigationInFlight: 'กรุณารอสักครู่ก่อนลองอีกครั้ง',
+				testFinalized: 'ส่งการประเมินนี้ไปแล้ว',
+				minTimeNotElapsed: 'กรุณาอยู่กับเนื้อหานี้อย่างน้อยอีก {remaining} วินาทีก่อนไปต่อ',
+				itemTimeExpired: 'หมดเวลาสำหรับคำถามนี้แล้ว',
+				reviewNotAllowed: 'คุณกลับมาที่คำถามนี้ไม่ได้',
+				responseRequired: 'คุณต้องตอบคำถามนี้ก่อนจึงจะไปต่อได้',
+				finalizeResponseRequired: 'ยังมีบางข้อที่ต้องตอบก่อนจึงจะส่งได้: {items}',
+				finalizeResponseInvalid: 'คำตอบบางข้อยังไม่สมบูรณ์ ตรวจสอบข้อเหล่านี้ก่อนส่ง: {items}',
+				leavePartResponseRequired: 'คำถามในส่วนนี้บางข้อยังต้องตอบก่อนไปต่อ: {items}',
+				leavePartResponseInvalid: 'คำตอบในส่วนนี้บางข้อยังไม่สมบูรณ์ ตรวจสอบก่อนไปต่อ: {items}',
+				attemptValidationFailed: 'กรุณาตรวจสอบคำตอบของคุณ ต้องเป็นคำตอบที่สมบูรณ์',
+				maxAttemptsReached: 'คุณใช้จำนวนครั้งที่ตอบได้สำหรับคำถามนี้ครบแล้ว',
+				itemSessionLocked: 'คำถามนี้ปิดอยู่และไม่สามารถเปลี่ยนแปลงได้อีก',
+				commentsNotAllowed: 'ไม่อนุญาตให้ใส่ความคิดเห็นในคำถามนี้',
+				submitFailed: 'ไม่สามารถส่งคำตอบของคุณได้ คำตอบของคุณยังอยู่ครบถ้วน กรุณาลองอีกครั้ง',
+				finalizeFailed: 'ยังไม่สามารถส่งแบบทดสอบได้ คำตอบของคุณยังอยู่ครบถ้วน กรุณาลองอีกครั้ง',
+				assessmentPaused: 'การประเมินของคุณหยุดชั่วคราว กรุณารอจนกว่าจะดำเนินการต่อ',
+				outcomeProcessingFailed: 'บันทึกคำตอบของคุณแล้ว แต่ไม่สามารถคำนวณผลลัพธ์ได้ หากปัญหายังคงอยู่กรุณาติดต่อผู้สนับสนุน',
+			},
 		},
 		playerLabel: 'เครื่องเล่นการประเมิน',
 		instructions: 'คำแนะนำ',
 		rubrics: 'เกณฑ์การให้คะแนน',
+		skipToQuestion: 'ข้ามไปยังคำถาม',
+	},
+
+	// Section player chrome: passage/question panes and their headings.
+	sectionPlayer: {
+		passage: 'ข้อความ',
+		passageNumbered: 'ข้อความ {number}',
+		passages: 'ข้อความ',
+		question: 'คำถาม',
+		passageAndQuestion: 'ข้อความและคำถาม',
+		// The candidate's display settings tool and its dialog.
+		displaySettings: {
+			title: 'การตั้งค่าการแสดงผล',
+			description: 'การเปลี่ยนแปลงมีผลทันทีและคงอยู่ตลอดเซสชันนี้',
+			textSize: 'ขนาดตัวอักษร',
+			sizeDefault: 'ค่าเริ่มต้น',
+			sizeLarge: 'ใหญ่',
+			sizeLarger: 'ใหญ่ขึ้น',
+			sizeLargest: 'ใหญ่ที่สุด',
+			highContrast: 'ข้อความคอนทราสต์สูงขึ้น',
+			textSpacing: 'ระยะห่างข้อความเพิ่มขึ้น',
+		},
 	},
 
 	i18n: {
@@ -549,6 +937,7 @@ export default {
 		answerRecorded: 'บันทึกคำตอบแล้ว',
 		resizer: 'ปรับขนาดแผงข้อความและคำถาม',
 		sentence: '{text}',
+		choiceFallback: 'ตัวเลือก {index}',
 		correctAnswer: 'คำตอบที่ถูกต้อง',
 		correctAnswerIs: 'คำตอบที่ถูกต้อง: {answer}',
 		correctPosition: 'ตำแหน่งที่ถูกต้อง',
@@ -564,124 +953,6 @@ export default {
 		catalogRequestUsage: 'ขอ {usage}: {term}',
 	},
 
-	demo: {
-		selectSampleItem: 'เลือกรายการตัวอย่าง',
-		configurationPanel: 'แผงการกำหนดค่า',
-		viewingAs: 'ดูในฐานะ',
-		role: 'บทบาท',
-		candidate: 'ผู้เข้าสอบ',
-		author: 'ผู้เขียน',
-		proctor: 'ผู้คุมสอบ',
-		scorer: 'ผู้ให้คะแนน',
-		tutor: 'ครูผู้สอน',
-		showCorrectAnswers: 'แสดงคำตอบที่ถูกต้อง',
-		showFeedback: 'แสดงข้อเสนอแนะ',
-		settings_aria: 'เปิดเมนูการตั้งค่า',
-		xmlEditor: 'ตัวแก้ไข XML',
-
-		// Navigation
-		appName: 'เครื่องเล่น PIE QTI',
-		home: 'หน้าแรก',
-		itemDemo: 'ตัวอย่างรายการ',
-		assessmentDemo: 'ตัวอย่างการประเมิน',
-		likertDemo: 'ตัวอย่างปลั๊กอิน Likert',
-		iframeDemo: 'ตัวอย่าง Iframe',
-		theme: 'ธีม',
-
-		// Home Page
-		homeTitle: 'เครื่องเล่น QTI',
-		homeSubtitle: 'เครื่องเล่นที่ทันสมัยและเป็นอิสระจากเฟรมเวิร์กสำหรับรายการประเมิน QTI ทำงานบนฝั่งไคลเอนต์ 100% ตามค่าเริ่มต้น พร้อมตัวเชื่อมฝั่งเซิร์ฟเวอร์ที่เป็นตัวเลือกสำหรับการใช้งานจริง',
-		homeMetaDescription: 'เครื่องเล่น QTI ที่ทันสมัยพร้อมการผสานรวมแบ็กเอนด์แบบเลือกได้',
-		tryItems: 'ทดลองรายการ',
-		tryAssessments: 'ทดลองการประเมิน',
-		trySectionPlayer: 'เครื่องเล่นส่วน',
-		pluginDemo: 'ตัวอย่างปลั๊กอิน',
-		dropQtiFile: 'วางไฟล์ QTI XML ที่นี่',
-		orClickToSelect: 'หรือคลิกเพื่อเลือกไฟล์',
-		selectFile: 'เลือกไฟล์',
-		selectedFile: 'เลือกแล้ว:',
-		loadInPlayer: 'โหลดในเครื่องเล่น',
-		footerTitle: 'เครื่องเล่น QTI',
-		footerLicense: 'ลิขสิทธิ์ MIT • โอเพนซอร์ส',
-
-		// Settings Panel
-		settings: 'การตั้งค่า',
-		candidateStudent: 'ผู้เข้าสอบ (นักเรียน)',
-		testConstructor: 'ผู้สร้างแบบทดสอบ',
-		controlsRubricVisibility: 'ควบคุมการมองเห็นหลักเกณฑ์การให้คะแนนและการแสดงคำตอบที่ถูกต้อง',
-		useBackendScoring: 'ใช้การให้คะแนนบนเซิร์ฟเวอร์',
-		scoreOnServer: 'ให้คะแนนคำตอบบนเซิร์ฟเวอร์แทนที่ฝั่งไคลเอนต์',
-		sessionManagement: 'การจัดการเซสชัน',
-		saving: 'กำลังบันทึก...',
-		saveSession: 'บันทึกเซสชัน',
-		loadSession: 'โหลดเซสชัน',
-
-		// Export & Template
-		exportResponses: 'ส่งออกคำตอบ',
-		json: 'JSON',
-		csv: 'CSV',
-		templateProcessing: 'การประมวลผลเทมเพลต',
-		rerunTemplateProcessing: 'เรียกใช้ templateProcessing อีกครั้งและรีเซ็ตเซสชันรายการ',
-		regenerateVariant: 'สร้างตัวแปรใหม่',
-		templateVariablesDebug: 'ตัวแปรเทมเพลต (ดีบัก)',
-		variable: 'ตัวแปร',
-		value: 'ค่า',
-
-		// Keyboard Shortcuts
-		keyboardShortcuts: 'แป้นลัด',
-		submitAnswersShortcut: 'ส่งคำตอบ',
-		tryAgainShortcut: 'ลองอีกครั้ง',
-		exportJsonShortcut: 'ส่งออก JSON',
-		saveSessionShortcut: 'บันทึกเซสชัน',
-		useCmdOnMacOS: 'ใช้ <kbd class="kbd kbd-xs">Cmd</kbd> บน macOS',
-
-		// Results Panel
-		results: 'ผลลัพธ์',
-		score: 'คะแนน',
-		outcomeVariables: 'ตัวแปรผลลัพธ์',
-
-		// Misc
-		format: 'รูปแบบ',
-		selectItemOrPasteXml: 'เลือกรายการตัวอย่างหรือวาง XML ที่กำหนดเองเพื่อเริ่มต้น',
-		pageTitle: 'ตัวอย่างเครื่องเล่น - เครื่องเล่น PIE QTI',
-
-		// Sample Item Descriptions
-		sampleItemDescriptions: {
-			'': 'รายการที่อัปโหลดแบบกำหนดเอง',
-			'simple-choice': 'โจทย์คณิตศาสตร์พื้นฐานเรื่องการลบพร้อมตัวเลือกที่เป็นไปได้',
-			'partial-credit': 'ตัวเลือกหลายตัวเลือกที่มีคะแนนบางส่วนโดยใช้ mapResponse',
-			'capital-cities': 'คำถามภูมิศาสตร์พร้อมตัวเลือกที่สุ่มแล้ว',
-			'text-entry': 'คำถามเติมช่องว่างที่ตรงกันโดยไม่คำนึงถึงตัวพิมพ์ใหญ่เล็ก',
-			'extended-text': 'คำถามคำตอบข้อความหลายบรรทัด',
-			'inline-choice': 'เมนูแบบเลื่อนลงที่ฝังอยู่ในข้อความ',
-			'order-interaction': 'จัดเรียงรายการในลำดับที่ถูกต้อง',
-			'match-interaction': 'จับคู่รายการจากสองคอลัมน์',
-			'associate-interaction': 'สร้างการเชื่อมโยงระหว่างรายการ',
-			'gap-match': 'ลากคำลงในช่องว่างในข้อความ',
-			'graphic-gap-match-solar-system': 'ติดป้ายดาวเคราะห์ชั้นในทั้งสี่ของระบบสุริยะของเรา',
-			'slider': 'เลือกค่าบนตัวเลื่อนตัวเลข',
-			'hotspot': 'คลิกที่ดาวเคราะห์สีน้ำเงินในคำถามดาราศาสตร์นี้',
-			'hotspot-partial-credit': 'ระบุดาวเคราะห์ที่มีน้ำเหลว (คะแนนบางส่วนสำหรับดาวเคราะห์หิน)',
-			'template-variable-demo': 'templateProcessing สร้างค่า responseProcessing ให้คะแนน',
-			'upload-interaction': 'อัปโหลดไฟล์เป็นคำตอบ (baseType=file)',
-			'drawing-interaction': 'วาดบนผืนผ้าใบ (baseType=file, PNG dataUrl)',
-			'media-audio': 'เครื่องเล่นเสียงพร้อมการติดตามจำนวนการเล่นและความต้องการ minPlays',
-			'media-video': 'เครื่องเล่นวิดีโอพร้อมการติดตามจำนวนการเล่นและขอบเขต maxPlays',
-			'hottext-single': 'คลิกเพื่อเลือกคำเดียวในข้อความ (คำถามไวยากรณ์)',
-			'hottext-multiple': 'คลิกเพื่อเลือกหลายส่วนของข้อความ (ความเข้าใจในการอ่าน)',
-			'select-point': 'คลิกที่ภาพเพื่อเลือกตำแหน่งจุด (คำถามภูมิศาสตร์)',
-			'graphic-order': 'ลากเพื่อจัดเรียงรายการบนภาพใหม่ (ชั้นทางธรณีวิทยา)',
-			'graphic-associate': 'คลิกคู่ของจุดฮอตสปอตเพื่อสร้างการเชื่อมโยง (การจับคู่อวัยวะ)',
-			'position-object': 'ลากและวางวัตถุเฟอร์นิเจอร์บนแผนผังห้อง',
-			'end-attempt': 'ปุ่มเพื่อสิ้นสุดความพยายามในการประเมิน',
-			'custom-interaction': 'แสดง UI สำรองสำหรับ customInteraction และอนุญาตให้ตอบด้วยตนเอง',
-			'choice-with-stimulus': 'คำถามพร้อมข้อความอ่านฝังอยู่ในบรรทัด',
-			'math-inline': 'ตัวเลือกหลายตัวเลือกพร้อมการแสดงผลคณิตศาสตร์ MathML แบบอินไลน์',
-			'math-extended': 'คำตอบแบบขยายพร้อม MathML และเครื่องมือแก้ไขข้อความ rich text สำหรับแสดงงานคณิตศาสตร์',
-			'math-fractions': 'เลขคณิตเศษส่วนพร้อมการแสดงผลบล็อก MathML',
-			'adaptive-capitals': 'คำถามปรับตัวได้หลายความพยายามพร้อมคำติชมและคำแนะนำแบบค่อยเป็นค่อยไป',
-		},
-	},
 
 	transform: {
 		// App title and navigation

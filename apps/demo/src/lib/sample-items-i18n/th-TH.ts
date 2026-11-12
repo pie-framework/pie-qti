@@ -669,7 +669,7 @@ export const ITEMS_TH_TH: Record<string, LocalizedItemData> = {
 
   <itemBody>
     <p>ดาวเคราะห์ด้านในของระบบสุริยะของเราคือดาวเคราะห์หิน 4 ดวงที่ใกล้ดวงอาทิตย์ที่สุด: ดาวพุธ ดาวศุกร์ โลก และดาวอังคาร</p>
-    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="4">
       <prompt>ติดป้ายดาวเคราะห์ด้านใน 4 ดวงในระบบสุริยะของเรา</prompt>
       <object type="image/svg+xml" width="800" height="400">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">

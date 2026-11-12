@@ -53,14 +53,6 @@ export default {
 		errorNoData: 'No interaction data provided',
 	},
 
-	units: {
-		bytes: '{count} bytes',
-		kilobytes: '{count} KB',
-		megabytes: '{count} MB',
-		seconds: '{count} seconds',
-		minutes: '{count} minutes',
-		hours: '{count} hours',
-	},
 
 	// Pluralization examples
 	// Use i18n.plural('plurals.items', { count: n }) to access these
@@ -103,13 +95,6 @@ export default {
 		},
 	},
 
-	validation: {
-		required: 'This field is required',
-		invalidFormat: 'Invalid format',
-		tooShort: 'Too short (minimum {min} characters)',
-		tooLong: 'Too long (maximum {max} characters)',
-		outOfRange: 'Value must be between {min} and {max}',
-	},
 
 	interactions: {
 		choice: {
@@ -120,6 +105,13 @@ export default {
 			correct: 'Correct',
 			revealChoice: 'Reveal choice {index}',
 			groupLabel: 'Answer choices',
+			maxChoicesReached: 'You can select up to {max}. Deselect one to choose another.',
+			clearAnswer: 'Clear answer',
+			minChoicesHint: {
+				one: 'Select at least {count} answer.',
+				other: 'Select at least {count} answers.',
+			},
+			eliminateChoice: 'Eliminate',
 		},
 
 		upload: {
@@ -149,6 +141,8 @@ export default {
 			// {max} will be replaced with maximum size in MB
 			errorTooLarge: 'File is too large (maximum {max} MB)',
 			unknownType: 'Unknown file type',
+			fileRemoved: 'File removed.',
+			errorFileTooLarge: 'File {filename} is too large. Maximum size is {maxBytes} bytes.',
 		},
 
 		drawing: {
@@ -164,6 +158,8 @@ export default {
 			updated: 'Drawing updated.',
 			cleared: 'Drawing cleared.',
 			generated: 'Generated:',
+			imageFallback: 'Drawing background',
+			imageLoadError: 'The background image could not be loaded.',
 		},
 
 		extendedText: {
@@ -175,15 +171,43 @@ export default {
 			underline: 'Underline',
 			bulletList: 'Bullet list',
 			numberedList: 'Numbered list',
-			insertMath: 'Insert math equation',
 			insertInlineMath: 'Insert inline math',
 			insertBlockMath: 'Insert block math',
-			enterMathExpression: 'Enter your math expression:',
-			latexSource: 'LaTeX source:',
-			keyboard: 'Keyboard',
+			responseLabel: 'Response',
+			responseNumber: 'Response {number}',
+			addResponse: 'Add response',
+			removeResponseNumber: 'Remove response {number}',
+			responseRemoved: 'Response {number} removed.',
+			charactersRemaining: {
+				one: '{count} character remaining',
+				other: '{count} characters remaining',
+			},
+			expectedLengthReached: {
+				one: 'Expected length of {count} character reached.',
+				other: 'Expected length of {count} characters reached.',
+			},
+			correctAnswerHeading: 'Correct answer:',
+			editMath: 'Edit math',
+			minStringsHint: {
+				one: 'Write at least {count} response.',
+				other: 'Write at least {count} responses.',
+			},
+			minStringsRemoveRefused: 'Response not removed: at least {count} responses are required.',
+			patternMismatch: 'This answer is not in the expected format.',
+		},
+
+		mathInput: {
+			insertInlineTitle: 'Insert inline math',
+			insertBlockTitle: 'Insert block math',
+			editInlineTitle: 'Edit inline math',
+			editBlockTitle: 'Edit block math',
+			instructions: 'Type the expression, or open the math keyboard. Press Escape to cancel.',
+			fieldLabel: 'Math expression',
+			latexSourceLabel: 'LaTeX source',
+			latexEmpty: 'LaTeX will appear here',
+			toggleKeyboard: 'Math keyboard',
 			update: 'Update',
 			insert: 'Insert',
-			correctAnswerHeading: 'Correct answer:',
 		},
 
 		slider: {
@@ -194,13 +218,17 @@ export default {
 			step: 'Step: {step}',
 			ariaLabel: 'Slider value from {lowerBound} to {upperBound}',
 			statTitle: 'Selected Value',
+			noValueSelected: 'No value selected',
 		},
 
 		hottext: {
 			selected: 'Selected:',
 			selectText: 'Select text from the passage',
-			clearSelection: 'Clear Selection',
 			ariaLabel: 'Text selection interaction',
+			maxChoicesReached: 'You can select up to {max}. Deselect one to choose another.',
+			// No checkmark: HottextInteraction renders its own "✓ " before this badge.
+			minimumMet: 'Minimum met',
+			selectAtLeast: 'Select at least {minChoices}',
 		},
 
 		hotspot: {
@@ -211,9 +239,19 @@ export default {
 			unknownImageDimensions:
 				'This hotspot cannot be shown: the size of its image is unknown, so the selectable regions cannot be placed. Add width and height to the image, or supply the asset dimensions.',
 			correctList: 'Correct: {ids}',
+			imageFallback: 'Image for this question',
+			imageLoadError: 'The image could not be loaded.',
+			regionOfTotal: 'Region {index} of {total}',
+			selectedRegion: 'Selected: {region}',
+			maxChoicesReached: 'You can select up to {max}. Deselect one to choose another.',
+			minChoicesHint: {
+				one: 'Select at least {count} region.',
+				other: 'Select at least {count} regions.',
+			},
 		},
 
 		selectPoint: {
+			unknownImageDimensions: 'This select-point interaction cannot be shown: the size of its image is unknown, so points cannot be placed correctly. Add width and height to the image, or supply the asset dimensions.',
 			instruction: 'Click on the image to select points',
 			instructionAria: 'Click to select points on the image',
 			maxPointsReached: 'Maximum points reached. Remove a point to add a new one.',
@@ -228,6 +266,16 @@ export default {
 			minimumMet: '✓ Minimum met',
 			selectAtLeast: 'Select at least {minChoices}',
 			correctPointAt: 'Correct answer point at coordinates {x}, {y}',
+			imageFallback: 'Image for this question',
+			imageLoadError: 'The image could not be loaded.',
+			stageLabel: 'Point selection area',
+			keyboardInstructions: 'Click the image to place a point. With a keyboard, focus the image, move the crosshair with the arrow keys (hold Shift for smaller steps) and press Enter or Space to place a point.',
+			placedPoints: 'Placed points',
+			pointAtPercent: 'Point {index} at {x}%, {y}%',
+			percentPosition: '{x}%, {y}%',
+			pointPlaced: 'Point {index} placed at {x}%, {y}%.',
+			pointRemoved: 'Point {index} removed.',
+			allPointsRemoved: 'All points removed.',
 		},
 
 		match: {
@@ -253,18 +301,26 @@ export default {
 			navigateToTarget: 'Navigate to a target and press Space or Enter to match',
 			selectionCancelled: 'Selection cancelled',
 			matchCleared: 'Match cleared for {item}',
-			maxReached: 'Maximum associations reached. Remove a pair to add a new one.',
+			associationLimitReached: 'Association not possible: the limit of {max} is reached.',
+			sourceLimitReached: 'Not possible: {label} cannot be in more associations.',
 			pairCreated: '{source} matched with {target}.',
+			minAssociationsHint: {
+				one: 'Make at least {count} match.',
+				other: 'Make at least {count} matches.',
+			},
+			minChoiceUsesHint: 'Needs more matches: {items}.',
 			matchedWithSentence: 'Matched with {targets}.',
 			selectedForMatchingSentence: 'Selected for matching.',
 			availableForMatchingSentence: 'Available for matching.',
 			notCompatibleSentence: 'Not compatible with the selected source.',
+			selectionCancelledItem: 'Selection of {item} cancelled.',
 		},
 
 		gapMatch: {
-			filledGapAriaLabelWithHeld: 'Blank {gapId}, filled with {word}. Select to replace with {heldWord}.',
-			blankGapAriaLabelWithHeld: 'Blank {gapId}. Select to place {heldWord} here.',
-			placed: 'Placed {word} in blank {gapId}.',
+			filledGapAriaLabelWithHeld: 'Blank {position} of {total}, filled with {word}. Select to replace with {heldWord}.',
+			blankGapAriaLabelWithHeld: 'Blank {position} of {total}. Select to place {heldWord} here.',
+			placed: 'Placed {word} in blank {position} of {total}.',
+			associationLimitReached: 'Association not possible: the limit of {max} is reached.',
 			pointerInstructions: 'Select a word, then select a blank. You can also drag and drop.',
 			instruction: 'Drag words to fill in the blanks',
 			available: 'Available words',
@@ -275,8 +331,14 @@ export default {
 			removeFromBlanks: 'Remove {word} from the blanks',
 			selectPlaceholder: 'Select...',
 			gapAriaLabel: 'Gap {gapId}',
-			blankGapAriaLabel: 'Blank {gapId}. Drop an answer here.',
-			filledGapAriaLabel: 'Blank {gapId}, filled with {word}. Click to clear.',
+			blankGapAriaLabel: 'Blank {position} of {total}. Drop an answer here.',
+			filledGapAriaLabel: 'Blank {position} of {total}, filled with {word}. Select to clear.',
+			wordSelected: '{word} picked up. Select a blank to place it, or press Escape to cancel.',
+			pickUpCancelled: 'Pick-up of {word} cancelled.',
+			minPlacementsHint: 'Still to place in the blanks: {words}.',
+			notCompatibleSentence: 'Not compatible with the selected word.',
+			wordRemovedFromBlanks: '{word} removed from the blanks.',
+			requiredBlanksLegend: 'Blanks marked * are required.',
 		},
 
 		graphicGapMatch: {
@@ -299,9 +361,8 @@ export default {
 			pickedUp: 'Picked up: {label}. Tab to a hotspot and press Enter to place it.',
 			alreadyPlacedSentence: 'Already placed on a hotspot.',
 			unavailableSentence: 'Not available due to a match group restriction.',
-			heldHint: 'Picked up. Tab to a hotspot and press Enter to place it.',
+			heldHint: 'Tab to a hotspot and press Enter to place it.',
 			pickUpHint: 'Press Space or Enter to pick up.',
-			selectedHint: 'Selected for placement.',
 			selectHint: 'Press Space to select.',
 			hotspotContains: 'Hotspot {number}. Contains {label}.',
 			hotspotCorrectAnswer: 'Hotspot {number}. Correct answer: {label}.',
@@ -311,11 +372,17 @@ export default {
 			placeLabelHint: 'Press Space or Enter to place the label.',
 			labelFallback: 'Label',
 			pickUpInstructions: 'Press Space or Enter to pick up a label. Tab to a hotspot on the image and press Enter to place it. Press Escape to cancel.',
+			imageFallback: 'Image for this question',
+			imageLoadError: 'The image could not be loaded.',
+			unknownImageDimensions: 'The hotspots cannot be shown: the size of the image is unknown. Add width and height to the image.',
+			minPlacementsHint: 'Still to place on the hotspots: {labels}.',
+			associationLimitReached: 'Association not possible: the limit of {max} is reached.',
 		},
 
 		order: {
-			moveEarlier: 'Move earlier',
-			moveLater: 'Move later',
+			moveEarlierItem: 'Move {item} earlier',
+			moveLaterItem: 'Move {item} later',
+			eliminateItem: 'Eliminate {item}',
 			instruction: 'Use the move buttons or drag items to reorder them.',
 			keyboardInstructions: 'Press Space or Enter to grab an item. Use arrow keys to move the item. Press Space or Enter again to drop. Press Escape to cancel.',
 			grabbed: 'Grabbed. Use arrow keys to move.',
@@ -330,9 +397,34 @@ export default {
 			itemDropped: '{item} dropped at position {position} of {total}',
 			itemMoved: '{item} moved to position {position} of {total}',
 			selectionCancelled: '{item} selection cancelled',
-			itemPosition: '{item}. Position {position} of {total}.',
 			itemFallback: 'Item',
 			orderConfirmed: 'Order confirmed',
+			minChoicesHint: {
+				one: 'Put at least {count} item in order.',
+				other: 'Put at least {count} items in order.',
+			},
+			// Subset ordering (minChoices below the number of choices): the candidate chooses
+			// which items to order, moving them between the two lists.
+			yourOrder: 'Your order',
+			notInOrder: 'Not in your order',
+			emptyOrder: 'Nothing is in your order yet.',
+			addItem: 'Add {item} to your order',
+			removeItem: 'Remove {item} from your order',
+			itemAdded: '{item} added to your order at position {position} of {total}.',
+			itemRemoved: '{item} removed from your order.',
+			orderLimitReached: {
+				one: 'Your order can hold {max} item. Remove it to add another.',
+				other: 'Your order can hold up to {max} items. Remove one to add another.',
+			},
+			correctOrder: 'Correct order',
+			subsetExactHint: {
+				one: 'Choose {count} item for your order.',
+				other: 'Choose {count} items and put them in order.',
+			},
+			subsetRangeHint: {
+				one: 'Choose between {min} and {max} item and put them in order.',
+				other: 'Choose between {min} and {max} items and put them in order.',
+			},
 		},
 
 		associate: {
@@ -355,9 +447,24 @@ export default {
 			clickHotspotsToAssociate: 'Click two hotspots on the image to create an association.',
 			clickAnotherHotspot: 'Selected: <strong>{label}</strong>. Click another hotspot to create an association.',
 			removeAssociationBetween: 'Remove association between {first} and {second}',
+			inPairSentence: 'In an association.',
+			removedAssociationBetween: 'Removed association between {first} and {second}.',
+			minAssociationsHint: {
+				one: 'Make at least {count} association.',
+				other: 'Make at least {count} associations.',
+			},
+			minChoiceUsesHint: 'Needs more associations: {items}.',
+			maxAssociationsHint: {
+				one: 'You can make up to {count} association.',
+				other: 'You can make up to {count} associations.',
+			},
+			choiceLimitReached: 'Not possible: {label} cannot be in more associations.',
+			associationLimitReached: 'Association not possible: the limit of {max} is reached.',
+			notAvailableSentence: 'Not available due to a match group restriction.',
 		},
 
 		positionObject: {
+			unknownImageDimensions: 'Objects cannot be placed: the size of the stage image is unknown. Add width and height to the image, or supply the asset dimensions.',
 			instruction: 'Drag objects onto the image',
 			placeObject: 'Place {object} on image',
 			removeObject: 'Remove {object}',
@@ -367,25 +474,39 @@ export default {
 			positioned: 'Positioned {label} at ({x}, {y})',
 			minimumRequired: 'Minimum required: {minChoices}',
 			maximumAllowed: 'Maximum: {maxChoices}',
+			maxChoicesReached: {
+				one: 'The maximum of {max} placement is reached.',
+				other: 'The maximum of {max} placements is reached.',
+			},
+			objectLimitReached: 'Not possible: {object} cannot be placed again.',
 			availableObjects: 'Available Objects',
-			objectUsage: '{label} ({usageCount}/{matchMax} used)',
 			availableObjectsCount: 'Available Objects ({count}/{max})',
 			dragObjectsInstruction: 'Drag objects onto the canvas to position them.',
 			used: '{usageCount}/{matchMax} used',
+			usedUnlimited: '{usageCount} used, unlimited',
 			objectSelected: '{object} selected. Tab to the canvas, then use the arrow keys to position it. Press Enter to place it or Escape to cancel.',
 			objectPlacedAt: '{object} placed at {x}%, {y}%.',
 			placementCancelled: 'Placement cancelled.',
 			correctPositionFor: 'Correct position for {label} at ({x}, {y})',
 			availableObjectsTotal: 'Available Objects ({count})',
 			paletteInstructions: 'Drag objects onto the canvas, or press Enter or Space on an object, then use the arrow keys to position it on the canvas.',
+			imageFallback: 'Image for this question',
+			imageLoadError: 'The image could not be loaded.',
+			objectFallback: 'Object {index}',
+			objectRemoved: '{object} removed.',
+			canvasActiveLabel: 'Positioning canvas: use the arrow keys to move the crosshair, Enter to place, Escape to cancel',
+			placedAtPercent: '{label} at {x}%, {y}%',
+			correctPositionAtPercent: 'Correct position for {label}: {x}%, {y}%',
 		},
 
 		endAttempt: {
 			buttonLabel: 'End Attempt',
 			ended: 'Attempt Ended',
 			requested: 'Requested',
-			warningMessage: 'Your attempt has been ended and can no longer be modified.',
+			warningMessage: 'Your attempt has ended.',
 			confirmMessage: 'Are you sure you want to end your attempt? You will not be able to change your responses.',
+			confirm: 'Yes, end attempt',
+			cancel: 'Cancel',
 		},
 
 		media: {
@@ -402,19 +523,34 @@ export default {
 			ariaLabel: 'Media content',
 			maxPlayLimitReached: 'Maximum play limit reached',
 			playCount: 'Play count:',
-			remaining: 'Remaining:',
 			requirementMet: '✓ Requirement met',
 			playAtLeastCount: {
 				one: 'Play at least {count} time',
 				other: 'Play at least {count} times',
 			},
 			browserNoSupport: 'Your browser does not support this media type.',
+			playsLeft: {
+				one: '{count} play left',
+				other: '{count} plays left',
+			},
+			playStartedOfMax: 'Play {count} of {max} started.',
+			playStarted: 'Play {count} started.',
+			requiredPlaysReached: 'Required number of plays reached.',
+			controls: 'Media controls',
+			captions: 'Captions',
+			captionsOff: 'Off',
+			playsNeeded: {
+				one: '{count} more play needed',
+				other: '{count} more plays needed',
+			},
+			trackFallbackLabel: 'Track {index}',
 			audioNoSupport: 'Your browser does not support the audio element.',
 			videoNoSupport: 'Your browser does not support the video element.',
 			objectDisabled: 'This item uses an embedded object type that is disabled by default for security.',
 		},
 
 		graphicOrder: {
+			unknownImageDimensions: 'The areas cannot be shown: the size of the image is unknown. Add width and height to the image, or supply the asset dimensions.',
 			instruction: 'Click hotspots to order them',
 			diagramLabel: 'Ordering diagram',
 			altText: 'Ordering diagram',
@@ -423,6 +559,47 @@ export default {
 			confirmOrder: 'Confirm Order',
 			confirmOrderNoChanges: 'Confirm Order (No Changes)',
 			confirmAria: 'Confirm this order as your answer',
+			imageFallback: 'Image for this question',
+			imageLoadError: 'The image could not be loaded.',
+			unlabeledItem: 'Item {index}',
+			minChoicesHint: {
+				one: 'Put at least {count} item in order.',
+				other: 'Put at least {count} items in order.',
+			},
+			subsetExactHint: {
+				one: 'Choose {count} item for your order.',
+				other: 'Choose {count} items and put them in order.',
+			},
+			subsetRangeHint: {
+				one: 'Choose between {min} and {max} item and put them in order.',
+				other: 'Choose between {min} and {max} items and put them in order.',
+			},
+		},
+
+		graphicAssociate: {
+			unknownImageDimensions: 'This graphic association cannot be shown: the size of its image is unknown, so the hotspots cannot be placed. Add width and height to the image, or supply the asset dimensions.',
+			imageFallback: 'Image for this question',
+			imageLoadError: 'The image could not be loaded.',
+			unlabeledHotspot: 'Region {index}',
+			hotspotConnections: '{label} ({usageCount}/{matchMax} connections)',
+			hotspotConnectionsUnlimited: '{label} ({usageCount} connections, unlimited)',
+			notAvailableSentence: 'Not available due to a match group restriction.',
+			selectAnotherHotspot: 'Selected: {label}. Select another hotspot to create an association.',
+			associationsCount: 'Associations ({count}/{max})',
+			associationsCountUnlimited: 'Associations ({count})',
+			clickHotspotsToAssociate: 'Select two hotspots on the image to create an association.',
+			pairDescription: '{first} associated with {second}',
+			removeAssociation: 'Remove association between {first} and {second}',
+			minimumRequired: 'Minimum required: {minAssociations}',
+			associationMade: 'Association made.',
+			associationRemoved: 'Association removed.',
+			associationLimitReached: 'Association not possible: the limit of {max} is reached.',
+			hotspotLimitReached: 'Not possible: {label} cannot be in more associations.',
+			minAssociationsHint: {
+				one: 'Make at least {count} association.',
+				other: 'Make at least {count} associations.',
+			},
+			minHotspotUsesHint: 'Needs more associations: {items}.',
 		},
 
 		custom: {
@@ -439,10 +616,24 @@ export default {
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: 'Select...',
-			textEntryLabel: 'Text entry {id}',
-			choiceLabel: 'Inline choice {id}',
-			formatHint: 'Format: {mask}',
+			blankLabel: 'Blank {index} of {count}',
+			patternMismatch: 'This answer is not in the expected format.',
+			patternMismatchWithHint: 'This answer is not in the expected format. Use this format: {hint}',
+			correctChoice: 'Correct: {choice}',
 		},
+	},
+
+	/**
+	 * Screen-reader announcement when an interaction cannot be rendered. The
+	 * {type} placeholder carries the QTI interaction element name.
+	 */
+	interaction: {
+		renderError: 'This interactive element ({type}) could not be displayed.',
+	},
+
+	/** Accessible name of the group a Portable Custom Interaction (PCI) renders. */
+	customInteraction: {
+		portableLabel: 'Portable custom interaction',
 	},
 
 	item: {
@@ -451,28 +642,30 @@ export default {
 		loadError: 'Error loading item: {error}',
 		parsingError: 'Failed to parse QTI XML',
 		processingError: 'Failed to process responses',
+		submitError: 'Your answer could not be submitted. Please try again.',
 		submit: 'Submit',
 		complete: 'Complete',
 		completed: 'Completed',
 		attempt: 'Attempt {numAttempts}',
 	},
 
-	itemSession: {
-		attempt: 'Attempt {numAttempts}',
-		attemptsRemaining: '{attemptsRemaining} attempts remaining',
-		maxAttempts: 'Max attempts: {maxAttempts}',
-	},
 
 	feedback: {
+		title: 'Feedback',
 		close: 'Close feedback',
 		closeFeedback: 'Dismiss feedback',
 		testFeedback: 'Test feedback',
+		shown: 'Feedback is shown.',
 	},
 
 	assessment: {
 		title: 'Assessment',
 		loading: 'Loading assessment...',
-		loadingError: 'Timeout loading assessment. This assessment may be invalid or the player failed to initialize.',
+		// Candidate-safe: the load failed but the candidate can retry; raw backend and
+		// developer text never reaches this screen.
+		loadingError: 'This assessment could not be loaded. Please try again.',
+		stillLoading: 'Still loading. Please wait a moment.',
+		loadingRetry: 'Try again',
 		question: 'Question {current} of {total}',
 		questionAnnouncement: 'Question {current} of {total}',
 		section: 'Section {current} of {total}',
@@ -480,8 +673,6 @@ export default {
 		closeMenu: 'Close menu',
 		readingPassage: 'Reading Passage',
 		readingPassages: 'Reading passages',
-		expandPassage: 'Expand passage',
-		collapsePassage: 'Collapse passage',
 
 		attempts: {
 			remaining: '{count} attempts remaining',
@@ -491,6 +682,22 @@ export default {
 			maxReached: 'Max attempts reached',
 			required: 'Must answer before continuing',
 			reviewNotAllowed: 'Not allowed once submitted',
+			attemptOf: 'Attempt {current} of {total}',
+			current: 'Attempt {current}',
+		},
+
+		// Practice delivery: the item-level check control (stays on the item, shows feedback).
+		checkAnswer: {
+			button: 'Check answer',
+			submittedAnnouncement: 'Your answer was submitted.',
+			attemptsUsedUp: 'You have used all your attempts for this question.',
+		},
+
+		// QTI allowComment: the candidate comment disclosure.
+		comments: {
+			heading: 'Comments for the test team',
+			label: 'Your comments',
+			placeholder: 'Write a comment for the test team (optional).',
 		},
 
 		navigation: {
@@ -500,6 +707,65 @@ export default {
 			jumpTo: 'Jump to question {number}',
 			sectionMenu: 'Section menu',
 			progress: 'Progress: {percent}%',
+			answeredCount: '{answered} of {total} answered',
+		},
+
+		flag: {
+			label: 'Flag for review',
+			flaggedAnnouncement: 'Question {number} flagged for review.',
+			unflaggedAnnouncement: 'Flag removed from question {number}.',
+		},
+
+		review: {
+			title: 'Review your answers',
+			open: 'Review questions',
+			backToQuestion: 'Back to question',
+			flagged: 'Flagged',
+			flaggedCount: '{count} flagged for review',
+			questionsGroup: 'Questions',
+			linearNote:
+				'In this part you can only move forward, so these questions are listed for review only.',
+			goToItem: 'Go to question {number}',
+			currentItem: 'Current question',
+			statusAnswered: 'Answered',
+			statusPartially: 'Partially answered',
+			statusUnanswered: 'Not answered',
+			notVisited: 'Not yet visited',
+		},
+
+		submit: {
+			dialogTitle: 'Submit your test?',
+			dialogDescription: 'You cannot change your answers after you submit.',
+			flaggedLine: '{count} questions are flagged for review',
+			unansweredHeading: '{count} questions are not answered',
+			unansweredHeadingOne: '1 question is not answered',
+			needsAnswerHeading: '{count} questions need an answer before you can submit',
+			needsAnswerHeadingOne: '1 question needs an answer before you can submit',
+			incompleteHeadingOne: '1 answer is incomplete and must be completed before you can submit',
+			incompleteHeading: '{count} answers are incomplete and must be completed before you can submit',
+			requirement: {
+				minChoices: 'select at least {count}',
+				minStrings: 'enter at least {count}',
+				minAssociations: 'match at least {count}',
+				minPlays: 'minimum plays: {count}',
+				incomplete: 'complete your answer',
+			},
+			incompleteJump: 'Go to question {number}: {requirement}',
+			incompleteEntry: 'Question {number}: {requirement}',
+			allAnswered: 'You have answered all the questions.',
+			confirm: 'Submit test',
+			cancel: 'Keep working',
+		},
+
+		leavePart: {
+			title: 'Leave this part?',
+			description: 'After you continue, you cannot return to the questions in this part.',
+			confirm: 'Continue',
+			cancel: 'Stay on this part',
+			needsAnswerHeadingOne: '1 question in this part needs an answer before you can leave it',
+			needsAnswerHeading: '{count} questions in this part need an answer before you can leave it',
+			incompleteHeadingOne: '1 answer in this part is incomplete and must be completed before you can leave it',
+			incompleteHeading: '{count} answers in this part are incomplete and must be completed before you can leave it',
 		},
 
 		sections: {
@@ -514,9 +780,77 @@ export default {
 			timeRemaining: 'Time remaining: {time}',
 			timeElapsed: 'Time elapsed: {time}',
 			timeUp: "Time's up!",
+			warningMinutesOne: '1 minute remaining',
+			warningMinutes: '{count} minutes remaining',
+			warningTime: '{time} remaining',
+			paused: 'Paused',
+			label: 'Timer',
+		},
+
+		start: {
+			begin: 'Begin',
+			resume: 'Continue',
+			timeMinutesOne: 'You have 1 minute.',
+			timeMinutes: 'You have {count} minutes.',
+			timeExact: 'You have {time}.',
+			scopedTimeLimits: 'Some parts of this test have their own time limits.',
+			paused: 'This test is paused. Please wait until it resumes.',
+		},
+
+		timeExpiry: {
+			autoSubmitted: 'Time is up. Your answers have been submitted.',
+			submitTitle: 'The time for this test is over',
+			submitDescription: 'You can no longer change your answers. Submit your test to finish.',
+			partTitle: 'The time for this part is over',
+			sectionTitle: 'The time for this section is over',
+			questionTitle: 'The time for this question is over',
+			scopeDescription: 'You are moving on to the next part of the test.',
+			movingToQuestion: 'You are moving on to question {number}.',
+			closedDescription: 'You can no longer change your answers to its questions.',
+			continue: 'Continue',
+		},
+
+		pause: {
+			title: 'Assessment paused',
+			message: 'Your test has been paused. Please wait until it resumes.',
+			announcement: 'The assessment is paused.',
+			withReason: 'The assessment is paused: {reason}',
+			resumed: 'The assessment is running again.',
+		},
+
+		// Autosave: the save indicator next to the answered count.
+		autosave: {
+			saved: 'Saved · {time}',
+			savedShort: 'Saved',
+			saving: 'Saving…',
+			notSaved: 'Not saved',
+		},
+
+		// A restored snapshot with saved answers: continue or start over.
+		resume: {
+			title: 'Resume your test?',
+			description: 'You have answers saved from {time}.',
+			descriptionNoTime: 'You have saved answers from a previous session.',
+			resumeAction: 'Resume where you left off',
+			startOver: 'Start over',
+			confirmTitle: 'Start over and delete your saved answers?',
+			confirmDescription:
+				'Your saved answers will be deleted and the test starts from the beginning. This cannot be undone.',
+			confirmAction: 'Delete and start over',
+			cancel: 'Keep my saved answers',
+			resumedAnnouncement: 'Your saved answers were restored.',
+			restartedAnnouncement: 'The test was restarted from the beginning.',
+		},
+
+		// A question's content crashed: plain language, no developer text, and the test goes on.
+		itemError: {
+			title: 'This question could not be displayed.',
+			tryAgain: 'Try again',
+			continue: 'Continue',
 		},
 
 		feedback: {
+			title: 'Feedback',
 			correct: 'Correct',
 			incorrect: 'Incorrect',
 			partiallyCorrect: 'Partially correct',
@@ -535,15 +869,74 @@ export default {
 			exit: 'Exit',
 		},
 
+		// The shell completion screen after finalization (+ the opt-in results summary).
+		complete: {
+			alreadySubmitted: 'This test was already submitted.',
+			finished: 'You have finished the test.',
+			timeExpired: 'Time is up. The test is finished and your answers have been submitted.',
+			byProctor: 'Your test was submitted by your proctor.',
+			byProctorAnnouncement: 'Your proctor has submitted your test.',
+			resultsHeading: 'Results summary',
+			totalScore: 'Total score: {score} out of {maxScore}',
+			itemName: 'Question {number}',
+		},
+
 		errors: {
 			navigationFailed: 'Navigation failed. Please try again.',
 			submitFailed: 'Failed to submit assessment. Please try again.',
 			loadFailed: 'Failed to load question.',
 			saveFailed: 'Failed to save response.',
+			unexpected: 'Something went wrong. Please try again.',
+			supportCode: 'Support code: {code}',
+			codes: {
+				invalidNavigationTarget: 'That question or section is not available.',
+				linearNavigationOnly: 'In this part you can only move to the next question.',
+				navigationNotAllowed: 'You cannot go there right now.',
+				navigationInFlight: 'Please wait a moment before trying again.',
+				testFinalized: 'This assessment has already been submitted.',
+				minTimeNotElapsed: 'Please stay on this content for at least {remaining} more seconds before moving on.',
+				itemTimeExpired: 'The time limit for this question has expired.',
+				reviewNotAllowed: 'You cannot return to this question.',
+				responseRequired: 'You must answer this question before continuing.',
+				finalizeResponseRequired: 'Some questions still need an answer before you can submit: {items}.',
+				finalizeResponseInvalid: 'Some answers are not complete yet. Check these questions before you submit: {items}.',
+				leavePartResponseRequired: 'Some questions in this part still need an answer before you can continue: {items}.',
+				leavePartResponseInvalid: 'Some answers in this part are not complete yet. Check them before you continue: {items}.',
+				attemptValidationFailed: 'Please check your answer. A valid response is required.',
+				maxAttemptsReached: 'You have used all your attempts for this question.',
+				itemSessionLocked: 'This question is closed and can no longer be changed.',
+				commentsNotAllowed: 'Comments are not allowed for this question.',
+				submitFailed: 'Your answers could not be submitted. Your answers are still here. Please try again.',
+				finalizeFailed: 'Your assessment could not be submitted yet. Your answers are still here. Please try again.',
+				assessmentPaused: 'Your assessment is paused. Please wait until it resumes.',
+				outcomeProcessingFailed: 'Your answers were saved, but the results could not be computed. Please contact support if this persists.',
+			},
 		},
 		playerLabel: 'Assessment player',
 		instructions: 'Instructions',
 		rubrics: 'Rubrics',
+		skipToQuestion: 'Skip to question',
+	},
+
+	// Section player chrome: passage/question panes and their headings.
+	sectionPlayer: {
+		passage: 'Passage',
+		passageNumbered: 'Passage {number}',
+		passages: 'Passages',
+		question: 'Question',
+		passageAndQuestion: 'Passage and question',
+		// The candidate's display settings tool and its dialog.
+		displaySettings: {
+			title: 'Display settings',
+			description: 'Changes apply right away and stay on for this session.',
+			textSize: 'Text size',
+			sizeDefault: 'Default',
+			sizeLarge: 'Large',
+			sizeLarger: 'Larger',
+			sizeLargest: 'Largest',
+			highContrast: 'Higher-contrast text',
+			textSpacing: 'Extra text spacing',
+		},
 	},
 
 	i18n: {
@@ -561,6 +954,7 @@ export default {
 		answerRecorded: 'Answer recorded',
 		resizer: 'Resize passage and question panels',
 		sentence: '{text}.',
+		choiceFallback: 'Choice {index}',
 		correctAnswer: 'Correct answer.',
 		correctAnswerIs: 'Correct answer: {answer}.',
 		correctPosition: 'Correct position.',
@@ -576,124 +970,6 @@ export default {
 		catalogRequestUsage: 'Request {usage}: {term}',
 	},
 
-	demo: {
-		selectSampleItem: 'Select Sample Item',
-		configurationPanel: 'Configuration Panel',
-		viewingAs: 'Viewing as',
-		role: 'Role',
-		candidate: 'Candidate',
-		author: 'Author',
-		proctor: 'Proctor',
-		scorer: 'Scorer',
-		tutor: 'Tutor',
-		showCorrectAnswers: 'Show correct answers',
-		showFeedback: 'Show feedback',
-		settings_aria: 'Open settings menu',
-		xmlEditor: 'XML Editor',
-
-		// Navigation
-		appName: 'PIE QTI Player',
-		home: 'Home',
-		itemDemo: 'Item Demo',
-		assessmentDemo: 'Assessment Demo',
-		likertDemo: 'Likert Plugin Demo',
-		iframeDemo: 'Iframe Demo',
-		theme: 'Theme',
-
-		// Home Page
-		homeTitle: 'QTI Player',
-		homeSubtitle: 'A modern, framework-agnostic player for QTI assessment items. Works 100% client-side by default, with optional server-side hooks for production use.',
-		homeMetaDescription: 'Modern QTI player with optional backend integration',
-		tryItems: 'Try Items',
-		tryAssessments: 'Try Assessments',
-		trySectionPlayer: 'Section Player',
-		pluginDemo: 'Plugin Demo',
-		dropQtiFile: 'Drop QTI XML file here',
-		orClickToSelect: 'or click to select a file',
-		selectFile: 'Select File',
-		selectedFile: 'Selected:',
-		loadInPlayer: 'Load in Player',
-		footerTitle: 'QTI Player',
-		footerLicense: 'MIT Licensed • Open Source',
-
-		// Settings Panel
-		settings: 'Settings',
-		candidateStudent: 'Candidate (Student)',
-		testConstructor: 'Test Constructor',
-		controlsRubricVisibility: 'Controls rubric visibility and correct answer display',
-		useBackendScoring: 'Use Backend Scoring',
-		scoreOnServer: 'Score responses on the server instead of client-side',
-		sessionManagement: 'Session Management',
-		saving: 'Saving...',
-		saveSession: 'Save Session',
-		loadSession: 'Load Session',
-
-		// Export & Template
-		exportResponses: 'Export Responses',
-		json: 'JSON',
-		csv: 'CSV',
-		templateProcessing: 'Template Processing',
-		rerunTemplateProcessing: 'Re-run templateProcessing and reset the item session',
-		regenerateVariant: 'Regenerate Variant',
-		templateVariablesDebug: 'Template Variables (Debug)',
-		variable: 'Variable',
-		value: 'Value',
-
-		// Keyboard Shortcuts
-		keyboardShortcuts: 'Keyboard Shortcuts',
-		submitAnswersShortcut: 'Submit answers',
-		tryAgainShortcut: 'Try again',
-		exportJsonShortcut: 'Export JSON',
-		saveSessionShortcut: 'Save session',
-		useCmdOnMacOS: 'Use <kbd class="kbd kbd-xs">Cmd</kbd> on macOS',
-
-		// Results Panel
-		results: 'Results',
-		score: 'Score',
-		outcomeVariables: 'Outcome Variables',
-
-		// Misc
-		format: 'Format',
-		selectItemOrPasteXml: 'Select a sample item or paste custom XML to get started.',
-		pageTitle: 'Player Demo - PIE QTI Player',
-
-		// Sample Item Descriptions
-		sampleItemDescriptions: {
-			'': 'Custom uploaded item',
-			'simple-choice': 'Basic subtraction word problem with plausible distractors',
-			'partial-credit': 'Multiple choice with partial credit using mapResponse',
-			'capital-cities': 'Geography question with shuffled choices',
-			'text-entry': 'Fill-in-the-blank question with case-insensitive matching',
-			'extended-text': 'Multi-line text response question',
-			'inline-choice': 'Dropdown menu embedded in text',
-			'order-interaction': 'Arrange items in correct sequence',
-			'match-interaction': 'Match items from two columns',
-			'associate-interaction': 'Create associations between items',
-			'gap-match': 'Drag words into gaps in text',
-			'graphic-gap-match-solar-system': 'Label the four inner planets of our solar system',
-			'slider': 'Select a value on a numerical slider',
-			'hotspot': 'Click on the Blue Planet in this astronomy question',
-			'hotspot-partial-credit': 'Identify planet with liquid water (partial credit for terrestrial planets)',
-			'template-variable-demo': 'templateProcessing generates values; responseProcessing scores against them',
-			'upload-interaction': 'Upload a file as the response (baseType=file)',
-			'drawing-interaction': 'Draw on a canvas (baseType=file, PNG dataUrl)',
-			'media-audio': 'Audio player with play count tracking and minPlays requirement',
-			'media-video': 'Video player with play count tracking and maxPlays limit',
-			'hottext-single': 'Click to select a single word within text (grammar question)',
-			'hottext-multiple': 'Click to select multiple text segments (reading comprehension)',
-			'select-point': 'Click on the image to select a point location (geography question)',
-			'graphic-order': 'Drag to reorder items on an image (geological layers)',
-			'graphic-associate': 'Click pairs of hotspots to create associations (organ matching)',
-			'position-object': 'Drag and position furniture objects on a room layout',
-			'end-attempt': 'Button to end the assessment attempt',
-			'custom-interaction': 'Shows a fallback UI for customInteraction and allows a manual response',
-			'choice-with-stimulus': 'Question with reading passage embedded inline',
-			'math-inline': 'Multiple choice with MathML inline math rendering',
-			'math-extended': 'Extended response with MathML and rich text editor for showing mathematical work',
-			'math-fractions': 'Fraction arithmetic with MathML block display',
-			'adaptive-capitals': 'Multi-attempt adaptive question with progressive feedback and hints',
-		},
-	},
 
 	transform: {
 		// App title and navigation

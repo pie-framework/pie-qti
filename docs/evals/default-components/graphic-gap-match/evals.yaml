@@ -57,7 +57,7 @@ evals:
     sampleId: graphic-gap-match-solar-system
     gradeBand: "4-8"
     subject: science
-    intent: "One label incorrect or missing → partial credit via mapping."
+    intent: "One label missing → partial credit via mapping. (maxAssociations=4, so the missing fourth pair may still be placed.)"
     steps:
       - action: navigate
         path: "/item-demo/graphic-gap-match-solar-system"
@@ -67,10 +67,6 @@ evals:
         pair: "VENUS B"
       - action: dragPair
         pair: "EARTH C"
-      - action: dragPair
-        target:
-          description: "Make the last one wrong (e.g., Mars on C) or leave it unfilled"
-        pair: "MARS C"
       - action: submit
         target:
           description: "Submit Answer(s) button"

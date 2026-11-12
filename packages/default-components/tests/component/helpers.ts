@@ -58,6 +58,24 @@ export function qa<T extends Element = Element>(
 	return Array.from(mounted.host.querySelectorAll<T>(selector));
 }
 
+/**
+ * Approximate accessible name: `aria-labelledby` (ids resolved in the element's
+ * root), then `aria-label`, then text content. Enough for asserting what a
+ * screen reader hears without a full accname implementation.
+ */
+export function accessibleName(element: Element): string {
+	const root = element.getRootNode() as Document | ShadowRoot;
+	const labelledBy = element.getAttribute('aria-labelledby');
+	if (labelledBy) {
+		return labelledBy
+			.split(/\s+/)
+			.map((id) => root.getElementById(id)?.textContent?.trim() ?? '')
+			.filter(Boolean)
+			.join(' ');
+	}
+	return element.getAttribute('aria-label') ?? element.textContent?.trim() ?? '';
+}
+
 /** Simulate a user changing a checkbox/radio input. */
 export function check(input: HTMLInputElement, checked: boolean): void {
 	input.checked = checked;
@@ -70,10 +88,20 @@ export function type(input: HTMLInputElement | HTMLTextAreaElement, value: strin
 	input.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-/** Simulate a key press with a real KeyboardEvent (cancelable, like a user's). */
-export function pressKey(target: Element, key: string): void {
+/**
+ * Simulate pressing one character key in a text field: the character is appended to what the
+ * field holds at that moment — so text a re-render removed stays removed, as it does for a
+ * candidate — and `input` fires. `type` sets the whole value and so cannot show that loss.
+ */
+export function pressCharacter(input: HTMLInputElement | HTMLTextAreaElement, character: string): void {
+	input.value = `${input.value}${character}`;
+	input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+/** Simulate a key press with a real KeyboardEvent (cancelable, bubbling, like a user's). */
+export function pressKey(target: Element, key: string, init: KeyboardEventInit = {}): void {
 	target.dispatchEvent(
-		new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }),
+		new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init }),
 	);
 }
 

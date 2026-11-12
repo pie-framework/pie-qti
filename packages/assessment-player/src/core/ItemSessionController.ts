@@ -5,7 +5,7 @@
  * Enforces attempt limits, feedback visibility, review/skip controls, and validation.
  *
  * QTI 2.2 itemSessionControl attributes:
- * - maxAttempts: Maximum number of submission attempts (0 = unlimited)
+ * - maxAttempts: Maximum number of submission attempts (default 1; 0 = unlimited, for adaptive items)
  * - showFeedback: Whether to show feedback after responses
  * - showSolution: Whether to show correct answers
  * - allowReview: Allow returning to already-answered items
@@ -16,8 +16,10 @@
  * Settings apply per item where `setItemSettings` has set them, and fall back to the shared settings.
  */
 
+import { resolveMaxAttempts } from './feedback.js';
+
 export interface ItemSessionControlSettings {
-	maxAttempts?: number; // 0 = unlimited
+	maxAttempts?: number; // default 1; 0 = unlimited (adaptive items)
 	showFeedback?: boolean;
 	allowReview?: boolean;
 	showSolution?: boolean;
@@ -40,9 +42,11 @@ export class ItemSessionController {
 	private itemSettings: Map<string, ItemSessionControlSettings> = new Map();
 
 	constructor(settings: ItemSessionControlSettings = {}) {
-		// Apply defaults per QTI 2.2 spec
+		// Apply defaults per QTI 2.2/3.0 spec: one attempt for non-adaptive items
+		// (0 = unlimited), feedback/solution/comment off, review and skipping on,
+		// response validation off.
 		this.settings = {
-			maxAttempts: settings.maxAttempts ?? 0, // 0 = unlimited
+			maxAttempts: settings.maxAttempts ?? 1,
 			showFeedback: settings.showFeedback ?? false,
 			allowReview: settings.allowReview ?? true,
 			showSolution: settings.showSolution ?? false,
@@ -116,8 +120,8 @@ export class ItemSessionController {
 			return false;
 		}
 
-		// Check maxAttempts
-		const maxAttempts = this.settingsFor(itemIdentifier).maxAttempts ?? 0;
+		// Check maxAttempts (0 = unlimited)
+		const maxAttempts = this.settingsFor(itemIdentifier).maxAttempts ?? 1;
 		if (maxAttempts > 0 && state.attemptCount >= maxAttempts) {
 			return false;
 		}
@@ -134,7 +138,7 @@ export class ItemSessionController {
 			return null;
 		}
 
-		const maxAttempts = this.settingsFor(itemIdentifier).maxAttempts ?? 0;
+		const maxAttempts = this.settingsFor(itemIdentifier).maxAttempts ?? 1;
 		if (maxAttempts === 0) {
 			return null; // Unlimited
 		}
@@ -143,7 +147,15 @@ export class ItemSessionController {
 	}
 
 	/**
-	 * Check if feedback should be shown for an item
+	 * Check if feedback should be shown for an item. QTI is attempt-relative here: with
+	 * more than one attempt allowed (or unlimited attempts), feedback for every non-final
+	 * attempt must be shown; once the last attempt has been used, `showFeedback` governs.
+	 *
+	 * This is the session-info view of that rule (`getItemSessionInfo().showFeedback`),
+	 * deliberately narrower than the presentation rule in `feedback.ts`: nothing shows
+	 * before the item's first submission, the count is the live recorded one, and an
+	 * adaptive item is unlimited only through its resolved settings (the session
+	 * controller sees settings, never item XML).
 	 */
 	shouldShowFeedback(itemIdentifier: string): boolean {
 		const state = this.sessionStates.get(itemIdentifier);
@@ -151,7 +163,10 @@ export class ItemSessionController {
 			return false;
 		}
 
-		return this.settingsFor(itemIdentifier).showFeedback ?? false;
+		const settings = this.settingsFor(itemIdentifier);
+		if (settings.showFeedback === true) return true;
+		const maxAttempts = resolveMaxAttempts(settings, false);
+		return maxAttempts === null || (maxAttempts > 1 && state.attemptCount < maxAttempts);
 	}
 
 	/**
@@ -167,15 +182,20 @@ export class ItemSessionController {
 	}
 
 	/**
-	 * Check if candidate can navigate to a previously answered item
+	 * Check if candidate can navigate to a previously answered item. QTI `allowReview`
+	 * governs an item whose session is over — after its LAST attempt, or for an adaptive
+	 * item (unlimited attempts) once it completed (`completed`). While attempts remain the
+	 * candidate may return to use them, whatever `allowReview` says.
 	 */
-	canReview(itemIdentifier: string): boolean {
+	canReview(itemIdentifier: string, options: { completed?: boolean } = {}): boolean {
 		const state = this.sessionStates.get(itemIdentifier);
 		if (!state || !state.isSubmitted) {
 			return true; // Can always navigate to unsubmitted items
 		}
 
-		return this.settingsFor(itemIdentifier).allowReview ?? true;
+		if ((this.settingsFor(itemIdentifier).allowReview ?? true) === true) return true;
+		if (options.completed === true) return false;
+		return this.canSubmit(itemIdentifier);
 	}
 
 	/**
@@ -195,64 +215,6 @@ export class ItemSessionController {
 	 */
 	mustValidateResponses(itemIdentifier?: string): boolean {
 		return this.settingsFor(itemIdentifier).validateResponses ?? false;
-	}
-
-	/**
-	 * Validate that an item has valid responses (if validation is required)
-	 */
-	validateItem(itemIdentifier: string, hasValidResponses: boolean): {
-		isValid: boolean;
-		error?: string;
-	} {
-		if (!this.mustValidateResponses(itemIdentifier)) {
-			return { isValid: true };
-		}
-
-		const state = this.sessionStates.get(itemIdentifier);
-		if (!state) {
-			return { isValid: true };
-		}
-
-		// If item is required and has no valid responses, fail validation
-		if (!hasValidResponses) {
-			return {
-				isValid: false,
-				error: 'This item requires a valid response before continuing.',
-			};
-		}
-
-		return { isValid: true };
-	}
-
-	/**
-	 * Check if navigation away from current item is allowed
-	 */
-	canNavigateAway(itemIdentifier: string, hasValidResponses: boolean): {
-		allowed: boolean;
-		reason?: string;
-	} {
-		const state = this.sessionStates.get(itemIdentifier);
-		if (!state) {
-			return { allowed: true };
-		}
-
-		// Check if skipping is allowed when item is unanswered
-		if (!state.isAnswered && !this.canSkip(itemIdentifier)) {
-			return {
-				allowed: false,
-				reason: 'You must answer this item before continuing.',
-			};
-		}
-
-		// Check validation requirements
-		if (this.mustValidateResponses(itemIdentifier) && state.isAnswered && !hasValidResponses) {
-			return {
-				allowed: false,
-				reason: 'Please provide valid responses before continuing.',
-			};
-		}
-
-		return { allowed: true };
 	}
 
 	/**
@@ -286,25 +248,5 @@ export class ItemSessionController {
 	 */
 	restoreStates(states: Map<string, ItemSessionState>): void {
 		this.sessionStates = new Map(states);
-	}
-
-	/**
-	 * Reset session state for an item (useful for practice/retry scenarios)
-	 */
-	resetItem(itemIdentifier: string): void {
-		const state = this.sessionStates.get(itemIdentifier);
-		if (state) {
-			state.attemptCount = 0;
-			state.isAnswered = false;
-			state.isSubmitted = false;
-			state.lastSubmissionTime = undefined;
-		}
-	}
-
-	/**
-	 * Clear all session states
-	 */
-	clear(): void {
-		this.sessionStates.clear();
 	}
 }

@@ -93,7 +93,7 @@ The plugin supports five types of vendor extensions:
 #### 1. **VendorDetector** - Identify vendor-specific QTI
 
 ```typescript
-import type { VendorDetector } from '@pie-qti/to-pie';
+import type { VendorDetector } from '@pie-qti/transform-types';
 
 const myDetector: VendorDetector = {
   name: 'my-vendor-detector',
@@ -116,7 +116,7 @@ plugin.registerVendorDetector(myDetector);
 #### 2. **VendorTransformer** - Custom transformation logic
 
 ```typescript
-import type { VendorTransformer } from '@pie-qti/to-pie';
+import type { VendorTransformer } from '@pie-qti/transform-types';
 
 const myTransformer: VendorTransformer = {
   vendor: 'my-vendor',
@@ -139,7 +139,7 @@ plugin.registerVendorTransformer(myTransformer);
 #### 3. **AssetResolver** - Load external resources
 
 ```typescript
-import type { AssetResolver } from '@pie-qti/to-pie';
+import type { AssetResolver } from '@pie-qti/transform-types';
 
 const myAssetResolver: AssetResolver = {
   name: 'my-asset-resolver',
@@ -164,7 +164,7 @@ plugin.registerAssetResolver(myAssetResolver);
 #### 4. **CssClassExtractor** - Parse vendor CSS classes
 
 ```typescript
-import type { CssClassExtractor } from '@pie-qti/to-pie';
+import type { CssClassExtractor } from '@pie-qti/transform-types';
 
 const myClassExtractor: CssClassExtractor = {
   vendor: 'my-vendor',
@@ -187,7 +187,7 @@ plugin.registerCssClassExtractor(myClassExtractor);
 #### 5. **MetadataExtractor** - Extract vendor metadata
 
 ```typescript
-import type { MetadataExtractor } from '@pie-qti/to-pie';
+import type { MetadataExtractor } from '@pie-qti/transform-types';
 
 const myMetadataExtractor: MetadataExtractor = {
   vendor: 'my-vendor',
@@ -235,7 +235,7 @@ applyBehavioralClasses(pieModel, classes.behavioral);
 
 ## Complete Documentation
 
-- **[Type Definitions](./src/types/vendor-extensions.ts)** - Full TypeScript interfaces
+- **[Type Definitions](../types/src/transform/vendor-extensions.ts)** - Full TypeScript interfaces (`@pie-qti/transform-types`)
 
 ## Supported QTI Versions
 

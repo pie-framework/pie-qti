@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
 	enforceItemXmlLimits,
+	normalizeParsingLimits,
 	sanitizeResourceUrl,
 	sanitizeSharedHtml,
 	type PlayerSecurityConfig,
@@ -79,12 +80,28 @@ describe('@pie-qti/item-player/security public API', () => {
 		).toBe('https://safe.example/qti/item.xml');
 	});
 
-	test('enforceItemXmlLimits remains opt-in through parsingLimits', () => {
-		expect(() => enforceItemXmlLimits('<!DOCTYPE qti><assessmentItem />')).not.toThrow();
+	test('enforceItemXmlLimits is on by default; parsingLimits.enabled: false opts out', () => {
+		expect(() => enforceItemXmlLimits('<!DOCTYPE qti><assessmentItem />')).toThrow(/DOCTYPE/);
 		expect(() =>
 			enforceItemXmlLimits('<!DOCTYPE qti><assessmentItem />', {
-				parsingLimits: { enabled: true, rejectDoctype: true },
+				parsingLimits: { enabled: false },
 			})
-		).toThrow();
+		).not.toThrow();
+		expect(() =>
+			enforceItemXmlLimits('<!DOCTYPE qti><assessmentItem />', {
+				parsingLimits: { rejectDoctype: false },
+			})
+		).not.toThrow();
+	});
+
+	test('normalizeParsingLimits enables the limits unless enabled is false', () => {
+		expect(normalizeParsingLimits().enabled).toBe(true);
+		expect(normalizeParsingLimits({}).enabled).toBe(true);
+		expect(normalizeParsingLimits({ parsingLimits: {} }).enabled).toBe(true);
+		expect(normalizeParsingLimits({ parsingLimits: { maxHtmlNodes: 5 } })).toMatchObject({
+			enabled: true,
+			maxHtmlNodes: 5,
+		});
+		expect(normalizeParsingLimits({ parsingLimits: { enabled: false } }).enabled).toBe(false);
 	});
 });

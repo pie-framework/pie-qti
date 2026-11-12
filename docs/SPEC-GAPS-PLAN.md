@@ -8,6 +8,25 @@ This document is the authoritative meta-plan for closing gaps between the QTI sp
 PIE-QTI implementation. Each section maps to one or more concrete sub-tasks that can be handed to an
 AI agent or a human engineer. Sections are ordered by priority tier.
 
+> **Policy (2026-11-09):** follow the QTI spec wherever it is clear, per version; no legacy code.
+> The project is pre-1.0, so there is no backwards-compatibility surface: no shims, deprecated
+> aliases, ignored parameters or migration paths for the project's own past behavior, and no
+> non-spec leniency in parsing. Supporting an older QTI version's defined behavior is compliance,
+> not legacy. See "Spec Compliance and No Legacy Code" in `AGENTS.md`.
+
+> **Deliberate extensions (2026-11-10):** attributes the player reads that no QTI version
+> defines, each a PRD-sanctioned product decision rather than an oversight. This ledger keeps
+> them visible so a future spec-conformance pass reviews them deliberately instead of by
+> accident.
+>
+> - `title` on `textEntryInteraction` and `inlineChoiceInteraction`
+>   (`interactions/text-entry/extractor.ts`, `interactions/inline-choice/extractor.ts`): read
+>   as an accessible-name fallback, after `aria-labelledby`/`aria-label` and before the
+>   localized positional name. No QTI version defines `title` on those elements or on any
+>   base type, but inline controls carry no visible label element to name them, and authors
+>   label them with `title` in practice; without it the only fallback is a positional name.
+>   PRD: `docs/prds/interactions/inline-interactions.md` §Accessibility, "Current approach".
+
 > **Goal (2026-10-17):** feature completeness against the QTI 2.2 and 3.0 specifications and a
 > proper 1.0 release. Every item in this plan is committed work on that path — including the PCI
 > spec contract (G-08, phases 1–3 landed), structured labels and braille support (G-13, landed),
@@ -20,11 +39,22 @@ AI agent or a human engineer. Sections are ordered by priority tier.
 > `@pie-qti/*` packages only, never workspace source or local tarballs, so official-package
 > evidence always attaches to a published version rather than to this tree.
 >
-> The remediation reviewed on 2026-07-13 was released as `0.1.21` and confirmed there: the private
-> runner reports all four QTI 2.2 and QTI 3.0 Basic and Advanced DELIVERY suites green for that
-> candidate. Changes released after `0.1.21`, and anything unreleased, carry no official-package
-> evidence — `0.1.22` touched item rendering, so re-pinning the runner to it means a re-run, not a
-> re-pin. None of these statuses is a conformance or certification claim.
+> The remediation reviewed on 2026-07-13 was released as `0.1.21`. The private runner originally
+> reported all four QTI 2.2 and QTI 3.0 Basic and Advanced DELIVERY suites green for that candidate,
+> but those runners only asserted structure and rendering: items constructed and rendered, test
+> structure parsed. They did not exercise scoring discrimination or end-to-end delivery outcomes,
+> and the browser harness rendered no block interactions for packaged candidates. Re-run in
+> 2026-11 with runners that assert scoring and delivery semantics (and a synthetic self-test that
+> proves they can fail), `0.1.21` still shows two defects on the fixture content:
+>
+> - test-level `sum(testVariables(SCORE))` evaluates INVALID, so a test-level `SCORE` is never
+>   computed and finalize returns no outcomes;
+> - QTI 3.0 item results are attributed to the identifier `"unknown"`.
+>
+> Both are fixed in this tree (`c7857034`, `30b045d3`) and first shipped in `1.0.0-beta.0`; they
+> carry no official-package evidence until the runner is re-pinned to a published version that
+> contains them and re-run. Changes released after `0.1.21`, and anything unreleased, carry no
+> official-package evidence. None of these statuses is a conformance or certification claim.
 
 ---
 
@@ -77,7 +107,17 @@ prevent nonsensical pairings in large matching pools.
 Current
 The associate, match, gap-match, graphic-gap-match and graphic-associate extractors read
 `matchGroup` into the choice data, and the default components filter pairing targets through
-`isCompatibleMatchGroup`.
+`isCompatibleMatchGroup`. Response validation enforces it too (2026-11-07): `validateResponses`
+reports each pair of a restored or programmatic response that `matchGroup` forbids as a
+`match_group` error, reading the authored `matchGroup` of both sides, gaps and associable hotspots
+included (`packages/item-player/src/core/matchGroups.ts`). The specification defines `matchGroup`
+as the identifiers a choice may be matched with, while the example above and the default
+components read the tokens as group labels; validation refuses a pair only when neither reading
+allows it (see `docs/QTI_techguide.md` §7.4). Done (2026-11-07): the default components now reuse
+`isMatchGroupCompatible` for every pairing — associate and match choices, gap-match gaps
+(`matchGroup` delivered per gap), graphic-gap-match hotspots and graphic-associate hotspots — so
+the delivered UI offers exactly the pairs validation accepts, and a held or dragged label no
+longer makes unrelated labels unavailable.
 
 Action
 1. Add `matchGroup?: string[]` to the choice type in each affected extractor's data interface.
@@ -154,7 +194,7 @@ Test signal
 ### G-04: `patternMask` not enforced as live input constraint
 
 Scope       — `packages/default-components/src/plugins/text-entry/`
-Status      — Done (commit e2660fb, 2026-04-29)
+Status      — Done (commit e2660fb, 2026-04-29; XSD pattern semantics and response validation for text entry and extended text, 2026-11-09)
 Effort      — S
 Spec ref    — §3.2.2, §3.2.3
 
@@ -387,8 +427,10 @@ Current
 Fixed-template execution now follows the canonical `RESPONSE` program rather than aggregating all
 response declarations. `match_correct`, `CC2_match`, `CC2_match_basic`, `map_response`,
 `map_response_point`, and `CC2_map_response` are regression-tested against the corresponding XML
-programs, including `MAXSCORE`, null handling, and Common Cartridge feedback outcomes. Unknown
-fixed template names still fail explicitly.
+programs, including `MAXSCORE`, null handling, and Common Cartridge feedback outcomes. A
+`responseProcessing` that is only a reference to any other template fails compilation with
+`UnsupportedResponseProcessingTemplateError` (2026-11-07; it used to warn and score the outcome
+defaults); inline rules still take precedence over a template reference.
 
 Action
 Done for the currently supported names. Any newly accepted template URI must be added together with
@@ -441,8 +483,10 @@ type. A record declaration does not use one declaration-level base type.
 Current
 Runtime types model `record` as a cardinality with no declaration-level base type. Declaration
 parsing retains each value's `fieldIdentifier` and field-level `baseType`; public response coercion,
-default/correct values, evaluator `record`/`fieldValue`, equality, and ItemSession
-serialization/restoration preserve the typed fields across QTI 2.2 and QTI 3.0.
+default/correct values, evaluator `fieldValue` over a record variable, equality, and ItemSession
+serialization/restoration preserve the typed fields across QTI 2.2 and QTI 3.0. (The evaluator's
+authored `<record>` constructor was non-QTI and has been removed; a record value reaches
+expressions through its variable.)
 
 Action
 Done for the tracked gap. Continue adding record-shaped operator fixtures as additional processing
@@ -477,6 +521,13 @@ assessment minTime on `submit()`, same-instant parent/child expiry ordering (par
 allow-late item limits that keep accepting submissions with expired timing evidence while a hard
 parent limit still closes the scope, and the effective-limit and remaining-time getters.
 
+QTI duration variables are seconds (2026-11-07): the item's built-in `duration` variable, and
+`ITEM.duration` as test-level expressions read it, hold seconds, and Results Reporting output writes
+the test, test-part and section durations in seconds. Clocks and host-facing `duration` / `timing`
+fields stay in milliseconds. Test-level outcome processing declares the built-in `duration`,
+`TESTPART_ID.duration` and `SECTION_ID.duration` variables from the timing state, converted to
+seconds (`durationSecondsFromMilliseconds` in `@pie-qti/qti-processing`) (2026-11-07).
+
 Action
 Done for the tracked runtime and evidence gaps. Candidate-facing minimum-time affordances (countdown
 UI for `minTime`) remain host work; the effective-limit getters are the intended data source.
@@ -485,6 +536,9 @@ Test signal
 - `packages/assessment-player/tests/time-limit-edges.test.ts`: deterministic-clock tests exercise
   item, section, part, and test min/max limits and verify recorded durations (submit timing
   evidence), expiry ordering, and navigation/submission behavior.
+- `packages/assessment-player/tests/outcome-processing-durations.test.ts`: QTI 2.2 and 3.0 outcome
+  processing reads `duration`, `TESTPART_ID.duration` and `SECTION_ID.duration` in seconds, and
+  `ITEM_ID.duration` from the serialized item session.
 
 ---
 
@@ -555,6 +609,72 @@ Test signal
 
 ---
 
+### G-26: QTI Results Reporting output
+
+Scope       — `packages/assessment-player/src/reporting/`
+Status      — Done (2026-11-07)
+Effort      — M
+Spec ref    — QTI 2.2 Results Reporting (`imsqti_result_v2p2`); QTI 3.0 Results Reporting (`imsqti_result_v3p0`)
+
+Context
+Delivery systems exchange results as a QTI Results Reporting `assessmentResult`: the candidate
+context, a test result with test-level variables, and an item result per item session.
+
+Current
+`toAssessmentResultXml(results, { version: '2.2' | '3.0' })` writes the assessment player's results
+data (delivered test, session state, finalize response) as an `assessmentResult`: context
+`sourcedId` and session identifiers; test outcomes typed by the test's declarations and the test,
+test-part and section durations in seconds; and an item result per recorded item with
+`sequenceIndex`, `datestamp`, a derived `sessionStatus`, response, outcome, template and (3.0)
+context variables, the built-in `numAttempts` / `duration` response variables and the candidate
+comment. `serializeAssessmentResult` writes a hand-built report. Values are XML-escaped; identifiers
+the target schema types as NCName are validated.
+
+Action
+Done. Not covered: `choiceSequence` (the player does not record presentation order), QTI 3.0
+`support` elements and `scoreStatus` / `answeredStatus`.
+
+Test signal
+- `packages/assessment-player/tests/assessment-result-xml.test.ts`: structure, ordering,
+  cardinalities, record fields, escaping, version differences and schema-typed failures.
+  Generated documents were validated against the official 2.2 and 3.0 result XSDs manually,
+  once; that validation is not automated in-tree and belongs in the private runner (or a
+  scripted `xmllint` gate) before anything relies on it as a gate.
+
+---
+
+### G-27: Compliance checks without an XSD engine
+
+Scope       — `packages/item-player/src/core/compliance.ts`; `packages/qti-common/src/version-detection/`
+Status      — Done (2026-11-07)
+Effort      — M
+Spec ref    — QTI 2.2 / 3.0 ASI XSD element vocabulary; interaction–responseDeclaration binding
+
+Context
+`strictQtiCompliance` only compared the item's version with 2.2. Unknown elements, interactions bound
+to undeclared responses, and interactions no extractor handles degraded silently, and version
+detection assumed QTI 2.2 for unversioned roots without saying so.
+
+Current
+Item compilation checks the root's QTI namespace (`detectQtiVersionDetailed` reports basis,
+confidence and warnings), element names against the XSD-verified QTI 2.2 / 3.0 vocabulary
+(`isQtiVocabularyElement`, tested equal to the vendored schemas' element sets), unbound
+`responseIdentifier`s, QTI interactions without one, and response-bound elements no registered
+extractor renders. Findings are warnings by default and errors in strict mode, listed on
+`AssessmentItemDefinition.diagnostics`; strict mode with `rejectUnknownExtensions` throws a
+`QtiComplianceError`.
+
+Action
+Done for element vocabulary and bindings. Attributes, content models and value spaces still need an
+XSD validator outside the browser player.
+
+Test signal
+- `packages/item-player/tests/core/compliance.test.ts`, `tests/extraction/interaction-coverage.test.ts`
+- `packages/qti-common/src/version-detection/__tests__/vocabulary.test.ts`,
+  `detectQtiVersionDetailed.test.ts`
+
+---
+
 ## Tier 2 — QTI 3.0 features we are committing to support
 
 These are features listed in `docs/QTI-3-MIGRATION-GUIDE.md` and implied by the README as being on
@@ -612,6 +732,17 @@ responses cross the boundary as QTI variable JSON (`base`/`list`/`record`), and 
 re-instantiates the module. A PCI authored against the specification runs; one authored against
 the retired `PciModule` does not, and never ran anywhere else.
 
+The variable JSON follows the PCI v1.0 Appendix A binding that QTI 3.0 adopts, converted by base
+type and cardinality in both directions (`qtiVariableJson.ts`, corrected 2026-11-08): pair,
+directedPair and point values are two-element arrays, a duration is an ISO 8601 string, a file is
+`{data, mime, name}`, and a record is an array of `{name, base | list}` members. A record reaches
+the player in its typed form (each field `{baseType, cardinality, value}`), since a record
+declaration types none of its fields. Before that correction the binding was only right for
+scalar base types: a conformant PCI's pair response `{"base":{"pair":["A","B"]}}` was stored as
+`"A,B"` and scored 0, a spec-shaped record came back keyed by array index, and seeded state carried
+pairs as `"A B"`, records as name-keyed objects and durations as numbers. Input in those earlier
+shapes, or otherwise outside the binding, now reads as NULL.
+
 Action
 Phases 1–3 are done in-repo. Phase 1: the registry global, `getInstance`, `onready`/`ondone`, QTI
 variable JSON, `getState()` restore, and the derived interaction status. Phase 2: the AMD loader
@@ -637,8 +768,9 @@ Test signal
 - `player.setResponses({ RESPONSE: value })` offers the value to the module and is
   declined once the module owns its response; `player.restoreResponses()` re-instantiates
   the module with the override as its `getInstance` state.
-- Responses cross the host boundary as QTI variable JSON; the player's runtime values
-  stay plain inside.
+- Responses cross the host boundary as QTI variable JSON in the PCI v1.0 Appendix A binding
+  (`src/__tests__/qtiVariableJson.test.ts` covers every base type and cardinality in both
+  directions); the player's runtime values stay plain inside.
 - `disable()` is called when the player switches to a non-candidate role, for modules
   that expose it; conformant modules read their fixed `configuration.status`.
 - `destroy()` is called when the player is torn down.
@@ -675,12 +807,12 @@ glossary/keyword-translation trigger UI are shipped. The color scheme is written
 `data-qti-colorscheme` on the player root and the rulesets ship: `qti-pnp.css` in
 `@pie-qti/default-components` (exported as `./qti-pnp.css`, copied into the web-component loaders'
 `default-runtime.css`) styles every scheme plus inverted polarity, single-column layout, and text
-appearance, with the scheme tokens inheriting into shadow roots. Specialist features such as
-structured labels and braille routing remain deferred under G-13.
+appearance, with the scheme tokens inheriting into shadow roots. The specialist features,
+structured labels and braille routing, landed under G-13.
 
 Action
-Done for the tracked scope. Future PNP work is tracked under G-13 and package-level catalog
-discovery under G-15.
+Done for the tracked scope. Structured labels and braille routing are covered by G-13, and
+package-level catalog discovery by G-15.
 
 Test signal
 - A definition/session created with `pnp: { display: { colorScheme: 'blackwhite' } }` sets `data-qti-colorscheme="blackwhite"`, and the shipped `qti-pnp.css` rules recolour the theme tokens.
@@ -815,10 +947,12 @@ in WAI-ARIA group labelling. The findings, markup contract and NVDA checklist li
 `packages/item-player/docs/PNP.md`.
 
 Implementation
-1. `pnp.display.structuredLabelSupport` rides the presentation plan to every block interaction;
-   `choiceInteraction` and `matchInteraction` announce their answer set as one `role="group"`
-   named by the prompt (i18n fallback otherwise, authored accessibility name still winning), and
-   match columns take their visible headings as `aria-labelledby` names.
+1. `pnp.display.structuredLabelSupport` rides the presentation plan to every block interaction.
+   With it, `matchInteraction` announces its answer set as one `role="group"` named by the prompt
+   (without a prompt, an authored accessibility name, else an i18n fallback), and its columns take
+   their visible headings as `aria-labelledby` names. `choiceInteraction` needs no flag: its answer
+   set is always one `role="group"`, named by an authored accessibility name, else the prompt, else
+   an i18n fallback.
 2. An AfA `<braille/>` grant maps to the platform `brailleText` preference (sign-language to
    `signingDefinition`), and a `braille-text` lookup falls back to APIP's `braille` usage, so
    QTI 3 and APIP catalogs share one routing path.
@@ -827,7 +961,9 @@ Implementation
    `packages/item-player/docs/PNP.md`.
 
 Test signal
-- With `structuredLabelSupport: true`, choice groups carry the correct ARIA roles.
+- With `structuredLabelSupport: true`, the match interaction is one `role="group"` named by its
+  prompt and its columns are named by their headings; the choice group does not depend on the
+  flag.
 - `player.getCatalogEntry(idref, 'braille-text')` finds an APIP item's `braille` entry.
 
 ---
@@ -927,6 +1063,21 @@ Test signal
 
 ---
 
+## Delivery backlog
+
+Known, accepted delivery limits from the round-5 delivery review and the later low-level reviews
+(2026-11). Each is open work, not a defect in the behaviour shipped today.
+
+- Nested `xml:lang` on inner elements of feedback, instruction and rubric content keeps only its block-level language where content renders as given (the shell's item-feedback dialog for backend `result.feedback`, host-supplied `html`); the conversion is `prepareReadableBlock` — `packages/section-player/src/tts/spoken-catalogs.ts`, `packages/assessment-player/src/components/AssessmentShell.svelte`.
+- A `newTemplate` rerun starts from declaration defaults as an earlier `setDefaultValue` changed them, not from the authored defaults — `packages/item-player/src/core/Player.ts` (`newTemplate`).
+- `patternMask` is not part of the `validateResponses` check (it constrains input only) — `packages/item-player/src/core/Player.ts` (`validateResponses`).
+- No per-scope countdowns: the timer shows only the nearest active limit — `packages/assessment-player/src/components/AssessmentTimer.svelte`, `getTimeState()` in `packages/assessment-player/src/core/AssessmentPlayer.ts`.
+- No mid-session time extension: PNP extended time is fixed when the player is created — `packages/assessment-player/src/core/TimeManager.ts`.
+- PNP `line-reader` is parsed into the profile's tool supports, but no built-in line reader renders it — `packages/item-player/src/pnp/parsePnpXml.ts`.
+- The section tool bar hosts only the tools the host configures; there is no built-in calculator, ruler, protractor or TTS of pie-qti's own — `packages/section-player/src/components/QtiToolButtonBar.svelte`.
+
+---
+
 ## Reference: gap–file index
 
 Quick lookup of which source files are touched by each gap item.
@@ -955,8 +1106,11 @@ Quick lookup of which source files are touched by each gap item.
 | `packages/default-components/src/catalog/` | G-10 |
 | `packages/item-player/src/interactions/position-object/` | G-17 |
 | `packages/item-player/src/interactions/extended-text/` | G-23 |
-| `packages/item-player/src/core/Player.ts` | G-19, G-21, G-23, G-24 |
+| `packages/item-player/src/core/Player.ts` | G-01, G-19, G-21, G-23, G-24, G-27 |
+| `packages/item-player/src/core/compliance.ts` | G-27 |
 | `packages/qti-common/src/element-mapper/` | G-18 |
+| `packages/qti-common/src/version-detection/` | G-27 |
+| `packages/assessment-player/src/reporting/` | G-26 |
 | `packages/qti-processing/` | G-11, G-19, G-21, G-24 |
 | `packages/ims-cp-browser/` | G-15 |
 | `packages/pie-to-qti2/` | G-25 |

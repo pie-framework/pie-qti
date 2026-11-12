@@ -10,11 +10,13 @@ export type SortableIndexLabels = 'decimal' | 'lower-alpha' | 'upper-alpha' | 'n
 
 import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 import type { HtmlContent } from '@pie-qti/item-player';
-import { htmlToString } from '@pie-qti/item-player/security';
 import { touchDrag } from '@pie-qti/qti-common';
-import { tick } from 'svelte';
+import { tick, type Snippet } from 'svelte';
+import { accessibleTextFromHtml } from '../utils/accessibleText.js';
+import { choiceAccessibleName } from '../utils/choiceName.js';
 import DragHandle from './DragHandle.svelte';
-import '../styles/shared.css';
+import { createPickUpPlace } from './pickUpPlace.svelte';
+import '../styles/srOnly.js';
 
 interface Item {
 	id: string;
@@ -32,6 +34,16 @@ interface Props {
 	indexSuffix?: string;
 	disabled?: boolean;
 	i18n?: I18nProvider;
+	/**
+	 * Rendered at the end of every row (e.g. an elimination toggle) so per-item
+	 * controls align with their item at any row height, instead of drifting in a
+	 * separate column sized against the row pitch.
+	 */
+	rowTrailing?: Snippet<[Item]>;
+	/** Id(s) of more descriptions for the list, such as the interaction's unmet-minimum hint. */
+	describedBy?: string;
+	/** Id of an element that names the list, when the caller's context gives one. */
+	labelledBy?: string;
 	onReorder: (newOrder: string[]) => void;
 }
 
@@ -44,8 +56,15 @@ const {
 	indexSuffix = '',
 	disabled = false,
 	i18n,
+	rowTrailing,
+	describedBy,
+	labelledBy,
 	onReorder,
 }: Props = $props();
+
+// Unique id prefix so aria-labelledby/describedby survive several lists in one document.
+const uid = $props.id();
+const instructionsId = `${uid}-sortable-instructions`;
 
 function formatIndex(index: number): string {
 	if (indexLabels === 'decimal') return `${index + 1}${indexSuffix}`;
@@ -59,15 +78,15 @@ function formatIndex(index: number): string {
 	return `${indexLabels === 'upper-alpha' ? letters.toUpperCase() : letters}${indexSuffix}`;
 }
 
-let draggedId = $state<string | null>(null);
+// The item picked up via keyboard (held), and the item a pointer drag carries.
+const pickUp = createPickUpPlace();
 let dragOverId = $state<string | null>(null);
-let keyboardSelectedId = $state<string | null>(null); // Item picked up via keyboard
 let announceText = $state<string>(''); // For screen reader announcements
 
 // Mouse drag handlers
 function handleDragStart(id: string) {
 	if (disabled) return;
-	draggedId = id;
+	pickUp.startDrag(id);
 }
 
 function handleDragOver(event: DragEvent, id: string) {
@@ -81,6 +100,7 @@ function handleDragLeave() {
 }
 
 function handleDrop(event: DragEvent, dropId: string) {
+	const draggedId = pickUp.dragged;
 	if (disabled || !draggedId) return;
 	event.preventDefault();
 
@@ -95,12 +115,12 @@ function handleDrop(event: DragEvent, dropId: string) {
 		onReorder(newOrder);
 	}
 
-	draggedId = null;
+	pickUp.endDrag();
 	dragOverId = null;
 }
 
 function handleDragEnd() {
-	draggedId = null;
+	pickUp.endDrag();
 	dragOverId = null;
 }
 
@@ -118,14 +138,20 @@ function handleKeyDown(event: KeyboardEvent, id: string) {
 		return;
 	}
 
-	// Escape: Cancel keyboard selection
-	if (event.key === 'Escape' && keyboardSelectedId) {
-		handleCancelSelection(event, itemName);
+	// Escape: Cancel keyboard selection. The announcement names the grabbed item —
+	// focus may sit on another item (a Tab while the grab continues) — so the held
+	// item's name is resolved here, not the focused item's.
+	if (event.key === 'Escape' && pickUp.held) {
+		const grabbed = items.find((entry) => entry.id === pickUp.held);
+		handleCancelSelection(
+			event,
+			grabbed ? itemLabel(grabbed) : translate(i18n, 'interactions.order.itemFallback', 'Item'),
+		);
 		return;
 	}
 
 	// Arrow keys: Move item or change focus
-	if (keyboardSelectedId === id) {
+	if (pickUp.isHeld(id)) {
 		handleArrowKeyMovement(event, itemName, currentIndex);
 	}
 }
@@ -138,28 +164,24 @@ function handlePickupOrDrop(
 ) {
 	event.preventDefault();
 
-	if (keyboardSelectedId === id) {
-		// Drop item
-		keyboardSelectedId = null;
-		announceText = translate(i18n, 'interactions.order.itemDropped', '{item} dropped at position {position} of {total}', {
-			item: itemName, position: currentIndex + 1, total: orderedIds.length,
-		});
-	} else {
-		// Pick up item
-		keyboardSelectedId = id;
-		announceText = translate(
-			i18n,
-			'interactions.order.itemGrabbed',
-			'{item} grabbed. Current position {position} of {total}. Use arrow keys to move, Space or Enter to drop.',
-			{ item: itemName, position: currentIndex + 1, total: orderedIds.length },
-		);
-	}
+	announceText = pickUp.toggle(id)
+		? // Picked up
+			translate(
+				i18n,
+				'interactions.order.itemGrabbed',
+				'{item} grabbed. Current position {position} of {total}. Use arrow keys to move, Space or Enter to drop.',
+				{ item: itemName, position: currentIndex + 1, total: orderedIds.length },
+			)
+		: // Dropped
+			translate(i18n, 'interactions.order.itemDropped', '{item} dropped at position {position} of {total}', {
+				item: itemName, position: currentIndex + 1, total: orderedIds.length,
+			});
 }
 
 function handleCancelSelection(event: KeyboardEvent, itemName: string) {
 	event.preventDefault();
 	announceText = translate(i18n, 'interactions.order.selectionCancelled', '{item} selection cancelled', { item: itemName });
-	keyboardSelectedId = null;
+	pickUp.release();
 }
 
 function announceMoved(itemName: string, position: number): string {
@@ -221,7 +243,7 @@ async function moveWithButton(event: MouseEvent, id: string, offset: number) {
 	const button = event.currentTarget as HTMLButtonElement;
 	const row = button.closest('[role="listitem"]');
 	const item = items.find((entry) => entry.id === orderedIds[index]);
-	keyboardSelectedId = null;
+	pickUp.release();
 	moveItem(index, index + offset);
 	announceText = announceMoved(
 		item ? itemLabel(item) : translate(i18n, 'interactions.order.itemFallback', 'Item'),
@@ -234,18 +256,26 @@ async function moveWithButton(event: MouseEvent, id: string, offset: number) {
 }
 
 function itemLabel(item: Item): string {
-	return toPlainText(item.text) || translate(i18n, 'interactions.order.itemFallback', 'Item');
+	// Image alt and MathML alttext participate, unlike raw textContent. A choice with
+	// nothing to read is named by its presented position ("Choice 3"), never by its
+	// identifier — the shared choice-name rule.
+	return choiceAccessibleName({
+		i18n,
+		label: accessibleTextFromHtml(item.text),
+		position: items.indexOf(item) + 1,
+	});
 }
 
-function toPlainText(html: HtmlContent): string {
-	if (typeof document !== 'undefined') {
-		const template = document.createElement('template');
-		// Passing the value through unchanged preserves TrustedHTML identity at
-		// this parsing sink; the resulting text is used only for accessibility.
-		template.innerHTML = html as any;
-		return (template.content.textContent ?? '').replace(/\s+/g, ' ').trim();
-	}
-	return htmlToString(html).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+/** Position/state sentences for the row's aria-describedby target. */
+function itemState(index: number, isGrabbed: boolean, isCorrect: boolean): string {
+	return joinSentences(
+		translate(i18n, 'interactions.order.position', 'Position {current} of {total}', {
+			current: index + 1,
+			total: orderedIds.length,
+		}),
+		isGrabbed && translate(i18n, 'interactions.order.grabbed', 'Grabbed. Use arrow keys to move.'),
+		isCorrect && translate(i18n, 'accessibility.correctPosition', 'Correct position.'),
+	);
 }
 </script>
 
@@ -255,7 +285,7 @@ function toPlainText(html: HtmlContent): string {
 </div>
 
 <!-- Instructions for keyboard users -->
-<div id="sortable-instructions" class="sr-only">
+<div id={instructionsId} class="sr-only">
 	{translate(
 		i18n,
 		'interactions.order.keyboardInstructions',
@@ -265,8 +295,9 @@ function toPlainText(html: HtmlContent): string {
 
 <div
 	role="list"
-	aria-label={i18n?.t('interactions.order.listLabel') ?? 'Reorderable list of choices'}
-	aria-describedby="sortable-instructions"
+	aria-label={labelledBy ? undefined : (i18n?.t('interactions.order.listLabel') ?? 'Reorderable list of choices')}
+	aria-labelledby={labelledBy}
+	aria-describedby={describedBy ? `${instructionsId} ${describedBy}` : instructionsId}
 	data-orientation={orientation}
 	part="list"
 	class="qti-sortable-list space-y-2"
@@ -276,10 +307,12 @@ function toPlainText(html: HtmlContent): string {
 	{#each orderedIds as id, index (id)}
 		{@const item = items.find((i) => i.id === id)}
 		{#if item}
-			{@const isGrabbed = keyboardSelectedId === id}
+			{@const isGrabbed = pickUp.isHeld(id)}
 			{@const correctIndex = correctOrder.indexOf(id)}
 			{@const isCorrect = correctIndex !== -1 && correctIndex === index}
 			{@const label = itemLabel(item)}
+			{@const textId = `${uid}-item-${id}-text`}
+			{@const stateId = `${uid}-item-${id}-state`}
 			<div role="listitem" class="qti-sortable-row">
 				<button
 					type="button"
@@ -292,24 +325,18 @@ function toPlainText(html: HtmlContent): string {
 					ondragend={handleDragEnd}
 					onkeydown={(e) => handleKeyDown(e, id)}
 					disabled={disabled}
-					aria-label={joinSentences(
-						translate(i18n, 'interactions.order.itemPosition', '{item}. Position {position} of {total}.', {
-							item: label, position: index + 1, total: orderedIds.length,
-						}),
-						isGrabbed && translate(i18n, 'interactions.order.grabbed', 'Grabbed. Use arrow keys to move.'),
-						isCorrect && translate(i18n, 'accessibility.correctPosition', 'Correct position.'),
-					)}
-					aria-grabbed={isGrabbed}
+					aria-labelledby={textId}
+					aria-describedby={stateId}
 					data-grabbed={isGrabbed}
 					data-correct={isCorrect}
 					data-disabled={disabled}
 					part="item"
-					class="qti-sortable-item flex items-center gap-2 p-3 bg-base-200 rounded select-none transition-all w-full text-start"
+					class="qti-sortable-item flex items-center gap-2 p-3 bg-base-200 rounded select-none transition-all text-start"
 					class:cursor-grab={!disabled && !isGrabbed}
 					class:cursor-not-allowed={disabled}
-					class:opacity-50={disabled || draggedId === id}
-					class:ring-2={(dragOverId === id && draggedId !== id) || isGrabbed}
-					class:ring-primary={(dragOverId === id && draggedId !== id) || isGrabbed}
+					class:opacity-50={disabled || pickUp.dragged === id}
+					class:ring-2={(dragOverId === id && pickUp.dragged !== id) || isGrabbed}
+					class:ring-primary={(dragOverId === id && pickUp.dragged !== id) || isGrabbed}
 					class:bg-primary={isGrabbed}
 					class:bg-opacity-20={isGrabbed || isCorrect}
 					class:bg-success={isCorrect}
@@ -319,7 +346,8 @@ function toPlainText(html: HtmlContent): string {
 						<span part="index" aria-hidden="true" data-text={formatIndex(index)} class="qti-sortable-index badge {isCorrect ? 'badge-success' : 'badge-neutral'}"></span>
 					{/if}
 					<DragHandle size={1} opacity={0.5} class="text-base-content" />
-					<span part="text" class="qti-sortable-text qti-rich-content flex-1">{@html item.text}</span>
+					<!-- The name source: image alt and MathML participate in name computation here. -->
+					<span id={textId} part="text" class="qti-sortable-text qti-rich-content flex-1">{@html item.text}</span>
 					{#if isCorrect}
 						<span aria-hidden="true" data-text="{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}" class="badge badge-success badge-sm"></span>
 					{/if}
@@ -327,19 +355,23 @@ function toPlainText(html: HtmlContent): string {
 				{#if !disabled}
 					<div class="qti-sortable-moves">
 						<button type="button" class="qti-sortable-move" disabled={index === 0}
-							aria-label="{i18n?.t('interactions.order.moveEarlier') ?? 'Move earlier'}: {label}"
-							title={i18n?.t('interactions.order.moveEarlier') ?? 'Move earlier'}
+							aria-label={translate(i18n, 'interactions.order.moveEarlierItem', 'Move {item} earlier', { item: label })}
+							title={translate(i18n, 'interactions.order.moveEarlierItem', 'Move {item} earlier', { item: label })}
 							onclick={(event) => moveWithButton(event, id, -1)}>
 							<span class="qti-sortable-glyph" aria-hidden="true">{orientation === 'horizontal' ? '←' : '↑'}</span>
 						</button>
 						<button type="button" class="qti-sortable-move" disabled={index === orderedIds.length - 1}
-							aria-label="{i18n?.t('interactions.order.moveLater') ?? 'Move later'}: {label}"
-							title={i18n?.t('interactions.order.moveLater') ?? 'Move later'}
+							aria-label={translate(i18n, 'interactions.order.moveLaterItem', 'Move {item} later', { item: label })}
+							title={translate(i18n, 'interactions.order.moveLaterItem', 'Move {item} later', { item: label })}
 							onclick={(event) => moveWithButton(event, id, 1)}>
 							<span class="qti-sortable-glyph" aria-hidden="true">{orientation === 'horizontal' ? '→' : '↓'}</span>
 						</button>
 					</div>
 				{/if}
+				{#if rowTrailing}
+					{@render rowTrailing(item)}
+				{/if}
+				<span id={stateId} class="sr-only">{itemState(index, isGrabbed, isCorrect)}</span>
 			</div>
 		{/if}
 	{/each}
@@ -362,7 +394,12 @@ function toPlainText(html: HtmlContent): string {
 		flex-wrap: wrap;
 	}
 
-	.qti-sortable-row { display: flex; gap: 0.5rem; align-items: center; min-width: 0; }
+	/*
+	 * Reflow (WCAG 1.4.10): on a narrow screen the row's move controls wrap under
+	 * the item instead of squeezing the item (and its label) into a clipped sliver;
+	 * wide screens keep them on the item's line.
+	 */
+	.qti-sortable-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; min-width: 0; }
 	.qti-sortable-moves { display: flex; flex: 0 0 auto; gap: 0.25rem; }
 	.qti-sortable-list[data-orientation='horizontal'] .qti-sortable-glyph:dir(rtl) {
 		display: inline-block;
@@ -375,13 +412,15 @@ function toPlainText(html: HtmlContent): string {
 		font-size: 1.25rem; cursor: pointer;
 	}
 	.qti-sortable-move:disabled { opacity: 0.4; cursor: default; }
-	.qti-sortable-move:focus-visible { outline: 2px solid var(--pie-qti-primary, #4338ca); outline-offset: 2px; }
+	.qti-sortable-move:focus-visible { outline: 2px solid var(--pie-qti-focus, #4338ca); outline-offset: 2px; }
 	.qti-sortable-item {
+		/* Grows to the row on wide screens; below 12rem of available width the row
+		   wraps and the item takes the full line, its label wrapping too. */
+		flex: 1 1 12rem;
 		min-width: 0;
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		width: 100%;
 		padding: 0.75rem;
 		border-radius: 0.5rem;
 		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
@@ -393,12 +432,24 @@ function toPlainText(html: HtmlContent): string {
 			opacity 120ms ease;
 	}
 	.qti-sortable-item:focus-visible {
-		outline: 2px solid var(--pie-qti-primary, oklch(45% 0.24 277));
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
 	}
 	.qti-sortable-item[data-grabbed='true'] {
 		border-color: var(--pie-qti-primary, oklch(45% 0.24 277));
 		background: color-mix(in oklch, var(--pie-qti-primary, oklch(45% 0.24 277)) 8%, transparent);
+	}
+	/*
+	 * Forced colors drop the tint and the ring (a box-shadow), which leaves the picked-up item
+	 * looking like every other. It keeps a system-colour cue that is not colour alone: a heavier
+	 * Highlight border, whose extra width the padding gives back so nothing shifts. The focus
+	 * outline stays as it is.
+	 */
+	@media (forced-colors: active) {
+		.qti-sortable-item[data-grabbed='true'] {
+			border: 3px solid Highlight;
+			padding: calc(0.75rem - 2px);
+		}
 	}
 	.qti-sortable-item[data-correct='true'] {
 		border-color: var(--pie-qti-success, oklch(76% 0.177 163.223));

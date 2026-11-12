@@ -6,14 +6,18 @@
  */
 
 import type { AssociableChoice } from '@pie-qti/item-player';
-import { htmlToString } from '@pie-qti/item-player/security';
 import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
 import { touchDrag } from '@pie-qti/qti-common';
 import { tick } from 'svelte';
+import { accessibleTextFromHtml } from '../utils/accessibleText.js';
+import { exceedsLimit, isAtLimit } from '../utils/capacity.js';
+import { choiceAccessibleName } from '../utils/choiceName.js';
+import { createAnnouncer } from '../utils/announcer.svelte';
 import { createOrUpdatePair, getSourceForTarget, getTargetsForSource, removePairBySource } from '../utils/pairHelpers.js';
-import { isCompatibleMatchGroup } from '../utils/matchGroupUtils.js';
+import { isCompatibleMatchGroup, matchGroupBlockedIds } from '../utils/matchGroupUtils.js';
 import DragHandle from './DragHandle.svelte';
-import '../styles/shared.css';
+import { createPickUpPlace } from './pickUpPlace.svelte';
+import '../styles/srOnly.js';
 
 interface Props {
 	sourceSet: AssociableChoice[];
@@ -25,42 +29,65 @@ interface Props {
 	i18n?: I18nProvider;
 	/** PNP structured labels: name each column by its visible heading instead of a hidden label (G-13). */
 	structuredLabels?: boolean;
+	/** Id(s) of more descriptions for the matching region, such as the unmet-minimum hint. */
+	describedBy?: string;
 	onPairsChange: (newPairs: string[]) => void;
 }
 
-const { sourceSet, targetSet, pairs, maxAssociations = 0, correctPairs = [], disabled = false, i18n, structuredLabels = false, onPairsChange }: Props = $props();
+const { sourceSet, targetSet, pairs, maxAssociations = 0, correctPairs = [], disabled = false, i18n, structuredLabels = false, describedBy, onPairsChange }: Props = $props();
+
+// The source selected by pointer or keyboard (held), and the source a pointer drag carries.
+const pickUp = createPickUpPlace();
 
 // Targets incompatible with the active source due to matchGroup constraints
 const blockedTargetIds = $derived.by(() => {
-	const activeSourceId = draggedSourceId ?? selectedSourceId;
+	const activeSourceId = pickUp.active;
 	if (!activeSourceId) return new Set<string>();
-	const src = sourceSet.find((s) => s.identifier === activeSourceId);
-	return new Set(
-		targetSet
-			.filter((t) => !isCompatibleMatchGroup(src?.matchGroup, t.matchGroup))
-			.map((t) => t.identifier)
+	return matchGroupBlockedIds(
+		sourceSet.find((s) => s.identifier === activeSourceId),
+		targetSet,
 	);
 });
 
 let gridElement = $state<HTMLDivElement>();
-let draggedSourceId = $state<string | null>(null);
-let selectedSourceId = $state<string | null>(null); // Source selected by pointer or keyboard
-let announceText = $state<string>(''); // For screen reader announcements
+const announcer = createAnnouncer(); // For screen reader announcements
 
-function choiceLabel(choice: AssociableChoice | null | undefined, fallback = 'Item'): string {
-	if (!choice) return fallback;
-	if (typeof document !== 'undefined') {
-		const template = document.createElement('template');
-		template.innerHTML = choice.text as any;
-		return (template.content.textContent ?? '').replace(/\s+/g, ' ').trim() || fallback;
-	}
-	return htmlToString(choice.text).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || fallback;
+// Unique id prefix so aria-labelledby/describedby survive several interactions in one document.
+const uid = $props.id();
+const instructionsId = `${uid}-match-instructions`;
+const sourceHeadingId = `${uid}-source-heading`;
+const targetHeadingId = `${uid}-target-heading`;
+
+// 1-based position of each choice in its column as presented to the candidate (after
+// shuffle): the localized-ordinal name of a choice whose content carries no text.
+const choicePositions = $derived.by(() => {
+	const positions = new Map<object, number>();
+	sourceSet.forEach((choice, index) => positions.set(choice, index + 1));
+	targetSet.forEach((choice, index) => positions.set(choice, index + 1));
+	return positions;
+});
+
+/** Whether the choice's content carries readable text (text, image alt, MathML alttext). */
+function hasAuthoredLabel(choice: AssociableChoice | null | undefined): boolean {
+	return !!choice && accessibleTextFromHtml(choice.text) !== '';
+}
+
+function choiceLabel(choice: AssociableChoice | null | undefined): string {
+	if (!choice) return '';
+	// The authored label (image alt, MathML alttext participate); a content-less
+	// choice is named by a localized ordinal of its presented position — never the
+	// identifier, which is meaningless and potentially answer-leaking to candidates.
+	return choiceAccessibleName({
+		i18n,
+		label: accessibleTextFromHtml(choice.text),
+		position: choicePositions.get(choice) ?? 0,
+	});
 }
 
 // Mouse drag handlers
 function handleDragStart(sourceId: string) {
 	if (disabled) return;
-	draggedSourceId = sourceId;
+	pickUp.startDrag(sourceId);
 }
 
 function handleDragOver(event: DragEvent) {
@@ -69,44 +96,57 @@ function handleDragOver(event: DragEvent) {
 }
 
 function handleDrop(event: DragEvent, targetId: string) {
+	const draggedSourceId = pickUp.dragged;
 	if (disabled || !draggedSourceId) return;
 	event.preventDefault();
 
 	if (blockedTargetIds.has(targetId)) {
-		draggedSourceId = null;
+		pickUp.endDrag();
 		return;
 	}
 
 
 	createMatch(draggedSourceId, targetId);
-	draggedSourceId = null;
+	pickUp.endDrag();
 }
 
 function handleDragEnd() {
-	draggedSourceId = null;
+	pickUp.endDrag();
 }
 
 // Native button activation serves mouse, touch, and Enter/Space equally.
 function selectSource(sourceId: string) {
 	if (disabled) return;
-	selectedSourceId = selectedSourceId === sourceId ? null : sourceId;
+	pickUp.toggle(sourceId);
 	const item = choiceLabel(sourceSet.find((source) => source.identifier === sourceId));
-	announceText = selectedSourceId
-		? (i18n?.t('interactions.match.selected', { item }) ?? `${item} selected`)
-		: (i18n?.t('interactions.match.deselected', { item }) ?? `${item} deselected`);
+	announcer.set(
+		pickUp.held
+			? (i18n?.t('interactions.match.selected', { item }) ?? `${item} selected`)
+			: (i18n?.t('interactions.match.deselected', { item }) ?? `${item} deselected`),
+	);
 }
 
+// Escape cancels a held/selected source and returns focus to it: after the
+// selection clears, the targets disable again and would otherwise swallow focus.
 function cancelSelection(event: KeyboardEvent) {
-	if (event.key !== 'Escape') return;
-	selectedSourceId = null;
-	announceText = i18n?.t('common.selectionCancelled') ?? 'Selection cancelled';
+	const sourceId = pickUp.held;
+	if (event.key !== 'Escape' || !sourceId) return;
+	event.preventDefault();
+	const item = choiceLabel(sourceSet.find((source) => source.identifier === sourceId));
+	pickUp.release();
+	announcer.set(translate(i18n, 'interactions.match.selectionCancelledItem', 'Selection of {item} cancelled.', { item }));
+	void tick().then(() => {
+		const source = Array.from(gridElement?.querySelectorAll<HTMLButtonElement>('[data-source-id]') ?? [])
+			.find((button) => button.dataset.sourceId === sourceId);
+		if (source?.isConnected) source.focus();
+	});
 }
 
 async function selectTarget(targetId: string) {
-	if (disabled || !selectedSourceId) return;
-	const sourceId = selectedSourceId;
-	if (!createMatch(sourceId, targetId)) return;
-	selectedSourceId = null;
+	if (disabled || !pickUp.held) return;
+	// A refused match keeps the source selected; a match puts it down.
+	const sourceId = pickUp.place(targetId, createMatch);
+	if (sourceId === null) return;
 	await tick();
 	// The target becomes disabled after placement. Return focus to the source
 	// instead of dropping keyboard users back to the document body.
@@ -115,28 +155,45 @@ async function selectTarget(targetId: string) {
 	if (source?.isConnected) source.focus();
 }
 
+/** Announce a refusal; the shared announcer keeps a repeated refusal announcing. */
+function announceRefusal(message: string) {
+	announcer.announce(message);
+}
+
 // Enforce the same capacity and compatibility rules for every input method.
 function createMatch(sourceId: string, targetId: string): boolean {
 	if (disabled) return false;
 	const source = sourceSet.find((choice) => choice.identifier === sourceId);
 	const target = targetSet.find((choice) => choice.identifier === targetId);
-	if (!source || !target || !isCompatibleMatchGroup(source.matchGroup, target.matchGroup)) return false;
+	if (!source || !target || !isCompatibleMatchGroup(source, target)) return false;
 	const newPairs = createOrUpdatePair(pairs, sourceId, targetId);
 	const sourceCount = getTargetsForSource(newPairs, sourceId).length;
-	if ((maxAssociations > 0 && newPairs.length > maxAssociations) ||
-		((source.matchMax ?? 1) > 0 && sourceCount > (source.matchMax ?? 1))) {
-		announceText = translate(i18n, 'interactions.match.maxReached', 'Maximum associations reached. Remove a pair to add a new one.');
+	const matchMax = source.matchMax ?? 1;
+	// The two caps are refused separately and named (WCAG 3.3.1): the interaction's
+	// maxAssociations names the limit, the source's own matchMax names the choice.
+	if (exceedsLimit(newPairs.length, maxAssociations)) {
+		announceRefusal(translate(i18n, 'interactions.match.associationLimitReached', 'Association not possible: the limit of {max} is reached.', { max: maxAssociations }));
+		return false;
+	}
+	if (exceedsLimit(sourceCount, matchMax)) {
+		announceRefusal(
+			translate(i18n, 'interactions.match.sourceLimitReached', 'Not possible: {label} cannot be in more associations.', {
+				label: choiceLabel(source),
+			}),
+		);
 		return false;
 	}
 	onPairsChange(newPairs);
-	announceText = translate(i18n, 'interactions.match.pairCreated', '{source} matched with {target}.', {
-		source: choiceLabel(source),
-		target: choiceLabel(target),
-	});
+	announcer.set(
+		translate(i18n, 'interactions.match.pairCreated', '{source} matched with {target}.', {
+			source: choiceLabel(source),
+			target: choiceLabel(target),
+		}),
+	);
 	return true;
 }
 
-function clearMatch(sourceId: string) {
+async function clearMatch(sourceId: string) {
 	if (disabled) return;
 	const source = sourceSet.find((s) => s.identifier === sourceId);
 	const sourceName = choiceLabel(source);
@@ -144,19 +201,27 @@ function clearMatch(sourceId: string) {
 	const newPairs = removePairBySource(pairs, sourceId);
 	onPairsChange(newPairs);
 
-	announceText = translate(i18n, 'interactions.match.matchCleared', 'Match cleared for {item}', { item: sourceName });
+	announcer.set(translate(i18n, 'interactions.match.matchCleared', 'Match cleared for {item}', { item: sourceName }));
+
+	// The clear button is removed with the match, which would drop keyboard focus to
+	// the document. Focus returns to the now-enabled source button instead.
+	await tick();
+	const sourceButton = Array.from(gridElement?.querySelectorAll<HTMLButtonElement>('[data-source-id]') ?? []).find(
+		(button) => button.dataset.sourceId === sourceId,
+	);
+	if (sourceButton?.isConnected) sourceButton.focus();
 }
 </script>
 
 <!-- Screen reader announcements -->
 <div aria-live="polite" aria-atomic="true" class="sr-only">
-	{announceText}
+	{announcer.message}
 </div>
 
 <p class="qti-match-pointer-instructions">{i18n?.t('interactions.match.pointerInstructions') ?? 'Select a source item, then select its target. You can also drag and drop.'}</p>
 
 <!-- Instructions for keyboard users -->
-<div id="match-instructions" class="sr-only">
+<div id={instructionsId} class="sr-only">
 	{translate(i18n, 'interactions.match.keyboardInstructions', 'Press Space or Enter to select a source item. Tab to navigate to targets. Press Space or Enter on a target to create a match. Press Escape to cancel selection.')}
 </div>
 
@@ -165,29 +230,34 @@ function clearMatch(sourceId: string) {
 	class="qti-match-grid grid grid-cols-2 gap-6"
 	part="grid"
 	role="region"
-	aria-describedby="match-instructions"
+	aria-describedby={describedBy ? `${instructionsId} ${describedBy}` : instructionsId}
 >
 	<!-- Source Set (Left Column) -->
 	<div
 		part="source-column"
 		class="qti-match-col space-y-2"
 		role="group"
-		aria-labelledby={structuredLabels ? 'qti-match-source-heading' : undefined}
+		aria-labelledby={structuredLabels ? sourceHeadingId : undefined}
 		aria-label={structuredLabels ? undefined : (i18n?.t('interactions.match.sourceItemsLabel') ?? 'Source items to match')}
 	>
-		<h3 id="qti-match-source-heading" part="source-heading" class="qti-match-heading font-semibold text-sm text-base-content/70 mb-3">
+		<h3 id={sourceHeadingId} part="source-heading" class="qti-match-heading font-semibold text-sm text-base-content/70 mb-3">
 			{i18n?.t('interactions.match.sourceItemsLabel') ?? 'Source items to match'}
 		</h3>
 		{#each sourceSet as source (source.identifier)}
 			{@const sourceLabel = choiceLabel(source)}
+			{@const sourceHasLabel = hasAuthoredLabel(source)}
 			{@const matchedTargets = getTargetsForSource(pairs, source.identifier)}
 			{@const targetItems = matchedTargets.map((tid) => targetSet.find((t) => t.identifier === tid)).filter(Boolean)}
-			{@const isSelected = selectedSourceId === source.identifier}
+			{@const isSelected = pickUp.isHeld(source.identifier)}
 			{@const correctTargets = getTargetsForSource(correctPairs, source.identifier)}
 			{@const isCorrect = correctTargets.length > 0}
-			{@const canDragMore = source.matchMax === 0 || matchedTargets.length < (source.matchMax ?? 1)}
+			{@const canDragMore = !isAtLimit(matchedTargets.length, source.matchMax ?? 1)}
+			{@const sourceTextId = `${uid}-source-${source.identifier}-text`}
+			{@const sourceStateId = `${uid}-source-${source.identifier}-state`}
 
 			<div class="qti-match-source-wrapper relative">
+				<!-- A source with no readable content (an image without alt) is named by its
+				     ordinal, never left nameless. -->
 				<button
 					type="button"
 					draggable={!disabled && canDragMore}
@@ -197,20 +267,14 @@ function clearMatch(sourceId: string) {
 					onclick={() => selectSource(source.identifier)}
 					onkeydown={cancelSelection}
 					disabled={disabled}
-					aria-label={joinSentences(
-						translate(i18n, 'accessibility.sentence', '{text}.', { text: sourceLabel }),
-						targetItems.length > 0 &&
-							translate(i18n, 'interactions.match.matchedWithSentence', 'Matched with {targets}.', {
-								targets: formatList(i18n, targetItems.map((target) => choiceLabel(target, 'Target'))),
-							}),
-						isSelected && translate(i18n, 'interactions.match.selectedForMatchingSentence', 'Selected for matching.'),
-						isCorrect && translate(i18n, 'accessibility.correctAnswer', 'Correct answer.'),
-					)}
+					aria-labelledby={sourceHasLabel ? sourceTextId : undefined}
+					aria-label={sourceHasLabel ? undefined : sourceLabel}
+					aria-describedby={sourceStateId}
 					aria-pressed={isSelected}
 					data-matched={matchedTargets.length > 0}
 					data-selected={isSelected}
 					data-correct={isCorrect}
-					data-dragging={draggedSourceId === source.identifier}
+					data-dragging={pickUp.dragged === source.identifier}
 					part="source-item"
 					data-source-id={source.identifier}
 					class="qti-match-source p-3 rounded-lg border-2 transition-all w-full"
@@ -225,17 +289,18 @@ function clearMatch(sourceId: string) {
 					class:ring-primary={isSelected}
 					class:cursor-grab={!disabled && canDragMore && !isSelected}
 					class:cursor-not-allowed={disabled}
-					class:opacity-50={disabled || draggedSourceId === source.identifier}
+					class:opacity-50={disabled || pickUp.dragged === source.identifier}
 				>
 					<div class="qti-match-source-content flex items-center justify-between gap-2">
 						<div class="qti-match-source-text flex-1">
-							<div class="qti-match-source-title qti-rich-inline-content font-medium">{@html source.text}</div>
+							<!-- The name source: image alt and MathML participate in name computation here. -->
+							<div id={sourceTextId} class="qti-match-source-title qti-rich-inline-content font-medium">{@html source.text}</div>
 							{#if targetItems.length > 0}
-								<div aria-hidden="true" data-text="→ {targetItems.map((target) => choiceLabel(target, 'Target')).join(', ')}" class="qti-match-source-sub text-sm mt-1"></div>
+								<div aria-hidden="true" data-text="→ {targetItems.map((target) => choiceLabel(target)).join(', ')}" class="qti-match-source-sub text-sm mt-1"></div>
 							{:else if isCorrect && correctTargets.length > 0}
 								{@const correctTargetItems = correctTargets.map((tid) => targetSet.find((t) => t.identifier === tid)).filter(Boolean)}
 								{#if correctTargetItems.length > 0}
-									<div aria-hidden="true" data-text="→ {correctTargetItems.map((target) => choiceLabel(target, 'Target')).join(', ')}" class="qti-match-source-sub text-sm mt-1"></div>
+									<div aria-hidden="true" data-text="→ {correctTargetItems.map((target) => choiceLabel(target)).join(', ')}" class="qti-match-source-sub text-sm mt-1"></div>
 								{/if}
 							{/if}
 							{#if isCorrect && matchedTargets.length === 0}
@@ -247,6 +312,16 @@ function clearMatch(sourceId: string) {
 						{/if}
 					</div>
 				</button>
+				<span id={sourceStateId} class="sr-only">
+					{joinSentences(
+						targetItems.length > 0 &&
+							translate(i18n, 'interactions.match.matchedWithSentence', 'Matched with {targets}.', {
+								targets: formatList(i18n, targetItems.map((target) => choiceLabel(target))),
+							}),
+						isSelected && translate(i18n, 'interactions.match.selectedForMatchingSentence', 'Selected for matching.'),
+						isCorrect && translate(i18n, 'accessibility.correctAnswer', 'Correct answer.'),
+					)}
+				</span>
 				{#if matchedTargets.length > 0 && !disabled}
 					<button
 						type="button"
@@ -267,37 +342,36 @@ function clearMatch(sourceId: string) {
 		part="target-column"
 		class="qti-match-col space-y-2"
 		role="group"
-		aria-labelledby={structuredLabels ? 'qti-match-target-heading' : undefined}
+		aria-labelledby={structuredLabels ? targetHeadingId : undefined}
 		aria-label={structuredLabels ? undefined : (i18n?.t('interactions.match.targetItemsLabel') ?? 'Target items for matching')}
 	>
-		<h3 id="qti-match-target-heading" part="target-heading" class="qti-match-heading font-semibold text-sm text-base-content/70 mb-3">
+		<h3 id={targetHeadingId} part="target-heading" class="qti-match-heading font-semibold text-sm text-base-content/70 mb-3">
 			{i18n?.t('interactions.match.targetItemsLabel') ?? 'Target items for matching'}
 		</h3>
 		{#each targetSet as target (target.identifier)}
-			{@const targetLabel = choiceLabel(target, 'Target')}
+			{@const targetHasLabel = hasAuthoredLabel(target)}
 			{@const matchedSource = getSourceForTarget(pairs, target.identifier)}
 			{@const sourceItem = matchedSource ? sourceSet.find((s) => s.identifier === matchedSource) : null}
-			{@const isHighlight = (draggedSourceId && !matchedSource) || (selectedSourceId && !matchedSource)}
+			{@const isHighlight = (pickUp.dragged && !matchedSource) || (pickUp.held && !matchedSource)}
 			{@const correctSource = getSourceForTarget(correctPairs, target.identifier)}
 			{@const isCorrect = correctSource !== null}
 			{@const isBlocked = blockedTargetIds.has(target.identifier)}
+			{@const targetTextId = `${uid}-target-${target.identifier}-text`}
+			{@const targetStateId = `${uid}-target-${target.identifier}-state`}
 
+			<!-- A target with no readable content (an image without alt) is named by its
+			     ordinal, never left nameless. -->
 			<button
 				type="button"
 				ondragover={handleDragOver}
 				ondrop={(e) => handleDrop(e, target.identifier)}
 				onclick={() => selectTarget(target.identifier)}
 				onkeydown={cancelSelection}
-				disabled={disabled || (!selectedSourceId && !draggedSourceId)}
+				disabled={disabled || (!pickUp.held && !pickUp.dragged)}
 				aria-disabled={isBlocked ? 'true' : undefined}
-				aria-label={joinSentences(
-					translate(i18n, 'accessibility.sentence', '{text}.', { text: targetLabel }),
-					matchedSource && sourceItem
-						? translate(i18n, 'interactions.match.matchedWithSentence', 'Matched with {targets}.', { targets: choiceLabel(sourceItem) })
-						: translate(i18n, 'interactions.match.availableForMatchingSentence', 'Available for matching.'),
-					isCorrect && translate(i18n, 'accessibility.correctAnswer', 'Correct answer.'),
-					isBlocked && translate(i18n, 'interactions.match.notCompatibleSentence', 'Not compatible with the selected source.'),
-				)}
+				aria-labelledby={targetHasLabel ? targetTextId : undefined}
+				aria-label={targetHasLabel ? undefined : choiceLabel(target)}
+				aria-describedby={targetStateId}
 				data-matched={!!matchedSource}
 				data-highlight={isHighlight}
 				data-correct={isCorrect}
@@ -311,14 +385,15 @@ function clearMatch(sourceId: string) {
 				class:border-base-300={!matchedSource && !isCorrect}
 				class:border-primary={matchedSource}
 				class:border-success={isCorrect && !matchedSource}
-				class:border-accent={draggedSourceId && !matchedSource || (selectedSourceId && !matchedSource)}
-				class:bg-accent={draggedSourceId && !matchedSource || (selectedSourceId && !matchedSource)}
-				class:bg-opacity-5={draggedSourceId && !matchedSource || (selectedSourceId && !matchedSource)}
+				class:border-accent={pickUp.dragged && !matchedSource || (pickUp.held && !matchedSource)}
+				class:bg-accent={pickUp.dragged && !matchedSource || (pickUp.held && !matchedSource)}
+				class:bg-opacity-5={pickUp.dragged && !matchedSource || (pickUp.held && !matchedSource)}
 				class:opacity-40={isBlocked}
 				class:cursor-not-allowed={isBlocked}
 			>
 				<div class="qti-match-target-content flex flex-col gap-1">
-					<div class="qti-match-target-title qti-rich-inline-content font-medium text-base-content/70">{@html target.text}</div>
+					<!-- The name source: image alt and MathML participate in name computation here. -->
+					<div id={targetTextId} class="qti-match-target-title qti-rich-inline-content font-medium text-base-content/70">{@html target.text}</div>
 					{#if matchedSource && sourceItem}
 						<div aria-hidden="true" data-text="← {choiceLabel(sourceItem)}" class="qti-match-target-sub text-sm text-primary font-medium"></div>
 					{:else if isCorrect && correctSource}
@@ -329,7 +404,7 @@ function clearMatch(sourceId: string) {
 					{:else if !disabled}
 						<div
 							aria-hidden="true"
-							data-text={selectedSourceId
+							data-text={pickUp.held
 								? (i18n?.t('interactions.match.selectTarget') ?? 'Select to match')
 								: (i18n?.t('interactions.match.dropTarget') ?? 'Drop item here')}
 							class="qti-match-target-hint text-xs text-base-content/70 italic"
@@ -339,6 +414,15 @@ function clearMatch(sourceId: string) {
 						<span aria-hidden="true" data-text="{i18n?.t('interactions.choice.correct', 'Correct') ?? 'Correct'}" class="badge badge-success badge-sm mt-1"></span>
 					{/if}
 				</div>
+				<span id={targetStateId} class="sr-only">
+					{joinSentences(
+						matchedSource && sourceItem
+							? translate(i18n, 'interactions.match.matchedWithSentence', 'Matched with {targets}.', { targets: choiceLabel(sourceItem) })
+							: translate(i18n, 'interactions.match.availableForMatchingSentence', 'Available for matching.'),
+						isCorrect && translate(i18n, 'accessibility.correctAnswer', 'Correct answer.'),
+						isBlocked && translate(i18n, 'interactions.match.notCompatibleSentence', 'Not compatible with the selected source.'),
+					)}
+				</span>
 			</button>
 		{/each}
 	</div>
@@ -399,7 +483,7 @@ function clearMatch(sourceId: string) {
 			opacity 120ms ease;
 	}
 	.qti-match-source:focus-visible {
-		outline: 2px solid var(--pie-qti-primary, oklch(45% 0.24 277));
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
 	}
 	.qti-match-source[data-selected='true'] {
@@ -434,12 +518,13 @@ function clearMatch(sourceId: string) {
 		color: var(--pie-qti-base-content, oklch(21% 0 0));
 	}
 
+	/* K-12 target size (WCAG 2.5.8 minimum 24px; primary controls aim at 44px). */
 	.qti-match-clear {
 		position: absolute;
 		top: 0.5rem;
 		inset-inline-end: 0.5rem;
-		width: 1.5rem;
-		height: 1.5rem;
+		width: 2.75rem;
+		height: 2.75rem;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -447,17 +532,24 @@ function clearMatch(sourceId: string) {
 		border: 1px solid transparent;
 		background: transparent;
 		color: inherit;
+		font-size: 1rem;
 		cursor: pointer;
 	}
 	.qti-match-clear:hover {
 		background: color-mix(in oklch, var(--pie-qti-base-300, oklch(95% 0 0)) 35%, transparent);
+	}
+	.qti-match-clear:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
 	}
 
 	.qti-match-target {
 		width: 100%;
 		padding: 0.75rem;
 		border-radius: 0.5rem;
-		border: 2px dashed var(--pie-qti-base-300, oklch(95% 0 0));
+		/* 1.4.11: an empty drop zone's boundary is a control boundary and needs 3:1,
+		   which base-300 cannot provide on the page background. */
+		border: 2px dashed var(--pie-qti-border-strong, #767676);
 		background: var(--pie-qti-base-100, oklch(100% 0 0));
 		color: var(--pie-qti-base-content, oklch(21% 0 0));
 		text-align: start;
@@ -466,7 +558,7 @@ function clearMatch(sourceId: string) {
 			opacity 120ms ease;
 	}
 	.qti-match-target:focus-visible {
-		outline: 2px solid var(--pie-qti-primary, oklch(45% 0.24 277));
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
 	}
 	.qti-match-target[data-matched='true'] {

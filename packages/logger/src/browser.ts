@@ -71,7 +71,10 @@ export class Logger implements ILogger {
 		// Default to 'info' in production, 'debug' in development
 		const defaultLevel = isDevMode() ? 'debug' : 'info';
 		this.minLevel = LOG_LEVELS[config.minLevel ?? defaultLevel];
-		this.prefix = config.prefix ? `[${config.prefix}]` : '';
+		// The raw name is stored; brackets are added once at format time, so a
+		// child can compose `Parent:Child` from raw names and render as
+		// `[Parent:Child]` instead of nesting brackets (`[Parent]:Child`).
+		this.prefix = config.prefix ?? '';
 	}
 
 	private shouldLog(level: LogLevel): boolean {
@@ -79,7 +82,7 @@ export class Logger implements ILogger {
 	}
 
 	private formatMessage(message: string): string {
-		return this.prefix ? `${this.prefix} ${message}` : message;
+		return this.prefix ? `[${this.prefix}] ${message}` : message;
 	}
 
 	debug(message: string, ...args: any[]): void {

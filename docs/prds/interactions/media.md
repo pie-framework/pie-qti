@@ -5,19 +5,19 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type (interactions only): mediaInteraction
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-11-07
 -->
 
 **Status:** draft  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components`, `@pie-qti/item-player`  
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-11-07
 
 ---
 
 ## Summary
 
-`mediaInteraction` / `qti-media-interaction` is a QTI interaction that embeds audio or video content and tracks whether the candidate has played it. Unlike most QTI interactions, it does not collect a content-based answer — it tracks engagement. The response variable records the number of times the candidate has completed a full play-through. `minPlays` is the primary enforcement mechanism: the item player blocks submission until the candidate has met the required viewing or listening count. `maxPlays` limits how many times the candidate may re-watch or re-listen after a threshold, which matters for timed or high-stakes contexts where unlimited replays would be unfair.
+`mediaInteraction` / `qti-media-interaction` is a QTI interaction that embeds audio or video content and tracks whether the candidate has played it. Unlike most QTI interactions, it does not collect a content-based answer — it tracks engagement. The response variable records the number of plays the candidate has started (a *play* is playback that begins at the start of the media). `minPlays` is the primary enforcement mechanism: the item player blocks submission until the candidate has met the required viewing or listening count. `maxPlays` limits how many times the candidate may re-watch or re-listen after a threshold, which matters for timed or high-stakes contexts where unlimited replays would be unfair.
 
 ---
 
@@ -43,23 +43,30 @@ In K-12 ELA and science assessments, a common use case is: show a stimulus video
 1. **Timed listening tests** (e.g., listening comprehension with a strict hearing-once rule).
 2. **Equity enforcement** — ensuring all candidates have the same number of replays available.
 
-When `maxPlays = 0` (the default), replay is unlimited. The component enforces `maxPlays` by intercepting the `playing` event and cancelling it after the limit is reached, and by suppressing the `loop` attribute on the native element when `maxPlays > 0`.
+When `maxPlays = 0` (the default), replay is unlimited.
+
+With a play limit the component owns playback: it renders the media **without native controls** (a browser's own controls could replay and seek without bound, and its context menu offers "Show controls" and "Loop") and provides its own accessible, localized play/pause, mute and captions controls with at least 44×44 px touch targets. When the limit is reached, further playback is refused: the play control is announced as unavailable, and playback that starts by any other means (media keys, a browser menu, autoplay, a script) is paused immediately. Plays remaining are shown and announced, and a "Maximum play limit reached" notice appears once no play is left to resume.
 
 ### How the media element is embedded
 
 In QTI 2.1, the spec required an `<object>` element inside `mediaInteraction`. QTI 2.2 and QTI 3.0 added support for native `<audio>` and `<video>` child elements. The framework supports all three forms. In practice, `<audio>` and `<video>` are strongly preferred:
 
-- They render with browser-native accessible controls.
+- They render with browser-native accessible controls (under a play limit, with the component's own accessible controls).
 - They support `autoplay`, `loop`, and `controls` attributes directly.
 - They do not require plugin support (Flash, QuickTime) which `<object>` historically did.
 
 The `<object>` path is kept for backward compatibility with QTI 2.1 items. It renders as an HTML `<object>` element, which has no native play events and therefore cannot drive `minPlays`/`maxPlays` enforcement. The `allowObjectEmbeds` security flag must also be explicitly enabled by the host application (see Design Decisions).
 
-### Why play completion, not play start, increments the counter
+### What counts as a play
 
-A "play" is counted on the media `ended` event, not the `play` event. This is a deliberate choice: a candidate who clicks play and immediately pauses or skips to the end without watching should not receive credit. The `ended` event fires when playback reaches the natural end of the media. This is consistent with the spec's intent that `minPlays` measures actual viewing/listening, not button-pressing.
+A *play* is **playback that begins at the start of the media**. It counts when the media is actually playing (the `playing` event, which fires once sound or picture is produced), so a source that fails to load never consumes one of the allowed plays. A *play-through* is a play that runs to the natural end.
 
-The consequence is that very long media (e.g., a 20-minute video) will not increment the counter until it finishes. Item authors must size media appropriately for the assessment context.
+This definition matters at both bounds:
+
+- **Pausing and resuming continues the same play.** A candidate who pauses halfway and resumes is not starting again; the counter does not move. Resuming a play that already started is always allowed, even when the play limit is spent — the limit caps how many times the media can be heard, not whether an interrupted play may finish.
+- **Returning a paused player to the beginning starts a new play.** The next start is counted again, so seeking back to the start cannot extend a limited listening silently.
+
+Earlier implementations counted a play on `ended` (play-through completion). A candidate who stopped short of the end and started over — or left the item and came back — was never counted, so replay of a limited item was unbounded and `maxPlays` could not be enforced. Counting plays at their start makes both `minPlays` (the candidate must actually start the media) and `maxPlays` (no start beyond the limit) enforceable. The consequence for response processing is unchanged: a response value of *n* means the candidate started the media *n* times, and `gte` comparisons against `minPlays` keep their meaning. What changes for authors is that a candidate who starts playback but never reaches the end still registers a play.
 
 ---
 
@@ -107,7 +114,8 @@ The value stored is the integer play count (number of times the `ended` event ha
 | `autostart` | No | boolean | `false` | Yes | Maps to HTML `autoplay` on `<audio>`/`<video>` |
 | `minPlays` | No | xs:integer ≥ 0 | `0` | Yes | Blocks submission until play count reaches this value |
 | `maxPlays` | No | xs:integer ≥ 0 | `0` | Yes | `0` = unlimited; > 0 caps replay and blocks further play |
-| `loop` | No | boolean | `false` | Yes | Suppressed when `maxPlays > 0`; otherwise maps to HTML `loop` |
+| `loop` | No | boolean | `false` | Yes | Restarts after each end (never the native `loop` attribute), each restart counting as a play, until `maxPlays` plays have started |
+| `coords` | No | string | — | **No** | Defined in every QTI version (2.1 XSD 3305-3319; 3.0 XSD 4822): a presentation hint for the region of the media element. Not extracted; the media element renders at its natural size. See Deliberately omitted attributes. |
 | `showControls` | No | boolean | `true` | **No** | QTI 2.2 spec attribute; not extracted; controls are always shown |
 | `pausable` | No | boolean | `true` | **No** | QTI 2.2 spec attribute; not extracted; native controls always allow pause |
 | `class` | No | string | — | No | QTI generic styling attribute; not extracted |
@@ -119,6 +127,8 @@ The value stored is the integer play count (number of times the `ended` event ha
 **`showControls`** — The spec allows hiding the native browser controls. This is deliberately omitted: without controls, there is no keyboard-accessible way to play audio/video, which violates WCAG 2.2 SC 2.1.1 (Keyboard) and SC 1.4.2 (Audio Control). Hiding controls creates a trap where keyboard-only users cannot start playback at all. Item authors who need a custom player skin should implement a PCI.
 
 **`pausable`** — The spec allows preventing candidates from pausing. This is deliberately omitted: preventing pause forces candidates to re-listen from the start if they are interrupted, which disproportionately disadvantages candidates with attention or processing speed needs. WCAG 2.2 SC 2.2.2 (Pause, Stop, Hide) additionally requires that moving, blinking, or auto-playing content be pausable. A future implementation could enforce this only for non-auto-playing content, but it is out of scope here.
+
+**`coords`** — Defined in every QTI version as a presentation hint for the region of the media element (the same shape/coords vocabulary the graphic interactions use). Deliberately omitted: the delivered media element renders at its natural size, and no layout in this component has a region to constrain. No behaviour is lost; a QTI 2.1-style fixed-size media region can be achieved with ordinary markup around the interaction.
 
 ### Known gaps
 
@@ -133,22 +143,26 @@ No items from `docs/SPEC-GAPS-PLAN.md` (G-01 through G-15) directly affect `medi
 - **FR-1:** The component shall render audio media using a native HTML `<audio>` element with browser-native controls when the extracted `mediaElement.type` is `'audio'`.
 - **FR-2:** The component shall render video media using a native HTML `<video>` element with browser-native controls when the extracted `mediaElement.type` is `'video'`.
 - **FR-3:** The component shall render legacy `object`-type media using an HTML `<object>` element when the extracted `mediaElement.type` is `'object'` and `allowObjectEmbeds` is `true`.
-- **FR-4:** The play count shall increment by 1 each time the `ended` event fires on the media element (i.e., the candidate completes a full play-through).
+- **FR-4:** The play count shall increment by 1 each time playback begins at the start of the media (the `playing` event after `play()`, an `ended` restart, or a return to the beginning); pausing and resuming within a play shall not increment it. See "What counts as a play".
 - **FR-5:** The component shall emit a `qti-change` event carrying the updated play count as the value whenever the play count increments.
 - **FR-6:** When `minPlays > 0`, the component shall display a visible indicator showing how many plays are required and how many remain.
 - **FR-7:** When `minPlays > 0`, the item player shall prevent submission (`canSubmitResponses` returns `false`) until the play count meets or exceeds `minPlays`.
-- **FR-8:** When `maxPlays > 0` and the play count reaches `maxPlays`, the component shall prevent further playback by intercepting the `playing` event and halting it.
-- **FR-9:** When `maxPlays > 0` and the limit is reached, the component shall display a visible "Maximum play limit reached" alert.
+- **FR-8:** When `maxPlays > 0`, the component shall render the media without native controls and provide its own play/pause, mute and (for video) captions controls of at least 44×44 px that enforce the limit; when the limit is reached it shall refuse further playback and pause at once any playback that starts by other means.
+- **FR-9:** When `maxPlays > 0`, the component shall show and announce the plays remaining while any remain, and shall display a visible "Maximum play limit reached" notice once the last allowed play has started and no play is in progress.
 - **FR-10:** When `autostart` is `true`, the media element shall attempt autoplay on mount. Browser autoplay policies may suppress this (see Non-functional requirements).
-- **FR-11:** When `loop` is `true` and `maxPlays = 0`, the media element shall loop indefinitely. Each completed loop shall increment the play count.
-- **FR-12:** When `loop` is `true` and `maxPlays > 0`, the component shall manually restart playback after each `ended` event until `maxPlays` is reached, then stop. The native `loop` attribute shall not be set on the HTML element in this case.
+- **FR-11:** When `loop` is `true` and `maxPlays = 0`, the component shall restart playback after each `ended` event indefinitely, each restart incrementing the play count. The native `loop` attribute is never set, because it suppresses `ended` and so the count.
+- **FR-12:** When `loop` is `true` and `maxPlays > 0`, the component shall manually restart playback after each `ended` event, counting each restart as a play, until the limit is reached, then stop. The native `loop` attribute shall not be set on the HTML element in this case (it would suppress `ended` and unbounded looping would bypass the count).
 - **FR-13:** A `<prompt>` child element, if present, shall be rendered as formatted HTML above the media element.
 - **FR-14:** The extractor shall throw an error if no `<audio>`, `<video>`, or `<object>` child element is found inside `<mediaInteraction>`.
-- **FR-15:** The extractor shall throw an error if an `<audio>` or `<video>` element contains no `<source>` children.
-- **FR-16:** The extractor shall use only the first `<source>` element when multiple are present (browser fallback ordering is not replicated).
+- **FR-15:** The extractor shall throw an error if an `<audio>` or `<video>` element has neither `<source>` children nor its own `src` attribute (which, as in HTML, takes precedence over `<source>` children).
+- **FR-16:** The extractor shall extract every `<source>` element in document order (the browser picks the first it can play). The first source also populates the legacy single-URL `src` field.
 - **FR-17:** The extractor shall validate that `maxPlays >= minPlays` when `maxPlays > 0`, and return an error if violated.
 - **FR-18:** When `interaction` data is absent or null, the component shall render an error alert rather than a blank or broken state.
 - **FR-19:** The response prop shall be kept in sync with the internal play count; restoring a serialized play count via the `response` prop shall update the internal counter without triggering additional change events.
+- **FR-20:** The extractor shall extract every `<track>` element (`kind`, `src`, `srclang`, `label`, `default`) of QTI 2.2 and QTI 3.0 `audio`/`video` content, and the component shall render them so captions and subtitles load. A track whose URL the delivery policy blocked is not rendered.
+- **FR-21:** For video with caption or subtitle tracks, the component shall provide a labeled control to show one track or none; the track marked `default` shows initially.
+- **FR-22:** The component shall name audio and video by their prompt when one is authored, and convey play-count changes and threshold moments (a play started, the limit reached) through polite live regions.
+- **FR-23:** Video shall always be rendered `playsinline` (with `webkit-playsinline` for pre-iOS-10 WebViews), so iOS playback stays in the page instead of taking over the display in fullscreen and hiding the question. Under a play limit, picture-in-picture and remote playback are additionally disabled, and the component offers no fullscreen control; without a limit the native controls may offer one, which cannot break `maxPlays` enforcement (play events still fire in the page).
 
 ---
 
@@ -158,14 +172,14 @@ No items from `docs/SPEC-GAPS-PLAN.md` (G-01 through G-15) directly affect `medi
 
 `mediaInteraction` has stricter accessibility constraints than most interactions because it deals with time-based media, which WCAG addresses specifically.
 
-- **Captions (WCAG 2.2 SC 1.2.2, Level A):** Video content that contains speech or meaningful audio must have synchronized captions. The framework renders native `<video>` elements; item authors are responsible for including `<track kind="captions">` elements in the QTI source. The framework does not validate caption presence at runtime, but item validation tooling should warn when a `<video>` lacks a caption track.
+- **Captions (WCAG 2.2 SC 1.2.2, Level A):** The framework renders every `<track>` the QTI source declares, so captions and subtitles load, and video offers a labeled control to turn a caption or subtitle track on (the `default` track shows initially). Item authors remain responsible for authoring the tracks themselves; item validation tooling should warn when a `<video>` lacks a caption track.
 - **Audio descriptions (WCAG 2.2 SC 1.2.5, Level AA):** Video content where visual information is not conveyed in the audio track requires an audio description track. Again, item author responsibility; the framework renders whatever tracks the QTI source declares.
 - **Transcript for audio (WCAG 2.2 SC 1.2.1, Level A):** Audio-only content requires a text transcript accessible to screen reader users. The framework does not auto-generate transcripts. Item authors must include a linked or inline transcript in the item body adjacent to the `<mediaInteraction>`.
-- **Autoplay and audio control (WCAG 2.2 SC 1.4.2, Level A):** Audio that plays for more than 3 seconds automatically must have a mechanism to pause, stop, or mute it. Setting `autostart="true"` on an item that contains audio therefore requires that browser-native controls be visible — which they always are in this implementation. The constraint is documented because item authors sometimes request `autostart` without realizing it conflicts with this SC.
-- **Keyboard access (WCAG 2.2 SC 2.1.1, Level A):** Browser-native `<audio controls>` and `<video controls>` are fully keyboard-operable in all major browsers (spacebar plays/pauses; arrow keys adjust volume/seek). This is a core reason `showControls` was not implemented as a hideable attribute.
-- **Play count status (WCAG 2.2 SC 4.1.3, Status Messages, Level AA):** The play count and minPlays progress indicator must be perceivable by assistive technology users. The stats section renders as visible text; it does not currently use `role="status"` or `aria-live` to announce updates to screen reader users. This is an open accessibility gap.
-- **Touch targets (WCAG 2.2 SC 2.5.5, Level AA):** The native media controls are rendered by the browser and are not controlled by this component. On mobile, browser-rendered controls meet touch target requirements.
-- **Focus management:** No custom focus management is needed; the media element itself is focusable.
+- **Autoplay and audio control (WCAG 2.2 SC 1.4.2, Level A):** Audio that plays for more than 3 seconds automatically must have a mechanism to pause, stop, or mute it. With `autostart="true"` the candidate can pause through the visible controls — native controls, or the component's own play/pause and mute controls when a play limit applies. An interaction that is disabled, or whose play limit is already spent, does not autoplay.
+- **Keyboard access (WCAG 2.2 SC 2.1.1, Level A):** Without a play limit the native `<audio controls>`/`<video controls>` are fully keyboard-operable. With a play limit the component's own play/pause, mute and captions controls are focusable buttons and a select, operable with Space/Enter.
+- **Play count status (WCAG 2.2 SC 4.1.3, Status Messages, Level AA):** The stats row (play count, plays left/needed, requirement met) renders as visible text. A polite live region announces the moments a candidate acts on — each play started (with progress toward a required minimum, when authored) and the play limit reached. The stats row itself is deliberately not a live region, so routine counter changes are not chatty.
+- **Touch targets (WCAG 2.2 SC 2.5.8, Level AA):** The component's own controls are at least 44×44 px (the K-12 primary target size). Without a limit, native browser controls apply, which meet target-size requirements on mobile.
+- **Focus management:** No custom focus management is needed; the media element and the component's controls are in natural tab order.
 
 ### Performance
 
@@ -176,36 +190,39 @@ No items from `docs/SPEC-GAPS-PLAN.md` (G-01 through G-15) directly affect `medi
 ### Cross-platform / mobile
 
 - On iOS Safari, autoplay with audio is blocked by default regardless of the `autostart` attribute. Safari permits autoplay only for muted video. Item authors relying on `autostart="true"` for audio should be aware of this and ensure the item design does not depend on autoplay working.
+- Video is always rendered `playsinline` (plus `webkit-playsinline` for pre-iOS-10 WebViews), so iOS playback stays in the page instead of taking over the display in fullscreen and hiding the question. Under a play limit, picture-in-picture and remote playback are disabled as well, and the browser context menu is suppressed (it offers "Show controls" and "Loop", which would bypass the limit).
+- The component offers no fullscreen control of its own. Under a play limit the native controls are hidden and the custom controls intentionally provide no fullscreen button: fullscreen adds nothing the question needs, and a native fullscreen player surface is outside the page the limit is enforced in. Without a limit the native controls may offer fullscreen, which is harmless there: play and pause events still fire where the component can count them.
 - On Android Chrome, autoplay is governed by a media engagement score. Similarly unreliable for new domains.
-- Native video players on iOS take over the display in fullscreen when the user taps the play button in some contexts. The `<video>` element's `playsinline` attribute is not currently set by the framework, which means iOS may show the fullscreen player. This affects `maxPlays` enforcement: if the user leaves the in-page player, the `ended` event still fires, so play counting remains correct.
 - The stats section (play count, minPlays badge) is designed with `flex-wrap` to reflow on narrow screens.
 
 ### Security
 
-- The media element `src` URL is run through the item player's `sanitizeResourceUrl()` with `kind='media'` (or `kind='object'` for `<object>` elements) before being passed to the component. URL policies that block cross-origin media will prevent the media from loading.
+- The media element `src`, every `<source>` URL and every `<track>` URL are run through the item player's `sanitizeResourceUrl()` with `kind='media'` (or `kind='object'` for `<object>` elements) before being passed to the component. URL policies that block cross-origin media will prevent the media (and caption files) from loading; blocked URLs arrive empty and are not rendered.
+- Text tracks load with the authored `crossorigin` mode when one is present; without it, browsers fetch same-origin caption files but refuse cross-origin ones.
 - `<object>` embeds are blocked by default. The host application must set `config.security.allowObjectEmbeds = true` to enable `object`-type rendering. This opt-in prevents XSS vectors from legacy QTI items that embed arbitrary HTML via `<object>`.
 - The `prompt` field is rendered via `{@html}` (injected HTML). It goes through the item player's HTML sanitizer before extraction, which strips dangerous tags and attributes.
 
 ### i18n
 
-- The component uses `i18n.t()` for all user-visible strings: `'interactions.media.maxPlayLimitReached'`, `'interactions.media.ariaLabel'`, and the `'common.errorNoData'` fallback.
-- Plural handling for the "Play at least N time(s)" badge uses an inline ternary rather than the i18n framework's plural rules. If the i18n framework adds plural support, this inline ternary should be migrated.
+- The component uses `i18n.t()` for all user-visible strings (control labels, captions menu, stats, announcements): the `interactions.media.*` keys and the `'common.errorNoData'` fallback, with English fallbacks when no provider is set.
+- Plural messages (plays left/needed, "Play at least N times") use the i18n framework's `translatePlural` with per-locale CLDR categories.
+- The extraction-time `loop` + `maxPlays` validation warning reads: "mediaInteraction has loop=true with maxPlays - looping stops once maxPlays plays have started".
 
 ---
 
 ## Design decisions
 
-### Play counted on `ended`, not on `play`
+### A play is counted when playback starts at the beginning of the media
 
-**Decision:** Increment the play count when the media `ended` event fires (full completion), not when the `play` event fires (playback start).  
-**Rationale:** The spec's intent for `minPlays` is to ensure the candidate actually listened or watched, not merely clicked play. A candidate who clicks play and immediately pauses or seeks to the end without engaging has not meaningfully completed a play. Counting on `ended` is the defensible interpretation for engagement tracking.  
-**Alternatives considered:** Counting on `play` (start of playback). Simpler, but allows trivially defeating `minPlays` by starting and immediately pausing.  
-**Consequences:** Item authors must keep media reasonably short if they use `minPlays > 1`, since each play must be completed in full. Test runners (including automated eval tools) must simulate playback to end rather than just triggering `play`.
+**Decision:** Count a play when the media is actually playing from its start (the `playing` event that follows a start at the beginning); pausing and resuming continues the same play, and returning a paused player to the beginning begins a new one.  
+**Rationale:** The count must make `maxPlays` enforceable first — the response is the candidate's allowance record, and a limit that cannot stop replay is not a limit. Counting at the start bounds every way of hearing the media, including pause-and-rewind. Counting on `ended` instead left replay unbounded (see "What counts as a play"). `playing` rather than `play` keeps a failing source from consuming an allowance.  
+**Alternatives considered:** Counting on `ended` (play-through completion): keeps `minPlays` meaning "completed listens" but cannot enforce `maxPlays`; abandoned. Counting on raw `play`: refuses nothing for a source that never loads; refined to count on `playing`.  
+**Consequences:** `minPlays` reads as "started playback *n* times", so authors who require complete listens should pair a `minPlays` requirement with short media. Automated eval tools simulate plays by dispatching the play count (`qti-change`) rather than driving real playback, which matches how the runner already works for other deterministic steps.
 
-### `loop` deferred to manual restart when `maxPlays > 0`
+### `loop` is a manual restart
 
-**Decision:** When `loop=true` and `maxPlays > 0`, the HTML `loop` attribute is not set on the native element. Instead, the component manually calls `mediaElement.play()` after each `ended` event until `maxPlays` is reached.  
-**Rationale:** If the native `loop` attribute is set, the `ended` event does not fire (the element loops without reaching "natural end"), making play counting impossible. Manual restart allows the `ended` event to fire on each pass.  
+**Decision:** The HTML `loop` attribute is never set on the native element. Instead, the component calls `mediaElement.play()` after each `ended` event — indefinitely without a limit, and until the allowed plays have started with one.  
+**Rationale:** If the native `loop` attribute is set, the `ended` event does not fire (the element loops without reaching "natural end"), so passes could not be counted and a limit could not stop them. A manual restart is a play like any other: counted, and refused past the limit.  
 **Alternatives considered:** Using `timeupdate` events to count loops when `loop` is set natively. More complex, timing-sensitive, and unreliable across browsers.  
 **Consequences:** A very brief gap exists between each loop (the time between `ended` firing and `play()` being called). For most practical media this is imperceptible.
 
@@ -221,7 +238,7 @@ No items from `docs/SPEC-GAPS-PLAN.md` (G-01 through G-15) directly affect `medi
 **Decision:** `<object>` embeds are blocked by default and require the host to set `config.security.allowObjectEmbeds = true`.  
 **Rationale:** `<object>` can embed arbitrary content including HTML pages, Flash, and other executable content. The default-deny stance prevents legacy QTI items with embedded active content from executing in a modern host without explicit host consent.  
 **Alternatives considered:** Blocking `<object>` entirely. Rejected because it breaks QTI 2.1 compliance.  
-**Consequences:** Out-of-the-box, `object`-type media silently fails to render (the component will receive `allowObjectEmbeds: false`). Hosts that serve QTI 2.1 content with `<object>` media must opt in. The component does not currently render a fallback message when `allowObjectEmbeds` is false and the media type is `object` — it renders the `<object>` element regardless, leaving it to the browser to handle the absent permission.
+**Consequences:** Out-of-the-box, `object`-type media does not render (the component receives `allowObjectEmbeds: false`); the component shows a localized notice (`interactions.media.objectDisabled`) in its place. Hosts that serve QTI 2.1 content with `<object>` media must opt in.
 
 ### Response type is always `integer`, not `boolean`
 
@@ -239,12 +256,28 @@ No items from `docs/SPEC-GAPS-PLAN.md` (G-01 through G-15) directly affect `medi
 Defined in `packages/item-player/src/interactions/shared/types.ts`:
 
 ```typescript
+interface MediaElementSource {
+  src: string;        // Sanitized URL (after URL policy applied; '' if blocked)
+  mimeType: string;
+}
+
+interface MediaElementTrack {
+  src: string;        // Sanitized URL ('' if blocked)
+  kind: 'subtitles' | 'captions' | 'descriptions' | 'chapters' | 'metadata';
+  srclang?: string;
+  label?: string;
+  default?: boolean;
+}
+
 interface MediaElement {
   type: 'audio' | 'video' | 'object';
-  src: string;          // Sanitized URL (after URL policy applied)
-  mimeType: string;     // MIME type from <source type="..."> or <object type="...">
-  width?: number;       // Video/object only; defaults: 640×480 for video, optional for object
+  src: string;        // The object's data, or the first source (legacy single-URL field)
+  mimeType: string;
+  width?: number;     // Video/object; defaults: 640×480 for video, optional for object
   height?: number;
+  sources?: MediaElementSource[];  // Every source, in document order
+  tracks?: MediaElementTrack[];    // Every text track, in document order
+  crossOrigin?: 'anonymous' | 'use-credentials'; // Authored crossorigin mode
 }
 
 interface MediaInteractionData extends BaseInteractionData {
@@ -265,11 +298,11 @@ interface MediaInteractionData extends BaseInteractionData {
 - `minPlays >= 0` (extractor validates).
 - `maxPlays >= 0` (extractor validates).
 - When `maxPlays > 0`: `maxPlays >= minPlays` (extractor validates).
-- `src` has been sanitized through `sanitizeResourceUrl()` before the data reaches the component.
+- Every URL in `src`, `sources[].src` and `tracks[].src` has been sanitized through `sanitizeResourceUrl()` before the data reaches the component; a blocked URL arrives as an empty string and is not rendered.
 
 ### Component response contract
 
-The component's `response` prop is `number | null`. It stores the integer play count. `null` or `undefined` is treated as `0`. The component emits `qti-change` events with the new integer value after each completed play.
+The component's `response` prop is `number | null`. It stores the integer count of plays started (see "What counts as a play"). `null` or `undefined` is treated as `0`. The component emits `qti-change` events with the new integer value each time a play starts.
 
 ### `canSubmitResponses` contract (item player)
 
@@ -296,17 +329,17 @@ Then:  A <video controls> element is present in the DOM with the src from the <s
        and the width/height attributes from the <video> element (defaults 640×480 if absent)
 ```
 
-**AC-3: Play count increments on completion**
+**AC-3: Play count increments when a play starts**
 ```
 Given: A rendered mediaInteraction with an audio element
-When:  The audio plays to its natural end (ended event fires)
+When:  Playback begins at the start of the media (playing event)
 Then:  The displayed play count increments by 1 and a qti-change event is emitted with the new count
 ```
 
-**AC-4: Play count does not increment on play start**
+**AC-4: Pause and resume does not increment**
 ```
-Given: A rendered mediaInteraction
-When:  The candidate starts playback but pauses before the media ends
+Given: A rendered mediaInteraction where a play has started
+When:  The candidate pauses and then resumes (without returning to the beginning)
 Then:  The displayed play count does not change
 ```
 
@@ -339,18 +372,21 @@ When:  The candidate completes exactly 2 plays
 Then:  player.canSubmitResponses() returns true and the Submit button becomes active
 ```
 
-**AC-9: maxPlays enforcement — playback blocked at limit**
+**AC-9: maxPlays enforcement — replay refused at the limit**
 ```
-Given: A mediaInteraction with maxPlays="3" and current playCount=3
-When:  The candidate attempts to start playback (clicks play or presses spacebar)
-Then:  Playback does not start (playing event is cancelled) and the play count remains at 3
+Given: A mediaInteraction with maxPlays="3" and current playCount=3, with no play in progress
+When:  The candidate attempts to start playback (play button, media keys, a script)
+Then:  Playback does not start (the media is paused at once) and the play count remains at 3
+       AND the native controls are not rendered while the limit applies
 ```
 
-**AC-10: maxPlays alert shown at limit**
+**AC-10: Limit notice and plays remaining**
 ```
 Given: A mediaInteraction with maxPlays="3"
-When:  The candidate completes the 3rd play
-Then:  An alert reading "Maximum play limit reached" is visible in the UI
+When:  Plays are underway or remaining
+Then:  "N plays left" is visible and announced
+And:   Once the last allowed play has started and no play is in progress,
+       a notice reading "Maximum play limit reached" is visible and announced
 ```
 
 **AC-11: loop without maxPlays**
@@ -358,15 +394,15 @@ Then:  An alert reading "Maximum play limit reached" is visible in the UI
 Given: A mediaInteraction with loop="true" and maxPlays="0"
 When:  The media ends for the first time
 Then:  Playback automatically resumes from the start
-       AND the play count increments by 1 on each completion
-Notes: The native loop attribute is set; there is a brief gap between end and restart for counting
+       AND the play count increments by 1 on each restart
+Notes: The native loop attribute is never set; there is a brief gap between end and restart, which is when each pass is counted
 ```
 
 **AC-12: loop with maxPlays stops at limit**
 ```
 Given: A mediaInteraction with loop="true" and maxPlays="2"
 When:  The media has ended twice (playCount=2)
-Then:  Playback does not restart (loop stops), the maxPlays alert is shown,
+Then:  Playback does not restart (loop stops), the limit notice is shown,
        and the native <audio>/<video> element does NOT have the loop attribute set
 ```
 
@@ -397,8 +433,28 @@ Then:  The prompt text appears above the media element in reading order
 ```
 Given: An item where the player restores a saved response (MEDIA_RESPONSE = 3)
 When:  The response prop is set to 3 before the candidate interacts
-Then:  The displayed play count shows 3, minPlays progress reflects 3 plays,
+Then:  The displayed play count shows 3, minPlays/limit state reflects 3 plays,
        and no spurious qti-change events are emitted on load
+Notes: If maxPlays=3, a restored count of 3 disables autoplay and arms the limit
+```
+
+**AC-21: Every source and caption track renders**
+```
+Given: A mediaInteraction whose <video> declares two <source> elements and
+       <track kind="captions"> with label and default, plus a <track kind="subtitles">
+When:  The item renders
+Then:  The <video> contains both <source> elements in order and both <track> elements
+       with their kind/srclang/label/default attributes
+       AND the captions control lists the caption and subtitle tracks by label,
+       with the default track selected; descriptions tracks load but are not listed
+```
+
+**AC-22: A blocked track or source URL is not rendered**
+```
+Given: A host URL policy that blocks one <source> and one <track> URL
+When:  The item renders
+Then:  The blocked source and track are absent from the media element
+       AND the allowed source and track render normally
 ```
 
 **AC-17: Scoring — meet minPlays scores 1**
@@ -427,6 +483,7 @@ Then:  An error message ("No interaction data provided") is displayed; no JS exc
 Given: A mediaInteraction with an <object> child and allowObjectEmbeds not set (default false)
 When:  The item is rendered
 Then:  The <object> element is not rendered (blocked by sanitizer)
+       AND a notice explains that the embedded object type is disabled
        AND no play counting occurs
 Notes: This tests the security boundary, not a bug. The item author must use audio/video for
        play tracking to function.
@@ -437,18 +494,19 @@ Notes: This tests the security boundary, not a bug. The item author must use aud
 **AC-A1: Keyboard playback control**
 ```
 Given: A rendered mediaInteraction with audio or video
-When:  The user focuses the media element and presses Spacebar
+When:  The user focuses the play control and presses Space or Enter
 Then:  Playback starts (or pauses if already playing)
-Notes: This is native browser behavior for <audio controls> and <video controls>
+Notes: Without a play limit the native <audio/video controls> provide this;
+       with a limit the component's own ≥44px controls do
 ```
 
-**AC-A2: Play count region readable by screen reader**
+**AC-A2: Play events announced politely**
 ```
-Given: A mediaInteraction where a play has just completed
-When:  A screen reader is active during the play completion
-Then:  The updated play count is conveyed to the screen reader user
-Notes: Currently the stats div lacks aria-live; this AC is aspirational pending implementation
-       of role="status" or aria-live="polite" on the stats container
+Given: A mediaInteraction with minPlays="2", a screen reader active
+When:  The candidate starts a play, or the play limit is reached
+Then:  A polite live region announces it ("Play 1 of 3 started.",
+       "Play 2 started. Required number of plays reached.", "Maximum play limit reached")
+And:   Ordinary counter updates are not announced on every change
 ```
 
 **AC-A3: minPlays requirement readable without sighted cues**
@@ -466,13 +524,30 @@ When:  The item renders
 Then:  The <object> element has aria-label="Media content" (or the localized equivalent)
 ```
 
+**AC-A5: Media named by its prompt**
+```
+Given: A mediaInteraction with a <prompt> and audio or video
+When:  The item renders
+Then:  The media element's accessible name comes from the prompt (aria-labelledby)
+```
+
+**AC-A6: Caption choice is labeled and effective**
+```
+Given: A limited mediaInteraction (video) with a caption track labeled "English" and a
+       subtitle track with srclang="es" but no label
+When:  The candidate opens the captions control
+Then:  The options read "Off", "English" and the localized language name for es
+       AND choosing a track shows it (textTracks mode "showing"); choosing Off hides all
+```
+
 ### Edge cases
 
-**AC-E1: Multiple source elements — first source used**
+**AC-E1: Multiple source elements — all kept, first used**
 ```
 Given: A mediaInteraction with <audio><source src="a.mp3"/><source src="b.ogg"/></audio>
-When:  The item extracts
-Then:  Only the first source (a.mp3) is used; no error is thrown
+When:  The item extracts and renders
+Then:  The response-facing src is a.mp3, and the rendered <audio> contains both
+       <source> elements in order for browser fallback
 ```
 
 **AC-E2: minPlays=0 — no indicator shown**
@@ -486,7 +561,7 @@ Then:  No "Play at least N times" badge is shown and submission is not blocked
 ```
 Given: A mediaInteraction with maxPlays="0"
 When:  The candidate plays the media more than 10 times
-Then:  Playback is never blocked and no "Maximum play limit reached" alert appears
+Then:  Playback is never blocked, native controls remain, and no limit notice appears
 ```
 
 **AC-E4: minPlays > maxPlays fails validation**
@@ -500,8 +575,8 @@ Then:  An error is returned: "maxPlays (2) must be greater than or equal to minP
 ```
 Given: A mediaInteraction with loop="true" and maxPlays="3"
 When:  The extractor runs validation
-Then:  A warning is returned noting that loop may be ignored when maxPlays is set
-       AND the component correctly manages looping via manual restart (not native loop)
+Then:  A warning is returned noting that looping stops once maxPlays plays have started
+       AND the component manages looping via manual restart (not native loop)
 ```
 
 **AC-E6: Missing audio source throws**
@@ -522,9 +597,9 @@ Then:  An error is thrown: "object element must have data attribute"
 
 ## Open questions
 
-- [ ] **aria-live for play count updates:** Should the stats section use `role="status"` or `aria-live="polite"` to announce play count changes to screen reader users? This is the most impactful accessibility gap in the current implementation. Decision needed before marking status `current`.
-- [ ] **`playsinline` for iOS:** Should the `<video>` element include `playsinline` by default to prevent iOS Safari from hijacking the display into a native fullscreen player? Playback events still fire, so `maxPlays` works, but the UX is inconsistent. Need a decision on whether this is the item player's concern or the host app's.
-- [ ] **Caption/transcript enforcement:** Should the item validator warn when a `<video>` mediaInteraction lacks a `<track kind="captions">` element, or when an `<audio>` mediaInteraction lacks a sibling transcript element? Currently this is unenforced.
+- [x] **aria-live for play count updates:** Resolved — a polite live region announces plays started and the limit reached; the stats row stays quiet (2026-11-07).
+- [x] **`playsinline` for iOS:** Resolved — video is always rendered `playsinline` (with PiP and remote playback disabled while a play limit applies), keeping playback and enforcement in the page; no fullscreen control is offered where a limit applies (2026-11-07).
+- [ ] **Caption/transcript enforcement:** Should the item validator warn when a `<video>` mediaInteraction lacks a `<track kind="captions">` element, or when an `<audio>` mediaInteraction lacks a sibling transcript element? Tracks now render and can be switched, but authoring-time validation is still unenforced.
 
 ---
 

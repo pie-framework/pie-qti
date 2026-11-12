@@ -1,15 +1,14 @@
 #!/usr/bin/env node
 
 /**
- * Validates the fixed-versioning invariants across the two release groups:
- *
- * - the player/platform group versions in lockstep and cuts the 1.0 line;
- * - the transformation group (pie-to-qti2, to-pie, the transform packages and
- *   source-profiles), still pre-alpha, stays on its own 0.1.x lockstep.
+ * Validates the fixed-versioning invariants: every publishable @pie-qti package
+ * releases in lockstep on one version, the single fixed group in
+ * .changeset/config.json.
  *
  * Invariants checked:
- * 1. Every publishable @pie-qti package is a member of exactly one fixed group.
- * 2. Each fixed group is internally aligned on one version.
+ * 1. The config declares exactly one fixed group, and every publishable
+ *    @pie-qti package is a member of it.
+ * 2. The group is aligned on one version.
  * 3. (Full mode) No package's local version regresses behind its published npm
  *    version. A local version equal to the published one is fine (the package
  *    simply is not part of the pending release); greater is the release.
@@ -154,8 +153,10 @@ const changesetConfig = readJson(CHANGESET_CONFIG_PATH);
 const fixedGroups = Array.isArray(changesetConfig.fixed)
 	? changesetConfig.fixed.filter(Array.isArray)
 	: [];
-if (fixedGroups.length === 0) {
-	fail("Changeset config declares no fixed groups.");
+if (fixedGroups.length !== 1) {
+	fail(
+		`Changeset config declares ${fixedGroups.length} fixed groups; every publishable package releases in one.`,
+	);
 }
 
 const publishableSet = new Set(publishablePackages.map((pkg) => pkg.name));

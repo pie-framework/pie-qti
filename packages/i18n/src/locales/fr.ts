@@ -55,14 +55,6 @@ export default {
 		errorNoData: "Aucune donnée d'interaction fournie",
 	},
 
-	units: {
-		bytes: '{count} octets',
-		kilobytes: '{count} Ko',
-		megabytes: '{count} Mo',
-		seconds: '{count} secondes',
-		minutes: '{count} minutes',
-		hours: '{count} heures',
-	},
 
 	// Exemples de pluralisation
 	// Utilisez i18n.plural('plurals.items', { count: n }) pour y accéder
@@ -105,13 +97,6 @@ export default {
 		},
 	},
 
-	validation: {
-		required: 'Ce champ est requis',
-		invalidFormat: 'Format invalide',
-		tooShort: 'Trop court (minimum {min} caractères)',
-		tooLong: 'Trop long (maximum {max} caractères)',
-		outOfRange: 'La valeur doit être entre {min} et {max}',
-	},
 
 	interactions: {
 		choice: {
@@ -122,6 +107,14 @@ export default {
 			correct: 'Correct',
 			revealChoice: 'Afficher le choix {index}',
 			groupLabel: 'Options de réponse',
+			maxChoicesReached: 'Vous pouvez sélectionner jusqu’à {max} réponses. Désélectionnez-en une pour en choisir une autre.',
+			clearAnswer: 'Effacer la réponse',
+			minChoicesHint: {
+				one: 'Sélectionnez au moins {count} réponse.',
+				many: 'Sélectionnez au moins {count} réponses.',
+				other: 'Sélectionnez au moins {count} réponses.',
+			},
+			eliminateChoice: 'Écarter',
 		},
 
 		upload: {
@@ -138,6 +131,8 @@ export default {
 			errorReadFailed: 'Échec de la lecture du fichier',
 			errorTooLarge: 'Le fichier est trop volumineux (maximum {max} Mo)',
 			unknownType: 'Type de fichier inconnu',
+			fileRemoved: 'Fichier supprimé.',
+			errorFileTooLarge: 'Le fichier {filename} est trop volumineux. La taille maximale est de {maxBytes} octets.',
 		},
 
 		drawing: {
@@ -153,6 +148,8 @@ export default {
 			updated: 'Dessin mis à jour.',
 			cleared: 'Dessin effacé.',
 			generated: 'Généré :',
+			imageFallback: 'Arrière-plan du dessin',
+			imageLoadError: 'L\'image d\'arrière-plan n\'a pas pu être chargée.',
 		},
 
 		extendedText: {
@@ -164,15 +161,46 @@ export default {
 			underline: 'Souligné',
 			bulletList: 'Liste à puces',
 			numberedList: 'Liste numérotée',
-			insertMath: 'Insérer une équation mathématique',
 			insertInlineMath: 'Insérer une formule en ligne',
 			insertBlockMath: 'Insérer un bloc mathématique',
-			enterMathExpression: 'Entrez votre expression mathématique :',
-			latexSource: 'Source LaTeX :',
-			keyboard: 'Clavier',
+			responseLabel: 'Réponse',
+			responseNumber: 'Réponse {number}',
+			addResponse: 'Ajouter une réponse',
+			removeResponseNumber: 'Supprimer la réponse {number}',
+			responseRemoved: 'Réponse {number} supprimée.',
+			charactersRemaining: {
+				one: '{count} caractère restant',
+				many: '{count} caractères restants',
+				other: '{count} caractères restants',
+			},
+			expectedLengthReached: {
+				one: 'Longueur attendue de {count} caractère atteinte.',
+				many: 'Longueur attendue de {count} caractères atteinte.',
+				other: 'Longueur attendue de {count} caractères atteinte.',
+			},
+			correctAnswerHeading: 'Bonne réponse :',
+			editMath: 'Modifier les mathématiques',
+			minStringsHint: {
+				one: 'Écrivez au moins {count} réponse.',
+				many: 'Écrivez au moins {count} réponses.',
+				other: 'Écrivez au moins {count} réponses.',
+			},
+			minStringsRemoveRefused: 'Réponse non supprimée : au moins {count} réponses sont requises.',
+			patternMismatch: 'Cette réponse n\'est pas au format attendu.',
+		},
+
+		mathInput: {
+			insertInlineTitle: 'Insérer une formule en ligne',
+			insertBlockTitle: 'Insérer un bloc mathématique',
+			editInlineTitle: 'Modifier la formule en ligne',
+			editBlockTitle: 'Modifier le bloc mathématique',
+			instructions: 'Saisissez l’expression ou ouvrez le clavier mathématique. Appuyez sur Échap pour annuler.',
+			fieldLabel: 'Expression mathématique',
+			latexSourceLabel: 'Source LaTeX',
+			latexEmpty: 'Le code LaTeX apparaîtra ici',
+			toggleKeyboard: 'Clavier mathématique',
 			update: 'Mettre à jour',
 			insert: 'Insérer',
-			correctAnswerHeading: 'Bonne réponse :',
 		},
 
 		slider: {
@@ -183,13 +211,17 @@ export default {
 			step: 'Pas : {step}',
 			ariaLabel: 'Valeur du curseur de {lowerBound} à {upperBound}',
 			statTitle: 'Valeur sélectionnée',
+			noValueSelected: 'Aucune valeur sélectionnée',
 		},
 
 		hottext: {
 			selected: 'Sélectionné :',
 			selectText: 'Sélectionnez du texte dans le passage',
-			clearSelection: 'Effacer la sélection',
 			ariaLabel: 'Interaction de sélection de texte',
+			maxChoicesReached: 'Vous pouvez sélectionner jusqu’à {max} réponses. Désélectionnez-en une pour en choisir une autre.',
+			// Pas de coche : HottextInteraction affiche son propre « ✓ » devant ce badge.
+			minimumMet: 'Minimum atteint',
+			selectAtLeast: 'Sélectionnez au moins {minChoices}',
 		},
 
 		hotspot: {
@@ -200,9 +232,20 @@ export default {
 			unknownImageDimensions:
 				'Cette zone sensible ne peut pas être affichée : la taille de son image est inconnue, les régions sélectionnables ne peuvent donc pas être positionnées. Ajoutez une largeur et une hauteur à l\'image, ou fournissez les dimensions du fichier.',
 			correctList: 'Correct : {ids}',
+			imageFallback: 'Image de cette question',
+			imageLoadError: 'L\'image n\'a pas pu être chargée.',
+			regionOfTotal: 'Région {index} sur {total}',
+			selectedRegion: 'Sélectionné : {region}',
+			maxChoicesReached: 'Vous pouvez sélectionner jusqu’à {max} réponses. Désélectionnez-en une pour en choisir une autre.',
+			minChoicesHint: {
+				one: 'Sélectionnez au moins {count} région.',
+				many: 'Sélectionnez au moins {count} régions.',
+				other: 'Sélectionnez au moins {count} régions.',
+			},
 		},
 
 		selectPoint: {
+			unknownImageDimensions: 'Cette interaction de sélection de points ne peut pas être affichée : la taille de son image est inconnue, les points ne peuvent donc pas être placés correctement. Ajoutez une largeur et une hauteur à l\'image, ou fournissez les dimensions du fichier.',
 			instruction: 'Cliquez sur l\'image pour sélectionner des points',
 			instructionAria: 'Cliquez pour sélectionner des points sur l\'image',
 			maxPointsReached: 'Nombre maximum de points atteint. Supprimez un point pour en ajouter un nouveau.',
@@ -217,6 +260,16 @@ export default {
 			minimumMet: '✓ Minimum atteint',
 			selectAtLeast: 'Sélectionnez au moins {minChoices}',
 			correctPointAt: 'Point de la bonne réponse aux coordonnées {x}, {y}',
+			imageFallback: 'Image de cette question',
+			imageLoadError: 'L\'image n\'a pas pu être chargée.',
+			stageLabel: 'Zone de sélection de points',
+			keyboardInstructions: 'Cliquez sur l\'image pour placer un point. Au clavier, placez le focus sur l\'image, déplacez le réticule avec les touches fléchées (maintenez Maj pour des pas plus petits) et appuyez sur Entrée ou Espace pour placer un point.',
+			placedPoints: 'Points placés',
+			pointAtPercent: 'Point {index} à {x} %, {y} %',
+			percentPosition: '{x} %, {y} %',
+			pointPlaced: 'Point {index} placé à {x} %, {y} %.',
+			pointRemoved: 'Point {index} supprimé.',
+			allPointsRemoved: 'Tous les points ont été supprimés.',
 		},
 
 		match: {
@@ -241,18 +294,27 @@ export default {
 			navigateToTarget: 'Naviguez vers une cible et appuyez sur Espace ou Entrée pour associer',
 			selectionCancelled: 'Sélection annulée',
 			matchCleared: 'Association effacée pour {item}',
-			maxReached: 'Nombre maximal d\'associations atteint. Supprimez une paire pour en ajouter une nouvelle.',
+			associationLimitReached: 'Association impossible : la limite de {max} est atteinte.',
+			sourceLimitReached: 'Impossible : {label} ne peut pas faire partie d’autres associations.',
 			pairCreated: '{source} associé à {target}.',
+			minAssociationsHint: {
+				one: 'Faites au moins {count} association.',
+				many: 'Faites au moins {count} associations.',
+				other: 'Faites au moins {count} associations.',
+			},
+			minChoiceUsesHint: 'Il manque des paires pour : {items}.',
 			matchedWithSentence: 'Associé à {targets}.',
 			selectedForMatchingSentence: 'Sélectionné pour l\'association.',
 			availableForMatchingSentence: 'Disponible pour l\'association.',
 			notCompatibleSentence: 'Incompatible avec l\'élément source sélectionné.',
+			selectionCancelledItem: 'Sélection de {item} annulée.',
 		},
 
 		gapMatch: {
-			filledGapAriaLabelWithHeld: 'Espace {gapId}, rempli avec {word}. Sélectionnez pour remplacer par {heldWord}.',
-			blankGapAriaLabelWithHeld: 'Espace {gapId}. Sélectionnez pour y placer {heldWord}.',
-			placed: '{word} placé dans l’espace {gapId}.',
+			filledGapAriaLabelWithHeld: 'Blanc {position} sur {total}, rempli avec {word}. Sélectionnez pour remplacer par {heldWord}.',
+			blankGapAriaLabelWithHeld: 'Blanc {position} sur {total}. Sélectionnez pour y placer {heldWord}.',
+			placed: '{word} placé dans le blanc {position} sur {total}.',
+			associationLimitReached: 'Association impossible : la limite de {max} est atteinte.',
 			pointerInstructions: 'Sélectionnez un mot, puis un espace vide. Vous pouvez aussi glisser-déposer.',
 			instruction: 'Faites glisser les mots pour remplir les blancs',
 			available: 'Mots disponibles',
@@ -262,8 +324,14 @@ export default {
 			removeFromBlanks: 'Supprimer {word} des blancs',
 			selectPlaceholder: 'Sélectionner...',
 			gapAriaLabel: 'Espace {gapId}',
-			blankGapAriaLabel: 'Blanc {gapId}. Déposez une réponse ici.',
-			filledGapAriaLabel: 'Blanc {gapId}, rempli avec {word}. Cliquez pour effacer.',
+			blankGapAriaLabel: 'Blanc {position} sur {total}. Déposez une réponse ici.',
+			filledGapAriaLabel: 'Blanc {position} sur {total}, rempli avec {word}. Sélectionnez pour effacer.',
+			wordSelected: '{word} saisi. Sélectionnez un blanc pour le placer, ou appuyez sur Échap pour annuler.',
+			pickUpCancelled: 'La saisie de {word} a été annulée.',
+			minPlacementsHint: 'Reste à placer dans les blancs : {words}.',
+			notCompatibleSentence: 'Incompatible avec le mot sélectionné.',
+			wordRemovedFromBlanks: '{word} a été retiré des cases.',
+			requiredBlanksLegend: 'Les blancs marqués d\'un * sont requis.',
 		},
 
 		graphicGapMatch: {
@@ -286,9 +354,8 @@ export default {
 			pickedUp: 'Saisi : {label}. Allez avec Tab sur une zone sensible et appuyez sur Entrée pour le placer.',
 			alreadyPlacedSentence: 'Déjà placé sur une zone sensible.',
 			unavailableSentence: 'Indisponible en raison d\'une restriction de groupe d\'association.',
-			heldHint: 'Saisi. Allez avec Tab sur une zone sensible et appuyez sur Entrée pour le placer.',
+			heldHint: 'Allez avec Tab sur une zone sensible et appuyez sur Entrée pour le placer.',
 			pickUpHint: 'Appuyez sur Espace ou Entrée pour saisir.',
-			selectedHint: 'Sélectionné pour placement.',
 			selectHint: 'Appuyez sur Espace pour sélectionner.',
 			hotspotContains: 'Zone sensible {number}. Contient {label}.',
 			hotspotCorrectAnswer: 'Zone sensible {number}. Bonne réponse : {label}.',
@@ -298,11 +365,17 @@ export default {
 			placeLabelHint: 'Appuyez sur Espace ou Entrée pour placer l\'étiquette.',
 			labelFallback: 'Étiquette',
 			pickUpInstructions: 'Appuyez sur Espace ou Entrée pour prendre une étiquette. Tab jusqu\'à une zone sensible de l\'image, puis appuyez sur Entrée pour la placer. Appuyez sur Échap pour annuler.',
+			imageFallback: 'Image de cette question',
+			imageLoadError: 'L\'image n\'a pas pu être chargée.',
+			unknownImageDimensions: 'Les zones sensibles ne peuvent pas être affichées : la taille de l\'image est inconnue. Ajoutez une largeur et une hauteur à l\'image.',
+			minPlacementsHint: 'Reste à placer sur les zones : {labels}.',
+			associationLimitReached: 'Association impossible : la limite de {max} est atteinte.',
 		},
 
 		order: {
-			moveEarlier: 'Déplacer avant',
-			moveLater: 'Déplacer après',
+			moveEarlierItem: 'Déplacer {item} avant',
+			moveLaterItem: 'Déplacer {item} après',
+			eliminateItem: 'Éliminer {item}',
 			instruction: 'Utilisez les boutons de déplacement ou faites glisser les éléments pour les réorganiser.',
 			keyboardInstructions: 'Appuyez sur Espace ou Entrée pour saisir un élément. Utilisez les touches fléchées pour déplacer l\'élément. Appuyez à nouveau sur Espace ou Entrée pour déposer. Appuyez sur Échap pour annuler.',
 			grabbed: 'Saisi. Utilisez les touches fléchées pour déplacer.',
@@ -317,9 +390,36 @@ export default {
 			itemDropped: '{item} déposé à la position {position} sur {total}',
 			itemMoved: '{item} déplacé à la position {position} sur {total}',
 			selectionCancelled: 'Sélection de {item} annulée',
-			itemPosition: '{item}. Position {position} sur {total}.',
 			itemFallback: 'Élément',
 			orderConfirmed: 'Ordre confirmé',
+			minChoicesHint: {
+				one: 'Mettez au moins {count} élément dans l’ordre.',
+				many: 'Mettez au moins {count} éléments dans l’ordre.',
+				other: 'Mettez au moins {count} éléments dans l’ordre.',
+			},
+			yourOrder: 'Votre classement',
+			notInOrder: 'Hors de votre classement',
+			emptyOrder: 'Votre classement est encore vide.',
+			addItem: 'Ajouter {item} à votre classement',
+			removeItem: 'Retirer {item} de votre classement',
+			itemAdded: '{item} ajouté à votre classement à la position {position} sur {total}.',
+			itemRemoved: '{item} retiré de votre classement.',
+			orderLimitReached: {
+				one: 'Votre classement peut contenir {max} élément. Retirez-le pour en ajouter un autre.',
+				many: 'Votre classement peut contenir jusqu’à {max} éléments. Retirez-en un pour en ajouter un autre.',
+				other: 'Votre classement peut contenir jusqu’à {max} éléments. Retirez-en un pour en ajouter un autre.',
+			},
+			correctOrder: 'Classement correct',
+			subsetExactHint: {
+				one: 'Choisissez {count} élément pour votre classement.',
+				many: 'Choisissez {count} éléments et mettez-les dans l’ordre.',
+				other: 'Choisissez {count} éléments et mettez-les dans l’ordre.',
+			},
+			subsetRangeHint: {
+				one: 'Choisissez entre {min} et {max} élément et mettez-les dans l’ordre.',
+				many: 'Choisissez entre {min} et {max} éléments et mettez-les dans l’ordre.',
+				other: 'Choisissez entre {min} et {max} éléments et mettez-les dans l’ordre.',
+			},
 		},
 
 		associate: {
@@ -342,9 +442,26 @@ export default {
 			clickHotspotsToAssociate: 'Cliquez sur deux zones sensibles sur l\'image pour créer une association.',
 			clickAnotherHotspot: 'Sélectionné : <strong>{label}</strong>. Cliquez sur une autre zone sensible pour créer une association.',
 			removeAssociationBetween: 'Supprimer l\'association entre {first} et {second}',
+			inPairSentence: 'Fait partie d\'une association.',
+			removedAssociationBetween: 'Association entre {first} et {second} supprimée.',
+			minAssociationsHint: {
+				one: 'Créez au moins {count} association.',
+				many: 'Créez au moins {count} associations.',
+				other: 'Créez au moins {count} associations.',
+			},
+			minChoiceUsesHint: 'Il manque des associations pour : {items}.',
+			maxAssociationsHint: {
+				one: 'Vous pouvez créer au plus {count} association.',
+				many: 'Vous pouvez créer au plus {count} associations.',
+				other: 'Vous pouvez créer au plus {count} associations.',
+			},
+			choiceLimitReached: 'Impossible : {label} ne peut pas faire partie d’autres associations.',
+			associationLimitReached: 'Association impossible : la limite de {max} est atteinte.',
+			notAvailableSentence: 'Indisponible en raison d\'une restriction de groupe d\'association.',
 		},
 
 		positionObject: {
+			unknownImageDimensions: 'Les objets ne peuvent pas être placés : la taille de l\'image de la scène est inconnue. Ajoutez une largeur et une hauteur à l\'image, ou fournissez les dimensions du fichier.',
 			instruction: 'Faites glisser les objets sur l\'image',
 			placeObject: 'Placer {object} sur l\'image',
 			removeObject: 'Supprimer {object}',
@@ -354,25 +471,40 @@ export default {
 			positioned: '{label} positionné à ({x}, {y})',
 			minimumRequired: 'Minimum requis : {minChoices}',
 			maximumAllowed: 'Maximum : {maxChoices}',
+			maxChoicesReached: {
+				one: 'Placement impossible : la limite de {max} est atteinte.',
+				many: 'Placement impossible : la limite de {max} est atteinte.',
+				other: 'Placement impossible : la limite de {max} est atteinte.',
+			},
+			objectLimitReached: 'Impossible : {object} ne peut plus être placé.',
 			availableObjects: 'Objets disponibles',
-			objectUsage: '{label} ({usageCount}/{matchMax} utilisé)',
 			availableObjectsCount: 'Objets disponibles ({count}/{max})',
 			dragObjectsInstruction: 'Faites glisser les objets sur le canevas pour les positionner.',
 			used: '{usageCount}/{matchMax} utilisé',
+			usedUnlimited: '{usageCount} utilisé, illimité',
 			objectSelected: '{object} sélectionné. Allez avec Tab sur le canevas, puis utilisez les touches fléchées pour le positionner. Appuyez sur Entrée pour le placer ou sur Échap pour annuler.',
 			objectPlacedAt: '{object} placé à {x} %, {y} %.',
 			placementCancelled: 'Placement annulé.',
 			correctPositionFor: 'Position correcte de {label} à ({x}, {y})',
 			availableObjectsTotal: 'Objets disponibles ({count})',
 			paletteInstructions: 'Faites glisser les objets sur le canevas, ou appuyez sur Entrée ou Espace sur un objet, puis utilisez les touches fléchées pour le positionner sur le canevas.',
+			imageFallback: 'Image de cette question',
+			imageLoadError: 'L\'image n\'a pas pu être chargée.',
+			objectFallback: 'Objet {index}',
+			objectRemoved: '{object} supprimé.',
+			canvasActiveLabel: 'Zone de positionnement : utilisez les touches fléchées pour déplacer le réticule, Entrée pour placer, Échap pour annuler',
+			placedAtPercent: '{label} à {x} %, {y} %',
+			correctPositionAtPercent: 'Position correcte de {label} : {x} %, {y} %',
 		},
 
 		endAttempt: {
 			buttonLabel: 'Terminer la tentative',
 			ended: 'Tentative terminée',
 			requested: 'Demandé',
-			warningMessage: 'Votre tentative a été terminée et ne peut plus être modifiée.',
+			warningMessage: 'Votre tentative est terminée.',
 			confirmMessage: 'Êtes-vous sûr de vouloir terminer votre tentative ? Vous ne pourrez plus modifier vos réponses.',
+			confirm: 'Oui, terminer la tentative',
+			cancel: 'Annuler',
 		},
 
 		media: {
@@ -389,7 +521,6 @@ export default {
 			ariaLabel: 'Contenu multimédia',
 			maxPlayLimitReached: 'Limite maximale de lecture atteinte',
 			playCount: 'Nombre de lectures :',
-			remaining: 'Restant :',
 			requirementMet: '✓ Exigence satisfaite',
 			playAtLeastCount: {
 				one: 'Lire au moins {count} fois',
@@ -397,12 +528,30 @@ export default {
 				other: 'Lire au moins {count} fois',
 			},
 			browserNoSupport: 'Votre navigateur ne prend pas en charge ce type de média.',
+			playsLeft: {
+				one: '{count} lecture restante',
+				many: '{count} lectures restantes',
+				other: '{count} lectures restantes',
+			},
+			playStartedOfMax: 'Lecture {count} sur {max} commencée.',
+			playStarted: 'Lecture {count} commencée.',
+			requiredPlaysReached: 'Nombre de lectures requis atteint.',
+			controls: 'Commandes multimédia',
+			captions: 'Sous-titres',
+			captionsOff: 'Désactivés',
+			playsNeeded: {
+				one: 'Encore {count} lecture requise',
+				many: 'Encore {count} lectures requises',
+				other: 'Encore {count} lectures requises',
+			},
+			trackFallbackLabel: 'Piste {index}',
 			audioNoSupport: 'Votre navigateur ne prend pas en charge l\'élément audio.',
 			videoNoSupport: 'Votre navigateur ne prend pas en charge l\'élément vidéo.',
 			objectDisabled: 'Cet élément utilise un type d\'objet intégré qui est désactivé par défaut pour des raisons de sécurité.',
 		},
 
 		graphicOrder: {
+			unknownImageDimensions: 'Les zones ne peuvent pas être affichées : la taille de l\'image est inconnue. Ajoutez une largeur et une hauteur à l\'image, ou fournissez les dimensions du fichier.',
 			instruction: 'Cliquez sur les zones sensibles pour les ordonner',
 			diagramLabel: 'Diagramme d\'ordre',
 			altText: 'Diagramme d\'ordre',
@@ -411,6 +560,51 @@ export default {
 			confirmOrder: 'Confirmer l\'ordre',
 			confirmOrderNoChanges: 'Confirmer l\'ordre (Aucun changement)',
 			confirmAria: 'Confirmer cet ordre comme votre réponse',
+			imageFallback: 'Image de cette question',
+			imageLoadError: 'L\'image n\'a pas pu être chargée.',
+			unlabeledItem: 'Élément {index}',
+			minChoicesHint: {
+				one: 'Mettez au moins {count} élément dans l’ordre.',
+				many: 'Mettez au moins {count} éléments dans l’ordre.',
+				other: 'Mettez au moins {count} éléments dans l’ordre.',
+			},
+			subsetExactHint: {
+				one: 'Choisissez {count} élément pour votre classement.',
+				many: 'Choisissez {count} éléments et mettez-les dans l’ordre.',
+				other: 'Choisissez {count} éléments et mettez-les dans l’ordre.',
+			},
+			subsetRangeHint: {
+				one: 'Choisissez entre {min} et {max} élément et mettez-les dans l’ordre.',
+				many: 'Choisissez entre {min} et {max} éléments et mettez-les dans l’ordre.',
+				other: 'Choisissez entre {min} et {max} éléments et mettez-les dans l’ordre.',
+			},
+		},
+
+		graphicAssociate: {
+			unknownImageDimensions: 'Cette association graphique ne peut pas être affichée : la taille de son image est inconnue, les zones réactives ne peuvent donc pas être placées. Ajoutez une largeur et une hauteur à l\'image, ou fournissez les dimensions du fichier.',
+			imageFallback: 'Image de cette question',
+			imageLoadError: 'L\'image n\'a pas pu être chargée.',
+			unlabeledHotspot: 'Région {index}',
+			hotspotConnections: '{label} ({usageCount}/{matchMax} connexions)',
+			hotspotConnectionsUnlimited: '{label} ({usageCount} connexions, illimitées)',
+			notAvailableSentence: 'Indisponible en raison d\'une restriction de groupe d\'association.',
+			selectAnotherHotspot: 'Sélectionné : {label}. Sélectionnez une autre zone sensible pour créer une association.',
+			associationsCount: 'Associations ({count}/{max})',
+			associationsCountUnlimited: 'Associations ({count})',
+			clickHotspotsToAssociate: 'Sélectionnez deux zones sensibles sur l\'image pour créer une association.',
+			pairDescription: '{first} associé à {second}',
+			removeAssociation: 'Supprimer l\'association entre {first} et {second}',
+			minimumRequired: 'Minimum requis : {minAssociations}',
+			associationMade: 'Association créée.',
+			associationRemoved: 'Association supprimée.',
+			associationLimitReached: 'Association impossible : la limite de {max} est atteinte.',
+			hotspotLimitReached: 'Impossible : {label} ne peut pas faire partie d’autres associations.',
+			minAssociationsHint: {
+				one: 'Créez au moins {count} association.',
+				many: 'Créez au moins {count} associations.',
+				other: 'Créez au moins {count} associations.',
+			},
+			minHotspotUsesHint: 'Besoin de plus d’associations : {items}.',
 		},
 
 		custom: {
@@ -427,10 +621,24 @@ export default {
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: 'Sélectionner...',
-			textEntryLabel: 'Saisie de texte {id}',
-			choiceLabel: 'Choix en ligne {id}',
-			formatHint: 'Format : {mask}',
+			blankLabel: 'Trou {index} sur {count}',
+			patternMismatch: 'Cette réponse n\'est pas au format attendu.',
+			patternMismatchWithHint: 'Cette réponse n\'est pas au format attendu. Utilisez ce format : {hint}',
+			correctChoice: 'Bonne réponse : {choice}',
 		},
+	},
+
+	/**
+	 * Annonce pour les lecteurs d'écran lorsqu'une interaction ne peut pas être
+	 * affichée. Traduction à faire relire par un locuteur natif.
+	 */
+	interaction: {
+		renderError: 'Cet élément interactif ({type}) n\'a pas pu être affiché.',
+	},
+
+	/** Nom accessible du groupe rendu par une interaction personnalisée portable (PCI). */
+	customInteraction: {
+		portableLabel: 'Interaction personnalisée portable',
 	},
 
 	item: {
@@ -439,36 +647,34 @@ export default {
 		loadError: 'Erreur de chargement de l\'élément : {error}',
 		parsingError: 'Échec de l\'analyse QTI XML',
 		processingError: 'Échec du traitement des réponses',
+		submitError: 'Votre réponse n\'a pas pu être envoyée. Veuillez réessayer.',
 		submit: 'Soumettre',
 		complete: 'Terminer',
 		completed: 'Terminé',
 		attempt: 'Tentative {numAttempts}',
 	},
 
-	itemSession: {
-		attempt: 'Tentative {numAttempts}',
-		attemptsRemaining: '{attemptsRemaining} tentatives restantes',
-		maxAttempts: 'Tentatives maximales : {maxAttempts}',
-	},
 
 	feedback: {
+		title: 'Commentaires',
 		close: 'Fermer les commentaires',
 		closeFeedback: 'Ignorer les commentaires',
 		testFeedback: 'Commentaires du test',
+		shown: 'Des commentaires sont affichés.',
 	},
 
 	assessment: {
 		title: 'Évaluation',
 		loading: 'Chargement de l\'évaluation...',
-		loadingError: 'Délai d\'attente dépassé pour le chargement de l\'évaluation. Cette évaluation peut être invalide ou le lecteur n\'a pas pu s\'initialiser.',
+		loadingError: 'Cette évaluation n\'a pas pu être chargée. Veuillez réessayer.',
+		stillLoading: 'Chargement en cours. Veuillez patienter un instant.',
+		loadingRetry: 'Réessayer',
 		question: 'Question {current} sur {total}',
 		questionAnnouncement: 'Question {current} sur {total}',
 		section: 'Section {current} sur {total}',
 		sectionDefault: 'Section {number}',
 		readingPassage: 'Passage de Lecture',
 		readingPassages: 'Passages de lecture',
-		expandPassage: 'Développer le passage',
-		collapsePassage: 'Réduire le passage',
 		closeMenu: 'Fermer le menu',
 
 		attempts: {
@@ -479,6 +685,22 @@ export default {
 			maxReached: 'Nombre maximum de tentatives atteint',
 			required: 'Doit répondre avant de continuer',
 			reviewNotAllowed: 'Non autorisé une fois soumis',
+			attemptOf: 'Tentative {current} sur {total}',
+			current: 'Tentative {current}',
+		},
+
+		// Practice delivery: the item-level check control (stays on the item, shows feedback).
+		checkAnswer: {
+			button: 'Vérifier la réponse',
+			submittedAnnouncement: 'Votre réponse a été envoyée.',
+			attemptsUsedUp: 'Vous avez utilisé toutes vos tentatives pour cette question.',
+		},
+
+		// QTI allowComment: the candidate comment disclosure.
+		comments: {
+			heading: 'Commentaires pour l\'équipe du test',
+			label: 'Vos commentaires',
+			placeholder: 'Écrivez un commentaire pour l\'équipe du test (facultatif).',
 		},
 
 		navigation: {
@@ -488,6 +710,65 @@ export default {
 			jumpTo: 'Aller à la question {number}',
 			sectionMenu: 'Menu de section',
 			progress: 'Progression : {percent}%',
+			answeredCount: '{answered} sur {total} répondues',
+		},
+
+		flag: {
+			label: 'Marquer pour révision',
+			flaggedAnnouncement: 'Question {number} marquée pour révision.',
+			unflaggedAnnouncement: 'Marque retirée de la question {number}.',
+		},
+
+		review: {
+			title: 'Vérifiez vos réponses',
+			open: 'Revoir les questions',
+			backToQuestion: 'Retour à la question',
+			flagged: 'Marquée',
+			flaggedCount: '{count} marquées pour révision',
+			questionsGroup: 'Questions',
+			linearNote:
+				"Dans cette partie, vous ne pouvez qu'avancer ; ces questions sont donc listées pour révision uniquement.",
+			goToItem: 'Aller à la question {number}',
+			currentItem: 'Question actuelle',
+			statusAnswered: 'Répondue',
+			statusPartially: 'Partiellement répondue',
+			statusUnanswered: 'Non répondue',
+			notVisited: 'Pas encore visitée',
+		},
+
+		submit: {
+			dialogTitle: 'Soumettre votre test ?',
+			dialogDescription: 'Vous ne pourrez plus changer vos réponses après la soumission.',
+			flaggedLine: '{count} questions marquées pour révision',
+			unansweredHeading: '{count} questions sans réponse',
+			unansweredHeadingOne: '1 question sans réponse',
+			needsAnswerHeading: '{count} questions doivent recevoir une réponse avant la soumission',
+			needsAnswerHeadingOne: '1 question doit recevoir une réponse avant la soumission',
+			incompleteHeadingOne: '1 réponse est incomplète et doit être complétée avant la soumission',
+			incompleteHeading: '{count} réponses sont incomplètes et doivent être complétées avant la soumission',
+			requirement: {
+				minChoices: 'sélectionnez-en au moins {count}',
+				minStrings: 'saisissez au moins {count}',
+				minAssociations: 'associez-en au moins {count}',
+				minPlays: 'lectures minimum : {count}',
+				incomplete: 'complétez votre réponse',
+			},
+			incompleteJump: 'Aller à la question {number} : {requirement}',
+			incompleteEntry: 'Question {number} : {requirement}',
+			allAnswered: 'Vous avez répondu à toutes les questions.',
+			confirm: 'Soumettre le test',
+			cancel: 'Continuer à travailler',
+		},
+
+		leavePart: {
+			title: 'Quitter cette partie ?',
+			description: 'Après avoir continué, vous ne pourrez plus revenir aux questions de cette partie.',
+			confirm: 'Continuer',
+			cancel: 'Rester dans cette partie',
+			needsAnswerHeadingOne: '1 question de cette partie attend une réponse avant de pouvoir la quitter',
+			needsAnswerHeading: '{count} questions de cette partie attendent une réponse avant de pouvoir la quitter',
+			incompleteHeadingOne: '1 réponse de cette partie est incomplète et doit être complétée avant de pouvoir la quitter',
+			incompleteHeading: '{count} réponses de cette partie sont incomplètes et doivent être complétées avant de pouvoir la quitter',
 		},
 
 		sections: {
@@ -502,9 +783,77 @@ export default {
 			timeRemaining: 'Temps restant : {time}',
 			timeElapsed: 'Temps écoulé : {time}',
 			timeUp: 'Temps écoulé !',
+			warningMinutesOne: 'Il reste 1 minute',
+			warningMinutes: 'Il reste {count} minutes',
+			warningTime: 'Il reste {time}',
+			paused: 'En pause',
+			label: 'Minuteur',
+		},
+
+		start: {
+			begin: 'Commencer',
+			resume: 'Reprendre',
+			timeMinutesOne: 'Vous disposez d\'une minute.',
+			timeMinutes: 'Vous disposez de {count} minutes.',
+			timeExact: 'Vous disposez de {time}.',
+			scopedTimeLimits: 'Certaines parties de ce test ont leur propre limite de temps.',
+			paused: 'Ce test est en pause. Veuillez patienter jusqu\'à sa reprise.',
+		},
+
+		timeExpiry: {
+			autoSubmitted: 'Le temps est écoulé. Vos réponses ont été soumises.',
+			submitTitle: 'Le temps imparti pour ce test est écoulé',
+			submitDescription: 'Vous ne pouvez plus modifier vos réponses. Soumettez votre test pour terminer.',
+			partTitle: 'Le temps imparti pour cette partie est écoulé',
+			sectionTitle: 'Le temps imparti pour cette section est écoulé',
+			questionTitle: 'Le temps imparti pour cette question est écoulé',
+			scopeDescription: 'Vous passez à la partie suivante du test.',
+			movingToQuestion: 'Vous passez à la question {number}.',
+			closedDescription: 'Vous ne pouvez plus modifier les réponses de ses questions.',
+			continue: 'Continuer',
+		},
+
+		pause: {
+			title: 'Évaluation en pause',
+			message: 'Votre test a été mis en pause. Veuillez patienter jusqu\'à sa reprise.',
+			announcement: 'L\'évaluation est en pause.',
+			withReason: 'L\'évaluation est en pause : {reason}',
+			resumed: 'L\'évaluation a repris.',
+		},
+
+		// Autosave : l'indicateur d'enregistrement à côté du compteur de réponses.
+		autosave: {
+			saved: 'Enregistré · {time}',
+			savedShort: 'Enregistré',
+			saving: 'Enregistrement…',
+			notSaved: 'Non enregistré',
+		},
+
+		// Un instantané restauré avec des réponses enregistrées : continuer ou recommencer.
+		resume: {
+			title: 'Reprendre votre test ?',
+			description: 'Vous avez des réponses enregistrées à partir du {time}.',
+			descriptionNoTime: 'Vous avez des réponses enregistrées d\'une session précédente.',
+			resumeAction: 'Reprendre où vous en étiez',
+			startOver: 'Recommencer',
+			confirmTitle: 'Recommencer et supprimer vos réponses enregistrées ?',
+			confirmDescription:
+				'Vos réponses enregistrées seront supprimées et le test recommencera depuis le début. Cette action est irréversible.',
+			confirmAction: 'Supprimer et recommencer',
+			cancel: 'Garder mes réponses enregistrées',
+			resumedAnnouncement: 'Vos réponses enregistrées ont été restaurées.',
+			restartedAnnouncement: 'Le test a recommencé depuis le début.',
+		},
+
+		// Le contenu d'une question a échoué : en clair, sans texte technique, et le test continue.
+		itemError: {
+			title: 'Cette question n\'a pas pu être affichée.',
+			tryAgain: 'Réessayer',
+			continue: 'Continuer',
 		},
 
 		feedback: {
+			title: 'Commentaires',
 			correct: 'Correct',
 			incorrect: 'Incorrect',
 			partiallyCorrect: 'Partiellement correct',
@@ -523,15 +872,74 @@ export default {
 			exit: 'Quitter',
 		},
 
+		// The shell completion screen after finalization (+ the opt-in results summary).
+		complete: {
+			alreadySubmitted: 'Ce test a déjà été soumis.',
+			finished: 'Vous avez terminé le test.',
+			timeExpired: 'Le temps est écoulé. Le test est terminé et vos réponses ont été envoyées.',
+			byProctor: 'Votre test a été soumis par votre surveillant.',
+			byProctorAnnouncement: 'Votre surveillant a soumis votre test.',
+			resultsHeading: 'Récapitulatif des résultats',
+			totalScore: 'Score total : {score} sur {maxScore}',
+			itemName: 'Question {number}',
+		},
+
 		errors: {
 			navigationFailed: 'Échec de la navigation. Veuillez réessayer.',
 			submitFailed: 'Échec de la soumission de l\'évaluation. Veuillez réessayer.',
 			loadFailed: 'Échec du chargement de la question.',
 			saveFailed: 'Échec de l\'enregistrement de la réponse.',
+			unexpected: 'Une erreur est survenue. Veuillez réessayer.',
+			supportCode: 'Code d\'assistance : {code}',
+			codes: {
+				invalidNavigationTarget: 'Cette question ou section n\'est pas disponible.',
+				linearNavigationOnly: 'Dans cette partie, vous ne pouvez passer qu\'à la question suivante.',
+				navigationNotAllowed: 'Vous ne pouvez pas y aller pour le moment.',
+				navigationInFlight: 'Veuillez patienter un instant avant de réessayer.',
+				testFinalized: 'Cette évaluation a déjà été soumise.',
+				minTimeNotElapsed: 'Veuillez rester sur ce contenu encore au moins {remaining} secondes avant de continuer.',
+				itemTimeExpired: 'Le temps imparti à cette question est écoulé.',
+				reviewNotAllowed: 'Vous ne pouvez pas revenir à cette question.',
+				responseRequired: 'Vous devez répondre à cette question avant de continuer.',
+				finalizeResponseRequired: 'Certaines questions doivent encore recevoir une réponse avant la soumission : {items}.',
+				finalizeResponseInvalid: 'Certaines réponses ne sont pas encore complètes. Vérifiez ces questions avant la soumission : {items}.',
+				leavePartResponseRequired: 'Certaines questions de cette partie attendent encore une réponse avant de continuer : {items}.',
+				leavePartResponseInvalid: 'Certaines réponses de cette partie ne sont pas encore complètes. Vérifiez-les avant de continuer : {items}.',
+				attemptValidationFailed: 'Veuillez vérifier votre réponse. Une réponse valide est requise.',
+				maxAttemptsReached: 'Vous avez utilisé toutes vos tentatives pour cette question.',
+				itemSessionLocked: 'Cette question est close et ne peut plus être modifiée.',
+				commentsNotAllowed: 'Les commentaires ne sont pas autorisés pour cette question.',
+				submitFailed: 'Vos réponses n\'ont pas pu être envoyées. Vos réponses sont toujours là. Veuillez réessayer.',
+				finalizeFailed: 'L\'évaluation n\'a pas encore pu être envoyée. Vos réponses sont toujours là. Veuillez réessayer.',
+				assessmentPaused: 'Votre évaluation est en pause. Veuillez patienter jusqu\'à sa reprise.',
+				outcomeProcessingFailed: 'Vos réponses ont été enregistrées, mais les résultats n\'ont pas pu être calculés. Veuillez contacter l\'assistance si le problème persiste.',
+			},
 		},
 		playerLabel: 'Lecteur d\'évaluation',
 		instructions: 'Consignes',
 		rubrics: 'Grilles d\'évaluation',
+		skipToQuestion: 'Passer à la question',
+	},
+
+	// Section player chrome: passage/question panes and their headings.
+	sectionPlayer: {
+		passage: 'Passage',
+		passageNumbered: 'Passage {number}',
+		passages: 'Passages',
+		question: 'Question',
+		passageAndQuestion: 'Passage et question',
+		// The candidate's display settings tool and its dialog.
+		displaySettings: {
+			title: 'Paramètres d’affichage',
+			description: 'Les modifications s’appliquent immédiatement et restent actives pendant cette session.',
+			textSize: 'Taille du texte',
+			sizeDefault: 'Par défaut',
+			sizeLarge: 'Grand',
+			sizeLarger: 'Plus grand',
+			sizeLargest: 'Le plus grand',
+			highContrast: 'Texte plus contrasté',
+			textSpacing: 'Espacement du texte accru',
+		},
 	},
 
 	i18n: {
@@ -549,6 +957,7 @@ export default {
 		answerRecorded: 'Réponse enregistrée',
 		resizer: 'Redimensionner les panneaux de passage et de question',
 		sentence: '{text}.',
+		choiceFallback: 'Choix {index}',
 		correctAnswer: 'Bonne réponse.',
 		correctAnswerIs: 'Bonne réponse : {answer}.',
 		correctPosition: 'Position correcte.',
@@ -564,124 +973,6 @@ export default {
 		catalogRequestUsage: 'Demander {usage} : {term}',
 	},
 
-	demo: {
-		selectSampleItem: 'Sélectionner un élément d\'exemple',
-		configurationPanel: 'Panneau de configuration',
-		viewingAs: 'Affichage en tant que',
-		role: 'Rôle',
-		candidate: 'Candidat',
-		author: 'Auteur',
-		proctor: 'Surveillant',
-		scorer: 'Correcteur',
-		tutor: 'Tuteur',
-		showCorrectAnswers: 'Afficher les réponses correctes',
-		showFeedback: 'Afficher les commentaires',
-		settings_aria: 'Ouvrir le menu des paramètres',
-		xmlEditor: 'Éditeur XML',
-
-		// Navigation
-		appName: 'Lecteur PIE QTI',
-		home: 'Accueil',
-		itemDemo: 'Démo d\'Élément',
-		assessmentDemo: 'Démo d\'Évaluation',
-		likertDemo: 'Démo du Plugin Likert',
-		iframeDemo: 'Démo Iframe',
-		theme: 'Thème',
-
-		// Home Page
-		homeTitle: 'Lecteur QTI',
-		homeSubtitle: 'Un lecteur moderne et indépendant des frameworks pour les éléments d\'évaluation QTI. Fonctionne 100% côté client par défaut, avec des hooks côté serveur optionnels pour une utilisation en production.',
-		homeMetaDescription: 'Lecteur QTI moderne avec intégration backend optionnelle',
-		tryItems: 'Essayer les Éléments',
-		tryAssessments: 'Essayer les Évaluations',
-		trySectionPlayer: 'Lecteur de Section',
-		pluginDemo: 'Démo du Plugin',
-		dropQtiFile: 'Déposez le fichier QTI XML ici',
-		orClickToSelect: 'ou cliquez pour sélectionner un fichier',
-		selectFile: 'Sélectionner un Fichier',
-		selectedFile: 'Sélectionné :',
-		loadInPlayer: 'Charger dans le Lecteur',
-		footerTitle: 'Lecteur QTI',
-		footerLicense: 'Licence MIT • Open Source',
-
-		// Settings Panel
-		settings: 'Paramètres',
-		candidateStudent: 'Candidat (Étudiant)',
-		testConstructor: 'Constructeur de Tests',
-		controlsRubricVisibility: 'Contrôle la visibilité de la rubrique et l\'affichage des réponses correctes',
-		useBackendScoring: 'Utiliser la Notation Serveur',
-		scoreOnServer: 'Évaluer les réponses sur le serveur plutôt que côté client',
-		sessionManagement: 'Gestion de Session',
-		saving: 'Enregistrement...',
-		saveSession: 'Enregistrer la Session',
-		loadSession: 'Charger la Session',
-
-		// Export & Template
-		exportResponses: 'Exporter les Réponses',
-		json: 'JSON',
-		csv: 'CSV',
-		templateProcessing: 'Traitement du Modèle',
-		rerunTemplateProcessing: 'Réexécuter templateProcessing et réinitialiser la session de l\'élément',
-		regenerateVariant: 'Régénérer la Variante',
-		templateVariablesDebug: 'Variables de Modèle (Débogage)',
-		variable: 'Variable',
-		value: 'Valeur',
-
-		// Keyboard Shortcuts
-		keyboardShortcuts: 'Raccourcis Clavier',
-		submitAnswersShortcut: 'Soumettre les réponses',
-		tryAgainShortcut: 'Réessayer',
-		exportJsonShortcut: 'Exporter JSON',
-		saveSessionShortcut: 'Enregistrer la session',
-		useCmdOnMacOS: 'Utiliser <kbd class="kbd kbd-xs">Cmd</kbd> sur macOS',
-
-		// Results Panel
-		results: 'Résultats',
-		score: 'Score',
-		outcomeVariables: 'Variables de Résultat',
-
-		// Misc
-		format: 'Format',
-		selectItemOrPasteXml: 'Sélectionnez un élément d\'exemple ou collez du XML personnalisé pour commencer.',
-		pageTitle: 'Démo du Lecteur - Lecteur PIE QTI',
-
-		// Sample Item Descriptions
-		sampleItemDescriptions: {
-			'': 'Élément personnalisé téléchargé',
-			'simple-choice': 'Problème de soustraction de base avec des distracteurs plausibles',
-			'partial-credit': 'Choix multiple avec crédit partiel utilisant mapResponse',
-			'capital-cities': 'Question de géographie avec choix mélangés',
-			'text-entry': 'Question à trous avec correspondance insensible à la casse',
-			'extended-text': 'Question à réponse textuelle multiligne',
-			'inline-choice': 'Menu déroulant intégré dans le texte',
-			'order-interaction': 'Organiser les éléments dans la séquence correcte',
-			'match-interaction': 'Associer les éléments de deux colonnes',
-			'associate-interaction': 'Créer des associations entre les éléments',
-			'gap-match': 'Faire glisser des mots dans les espaces du texte',
-			'graphic-gap-match-solar-system': 'Étiqueter les quatre planètes intérieures de notre système solaire',
-			'slider': 'Sélectionner une valeur sur un curseur numérique',
-			'hotspot': 'Cliquer sur la Planète Bleue dans cette question d\'astronomie',
-			'hotspot-partial-credit': 'Identifier la planète avec de l\'eau liquide (crédit partiel pour les planètes telluriques)',
-			'template-variable-demo': 'templateProcessing génère des valeurs ; responseProcessing les évalue',
-			'upload-interaction': 'Télécharger un fichier comme réponse (baseType=file)',
-			'drawing-interaction': 'Dessiner sur un canevas (baseType=file, dataUrl PNG)',
-			'media-audio': 'Lecteur audio avec suivi du nombre de lectures et exigence minPlays',
-			'media-video': 'Lecteur vidéo avec suivi du nombre de lectures et limite maxPlays',
-			'hottext-single': 'Cliquer pour sélectionner un seul mot dans le texte (question de grammaire)',
-			'hottext-multiple': 'Cliquer pour sélectionner plusieurs segments de texte (compréhension de lecture)',
-			'select-point': 'Cliquer sur l\'image pour sélectionner un point (question de géographie)',
-			'graphic-order': 'Faire glisser pour réorganiser les éléments sur une image (couches géologiques)',
-			'graphic-associate': 'Cliquer sur des paires de zones actives pour créer des associations (correspondance d\'organes)',
-			'position-object': 'Faire glisser et positionner des objets de mobilier sur un plan de pièce',
-			'end-attempt': 'Bouton pour terminer la tentative d\'évaluation',
-			'custom-interaction': 'Affiche une interface de secours pour customInteraction et permet une réponse manuelle',
-			'choice-with-stimulus': 'Question avec passage de lecture intégré en ligne',
-			'math-inline': 'Choix multiple avec rendu mathématique MathML en ligne',
-			'math-extended': 'Réponse étendue avec MathML et éditeur de texte enrichi pour montrer le travail mathématique',
-			'math-fractions': 'Arithmétique de fractions avec affichage de blocs MathML',
-			'adaptive-capitals': 'Question adaptative à plusieurs tentatives avec rétroaction et indices progressifs',
-		},
-	},
 
 	transform: {
 		// App title and navigation

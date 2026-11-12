@@ -16,6 +16,7 @@ import type {
 	ExtractionDispatchResult,
 } from './types.js';
 import type { InteractionDeliveryField } from './deliveryTypes.js';
+import { mergeDeliveryFields } from './mergeDeliveryFields.js';
 import { ExtractionError } from './types.js';
 
 const REGISTER_FRAMEWORK_DELIVERY_FIELDS = Symbol('registerFrameworkDeliveryFields');
@@ -343,10 +344,10 @@ export class ExtractionRegistry {
 	/** Return the immutable sink policy compiled for an authored interaction kind. */
 	getDeliveryFieldsForType(elementType: string): readonly InteractionDeliveryField[] {
 		const canonicalType = this.qti2xMapper.toCanonical(elementType);
-		return mergeDeliveryFields(
-			this.deliveryFieldsByType.get(canonicalType) ?? EMPTY_DELIVERY_FIELDS,
-			this.frameworkDeliveryFieldsByType.get(canonicalType) ?? EMPTY_DELIVERY_FIELDS,
-		);
+		const extensions = this.deliveryFieldsByType.get(canonicalType) ?? EMPTY_DELIVERY_FIELDS;
+		const framework = this.frameworkDeliveryFieldsByType.get(canonicalType) ?? EMPTY_DELIVERY_FIELDS;
+		if (extensions.length === 0 && framework.length === 0) return EMPTY_DELIVERY_FIELDS;
+		return snapshotDeliveryFields(mergeDeliveryFields(extensions, framework));
 	}
 
 	/**
@@ -479,19 +480,4 @@ function snapshotDeliveryFields(
 			Object.freeze({ ...field, path: Object.freeze([...field.path]) }),
 		),
 	);
-}
-
-function mergeDeliveryFields(
-	extensions: readonly InteractionDeliveryField[],
-	framework: readonly InteractionDeliveryField[],
-): readonly InteractionDeliveryField[] {
-	if (extensions.length === 0 && framework.length === 0) return EMPTY_DELIVERY_FIELDS;
-
-	const fieldsByPath = new Map<string, InteractionDeliveryField>();
-	for (const field of [...extensions, ...framework]) {
-		// One output path has one sink meaning. Framework-authored meaning is applied
-		// last so a plugin can add new paths but cannot relabel a standard one.
-		fieldsByPath.set(JSON.stringify(field.path), field);
-	}
-	return snapshotDeliveryFields([...fieldsByPath.values()]);
 }

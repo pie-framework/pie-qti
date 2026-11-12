@@ -5,7 +5,7 @@
  * Note: This is a complex interaction with limited QTI support
  */
 
-import { generateIdentifier } from '../utils/identifier-generator.js';
+import { generateIdentifier, prefixedIdentifier } from '../utils/identifier-generator.js';
 import { QtiBuilder } from '../utils/qti-builder.js';
 import { buildResponseDeclaration } from '../utils/response-declaration-builder.js';
 import { correctResponseScoring, partialScoringEnabled } from '../utils/scoring.js';
@@ -102,7 +102,11 @@ export class DragInTheBlankGenerator extends BaseGenerator {
       const choicesForGap = choices[gapIndex] || [];
       const correctChoice = choicesForGap.find((c: any) => c.correct);
       if (correctChoice) {
-        correctResponses.push(`CHOICE_${gapIndex}_${correctChoice.value} GAP_${gapIndex}`);
+        // Choice keys are sanitized the same way here and in the item body, so a quoted or
+        // spaced value cannot break the identifier attribute or split a directedPair value.
+        correctResponses.push(
+          `${prefixedIdentifier('CHOICE_', `${gapIndex}_${correctChoice.value}`)} ${prefixedIdentifier('GAP_', gapIndex)}`
+        );
       }
     }
 
@@ -124,7 +128,7 @@ export class DragInTheBlankGenerator extends BaseGenerator {
       const choicesForGap = choices[gapIndex] || [];
       for (const choice of choicesForGap) {
         allChoices.push(
-          `      <gapText identifier="CHOICE_${gapIndex}_${choice.value}" matchMax="1">${choice.label}</gapText>`
+          `      <gapText identifier="${prefixedIdentifier('CHOICE_', `${gapIndex}_${choice.value}`)}" matchMax="1">${choice.label}</gapText>`
         );
       }
     }
@@ -132,7 +136,7 @@ export class DragInTheBlankGenerator extends BaseGenerator {
     // Replace {{n}} with <gap> elements
     let processedMarkup = markup;
     for (const gapIndex of gaps) {
-      processedMarkup = processedMarkup.replace(`{{${gapIndex}}}`, `<gap identifier="GAP_${gapIndex}"/>`);
+      processedMarkup = processedMarkup.replace(`{{${gapIndex}}}`, `<gap identifier="${prefixedIdentifier('GAP_', gapIndex)}"/>`);
     }
 
     const interaction = `<gapMatchInteraction responseIdentifier="${responseId}">${promptHtml}

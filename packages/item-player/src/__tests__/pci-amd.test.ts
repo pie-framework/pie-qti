@@ -184,7 +184,7 @@ describe('createAmdLoader', () => {
 	});
 
 	it('applies urlArgs to resolved module URLs', async () => {
-		const files = { 'm.js': `define('m', [], function () { return {}; });` };
+		const files: Record<string, string> = { 'm.js': `define('m', [], function () { return {}; });` };
 		const loadedUrls: string[] = [];
 		const loader = createAmdLoader({
 			baseUrl: 'https://pkg.example/',

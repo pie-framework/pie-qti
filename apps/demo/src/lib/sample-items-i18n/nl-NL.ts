@@ -669,7 +669,7 @@ export const ITEMS_NL_NL: Record<string, LocalizedItemData> = {
 
   <itemBody>
     <p>De binnenplaneten van ons zonnestelsel zijn de vier rotsachtige planeten het dichtst bij de zon: Mercurius, Venus, Aarde en Mars.</p>
-    <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+    <graphicGapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="4">
       <prompt>Label de vier binnenplaneten van ons zonnestelsel</prompt>
       <object type="image/svg+xml" width="800" height="400">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">

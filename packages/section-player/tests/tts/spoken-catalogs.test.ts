@@ -1,7 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import { DOMParser } from 'linkedom';
 import { convertQti2ToQti3 } from '@pie-qti/qti-common';
-import { extractItemSpeech, prepareReadableBlock } from '../../src/tts/spoken-catalogs';
+import {
+	extractItemSpeech,
+	prepareReadableBlock,
+	tryExtractItemSpeech,
+	tryPrepareReadableBlock,
+} from '../../src/tts/spoken-catalogs';
 
 const parser = DOMParser as unknown as typeof globalThis.DOMParser;
 // linkedom has no XMLSerializer; its nodes serialize themselves.
@@ -134,5 +139,64 @@ describe('prepareReadableBlock', () => {
 			html: '<p class="qti-hidden">Plain</p>',
 			catalogs: [],
 		});
+	});
+
+	test('restates xml:lang as lang without SSML, with dir where the direction changes', () => {
+		expect(prepareReadableBlock('<p>Hello <span xml:lang="es">hola</span> and <span xml:lang="ar">مرحبا</span></p>')).toEqual({
+			html: '<p>Hello <span xml:lang="es" lang="es">hola</span> and <span xml:lang="ar" lang="ar" dir="rtl">مرحبا</span></p>',
+			catalogs: [],
+		});
+	});
+
+	test("compares nested languages against the passage's own language", () => {
+		const block = prepareReadableBlock('<p>مرحبا <span xml:lang="en">hello</span> <span xml:lang="ar-EG">مصر</span></p>', 'ar');
+		expect(block.html).toBe(
+			'<p>مرحبا <span xml:lang="en" lang="en" dir="ltr">hello</span> <span xml:lang="ar-EG" lang="ar-EG">مصر</span></p>',
+		);
+	});
+
+	test("restates a rubric block's own xml:lang", () => {
+		const block = prepareReadableBlock('<rubricBlock use="passage" view="candidate" xml:lang="fr"><p>Le cycle</p></rubricBlock>', 'fr');
+		expect(block.html).toBe('<rubricBlock use="passage" view="candidate" xml:lang="fr" lang="fr"><p>Le cycle</p></rubricBlock>');
+	});
+});
+
+describe('tryExtractItemSpeech', () => {
+	test('a security-rejected item reports the failure instead of throwing', () => {
+		const outcome = tryExtractItemSpeech(`<!DOCTYPE assessmentItem>${BASE_ITEM('Pick one.')}`);
+		expect(outcome.ok).toBe(false);
+		if (!outcome.ok) {
+			expect(outcome.message).toContain('DOCTYPE');
+			expect(outcome.cause).toBeInstanceOf(Error);
+		}
+	});
+
+	test('an accepted item returns the speech', () => {
+		const outcome = tryExtractItemSpeech(BASE_ITEM('Pick one.'), { DOMParserImpl: parser });
+		expect(outcome.ok).toBe(true);
+		if (outcome.ok) expect(outcome.speech.catalogs).toEqual([]);
+	});
+
+	test('no xml reports an empty speech without a failure', () => {
+		expect(tryExtractItemSpeech(undefined)).toEqual({ ok: true, speech: { catalogs: [] } });
+	});
+});
+
+describe('tryPrepareReadableBlock', () => {
+	test('an accepted block returns its readable markup', () => {
+		const outcome = tryPrepareReadableBlock('<p xml:lang="es">hola</p>');
+		expect(outcome.ok).toBe(true);
+		if (outcome.ok) expect(outcome.html).toBe('<p xml:lang="es" lang="es">hola</p>');
+	});
+
+	test('a failing preparation reports the failure and falls back to the authored markup', () => {
+		const outcome = tryPrepareReadableBlock('<p>boom</p>', undefined, () => {
+			throw new Error('block exploded');
+		});
+		expect(outcome.ok).toBe(false);
+		if (!outcome.ok) {
+			expect(outcome.html).toBe('<p>boom</p>');
+			expect(outcome.message).toBe('block exploded');
+		}
 	});
 });

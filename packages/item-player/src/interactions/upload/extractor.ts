@@ -34,11 +34,11 @@ export const standardUploadExtractor: ElementExtractor<UploadData> = {
 	extract(element, context) {
 		const { utils } = context;
 
-		// Extract fileType child elements (vendor / QTI 3.0 style)
+		// <fileType> children are a vendor form; neither QTI 2.1 nor 3.0 defines them.
 		const fileTypeElements = utils.getChildrenByTag(element, 'fileType');
 		let fileTypes = fileTypeElements.map((el) => utils.getTextContent(el));
 
-		// Fall back to QTI 2.x `type` attribute when no <fileType> children are present
+		// QTI's own restriction is the `type` attribute: one MIME type in 2.1, a list in 3.0 (§5.165.1).
 		if (fileTypes.length === 0) {
 			const typeAttr = utils.getAttribute(element, 'type', '');
 			if (typeAttr) {

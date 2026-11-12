@@ -2,15 +2,13 @@
 <assessmentItem
 	xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
 	identifier="deletevalue-repeat-demo"
-	title="deleteValue + repeat"
+	title="delete + repeat"
 	adaptive="false"
 	timeDependent="false">
 
 	<responseDeclaration identifier="RESPONSE" cardinality="ordered" baseType="identifier"/>
 
-	<responseDeclaration identifier="CLEAN" cardinality="ordered" baseType="identifier">
-		<defaultValue/>
-	</responseDeclaration>
+	<outcomeDeclaration identifier="CLEAN" cardinality="ordered" baseType="identifier"/>
 
 	<outcomeDeclaration identifier="CLEAN_SIZE" cardinality="single" baseType="integer">
 		<defaultValue><value>0</value></defaultValue>
@@ -23,18 +21,19 @@
 	</outcomeDeclaration>
 
 	<itemBody>
-		<p>Conformance: deleteValue + repeat.</p>
+		<p>Conformance: delete + repeat.</p>
 	</itemBody>
 
 	<responseProcessing>
 		<responseCondition>
 			<responseElse>
-				<setResponseValue identifier="CLEAN">
+				<!-- QTI delete: the first sub-expression is the value to remove, the second the container -->
+				<setOutcomeValue identifier="CLEAN">
 					<delete>
-						<variable identifier="RESPONSE"/>
 						<baseValue baseType="identifier">B</baseValue>
+						<variable identifier="RESPONSE"/>
 					</delete>
-				</setResponseValue>
+				</setOutcomeValue>
 
 				<setOutcomeValue identifier="CLEAN_SIZE">
 					<containerSize>
@@ -64,5 +63,3 @@
 		</responseCondition>
 	</responseProcessing>
 </assessmentItem>
-
-

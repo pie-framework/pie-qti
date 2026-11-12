@@ -52,6 +52,16 @@ function companionGrants(materials: QtiCompanionMaterials | undefined, toolId: s
 	return false;
 }
 
+/**
+ * The tool ids an item's companion materials list: `calculator`, `ruler` (QTI's
+ * `rule`) and `protractor`. The item tool bar files them as the item's required
+ * tools, so they show wherever the item is, whatever the toolkit's content check
+ * makes of its markup.
+ */
+export function companionToolIds(materials: QtiCompanionMaterials | undefined): string[] {
+	return ['calculator', 'ruler', 'protractor'].filter((toolId) => companionGrants(materials, toolId));
+}
+
 function calculatorTypeOf(value: unknown): QtiCalculatorType | undefined {
 	return typeof value === 'string' ? CALCULATOR_TYPES[value] : undefined;
 }

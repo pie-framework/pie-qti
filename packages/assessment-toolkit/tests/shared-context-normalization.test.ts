@@ -60,6 +60,24 @@ describe('normalizeQtiSharedContext', () => {
     ]);
   });
 
+  test('keeps each block\'s content language, and adds none to blocks without one', () => {
+    const context = normalizeQtiSharedContext({
+      rubricBlocks: [
+        { identifier: 'passage-fr', use: 'passage', content: '<p>Le cycle de l\'eau.</p>', view: ['candidate'], language: 'fr' },
+        { identifier: 'directions-ar', use: 'instructions', content: '<p>اقرأ النص.</p>', view: ['candidate'], language: 'ar' },
+        { identifier: 'rubric', use: 'rubric', content: '<p>Rubric</p>', view: ['candidate'] },
+      ],
+      role: 'candidate',
+    });
+
+    expect(context.passages.map((block) => [block.identifier, block.language])).toEqual([['passage-fr', 'fr']]);
+    expect(context.rubricBlocks.map((block) => [block.identifier, block.language])).toEqual([
+      ['directions-ar', 'ar'],
+      ['rubric', undefined],
+    ]);
+    expect(context.rubricBlocks[1]).not.toHaveProperty('language');
+  });
+
   test('returns empty non-rubric shared context collections', () => {
     const context = normalizeQtiSharedContext({ rubricBlocks: [], role: 'candidate' });
 

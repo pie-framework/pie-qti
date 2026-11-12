@@ -1,57 +1,78 @@
 <script lang="ts">
+	/**
+	 * Section menu: a disclosure pattern (button with `aria-expanded` plus a plain list of
+	 * section buttons). Not a `role="menu"`: section jumps are page navigation, and a
+	 * disclosure keeps normal Tab, screen-reader and touch behaviour.
+	 *
+	 * Each section shows its answered count; only sections jumping is legal for right now
+	 * (the current navigationMode, locks, finalization) are enabled. The current section
+	 * is marked with `aria-current`. Styled self-contained on the `--pie-qti-*` tokens.
+	 */
 	import { tick } from 'svelte';
 	import type { I18nProvider } from '@pie-qti/i18n';
 
-	interface Section {
+	interface SectionMenuItem {
 		id: string;
 		title?: string;
+		/** Position in the candidate-facing section list. */
 		index: number;
+		/** Whether jumping to this section is legal right now. */
+		navigable: boolean;
+		/** Items with a response (answered or partially answered). */
+		answered: number;
+		/** All delivered items in the section. */
+		total: number;
+		isCurrent: boolean;
 	}
 
 	interface Props {
-		sections: Section[];
-		currentSectionIndex?: number;
+		sections: SectionMenuItem[];
 		i18n?: I18nProvider;
 		onSectionSelect?: (sectionIndex: number) => void;
 		disabled?: boolean;
 	}
 
-	const { sections, currentSectionIndex, i18n, onSectionSelect, disabled = false }: Props = $props();
+	const { sections, i18n, onSectionSelect, disabled = false }: Props = $props();
+
+	const uid = $props.id();
+	const menuId = `${uid}-sections`;
 
 	let isOpen = $state(false);
 	let toggleButton = $state<HTMLButtonElement | null>(null);
-	let dropdownContent = $state<HTMLDivElement | null>(null);
-	const menuId = 'assessment-section-menu';
+	let listEl = $state<HTMLUListElement | null>(null);
+	let menuRoot = $state<HTMLDivElement | null>(null);
+
+	const translations = $derived.by(() => {
+		const t = (key: string, fallback: string, values?: Record<string, string | number>) =>
+			i18n?.t(key, fallback, values) ?? fallback;
+		return {
+			title: t('assessment.sections.title', 'Sections'),
+			sectionDefault: (number: number) => t('assessment.sectionDefault', 'Section {number}', { number }),
+			answeredCount: (answered: number, total: number) =>
+				t('assessment.navigation.answeredCount', '{answered} of {total} answered', { answered, total }),
+			current: t('assessment.review.currentItem', 'Current question'),
+		};
+	});
 
 	async function openMenu() {
-		if (disabled) return;
+		if (disabled || isOpen) return;
 		isOpen = true;
 		await tick();
-		const active = dropdownContent?.querySelector<HTMLButtonElement>('.section-item.active');
-		const first = dropdownContent?.querySelector<HTMLButtonElement>('.section-item:not(:disabled)');
-		(active ?? first)?.focus();
+		// Focus lands on the current section, else the first enabled one.
+		const current = listEl?.querySelector<HTMLButtonElement>('[aria-current="true"]:not(:disabled)');
+		const firstEnabled = listEl?.querySelector<HTMLButtonElement>('.section-item:not(:disabled)');
+		(current ?? firstEnabled)?.focus();
 	}
 
 	function closeMenu({ restoreFocus = true } = {}) {
+		if (!isOpen) return;
 		isOpen = false;
-		if (restoreFocus) {
-			toggleButton?.focus();
-		}
+		if (restoreFocus) toggleButton?.focus();
 	}
 
 	function toggleMenu() {
-		if (isOpen) {
-			closeMenu();
-			return;
-		}
-		void openMenu();
-	}
-
-	function handleMenuKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape') {
-			event.preventDefault();
-			closeMenu();
-		}
+		if (isOpen) closeMenu();
+		else void openMenu();
 	}
 
 	function handleToggleKeydown(event: KeyboardEvent) {
@@ -61,116 +82,91 @@
 		}
 	}
 
-	function handleBackdropClick() {
-		closeMenu();
+	function handleKeydown(event: KeyboardEvent) {
+		if (!isOpen || event.key !== 'Escape') return;
+		const target = event.target;
+		if (target instanceof Node && menuRoot?.contains(target)) {
+			event.preventDefault();
+			closeMenu();
+		}
+	}
+
+	/** Pointer presses outside the disclosure close it, like a native popover. */
+	function handlePointerDown(event: PointerEvent) {
+		if (!isOpen) return;
+		if (event.target instanceof Node && menuRoot?.contains(event.target)) return;
+		closeMenu({ restoreFocus: false });
 	}
 
 	function selectSection(sectionIndex: number) {
 		if (disabled) return;
-		if (onSectionSelect) {
-			onSectionSelect(sectionIndex);
-		}
+		if (onSectionSelect) onSectionSelect(sectionIndex);
 		closeMenu();
 	}
 </script>
 
+<svelte:window onpointerdown={handlePointerDown} onkeydown={handleKeydown} />
+
 {#if sections.length > 1}
-	<div class="section-menu">
-		<button
-			bind:this={toggleButton}
-			class="btn btn-outline btn-sm"
-			type="button"
-			aria-expanded={isOpen}
-			aria-controls={menuId}
-			onclick={() => toggleMenu?.()}
-			onkeydown={handleToggleKeydown}
-			disabled={disabled}
-		>
+	<div class="section-menu" bind:this={menuRoot}>
+	<!-- aria-controls names the list only while it exists: removed while closed,
+	     a dangling reference would point at nothing. -->
+	<button
+		bind:this={toggleButton}
+		class="section-menu-toggle"
+		type="button"
+		aria-expanded={isOpen}
+		aria-controls={isOpen ? menuId : undefined}
+		onclick={toggleMenu}
+		onkeydown={handleToggleKeydown}
+		disabled={disabled}
+	>
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
-				class="h-5 w-5"
+				class="section-menu-icon"
+				width="20"
+				height="20"
 				fill="none"
 				viewBox="0 0 24 24"
 				stroke="currentColor"
+				aria-hidden="true"
 			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M4 6h16M4 12h16M4 18h16"
-				/>
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
 			</svg>
-			{i18n?.t('assessment.sections.title') ?? 'Sections'}
+			{translations.title}
 		</button>
 
 		{#if isOpen}
 			<div class="section-dropdown">
-				<div
-					bind:this={dropdownContent}
+				<ul
+					bind:this={listEl}
 					id={menuId}
-					class="section-dropdown-content"
-					role="menu"
-					tabindex="-1"
-					aria-label={i18n?.t('assessment.sections.title') ?? 'Sections'}
-					onkeydown={handleMenuKeydown}
+					class="section-list"
+					aria-label={translations.title}
 				>
-					<div class="section-list">
-						{#each sections as section}
+					{#each sections as section (section.id)}
+						<li class="section-entry">
 							<button
 								class="section-item"
-								class:active={currentSectionIndex === section.index}
+								class:active={section.isCurrent}
 								type="button"
-								role="menuitemradio"
-								aria-checked={currentSectionIndex === section.index}
+								aria-current={section.isCurrent ? 'true' : undefined}
 								onclick={() => selectSection(section.index)}
-								disabled={disabled}
+								disabled={!section.navigable || disabled}
 							>
-								<div class="section-icon">
-									{#if currentSectionIndex === section.index}
-										<svg
-											xmlns="http://www.w3.org/2000/svg"
-											class="h-5 w-5"
-											viewBox="0 0 20 20"
-											fill="currentColor"
-										>
-											<path
-												fill-rule="evenodd"
-												d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-												clip-rule="evenodd"
-											/>
-										</svg>
-									{:else}
-										<svg
-											xmlns="http://www.w3.org/2000/svg"
-											class="h-5 w-5"
-											fill="none"
-											viewBox="0 0 24 24"
-											stroke="currentColor"
-										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-											/>
-										</svg>
-									{/if}
-								</div>
-								<div class="section-info">
-									<div class="section-title">
-										{section.title || (i18n?.t('assessment.sectionDefault', { number: section.index + 1 }) ?? `Section ${section.index + 1}`)}
-									</div>
-								</div>
+								<span class="section-info">
+									<span class="section-title">
+										{section.title?.trim() || translations.sectionDefault(section.index + 1)}
+									</span>
+									<span class="section-status">{translations.answeredCount(section.answered, section.total)}</span>
+								</span>
+								{#if section.isCurrent}
+									<span class="section-current">{translations.current}</span>
+								{/if}
 							</button>
-						{/each}
-					</div>
-				</div>
-				<button
-					class="section-backdrop"
-					type="button"
-					onclick={handleBackdropClick}
-					aria-label={i18n?.t('assessment.closeMenu') ?? 'Close menu'}
-				></button>
+						</li>
+					{/each}
+				</ul>
 			</div>
 		{/if}
 	</div>
@@ -181,92 +177,153 @@
 		position: relative;
 	}
 
+	.section-menu-toggle {
+		box-sizing: border-box;
+		display: inline-flex;
+		align-items: center;
+		gap: var(--pie-qti-space-2, 0.5rem);
+		min-inline-size: var(--pie-qti-control-min-size, 2.75rem);
+		min-block-size: var(--pie-qti-control-min-size, 2.75rem);
+		padding-block: var(--pie-qti-space-2, 0.5rem);
+		padding-inline: var(--pie-qti-space-3, 0.75rem);
+		border: 1px solid var(--pie-qti-border-strong, #767676);
+		border-radius: var(--pie-qti-radius, 0.5rem);
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+		font: inherit;
+		font-weight: 600;
+		line-height: 1.25;
+		cursor: pointer;
+	}
+
+	.section-menu-toggle:hover:not(:disabled) {
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
+	}
+
+	.section-menu-toggle:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
+	}
+
+	.section-menu-toggle:disabled {
+		cursor: not-allowed;
+		opacity: 0.55;
+	}
+
+	.section-menu-icon {
+		flex: none;
+		inline-size: 1.25rem;
+		block-size: 1.25rem;
+	}
+
 	.section-dropdown {
-		position: fixed;
-		inset: 0;
+		position: absolute;
+		inset-block-start: calc(100% + var(--pie-qti-space-1, 0.25rem));
+		inset-inline-end: 0;
 		z-index: 50;
-	}
-
-	.section-backdrop {
-		position: absolute;
-		inset: 0;
-		background: transparent;
-		border: none;
-		cursor: default;
-	}
-
-	.section-dropdown-content {
-		position: absolute;
-		top: 4rem;
-		inset-inline-end: 1rem;
-		width: 20rem;
-		max-height: 24rem;
-		overflow-y: auto;
-		background: var(--color-base-100);
-		border: 1px solid var(--color-base-300);
-		border-radius: 0.5rem;
-		box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-		z-index: 51;
+		min-inline-size: 16rem;
+		max-inline-size: min(20rem, 100vw);
 	}
 
 	.section-list {
-		padding: 0.5rem;
+		list-style: none;
+		margin: 0;
+		padding: var(--pie-qti-space-2, 0.5rem);
+		display: flex;
+		flex-direction: column;
+		gap: var(--pie-qti-space-1, 0.25rem);
+		max-block-size: 24rem;
+		overflow-y: auto;
+		border: 1px solid var(--pie-qti-border-strong, #767676);
+		border-radius: var(--pie-qti-radius, 0.5rem);
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+		box-shadow: 0 0.625rem 1.5rem rgb(0 0 0 / 0.15);
 	}
 
 	.section-item {
+		box-sizing: border-box;
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
-		width: 100%;
-		padding: 0.75rem;
-		border: none;
+		justify-content: space-between;
+		gap: var(--pie-qti-space-3, 0.75rem);
+		inline-size: 100%;
+		min-block-size: var(--pie-qti-control-min-size, 2.75rem);
+		padding-block: var(--pie-qti-space-2, 0.5rem);
+		padding-inline: var(--pie-qti-space-3, 0.75rem);
+		border: 0;
+		border-radius: var(--pie-qti-radius-sm, 0.25rem);
 		background: transparent;
-		border-radius: 0.375rem;
-		cursor: pointer;
-		transition: background-color 0.2s;
+		color: inherit;
+		font: inherit;
+		line-height: 1.3;
 		text-align: start;
+		cursor: pointer;
 	}
 
 	.section-item:hover:not(:disabled) {
-		background: var(--color-base-200);
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
+	}
+
+	/* Inset ring: the list scrolls and would clip an outer one. */
+	.section-item:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: -2px;
 	}
 
 	.section-item.active {
-		background: color-mix(in oklab, var(--color-primary) 12%, transparent);
-		color: var(--color-primary);
+		background: color-mix(
+			in oklab,
+			var(--pie-qti-primary, oklch(45% 0.24 277)) 12%,
+			var(--pie-qti-base-100, oklch(100% 0 0))
+		);
+		font-weight: 700;
 	}
 
 	.section-item:disabled {
-		opacity: 0.5;
 		cursor: not-allowed;
-	}
-
-	.section-icon {
-		flex-shrink: 0;
-		color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
-	}
-
-	.section-item.active .section-icon {
-		color: var(--color-primary);
+		opacity: 0.55;
 	}
 
 	.section-info {
-		flex: 1;
-		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--pie-qti-space-1, 0.25rem);
+		min-inline-size: 0;
 	}
 
 	.section-title {
-		font-weight: 500;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		font-weight: inherit;
+		overflow-wrap: anywhere;
 	}
 
-	@media (max-width: 640px) {
-		.section-dropdown-content {
-			inset-inline: 0;
-			width: auto;
-			margin: 0 1rem;
+	.section-item.active .section-title {
+		font-weight: 700;
+	}
+
+	.section-status {
+		font-size: 0.875em;
+		color: color-mix(in oklab, var(--pie-qti-base-content, oklch(21% 0 0)) 80%, transparent);
+	}
+
+	.section-current {
+		flex: none;
+		font-size: 0.8125em;
+		font-weight: 600;
+		border: 1px solid var(--pie-qti-border-strong, #767676);
+		border-radius: 999px;
+		padding-block: var(--pie-qti-space-1, 0.25rem);
+		padding-inline: var(--pie-qti-space-2, 0.5rem);
+	}
+
+	/* Phones: the panel spans the header row instead of overflowing the screen edge. */
+	@media (max-width: 40rem) {
+		.section-dropdown {
+			position: fixed;
+			inset-block-start: auto;
+			inset-inline: var(--pie-qti-space-3, 0.75rem);
+			min-inline-size: 0;
+			max-inline-size: none;
 		}
 	}
 </style>

@@ -1,6 +1,6 @@
 {
 	"name": "@pie-qti/transform-cli",
-	"version": "0.2.1",
+	"version": "1.0.0-beta.5",
 	"description": "CLI tool for QTI ↔ PIE transformations",
 	"type": "module",
 	"bin": {
@@ -17,14 +17,10 @@
 	"scripts": {
 		"build": "tsc",
 		"clean": "rm -rf dist",
-		"prepack": "bun run build && oclif manifest",
-		"analyze-qti": "node --loader ts-node/esm --no-warnings=ExperimentalWarning ./src/commands/analyze-qti.ts",
-		"discover-qti": "node --loader ts-node/esm --no-warnings=ExperimentalWarning ./src/commands/discover-qti.ts",
-		"batch-transform": "node --loader ts-node/esm --no-warnings=ExperimentalWarning ./src/commands/batch-transform.ts"
+		"prepack": "bun run build && oclif manifest"
 	},
 	"dependencies": {
 		"@oclif/core": "^5.1.8",
-		"@oclif/plugin-help": "^7.0.5",
 		"@pie-qti/ims-cp-node": "workspace:*",
 		"@pie-qti/logger": "workspace:*",
 		"@pie-qti/to-pie": "workspace:*",
@@ -33,7 +29,7 @@
 		"node-html-parser": "^9.0.5"
 	},
 	"devDependencies": {
-		"@types/node": "^26.6.4",
+		"@types/node": "^26.6.6",
 		"oclif": "^6.0.10",
 		"typescript": "^5.9.3"
 	},

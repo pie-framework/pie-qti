@@ -1,0 +1,18 @@
+{
+  "id": "responseProcessing_not_equal_basic",
+  "title": "responseProcessing: not(equal)",
+  "description": "Inequality as not(equal(...)) in a responseCondition — QTI defines no notEqual operator. A missing (NULL) response makes equal NULL, so the negated condition is not true.",
+  "spec": "QTI 2.2.2",
+  "provenance": { "source": "authored", "license": "CC0-1.0" },
+  "covers": [
+    "baseValue",
+    "equal",
+    "expr.baseValue",
+    "expr.equal",
+    "expr.not",
+    "expr.variable",
+    "not",
+    "stmt.responseCondition",
+    "stmt.setOutcomeValue"
+  ]
+}

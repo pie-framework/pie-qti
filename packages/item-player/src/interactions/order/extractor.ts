@@ -5,6 +5,7 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import { validateUniqueIdentifiers } from '../../extraction/utils.js';
 import { maybeShuffle } from '../../core/shuffle.js';
 
 /**
@@ -17,6 +18,8 @@ export interface OrderData {
 	maxChoices: number;
 	orientation?: string;
 	prompt: string | null;
+	/** Message shown while the response orders fewer than minChoices (data-min-selections-message) */
+	minSelectionsMessage?: string;
 }
 
 /**
@@ -62,6 +65,10 @@ export const standardOrderExtractor: ElementExtractor<OrderData> = {
 		const minChoices = utils.getNumberAttribute(element, 'minChoices', 0);
 		const maxChoices = utils.getNumberAttribute(element, 'maxChoices', 0);
 		const interactionClasses = utils.getClasses(element);
+		// QTI 3.0 defines both messages on orderInteraction (XSD: data-min-selections-message,
+		// data-max-selections-message); the max one states the subset cap when an add is refused.
+		const minSelectionsMessage = utils.getAttribute(element, 'data-min-selections-message', '') || null;
+		const maxSelectionsMessage = utils.getAttribute(element, 'data-max-selections-message', '') || null;
 
 		return {
 			choices: maybeShuffle(choices, shuffle, context.shuffleRng),
@@ -71,6 +78,8 @@ export const standardOrderExtractor: ElementExtractor<OrderData> = {
 			maxChoices,
 			prompt,
 			...(interactionClasses.length > 0 ? { interactionClasses } : {}),
+			...(minSelectionsMessage ? { minSelectionsMessage } : {}),
+			...(maxSelectionsMessage ? { maxSelectionsMessage } : {}),
 		};
 	},
 
@@ -92,16 +101,7 @@ export const standardOrderExtractor: ElementExtractor<OrderData> = {
 
 		// Validate choice identifiers
 		if (data.choices) {
-			const identifiers = new Set<string>();
-			for (const choice of data.choices) {
-				if (!choice.identifier) {
-					errors.push('All choices must have an identifier');
-				} else if (identifiers.has(choice.identifier)) {
-					errors.push(`Duplicate choice identifier: ${choice.identifier}`);
-				} else {
-					identifiers.add(choice.identifier);
-				}
-			}
+			validateUniqueIdentifiers(data.choices, errors, { plural: 'choices', noun: 'choice' });
 		}
 
 		// Validate orientation (only if provided)

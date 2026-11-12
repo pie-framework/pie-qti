@@ -1,9 +1,9 @@
 {
   "id": "responseProcessing_patternMatch_caseSensitive",
-  "title": "responseProcessing: patternMatch with caseSensitive",
-  "description": "Verifies patternMatch uses regex matching and respects caseSensitive flag.",
+  "title": "responseProcessing: patternMatch case sensitivity",
+  "description": "Verifies patternMatch compiles its XSD pattern case-sensitively: a mixed-case response needs an explicit character class.",
   "spec": {
-    "features": ["responseProcessing", "patternMatch", "caseSensitive"]
+    "features": ["responseProcessing", "patternMatch"]
   },
   "covers": [
     "baseValue",
@@ -15,5 +15,3 @@
     "stmt.setOutcomeValue"
   ]
 }
-
-

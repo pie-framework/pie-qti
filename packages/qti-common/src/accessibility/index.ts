@@ -24,8 +24,11 @@ export {
 } from './catalog.js';
 export { type QtiCatalogInfoOptions, writeQtiCatalogInfo } from './catalog-info.js';
 export {
+	CATALOG_IDREF_PATTERN,
+	catalogIdrefFromMatch,
 	type ContentLink,
 	escapeText,
+	escapeXmlAttribute,
 	HIDING_STYLES,
 	type PreparedMarkup,
 	type PrepareContentMarkupOptions,

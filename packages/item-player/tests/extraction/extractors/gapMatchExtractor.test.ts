@@ -3,8 +3,80 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardGapMatchExtractor } from '../../../src/interactions/gap-match/extractor.js';
+import { Player } from '../../../src/core/Player.js';
+import type { GapMatchInteractionData } from '../../../src/interactions/shared/types.js';
+import { type GapMatchData, standardGapMatchExtractor } from '../../../src/interactions/gap-match/extractor.js';
+import type { ItemSessionEngineConfig } from '../../../src/types/index.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
+
+describe('standardGapMatchExtractor authored fixed (QTI 2.1 fixed.GapText.Attr / fixed.GapImg.Attr)', () => {
+	const FIXED_GAP_MATCH_ITEM = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" identifier="g1"
+  title="Gap match fixed" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair"/>
+  <itemBody>
+    <gapMatchInteraction responseIdentifier="RESPONSE" shuffle="true">
+      <prompt>Fill: <gap identifier="G1"/> and <gap identifier="G2"/></prompt>
+      <gapText identifier="T1" matchMax="1" fixed="true">cat</gapText>
+      <gapText identifier="T2" matchMax="1">dog</gapText>
+      <gapImg identifier="I1" matchMax="1" fixed="true"><object data="sun.png" type="image/png">Sun</object></gapImg>
+      <gapImg identifier="I2" matchMax="1"><object data="moon.png" type="image/png">Moon</object></gapImg>
+    </gapMatchInteraction>
+  </itemBody>
+</assessmentItem>`;
+
+	const FIXED_INTERACTION = `
+		<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+			<prompt>Fill: <gap identifier="G1" /></prompt>
+			<gapText identifier="T1" matchMax="1" fixed="true">cat</gapText>
+			<gapText identifier="T2" matchMax="1">dog</gapText>
+			<gapImg identifier="I1" matchMax="1" fixed="true"><object data="sun.png" type="image/png">Sun</object></gapImg>
+			<gapImg identifier="I2" matchMax="1"><object data="moon.png" type="image/png">Moon</object></gapImg>
+		</gapMatchInteraction>
+	`;
+
+	function extractFixed(qtiVersion: string) {
+		const element = parseQTI(FIXED_INTERACTION);
+		return standardGapMatchExtractor.extract(
+			element,
+			createTestContext(element, 'RESPONSE', element, new Map(), { qtiVersion } as ItemSessionEngineConfig),
+		);
+	}
+
+	test('QTI 2.1: delivers fixed on the gapText and gapImg choices that author it', () => {
+		const result = extractFixed('2.1');
+
+		expect(result.gapTexts.find((g) => g.identifier === 'T1')?.fixed).toBe(true);
+		expect(result.gapTexts.find((g) => g.identifier === 'T2')?.fixed).toBeUndefined();
+		expect(result.gapImages.find((g) => g.identifier === 'I1')?.fixed).toBe(true);
+		expect(result.gapImages.find((g) => g.identifier === 'I2')?.fixed).toBeUndefined();
+	});
+
+	test.each(['2.2', '3.0'])('QTI %s defines no fixed on gap choices, so an authored one is not read', (qtiVersion) => {
+		// fixed.GapText.Attr / fixed.GapImg.Attr exist in the QTI 2.1 schema alone.
+		const result = extractFixed(qtiVersion);
+
+		expect(result.gapTexts.every((g) => g.fixed === undefined)).toBe(true);
+		expect(result.gapImages.every((g) => g.fixed === undefined)).toBe(true);
+	});
+
+	test('a fixed gapText and gapImg keep their pool position in every shuffle session', () => {
+		// The shuffle pool is texts first, then images, so the fixed gapText pins
+		// the first text slot and the fixed gapImg the first image slot, in every
+		// session (each Player gets its own shuffle seed).
+		let moved = 0;
+		for (let session = 0; session < 30; session++) {
+			const player = new Player({ itemXml: FIXED_GAP_MATCH_ITEM });
+			const data = player.getInteractionData()[0] as unknown as {
+				gapTexts: Array<{ identifier: string }>;
+				gapImages: Array<{ identifier: string }>;
+			};
+			if (data.gapTexts[0]?.identifier !== 'T1') moved += 1;
+			if (data.gapImages[0]?.identifier !== 'I1') moved += 1;
+		}
+		expect(moved).toBe(0);
+	});
+});
 
 describe('standardGapMatchExtractor', () => {
 	test('extracts basic gap match interaction', () => {
@@ -369,6 +441,283 @@ describe('standardGapMatchExtractor', () => {
 
 			expect(result.gapTexts[0].matchGroup).toBeUndefined();
 		});
+
+		test('reads each gap matchGroup (the choices it accepts) inside the prompt', () => {
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>First <gap identifier="G1" matchGroup="T1 T2" /> then <gap identifier="G2" />.</prompt>
+					<gapText identifier="T1" matchMax="1">one</gapText>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+
+			const result = standardGapMatchExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+			expect(result.gaps).toEqual(['G1', 'G2']);
+			expect(result.gapMatchGroups).toEqual({ G1: ['T1', 'T2'] });
+		});
+
+		test('reads each gap matchGroup when the gaps sit in body content beside the prompt', () => {
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>Fill the gaps.</prompt>
+					<gapText identifier="T1" matchMax="1">one</gapText>
+					<p>First <gap identifier="G1" /> then <gap matchGroup="T1" identifier="G2" />.</p>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+
+			const result = standardGapMatchExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+			expect(result.gaps).toEqual(['G1', 'G2']);
+			expect(result.gapMatchGroups).toEqual({ G2: ['T1'] });
+		});
+
+		test('omits gapMatchGroups when no gap authors one', () => {
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>Fill: <gap identifier="G1" /></prompt>
+					<gapText identifier="T1" matchMax="1" matchGroup="G1">Item</gapText>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+
+			const result = standardGapMatchExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+			expect(result).not.toHaveProperty('gapMatchGroups');
+		});
+	});
+
+	describe('delivered interaction data', () => {
+		test('gaps are delivered as the identifier strings of GapMatchInteractionData, with QTI 3.0 match-group', () => {
+			const itemXml = `<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="gm3">
+				<qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="directedPair"/>
+				<qti-item-body>
+					<qti-gap-match-interaction response-identifier="RESPONSE">
+						<qti-gap-text identifier="W1" match-max="1" match-group="G1">one</qti-gap-text>
+						<qti-gap-text identifier="W2" match-max="1">two</qti-gap-text>
+						<p>First <qti-gap identifier="G1"/> then <qti-gap identifier="G2" match-group="W2"/>.</p>
+					</qti-gap-match-interaction>
+				</qti-item-body>
+			</qti-assessment-item>`;
+
+			const [interaction] = new Player({ itemXml }).getInteractionData() as GapMatchInteractionData[];
+
+			expect(interaction?.gaps).toEqual(['G1', 'G2']);
+			expect(interaction?.gapMatchGroups).toEqual({ G2: ['W2'] });
+			expect(interaction?.gapTexts.find((gapText) => gapText.identifier === 'W1')?.matchGroup).toEqual(['G1']);
+		});
+	});
+
+	describe('gapImg extraction', () => {
+		test('extracts QTI 2.x gapImg with an object child', () => {
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>Fill: <gap identifier="G1" /></prompt>
+					<gapText identifier="T1" matchMax="1">cat</gapText>
+					<gapImg identifier="I1" matchMax="1">
+						<object data="images/sun.png" width="40" height="30" type="image/png">Sun</object>
+					</gapImg>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGapMatchExtractor.extract(element, context);
+
+			expect(result.gapImages).toHaveLength(1);
+			expect(result.gapImages[0]).toMatchObject({
+				identifier: 'I1',
+				src: 'images/sun.png',
+				alt: 'Sun',
+				matchMax: 1,
+				width: 40,
+				height: 30,
+			});
+		});
+
+		test('extracts QTI 3.0 gapImg labels authored as <img> and as <picture>', () => {
+			// QTI 3.0 GapImgDType allows object|img|picture; a <picture> delivers
+			// its <img> fallback (the content that renders).
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>Fill: <gap identifier="G1" /></prompt>
+					<gapImg identifier="I1" matchMax="1">
+						<img src="images/sun.png" alt="Sun" width="40" height="30"/>
+					</gapImg>
+					<gapImg identifier="I2" matchMax="1">
+						<picture><source srcset="moon-2x.png 2x"/><img src="images/moon.png" alt="Moon" width="40" height="30"/></picture>
+					</gapImg>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGapMatchExtractor.extract(element, context);
+
+			expect(result.gapImages[0]).toMatchObject({
+				identifier: 'I1',
+				src: 'images/sun.png',
+				alt: 'Sun',
+				width: 40,
+				height: 30,
+			});
+			expect(result.gapImages[1]).toMatchObject({
+				identifier: 'I2',
+				src: 'images/moon.png',
+				alt: 'Moon',
+				width: 40,
+				height: 30,
+			});
+		});
+
+		test('delivers the gapImg objectLabel for naming image labels', () => {
+			// objectLabel on gapImg (2.1 XSD objectLabel.GapImg.Attr, 3.0 object-label):
+			// the label's name for assistive technology when the image carries none.
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>Fill: <gap identifier="G1" /></prompt>
+					<gapImg identifier="I1" matchMax="1" objectLabel="A red circle">
+						<object data="images/circle.png" type="image/png"/>
+					</gapImg>
+					<gapImg identifier="I2" matchMax="1">
+						<object data="images/square.png" type="image/png">Square</object>
+					</gapImg>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGapMatchExtractor.extract(element, context);
+
+			expect(result.gapImages[0].objectLabel).toBe('A red circle');
+			expect(result.gapImages[0].alt).toBe('');
+			expect(result.gapImages[1].objectLabel).toBeUndefined();
+		});
+
+		test('extracts image choices with matchGroup and matchMax', () => {
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>Fill: <gap identifier="G1" /></prompt>
+					<gapImg identifier="I1" matchMax="2" matchGroup="shapes">
+						<object data="images/circle.png">Circle</object>
+					</gapImg>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGapMatchExtractor.extract(element, context);
+
+			expect(result.gapImages[0].matchMax).toBe(2);
+			expect(result.gapImages[0].matchGroup).toEqual(['shapes']);
+		});
+
+		test('supports mixed pools: gapText and gapImg choices can shuffle together', () => {
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="true">
+					<prompt>Fill: <gap identifier="G1" /> and <gap identifier="G2" /></prompt>
+					<gapText identifier="T1" matchMax="1">cat</gapText>
+					<gapImg identifier="I1" matchMax="1">
+						<object data="images/dog.png">Dog</object>
+					</gapImg>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGapMatchExtractor.extract(element, context);
+
+			// Shuffling redistributes the combined pool; both kinds survive it.
+			expect(result.gapTexts).toHaveLength(1);
+			expect(result.gapImages).toHaveLength(1);
+			expect(result.shuffle).toBe(true);
+		});
+
+		test('keeps authored pool order when shuffle is off', () => {
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>Fill: <gap identifier="G1" /></prompt>
+					<gapText identifier="T1" matchMax="1">cat</gapText>
+					<gapImg identifier="I1" matchMax="1">
+						<object data="images/dog.png">Dog</object>
+					</gapImg>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGapMatchExtractor.extract(element, context);
+
+			expect(result.gapTexts[0].identifier).toBe('T1');
+			expect(result.gapImages[0].identifier).toBe('I1');
+		});
+
+		test('an image-only item has no gapTexts but extracts the image', () => {
+			const xml = `
+				<gapMatchInteraction responseIdentifier="RESPONSE" shuffle="false">
+					<prompt>Fill: <gap identifier="G1" /></prompt>
+					<gapImg identifier="I1" matchMax="1">
+						<object data="images/sun.png">Sun</object>
+					</gapImg>
+				</gapMatchInteraction>
+			`;
+			const element = parseQTI(xml);
+			const context = createTestContext(element, 'RESPONSE');
+
+			const result = standardGapMatchExtractor.extract(element, context);
+
+			expect(result.gapTexts).toHaveLength(0);
+			expect(result.gapImages).toHaveLength(1);
+			expect(result.gapImages[0].src).toBe('images/sun.png');
+		});
+	});
+
+	describe('maxAssociations (per QTI version)', () => {
+		const xml = (attributes = '') => `
+			<gapMatchInteraction responseIdentifier="RESPONSE"${attributes}>
+				<gapText identifier="W1" matchMax="1">one</gapText>
+				<gapText identifier="W2" matchMax="1">two</gapText>
+				<p>A <gap identifier="G1"/> and <gap identifier="G2"/>.</p>
+			</gapMatchInteraction>
+		`;
+		function extractWith(qtiVersion: string | undefined, attributes = '') {
+			const element = parseQTI(xml(attributes));
+			const config = (qtiVersion ? { qtiVersion } : {}) as ItemSessionEngineConfig;
+			return standardGapMatchExtractor.extract(element, createTestContext(element, 'RESPONSE', element, new Map(), config));
+		}
+
+		test('QTI 2.2 and 3.0: absent maxAssociations is 1 (Default = "1", Tables 5.38.3 / 5.57.3)', () => {
+			expect(extractWith('2.2').maxAssociations).toBe(1);
+			expect(extractWith('3.0').maxAssociations).toBe(1);
+			expect(extractWith(undefined).maxAssociations).toBe(1);
+		});
+
+		test('QTI 2.1: absent maxAssociations is 0, no cap: the attribute was added in QTI 2.2', () => {
+			expect(extractWith('2.1').maxAssociations).toBe(0);
+		});
+
+		test('an authored maxAssociations is honoured in every version, "0" meaning unlimited', () => {
+			expect(extractWith('2.1', ' maxAssociations="3"').maxAssociations).toBe(3);
+			expect(extractWith('3.0', ' maxAssociations="0"').maxAssociations).toBe(0);
+			expect(extractWith('2.2', ' maxAssociations="2"').maxAssociations).toBe(2);
+		});
+
+		test('a QTI 3.0 item delivers max-associations, defaulting to 1', () => {
+			const itemXml = (attributes: string) => `<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="gm3" title="t" adaptive="false" time-dependent="false">
+				<qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="directedPair"/>
+				<qti-item-body>
+					<qti-gap-match-interaction response-identifier="RESPONSE"${attributes}>
+						<qti-gap-text identifier="W1" match-max="1">one</qti-gap-text>
+						<p>A <qti-gap identifier="G1"/> and <qti-gap identifier="G2"/>.</p>
+					</qti-gap-match-interaction>
+				</qti-item-body>
+			</qti-assessment-item>`;
+			const read = (attributes: string) =>
+				(new Player({ itemXml: itemXml(attributes) }).getInteractionData()[0] as GapMatchInteractionData).maxAssociations;
+			expect(read('')).toBe(1);
+			expect(read(' max-associations="2"')).toBe(2);
+		});
 	});
 
 	describe('canHandle predicate', () => {
@@ -395,14 +744,16 @@ describe('standardGapMatchExtractor', () => {
 
 	describe('validation', () => {
 		test('validates correct gapMatch data', () => {
-			const data = {
+			const data: GapMatchData = {
 				gapTexts: [
 					{ identifier: 'T1', text: 'Text 1', matchMax: 1 },
 					{ identifier: 'T2', text: 'Text 2', matchMax: 1 },
 				],
+				gapImages: [],
 				gaps: ['G1', 'G2'],
 				promptText: 'Fill [GAP:G1] and [GAP:G2]',
 				shuffle: false,
+				maxAssociations: 1,
 				prompt: 'Fill the gaps',
 			};
 
@@ -412,27 +763,82 @@ describe('standardGapMatchExtractor', () => {
 			expect(validation.errors).toBeUndefined();
 		});
 
-		test('reports error for empty gapTexts', () => {
-			const data = {
+		test('validates an image-only item (gapImg without gapText)', () => {
+			const data: GapMatchData = {
 				gapTexts: [],
+				gapImages: [{ identifier: 'I1', src: 'images/sun.png', alt: 'Sun', matchMax: 1 }],
+				gaps: ['G1'],
+				promptText: 'Fill [GAP:G1]',
+				shuffle: false,
+				maxAssociations: 1,
+				prompt: null,
+			};
+
+			const validation = standardGapMatchExtractor.validate!(data);
+
+			expect(validation.valid).toBe(true);
+			expect(validation.errors).toBeUndefined();
+		});
+
+		test('reports error for empty gapTexts and gapImages', () => {
+			const data: GapMatchData = {
+				gapTexts: [],
+				gapImages: [],
 				gaps: ['G1'],
 				promptText: '[GAP:G1]',
 				shuffle: false,
+				maxAssociations: 1,
 				prompt: null,
 			};
 
 			const validation = standardGapMatchExtractor.validate!(data);
 
 			expect(validation.valid).toBe(false);
-			expect(validation.errors).toContain('gapMatchInteraction must have at least one gapText');
+			expect(validation.errors).toContain('gapMatchInteraction must have at least one gapText or gapImg');
+		});
+
+		test('reports error for a gapImg without an image source', () => {
+			const data: GapMatchData = {
+				gapTexts: [{ identifier: 'T1', text: 'Text', matchMax: 1 }],
+				gapImages: [{ identifier: 'I1', src: '', alt: 'Sun', matchMax: 1 }],
+				gaps: ['G1'],
+				promptText: '[GAP:G1]',
+				shuffle: false,
+				maxAssociations: 1,
+				prompt: null,
+			};
+
+			const validation = standardGapMatchExtractor.validate!(data);
+
+			expect(validation.valid).toBe(false);
+			expect(validation.errors).toContain('gapImg I1 must reference an image source');
+		});
+
+		test('reports error when a gapImg identifier collides with a gapText identifier', () => {
+			const data: GapMatchData = {
+				gapTexts: [{ identifier: 'T1', text: 'Text', matchMax: 1 }],
+				gapImages: [{ identifier: 'T1', src: 'images/sun.png', alt: 'Sun', matchMax: 1 }],
+				gaps: ['G1'],
+				promptText: '[GAP:G1]',
+				shuffle: false,
+				maxAssociations: 1,
+				prompt: null,
+			};
+
+			const validation = standardGapMatchExtractor.validate!(data);
+
+			expect(validation.valid).toBe(false);
+			expect(validation.errors).toContain('Duplicate choice identifier: T1');
 		});
 
 		test('reports error for empty gaps', () => {
-			const data = {
+			const data: GapMatchData = {
 				gapTexts: [{ identifier: 'T1', text: 'Text', matchMax: 1 }],
 				gaps: [],
+				gapImages: [],
 				promptText: 'No gaps',
 				shuffle: false,
+				maxAssociations: 1,
 				prompt: null,
 			};
 
@@ -443,21 +849,23 @@ describe('standardGapMatchExtractor', () => {
 		});
 
 		test('reports error for duplicate gapText identifiers', () => {
-			const data = {
+			const data: GapMatchData = {
 				gapTexts: [
 					{ identifier: 'T1', text: 'Text 1', matchMax: 1 },
 					{ identifier: 'T1', text: 'Text 2', matchMax: 1 },
 				],
 				gaps: ['G1'],
+				gapImages: [],
 				promptText: '[GAP:G1]',
 				shuffle: false,
+				maxAssociations: 1,
 				prompt: null,
 			};
 
 			const validation = standardGapMatchExtractor.validate!(data);
 
 			expect(validation.valid).toBe(false);
-			expect(validation.errors).toContain('Duplicate gapText identifier: T1');
+			expect(validation.errors).toContain('Duplicate choice identifier: T1');
 		});
 	});
 });

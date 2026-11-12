@@ -1,6 +1,8 @@
 import type { ElementExtractor } from '../../extraction/types.js';
 import { normalizePixelDimension } from '../../security/styleValues.js';
-import type { QTIElement } from '../shared/types.js';
+import { extractImageAlternative, imgAlternativeSource } from '../shared/imageAlt.js';
+import { type InteractionImage, findInteractionImage } from '../shared/interactionImage.js';
+import type { PositionObjectCenterPoint, QTIElement } from '../shared/types.js';
 
 export interface ImageData {
 	type: 'image' | 'svg';
@@ -8,6 +10,12 @@ export interface ImageData {
 	content?: string;
 	width?: string;
 	height?: string;
+	/** Short text alternative extracted from the QTI source. */
+	alt?: string;
+	/** Longer description for complex images (SVG <desc>, aria description). */
+	altDescription?: string;
+	/** True only when the author explicitly marked the image decorative. */
+	decorative?: boolean;
 }
 
 export interface PositionObjectData {
@@ -19,42 +27,96 @@ export interface PositionObjectData {
 	 */
 	positionObjectStages: Array<{
 		identifier: string;
+		/**
+		 * The draggable object's authored text alternative. Empty when the author
+		 * gave none: the renderer then names it generically. Never the response
+		 * identifier, which can leak the answer key to assistive technology.
+		 */
 		label: string;
 		matchMax: number;
 		objectData: ImageData | null;
 		classes?: string[];
 	}>;
-	centerPoint: boolean;
+	/**
+	 * The point on the draggable object image treated as its position, as an
+	 * offset from the object image's top-left corner in its own pixels. `null`
+	 * when unauthored: the QTI default is the centre of its bounding rectangle.
+	 */
+	centerPoint: PositionObjectCenterPoint | null;
 	maxChoices: number;
 	minChoices: number;
 	prompt: string | null;
 }
 
-function imageDataFromObject(
-	objectElement: QTIElement | undefined,
-	utils: Parameters<ElementExtractor<PositionObjectData>['extract']>[1]['utils'],
-	defaultWidth: string,
-	defaultHeight: string,
+/**
+ * Read the authored reference point. QTI 2.2 spells the attribute `centerPoint`
+ * and the QTI 2.1 schema `centrePoint`; the attribute mapper resolves the QTI 3.0
+ * kebab-case form of either. The value is two numbers, horizontal then vertical,
+ * whitespace-separated (a comma is tolerated, as in `coords`). Anything else
+ * counts as unauthored, so the object falls back to the QTI default, its centre.
+ */
+function readCenterPoint(
+	element: QTIElement,
+	{ utils }: Parameters<ElementExtractor<PositionObjectData>['extract']>[1],
+): PositionObjectCenterPoint | null {
+	const authored = utils.getAttribute(element, 'centerPoint') || utils.getAttribute(element, 'centrePoint');
+	const parts = authored.trim().split(/[\s,]+/);
+	if (parts.length !== 2 || !parts.every((part) => /^[+-]?\d+(\.\d+)?$/.test(part))) return null;
+	return { x: Number(parts[0]), y: Number(parts[1]) };
+}
+
+/**
+ * The image data of one resolved interaction image. QTI 2.x authors an
+ * `<object data=… width height>`; the QTI 3.0 schema gives the stage background
+ * and the draggable a choice of `object`, `img` or `picture` (delivered via the
+ * `<picture>`'s `<img>` fallback).
+ */
+function imageDataFromInteractionImage(
+	image: InteractionImage | null | undefined,
+	context: Parameters<ElementExtractor<PositionObjectData>['extract']>[1],
+	fallback?: { width: string; height: string },
 ): ImageData | null {
-	if (!objectElement) return null;
+	if (!image) return null;
+	const imageElement = image.element;
+	const { utils, dom } = context;
+	// The pixel space is the authored width/height, when declared (the stage's
+	// natural size stands in when it is not). A `fallback` keeps a box size that
+	// is not a scoring space (the draggable object's 50×50).
+	const width = normalizePixelDimension(utils.getAttribute(imageElement, 'width', ''), fallback?.width);
+	const height = normalizePixelDimension(utils.getAttribute(imageElement, 'height', ''), fallback?.height);
 
-	const type = utils.getAttribute(objectElement, 'type', '');
-	const data = utils.getAttribute(objectElement, 'data', '');
-	const width = normalizePixelDimension(
-		utils.getAttribute(objectElement, 'width', ''),
-		defaultWidth,
-	);
-	const height = normalizePixelDimension(
-		utils.getAttribute(objectElement, 'height', ''),
-		defaultHeight,
-	);
-	const content = utils.getHtmlContent(objectElement);
-
-	if (type.startsWith('image/svg') && /<svg[\s>]/i.test(content)) {
-		return { type: 'svg', content, width, height };
+	if (image.kind === 'img') {
+		// QTI 3.0 <img>: the alt attribute is the text alternative (alt="" = decorative)
+		return {
+			type: 'image',
+			src: utils.getAttribute(imageElement, 'src', ''),
+			width,
+			height,
+			...extractImageAlternative(imageElement, utils, dom, imgAlternativeSource(imageElement)),
+		};
 	}
 
-	return { type: 'image', src: data, width, height };
+	const type = utils.getAttribute(imageElement, 'type', '');
+	const data = utils.getAttribute(imageElement, 'data', '');
+	const content = utils.getHtmlContent(imageElement);
+
+	if (type.startsWith('image/svg') && /<svg[\s>]/i.test(content)) {
+		return {
+			type: 'svg',
+			content,
+			width,
+			height,
+			...extractImageAlternative(imageElement, utils, dom, { inlineSvgContent: content }),
+		};
+	}
+
+	return {
+		type: 'image',
+		src: data,
+		width,
+		height,
+		...extractImageAlternative(imageElement, utils, dom),
+	};
 }
 
 export const standardPositionObjectExtractor: ElementExtractor<PositionObjectData> = {
@@ -79,13 +141,15 @@ export const standardPositionObjectExtractor: ElementExtractor<PositionObjectDat
 			? parent
 			: undefined;
 
-		const backgroundObject = stage ? utils.getChildrenByTag(stage, 'object')[0] : undefined;
-		const draggableObject = utils.getChildrenByTag(element, 'object')[0];
-		const imageData = imageDataFromObject(backgroundObject, utils, '500', '300');
-		const objectData = imageDataFromObject(draggableObject, utils, '50', '50');
+		const backgroundImage = stage ? findInteractionImage(stage, utils) : undefined;
+		const draggableImage = findInteractionImage(element, utils);
+		const imageData = imageDataFromInteractionImage(backgroundImage, context);
+		const objectData = imageDataFromInteractionImage(draggableImage, context, { width: '50', height: '50' });
 		const maxChoices = utils.getNumberAttribute(element, 'maxChoices', 1);
 		const minChoices = utils.getNumberAttribute(element, 'minChoices', 0);
-		const label = utils.getTextContent(draggableObject).trim() || responseId;
+		// The draggable object's authored alternative names it. No identifier
+		// fallback: the renderer substitutes a localized generic name instead.
+		const label = objectData?.alt ?? '';
 		const classes = utils.getClasses(element);
 		const prompt = utils.getPrompt(element);
 
@@ -100,9 +164,9 @@ export const standardPositionObjectExtractor: ElementExtractor<PositionObjectDat
 					...(classes.length > 0 ? { classes } : {}),
 				},
 			],
-			// The renderer currently represents the QTI default (the object's centre)
-			// as a boolean. Explicit centre coordinates remain a follow-up API change.
-			centerPoint: true,
+			// The point on the draggable object recorded as its position; null keeps
+			// the QTI default (the centre of the object's bounding rectangle).
+			centerPoint: readCenterPoint(element, context),
 			maxChoices,
 			minChoices,
 			prompt,
@@ -114,24 +178,37 @@ export const standardPositionObjectExtractor: ElementExtractor<PositionObjectDat
 		const warnings: string[] = [];
 
 		if (!data.imageData) {
-			errors.push('positionObjectInteraction must have a parent positionObjectStage with a background object');
+			errors.push('positionObjectInteraction must have a parent positionObjectStage with a background image');
 		} else if (data.imageData.type === 'image' && !data.imageData.src) {
-			errors.push('positionObjectStage background object must have a data URL');
+			errors.push('positionObjectStage background image must have a data URL');
 		} else if (data.imageData.type === 'svg' && !data.imageData.content) {
-			errors.push('positionObjectStage background object must have SVG content');
+			errors.push('positionObjectStage background image must have SVG content');
 		}
 
 		const draggable = data.positionObjectStages[0];
 		if (!draggable?.objectData) {
-			errors.push('positionObjectInteraction must contain one draggable object');
+			errors.push('positionObjectInteraction must contain one draggable image');
 		} else if (draggable.objectData.type === 'image' && !draggable.objectData.src) {
-			errors.push('positionObjectInteraction draggable object must have a data URL');
+			errors.push('positionObjectInteraction draggable image must have a data URL');
 		}
 
 		if (data.maxChoices < 0) errors.push('maxChoices must be non-negative');
 		if (data.minChoices < 0) errors.push('minChoices must be non-negative');
 		if (data.maxChoices > 0 && data.minChoices > data.maxChoices) {
 			errors.push('minChoices cannot exceed maxChoices');
+		}
+
+		const objectWidth = Number(draggable?.objectData?.width);
+		const objectHeight = Number(draggable?.objectData?.height);
+		if (
+			data.centerPoint &&
+			objectWidth > 0 &&
+			objectHeight > 0 &&
+			(data.centerPoint.x < 0 || data.centerPoint.y < 0 || data.centerPoint.x > objectWidth || data.centerPoint.y > objectHeight)
+		) {
+			warnings.push(
+				`centerPoint ${data.centerPoint.x} ${data.centerPoint.y} lies outside the ${objectWidth}×${objectHeight} object image`,
+			);
 		}
 
 		if (data.imageData?.type === 'image') {

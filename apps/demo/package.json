@@ -8,18 +8,20 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
+    "clean": "rm -rf build .svelte-kit",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "typecheck": "tsc --noEmit",
     "test": "echo 'E2E tests run separately via test:e2e'",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --project=chromium",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:headed": "playwright test --headed",
-    "test:a11y": "playwright test tests/playwright/component-fixtures-a11y.pw.ts tests/playwright/assessment-a11y-behavior.pw.ts tests/playwright/qti3-stage5-a11y.pw.ts",
-    "test:a11y:ui": "playwright test tests/playwright/component-fixtures-a11y.pw.ts tests/playwright/assessment-a11y-behavior.pw.ts tests/playwright/qti3-stage5-a11y.pw.ts --ui"
+    "test:e2e:headed": "playwright test --project=chromium --headed",
+    "test:e2e:cross-browser": "playwright test --project=webkit --project=firefox",
+    "test:a11y": "playwright test --project=chromium tests/playwright/component-fixtures-a11y.pw.ts tests/playwright/assessment-a11y-behavior.pw.ts tests/playwright/qti3-stage5-a11y.pw.ts tests/playwright/a11y-regression.pw.ts",
+    "test:a11y:ui": "playwright test tests/playwright/component-fixtures-a11y.pw.ts tests/playwright/assessment-a11y-behavior.pw.ts tests/playwright/qti3-stage5-a11y.pw.ts tests/playwright/a11y-regression.pw.ts --ui"
   },
   "dependencies": {
     "@acme/likert-scale-plugin": "workspace:*",
-    "@pie-players/tts-server-polly": "1.0.0-beta.6",
+    "@pie-players/tts-server-polly": "1.0.0-beta.9",
     "@pie-qti/assessment-player": "workspace:*",
     "@pie-qti/default-components": "workspace:*",
     "@pie-qti/i18n": "workspace:*",
@@ -27,19 +29,17 @@
     "@pie-qti/ims-cp-core": "workspace:*",
     "@pie-qti/item-player": "workspace:*",
     "@pie-qti/logger": "workspace:*",
-    "@pie-qti/pie-to-qti2": "workspace:*",
     "@pie-qti/player-elements": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
     "@pie-qti/section-player": "workspace:*",
-    "@pie-qti/theme-daisyui": "workspace:*",
     "@pie-qti/typeset-katex": "workspace:*",
     "@pie-qti/web-component-loaders": "workspace:*",
     "@tiptap/core": "3.32.0",
     "@tiptap/extension-code-block": "3.32.0",
     "@tiptap/extension-code-block-lowlight": "3.32.0",
     "@tiptap/extension-document": "3.32.0",
-    "@tiptap/extension-history": "3.32.0",
-    "@tiptap/extension-text": "3.32.0",
+    "@tiptap/extension-history": "3.32.2",
+    "@tiptap/extension-text": "3.32.2",
     "@tiptap/pm": "3.32.0",
     "highlight.js": "^11.11.1",
     "lowlight": "^3.3.0",
@@ -51,11 +51,11 @@
     "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.64.1",
     "@sveltejs/adapter-static": "^4.0.0",
-    "@sveltejs/kit": "^3.1.0",
+    "@sveltejs/kit": "^3.1.1",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^26.6.4",
+    "@types/node": "^26.6.6",
     "@types/unzipper": "^0.10.11",
     "@types/xml2js": "^0.4.14",
     "daisyui": "^5.7.50",
@@ -68,22 +68,6 @@
   },
   "engines": {
     "node": ">=22.17.0"
-  },
-  "peerDependencies": {
-    "@pie-framework/pie-assessment-player": "^1.0.0",
-    "@pie-framework/pie-iife-player": "^1.0.0",
-    "@pie-framework/pie-esm-player": "^1.0.0"
-  },
-  "peerDependenciesMeta": {
-    "@pie-framework/pie-assessment-player": {
-      "optional": true
-    },
-    "@pie-framework/pie-iife-player": {
-      "optional": true
-    },
-    "@pie-framework/pie-esm-player": {
-      "optional": true
-    }
   },
   "license": "MIT",
   "imports": {

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="mapResponse_identifier_case_sensitive" title="mapResponse identifier matching stays case-sensitive" adaptive="false" timeDependent="false">
+  <!-- Even with caseSensitive="false" authored, identifier values match exactly (QTI ASI §17):
+       mapEntry@caseSensitive loosens string matching only. -->
+  <responseDeclaration identifier="R" cardinality="single" baseType="identifier">
+    <mapping defaultValue="0.5">
+      <mapEntry mapKey="Paris" mappedValue="1" caseSensitive="false"/>
+    </mapping>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Name a city.</p>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="SCORE">
+      <mapResponse identifier="R"/>
+    </setOutcomeValue>
+  </responseProcessing>
+</assessmentItem>

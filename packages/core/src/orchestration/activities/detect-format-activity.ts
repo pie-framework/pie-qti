@@ -4,6 +4,7 @@
  * Detects the format of content (QTI 2.2, PIE, etc.)
  */
 
+import { detectQtiVersion } from '@pie-qti/qti-common/version-detection';
 import type { Activity, TransformFormat } from '@pie-qti/transform-types';
 
 export interface DetectFormatInput {
@@ -27,7 +28,7 @@ export const DetectFormatActivity: Activity<DetectFormatInput, DetectFormatOutpu
 
     const content = typeof input.content === 'string' ? input.content : JSON.stringify(input.content);
 
-    // Check for PIE format (JSON-based)
+    // Check for PIE format (JSON-based) first: the narrowest signal.
     if (typeof input.content === 'object' || content.trim().startsWith('{')) {
       try {
         const obj = typeof input.content === 'object' ? input.content : JSON.parse(content);
@@ -45,16 +46,17 @@ export const DetectFormatActivity: Activity<DetectFormatInput, DetectFormatOutpu
       }
     }
 
-    // Check for QTI 2.2 format (XML-based)
-    if (content.includes('<assessmentItem') || content.includes('<assessmentTest')) {
-      context.log('info', 'Detected QTI 2.2 format');
-      return { format: 'qti22', confidence: 0.9 };
-    }
-
-    // Check for QTI 3.0 format
-    if (content.includes('xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0"')) {
+    // QTI version detection is delegated to the canonical detector in qti-common, which checks
+    // the namespace before element names. A QTI 3.0 item also contains camelCase
+    // `<assessmentItem` markup vocabulary, so an element-name sniff alone misreads it as QTI 2.2.
+    const version = detectQtiVersion(content);
+    if (version === '3.0') {
       context.log('info', 'Detected QTI 3.0 format');
       return { format: 'qti30', confidence: 0.9 };
+    }
+    if (version === '2.0' || version === '2.1' || version === '2.2') {
+      context.log('info', 'Detected QTI 2.x format');
+      return { format: 'qti22', confidence: 0.9 };
     }
 
     throw new Error('Unable to detect content format');

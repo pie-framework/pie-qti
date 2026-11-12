@@ -1,0 +1,15 @@
+---
+'@pie-qti/qti-processing': patch
+'@pie-qti/item-player': patch
+---
+
+Spec-compliance fixes for adaptive items, test-level weights, template constraints, validated end of attempt and PCI response JSON (QTI ASI §4, §5.2, §10.3, §15.1; PCI v1.0 Appendix A as adopted by QTI 3.0).
+
+**Scoring changes, stated plainly:**
+
+- Adaptive items keep their outcome values across attempts (§5.2). Response processing no longer resets an adaptive item's outcomes before each run, so rules that build on earlier attempts work: an item that counts tries and gives partial credit for a later correct attempt now scores the partial credit, where it previously scored full credit as if every attempt were the first. Non-adaptive items still reset outcomes before every run. Every response-processing run of an adaptive item builds on the current values, `scoreAttempt` included, so re-scoring a restored adaptive session applies its rules again; report such a session's score from its restored outcome values.
+- `<variable weightIdentifier>` in test-level outcome processing is now applied (§15.1): an item variable read as `ITEMREF.VARIABLE` is multiplied by that item reference's named weight (1.0 when the reference defines none). Weights apply to integer and float values only, and a weighted value is float. Weighted test scores previously came out unweighted.
+- A `templateConstraint` restart discards everything the rejected pass did (§10.3): a correct response set by `setCorrectResponse`, or a default changed by `setDefaultValue`, no longer carries into the accepted pass and into scoring.
+- `dispatch({ action: 'endAttempt', validateResponses: true })` now also rejects responses that miss their interaction's constraints (§4): fewer selections, associations, strings or plays than `minChoices`, `minAssociations`, `matchMin`, `minStrings` or `minPlays` require. The result reads `validation.valid === false` with an `incomplete` issue per response, the attempt is not counted, and the session stays writable. An item with no response at all is a skip, which `allowSkipping` governs at the caller, and is not rejected.
+
+**PCI contract change (PCI hosts and authors):** responses cross the PCI boundary in the PCI v1.0 Appendix A JSON binding. Seeded `getInstance` state, and the exported `toQtiVariableJson`, now write pair, directedPair and point values as two-element arrays (`{"base":{"pair":["A","B"]}}`), durations as ISO 8601 strings (`"PT90S"`), files as `{data, mime, name}`, and records as an array of `{name, base|list}` members. Previously a conformant PCI's pair response was stored as `"A,B"` and scored 0, and a spec-shaped record came back keyed by array index. `fromQtiVariableJson` returns a record in its typed form (each field `{ baseType, cardinality, value }`), takes an optional declaration for base-type names it does not know, and still accepts the earlier name-keyed record form. A PCI written against the previous shapes (pairs and points as `"A B"` strings, name-keyed records, numeric durations) must move to the spec binding. Record responses also keep list-valued fields as containers when a PCI reports them or a session restores them.

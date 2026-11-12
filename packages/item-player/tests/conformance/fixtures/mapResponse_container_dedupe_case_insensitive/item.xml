@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="mapResponse_container_dedupe_case_insensitive" title="mapResponse container deduplication folds case" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="R" cardinality="multiple" baseType="string">
+    <!-- No caseSensitive anywhere: the spec default is case-insensitive, so Paris and paris
+         are the same mapped value and count once (QTI ASI §15.3). -->
+    <mapping defaultValue="0.5">
+      <mapEntry mapKey="Paris" mappedValue="1"/>
+    </mapping>
+  </responseDeclaration>
+
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+
+  <itemBody>
+    <p>Name cities.</p>
+  </itemBody>
+
+  <responseProcessing>
+    <setOutcomeValue identifier="SCORE">
+      <mapResponse identifier="R"/>
+    </setOutcomeValue>
+  </responseProcessing>
+</assessmentItem>

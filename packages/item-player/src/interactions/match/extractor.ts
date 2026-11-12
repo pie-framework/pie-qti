@@ -5,14 +5,15 @@
  */
 
 import type { ElementExtractor } from '../../extraction/types.js';
+import { validateUniqueIdentifiers } from '../../extraction/utils.js';
 import { maybeShuffle } from '../../core/shuffle.js';
 
 /**
  * Match data extracted from matchInteraction elements
  */
 export interface MatchData {
-	sourceSet: Array<{ identifier: string; text: string; matchMax: number; matchMin?: number; matchGroup?: string[]; classes?: string[] }>;
-	targetSet: Array<{ identifier: string; text: string; matchMax: number; matchMin?: number; matchGroup?: string[]; classes?: string[] }>;
+	sourceSet: Array<{ identifier: string; text: string; matchMax: number; matchMin?: number; matchGroup?: string[]; fixed?: boolean; classes?: string[] }>;
+	targetSet: Array<{ identifier: string; text: string; matchMax: number; matchMin?: number; matchGroup?: string[]; fixed?: boolean; classes?: string[] }>;
 	shuffle: boolean;
 	maxAssociations: number;
 	minAssociations?: number;
@@ -45,8 +46,8 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 		// In QTI, matchInteraction can have two simpleMatchSet elements
 		const matchSets = utils.getChildrenByTag(element, 'simpleMatchSet');
 
-		let sourceSet: Array<{ identifier: string; text: string; matchMax: number; matchMin?: number; matchGroup?: string[]; classes?: string[] }> = [];
-		let targetSet: Array<{ identifier: string; text: string; matchMax: number; matchMin?: number; matchGroup?: string[]; classes?: string[] }> = [];
+		let sourceSet: Array<{ identifier: string; text: string; matchMax: number; matchMin?: number; matchGroup?: string[]; fixed?: boolean; classes?: string[] }> = [];
+		let targetSet: Array<{ identifier: string; text: string; matchMax: number; matchMin?: number; matchGroup?: string[]; fixed?: boolean; classes?: string[] }> = [];
 
 		if (matchSets.length >= 2) {
 			// Extract choices from first matchSet (source)
@@ -58,12 +59,15 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 				const matchMin = utils.getNumberAttribute(choice, 'matchMin', 0);
 				const matchGroupRaw = utils.getAttribute(choice, 'matchGroup', '');
 				const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
+				const fixed = utils.getBooleanAttribute(choice, 'fixed');
 				return {
 					identifier: utils.getAttribute(choice, 'identifier', ''),
 					text: utils.getHtmlContent(choice),
 					matchMax,
 					...(matchMin > 0 ? { matchMin } : {}),
 					...(matchGroup.length > 0 ? { matchGroup } : {}),
+					// Authored fixed pins the choice under shuffle (QTI fixed.SimpleAssociableChoice.Attr).
+					...(fixed ? { fixed } : {}),
 					...(classes.length > 0 ? { classes } : {}),
 				};
 			});
@@ -77,12 +81,14 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 				const matchMin = utils.getNumberAttribute(choice, 'matchMin', 0);
 				const matchGroupRaw = utils.getAttribute(choice, 'matchGroup', '');
 				const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
+				const fixed = utils.getBooleanAttribute(choice, 'fixed');
 				return {
 					identifier: utils.getAttribute(choice, 'identifier', ''),
 					text: utils.getHtmlContent(choice),
 					matchMax,
 					...(matchMin > 0 ? { matchMin } : {}),
 					...(matchGroup.length > 0 ? { matchGroup } : {}),
+					...(fixed ? { fixed } : {}),
 					...(classes.length > 0 ? { classes } : {}),
 				};
 			});
@@ -94,12 +100,14 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 				const matchMin = utils.getNumberAttribute(choice, 'matchMin', 0);
 				const matchGroupRaw = utils.getAttribute(choice, 'matchGroup', '');
 				const matchGroup = matchGroupRaw.split(/\s+/).filter(Boolean);
+				const fixed = utils.getBooleanAttribute(choice, 'fixed');
 				return {
 					identifier: utils.getAttribute(choice, 'identifier', ''),
 					text: utils.getHtmlContent(choice),
 					matchMax,
 					...(matchMin > 0 ? { matchMin } : {}),
 					...(matchGroup.length > 0 ? { matchGroup } : {}),
+					...(fixed ? { fixed } : {}),
 					...(classes.length > 0 ? { classes } : {}),
 				};
 			});
@@ -113,9 +121,10 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 		const minAssociationsRaw = utils.getNumberAttribute(element, 'minAssociations', 0);
 		const minAssociations = minAssociationsRaw > 0 ? minAssociationsRaw : undefined;
 		const interactionClasses = utils.getClasses(element);
-		const maxSelectionsMessage = utils.getAttribute(element, 'data-qti-max-selections-message', '') || null;
-		const minSelectionsMessage = utils.getAttribute(element, 'data-qti-min-selections-message', '') || null;
-		const firstColumnHeader = utils.getAttribute(element, 'data-qti-first-column-header', '') || null;
+		// QTI 3.0 defines both messages on matchInteraction under these spec names; no QTI
+		// version defines a data-qti- spelling, so none is read.
+		const maxSelectionsMessage = utils.getAttribute(element, 'data-max-selections-message', '') || null;
+		const minSelectionsMessage = utils.getAttribute(element, 'data-min-selections-message', '') || null;
 
 		// Extract prompt (optional)
 		const promptElements = utils.getChildrenByTag(element, 'prompt');
@@ -131,7 +140,6 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 			...(interactionClasses.length > 0 ? { interactionClasses } : {}),
 			...(maxSelectionsMessage ? { maxSelectionsMessage } : {}),
 			...(minSelectionsMessage ? { minSelectionsMessage } : {}),
-			...(firstColumnHeader ? { firstColumnHeader } : {}),
 		};
 	},
 
@@ -150,29 +158,11 @@ export const standardMatchExtractor: ElementExtractor<MatchData> = {
 
 		// Validate choice identifiers
 		if (data.sourceSet) {
-			const identifiers = new Set<string>();
-			for (const choice of data.sourceSet) {
-				if (!choice.identifier) {
-					errors.push('All source choices must have an identifier');
-				} else if (identifiers.has(choice.identifier)) {
-					errors.push(`Duplicate source identifier: ${choice.identifier}`);
-				} else {
-					identifiers.add(choice.identifier);
-				}
-			}
+			validateUniqueIdentifiers(data.sourceSet, errors, { plural: 'source choices', noun: 'source' });
 		}
 
 		if (data.targetSet) {
-			const identifiers = new Set<string>();
-			for (const choice of data.targetSet) {
-				if (!choice.identifier) {
-					errors.push('All target choices must have an identifier');
-				} else if (identifiers.has(choice.identifier)) {
-					errors.push(`Duplicate target identifier: ${choice.identifier}`);
-				} else {
-					identifiers.add(choice.identifier);
-				}
-			}
+			validateUniqueIdentifiers(data.targetSet, errors, { plural: 'target choices', noun: 'target' });
 		}
 
 		// Validate maxAssociations

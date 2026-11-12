@@ -13,10 +13,10 @@ evals:
     sampleId: media-audio
     gradeBand: "K-12"
     subject: ela
-    intent: "Play count increments when media ends; meeting minPlays scores 1."
+    intent: "Play count increments when a play starts; meeting minPlays scores 1."
     notes:
-      - "This component counts a 'play' on the `ended` event (completion), not on play start."
-      - "AI tools may need to increase playbackRate or simulate `ended` to avoid long waits."
+      - "This component counts a 'play' when playback begins at the start of the media (the `playing` event), not on completion; pause and resume continue the same play."
+      - "A play counts as soon as playback starts, so AI tools need not wait for `ended`; the runner sets the count directly."
     steps:
       - action: navigate
         path: "/item-demo/media-audio"
@@ -70,7 +70,7 @@ evals:
     sampleId: media-video
     gradeBand: "K-12"
     subject: science
-    intent: "Watching at least once (ended count >= 1) should score 1."
+    intent: "Watching at least once (play count >= 1) should score 1."
     steps:
       - action: navigate
         path: "/item-demo/media-video"

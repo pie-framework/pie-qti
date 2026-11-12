@@ -8,58 +8,94 @@
  */
 
 import type { GraphicGapMatchInteractionData } from '@pie-qti/item-player';
-import { normalizeCssPixelLength, normalizePixelDimension } from '@pie-qti/item-player/security';
-import { joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
-import { touchDrag } from '@pie-qti/qti-common';
-import { createQtiChangeEvent } from '../../shared/utils/eventHelpers.js';
-import { parseJsonProp } from '../../shared/utils/webComponentHelpers';
-import { interactionAria } from '../../shared/utils/interactionAria';
-import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import { tick } from 'svelte';
+	import { touchDrag } from '@pie-qti/qti-common';
+import HotspotShape from '../../shared/components/HotspotShape.svelte';
+import ImageStage from '../../shared/components/ImageStage.svelte';
+import { emitInteractionChange } from '../../shared/utils/eventHelpers.js';
+	import { normalizeCssPixelLength } from '@pie-qti/item-player/security';
+	import { formatList, joinSentences, translate, type I18nProvider } from '@pie-qti/i18n';
+	import type { InteractionProps } from '../../shared/utils/interactionProps';
+	import { createInteractionShell } from '../../shared/utils/webComponentHelpers';
+	import { exceedsLimit, limitMessage } from '../../shared/utils/capacity';
+	import { isCompatibleMatchGroup, matchGroupBlockedIds } from '../../shared/utils/matchGroupUtils';
+	import { interactionAria } from '../../shared/utils/interactionAria';
+	import InteractionDescription from '../../shared/components/InteractionDescription.svelte';
+	import MinimumRequirementHint from '../../shared/components/MinimumRequirementHint.svelte';
+	import { createPickUpPlace } from '../../shared/components/pickUpPlace.svelte';
+import { choiceAccessibleName } from '../../shared/utils/choiceName';
+import { createAnnouncer } from '../../shared/utils/announcer.svelte';
+import { createStageImage } from '../../shared/utils/stageImage.svelte';
+import { choicesShortOfMatchMin } from '../../shared/utils/minimumRequirement';
+	import {
+		getSourceForTarget,
+		getTargetForSource,
+		placeSourceOnTarget,
+		removePairBySource,
+	} from '../../shared/utils/pairHelpers';
+import { hitStrokeWidth, imageAltText, shapeCenter } from '../../shared/utils/graphicRegions';
 
-import '../../shared/styles/shared.css';
+import '../../shared/styles/srOnly.js';
 import ShadowBaseStyles from '../../shared/components/ShadowBaseStyles.svelte';
 
-interface Props {
-	interaction?: GraphicGapMatchInteractionData | string;
-	response?: string | string[] | null;
-	correctResponse?: string[] | null;
-	disabled?: boolean;
-	role?: string;
-	i18n?: I18nProvider;
-	onChange?: (value: string[]) => void;
-}
+	type Props = InteractionProps<'graphicGapMatchInteraction', string | string[] | null, string[] | null>;
 
 let { interaction = $bindable(), response = $bindable(), correctResponse = $bindable(), disabled = false, role = 'candidate', i18n = $bindable(), onChange }: Props = $props();
 
-// Parse props that may be JSON strings (web component usage)
-const parsedInteraction = $derived(parseJsonProp<GraphicGapMatchInteractionData>(interaction));
-const parsedResponse = $derived(parseJsonProp<string | string[]>(response));
-const parsedCorrectResponse = $derived(parseJsonProp<string[]>(correctResponse));
-const isShowingCorrect = $derived(role === 'scorer' && parsedCorrectResponse !== null);
+const uid = $props.id();
+
+// Parse props that may be JSON strings (web component usage). Correct-answer mode is the
+// scorer's view of an item that has a correct response (the shared shell's rule).
+const shell = $derived(
+		createInteractionShell<GraphicGapMatchInteractionData, string | string[], string[]>({
+			interaction,
+			response,
+			correctResponse,
+			role,
+			listResponse: true,
+		}),
+);
+const parsedInteraction = $derived(shell.interaction);
+const parsedResponse = $derived(shell.response);
+const parsedCorrectResponse = $derived(shell.correctResponse);
+const isShowingCorrect = $derived(shell.isShowingCorrect);
 const correctPairs = $derived(Array.isArray(parsedCorrectResponse) ? parsedCorrectResponse : []);
 const choicesContainerWidth = $derived(
 	normalizeCssPixelLength(parsedInteraction?.choicesContainerWidth),
 );
-const imageWidth = $derived(normalizePixelDimension(parsedInteraction?.imageData?.width));
-const imageHeight = $derived(normalizePixelDimension(parsedInteraction?.imageData?.height));
-const stageStyle = $derived(
-	[
-		'position: relative',
-		'display: inline-block',
-		imageWidth ? `width: ${imageWidth}px` : '',
-		imageHeight ? `height: ${imageHeight}px` : '',
-	]
-		.filter(Boolean)
-		.join('; '),
+
+const imageData = $derived(parsedInteraction?.imageData ?? null);
+
+// The stage's pixel space: the image's authored width/height, else its natural size once
+// loaded (resolved by the shared ImageStage; `refuse` mode). Hotspot coords are in that
+// pixel space when the item declares no width/height.
+const stage = createStageImage({
+	needsDimensions: () => !!imageData,
+	missingDimensionsWarning:
+		'[pie-qti-graphic-gap-match] The image has no known width/height, so its hotspots cannot be placed. Add width and height to the image, or supply the asset dimensions.',
+});
+// Tell authors once, on the console, when the dimensions never arrive.
+$effect(() => stage.warnOnceMissingDimensions());
+
+const imageAlt = $derived(
+	imageAltText(imageData, translate(i18n, 'interactions.graphicGapMatch.imageFallback', 'Image for this question')),
 );
+const imageDescription = $derived(imageData?.decorative ? '' : (imageData?.altDescription ?? ''));
+const imageDescriptionId = $derived(`${uid}-image-description`);
+const instructionsId = $derived(`${uid}-instructions`);
+
+function warnImageFailed(src: string) {
+	console.warn(`[pie-qti-graphic-gap-match] The image failed to load: ${src}`);
+}
 
 let pairs = $state<string[]>([]);
-let draggedTextId = $state<string | null>(null);
 let hoveredHotspotId = $state<string | null>(null);
-/** Identifier of the label currently "held" via keyboard (two-phase pick-up/drop). */
-let pickedUpLabel = $state<string | null>(null);
-/** Text announced to screen readers via the aria-live region. */
-let liveMessage = $state<string>('');
+/** The label "held" via the keyboard (two-phase pick-up/drop), and the label a pointer drag carries. */
+const pickUp = createPickUpPlace();
+/** The live region's announcements: the shared announcer keeps a repeat of the same
+    sentence changing the region's text, so an identical refusal still announces
+    (a live region speaks only changes; WCAG 4.1.3). */
+const liveAnnouncer = createAnnouncer();
 
 // Get reference to the root element for event dispatching (needed for Shadow DOM)
 let rootElement: HTMLDivElement | undefined = $state();
@@ -67,27 +103,60 @@ let rootElement: HTMLDivElement | undefined = $state();
 // Track if we're updating from internal change (user drag) vs external (prop update)
 let isInternalUpdate = false;
 
-// Labels (gapTexts + gapImages) unavailable due to matchGroup conflicts with already-placed labels
-const unavailableLabels = $derived.by(() => {
-	if (!parsedInteraction) return new Set<string>();
-	type WithMatchGroup = { identifier: string; matchGroup?: string[] };
-	const gapTexts = parsedInteraction.gapTexts as WithMatchGroup[];
-	const gapImages = (parsedInteraction.gapImages ?? []) as WithMatchGroup[];
-	const placedGroups = new Set<string>();
-	for (const pair of pairs) {
-		const labelId = pair.split(' ')[0];
-		const label = [...gapTexts, ...gapImages].find((g) => g.identifier === labelId);
-		label?.matchGroup?.forEach((g) => placedGroups.add(g));
-	}
-	return new Set(
-		[...gapTexts, ...gapImages]
-			.filter((label) => {
-				const isPlaced = pairs.some((p) => p.startsWith(`${label.identifier} `));
-				if (isPlaced) return false;
-				return label.matchGroup?.some((g) => placedGroups.has(g)) ?? false;
-			})
-			.map((label) => label.identifier)
+/** A palette label (gap text or gap image) by identifier. */
+function findLabel(labelId: string): { identifier: string; matchGroup?: string[] } | undefined {
+	if (!parsedInteraction) return undefined;
+	return (
+		parsedInteraction.gapTexts.find((g) => g.identifier === labelId) ??
+		(parsedInteraction.gapImages ?? []).find((g) => g.identifier === labelId)
 	);
+}
+
+/**
+ * Whether `matchGroup` lets a label go on a hotspot: the label's `matchGroup` names the
+ * hotspots it may be matched with and the hotspot's names the labels it accepts, read by
+ * the same rule response validation applies, so the UI and validation agree.
+ */
+function canPlaceLabel(labelId: string, hotspotId: string): boolean {
+	const label = findLabel(labelId);
+	const hotspot = parsedInteraction?.hotspots.find((h) => h.identifier === hotspotId);
+	return !!label && !!hotspot && isCompatibleMatchGroup(label, hotspot);
+}
+
+/**
+ * Whether `pairs` would hold more associations than the interaction's `maxAssociations`
+ * allows (QTI: 0 means no restriction). The per-label and per-hotspot `matchMax` need no
+ * separate check here: the placement model holds one pair per label and one pair per
+ * hotspot, so a placement never raises either side's count above 1.
+ */
+function exceedsMaxAssociations(candidatePairs: string[]): boolean {
+	return exceedsLimit(candidatePairs.length, Number(parsedInteraction?.maxAssociations ?? 0));
+}
+
+/** Announce a refused placement: the author's data-max-selections-message wins. */
+function announceAssociationLimit() {
+	liveAnnouncer.announce(
+		limitMessage(
+			parsedInteraction?.maxSelectionsMessage,
+			translate(
+				i18n,
+				'interactions.graphicGapMatch.associationLimitReached',
+				'Association not possible: the limit of {max} is reached.',
+				{ max: Number(parsedInteraction?.maxAssociations ?? 0) },
+			),
+		),
+	);
+}
+
+// Hotspots the label being placed may not go on, due to matchGroup: the dragged label during a
+// drag (what a drop would place), else the held one.
+const blockedHotspotIds = $derived.by(() => {
+	const labelId = pickUp.active;
+	if (!labelId || !parsedInteraction) return new Set<string>();
+	const label = findLabel(labelId);
+	// A label the palette does not have goes on no hotspot.
+	if (!label) return new Set(parsedInteraction.hotspots.map((h) => h.identifier));
+	return matchGroupBlockedIds(label, parsedInteraction.hotspots);
 });
 
 $effect(() => {
@@ -101,20 +170,38 @@ $effect(() => {
 
 // Get the hotspot matched to a gap text
 function getMatchedHotspot(gapTextId: string): string | null {
-	const pair = pairs.find((p) => p.startsWith(`${gapTextId} `));
-	return pair ? pair.split(' ')[1] : null;
+	return getTargetForSource(pairs, gapTextId);
 }
+
+/**
+ * Minimum requirement (each label's matchMin): the labels the response does not place
+ * often enough yet — the same minimum response validation enforces — are named on the
+ * question; the author's `data-min-selections-message` wins.
+ */
+const minHintId = `${uid}-min-hint`;
+const shortLabels = $derived(
+	parsedInteraction
+		? choicesShortOfMatchMin([...parsedInteraction.gapTexts, ...(parsedInteraction.gapImages ?? [])], pairs)
+		: [],
+);
+const minHint = $derived.by(() => {
+	if (disabled || role !== 'candidate' || shortLabels.length === 0) return '';
+	return (
+		parsedInteraction?.minSelectionsMessage?.trim() ||
+		translate(i18n, 'interactions.graphicGapMatch.minPlacementsHint', 'Still to place on the hotspots: {labels}.', {
+			labels: formatList(i18n, shortLabels.map((label) => getLabelName(label.identifier))),
+		})
+	);
+});
 
 // Get the gap text matched to a hotspot
 function getMatchedGapText(hotspotId: string): string | null {
-	const pair = pairs.find((p) => p.endsWith(` ${hotspotId}`));
-	return pair ? pair.split(' ')[0] : null;
+	return getSourceForTarget(pairs, hotspotId);
 }
 
 // Get the correct gap text for a hotspot
 function getCorrectGapText(hotspotId: string): string | null {
-	const pair = correctPairs.find((p) => p.endsWith(` ${hotspotId}`));
-	return pair ? pair.split(' ')[0] : null;
+	return getSourceForTarget(correctPairs, hotspotId);
 }
 
 // Check if a hotspot has a correct answer
@@ -124,16 +211,18 @@ function isCorrectHotspot(hotspotId: string): boolean {
 
 function handleDragStart(gapTextId: string) {
 	if (disabled) return;
-	draggedTextId = gapTextId;
+	pickUp.startDrag(gapTextId);
 }
 
 function handleDragEnd() {
-	draggedTextId = null;
+	pickUp.endDrag();
 	hoveredHotspotId = null;
 }
 
 function handleHotspotDragOver(event: DragEvent, hotspotId: string) {
-	if (disabled || !draggedTextId) return;
+	if (disabled || !pickUp.dragged) return;
+	// Not a drop target for this label (matchGroup): leave the default "no drop" feedback.
+	if (blockedHotspotIds.has(hotspotId)) return;
 	event.preventDefault();
 	hoveredHotspotId = hotspotId;
 }
@@ -143,113 +232,195 @@ function handleHotspotDragLeave() {
 }
 
 function handleHotspotDrop(event: DragEvent, hotspotId: string) {
+	const draggedTextId = pickUp.dragged;
 	if (disabled || !draggedTextId || !parsedInteraction) return;
 	event.preventDefault();
 
-	// Remove any existing pair for this gapText
-	let newPairs = pairs.filter((p) => !p.startsWith(`${draggedTextId} `));
+	// matchGroup: refuse a placement the hotspot does not accept; placeLabel refuses (and
+	// announces) one past maxAssociations.
+	if (canPlaceLabel(draggedTextId, hotspotId)) placeLabel(draggedTextId, hotspotId);
 
-	// Remove any existing pair for this hotspot
-	newPairs = newPairs.filter((p) => !p.endsWith(` ${hotspotId}`));
+	pickUp.endDrag();
+	hoveredHotspotId = null;
+}
 
-	// Add new pair
-	newPairs.push(`${draggedTextId} ${hotspotId}`);
+/**
+ * Place `labelId` on `hotspotId`: the hotspot's previous label is replaced, and a placed label
+ * moves — the palette retires a placed label, so each label holds one hotspot whatever its
+ * matchMax (capacity 1). A placement past maxAssociations is refused and announced — the same
+ * maxima response validation enforces — so an over-limit response never reaches the submit
+ * that would reject it. Returns whether the response changed.
+ */
+function placeLabel(labelId: string, hotspotId: string): boolean {
+	const newPairs = placeSourceOnTarget(pairs, labelId, hotspotId, 1);
+	if (exceedsMaxAssociations(newPairs)) {
+		announceAssociationLimit();
+		return false;
+	}
 
 	isInternalUpdate = true; // Mark as internal update to prevent sync effect from overwriting
 	pairs = newPairs;
 	response = pairs;
 	// Call onChange callback if provided (for Svelte component usage)
-	onChange?.(pairs);
-	// Dispatch custom event for web component usage - dispatch from rootElement to ensure it bubbles out of Shadow DOM
-	const valueArray = Array.isArray(pairs) ? [...pairs] : [];
-	if (rootElement) {
-		rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction.responseId, valueArray));
-	}
-
-	draggedTextId = null;
-	hoveredHotspotId = null;
+	emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: pairs, onChange });
+	return true;
 }
 
-function clearMatch(gapTextId: string) {
-	if (disabled || !parsedInteraction) return;
-	const gapTextObj = parsedInteraction.gapTexts.find((g) => g.identifier === gapTextId);
-	const gapTextName = gapTextObj?.text || labelFallback();
+	async function clearMatch(labelId: string, event?: MouseEvent) {
+		if (disabled || !parsedInteraction) return;
+		const labelName = getLabelName(labelId);
+		// The remove button shares its wrapper with the label button it clears; the
+		// wrapper (and that label button) survive the removal.
+		const wrapper = (event?.currentTarget as HTMLElement | null)?.parentElement ?? null;
 
-	const newPairs = pairs.filter((p) => !p.startsWith(`${gapTextId} `));
-	isInternalUpdate = true; // Mark as internal update
-	pairs = newPairs;
-	response = pairs;
-	// Call onChange callback if provided (for Svelte component usage)
-	onChange?.(pairs);
-	// Dispatch custom event for web component usage - dispatch from rootElement to ensure it bubbles out of Shadow DOM
-	const valueArray = Array.isArray(pairs) ? [...pairs] : [];
-	if (rootElement) {
-		rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction.responseId, valueArray));
+		const newPairs = removePairBySource(pairs, labelId);
+		isInternalUpdate = true; // Mark as internal update
+		pairs = newPairs;
+		response = pairs;
+		// Call onChange callback if provided (for Svelte component usage)
+		emitInteractionChange({ target: rootElement, responseId: parsedInteraction?.responseId, value: pairs, onChange });
+
+		liveAnnouncer.announce(
+			translate(i18n, 'interactions.graphicGapMatch.labelRemoved', '{label} removed from hotspot.', { label: labelName }),
+		);
+
+		// The remove button is gone, which would drop keyboard focus to the document.
+		// Focus returns to the now-enabled label button beside it.
+		await tick();
+		wrapper?.querySelector<HTMLButtonElement>('button')?.focus();
 	}
-
-	liveMessage = translate(i18n, 'interactions.graphicGapMatch.labelRemoved', '{label} removed from hotspot.', { label: gapTextName });
-}
 
 /**
- * Resolve a human-readable name for a label by identifier.
- * Checks gapTexts first, then gapImages.
+ * Each palette label's 1-based position in the order the candidate sees:
+ * gap texts first, then gap images, as the palette renders them.
+ */
+const labelPositions = $derived.by(() => {
+	const positions = new Map<string, number>();
+	if (!parsedInteraction) return positions;
+	let position = 0;
+	for (const label of [...parsedInteraction.gapTexts, ...(parsedInteraction.gapImages ?? [])]) {
+		position += 1;
+		positions.set(label.identifier, position);
+	}
+	return positions;
+});
+
+/**
+ * Resolve a human-readable name for a label by identifier: a gap text's text,
+ * a gap image's alternative text, else the localized ordinal of its palette
+ * position ("Choice 3" — the same fallback the text gap-match interaction
+ * uses) — never the identifier, which can reveal the answer key.
  */
 function getLabelName(labelId: string): string {
-	if (!parsedInteraction) return labelFallback();
-	const text = parsedInteraction.gapTexts.find((g) => g.identifier === labelId);
-	if (text) return text.text;
-	const img = parsedInteraction.gapImages.find((g) => g.identifier === labelId);
-	if (img) return img.alt || img.identifier;
-	return labelFallback();
+	return choiceAccessibleName({
+		i18n,
+		label: labelContent(labelId),
+		position: labelPositions.get(labelId) ?? 0,
+	});
 }
 
-function labelFallback(): string {
-	return translate(i18n, 'interactions.graphicGapMatch.labelFallback', 'Label');
+function labelContent(labelId: string): string {
+	const text = parsedInteraction?.gapTexts.find((g) => g.identifier === labelId);
+	if (text) return text.text;
+	const img = (parsedInteraction?.gapImages ?? []).find((g) => g.identifier === labelId);
+	// The image's alternative text names it; the gapImg's authored `objectLabel`
+	// stands in when the image itself carries none (QTI objectLabel/object-label).
+	return img?.alt || img?.objectLabel || '';
 }
 
 function cancelledMessage(): string {
 	return translate(i18n, 'common.selectionCancelled', 'Selection cancelled');
 }
 
-/** Accessible name of a palette label: its name, then its state, then what a key press does. */
-function paletteLabelAriaLabel(name: string, placed: boolean, unavailable: boolean, held: boolean): string {
+/**
+ * Accessible description of a palette label: whether it is already placed, then what a key
+ * press does. The label's name stays its own name and aria-pressed carries the picked-up
+ * state, so neither changes the name nor is said twice (WCAG 4.1.2).
+ */
+function paletteLabelHint(placed: boolean, held: boolean): string {
 	return joinSentences(
-		translate(i18n, 'accessibility.sentence', '{text}.', { text: name }),
-		placed
-			? translate(i18n, 'interactions.graphicGapMatch.alreadyPlacedSentence', 'Already placed on a hotspot.')
-			: unavailable && translate(i18n, 'interactions.graphicGapMatch.unavailableSentence', 'Not available due to a match group restriction.'),
+		placed && translate(i18n, 'interactions.graphicGapMatch.alreadyPlacedSentence', 'Already placed on a hotspot.'),
 		held
-			? translate(i18n, 'interactions.graphicGapMatch.heldHint', 'Picked up. Tab to a hotspot and press Enter to place it.')
+			? translate(i18n, 'interactions.graphicGapMatch.heldHint', 'Tab to a hotspot and press Enter to place it.')
 			: translate(i18n, 'interactions.graphicGapMatch.pickUpHint', 'Press Space or Enter to pick up.'),
 	);
 }
 
-/** Accessible name of a hotspot: its number and contents, then the drop hint while a label is held. */
-function hotspotAriaLabel(number: number, contains: string | undefined, correct: string | undefined, heldLabel: string | null): string {
-	const state = contains
-		? translate(i18n, 'interactions.graphicGapMatch.hotspotContains', 'Hotspot {number}. Contains {label}.', { number, label: contains })
-		: correct
-			? translate(i18n, 'interactions.graphicGapMatch.hotspotCorrectAnswer', 'Hotspot {number}. Correct answer: {label}.', { number, label: correct })
-			: translate(i18n, 'interactions.graphicGapMatch.hotspotEmpty', 'Hotspot {number}. Empty.', { number });
+/**
+ * Id of a palette label's hidden description, unique per interaction instance. Built from the
+ * label's kind and position, never its identifier, which must not reach the DOM.
+ */
+function paletteHintId(kind: 'text' | 'image', index: number): string {
+	return `${uid}-${kind}-label-hint-${index}`;
+}
+
+/**
+ * The name of a hotspot zone: its authored `hotspotLabel` when the author gave
+ * one (QTI hotspotLabel / hotspot-label), else the localized ordinal ("Hotspot
+ * 3"). Never the identifier, which can reveal the answer key.
+ */
+function hotspotZoneName(hotspot: { hotspotLabel?: string }, number: number): string {
+	return (
+		hotspot.hotspotLabel?.trim() ||
+		translate(i18n, 'interactions.graphicGapMatch.hotspot', 'Hotspot {number}', { number })
+	);
+}
+
+/**
+ * Accessible name of a hotspot: its name and contents, then the drop hint while a label
+ * is held, or that matchGroup keeps the held label off it. A zone the author named
+ * (`hotspotLabel`) is announced by that name; an unnamed one keeps its ordinal.
+ */
+function hotspotAriaLabel(
+	hotspot: { hotspotLabel?: string },
+	number: number,
+	contains: string | undefined,
+	correct: string | undefined,
+	heldLabel: string | null,
+	blocked: boolean,
+): string {
+	// A named zone: its name as a sentence, then the localized state after it
+	// (the shared sentence and correct-answer keys; `contains` is this
+	// interaction's own state-only key).
+	const authored = hotspot.hotspotLabel?.trim();
+	const sentence = (text: string) => translate(i18n, 'accessibility.sentence', '{text}.', { text });
+	const state = authored
+		? contains
+			? joinSentences(
+					sentence(authored),
+					sentence(translate(i18n, 'interactions.graphicGapMatch.contains', 'Contains: {label}', { label: contains })),
+				)
+			: correct
+				? joinSentences(
+						sentence(authored),
+						translate(i18n, 'accessibility.correctAnswerIs', 'Correct answer: {answer}.', { answer: correct }),
+					)
+				: sentence(authored)
+		: contains
+			? translate(i18n, 'interactions.graphicGapMatch.hotspotContains', 'Hotspot {number}. Contains {label}.', { number, label: contains })
+			: correct
+				? translate(i18n, 'interactions.graphicGapMatch.hotspotCorrectAnswer', 'Hotspot {number}. Correct answer: {label}.', { number, label: correct })
+				: translate(i18n, 'interactions.graphicGapMatch.hotspotEmpty', 'Hotspot {number}. Empty.', { number });
 	return joinSentences(
 		state,
-		heldLabel && translate(i18n, 'interactions.graphicGapMatch.placeHereHint', 'Press Enter to place {label} here.', { label: heldLabel }),
+		blocked
+			? translate(i18n, 'interactions.graphicGapMatch.unavailableSentence', 'Not available due to a match group restriction.')
+			: heldLabel && translate(i18n, 'interactions.graphicGapMatch.placeHereHint', 'Press Enter to place {label} here.', { label: heldLabel }),
 	);
 }
 
 // Phase-1 handler: pick up or put down a label from the palette.
 function handleLabelActivate(labelId: string) {
-	if (disabled || unavailableLabels.has(labelId) || getMatchedHotspot(labelId)) return;
+	if (disabled || getMatchedHotspot(labelId)) return;
 
-	if (pickedUpLabel === labelId) {
-		// Second press on the same label cancels the pick-up
-		pickedUpLabel = null;
-		liveMessage = cancelledMessage();
-	} else {
-		pickedUpLabel = labelId;
-		const name = getLabelName(labelId);
-		liveMessage = translate(i18n, 'interactions.graphicGapMatch.pickedUp', 'Picked up: {label}. Tab to a hotspot and press Enter to place it.', { label: name });
-	}
+	// A second press on the same label cancels the pick-up; another label switches to it.
+	liveAnnouncer.announce(
+		pickUp.toggle(labelId)
+			? translate(i18n, 'interactions.graphicGapMatch.pickedUp', 'Picked up: {label}. Tab to a hotspot and press Enter to place it.', {
+					label: getLabelName(labelId),
+				})
+			: cancelledMessage(),
+	);
 }
 
 function handleLabelKeyDown(event: KeyboardEvent, labelId: string) {
@@ -258,45 +429,48 @@ function handleLabelKeyDown(event: KeyboardEvent, labelId: string) {
 	if (event.key === ' ' || event.key === 'Enter') {
 		event.preventDefault();
 		handleLabelActivate(labelId);
-	} else if (event.key === 'Escape' && pickedUpLabel) {
+	} else if (event.key === 'Escape' && pickUp.held) {
 		event.preventDefault();
-		pickedUpLabel = null;
-		liveMessage = cancelledMessage();
+		pickUp.release();
+		liveAnnouncer.announce(cancelledMessage());
 	}
 }
 
 // Phase-2 handler: drop the held label onto a hotspot.
 function placePickedUpLabelOnHotspot(hotspotId: string) {
-	if (disabled || !pickedUpLabel || !parsedInteraction) return;
-
+	if (disabled || !pickUp.held || !parsedInteraction) return;
 	const hotspotIndex = parsedInteraction.hotspots.findIndex((h) => h.identifier === hotspotId);
-	const labelName = getLabelName(pickedUpLabel);
+	const hotspot = hotspotIndex >= 0 ? parsedInteraction.hotspots[hotspotIndex] : undefined;
 
-	// Create match
-	let newPairs = pairs.filter((p) => !p.startsWith(`${pickedUpLabel} `));
-	newPairs = newPairs.filter((p) => !p.endsWith(` ${hotspotId}`));
-	newPairs.push(`${pickedUpLabel} ${hotspotId}`);
+	// A refused placement keeps the label held, so the candidate can place it elsewhere or cancel.
+	const placed = pickUp.place(hotspotId, (labelId) => {
+		// matchGroup: this hotspot does not accept the held label.
+		if (!canPlaceLabel(labelId, hotspotId)) {
+			liveAnnouncer.announce(
+				translate(i18n, 'interactions.graphicGapMatch.unavailableSentence', 'Not available due to a match group restriction.'),
+			);
+			return false;
+		}
+		// maxAssociations: placeLabel refuses (and announces) a placement past the cap.
+		return placeLabel(labelId, hotspotId);
+	});
+	if (placed === null) return;
 
-	isInternalUpdate = true; // Mark as internal update
-	pairs = newPairs;
-	response = pairs;
-	// Call onChange callback if provided (for Svelte component usage)
-	onChange?.(pairs);
-	// Dispatch custom event for web component usage - dispatch from rootElement to ensure it bubbles out of Shadow DOM
-	const valueArray = Array.isArray(pairs) ? [...pairs] : [];
-	if (rootElement) {
-		rootElement.dispatchEvent(createQtiChangeEvent(parsedInteraction.responseId, valueArray));
-	}
-
-	liveMessage = translate(i18n, 'interactions.graphicGapMatch.labelPlaced', '{label} placed on hotspot {hotspot}', { label: labelName, hotspot: hotspotIndex + 1 });
-	pickedUpLabel = null;
+	liveAnnouncer.announce(
+		translate(i18n, 'interactions.graphicGapMatch.labelPlaced', '{label} placed on hotspot {hotspot}', {
+			label: getLabelName(placed),
+			// The message names the target "hotspot {n}"; a zone the author named
+			// (hotspotLabel) is announced by that name instead of its number.
+			hotspot: hotspot?.hotspotLabel?.trim() || hotspotIndex + 1,
+		}),
+	);
 }
 
 function handleHotspotKeyDown(event: KeyboardEvent, hotspotId: string) {
 	if (disabled || !parsedInteraction) return;
 
 	if (event.key === ' ' || event.key === 'Enter') {
-		if (pickedUpLabel) {
+		if (pickUp.held) {
 			event.preventDefault();
 			placePickedUpLabelOnHotspot(hotspotId);
 		}
@@ -305,10 +479,10 @@ function handleHotspotKeyDown(event: KeyboardEvent, hotspotId: string) {
 
 // Global Escape on root element cancels any active pick-up
 function handleRootKeyDown(event: KeyboardEvent) {
-	if (event.key === 'Escape' && pickedUpLabel) {
+	if (event.key === 'Escape' && pickUp.held) {
 		event.preventDefault();
-		pickedUpLabel = null;
-		liveMessage = cancelledMessage();
+		pickUp.release();
+		liveAnnouncer.announce(cancelledMessage());
 	}
 }
 
@@ -330,13 +504,13 @@ function handleRootKeyDown(event: KeyboardEvent) {
 
 		<!-- Visually-hidden live region for screen reader announcements -->
 		<div aria-live="polite" aria-atomic="true" class="sr-only">
-			{liveMessage}
+			{liveAnnouncer.message}
 		</div>
 
 		<p>{i18n?.t('interactions.graphicGapMatch.pointerInstructions') ?? 'Select a label, then select a hotspot on the image. You can also drag and drop.'}</p>
 
 		<!-- Instructions for keyboard users -->
-		<div id="graphic-gap-match-instructions" class="sr-only">
+		<div id={instructionsId} class="sr-only">
 			{translate(
 				i18n,
 				'interactions.graphicGapMatch.pickUpInstructions',
@@ -344,11 +518,21 @@ function handleRootKeyDown(event: KeyboardEvent) {
 			)}
 		</div>
 
+		{#if stage.missingDimensions && role !== 'candidate'}
+			<div part="diagnostic" class="alert alert-error" role="alert">
+				{translate(
+					i18n,
+					'interactions.graphicGapMatch.unknownImageDimensions',
+					'The hotspots cannot be shown: the size of the image is unknown. Add width and height to the image.',
+				)}
+			</div>
+		{/if}
+
 		<div
 			part="region"
 			class="qti-ggm-region space-y-4"
 			role="region"
-			aria-describedby="graphic-gap-match-instructions"
+			aria-describedby={instructionsId}
 		>
 			<!-- Draggable gap texts (labels) - Hide when showing correct answers -->
 			{#if !isShowingCorrect}
@@ -358,48 +542,48 @@ function handleRootKeyDown(event: KeyboardEvent) {
 					style={choicesContainerWidth ? `width: ${choicesContainerWidth}` : undefined}
 					role="group"
 					aria-label={i18n?.t('interactions.graphicGapMatch.availableLabel') ?? 'Available labels to place'}
+					aria-describedby={minHint ? minHintId : undefined}
 				>
 					<div class="qti-ggm-labels-title w-full text-sm text-base-content/70 font-semibold mb-2">
 						{i18n?.t('interactions.graphicGapMatch.availableHeading') ?? 'Available Labels:'}
 					</div>
-					{#each parsedInteraction.gapTexts as gapText (gapText.identifier)}
+					{#each parsedInteraction.gapTexts as gapText, textIndex (gapText.identifier)}
 						{@const matchedHotspot = getMatchedHotspot(gapText.identifier)}
-						{@const isDragged = draggedTextId === gapText.identifier}
-						{@const isHeld = pickedUpLabel === gapText.identifier}
-						{@const isUnavailable = unavailableLabels.has(gapText.identifier)}
+						{@const isDragged = pickUp.dragged === gapText.identifier}
+						{@const isHeld = pickUp.isHeld(gapText.identifier)}
 
 						<div class="inline-flex items-center gap-1">
 							<button
 								type="button"
-								draggable={!disabled && !matchedHotspot && !isUnavailable}
+								draggable={!disabled && !matchedHotspot}
 								use:touchDrag
 								ondragstart={() => handleDragStart(gapText.identifier)}
 								ondragend={handleDragEnd}
 								onclick={() => handleLabelActivate(gapText.identifier)}
 								onkeydown={(e) => handleLabelKeyDown(e, gapText.identifier)}
 								disabled={disabled || !!matchedHotspot}
-								aria-disabled={isUnavailable ? 'true' : undefined}
 								aria-pressed={isHeld}
-								aria-label={paletteLabelAriaLabel(gapText.text, !!matchedHotspot, isUnavailable, isHeld)}
+								aria-label={gapText.text}
+								aria-describedby={paletteHintId('text', textIndex)}
 								class="btn btn-md font-medium transition-all"
 								class:btn-primary={!matchedHotspot && !isHeld}
 								class:qti-ggm-label-held={isHeld}
 								class:btn-success={matchedHotspot}
-								class:cursor-grab={!disabled && !matchedHotspot && !isHeld && !isUnavailable}
-								class:cursor-not-allowed={disabled || isUnavailable}
-								class:opacity-40={isUnavailable}
-								class:opacity-70={!isUnavailable && (disabled || isDragged)}
+								class:cursor-grab={!disabled && !matchedHotspot && !isHeld}
+								class:cursor-not-allowed={disabled}
+								class:opacity-70={disabled || isDragged}
 								class:contrast-125={matchedHotspot}
 								class:saturate-150={matchedHotspot}
 							>
 								{gapText.text}
 							</button>
+							<span id={paletteHintId('text', textIndex)} hidden>{paletteLabelHint(!!matchedHotspot, isHeld)}</span>
 							{#if matchedHotspot && !disabled}
 								<button
 									type="button"
 									part="label-remove"
 									class="btn btn-sm btn-circle btn-error"
-									onclick={() => clearMatch(gapText.identifier)}
+									onclick={(e) => clearMatch(gapText.identifier, e)}
 									aria-label={translate(i18n, 'interactions.graphicGapMatch.removeFromHotspot', 'Remove {label} from hotspot', { label: gapText.text })}
 									title={i18n?.t('interactions.graphicGapMatch.removeLabel') ?? 'Remove label'}
 								>
@@ -409,48 +593,48 @@ function handleRootKeyDown(event: KeyboardEvent) {
 						</div>
 					{/each}
 
-					{#each (parsedInteraction.gapImages ?? []) as gapImage (gapImage.identifier)}
+					{#each (parsedInteraction.gapImages ?? []) as gapImage, imageIndex (gapImage.identifier)}
 						{@const matchedHotspot = getMatchedHotspot(gapImage.identifier)}
-						{@const isDragged = draggedTextId === gapImage.identifier}
-						{@const isHeld = pickedUpLabel === gapImage.identifier}
-						{@const isUnavailable = unavailableLabels.has(gapImage.identifier)}
+						{@const isDragged = pickUp.dragged === gapImage.identifier}
+						{@const isHeld = pickUp.isHeld(gapImage.identifier)}
+						{@const gapImageName = getLabelName(gapImage.identifier)}
 
 						<div class="inline-flex items-center gap-1">
 							<button
 								type="button"
-								draggable={!disabled && !matchedHotspot && !isUnavailable}
+								draggable={!disabled && !matchedHotspot}
 								use:touchDrag
 								ondragstart={() => handleDragStart(gapImage.identifier)}
 								ondragend={handleDragEnd}
 								onclick={() => handleLabelActivate(gapImage.identifier)}
 								onkeydown={(e) => handleLabelKeyDown(e, gapImage.identifier)}
 								disabled={disabled || !!matchedHotspot}
-								aria-disabled={isUnavailable ? 'true' : undefined}
 								aria-pressed={isHeld}
-								aria-label={paletteLabelAriaLabel(gapImage.alt || gapImage.identifier, !!matchedHotspot, isUnavailable, isHeld)}
+								aria-label={gapImageName}
+								aria-describedby={paletteHintId('image', imageIndex)}
 								class="btn btn-md p-1 transition-all"
 								class:btn-primary={!matchedHotspot && !isHeld}
 								class:qti-ggm-label-held={isHeld}
 								class:btn-success={matchedHotspot}
-								class:cursor-grab={!disabled && !matchedHotspot && !isHeld && !isUnavailable}
-								class:cursor-not-allowed={disabled || isUnavailable}
-								class:opacity-40={isUnavailable}
-								class:opacity-70={!isUnavailable && (disabled || isDragged)}
+								class:cursor-grab={!disabled && !matchedHotspot && !isHeld}
+								class:cursor-not-allowed={disabled}
+								class:opacity-70={disabled || isDragged}
 							>
 								<img
 									src={gapImage.src}
-									alt={gapImage.alt || gapImage.identifier}
-									style={gapImage.width ? `width: ${gapImage.width}px;` : ''}
+									alt={gapImageName}
+									style={gapImage.width ? `width: ${gapImage.width}px; max-width: 100%;` : ''}
 								/>
 							</button>
+							<span id={paletteHintId('image', imageIndex)} hidden>{paletteLabelHint(!!matchedHotspot, isHeld)}</span>
 							{#if matchedHotspot && !disabled}
 								<button
 									type="button"
 									part="label-remove"
 									class="btn btn-sm btn-circle btn-error"
-									onclick={() => clearMatch(gapImage.identifier)}
+									onclick={(e) => clearMatch(gapImage.identifier, e)}
 									aria-label={translate(i18n, 'interactions.graphicGapMatch.removeFromHotspot', 'Remove {label} from hotspot', {
-										label: gapImage.alt || gapImage.identifier,
+										label: gapImageName,
 									})}
 									title={i18n?.t('interactions.graphicGapMatch.removeLabel') ?? 'Remove label'}
 								>
@@ -463,137 +647,169 @@ function handleRootKeyDown(event: KeyboardEvent) {
 			{/if}
 
 			<!-- Image/diagram with hotspot drop zones -->
-			<div
-				part="stage"
-				class="qti-ggm-stage relative inline-block border-2 border-base-300 rounded-lg"
-				style={stageStyle}
-			>
-				<!-- SVG image or raster image -->
-				{#if parsedInteraction.imageData?.content}
-					{@html parsedInteraction.imageData.content}
-				{:else if parsedInteraction.imageData?.src}
-					<img
-						src={parsedInteraction.imageData.src}
-						alt={i18n?.t('interactions.graphicGapMatch.imageAlt') ?? 'Graphic gap match image'}
-						style="width: 100%; height: 100%; display: block; position: absolute; top: 0; left: 0;"
-					/>
-				{/if}
-
-				<!-- Overlay with hotspot drop zones -->
-				<svg
-					part="overlay"
-					class="qti-ggm-overlay absolute top-0 left-0 w-full h-full pointer-events-none"
-					style="position: absolute; width: 100%; height: 100%; pointer-events: none; top: 0; left: 0;"
-					viewBox="0 0 {imageWidth} {imageHeight}"
+			<div part="stage" class="qti-ggm-stage" style={stage.frameStyle}>
+				<ImageStage
+					{imageData}
+					alt={imageAlt}
+					description={imageDescription}
+					descriptionId={imageDescriptionId}
+					containerClass="qti-ggm-canvas"
+					capContainerWidth={false}
+					svgContentClass="qti-ggm-image"
+					imgClass="qti-ggm-image"
+					errorClass="qti-ggm-image qti-ggm-image-error"
+					mediaPart="image"
+					errorPart="image-error"
+					loadErrorText={translate(i18n, 'interactions.graphicGapMatch.imageLoadError', 'The image could not be loaded.')}
+					onImageError={warnImageFailed}
+					sizing="refuse"
+					reportWidth
+					bind:width={stage.imageWidth}
+					bind:height={stage.imageHeight}
+					bind:failed={stage.imageFailed}
+					bind:awaiting={stage.awaitingNaturalSize}
+					bind:renderedWidth={stage.renderedWidth}
 				>
-					{#each parsedInteraction.hotspots as hotspot (hotspot.identifier)}
-						{@const matchedGapText = getMatchedGapText(hotspot.identifier)}
-						{@const gapTextObj = matchedGapText ? parsedInteraction.gapTexts.find((g) => g.identifier === matchedGapText) : null}
-						{@const isHovered = hoveredHotspotId === hotspot.identifier}
-						{@const correctGapText = getCorrectGapText(hotspot.identifier)}
-						{@const correctGapTextObj = correctGapText ? parsedInteraction.gapTexts.find((g) => g.identifier === correctGapText) : null}
-						{@const isCorrect = isCorrectHotspot(hotspot.identifier)}
-						{@const hotspotReady = !!pickedUpLabel && !disabled}
-						{@const pickedUpLabelName = pickedUpLabel ? getLabelName(pickedUpLabel) : ''}
 
-						<g>
-							<!-- Hotspot drop zone -->
-							{#if hotspot.shape === 'circle'}
-								{@const [cx, cy, r] = hotspot.coords.split(',').map(Number)}
-								{@const hotspotIndex = parsedInteraction.hotspots.findIndex((h) => h.identifier === hotspot.identifier)}
-								<circle
-									role="button"
-									tabindex={disabled ? -1 : 0}
-									aria-label={hotspotAriaLabel(
-										hotspotIndex + 1,
-										matchedGapText ? gapTextObj?.text : undefined,
-										correctGapTextObj?.text,
-										hotspotReady ? pickedUpLabelName : null,
-									)}
-									cx={cx}
-									cy={cy}
-									r={r}
-									fill={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : hotspotReady ? '#3b82f6' : isHovered ? '#3b82f6' : 'transparent'}
-									fill-opacity={matchedGapText ? '0.3' : isCorrect ? '0.2' : hotspotReady ? '0.15' : isHovered ? '0.2' : '0'}
-									stroke={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : hotspotReady ? '#3b82f6' : isHovered ? '#3b82f6' : '#6b7280'}
-									stroke-width={hotspotReady ? '3' : '2'}
-									stroke-dasharray={matchedGapText || isCorrect ? '' : hotspotReady ? '6,3' : '4,4'}
-									class="qti-ggm-hotspot transition-all{hotspotReady ? ' qti-ggm-hotspot-ready' : ''}"
+					<!-- Overlay with hotspot drop zones, in the image's natural pixel space.
+					     Only drawn when that space is known: any guess misplaces every hotspot. -->
+					{#if stage.hasImageDimensions}
+					<svg
+						part="overlay"
+						class="qti-ggm-overlay"
+						viewBox="0 0 {stage.imageWidth} {stage.imageHeight}"
+						data-disabled={disabled ? '' : undefined}
+					>
+						<!-- Default-shape hotspots are the whole image (QTI 3.0 §8.29), so they lie
+						     beneath every other hotspot: their layers and pointer target are painted
+						     first, and a drop or click on another hotspot stays that hotspot's. -->
+						{#each parsedInteraction.hotspots as hotspot (hotspot.identifier)}
+							{#if hotspot.shape === 'default'}
+								{@const matchedGapText = getMatchedGapText(hotspot.identifier)}
+								{@const matchedLabelName = matchedGapText ? getLabelName(matchedGapText) : undefined}
+								{@const correctGapText = getCorrectGapText(hotspot.identifier)}
+								{@const correctLabelName = correctGapText ? getLabelName(correctGapText) : undefined}
+								{@const isCorrect = isCorrectHotspot(hotspot.identifier)}
+								{@const isBlocked = blockedHotspotIds.has(hotspot.identifier)}
+								{@const hotspotReady = !!pickUp.held && !disabled && !isBlocked}
+								{@const center = shapeCenter(hotspot.shape, hotspot.coords)}
+								<g
+									class="qti-ggm-zone qti-ggm-backdrop qti-graphic-region"
 									data-filled={matchedGapText ? '' : undefined}
-									style="pointer-events: auto; cursor: {disabled ? 'not-allowed' : hotspotReady ? 'copy' : 'pointer'};"
+									data-correct={!matchedGapText && isCorrect ? '' : undefined}
+									data-ready={hotspotReady ? '' : undefined}
+									data-hovered={hoveredHotspotId === hotspot.identifier ? '' : undefined}
+									data-blocked={isBlocked ? '' : undefined}
+								>
+									<HotspotShape shape={hotspot.shape} coords={hotspot.coords} interactive={false} presentation={{ class: 'qti-ggm-halo qti-graphic-halo' }} />
+									<HotspotShape shape={hotspot.shape} coords={hotspot.coords} interactive={false} presentation={{ class: 'qti-ggm-outline' }} />
+									{#if matchedLabelName || (isCorrect && correctLabelName)}
+										<text
+											x={center.x}
+											y={center.y}
+											text-anchor="middle"
+											dominant-baseline="middle"
+											class="qti-ggm-zone-text"
+											style="font-size: {14 / stage.renderScale}px;"
+											aria-hidden="true"
+										>
+											{matchedLabelName ?? correctLabelName}
+										</text>
+									{/if}
+									<HotspotShape
+										shape={hotspot.shape}
+										coords={hotspot.coords}
+										interactive="pointer"
+										presentation={{
+											class: `qti-ggm-hotspot qti-ggm-pointer-target${hotspotReady ? ' qti-ggm-hotspot-ready' : ''}`,
+											'data-filled': matchedGapText ? '' : undefined,
+											style: `cursor: ${disabled || isBlocked ? 'not-allowed' : hotspotReady ? 'copy' : 'pointer'};`,
+										}}
+										ondragover={(e) => handleHotspotDragOver(e, hotspot.identifier)}
+										ondragleave={handleHotspotDragLeave}
+										ondrop={(e) => handleHotspotDrop(e, hotspot.identifier)}
+										onclick={() => placePickedUpLabelOnHotspot(hotspot.identifier)}
+									/>
+								</g>
+							{/if}
+						{/each}
+
+						{#each parsedInteraction.hotspots as hotspot, hotspotIndex (hotspot.identifier)}
+							{@const matchedGapText = getMatchedGapText(hotspot.identifier)}
+							{@const matchedLabelName = matchedGapText ? getLabelName(matchedGapText) : undefined}
+							{@const isHovered = hoveredHotspotId === hotspot.identifier}
+							{@const correctGapText = getCorrectGapText(hotspot.identifier)}
+							{@const correctLabelName = correctGapText ? getLabelName(correctGapText) : undefined}
+							{@const isCorrect = isCorrectHotspot(hotspot.identifier)}
+							{@const isBlocked = blockedHotspotIds.has(hotspot.identifier)}
+							{@const hotspotReady = !!pickUp.held && !disabled && !isBlocked}
+							{@const pickedUpLabelName = pickUp.held ? getLabelName(pickUp.held) : ''}
+							{@const center = shapeCenter(hotspot.shape, hotspot.coords)}
+
+							<!-- One drop zone: light halo + state outline (visible on any image), the
+							     placed label's text (not colour alone), then the interactive target on
+							     top, grown to 24×24 CSS px when small. -->
+							<g
+								class="qti-ggm-zone qti-graphic-region"
+								data-filled={matchedGapText ? '' : undefined}
+								data-correct={!matchedGapText && isCorrect ? '' : undefined}
+								data-ready={hotspotReady ? '' : undefined}
+								data-hovered={isHovered ? '' : undefined}
+								data-blocked={isBlocked ? '' : undefined}
+							>
+								<HotspotShape shape={hotspot.shape} coords={hotspot.coords} interactive={false} presentation={{ class: 'qti-ggm-halo qti-graphic-halo' }} />
+								<HotspotShape shape={hotspot.shape} coords={hotspot.coords} interactive={false} presentation={{ class: 'qti-ggm-outline' }} />
+
+								{#if matchedLabelName || (isCorrect && correctLabelName)}
+									<text
+										x={center.x}
+										y={center.y}
+										text-anchor="middle"
+										dominant-baseline="middle"
+										class="qti-ggm-zone-text"
+										style="font-size: {14 / stage.renderScale}px;"
+										aria-hidden="true"
+									>
+										{matchedLabelName ?? correctLabelName}
+									</text>
+								{/if}
+
+								<HotspotShape
+									shape={hotspot.shape}
+									coords={hotspot.coords}
+									label={hotspotAriaLabel(
+										hotspot,
+										hotspotIndex + 1,
+										matchedLabelName,
+										// Only the correct-answer view names the key; outside it the name must not.
+										isCorrect ? correctLabelName : undefined,
+										hotspotReady ? pickedUpLabelName : null,
+										isBlocked,
+									)}
+									{disabled}
+									presentation={{
+										class: `qti-ggm-hotspot${hotspotReady ? ' qti-ggm-hotspot-ready' : ''}`,
+										'data-filled': matchedGapText ? '' : undefined,
+										'aria-disabled': isBlocked ? 'true' : undefined,
+										style: `--qti-hit-stroke: ${hitStrokeWidth(hotspot.shape, hotspot.coords, stage.renderScale)}px; cursor: ${disabled || isBlocked ? 'not-allowed' : hotspotReady ? 'copy' : 'pointer'};${hotspot.shape === 'default' ? ' pointer-events: none;' : ''}`,
+									}}
 									ondragover={(e) => handleHotspotDragOver(e, hotspot.identifier)}
 									ondragleave={handleHotspotDragLeave}
 									ondrop={(e) => handleHotspotDrop(e, hotspot.identifier)}
 									onclick={() => placePickedUpLabelOnHotspot(hotspot.identifier)}
 									onkeydown={(e) => handleHotspotKeyDown(e, hotspot.identifier)}
 								/>
-							{:else if hotspot.shape === 'rect'}
-								{@const [x, y, right, bottom] = hotspot.coords.split(',').map(Number)}
-								{@const width = right - x}
-								{@const height = bottom - y}
-								{@const hotspotIndex = parsedInteraction.hotspots.findIndex((h) => h.identifier === hotspot.identifier)}
-								<rect
-									role="button"
-									tabindex={disabled ? -1 : 0}
-									aria-label={hotspotAriaLabel(
-										hotspotIndex + 1,
-										matchedGapText ? gapTextObj?.text : undefined,
-										correctGapTextObj?.text,
-										hotspotReady ? pickedUpLabelName : null,
-									)}
-									x={x}
-									y={y}
-									width={width}
-									height={height}
-									fill={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : hotspotReady ? '#3b82f6' : isHovered ? '#3b82f6' : 'transparent'}
-									fill-opacity={matchedGapText ? '0.3' : isCorrect ? '0.2' : hotspotReady ? '0.15' : isHovered ? '0.2' : '0'}
-									stroke={matchedGapText ? '#10b981' : isCorrect ? '#10b981' : hotspotReady ? '#3b82f6' : isHovered ? '#3b82f6' : '#6b7280'}
-									stroke-width={hotspotReady ? '3' : '2'}
-									stroke-dasharray={matchedGapText || isCorrect ? '' : hotspotReady ? '6,3' : '4,4'}
-									class="qti-ggm-hotspot transition-all{hotspotReady ? ' qti-ggm-hotspot-ready' : ''}"
-									data-filled={matchedGapText ? '' : undefined}
-									style="pointer-events: auto; cursor: {disabled ? 'not-allowed' : hotspotReady ? 'copy' : 'pointer'};"
-									ondragover={(e) => handleHotspotDragOver(e, hotspot.identifier)}
-									ondragleave={handleHotspotDragLeave}
-									ondrop={(e) => handleHotspotDrop(e, hotspot.identifier)}
-									onclick={() => placePickedUpLabelOnHotspot(hotspot.identifier)}
-									onkeydown={(e) => handleHotspotKeyDown(e, hotspot.identifier)}
-								/>
-							{/if}
-
-							<!-- Label text on hotspot if matched or correct -->
-							{#if matchedGapText && gapTextObj}
-								{@const [cx, cy] = hotspot.coords.split(',').map(Number)}
-								<text
-									x={cx}
-									y={cy}
-									text-anchor="middle"
-									dominant-baseline="middle"
-									class="font-bold pointer-events-none"
-									fill="#059669"
-									font-size="14"
-								>
-									{gapTextObj.text}
-								</text>
-							{:else if isCorrect && correctGapTextObj}
-								{@const [cx, cy] = hotspot.coords.split(',').map(Number)}
-								<text
-									x={cx}
-									y={cy}
-									text-anchor="middle"
-									dominant-baseline="middle"
-									class="font-bold pointer-events-none"
-									fill="#10b981"
-									font-size="14"
-								>
-									{correctGapTextObj.text}
-								</text>
-							{/if}
-						</g>
-					{/each}
-				</svg>
+							</g>
+						{/each}
+					</svg>
+					{/if}
+				</ImageStage>
 			</div>
+			{#if imageDescription}
+				<p id={imageDescriptionId} class="sr-only">{imageDescription}</p>
+			{/if}
 		</div>
+		<MinimumRequirementHint id={minHintId} hint={minHint} responseKey={JSON.stringify(pairs)} />
 	{/if}
 </div>
 
@@ -606,6 +822,10 @@ function handleRootKeyDown(event: KeyboardEvent) {
 	.qti-graphic-gap-match-interaction {
 		display: grid;
 		gap: 0.75rem;
+		--qti-ggm-halo: #fff;
+		--qti-ggm-outline: var(--pie-qti-border-strong, #767676);
+		--qti-ggm-filled: var(--pie-qti-success-text, #15803d);
+		--qti-ggm-ready: var(--pie-qti-info-text, #1d4ed8);
 	}
 	.qti-ggm-prompt {
 		margin: 0 0 0.75rem;
@@ -629,12 +849,16 @@ function handleRootKeyDown(event: KeyboardEvent) {
 		align-content: flex-start;
 	}
 
-	/* qti-unselected-hidden: empty drop zones show only while focused; they stay operable */
-	.qti-graphic-gap-match-interaction.qti-unselected-hidden .qti-ggm-hotspot:not([data-filled]):not(:focus-visible) {
-		fill-opacity: 0;
-		stroke-opacity: 0;
-		animation: none;
+	/* qti-selections-light / qti-selections-dark: outline pairs for dark or light images */
+	.qti-graphic-gap-match-interaction.qti-selections-light {
+		--qti-ggm-halo: #000;
+		--qti-ggm-outline: #fff;
 	}
+	.qti-graphic-gap-match-interaction.qti-selections-dark {
+		--qti-ggm-halo: #fff;
+		--qti-ggm-outline: #000;
+	}
+
 	.qti-ggm-labels {
 		display: flex;
 		flex-wrap: wrap;
@@ -649,23 +873,103 @@ function handleRootKeyDown(event: KeyboardEvent) {
 		margin: 0 0 0.5rem;
 		font-weight: 600;
 	}
+	/* The stage frame fills the available width up to the image's natural size (WCAG 1.4.10) */
 	.qti-ggm-stage {
 		position: relative;
-		display: inline-block;
+		width: 100%;
+		box-sizing: border-box;
 		border-radius: 0.75rem;
-		overflow: hidden;
 		border: 2px solid var(--pie-qti-base-300, oklch(95% 0 0));
 	}
+	/* Borderless canvas at the image's aspect ratio: overlay viewBox and image align at any scale */
 	.qti-ggm-overlay {
 		position: absolute;
 		inset: 0;
-	}
-
-	/* Ensure SVG fills its container */
-	svg {
 		width: 100%;
 		height: 100%;
 		display: block;
+		pointer-events: none;
+		/* halos, focus rings and grown hit areas may extend past the image edge */
+		overflow: visible;
+	}
+
+	.qti-ggm-overlay :global(.qti-ggm-halo),
+	.qti-ggm-overlay :global(.qti-ggm-outline),
+	.qti-ggm-overlay :global(.qti-ggm-zone-text) {
+		pointer-events: none;
+	}
+	.qti-ggm-overlay :global(.qti-ggm-halo) {
+		fill: none;
+		stroke: var(--qti-ggm-halo);
+		stroke-width: 5px;
+		vector-effect: non-scaling-stroke;
+	}
+	.qti-ggm-overlay :global(.qti-ggm-outline) {
+		fill: transparent;
+		stroke: var(--qti-ggm-outline);
+		stroke-width: 2px;
+		stroke-dasharray: 4px 4px;
+		vector-effect: non-scaling-stroke;
+	}
+	/* Ready to receive a held label: thicker, dashed, pulsing outline */
+	.qti-ggm-overlay :global(.qti-ggm-zone[data-ready] .qti-ggm-outline),
+	.qti-ggm-overlay :global(.qti-ggm-zone[data-hovered] .qti-ggm-outline) {
+		stroke: var(--qti-ggm-ready);
+		stroke-width: 3px;
+		stroke-dasharray: 6px 3px;
+		fill: color-mix(in srgb, var(--qti-ggm-ready) 15%, transparent);
+	}
+	/* Filled: solid outline and the placed label's text on the zone (not colour alone) */
+	.qti-ggm-overlay :global(.qti-ggm-zone[data-filled] .qti-ggm-outline) {
+		stroke: var(--qti-ggm-filled);
+		stroke-width: 3px;
+		stroke-dasharray: none;
+		fill: color-mix(in srgb, var(--qti-ggm-filled) 20%, transparent);
+	}
+	.qti-ggm-overlay :global(.qti-ggm-zone[data-correct] .qti-ggm-outline) {
+		stroke: var(--qti-ggm-filled);
+		stroke-width: 3px;
+		stroke-dasharray: 8px 3px;
+	}
+	/* matchGroup keeps the label being placed off this zone: dimmed, like other blocked targets */
+	.qti-ggm-overlay :global(.qti-ggm-zone[data-blocked] :is(.qti-ggm-halo, .qti-ggm-outline)) {
+		stroke-opacity: 0.4;
+		fill-opacity: 0.4;
+	}
+	.qti-ggm-overlay :global(.qti-ggm-zone-text) {
+		font-weight: 700;
+		fill: var(--pie-qti-success-text, #15803d);
+		paint-order: stroke;
+		stroke: #fff;
+		stroke-width: 3px;
+		stroke-linejoin: round;
+		vector-effect: non-scaling-stroke;
+	}
+
+	/*
+	 * The interactive drop zone: invisible but painted (its interior takes the
+	 * pointer and drops), with a transparent non-scaling stroke that grows small
+	 * zones to 24×24 CSS px (WCAG 2.5.8) without changing the authored geometry.
+	 */
+	.qti-ggm-overlay :global(.qti-ggm-hotspot) {
+		fill: rgba(0, 0, 0, 0);
+		stroke: rgba(0, 0, 0, 0);
+		stroke-width: var(--qti-hit-stroke, 0px);
+		vector-effect: non-scaling-stroke;
+		pointer-events: auto;
+		outline: none;
+	}
+	/*
+	 * Focus indicator: the shared offset ring in ImageStage's sheet — focus-within
+	 * on the zone colours and widens its halo layer into a ring around the zone,
+	 * distinct from the filled/ready outline (WCAG 2.4.7).
+	 */
+
+	/* qti-unselected-hidden: empty drop zones show only while focused; they stay operable */
+	.qti-graphic-gap-match-interaction.qti-unselected-hidden :global(.qti-ggm-zone:not([data-filled]):not(:focus-within) :is(.qti-ggm-halo, .qti-ggm-outline)) {
+		fill-opacity: 0;
+		stroke-opacity: 0;
+		animation: none;
 	}
 
 	/* Label button in "held" (picked-up) state */
@@ -677,13 +981,19 @@ function handleRootKeyDown(event: KeyboardEvent) {
 		box-shadow: 0 0 0 4px oklch(65% 0.2 320 / 0.25);
 	}
 
-	/* SVG hotspot shape in "ready to receive drop" state — pulsing outline */
-	:global(.qti-ggm-hotspot-ready) {
+	/* Drop zones in "ready to receive" state — pulsing outline */
+	.qti-ggm-overlay :global(.qti-ggm-zone[data-ready] .qti-ggm-outline) {
 		animation: ggm-hotspot-pulse 1.2s ease-in-out infinite;
 	}
 
 	@keyframes ggm-hotspot-pulse {
 		0%, 100% { stroke-opacity: 1; }
 		50% { stroke-opacity: 0.4; }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.qti-ggm-overlay :global(.qti-ggm-zone[data-ready] .qti-ggm-outline) {
+			animation: none;
+		}
 	}
 </style>

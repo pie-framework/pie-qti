@@ -1,5 +1,35 @@
 # @pie-qti/transform-types
 
+## 1.0.0-beta.5
+
+### Major Changes
+
+- 684738a: Breaking: removed the storage types with no consumer or implementation anywhere in the repo — `Transaction`, `ZipExtractor`, `SessionStorage`, `Session`, `StreamOptions`, and the `ExtractionResult` used only by `ZipExtractor`. Alongside them, the `StorageBackend` members that existed only to reference those types are gone: `beginTransaction?()` (no backend implemented it, nothing called it) and the `options?: StreamOptions` parameter on `createReadStream`/`createWriteStream` (no caller ever passed options; the only implementation, `MockStorageBackend`, already ignored them).
+  
+  `ResourceMetadata` stays: it looked unused, but `StorageBackend.getMetadata?()` returns it and core's read-content activity consumes that hook. `MockStorageBackend` and the engine/storage plumbing are unchanged.
+
+### Patch Changes
+
+- af63915: PIE items and passages take optional `curriculumStandards` and `skillLevels`, where `[]` states that none applies. A QTI 3 package carries an item's standards as Curriculum Standards Metadata 1.1 and both fields as LOM classifications, so to-pie reads them back unchanged without the sidecar and reads standards and skill levels from foreign QTI 3 packages; QTI 2.2 packages carry them in the sidecar only. A standard without `providerId` means Academic Benchmarks and keeps the attribute absent through the round trip.
+- 88f849c: The transformation packages join the 1.0 beta line: every publishable `@pie-qti/*` package now releases at one version, so these move from `0.2.x` to `1.0.0-beta.5` and publish under the `beta` dist-tag with the players. Hosts that pin them exactly need the new version; a `^0.2` range does not pick it up.
+- 93df941: Packaging and back-compat shim removal (legacy audit PR 5, `docs/plans/legacy-audit-2026-11.md` rows A5, A6, A7). No QTI-observable behaviour changes for current-format content.
+  
+  **Breaking: removed deprecated image-path helper** (beta prerelease; migrate before upgrading):
+  
+  - `@pie-qti/ims-cp-browser` no longer exports `tryResolveImagePath`. It had been `@deprecated` since path resolution moved to `@pie-qti/ims-cp-core` and had no callers in the repo. Resolve package image references with `buildPackageFileIndex` and `resolvePackageReference` from `@pie-qti/ims-cp-core` (as `resolveImagesInXml` already does); the documented lenient path-resolution heuristics are unchanged.
+  
+  **Breaking: removed the historical vendor-extension type path** (beta prerelease; migrate before upgrading):
+  
+  - `@pie-qti/to-pie` no longer re-exports `VendorInfo`, `VendorDetector`, `VendorTransformer`, `ResolvedAsset`, `AssetResolver`, `VendorClasses`, `CssClassExtractor`, `MetadataExtractor`, `CustomAttributes` or `VendorExtensionHooks`; the `src/types/vendor-extensions.ts` shim that preserved the pre-move import path is gone. Import these types from `@pie-qti/transform-types`, where they live.
+  
+  **Breaking: pre-rename extensions metadata is no longer read** (beta prerelease; migrate before upgrading):
+  
+  - Packages exported while the PIE metadata bag was still named `searchMetaData` no longer import their extensions metadata: the `?? sourceModel.searchMetaData` fallbacks in `@pie-qti/ims-cp-core`'s `extractExtensionsFromQtiXml` and `@pie-qti/to-pie`'s `extractExtensions`, and the `pie:searchMetaData:` LOM source prefix in `@pie-qti/to-pie`'s `readPieResourceLom`, are gone; only `extensions` and the `pie:extension:` prefix are read. `@pie-qti/transform-types` no longer exports `PIE_LOM_LEGACY_EXTENSION_SOURCE`. The QTI package writer (`@pie-qti/pie-to-qti2`) only ever wrote the current forms, so content written by any current release is unaffected.
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies [1f1d8f0]
+- Updated dependencies
+  - @pie-qti/logger@1.0.0-beta.5
+
 ## 0.2.1
 
 ### Patch Changes

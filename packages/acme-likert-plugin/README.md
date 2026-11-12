@@ -9,6 +9,12 @@ the delivered data to the host's registered choice renderer.
 
 This workspace package is private and serves as an integration example.
 
+Its manifest declares `@pie-qti/item-player` as a peer dependency: the host
+application that loads this plugin supplies it (the plugin imports `htmlField`
+from it at runtime). When copying this exemplar, install `@pie-qti/item-player`
+as a real dependency of your app and keep the peer range aligned with the
+player version you build against.
+
 ## Use with the primary item API
 
 ```ts

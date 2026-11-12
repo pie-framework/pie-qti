@@ -53,14 +53,6 @@ export default {
 		errorNoData: 'لم يتم توفير بيانات التفاعل',
 	},
 
-	units: {
-		bytes: '{count} بايت',
-		kilobytes: '{count} كيلوبايت',
-		megabytes: '{count} ميجابايت',
-		seconds: '{count} ثانية',
-		minutes: '{count} دقيقة',
-		hours: '{count} ساعة',
-	},
 
 	// Pluralization examples
 	// Use i18n.plural('plurals.items', { count: n }) to access these
@@ -135,13 +127,6 @@ export default {
 		},
 	},
 
-	validation: {
-		required: 'هذا الحقل مطلوب',
-		invalidFormat: 'تنسيق غير صالح',
-		tooShort: 'قصير جدًا (الحد الأدنى {min} حرفًا)',
-		tooLong: 'طويل جدًا (الحد الأقصى {max} حرفًا)',
-		outOfRange: 'يجب أن تكون القيمة بين {min} و {max}',
-	},
 
 	interactions: {
 		choice: {
@@ -152,6 +137,17 @@ export default {
 			correct: 'صحيح',
 			revealChoice: 'إظهار الخيار {index}',
 			groupLabel: 'خيارات الإجابة',
+			maxChoicesReached: 'يمكنك اختيار {max} خيارات كحد أقصى. ألغِ اختيار أحد الخيارات لاختيار آخر.',
+			clearAnswer: 'مسح الإجابة',
+			minChoicesHint: {
+				zero: 'اختر {count} إجابة على الأقل.',
+				one: 'اختر إجابة واحدة على الأقل.',
+				two: 'اختر إجابتين على الأقل.',
+				few: 'اختر {count} إجابات على الأقل.',
+				many: 'اختر {count} إجابة على الأقل.',
+				other: 'اختر {count} إجابة على الأقل.',
+			},
+			eliminateChoice: 'استبعاد',
 		},
 
 		upload: {
@@ -181,6 +177,8 @@ export default {
 			// {max} will be replaced with maximum size in MB
 			errorTooLarge: 'حجم الملف كبير جدًا (الحد الأقصى {max} ميجابايت)',
 			unknownType: 'نوع ملف غير معروف',
+			fileRemoved: 'تمت إزالة الملف.',
+			errorFileTooLarge: 'الملف {filename} كبير جدًا. الحجم الأقصى هو {maxBytes} بايت.',
 		},
 
 		drawing: {
@@ -196,6 +194,8 @@ export default {
 			updated: 'تم تحديث الرسم.',
 			cleared: 'تم مسح الرسم.',
 			generated: 'تم إنشاؤه:',
+			imageFallback: 'خلفية الرسم',
+			imageLoadError: 'تعذّر تحميل صورة الخلفية.',
 		},
 
 		extendedText: {
@@ -207,15 +207,55 @@ export default {
 			underline: 'تحته خط',
 			bulletList: 'قائمة نقطية',
 			numberedList: 'قائمة مرقمة',
-			insertMath: 'إدراج معادلة رياضية',
 			insertInlineMath: 'إدراج معادلة مضمنة',
 			insertBlockMath: 'إدراج معادلة منفصلة',
-			enterMathExpression: 'أدخل المعادلة الرياضية:',
-			latexSource: 'مصدر LaTeX:',
-			keyboard: 'لوحة المفاتيح',
+			responseLabel: 'الإجابة',
+			responseNumber: 'الإجابة {number}',
+			addResponse: 'إضافة إجابة',
+			removeResponseNumber: 'إزالة الإجابة {number}',
+			responseRemoved: 'تمت إزالة الإجابة {number}.',
+			charactersRemaining: {
+				zero: 'بقي {count} حرفًا',
+				one: 'بقي حرف واحد',
+				two: 'بقي حرفان',
+				few: 'بقيت {count} أحرف',
+				many: 'بقي {count} حرفًا',
+				other: 'بقي {count} حرفًا',
+			},
+			expectedLengthReached: {
+				zero: 'تم بلوغ الطول المتوقع وهو {count} حرفًا.',
+				one: 'تم بلوغ الطول المتوقع وهو حرف واحد.',
+				two: 'تم بلوغ الطول المتوقع وهو حرفان.',
+				few: 'تم بلوغ الطول المتوقع وهو {count} أحرف.',
+				many: 'تم بلوغ الطول المتوقع وهو {count} حرفًا.',
+				other: 'تم بلوغ الطول المتوقع وهو {count} حرفًا.',
+			},
+			correctAnswerHeading: 'الإجابة الصحيحة:',
+			editMath: 'تحرير المعادلات الرياضية',
+			minStringsHint: {
+				zero: 'اكتب {count} إجابات على الأقل.',
+				one: 'اكتب إجابة واحدة على الأقل.',
+				two: 'اكتب إجابتين على الأقل.',
+				few: 'اكتب {count} إجابات على الأقل.',
+				many: 'اكتب {count} إجابة على الأقل.',
+				other: 'اكتب {count} إجابة على الأقل.',
+			},
+			minStringsRemoveRefused: 'لم تُحذف الإجابة: مطلوب {count} إجابات على الأقل.',
+			patternMismatch: 'هذه الإجابة ليست بالتنسيق المتوقع.',
+		},
+
+		mathInput: {
+			insertInlineTitle: 'إدراج معادلة مضمنة',
+			insertBlockTitle: 'إدراج معادلة منفصلة',
+			editInlineTitle: 'تعديل المعادلة المضمنة',
+			editBlockTitle: 'تعديل المعادلة المنفصلة',
+			instructions: 'اكتب المعادلة أو افتح لوحة المفاتيح الرياضية. اضغط Escape للإلغاء.',
+			fieldLabel: 'المعادلة الرياضية',
+			latexSourceLabel: 'مصدر LaTeX',
+			latexEmpty: 'سيظهر رمز LaTeX هنا',
+			toggleKeyboard: 'لوحة المفاتيح الرياضية',
 			update: 'تحديث',
 			insert: 'إدراج',
-			correctAnswerHeading: 'الإجابة الصحيحة:',
 		},
 
 		slider: {
@@ -226,13 +266,17 @@ export default {
 			step: 'الخطوة: {step}',
 			ariaLabel: 'قيمة شريط التمرير من {lowerBound} إلى {upperBound}',
 			statTitle: 'القيمة المحددة',
+			noValueSelected: 'لم يتم اختيار قيمة',
 		},
 
 		hottext: {
 			selected: 'محدد:',
 			selectText: 'اختر نصًا من الفقرة',
-			clearSelection: 'مسح التحديد',
 			ariaLabel: 'تفاعل تحديد النص',
+			maxChoicesReached: 'يمكنك اختيار {max} خيارات كحد أقصى. ألغِ اختيار أحد الخيارات لاختيار آخر.',
+			// بدون علامة الصح: يضيف HottextInteraction علامة "✓ " بنفسه قبل هذه الشارة.
+			minimumMet: 'تم تحقيق الحد الأدنى',
+			selectAtLeast: 'اختر على الأقل {minChoices}',
 		},
 
 		hotspot: {
@@ -243,9 +287,23 @@ export default {
 			unknownImageDimensions:
 				'لا يمكن عرض هذه النقطة الساخنة: أبعاد صورتها غير معروفة، لذا لا يمكن تحديد مواضع المناطق القابلة للتحديد. أضف العرض والارتفاع إلى الصورة، أو حدد أبعاد الملف.',
 			correctList: 'الصحيح: {ids}',
+			imageFallback: 'صورة هذا السؤال',
+			imageLoadError: 'تعذّر تحميل الصورة.',
+			regionOfTotal: 'المنطقة {index} من {total}',
+			selectedRegion: 'المحدد: {region}',
+			maxChoicesReached: 'يمكنك اختيار {max} خيارات كحد أقصى. ألغِ اختيار أحد الخيارات لاختيار آخر.',
+			minChoicesHint: {
+				zero: 'اختر {count} منطقة على الأقل.',
+				one: 'اختر منطقة واحدة على الأقل.',
+				two: 'اختر منطقتين على الأقل.',
+				few: 'اختر {count} مناطق على الأقل.',
+				many: 'اختر {count} منطقة على الأقل.',
+				other: 'اختر {count} منطقة على الأقل.',
+			},
 		},
 
 		selectPoint: {
+			unknownImageDimensions: 'لا يمكن عرض تفاعل اختيار النقاط هذا: حجم الصورة غير معروف، لذلك لا يمكن وضع النقاط بشكل صحيح. أضف العرض والارتفاع إلى الصورة، أو قدّم أبعاد الأصل.',
 			instruction: 'انقر على الصورة لتحديد النقاط',
 			instructionAria: 'انقر لتحديد النقاط على الصورة',
 			maxPointsReached: 'تم الوصول إلى الحد الأقصى للنقاط. قم بإزالة نقطة لإضافة نقطة جديدة.',
@@ -260,6 +318,16 @@ export default {
 			minimumMet: '✓ تم تحقيق الحد الأدنى',
 			selectAtLeast: 'اختر على الأقل {minChoices}',
 			correctPointAt: 'نقطة الإجابة الصحيحة عند الإحداثيات {x}، {y}',
+			imageFallback: 'صورة هذا السؤال',
+			imageLoadError: 'تعذّر تحميل الصورة.',
+			stageLabel: 'منطقة تحديد النقاط',
+			keyboardInstructions: 'انقر على الصورة لوضع نقطة. باستخدام لوحة المفاتيح، انقل التركيز إلى الصورة، وحرّك علامة التصويب بمفاتيح الأسهم (اضغط مع الاستمرار على Shift لخطوات أصغر)، ثم اضغط Enter أو مسافة لوضع نقطة.',
+			placedPoints: 'النقاط الموضوعة',
+			pointAtPercent: 'النقطة {index} عند {x}٪، {y}٪',
+			percentPosition: '{x}٪، {y}٪',
+			pointPlaced: 'تم وضع النقطة {index} عند {x}٪، {y}٪.',
+			pointRemoved: 'تمت إزالة النقطة {index}.',
+			allPointsRemoved: 'تمت إزالة جميع النقاط.',
 		},
 
 		match: {
@@ -285,18 +353,30 @@ export default {
 			navigateToTarget: 'انتقل إلى هدف واضغط على مفتاح المسافة أو الإدخال للمطابقة',
 			selectionCancelled: 'تم إلغاء التحديد',
 			matchCleared: 'تم مسح المطابقة لـ {item}',
-			maxReached: 'تم الوصول إلى الحد الأقصى للارتباطات. أزل زوجًا لإضافة زوج جديد.',
+			associationLimitReached: 'لا يمكن إنشاء الارتباط: تم الوصول إلى الحد {max}.',
+			sourceLimitReached: 'غير ممكن: لا يمكن أن يكون {label} في مزيد من الارتباطات.',
 			pairCreated: 'تمت مطابقة {source} مع {target}.',
+			minAssociationsHint: {
+				zero: 'أنشئ {count} مطابقة على الأقل.',
+				one: 'أنشئ مطابقة واحدة على الأقل.',
+				two: 'أنشئ مطابقتين على الأقل.',
+				few: 'أنشئ {count} مطابقات على الأقل.',
+				many: 'أنشئ {count} مطابقة على الأقل.',
+				other: 'أنشئ {count} مطابقة على الأقل.',
+			},
+			minChoiceUsesHint: 'يحتاج إلى مزيد من المطابقات: {items}.',
 			matchedWithSentence: 'مطابق مع {targets}.',
 			selectedForMatchingSentence: 'محدد للمطابقة.',
 			availableForMatchingSentence: 'متاح للمطابقة.',
 			notCompatibleSentence: 'غير متوافق مع المصدر المحدد.',
+			selectionCancelledItem: 'تم إلغاء تحديد {item}.',
 		},
 
 		gapMatch: {
-			filledGapAriaLabelWithHeld: 'الفراغ {gapId} يحتوي على {word}. اختر لاستبداله بـ {heldWord}.',
-			blankGapAriaLabelWithHeld: 'الفراغ {gapId}. اختر لوضع {heldWord} هنا.',
-			placed: 'تم وضع {word} في الفراغ {gapId}.',
+			filledGapAriaLabelWithHeld: 'الفراغ {position} من {total} يحتوي على {word}. اختر لاستبداله بـ {heldWord}.',
+			blankGapAriaLabelWithHeld: 'الفراغ {position} من {total}. اختر لوضع {heldWord} هنا.',
+			placed: 'تم وضع {word} في الفراغ {position} من {total}.',
+			associationLimitReached: 'لا يمكن إنشاء الارتباط: تم الوصول إلى الحد {max}.',
 			pointerInstructions: 'اختر كلمة ثم اختر فراغًا. يمكنك أيضًا السحب والإفلات.',
 			instruction: 'اسحب الكلمات لملء الفراغات',
 			available: 'الكلمات المتاحة',
@@ -307,8 +387,14 @@ export default {
 			removeFromBlanks: 'إزالة {word} من الفراغات',
 			selectPlaceholder: 'اختر...',
 			gapAriaLabel: 'الفراغ {gapId}',
-			blankGapAriaLabel: 'الفراغ {gapId}. أسقط إجابة هنا.',
-			filledGapAriaLabel: 'الفراغ {gapId}، تم ملؤه بـ {word}. انقر للمسح.',
+			blankGapAriaLabel: 'الفراغ {position} من {total}. أسقط إجابة هنا.',
+			filledGapAriaLabel: 'الفراغ {position} من {total}، تم ملؤه بـ {word}. اختر للمسح.',
+			wordSelected: 'تم التقاط {word}. اختر فراغًا لوضعه، أو اضغط على Escape للإلغاء.',
+			pickUpCancelled: 'تم إلغاء التقاط {word}.',
+			minPlacementsHint: 'ما زال عليك وضعها في الفراغات: {words}.',
+			notCompatibleSentence: 'غير متوافق مع الكلمة المحددة.',
+			wordRemovedFromBlanks: 'تمت إزالة {word} من الفراغات.',
+			requiredBlanksLegend: 'الفراغات المميزة بعلامة * مطلوبة.',
 		},
 
 		graphicGapMatch: {
@@ -331,9 +417,8 @@ export default {
 			pickedUp: 'تم الإمساك بـ {label}. انتقل بمفتاح Tab إلى نقطة ساخنة واضغط Enter لوضعها.',
 			alreadyPlacedSentence: 'تم وضعها بالفعل على نقطة ساخنة.',
 			unavailableSentence: 'غير متاح بسبب قيد مجموعة المطابقة.',
-			heldHint: 'تم الإمساك. انتقل بمفتاح Tab إلى نقطة ساخنة واضغط Enter لوضعها.',
+			heldHint: 'انتقل بمفتاح Tab إلى نقطة ساخنة واضغط Enter لوضعها.',
 			pickUpHint: 'اضغط على مفتاح المسافة أو Enter للإمساك.',
-			selectedHint: 'محددة للوضع.',
 			selectHint: 'اضغط على مفتاح المسافة للتحديد.',
 			hotspotContains: 'النقطة الساخنة {number}. تحتوي على {label}.',
 			hotspotCorrectAnswer: 'النقطة الساخنة {number}. الإجابة الصحيحة: {label}.',
@@ -343,11 +428,17 @@ export default {
 			placeLabelHint: 'اضغط على مفتاح المسافة أو Enter لوضع التسمية.',
 			labelFallback: 'تسمية',
 			pickUpInstructions: 'اضغط على مفتاح المسافة أو الإدخال لالتقاط تسمية. اضغط على Tab للانتقال إلى نقطة ساخنة على الصورة، ثم اضغط على الإدخال لوضعها. اضغط على Escape للإلغاء.',
+			imageFallback: 'صورة هذا السؤال',
+			imageLoadError: 'تعذّر تحميل الصورة.',
+			unknownImageDimensions: 'لا يمكن عرض النقاط الساخنة: أبعاد الصورة غير معروفة. أضف العرض والارتفاع إلى الصورة.',
+			minPlacementsHint: 'لا يزال يتعين وضعها على المناطق: {labels}.',
+			associationLimitReached: 'لا يمكن إنشاء الارتباط: تم الوصول إلى الحد {max}.',
 		},
 
 		order: {
-			moveEarlier: 'نقل إلى الأمام',
-			moveLater: 'نقل إلى الخلف',
+			moveEarlierItem: 'نقل {item} إلى الأمام',
+			moveLaterItem: 'نقل {item} إلى الخلف',
+			eliminateItem: 'استبعاد {item}',
 			instruction: 'استخدم أزرار النقل أو اسحب العناصر لتغيير ترتيبها.',
 			keyboardInstructions: 'اضغط على مفتاح المسافة أو الإدخال للإمساك بعنصر. استخدم مفاتيح الأسهم لتحريك العنصر. اضغط على مفتاح المسافة أو الإدخال مرة أخرى للإفلات. اضغط على Escape للإلغاء.',
 			grabbed: 'تم الإمساك. استخدم مفاتيح الأسهم للتحريك.',
@@ -362,9 +453,48 @@ export default {
 			itemDropped: 'تم إفلات {item} في الموضع {position} من {total}',
 			itemMoved: 'تم نقل {item} إلى الموضع {position} من {total}',
 			selectionCancelled: 'تم إلغاء تحديد {item}',
-			itemPosition: '{item}. الموضع {position} من {total}.',
 			itemFallback: 'عنصر',
 			orderConfirmed: 'تم تأكيد الترتيب',
+			minChoicesHint: {
+				zero: 'رتّب {count} عنصر على الأقل.',
+				one: 'رتّب عنصرًا واحدًا على الأقل.',
+				two: 'رتّب عنصرين على الأقل.',
+				few: 'رتّب {count} عناصر على الأقل.',
+				many: 'رتّب {count} عنصرًا على الأقل.',
+				other: 'رتّب {count} عنصر على الأقل.',
+			},
+			yourOrder: 'ترتيبك',
+			notInOrder: 'ليس في ترتيبك',
+			emptyOrder: 'لا يوجد شيء في ترتيبك بعد.',
+			addItem: 'إضافة {item} إلى ترتيبك',
+			removeItem: 'إزالة {item} من ترتيبك',
+			itemAdded: 'تمت إضافة {item} إلى ترتيبك في الموضع {position} من {total}.',
+			itemRemoved: 'تمت إزالة {item} من ترتيبك.',
+			orderLimitReached: {
+				zero: 'يمكن أن يضم ترتيبك {max} عنصر على الأكثر. أزل عنصرًا لإضافة عنصر آخر.',
+				one: 'يمكن أن يضم ترتيبك عنصرًا واحدًا فقط. أزله لإضافة عنصر آخر.',
+				two: 'يمكن أن يضم ترتيبك عنصرين على الأكثر. أزل أحدهما لإضافة عنصر آخر.',
+				few: 'يمكن أن يضم ترتيبك {max} عناصر على الأكثر. أزل عنصرًا لإضافة عنصر آخر.',
+				many: 'يمكن أن يضم ترتيبك {max} عنصرًا على الأكثر. أزل عنصرًا لإضافة عنصر آخر.',
+				other: 'يمكن أن يضم ترتيبك {max} عنصر على الأكثر. أزل عنصرًا لإضافة عنصر آخر.',
+			},
+			correctOrder: 'الترتيب الصحيح',
+			subsetExactHint: {
+				zero: 'اختر {count} عنصر لترتيبك.',
+				one: 'اختر عنصرًا واحدًا لترتيبك.',
+				two: 'اختر عنصرين لترتيبك.',
+				few: 'اختر {count} عناصر ورتّبها.',
+				many: 'اختر {count} عنصرًا ورتّبها.',
+				other: 'اختر {count} عنصر ورتّبها.',
+			},
+			subsetRangeHint: {
+				zero: 'اختر ما بين {min} و{max} عنصر ورتّبها.',
+				one: 'اختر ما بين {min} و{max} عنصر ورتّبها.',
+				two: 'اختر عنصرًا واحدًا أو عنصرين ورتّبهما.',
+				few: 'اختر ما بين {min} و{max} عناصر ورتّبها.',
+				many: 'اختر ما بين {min} و{max} عنصرًا ورتّبها.',
+				other: 'اختر ما بين {min} و{max} عنصر ورتّبها.',
+			},
 		},
 
 		associate: {
@@ -387,9 +517,32 @@ export default {
 			clickHotspotsToAssociate: 'انقر على نقطتين ساخنتين على الصورة لإنشاء ارتباط.',
 			clickAnotherHotspot: 'محدد: <strong>{label}</strong>. انقر على نقطة ساخنة أخرى لإنشاء ارتباط.',
 			removeAssociationBetween: 'إزالة الارتباط بين {first} و{second}',
+			inPairSentence: 'ضمن ارتباط قائم.',
+			removedAssociationBetween: 'تمت إزالة الارتباط بين {first} و{second}.',
+			minAssociationsHint: {
+				zero: 'أنشئ {count} ارتباط على الأقل.',
+				one: 'أنشئ ارتباطًا واحدًا على الأقل.',
+				two: 'أنشئ ارتباطين على الأقل.',
+				few: 'أنشئ {count} ارتباطات على الأقل.',
+				many: 'أنشئ {count} ارتباطًا على الأقل.',
+				other: 'أنشئ {count} ارتباط على الأقل.',
+			},
+			minChoiceUsesHint: 'يحتاج إلى مزيد من الارتباطات: {items}.',
+			maxAssociationsHint: {
+				zero: 'يمكنك إنشاء ما يصل إلى {count} ارتباطات.',
+				one: 'يمكنك إنشاء ما يصل إلى {count} ارتباط.',
+				two: 'يمكنك إنشاء ما يصل إلى {count} ارتباطين.',
+				few: 'يمكنك إنشاء ما يصل إلى {count} ارتباطات.',
+				many: 'يمكنك إنشاء ما يصل إلى {count} ارتباطًا.',
+				other: 'يمكنك إنشاء ما يصل إلى {count} ارتباط.',
+			},
+			choiceLimitReached: 'غير ممكن: لا يمكن أن يكون {label} في مزيد من الارتباطات.',
+			associationLimitReached: 'لا يمكن إنشاء الارتباط: تم الوصول إلى الحد {max}.',
+			notAvailableSentence: 'غير متاح بسبب قيد مجموعة المطابقة.',
 		},
 
 		positionObject: {
+			unknownImageDimensions: 'لا يمكن وضع الكائنات: حجم صورة المسرح غير معروف. أضف العرض والارتفاع إلى الصورة، أو قدّم أبعاد الأصل.',
 			instruction: 'اسحب الكائنات على الصورة',
 			placeObject: 'ضع {object} على الصورة',
 			removeObject: 'إزالة {object}',
@@ -399,25 +552,43 @@ export default {
 			positioned: 'تم وضع {label} عند ({x}، {y})',
 			minimumRequired: 'الحد الأدنى المطلوب: {minChoices}',
 			maximumAllowed: 'الحد الأقصى: {maxChoices}',
+			maxChoicesReached: {
+				zero: 'لا يمكن الوضع: تم الوصول إلى الحد {max}.',
+				one: 'لا يمكن الوضع: تم الوصول إلى الحد {max}.',
+				two: 'لا يمكن الوضع: تم الوصول إلى الحد {max}.',
+				few: 'لا يمكن الوضع: تم الوصول إلى الحد {max}.',
+				many: 'لا يمكن الوضع: تم الوصول إلى الحد {max}.',
+				other: 'لا يمكن الوضع: تم الوصول إلى الحد {max}.',
+			},
+			objectLimitReached: 'غير ممكن: لا يمكن وضع {object} مرة أخرى.',
 			availableObjects: 'الكائنات المتاحة',
-			objectUsage: '{label} ({usageCount}/{matchMax} مستخدم)',
 			availableObjectsCount: 'الكائنات المتاحة ({count}/{max})',
 			dragObjectsInstruction: 'اسحب الكائنات على اللوحة لوضعها.',
 			used: '{usageCount}/{matchMax} مستخدم',
+			usedUnlimited: '{usageCount} مستخدم، غير محدود',
 			objectSelected: 'تم تحديد {object}. انتقل بمفتاح Tab إلى اللوحة، ثم استخدم مفاتيح الأسهم لتحديد موضعه. اضغط Enter لوضعه أو Escape للإلغاء.',
 			objectPlacedAt: 'تم وضع {object} عند {x}٪، {y}٪.',
 			placementCancelled: 'تم إلغاء الوضع.',
 			correctPositionFor: 'الموضع الصحيح لـ {label} عند ({x}، {y})',
 			availableObjectsTotal: 'الكائنات المتاحة ({count})',
 			paletteInstructions: 'اسحب الكائنات على اللوحة، أو اضغط على الإدخال أو المسافة على كائن، ثم استخدم مفاتيح الأسهم لوضعه على اللوحة.',
+			imageFallback: 'صورة هذا السؤال',
+			imageLoadError: 'تعذّر تحميل الصورة.',
+			objectFallback: 'الكائن {index}',
+			objectRemoved: 'تمت إزالة {object}.',
+			canvasActiveLabel: 'لوحة تحديد المواضع: استخدم مفاتيح الأسهم لتحريك علامة التصويب، وEnter للوضع، وEscape للإلغاء',
+			placedAtPercent: '{label} عند {x}٪، {y}٪',
+			correctPositionAtPercent: 'الموضع الصحيح لـ {label}: {x}٪، {y}٪',
 		},
 
 		endAttempt: {
 			buttonLabel: 'إنهاء المحاولة',
 			ended: 'انتهت المحاولة',
 			requested: 'مطلوب',
-			warningMessage: 'تم إنهاء محاولتك ولا يمكن تعديلها بعد الآن.',
+			warningMessage: 'انتهت محاولتك.',
 			confirmMessage: 'هل أنت متأكد من أنك تريد إنهاء محاولتك؟ لن تتمكن من تغيير إجاباتك.',
+			confirm: 'نعم، أنهِ المحاولة',
+			cancel: 'إلغاء',
 		},
 
 		media: {
@@ -434,7 +605,6 @@ export default {
 			ariaLabel: 'محتوى الوسائط',
 			maxPlayLimitReached: 'تم الوصول إلى الحد الأقصى للتشغيل',
 			playCount: 'عدد مرات التشغيل:',
-			remaining: 'المتبقي:',
 			requirementMet: '✓ تم تحقيق المتطلب',
 			playAtLeastCount: {
 				zero: 'شغّل {count} مرة على الأقل',
@@ -445,12 +615,36 @@ export default {
 				other: 'شغّل {count} مرة على الأقل',
 			},
 			browserNoSupport: 'متصفحك لا يدعم هذا النوع من الوسائط.',
+			playsLeft: {
+				zero: 'انتهت مرات التشغيل المسموحة',
+				one: 'بقيت مرة تشغيل واحدة',
+				two: 'بقيت مرتا تشغيل',
+				few: 'بقيت {count} مرات تشغيل',
+				many: 'بقيت {count} مرة تشغيل',
+				other: 'بقيت {count} مرة تشغيل',
+			},
+			playStartedOfMax: 'بدأت تشغيلة {count} من {max}.',
+			playStarted: 'بدأت التشغيلة {count}.',
+			requiredPlaysReached: 'تم بلوغ عدد مرات التشغيل المطلوبة.',
+			controls: 'عناصر تحكم الوسائط',
+			captions: 'الترجمة والشرح',
+			captionsOff: 'إيقاف',
+			playsNeeded: {
+				zero: 'لا يلزم أي تشغيل إضافي',
+				one: 'يلزم تشغيل إضافي واحد',
+				two: 'يلزم تشغيلان إضافيان',
+				few: 'يلزم {count} مرات تشغيل إضافية',
+				many: 'يلزم {count} مرة تشغيل إضافية',
+				other: 'يلزم {count} مرة تشغيل إضافية',
+			},
+			trackFallbackLabel: 'المسار {index}',
 			audioNoSupport: 'متصفحك لا يدعم عنصر الصوت.',
 			videoNoSupport: 'متصفحك لا يدعم عنصر الفيديو.',
 			objectDisabled: 'يستخدم هذا العنصر نوع كائن مضمن معطل بشكل افتراضي لأسباب أمنية.',
 		},
 
 		graphicOrder: {
+			unknownImageDimensions: 'لا يمكن عرض المناطق: حجم الصورة غير معروف. أضف العرض والارتفاع إلى الصورة، أو قدّم أبعاد الأصل.',
 			instruction: 'انقر على النقاط الساخنة لترتيبها',
 			diagramLabel: 'مخطط الترتيب',
 			altText: 'مخطط الترتيب',
@@ -459,6 +653,63 @@ export default {
 			confirmOrder: 'تأكيد الترتيب',
 			confirmOrderNoChanges: 'تأكيد الترتيب (لا توجد تغييرات)',
 			confirmAria: 'تأكيد هذا الترتيب كإجابتك',
+			imageFallback: 'صورة هذا السؤال',
+			imageLoadError: 'تعذّر تحميل الصورة.',
+			unlabeledItem: 'العنصر {index}',
+			minChoicesHint: {
+				zero: 'رتّب {count} عنصر على الأقل.',
+				one: 'رتّب عنصرًا واحدًا على الأقل.',
+				two: 'رتّب عنصرين على الأقل.',
+				few: 'رتّب {count} عناصر على الأقل.',
+				many: 'رتّب {count} عنصرًا على الأقل.',
+				other: 'رتّب {count} عنصر على الأقل.',
+			},
+			subsetExactHint: {
+				zero: 'اختر {count} عنصر لترتيبك.',
+				one: 'اختر عنصرًا واحدًا لترتيبك.',
+				two: 'اختر عنصرين لترتيبك.',
+				few: 'اختر {count} عناصر ورتّبها.',
+				many: 'اختر {count} عنصرًا ورتّبها.',
+				other: 'اختر {count} عنصر ورتّبها.',
+			},
+			subsetRangeHint: {
+				zero: 'اختر ما بين {min} و{max} عنصر ورتّبها.',
+				one: 'اختر ما بين {min} و{max} عنصر ورتّبها.',
+				two: 'اختر عنصرًا واحدًا أو عنصرين ورتّبهما.',
+				few: 'اختر ما بين {min} و{max} عناصر ورتّبها.',
+				many: 'اختر ما بين {min} و{max} عنصرًا ورتّبها.',
+				other: 'اختر ما بين {min} و{max} عنصر ورتّبها.',
+			},
+		},
+
+		graphicAssociate: {
+			unknownImageDimensions: 'لا يمكن عرض هذه الاقترانية المصوّرة: حجم الصورة غير معروف، لذلك لا يمكن وضع المناطق الساخنة. أضف العرض والارتفاع إلى الصورة، أو قدّم أبعاد الأصل.',
+			imageFallback: 'صورة هذا السؤال',
+			imageLoadError: 'تعذّر تحميل الصورة.',
+			unlabeledHotspot: 'المنطقة {index}',
+			hotspotConnections: '{label} ({usageCount}/{matchMax} اتصالات)',
+			hotspotConnectionsUnlimited: '{label} ({usageCount} اتصالات، غير محدودة)',
+			notAvailableSentence: 'غير متاح بسبب قيد مجموعة المطابقة.',
+			selectAnotherHotspot: 'المحدد: {label}. اختر نقطة ساخنة أخرى لإنشاء ارتباط.',
+			associationsCount: 'الارتباطات ({count}/{max})',
+			associationsCountUnlimited: 'الارتباطات ({count})',
+			clickHotspotsToAssociate: 'اختر نقطتين ساخنتين على الصورة لإنشاء ارتباط.',
+			pairDescription: '{first} مرتبط بـ {second}',
+			removeAssociation: 'إزالة الارتباط بين {first} و{second}',
+			minimumRequired: 'الحد الأدنى المطلوب: {minAssociations}',
+			associationMade: 'تم إنشاء الارتباط.',
+			associationRemoved: 'تمت إزالة الارتباط.',
+			associationLimitReached: 'لا يمكن إنشاء الارتباط: تم الوصول إلى الحد {max}.',
+			hotspotLimitReached: 'غير ممكن: لا يمكن أن يكون {label} في مزيد من الارتباطات.',
+			minAssociationsHint: {
+				zero: 'أنشئ {count} ارتباطات على الأقل.',
+				one: 'أنشئ ارتباطًا واحدًا على الأقل.',
+				two: 'أنشئ ارتباطين على الأقل.',
+				few: 'أنشئ {count} ارتباطات على الأقل.',
+				many: 'أنشئ {count} ارتباطًا على الأقل.',
+				other: 'أنشئ {count} ارتباط على الأقل.',
+			},
+			minHotspotUsesHint: 'يحتاج إلى مزيد من الارتباطات: {items}.',
 		},
 
 		custom: {
@@ -475,10 +726,24 @@ export default {
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: 'اختر...',
-			textEntryLabel: 'إدخال نص {id}',
-			choiceLabel: 'اختيار مضمَّن {id}',
-			formatHint: 'التنسيق: {mask}',
+			blankLabel: 'الفراغ {index} من {count}',
+			patternMismatch: 'هذه الإجابة ليست بالتنسيق المتوقع.',
+			patternMismatchWithHint: 'هذه الإجابة ليست بالتنسيق المتوقع. استخدم هذا التنسيق: {hint}',
+			correctChoice: 'الإجابة الصحيحة: {choice}',
 		},
+	},
+
+	/**
+	 * إعلان لقارئات الشاشة عندما يتعذر عرض التفاعل.
+	 * ينبغي أن يراجع هذه الترجمة متحدث أصلي.
+	 */
+	interaction: {
+		renderError: 'تعذّر عرض هذا العنصر التفاعلي ({type}).',
+	},
+
+	/** الاسم المتاح للمجموعة التي يعرضها التفاعل المخصص القابل للنقل (PCI). */
+	customInteraction: {
+		portableLabel: 'تفاعل مخصص قابل للنقل',
 	},
 
 	item: {
@@ -487,28 +752,28 @@ export default {
 		loadError: 'خطأ في تحميل العنصر: {error}',
 		parsingError: 'فشل تحليل QTI XML',
 		processingError: 'فشل معالجة الإجابات',
+		submitError: 'تعذّر إرسال إجابتك. يرجى المحاولة مرة أخرى.',
 		submit: 'إرسال',
 		complete: 'إكمال',
 		completed: 'مكتمل',
 		attempt: 'المحاولة {numAttempts}',
 	},
 
-	itemSession: {
-		attempt: 'المحاولة {numAttempts}',
-		attemptsRemaining: '{attemptsRemaining} محاولات متبقية',
-		maxAttempts: 'الحد الأقصى للمحاولات: {maxAttempts}',
-	},
 
 	feedback: {
+		title: 'التعليقات',
 		close: 'إغلاق التعليقات',
 		closeFeedback: 'رفض التعليقات',
 		testFeedback: 'تعليقات الاختبار',
+		shown: 'تم عرض التعليقات.',
 	},
 
 	assessment: {
 		title: 'التقييم',
 		loading: 'جارٍ تحميل التقييم...',
-		loadingError: 'انتهت مهلة تحميل التقييم. قد يكون هذا التقييم غير صالح أو فشل المشغل في التهيئة.',
+		loadingError: 'تعذّر تحميل هذا التقييم. يرجى المحاولة مرة أخرى.',
+		stillLoading: 'ما زال التحميل جاريًا. يرجى الانتظار قليلًا.',
+		loadingRetry: 'حاول مرة أخرى',
 		question: 'السؤال {current} من {total}',
 		questionAnnouncement: 'السؤال {current} من {total}',
 		section: 'القسم {current} من {total}',
@@ -516,8 +781,6 @@ export default {
 		closeMenu: 'إغلاق القائمة',
 		readingPassage: 'فقرة القراءة',
 		readingPassages: 'فقرات القراءة',
-		expandPassage: 'توسيع الفقرة',
-		collapsePassage: 'طي الفقرة',
 
 		attempts: {
 			remaining: '{count} محاولات متبقية',
@@ -527,6 +790,22 @@ export default {
 			maxReached: 'تم الوصول إلى الحد الأقصى للمحاولات',
 			required: 'يجب الإجابة قبل المتابعة',
 			reviewNotAllowed: 'غير مسموح بعد الإرسال',
+			attemptOf: 'المحاولة {current} من {total}',
+			current: 'المحاولة {current}',
+		},
+
+		// Practice delivery: the item-level check control (stays on the item, shows feedback).
+		checkAnswer: {
+			button: 'تحقق من الإجابة',
+			submittedAnnouncement: 'تم تسليم إجابتك.',
+			attemptsUsedUp: 'لقد استخدمت جميع محاولاتك لهذا السؤال.',
+		},
+
+		// QTI allowComment: the candidate comment disclosure.
+		comments: {
+			heading: 'تعليقات لفريق الاختبار',
+			label: 'تعليقاتك',
+			placeholder: 'اكتب تعليقًا لفريق الاختبار (اختياري).',
 		},
 
 		navigation: {
@@ -536,6 +815,64 @@ export default {
 			jumpTo: 'انتقل إلى السؤال {number}',
 			sectionMenu: 'قائمة الأقسام',
 			progress: 'التقدم: {percent}%',
+			answeredCount: 'تمت الإجابة على {answered} من {total}',
+		},
+
+		flag: {
+			label: 'علّم للمراجعة',
+			flaggedAnnouncement: 'تم تعليم السؤال {number} للمراجعة.',
+			unflaggedAnnouncement: 'تمت إزالة تعليم السؤال {number}.',
+		},
+
+		review: {
+			title: 'راجع إجاباتك',
+			open: 'مراجعة الأسئلة',
+			backToQuestion: 'العودة إلى السؤال',
+			flagged: 'معلَّم للمراجعة',
+			flaggedCount: 'تم تعليم {count} للمراجعة',
+			questionsGroup: 'الأسئلة',
+			linearNote: 'في هذا الجزء يمكنك المضي قدمًا فقط، لذلك تُعرض هذه الأسئلة للمراجعة فقط.',
+			goToItem: 'الانتقال إلى السؤال {number}',
+			currentItem: 'السؤال الحالي',
+			statusAnswered: 'تمت الإجابة',
+			statusPartially: 'تمت الإجابة جزئيًا',
+			statusUnanswered: 'لم تتم الإجابة',
+			notVisited: 'لم يُزر بعد',
+		},
+
+		submit: {
+			dialogTitle: 'هل تريد تسجيل اختبارك؟',
+			dialogDescription: 'لا يمكنك تغيير إجاباتك بعد التسجيل.',
+			flaggedLine: 'تم تعليم {count} من الأسئلة للمراجعة',
+			unansweredHeading: 'لم تتم الإجابة على {count} من الأسئلة',
+			unansweredHeadingOne: 'لم تتم الإجابة على سؤال واحد',
+			needsAnswerHeading: 'تحتاج {count} من الأسئلة إلى إجابة قبل أن تتمكن من التسجيل',
+			needsAnswerHeadingOne: 'يحتاج سؤال واحد إلى إجابة قبل أن تتمكن من التسجيل',
+			incompleteHeadingOne: 'إجابة واحدة غير مكتملة ويجب إكمالها قبل التسجيل',
+			incompleteHeading: '{count} إجابات غير مكتملة ويجب إكمالها قبل التسجيل',
+			requirement: {
+				minChoices: 'اختر {count} على الأقل',
+				minStrings: 'أدخل {count} على الأقل',
+				minAssociations: 'طابق {count} على الأقل',
+				minPlays: 'الحد الأدنى للتشغيل: {count}',
+				incomplete: 'أكمل إجابتك',
+			},
+			incompleteJump: 'الانتقال إلى السؤال {number}: {requirement}',
+			incompleteEntry: 'السؤال {number}: {requirement}',
+			allAnswered: 'لقد أجبت على جميع الأسئلة.',
+			confirm: 'تسجيل الاختبار',
+			cancel: 'متابعة العمل',
+		},
+
+		leavePart: {
+			title: 'مغادرة هذا الجزء؟',
+			description: 'بعد المتابعة، لا يمكنك العودة إلى أسئلة هذا الجزء.',
+			confirm: 'متابعة',
+			cancel: 'البقاء في هذا الجزء',
+			needsAnswerHeadingOne: 'هناك سؤال واحد في هذا الجزء يحتاج إلى إجابة قبل مغادرته',
+			needsAnswerHeading: 'هناك {count} أسئلة في هذا الجزء تحتاج إلى إجابة قبل مغادرته',
+			incompleteHeadingOne: 'إجابة واحدة في هذا الجزء غير مكتملة ويجب إكمالها قبل مغادرته',
+			incompleteHeading: '{count} إجابات في هذا الجزء غير مكتملة ويجب إكمالها قبل مغادرته',
 		},
 
 		sections: {
@@ -550,9 +887,77 @@ export default {
 			timeRemaining: 'الوقت المتبقي: {time}',
 			timeElapsed: 'الوقت المنقضي: {time}',
 			timeUp: 'انتهى الوقت!',
+			warningMinutesOne: 'تبقّت دقيقة واحدة',
+			warningMinutes: 'الوقت المتبقي بالدقائق: {count}',
+			warningTime: 'تبقّى من الوقت: {time}',
+			paused: 'متوقف مؤقتًا',
+			label: 'المؤقت',
+		},
+
+		start: {
+			begin: 'ابدأ',
+			resume: 'متابعة',
+			timeMinutesOne: 'لديك دقيقة واحدة.',
+			timeMinutes: 'المدة المتاحة لك بالدقائق: {count}.',
+			timeExact: 'المدة المتاحة لك: {time}.',
+			scopedTimeLimits: 'لبعض أجزاء هذا الاختبار حدود زمنية خاصة بها.',
+			paused: 'هذا الاختبار متوقف مؤقتًا. يرجى الانتظار حتى يُستأنف.',
+		},
+
+		timeExpiry: {
+			autoSubmitted: 'انتهى الوقت. تم تسليم إجاباتك.',
+			submitTitle: 'انتهى وقت هذا الاختبار',
+			submitDescription: 'لم يعد بإمكانك تغيير إجاباتك. سلّم اختبارك للإنهاء.',
+			partTitle: 'انتهى وقت هذا الجزء',
+			sectionTitle: 'انتهى وقت هذا القسم',
+			questionTitle: 'انتهى وقت هذا السؤال',
+			scopeDescription: 'ستنتقل الآن إلى الجزء التالي من الاختبار.',
+			movingToQuestion: 'أنت تنتقل إلى السؤال {number}.',
+			closedDescription: 'لم يعد بإمكانك تغيير إجابات أسئلته.',
+			continue: 'متابعة',
+		},
+
+		pause: {
+			title: 'الاختبار متوقف مؤقتًا',
+			message: 'تم إيقاف اختبارك مؤقتًا. يرجى الانتظار حتى يُستأنف.',
+			announcement: 'الاختبار متوقف مؤقتًا.',
+			withReason: 'الاختبار متوقف مؤقتًا: {reason}',
+			resumed: 'تم استئناف الاختبار.',
+		},
+
+		// الحفظ التلقائي: مؤشر حالة الحفظ بجانب عدد الأسئلة المُجابة.
+		autosave: {
+			saved: 'تم الحفظ · {time}',
+			savedShort: 'تم الحفظ',
+			saving: 'جارٍ الحفظ…',
+			notSaved: 'لم يُحفظ',
+		},
+
+		// لقطة محفوظة تحتوي على إجابات سابقة: المتابعة أو البدء من جديد.
+		resume: {
+			title: 'هل تريد استئناف اختبارك؟',
+			description: 'لديك إجابات محفوظة من {time}.',
+			descriptionNoTime: 'لديك إجابات محفوظة من جلسة سابقة.',
+			resumeAction: 'استئناف من حيث توقفت',
+			startOver: 'البدء من جديد',
+			confirmTitle: 'البدء من جديد وحذف إجاباتك المحفوظة؟',
+			confirmDescription:
+				'سيتم حذف إجاباتك المحفوظة ويبدأ الاختبار من البداية. لا يمكن التراجع عن هذا الإجراء.',
+			confirmAction: 'احذف وابدأ من جديد',
+			cancel: 'الاحتفاظ بإجاباتي المحفوظة',
+			resumedAnnouncement: 'تمت استعادة إجاباتك المحفوظة.',
+			restartedAnnouncement: 'أعيد بدء الاختبار من البداية.',
+		},
+
+		// تعذّر عرض محتوى السؤال: بلغة واضحة دون نص تقني، ويستمر الاختبار.
+		itemError: {
+			title: 'تعذّر عرض هذا السؤال.',
+			tryAgain: 'حاول مرة أخرى',
+			continue: 'متابعة',
 		},
 
 		feedback: {
+			title: 'التعليقات',
 			correct: 'صحيح',
 			incorrect: 'غير صحيح',
 			partiallyCorrect: 'صحيح جزئيًا',
@@ -571,15 +976,74 @@ export default {
 			exit: 'خروج',
 		},
 
+		// The shell completion screen after finalization (+ the opt-in results summary).
+		complete: {
+			alreadySubmitted: 'تم تسليم هذا الاختبار بالفعل.',
+			finished: 'لقد أنهيت الاختبار.',
+			timeExpired: 'انتهى الوقت. انتهى الاختبار وتم تسليم إجاباتك.',
+			byProctor: 'تم تسجيل اختبارك بواسطة المشرف.',
+			byProctorAnnouncement: 'قام المشرف بتسجيل اختبارك.',
+			resultsHeading: 'ملخص النتائج',
+			totalScore: 'الدرجة الكلية: {score} من {maxScore}',
+			itemName: 'السؤال {number}',
+		},
+
 		errors: {
 			navigationFailed: 'فشل التنقل. يرجى المحاولة مرة أخرى.',
 			submitFailed: 'فشل إرسال التقييم. يرجى المحاولة مرة أخرى.',
 			loadFailed: 'فشل تحميل السؤال.',
 			saveFailed: 'فشل حفظ الإجابة.',
+			unexpected: 'حدث خطأ ما. يرجى المحاولة مرة أخرى.',
+			supportCode: 'رمز الدعم: {code}',
+			codes: {
+				invalidNavigationTarget: 'هذا السؤال أو القسم غير متاح.',
+				linearNavigationOnly: 'في هذا الجزء يمكنك الانتقال إلى السؤال التالي فقط.',
+				navigationNotAllowed: 'لا يمكنك الانتقال إلى هناك الآن.',
+				navigationInFlight: 'يرجى الانتظار قليلاً قبل المحاولة مرة أخرى.',
+				testFinalized: 'تم إرسال هذا الاختبار بالفعل.',
+				minTimeNotElapsed: 'يرجى البقاء على هذا المحتوى مدة {remaining} ثانية إضافية على الأقل قبل المتابعة.',
+				itemTimeExpired: 'انتهى الوقت المحدد لهذا السؤال.',
+				reviewNotAllowed: 'لا يمكنك العودة إلى هذا السؤال.',
+				responseRequired: 'يجب الإجابة على هذا السؤال قبل المتابعة.',
+				finalizeResponseRequired: 'لا تزال بعض الأسئلة بحاجة إلى إجابة قبل أن تتمكن من التسجيل: {items}.',
+				finalizeResponseInvalid: 'بعض الإجابات غير مكتملة بعد. راجع هذه الأسئلة قبل التسجيل: {items}.',
+				leavePartResponseRequired: 'بعض الأسئلة في هذا الجزء ما زالت تحتاج إلى إجابة قبل المتابعة: {items}.',
+				leavePartResponseInvalid: 'بعض الإجابات في هذا الجزء غير مكتملة بعد. راجعها قبل المتابعة: {items}.',
+				attemptValidationFailed: 'يرجى التحقق من إجابتك. الإجابة الصالحة مطلوبة.',
+				maxAttemptsReached: 'لقد استخدمت جميع محاولاتك لهذا السؤال.',
+				itemSessionLocked: 'هذا السؤال مغلق ولا يمكن تغييره بعد الآن.',
+				commentsNotAllowed: 'التعليقات غير مسموح بها في هذا السؤال.',
+				submitFailed: 'تعذر إرسال إجاباتك. إجاباتك لا تزال محفوظة هنا. يرجى المحاولة مرة أخرى.',
+				finalizeFailed: 'تعذر إرسال الاختبار بعد. إجاباتك لا تزال محفوظة هنا. يرجى المحاولة مرة أخرى.',
+				assessmentPaused: 'اختبارك متوقف مؤقتًا. يرجى الانتظار حتى يُستأنف.',
+				outcomeProcessingFailed: 'تم حفظ إجاباتك، لكن تعذر حساب النتائج. يرجى التواصل مع الدعم إذا استمرت المشكلة.',
+			},
 		},
 		playerLabel: 'مشغل التقييم',
 		instructions: 'التعليمات',
 		rubrics: 'معايير التقييم',
+		skipToQuestion: 'الانتقال إلى السؤال',
+	},
+
+	// Section player chrome: passage/question panes and their headings.
+	sectionPlayer: {
+		passage: 'النص',
+		passageNumbered: 'النص {number}',
+		passages: 'النصوص',
+		question: 'السؤال',
+		passageAndQuestion: 'النص والسؤال',
+		// The candidate's display settings tool and its dialog.
+		displaySettings: {
+			title: 'إعدادات العرض',
+			description: 'تُطبَّق التغييرات فورًا وتبقى مفعّلة طوال هذه الجلسة.',
+			textSize: 'حجم النص',
+			sizeDefault: 'افتراضي',
+			sizeLarge: 'كبير',
+			sizeLarger: 'أكبر',
+			sizeLargest: 'الأكبر',
+			highContrast: 'نص بتباين أعلى',
+			textSpacing: 'تباعد إضافي للنص',
+		},
 	},
 
 	i18n: {
@@ -597,6 +1061,7 @@ export default {
 		answerRecorded: 'تم تسجيل الإجابة',
 		resizer: 'تغيير حجم لوحات الفقرة والسؤال',
 		sentence: '{text}.',
+		choiceFallback: 'الخيار {index}',
 		correctAnswer: 'إجابة صحيحة.',
 		correctAnswerIs: 'الإجابة الصحيحة: {answer}.',
 		correctPosition: 'موضع صحيح.',
@@ -612,124 +1077,6 @@ export default {
 		catalogRequestUsage: 'طلب {usage}: {term}',
 	},
 
-	demo: {
-		selectSampleItem: 'اختر عنصرًا نموذجيًا',
-		configurationPanel: 'لوحة التكوين',
-		viewingAs: 'المشاهدة كـ',
-		role: 'الدور',
-		candidate: 'مرشح',
-		author: 'مؤلف',
-		proctor: 'مراقب',
-		scorer: 'مصحح',
-		tutor: 'مدرس',
-		showCorrectAnswers: 'إظهار الإجابات الصحيحة',
-		showFeedback: 'إظهار التعليقات',
-		settings_aria: 'فتح قائمة الإعدادات',
-		xmlEditor: 'محرر XML',
-
-		// Navigation
-		appName: 'مشغل PIE QTI',
-		home: 'الصفحة الرئيسية',
-		itemDemo: 'عرض العنصر',
-		assessmentDemo: 'عرض التقييم',
-		likertDemo: 'عرض مكون Likert',
-		iframeDemo: 'عرض Iframe',
-		theme: 'السمة',
-
-		// Home Page
-		homeTitle: 'مشغل QTI',
-		homeSubtitle: 'مشغل حديث ومستقل عن الإطار لعناصر تقييم QTI. يعمل بنسبة 100% على جانب العميل بشكل افتراضي، مع خطافات اختيارية على جانب الخادم للاستخدام في بيئة الإنتاج.',
-		homeMetaDescription: 'مشغل QTI حديث مع تكامل اختياري للخلفية',
-		tryItems: 'تجربة العناصر',
-		tryAssessments: 'تجربة التقييمات',
-		trySectionPlayer: 'مشغل القسم',
-		pluginDemo: 'عرض المكون الإضافي',
-		dropQtiFile: 'أسقط ملف QTI XML هنا',
-		orClickToSelect: 'أو انقر لاختيار ملف',
-		selectFile: 'اختيار ملف',
-		selectedFile: 'المحدد:',
-		loadInPlayer: 'تحميل في المشغل',
-		footerTitle: 'مشغل QTI',
-		footerLicense: 'ترخيص MIT • مفتوح المصدر',
-
-		// Settings Panel
-		settings: 'الإعدادات',
-		candidateStudent: 'مرشح (طالب)',
-		testConstructor: 'منشئ الاختبار',
-		controlsRubricVisibility: 'يتحكم في رؤية معايير التقييم وعرض الإجابات الصحيحة',
-		useBackendScoring: 'استخدام تصحيح الخادم',
-		scoreOnServer: 'تصحيح الإجابات على الخادم بدلاً من جانب العميل',
-		sessionManagement: 'إدارة الجلسة',
-		saving: 'جارٍ الحفظ...',
-		saveSession: 'حفظ الجلسة',
-		loadSession: 'تحميل الجلسة',
-
-		// Export & Template
-		exportResponses: 'تصدير الإجابات',
-		json: 'JSON',
-		csv: 'CSV',
-		templateProcessing: 'معالجة القالب',
-		rerunTemplateProcessing: 'إعادة تشغيل معالجة القالب وإعادة تعيين جلسة العنصر',
-		regenerateVariant: 'إعادة إنشاء البديل',
-		templateVariablesDebug: 'متغيرات القالب (تصحيح الأخطاء)',
-		variable: 'المتغير',
-		value: 'القيمة',
-
-		// Keyboard Shortcuts
-		keyboardShortcuts: 'اختصارات لوحة المفاتيح',
-		submitAnswersShortcut: 'إرسال الإجابات',
-		tryAgainShortcut: 'حاول مرة أخرى',
-		exportJsonShortcut: 'تصدير JSON',
-		saveSessionShortcut: 'حفظ الجلسة',
-		useCmdOnMacOS: 'استخدم <kbd class="kbd kbd-xs">Cmd</kbd> على macOS',
-
-		// Results Panel
-		results: 'النتائج',
-		score: 'الدرجة',
-		outcomeVariables: 'متغيرات النتيجة',
-
-		// Misc
-		format: 'التنسيق',
-		selectItemOrPasteXml: 'اختر عنصرًا نموذجيًا أو الصق XML مخصصًا للبدء.',
-		pageTitle: 'عرض المشغل - مشغل PIE QTI',
-
-		// Sample Item Descriptions
-		sampleItemDescriptions: {
-			'': 'عنصر مخصص تم تحميله',
-			'simple-choice': 'مسألة طرح كلامية أساسية مع خيارات معقولة',
-			'partial-credit': 'اختيار متعدد مع درجة جزئية باستخدام mapResponse',
-			'capital-cities': 'سؤال جغرافي مع خيارات مختلطة',
-			'text-entry': 'سؤال ملء الفراغ مع مطابقة غير حساسة لحالة الأحرف',
-			'extended-text': 'سؤال استجابة نصية متعددة الأسطر',
-			'inline-choice': 'قائمة منسدلة مضمنة في النص',
-			'order-interaction': 'ترتيب العناصر بالتسلسل الصحيح',
-			'match-interaction': 'مطابقة العناصر من عمودين',
-			'associate-interaction': 'إنشاء ارتباطات بين العناصر',
-			'gap-match': 'سحب الكلمات إلى الفراغات في النص',
-			'graphic-gap-match-solar-system': 'تسمية الكواكب الأربعة الداخلية من نظامنا الشمسي',
-			'slider': 'اختيار قيمة على شريط تمرير رقمي',
-			'hotspot': 'انقر على الكوكب الأزرق في سؤال الفلك هذا',
-			'hotspot-partial-credit': 'تحديد الكوكب الذي يحتوي على ماء سائل (درجة جزئية للكواكب الأرضية)',
-			'template-variable-demo': 'معالجة القالب تولد القيم؛ معالجة الاستجابة تقيمها',
-			'upload-interaction': 'تحميل ملف كاستجابة (baseType=file)',
-			'drawing-interaction': 'الرسم على لوحة (baseType=file، PNG dataUrl)',
-			'media-audio': 'مشغل صوت مع تتبع عدد مرات التشغيل ومتطلب minPlays',
-			'media-video': 'مشغل فيديو مع تتبع عدد مرات التشغيل وحد maxPlays',
-			'hottext-single': 'انقر لتحديد كلمة واحدة داخل النص (سؤال نحوي)',
-			'hottext-multiple': 'انقر لتحديد مقاطع نصية متعددة (فهم القراءة)',
-			'select-point': 'انقر على الصورة لتحديد موقع نقطة (سؤال جغرافي)',
-			'graphic-order': 'اسحب لإعادة ترتيب العناصر على صورة (طبقات جيولوجية)',
-			'graphic-associate': 'انقر على أزواج من النقاط الساخنة لإنشاء ارتباطات (مطابقة الأعضاء)',
-			'position-object': 'اسحب وضع كائنات الأثاث على مخطط الغرفة',
-			'end-attempt': 'زر لإنهاء محاولة التقييم',
-			'custom-interaction': 'يعرض واجهة احتياطية لـ customInteraction ويسمح باستجابة يدوية',
-			'choice-with-stimulus': 'سؤال مع فقرة قراءة مضمنة',
-			'math-inline': 'اختيار متعدد مع عرض رياضيات MathML مضمنة',
-			'math-extended': 'استجابة موسعة مع MathML ومحرر نص منسق لعرض العمل الرياضي',
-			'math-fractions': 'حساب الكسور مع عرض كتلة MathML',
-			'adaptive-capitals': 'سؤال تكيفي متعدد المحاولات مع تعليقات وتلميحات تقدمية',
-		},
-	},
 
 	transform: {
 		// App title and navigation

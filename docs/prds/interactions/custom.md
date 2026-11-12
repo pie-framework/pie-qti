@@ -93,7 +93,7 @@ Extracted by `portableCustomExtractor` (priority 20) into `ExtractedPci`. `PciHo
 | Attribute / child | Support | Notes |
 | ----------------- | ------- | ----- |
 | Outer `customInteraction@responseIdentifier` | Supported | Retained as the response-variable binding |
-| Inner `pci:portableCustomInteraction@customInteractionIdentifierType` | Supported | Stored as `customInteractionTypeIdentifier` |
+| Inner PCI type identifier — `customInteractionTypeIdentifier` (2.x) / `custom-interaction-type-identifier` (3.0) | Supported | Stored as `customInteractionTypeIdentifier`; the invented `customInteractionIdentifierType` spelling is no longer read |
 | `<pci:instance>` | Supported | Script elements are removed from the mounted scaffold before it reaches `innerHTML` |
 | First external `<script src>` in `<pci:instance>` | Supported | Passed as an authored path to the host resolver; inline scripts are never executed |
 
@@ -541,12 +541,13 @@ Then: Two separate fallback UI instances are rendered
   AND a change to CUST1's textarea does not affect CUST2's response variable
 ```
 
-**AC-E5: Response prop is a JSON string (web component usage)**
+**AC-E5: A string response is shown exactly as written (web component usage)**
 ```
-Given: The pie-qti-custom web component receives response as the JSON-stringified value '"H2O"'
-When: The component initialises
-Then: parseJsonProp deserialises the string
-  AND the textarea is populated with H2O (not the JSON-wrapped form '"H2O"')
+Given: The pie-qti-custom web component receives the response '"H2O"' (the candidate typed the quotes),
+       set as a JavaScript property
+When: The component initialises, or the host sets the same response again after a change
+Then: The textarea shows "H2O" with its quotes: the response is never parsed as JSON
+  AND likewise 1.50, null and [1] stay exactly that text
 ```
 
 ### PCI acceptance criteria

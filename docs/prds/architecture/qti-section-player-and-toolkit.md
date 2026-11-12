@@ -42,7 +42,7 @@ The toolkit strategy is QTI-native thin reuse. `pie-qti` should not duplicate `p
   assets, QTI 3 assessment stimulus references, stylesheets, catalogs, and package-relative asset
   hrefs.
 - **Deliberately omitted attributes:** adaptive selection, branch rules, preconditions, time limits, and full simultaneous submission orchestration are not v1 section-player layout responsibilities. They remain owned by the full assessment orchestration layer until a later PRD defines a section runtime model for them.
-- **Known divergences from spec:** the v1 section player targets active-item rendering parity with the current assessment shell. It does not initially mean "render every item in a section at once." Multi-item-in-view section rendering is future work and must not be implied by the initial package name.
+- **Known divergences from spec:** none. The v1 section player targets active-item rendering parity with the current assessment shell; it does not initially mean "render every item in a section at once." QTI leaves presentation to the delivery system: "Test delivery systems are free to implement their own user interface elements to facilitate navigation provided they honour the navigation mode currently in effect" (QTI 3.0 §2.8.2). Multi-item-in-view section rendering is future work and must not be implied by the initial package name.
 
 QTI 2.1 shared passages and QTI 3.0 stimuli enter the render model through different source constructs. QTI 2.1 packages often provide passage-like content through section rubric blocks or auxiliary item/package assets. QTI 3.0 provides first-class `assessmentStimulus` resources that can carry body HTML, stylesheets, and catalog info. The section player must normalize both into `QtiSharedContext` before selecting a layout.
 
@@ -78,7 +78,7 @@ QTI 2.1 shared passages and QTI 3.0 stimuli enter the render model through diffe
 - **Performance:** Section normalization should be linear in the number of item refs and shared resources for the active section. Layout and response-only updates must preserve the injected live session and avoid remounting the item player unnecessarily. Package file resolution should be cached by the host or resolver.
 - **Cross-platform:** Layouts must work in desktop and mobile browsers. Split-pane layouts must provide a vertical fallback for narrow viewports and touch users.
 - **Security:** QTI shared passage, rubric, stimulus, stylesheet, catalog, asset, and test-feedback content is untrusted input. Every shared-content HTML render sink must use the same sanitizer, URL policy, Trusted Types policy, and parsing limits as item rendering.
-- **i18n:** Section navigation labels, passage headings, rubric labels, readiness text, framework errors, and diagnostics must use `@pie-qti/i18n` or host-provided localization rather than hard-coded user-facing strings.
+- **i18n:** Section navigation labels, passage headings, rubric labels, readiness text, framework errors, and diagnostics must use `@pie-qti/i18n` or host-provided localization rather than hard-coded user-facing strings. The tool bars' `pie-players` chrome (tool names, read-aloud and tool panel controls) is the exception. It renders in the section's interface locale from the toolkit's own catalogs: English is bundled, and every other locale comes from `@pie-players/pie-i18n-generated`, loaded only for that locale.
 
 ---
 

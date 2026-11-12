@@ -134,7 +134,7 @@ Educational assessments have unique accessibility requirements beyond standard w
   height: 30px;
 }
 
-/* ✅ WCAG 2.2 minimum: 44×44px */
+/* ✅ K-12 house target: 44×44px (WCAG 2.5.5, AAA); the AA minimum is 24×24px (2.5.8) */
 .drag-handle {
   width: 44px;
   height: 44px;
@@ -179,7 +179,7 @@ Educational assessments have unique accessibility requirements beyond standard w
 ```
 
 #### 2.2 Enough Time (Level A)
-- [ ] **2.2.1**: Time limits can be turned off, adjusted, or extended (at least 10x)
+- [ ] **2.2.1**: Time limits can be turned off, adjusted, or extended (at least 10x), unless the limit is essential. A timed test can fall under the essential exception, but extended time (PNP) must still be honoured and candidates must be warned before time runs out
 - [ ] **2.2.2**: Moving/blinking/scrolling content can be paused/stopped/hidden
 - [ ] **Assessment context**: Screen reader users may need extended time for timed assessments
 
@@ -209,9 +209,9 @@ Educational assessments have unique accessibility requirements beyond standard w
 - [ ] **2.4.4** (Level A): Link purpose clear from link text or context
 - [ ] **2.4.5** (Level AA): Multiple ways to access content (not always applicable to assessments)
 - [ ] **2.4.6** (Level AA): Headings and labels are descriptive
-- [ ] **2.4.7** (Level AA): Focus indicator is visible (2px minimum, 3:1 contrast)
-- [ ] **2.4.11** (Level AA, New in 2.2): Focus not obscured by other content
-- [ ] **2.4.13** (Level AA, New in 2.2): Focus appearance has minimum 2px perimeter, 3:1 contrast
+- [ ] **2.4.7** (Level AA): Focus indicator is visible
+- [ ] **2.4.11** (Level AA, New in 2.2): Focus Not Obscured (Minimum) — the focused component is not entirely hidden by author-created content (sticky headers, navigation bars, timers)
+- [ ] **2.4.13** (Level AAA, New in 2.2): Focus Appearance — indicator area at least a 2px perimeter with 3:1 change of contrast. Not required for AA, but it is this project's house style for focus rings (`outline: 2px solid` with 3:1 contrast, which also satisfies 1.4.11 for the indicator)
 
 **Example Issues to Catch:**
 ```svelte
@@ -240,18 +240,19 @@ Educational assessments have unique accessibility requirements beyond standard w
 
 #### 2.5 Input Modalities (Level A/AA)
 - [ ] **2.5.1** (Level A): Pointer gestures have keyboard/single-pointer alternatives
-- [ ] **2.5.2** (Level A): Touch targets at least 44×44 CSS pixels (with exceptions)
+- [ ] **2.5.2** (Level A): Pointer Cancellation — actions fire on the up-event (or can be aborted/undone), not on the down-event
 - [ ] **2.5.3** (Level A): Labels match accessible names
 - [ ] **2.5.4** (Level A): Motion actuation can be disabled
+- [ ] **2.5.5** (Level AAA): Target Size (Enhanced) — at least 44×44 CSS pixels. Not required for AA, but the house target for primary K-12 controls (choices, drag handles, navigation)
 - [ ] **2.5.7** (Level AA, New in 2.2): Dragging movements have single-pointer alternative
-- [ ] **2.5.8** (Level AA, New in 2.2): Target size minimum 24×24 CSS pixels
+- [ ] **2.5.8** (Level AA, New in 2.2): Target Size (Minimum) — at least 24×24 CSS pixels, or sufficient spacing (with exceptions)
 
 **Example Issues to Catch:**
 ```svelte
 <!-- ❌ Touch target too small: 20×20px -->
 <button style="width: 20px; height: 20px;">×</button>
 
-<!-- ✅ WCAG 2.2 compliant: 44×44px -->
+<!-- ✅ Meets AA (2.5.8, ≥24×24px) and the K-12 house target (44×44px) -->
 <button style="width: 44px; height: 44px;" aria-label="Close">×</button>
 
 <!-- ❌ Drag-only interaction -->
@@ -516,7 +517,7 @@ When conducting an accessibility review:
    - Test with color blindness simulators
 
 4. **Touch Target Audit**
-   - Verify all interactive elements are at least 44×44px
+   - Verify all interactive elements are at least 24×24px (2.5.8, AA) and primary K-12 controls reach 44×44px (house target)
    - Check spacing between adjacent targets
 
 5. **Code Review**

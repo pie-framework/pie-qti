@@ -4,19 +4,19 @@
   Status: current
   Type: system
   Packages: @pie-qti/item-player, @pie-qti/assessment-player, @pie-qti/default-components, @pie-qti/section-player
-  Last reviewed: 2026-10-15
+  Last reviewed: 2026-11-07
 -->
 
 **Status:** current
 **Type:** system
 **Packages:** `@pie-qti/item-player`, `@pie-qti/assessment-player`, `@pie-qti/default-components`, `@pie-qti/section-player`
-**Last reviewed:** 2026-10-15
+**Last reviewed:** 2026-11-07
 
 ---
 
 ## Summary
 
-The PNP (Personal Needs and Preferences) profile is a per-candidate AfA PNP 3.0 document, QTI 3's profile of IMS Access for All, that the host delivers to the player at session start. Content never carries it. PIE-QTI parses the document and renders the needs the player owns: a named color scheme, inverted polarity, single-column layout and text appearance as attributes and custom properties on the player root, styled by `qti-pnp.css` in `@pie-qti/default-components`; answer masking in `choiceInteraction`; a per-choice elimination tool the host turns on; extended time as a multiplier or fixed minutes on `timeLimits.maxTime`; trigger UI with inline popup for on-screen glossary and keyword-translation (illustrated-glossary renders as `<img>`), plus `qti-catalog-lookup` DOM events for platform-level usages (TTS, signing, braille, audio description). Tool supports reach the section player, which turns on the tools the host offers. Structured label and braille support are deferred to G-13.
+The PNP (Personal Needs and Preferences) profile is a per-candidate AfA PNP 3.0 document, QTI 3's profile of IMS Access for All, that the host delivers to the player at session start. Content never carries it. PIE-QTI parses the document and renders the needs the player owns: a named color scheme, inverted polarity, single-column layout and text appearance as attributes and custom properties on the player root, styled by `qti-pnp.css` in `@pie-qti/default-components`; answer masking in `choiceInteraction`; spell checking in the response fields; a per-choice elimination tool the host turns on; extended time as a multiplier or fixed minutes on `timeLimits.maxTime`; trigger UI with inline popup for on-screen glossary and keyword-translation (illustrated-glossary renders as `<img>`), plus `qti-catalog-lookup` DOM events for platform-level usages (TTS, signing, braille, audio description). In a section player the display needs cover the whole section surface — passages, rubrics, tool bars and items — and the candidate can adjust text size, contrast and spacing there with the display settings tool. Tool supports reach the section player, which turns on the tools the host offers.
 
 ---
 
@@ -67,19 +67,22 @@ Removing an eliminated choice from the DOM would change the response set silentl
 
 | AfA feature | `PnpProfile` field | Notes |
 |-------------|-------------------|-------|
-| `text-appearance` › `color-theme` | `display.colorScheme` | Theme terms map onto scheme names below; `'default'` removes the attribute |
-| `text-appearance` › `font-size`, `font-face`, `font-color`, `background-color`, `line-height` (else `line-spacing`), `letter-spacing`, `word-spacing` | `display.textAppearance` | Points for the size, em for the spacings; `font-face` gives its `font-name`s, then the CSS generic of `generic-font-face` |
+| `text-appearance` › `color-theme` (or a top-level `color-theme`) | `display.colorScheme` | Theme terms map onto scheme names below; `'default'` removes the attribute |
+| `text-appearance` › `font-size`, `font-face`, `font-color`, `background-color`, `line-height` (else `line-spacing`), `letter-spacing`, `word-spacing` | `display.textAppearance` | `fontSize` in points, `lineHeight` unitless, `letterSpacing` and `wordSpacing` in em; `fontFamily` is `font-face`'s `font-name`s, then the CSS generic of `generic-font-face`; the two colours must be hex |
 | `invert-display-polarity` | `display.invertPolarity` | Its `foreground` and `background` colours, when given, replace the inverted ones |
-| `layout-single-column` | `display.singleColumn` | Layout grids stack |
+| `layout-single-column` | `display.singleColumn` | Layout grids stack; a section split pane stacks its panes behind the Passage/Question tabs |
 | `language-of-interface` (`xml:lang`) | `display.interfaceLanguage` | Held for the host, which owns the player's interface locale |
-| `magnification` | `display.magnification` | `all-content`'s `zoom-amount`, else `text`'s |
+| `magnification` | `display.magnification` | `all-content`'s `zoom-amount`, else `text`'s; set as `data-qti-magnification` metadata for host stylesheets |
+| — (no AfA term) | `display.structuredLabelSupport` | A player extension, JSON profile only: the match interaction's answer set becomes a prompt-named ARIA group with heading-named columns; the choice answer set is a prompt-named group regardless (`packages/item-player/docs/PNP.md`) |
 | `answer-masking` | `cognitive.answerMasking` | Applied to `choiceInteraction` |
-| `additional-testing-time` | `content.extendedTime` | `time-multiplier` multiplies `timeLimits.maxTime`; `fixed-minutes` adds its minutes with multiplier 1; `unlimited` is `Infinity`, which removes the limit |
+| `spell-checker-on-screen` | `cognitive.spellChecker` | The browser's spell check and autocorrect are allowed in the candidate's response fields (the extended text interaction) |
+| — (no AfA term) | `cognitive.eliminationTool` | Set by the host: AfA has no answer-eliminator feature |
+| `additional-testing-time` | `content.extendedTime` | `time-multiplier` multiplies `timeLimits.maxTime`; `fixed-minutes` adds its minutes with multiplier 1 (`fixedMinutes`); `unlimited` is `Infinity`, which removes the limit |
 | `calculator-on-screen`, `spoken`, `line-reader`, `dictionary-on-screen` | `tools` | Tool supports below |
 | `glossary-on-screen` | `content.glossaryOnScreen` | Opens an inline popup with catalog content |
 | `keyword-translation` (`xml:lang`) | `content.keywordTranslation` | Opens an inline popup using the requested language |
 | `sbac-glossary-illustration`, an extension element | `content.illustratedGlossary` | Opens the illustrated glossary popup |
-| `additional-directions`, `audio-description`, `braille`, `high-contrast`, `keyboard-directions`, `linguistic-guidance`, `long-description`, `sign-language`, `simplified-graphics`, `simplified-language-portions`, `spoken`, `tactile`, `transcript` | `content.catalogSupports[<feature>]` | QTI 3's predefined card supports; each enables the catalog support of that name, with the feature's `xml:lang` as its language |
+| `additional-directions`, `audio-description`, `braille`, `high-contrast`, `keyboard-directions`, `linguistic-guidance`, `long-description`, `sign-language`, `simplified-graphics`, `simplified-language-portions`, `spoken`, `tactile`, `transcript` | `content.catalogSupports[<feature>]` | QTI 3's predefined card supports; each enables the catalog support of that name, with the feature's `xml:lang` as its language. `braille` and `sign-language` are filed under the platform keys `brailleText` and `signingDefinition`, which the player routes itself |
 
 | AfA `color-theme` | Scheme |
 |-------------------|--------|
@@ -114,12 +117,41 @@ The record `parseAfaPnpXml` returns is the JSON form pie-players' `createPersona
 
 The section player applies `tools` and the item's companion materials (`companionMaterialsInfo` in QTI 2.2, `qti-companion-materials-info` in QTI 3.0) to the tools the host passes. A tool offered with `enabled: false` turns on when the PNP supports it or the companion materials list it (`calculator`, `rule` as `ruler`, `protractor`); section tools follow the active item's materials. A prohibited support is removed, and `screenReader` without `textToSpeech` withholds read-aloud. Parameters fill what the host leaves unset: `renderParams.calculatorType` from the companion materials, then the PNP; the read-aloud provider's `rate` and `pitch` from the PNP.
 
+The rendered tool bars bind the same supports to their pie-players toolkit: the composition's `assessmentId` names the toolkit assessment, and `toolkitAssessmentOf` carries the candidate's `tools` as its `personalNeedsProfile`, with tool bar enforcement switched on. A support there protects its tool from the toolkit's content check — a `ruler` an item asks for shows whether or not the markup holds math the check recognises — and a prohibition withdraws it. The section player registers the four packaged tools it can act on (`textToSpeech`, `calculator`, `ruler` as `pie-tool-ruler`, `protractor` as `pie-tool-protractor`); a support no registered tool carries stays in the profile for the host's toolkit. Item companion materials become the item scope's `requiredTools`, so the tools an item lists show on its tool bar whatever the content check decides. Section-scoped tools follow the active item's materials, so they render on the active item's tool bar beside its own. The packaged registrations place `calculator`, `ruler` and `protractor` on item (and section) tool bars, not on a passage's: a passage tool bar renders read-aloud.
+
+### Display scope
+
+`applyPnpToRoot` sets the display needs on one element as `data-qti-*` attributes and `--qti-*` custom properties; `qti-pnp.css` renders them on that element and everything inside it, shadow roots included (custom properties and inherited properties cross them). Where that element sits decides the scope:
+
+| Delivery | Element | What the display needs cover |
+|----------|---------|------------------------------|
+| Item player alone | The item body root (`.qti-item-body`) | The item's content and interactions |
+| Section player (`SectionPlayerSplitPane`, `SectionPlayerVertical`, `pie-qti-section-player-splitpane`, `pie-qti-section-player-vertical`) | The layout root, made a PNP surface by `applyPnpToSurface` (`data-qti-pnp-surface`) | Everything the section renders: passages and stimuli, rubric and instruction blocks, the passage and item tool bars, the Passage/Question tabs and splitter, item headers, the display settings dialog, and the items |
+| Assessment player | The section layout it delegates to | As the section player; the shell's own chrome (title bar, navigation, timer, review screen) is outside the section surface |
+
+Inside a surface, an item body applies no display needs of its own (`isWithinPnpSurface`): the section's profile — the `pnp` it was given, else the composition's `pnp`, with the candidate's display settings applied — governs the items as well, so a colour scheme, a text size and inverted polarity are the same across passage and question, and an inverting filter is applied once. A session's own `updatePnp` display changes therefore show only where the item renders alone; a section host updates the section's `pnp` instead. The item's other needs (elimination, masking, structured labels, spell checking, glossary) still come from its own profile.
+
+Colour schemes stop at the surface by design: the host page around the player is never repainted, and the scheme's ground fills the section's layout box only. Two parts inside the surface keep styling of their own: the pie-players tool buttons draw from the toolkit's `--pie-*` tokens, so they sit on the scheme's ground but keep their own button colours, and a modal dialog in the top layer is not inside an inverting filter, so under `invert-display-polarity` without colours it keeps the default polarity. A host that wants its own chrome covered makes its root a surface with `applyPnpToSurface`; the section surface inside it then switches its own inverting filter off.
+
+### Candidate display settings
+
+The section player offers the candidate a display settings tool: a "Display settings" button in the item tool bar opens a native modal dialog on the section surface. The settings apply as they are chosen, to the whole surface, through the profile's own mechanisms:
+
+| Setting | `PnpProfile` change |
+|---------|---------------------|
+| Text size: Default, Large, Larger, Largest | `display.textAppearance.fontSize` 14, 16 or 20 pt; Default keeps the profile's own size |
+| Higher-contrast text | `display.colorScheme: 'blackwhite'`, the AfA `high-contrast` theme; while on it replaces the profile's scheme, off restores it |
+| Extra text spacing | `display.textAppearance` `lineHeight` 1.5, `letterSpacing` 0.12em, `wordSpacing` 0.16em, WCAG 1.4.12's reference values |
+
+`withDisplaySettings(pnp, settings)` computes the effective profile. Settings are session-scoped: they last for the page session, per assessment, also when the shell swaps the split-pane layout for the vertical one. Every change reaches the host through the layout's `onDisplaySettingsChange` and `QtiSectionRuntimeHostContract.onDisplaySettingsChange` as `{ sectionIdentifier, settings, pnp }`, where `pnp` is the effective profile. A host that persists the candidate's choices stores `pnp` and passes it back as the candidate's PNP next session; `displaySettingsOf(pnp)` reads the settings back, and the layouts' `initialDisplaySettings` starts the controls there. `displaySettings={false}` leaves the tool out.
+
+The dialog is named by its title and described by its hint, takes focus on its title when it opens and returns it to the button when it closes, closes on Escape, and keeps Tab inside where `showModal()` is missing. Its controls are a radio group and two checkboxes with visible labels, each a target of at least 44 × 44 CSS pixels, drawn from the `--pie-qti-*` tokens with logical properties. Close events the dialog caused itself are consumed, so a stale `close` event cannot shut a dialog the candidate has just reopened.
+
 ### Deliberately omitted / deferred features
 
 | Feature | Reason |
 |---------|--------|
-| `magnification` | Parsed into `display.magnification`; browser/OS zoom is sufficient, overlay deferred |
-| Structured labels | Per-interaction ARIA work; tracked as G-13 |
+| `magnification` | Parsed into `display.magnification` and set as `data-qti-magnification` / `--qti-magnification` metadata on the root or section surface; no stylesheet renders it. Browser/OS zoom is sufficient, overlay deferred; the section's display settings tool enlarges text through `textAppearance.fontSize` instead |
 | `braille` | Hardware integration; tracked as G-13. The catalog support fires `qti-catalog-lookup` for the host |
 | `sign-language` | Video player is host responsibility; tracked as G-14. The catalog support fires `qti-catalog-lookup` for the host |
 | Timing and pause control | UI for these requires assessment-level integration beyond timer multiplication; tracked separately |
@@ -131,7 +163,7 @@ The section player applies `tools` and the item's companion materials (`companio
 
 ### Known gaps
 
-**G-09 — PNP profile support:** Implemented in commit `fa8fa97` (2026-04-28). Elimination tool, extended time, glossary/keyword-translation triggers and popups are shipped. Color schemes set `data-qti-colorscheme` on the player root, and `qti-pnp.css` in `@pie-qti/default-components` ships the scheme rulesets, each at WCAG 1.4.3 contrast. Structured labels and braille data exposure landed with G-13 (research note, markup contract and NVDA checklist in `packages/item-player/docs/PNP.md`): `pnp.display.structuredLabelSupport` announces interaction answer sets as prompt-named ARIA groups, an AfA `<braille/>` grant routes to the platform `brailleText` preference, and `braille-text`/`braille` catalog usage names share one lookup. Remaining item: magnification overlay (browser zoom sufficient — boundary); braille device routing stays host-side. Sign language video is host-owned: G-14 delivers it through `qti-catalog-lookup`.
+**G-09 — PNP profile support:** Implemented in commit `fa8fa97` (2026-04-28). Elimination tool, extended time, glossary/keyword-translation triggers and popups are shipped. Color schemes set `data-qti-colorscheme` on the player root, and `qti-pnp.css` in `@pie-qti/default-components` ships the scheme rulesets, each at WCAG 1.4.3 contrast. Structured labels and braille data exposure landed with G-13 (research note, markup contract and NVDA checklist in `packages/item-player/docs/PNP.md`): `pnp.display.structuredLabelSupport` announces the match interaction's answer set as a prompt-named ARIA group, an AfA `<braille/>` grant routes to the platform `brailleText` preference, and `braille-text`/`braille` catalog usage names share one lookup. Remaining item: magnification overlay (browser zoom sufficient — boundary); braille device routing stays host-side. Sign language video is host-owned: G-14 delivers it through `qti-catalog-lookup`.
 
 ---
 
@@ -150,7 +182,10 @@ The section player applies `tools` and the item's companion materials (`companio
 - **FR-11:** The iframe postMessage protocol must be extended with a `SET_PNP` message type so that hosts using the iframe embedding mode can push PNP updates mid-session.
 - **FR-12:** `parsePnpXml` must not throw on AfA features `PnpProfile` has no field for, and `parseAfaPnpXml` must keep them in the record, extension elements under `extensions`, so the host can act on them.
 - **FR-13:** When `pnp.cognitive.answerMasking` is `true`, each choice of a `choiceInteraction` must render as a labelled reveal button in place of its label, and the choice must not be selectable until the candidate reveals it.
-- **FR-14:** `resolveQtiSectionComposition` must take `pnp` and apply its `tools` and the item's companion materials to the host's tools as Tool supports describes; `toSectionComposition` passes the assessment player's `pnp`.
+- **FR-14:** `resolveQtiSectionComposition` must take `pnp` and apply its `tools` and the item's companion materials to the host's tools as Tool supports describes; `toSectionComposition` passes the assessment player's `pnp`. The composition carries the `pnp` and the `assessmentId` on to the layouts.
+- **FR-15:** A section layout must apply its display profile to its own root with `applyPnpToSurface`, covering everything it renders as Display scope describes, and an item body inside a PNP surface must apply no display needs of its own. Nothing outside the layout root changes.
+- **FR-16:** A section layout must offer the candidate the display settings tool (unless `displaySettings` is `false`): a labelled button in the item tool bar opening an accessible modal whose text size, higher-contrast and spacing settings apply through `withDisplaySettings` to the whole surface, last for the page session per assessment, and reach the host as `QtiSectionDisplaySettingsEvent`.
+- **FR-17:** The section tool bars must render every tool the composition enables that the section player registers (`textToSpeech`, `calculator`, `ruler`, `protractor`), bind the candidate's tool supports to their toolkit under the composition's `assessmentId` with PNP enforcement on, and file the item's companion materials as the item scope's required tools.
 
 ---
 
@@ -160,7 +195,7 @@ The section player applies `tools` and the item's companion materials (`companio
 - **Performance:** `applyPnpToRoot` performs a single DOM attribute write. The `updatePnp` session command must be callable repeatedly during an assessment session (e.g. on each item navigation) without accumulated listeners or parsing work.
 - **Cross-platform:** The elimination toggle button must be usable on touch devices (tap target, no hover dependency). Color schemes must be verified on mobile viewports (375px minimum).
 - **Security:** `parsePnpXml` must not evaluate any script content from the XML input. It reads element names, text and attribute values of the AfA document; it must not `innerHTML`-inject any parsed content.
-- **i18n:** The reveal button label comes from `interactions.choice.revealChoice`. The elimination button label strings (`"Eliminate"` / `"Restore"`) must be sourced from the `@pie-qti/i18n` provider under keys `accessibility.pnp.eliminate` and `accessibility.pnp.restore`. English defaults are acceptable fallbacks.
+- **i18n:** The reveal button label comes from `interactions.choice.revealChoice`. The elimination button label strings (`"Eliminate"` / `"Restore"`) must be sourced from the `@pie-qti/i18n` provider under keys `accessibility.pnp.eliminate` and `accessibility.pnp.restore`. The display settings tool's strings live under `sectionPlayer.displaySettings.*`, its close action is `common.close`. English defaults are acceptable fallbacks.
 
 ---
 
@@ -223,6 +258,9 @@ The section player applies `tools` and the item's companion materials (`companio
 | `AssessmentItemDefinitionConfig.pnp` | `PnpProfile` | Pass while compiling a definition; provides initial PNP state to its sessions | `createAssessmentItemDefinition({ itemXml, pnp: { display: { colorScheme: 'blackwhite' } } })` |
 | `ItemSession.dispatch()` | `{ action: 'updatePnp'; profile: Partial<PnpProfile> }` | Dispatch while a session is active to update accommodations | Update color scheme when a student changes preference |
 | `applyPnpToRoot()` | `(rootEl: HTMLElement, pnp: PnpProfile) => void` | Exported utility; call directly if embedding the player root in a custom shell | Apply scheme to a custom outer wrapper element |
+| `applyPnpToSurface()`, `clearPnpSurface()`, `isWithinPnpSurface()` | `(el: HTMLElement, pnp?: PnpProfile) => void`, `(el: HTMLElement) => void`, `(el: Element) => boolean` | Make an element that renders several items' content one display scope; item bodies inside it leave their display needs to it | A shell paints its own chrome and the section inside it with one profile |
+| Section `onDisplaySettingsChange` | `(event: QtiSectionDisplaySettingsEvent) => void`, also on `QtiSectionRuntimeHostContract` | Hear the candidate's display settings and the effective profile | Persist `event.pnp` and pass it back as the candidate's PNP next session |
+| `withDisplaySettings()`, `displaySettingsOf()` | `(pnp, settings) => PnpProfile`, `(pnp) => QtiCandidateDisplaySettings` | Compute the profile a section renders with; read a persisted one back into settings | Restore the controls with the layout's `initialDisplaySettings` |
 | `parsePnpXml()` | `(xml: string \| Element) => PnpProfile` | Parse a candidate's AfA PNP 3.0 document | Feed the parsed profile into `AssessmentItemDefinitionConfig.pnp` |
 | `parseAfaPnpXml()` | `(xml: string \| Element) => AfaPnpRecord \| null` | Read the whole AfA record, keyed by AfA terms | Hand it to pie-players' `createPersonalNeedsProfileFromAfa` for the toolkit's tools |
 | `pnpProfileFromAfa()` | `(record: AfaPnpRecord) => PnpProfile` | Map a record already held as JSON | Build the item player's profile from a stored record |
@@ -249,23 +287,18 @@ export interface PnpProfile {
       | 'blackrose' | 'roseblack' | 'yellowblue' | 'blueyellow'
       | 'mgraydgray' | 'dgraymgray' | 'blackcyan' | 'cyanblack'
       | 'blackcream' | 'creamblack' | 'whitenav' | 'medgray';
-    /** CSS zoom factor. 1.0 = default. Parsed and stored, not applied. */
+    /** Zoom factor, 1.0 = 100%: set as data-qti-magnification metadata, not rendered. */
     magnification?: number;
     /** AfA language-of-interface, held for the host. */
     interfaceLanguage?: string;
     /** Inverted polarity; given colours replace the inverted ones. */
     invertPolarity?: { foreground?: string; background?: string };
-    /** Layout grids stack. */
+    /** Layout grids stack; a section split pane stacks its panes. */
     singleColumn?: boolean;
-    textAppearance?: {
-      fontSize?: number;        // pt
-      fontFamily?: string;      // CSS font-family list
-      fontColor?: string;
-      backgroundColor?: string;
-      lineHeight?: number;      // unitless
-      letterSpacing?: number;   // em
-      wordSpacing?: number;     // em
-    };
+    /** AfA text-appearance, applied as --qti-* custom properties. */
+    textAppearance?: PnpTextAppearance;
+    /** Player extension (no AfA term): answer sets become prompt-named ARIA groups. */
+    structuredLabelSupport?: boolean;
   };
   content?: {
     /** Show accessible trigger buttons on data-catalog-idref terms. */
@@ -280,18 +313,38 @@ export interface PnpProfile {
     extendedTime?: { active: boolean; multiplier: number; fixedMinutes?: number };
   };
   cognitive?: {
-    /** Show per-choice eliminate/restore toggle buttons. */
+    /** Show per-choice eliminate/restore toggle buttons (host-set; no AfA term). */
     eliminationTool?: boolean;
-    /** Mask each choice until the candidate reveals it. */
+    /** AfA answer-masking: mask each choice until the candidate reveals it. */
     answerMasking?: boolean;
+    /** AfA spell-checker-on-screen: spell check and autocorrect in the response fields. */
+    spellChecker?: boolean;
   };
   /** Tool supports in pie-players' tool ids. */
-  tools?: {
-    supports?: string[];
-    prohibitedSupports?: string[];
-    activateAtInit?: string[];
-    toolParameters?: Record<string, Record<string, unknown>>;
-  };
+  tools?: PnpToolSupports;
+}
+
+export interface PnpTextAppearance {
+  fontSize?: number;        // pt
+  fontFamily?: string;      // CSS font-family list
+  fontColor?: string;
+  backgroundColor?: string;
+  lineHeight?: number;      // unitless
+  letterSpacing?: number;   // em
+  wordSpacing?: number;     // em
+}
+
+export interface PnpToolSupports {
+  supports?: string[];
+  prohibitedSupports?: string[];
+  activateAtInit?: string[];
+  toolParameters?: Record<string, Record<string, unknown>>;
+}
+
+/** By usage name: ttsPronunciation, signingDefinition, brailleText, audioDescription,
+ *  extendedDescription, or a host-defined catalog usage. */
+export interface CatalogSupportPreferences {
+  [usage: string]: boolean | { active?: boolean; languageCode?: string } | undefined;
 }
 ```
 
@@ -315,7 +368,7 @@ The event is dispatched with `{ bubbles: true, composed: true }` on the player r
 - `PnpProfile` is always a plain object (no class instance); it is safe to serialize to JSON and pass via `postMessage`.
 - All fields are optional; an empty `{}` profile is valid and has no effect.
 - The `updatePnp` command performs a shallow merge at the top level (`display`, `content`, `cognitive`, `tools`) and a deep merge one level deeper (so dispatching `{ action: 'updatePnp', profile: { content: { glossaryOnScreen: true } } }` does not clear `content.extendedTime`).
-- The PNP-owned attributes on the player root are `data-qti-colorscheme`, `data-qti-invert-polarity`, `data-qti-layout` and `data-qti-text-appearance`, and its custom properties carry the `--qti-` prefix. Future PNP attributes must use the same `data-qti-` prefix.
+- The PNP-owned attributes on the player root are `data-qti-colorscheme`, `data-qti-invert-polarity`, `data-qti-layout`, `data-qti-text-appearance` and `data-qti-magnification`, plus `data-qti-pnp-surface` on a surface, and its custom properties carry the `--qti-` prefix. Future PNP attributes must use the same `data-qti-` prefix.
 
 ---
 
@@ -661,6 +714,9 @@ Then: Three separate trigger buttons are rendered, one per span
 - Implementation: `packages/item-player/src/pnp/types.ts`, `applyPnp.ts`, `parsePnpXml.ts`
 - Implementation: `packages/default-components/src/shared/styles/qti-pnp.css` (display rulesets)
 - Implementation: `packages/section-player/src/tools/pnp-tool-supports.ts` (tool supports and companion materials)
+- Implementation: `packages/item-player/src/pnp/applyPnp.ts` (`applyPnpToSurface`, `isWithinPnpSurface`) and `packages/section-player/src/pnp/section-surface.ts` (the section layouts' PNP surface)
+- Implementation: `packages/section-player/src/tools/display-settings.ts` and `packages/section-player/src/components/SectionDisplaySettings.svelte` (the candidate's display settings tool)
+- Implementation: `packages/section-player/src/components/QtiToolButtonBar.svelte` (tool bars: registered tools, toolkit assessment, PNP enforcement)
 - Implementation: `packages/item-player/src/catalog/applyGlossaryTriggers.ts` (glossary/keyword-translation trigger + vanilla popup)
 - Implementation: `packages/assessment-player/src/core/AssessmentPlayer.ts` (extended time wiring)
 - Implementation: `packages/assessment-player/src/core/TimeManager.ts` (extended time multiplier)

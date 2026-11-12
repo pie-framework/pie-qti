@@ -11,12 +11,14 @@ import { fromQtiVariableJson, toQtiVariableJson } from '../pci/qtiVariableJson.j
 import { PciLoadError, PciModuleResolverRequiredError } from '../pci/types.js';
 import type {
 	ExtractedPci,
+	PciInteractionStatus,
 	PciModuleResolver,
 	QtiCustomInteractionRegistration,
 	QtiPciConfiguration,
 	QtiPciInstance,
 } from '../pci/types.js';
 import { portableCustomExtractor } from '../interactions/portable-custom/extractor.js';
+import type { PortableCustomInteractionData } from '../interactions/shared/types.js';
 import { createExtractionUtils } from '../extraction/index.js';
 import { Qti3AttributeNameMapper, Qti3ElementNameMapper } from '@pie-qti/qti-common';
 import { parse } from 'node-html-parser';
@@ -47,20 +49,23 @@ function makeInstance(overrides: Partial<Record<string, unknown>> = {}) {
 		getState: mock(() => undefined),
 		destroy: mock(() => {}),
 		...overrides,
-	} as unknown as QtiPciInstance & Record<string, ReturnType<typeof mock>>;
+		} as unknown as QtiPciInstance & Record<string, ReturnType<typeof mock>>;
 }
+
+/** A mock instance: the spec methods plus a mocked `destroy` the host may call. */
+type MockPciInstance = ReturnType<typeof makeInstance>;
 
 interface RegistrationFixture {
 	registration: QtiCustomInteractionRegistration;
 	getInstance: ReturnType<typeof mock>;
-	instances: QtiPciInstance[];
+	instances: MockPciInstance[];
 	configurations: QtiPciConfiguration[];
 	states: unknown[];
 }
 
 /** A spec-shaped registration whose getInstance returns a fresh mock instance. */
 function makeRegistration(instanceOverrides: Partial<Record<string, unknown>> = {}): RegistrationFixture {
-	const instances: QtiPciInstance[] = [];
+	const instances: MockPciInstance[] = [];
 	const configurations: QtiPciConfiguration[] = [];
 	const states: unknown[] = [];
 	const getInstance = mock((_dom: HTMLElement, configuration: QtiPciConfiguration, state?: unknown) => {
@@ -288,7 +293,7 @@ describe('PciHost', () => {
 	it('instantiates with the status its options derive at instantiation time', async () => {
 		const registry = makeRegistry();
 		const fixture = makeRegistration();
-		let status = 'interacting' as const;
+		let status: PciInteractionStatus = 'interacting';
 		const host = new PciHost(makeData(), {
 			moduleResolver: resolverRegistering(registry, fixture.registration),
 			registry: registry.observation,
@@ -606,7 +611,7 @@ describe('installPciRegistry', () => {
 	it('ignores registrations that are not spec-shaped', () => {
 		const registry = makeRegistry();
 		registry.context.register({} as QtiCustomInteractionRegistration);
-		registry.context.register({ typeIdentifier: '', getInstance: () => {} });
+		registry.context.register({ typeIdentifier: '', getInstance: () => undefined });
 		expect(registry.observation.registeredTypes()).toEqual([]);
 	});
 
@@ -642,8 +647,12 @@ describe('qtiVariableJson', () => {
 		expect(toQtiVariableJson(['A', 'B'], 'identifier', 'ordered')).toEqual({
 			list: { identifier: ['A', 'B'] },
 		});
+		// PCI v1.0 Appendix A: a record is an array of named members.
 		expect(toQtiVariableJson({ score: 1, text: 'why' }, undefined, 'record')).toEqual({
-			record: { score: { base: { integer: 1 } }, text: { base: { string: 'why' } } },
+			record: [
+				{ name: 'score', base: { integer: 1 } },
+				{ name: 'text', base: { string: 'why' } },
+			],
 		});
 		expect(toQtiVariableJson(null, 'string', 'single')).toBeNull();
 	});
@@ -652,10 +661,19 @@ describe('qtiVariableJson', () => {
 		expect(fromQtiVariableJson({ base: { identifier: 'A' } })).toBe('A');
 		expect(fromQtiVariableJson({ list: { identifier: ['A', 'B'] } })).toEqual(['A', 'B']);
 		expect(
-			fromQtiVariableJson({ record: { a: { base: { integer: 1 } }, b: { base: { string: 'x' } } } })
-		).toEqual({ a: 1, b: 'x' });
+			fromQtiVariableJson({
+				record: [
+					{ name: 'a', base: { integer: 1 } },
+					{ name: 'b', base: { string: 'x' } },
+				],
+			})
+		).toEqual({
+			a: { baseType: 'integer', cardinality: 'single', value: 1 },
+			b: { baseType: 'string', cardinality: 'single', value: 'x' },
+		});
 		expect(fromQtiVariableJson(null)).toBeNull();
-		expect(fromQtiVariableJson('plain')).toBe('plain');
+		// Anything outside the binding is NULL, not a passthrough value.
+		expect(fromQtiVariableJson('plain')).toBeNull();
 
 		const value = ['A', 'B'];
 		expect(fromQtiVariableJson(toQtiVariableJson(value, 'identifier', 'multiple'))).toEqual(value);
@@ -693,7 +711,7 @@ const QTI2_PCI_ITEM = `
   <responseDeclaration identifier="PCI_RESPONSE" cardinality="single" baseType="string"/>
   <itemBody>
     <customInteraction responseIdentifier="PCI_RESPONSE" id="echo">
-      <pci:portableCustomInteraction customInteractionIdentifierType="urn:example:qti2-echo">
+      <pci:portableCustomInteraction customInteractionTypeIdentifier="urn:example:qti2-echo">
         <pci:instance>
           <script type="text/javascript" src="pci/qti2-echo.js"></script>
           <script type="text/javascript">window.shouldNeverRun = true;</script>
@@ -916,6 +934,17 @@ describe('portableCustomExtractor', () => {
 		expect(data.customInteractionTypeIdentifier).toBe('urn:example:echo-pci');
 	});
 
+	it('reads the schema-defined attribute names only: the invented customInteractionIdentifierType spellings are not identifiers', () => {
+		// No QTI or PCI version defines customInteractionIdentifierType /
+		// custom-interaction-identifier-type; the schema name is
+		// customInteractionTypeIdentifier (3.0 XSD) with the 2.x camelCase.
+		const el = parseEl(
+			'<qti-portable-custom-interaction response-identifier="R" custom-interaction-identifier-type="urn:invented:kebab" customInteractionIdentifierType="urn:invented:camel"><qti-interaction-markup><p>x</p></qti-interaction-markup></qti-portable-custom-interaction>',
+		);
+		const data = portableCustomExtractor.extract(el, makeContext(el));
+		expect(data.customInteractionTypeIdentifier).toBe('');
+	});
+
 	it('extracts primaryPath from qti-interaction-module', () => {
 		const el = parseEl(PCI_XML);
 		const data = portableCustomExtractor.extract(el, makeContext(el));
@@ -946,6 +975,7 @@ describe('portableCustomExtractor', () => {
 			responseIdentifier: 'R',
 			customInteractionTypeIdentifier: 'urn:x',
 			primaryPath: '',
+			modules: [],
 			markup: '',
 			config: {},
 		});
@@ -1024,7 +1054,7 @@ describe('Player PCI integration', () => {
 				moduleResolver: resolver,
 			},
 		});
-		const interaction = player.getInteractionData()[0] as ExtractedPci;
+		const interaction = player.getInteractionData()[0] as PortableCustomInteractionData;
 		const host = player.createPciHost(interaction);
 
 		player.setResponses({ PCI_RESPONSE: 'restored-answer' });
@@ -1049,7 +1079,7 @@ describe('Player PCI integration', () => {
 			itemXml: QTI3_PCI_ITEM,
 			pci: { moduleResolver: resolver },
 		});
-		const host = player.createPciHost(player.getInteractionData()[0] as ExtractedPci);
+		const host = player.createPciHost(player.getInteractionData()[0] as PortableCustomInteractionData);
 		await host.load();
 		host.initialize(makeDomNode());
 
@@ -1074,7 +1104,7 @@ describe('Player PCI integration', () => {
 			itemXml: QTI3_PCI_ITEM,
 			pci: { moduleResolver: resolver },
 		});
-		const host = player.createPciHost(player.getInteractionData()[0] as ExtractedPci);
+		const host = player.createPciHost(player.getInteractionData()[0] as PortableCustomInteractionData);
 		await host.load();
 		host.initialize(makeDomNode());
 

@@ -12,6 +12,91 @@
 import { sha256 } from './utils/hash.js';
 
 /**
+ * Options for stable passage ID generation.
+ */
+export interface StablePassageIdOptions {
+  /** QTI identifier from assessmentStimulus or assessmentPassage - USE DIRECTLY */
+  qtiIdentifier?: string;
+  /** File path from object data attribute */
+  filePath?: string;
+  /** Content hash for inline stimulus */
+  content?: string;
+  /** Prefix for generated IDs (only used for hashed IDs) */
+  prefix?: string;
+}
+
+/**
+ * Strategy that hashes passage content into a hex digest. Inject one to
+ * generate stable IDs synchronously (see {@link createStablePassageIdGenerator}).
+ */
+export type PassageContentHash = (content: string) => string;
+
+/**
+ * Shared pieces of the ID strategy. The identifier and file-path strategies
+ * need no hashing; only the content strategy does, which is why callers can
+ * pick a sync or async hashing strategy without changing the semantics.
+ */
+function passageIdPrefix(options: StablePassageIdOptions): string {
+  return options.prefix || 'passage';
+}
+
+function filePathPassageId(filePath: string, prefix: string): string {
+  // Normalize path (remove leading ./ and ../) and use as-is with prefix
+  const normalizedPath = filePath
+    .replace(/^\.\//, '')
+    .replace(/\.\.\//g, '')
+    .replace(/\//g, '-')
+    .replace(/\.(xml|html|txt)$/, '');
+  return `${prefix}-${normalizedPath}`;
+}
+
+function contentPassageId(contentHash: string, prefix: string): string {
+  return `${prefix}-content-${contentHash.substring(0, 12)}`;
+}
+
+const MISSING_SOURCE_ERROR =
+  'Must provide at least one of: qtiIdentifier, filePath, or content';
+
+/**
+ * Create a synchronous stable-ID generator from a content-hash strategy.
+ *
+ * Strategy (in priority order):
+ * 1. Use QTI identifier directly - QTI identifiers are designed to be globally unique
+ *    across vendors and packages (e.g., "urn:example.com:passage:12345")
+ * 2. Use file path for object references - stable within a package
+ * 3. Use content hash for inline stimulus - ensures same content = same ID
+ *
+ * @param hashContent Strategy hashing passage content into a hex digest
+ *   (e.g. `createHash('sha256')` in Node.js).
+ * @returns A synchronous generator with the same semantics as
+ *   {@link generateStablePassageId}.
+ */
+export function createStablePassageIdGenerator(
+  hashContent: PassageContentHash
+): (options: StablePassageIdOptions) => string {
+  return (options: StablePassageIdOptions): string => {
+    const prefix = passageIdPrefix(options);
+
+    // Priority 1: Use QTI identifier DIRECTLY (no prefix)
+    if (options.qtiIdentifier) {
+      return options.qtiIdentifier;
+    }
+
+    // Priority 2: Use file path for object references
+    if (options.filePath) {
+      return filePathPassageId(options.filePath, prefix);
+    }
+
+    // Priority 3: Use content hash for inline stimulus (stable for same content)
+    if (options.content) {
+      return contentPassageId(hashContent(options.content.trim()), prefix);
+    }
+
+    throw new Error(MISSING_SOURCE_ERROR);
+  };
+}
+
+/**
  * Generate stable ID for passage content
  *
  * Strategy (in priority order):
@@ -23,43 +108,28 @@ import { sha256 } from './utils/hash.js';
  * @param options Options for ID generation
  * @returns Stable passage ID (async for content hashing)
  */
-export async function generateStablePassageId(options: {
-  /** QTI identifier from assessmentStimulus or assessmentPassage - USE DIRECTLY */
-  qtiIdentifier?: string;
-  /** File path from object data attribute */
-  filePath?: string;
-  /** Content hash for inline stimulus */
-  content?: string;
-  /** Prefix for generated IDs (only used for hashed IDs) */
-  prefix?: string;
-}): Promise<string> {
-  const prefix = options.prefix || 'passage';
+export async function generateStablePassageId(
+  options: StablePassageIdOptions
+): Promise<string> {
+  const prefix = passageIdPrefix(options);
 
   // Priority 1: Use QTI identifier DIRECTLY (no prefix)
-  // QTI identifiers are designed to be globally unique across vendors
-  // Examples: "urn:example.com:passage:12345", "stim-industrial-revolution"
   if (options.qtiIdentifier) {
     return options.qtiIdentifier;
   }
 
   // Priority 2: Use file path for object references
-  // Normalize path (remove leading ./ and ../) and use as-is with prefix
   if (options.filePath) {
-    const normalizedPath = options.filePath
-      .replace(/^\.\//, '')
-      .replace(/\.\.\//g, '')
-      .replace(/\//g, '-')
-      .replace(/\.(xml|html|txt)$/, '');
-    return `${prefix}-${normalizedPath}`;
+    return filePathPassageId(options.filePath, prefix);
   }
 
   // Priority 3: Use content hash for inline stimulus (stable for same content)
   if (options.content) {
     const contentHash = await sha256(options.content.trim());
-    return `${prefix}-content-${contentHash.substring(0, 12)}`;
+    return contentPassageId(contentHash, prefix);
   }
 
-  throw new Error('Must provide at least one of: qtiIdentifier, filePath, or content');
+  throw new Error(MISSING_SOURCE_ERROR);
 }
 
 /**
@@ -195,22 +265,22 @@ export class PassageRegistry {
  * @param objectElement Object element from QTI
  * @returns Passage reference or null
  */
-export async function parseObjectReference(objectElement: any): Promise<PassageReference | null> {
+export function parseObjectReference(objectElement: any): PassageReference | null {
   const dataAttr = objectElement.getAttribute?.('data');
   const typeAttr = objectElement.getAttribute?.('type');
 
-  // Check if it's a passage reference (text/html, text/plain, or no type)
-  const isPassageType = !typeAttr ||
-                        typeAttr === 'text/html' ||
-                        typeAttr === 'text/plain' ||
-                        typeAttr.startsWith('text/');
+  // A text type names a passage; an untyped object is a passage only when the
+  // data file looks like a markup document - untyped objects embed figures too.
+  const isPassageType = typeAttr
+    ? typeAttr.startsWith('text/')
+    : /\.(?:html?|xhtml|xml)(?:[?#]|$)/i.test(dataAttr ?? '');
 
   if (!dataAttr || !isPassageType) {
     return null;
   }
 
   // Generate stable ID from file path
-  const id = await generateStablePassageId({ filePath: dataAttr });
+  const id = filePathPassageId(dataAttr, passageIdPrefix({}));
 
   return {
     id,

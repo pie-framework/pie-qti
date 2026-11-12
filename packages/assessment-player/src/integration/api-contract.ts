@@ -57,6 +57,24 @@ export interface InitSessionResponse {
 	currentItemIdentifier?: string;
 	/** Test-level outcome values of a resumed session, once outcome processing has run */
 	outcomes?: TestOutcomeValues;
+	/**
+	 * True when the stored session was already finalized: delivery is over and every
+	 * further submission would fail. Hosts (and the built-in shell) show a terminal
+	 * "already submitted" view instead of delivery UI and never offer the resume prompt.
+	 * `submit()` on such a player returns the stored results instead of failing.
+	 */
+	finalized?: boolean;
+	/**
+	 * With `finalized`, the stored final result for the terminal view: the totals and,
+	 * when kept, the per-item scores. A backend may omit it; shells then render the
+	 * terminal view without scores.
+	 */
+	finalResults?: {
+		totalScore: number;
+		maxScore: number;
+		itemScores?: Record<string, AssessmentScoringResult>;
+		finalizedAt?: number;
+	};
 }
 
 /**
@@ -73,6 +91,20 @@ export type TestOutcomeValue =
 
 /** Test-level outcome values keyed by outcome identifier (e.g. "PASS", "GRADE"). */
 export type TestOutcomeValues = Record<string, TestOutcomeValue>;
+
+/**
+ * Structured, typed failure of test-level outcome processing.
+ *
+ * Delivery continues and candidate responses stay persisted; the error is carried on
+ * the session/results so hosts can surface it (onError callback/event) instead of
+ * SCORE/testFeedback silently never computing.
+ */
+export interface OutcomeProcessingError {
+	/** Stable code — currently always `OUTCOME_PROCESSING_FAILED`. */
+	code: 'OUTCOME_PROCESSING_FAILED';
+	/** Backend-side detail for logs and host callbacks; never shown verbatim to candidates. */
+	message: string;
+}
 
 // ============================================================================
 // ASSESSMENT STRUCTURE (CLIENT-SAFE)
@@ -99,10 +131,17 @@ export interface TestFeedbackItem {
 	access: 'atEnd' | 'during';
 	/** HTML content to display */
 	content: string;
+	/**
+	 * The content's language: the feedback's `xml:lang`, else the test part's or the test's
+	 * (XML inheritance). Shells render it as the feedback's `lang` and `dir`.
+	 */
+	language?: string;
 }
 
 export interface SecureTimeLimits {
+	/** Minimum duration in seconds (optional) */
 	minTime?: number;
+	/** Maximum duration in seconds (optional) */
 	maxTime?: number;
 	allowLateSubmission?: boolean;
 }
@@ -151,9 +190,14 @@ export interface SecureTestPart {
 	 * enclosing section to the item ref; the backend enforces maxAttempts.
 	 */
 	itemSessionControl?: SecureItemSessionControl;
-	/** Serialized direct preCondition expressions, evaluated by the backend on entering the part. */
+	/**
+	 * Serialized direct preCondition expressions, evaluated on entering the part (any navigation
+	 * mode): by the backend for the moves it decides (`nextItemIdentifier`), and by the player,
+	 * with the same rules, for a move without a backend decision (a jump into the next part, a
+	 * move on from a simultaneous part). A part whose precondition fails is skipped.
+	 */
 	preConditions?: string[];
-	/** Branch rules the backend evaluates after the part's last item, in linear navigation. */
+	/** Branch rules evaluated after the part's last item (any navigation mode). */
 	branchRule?: SecureBranchRule[];
 }
 
@@ -190,7 +234,10 @@ export interface SecureSection {
 	ordering?: {
 		shuffle: boolean;
 	};
-	/** Serialized direct preCondition expressions, evaluated by the backend. */
+	/**
+	 * Serialized direct preCondition expressions, evaluated on reaching the section in a linear
+	 * part (by the backend for its decisions, by the player with the same rules otherwise).
+	 */
 	preConditions?: string[];
 	/** Branch rules the backend evaluates after the section's last item, in linear navigation. */
 	branchRule?: SecureBranchRule[];
@@ -245,10 +292,14 @@ export interface SecureItemRef {
 	deliveryContext?: ResolvedItemDeliveryContext;
 	/**
 	 * QTI branchRule: ordered branch rules on this item. The backend evaluates them after scoring, in
-	 * linear navigation, and returns the resolved target as nextItemIdentifier.
+	 * linear navigation, and returns the resolved target as nextItemIdentifier. With no backend
+	 * decision for the move, the player applies them itself with the same rules.
 	 */
 	branchRule?: SecureBranchRule[];
-	/** Serialized direct preCondition expressions, evaluated by the backend. */
+	/**
+	 * Serialized direct preCondition expressions, evaluated on reaching the item in a linear part
+	 * (by the backend for its decisions, by the player with the same rules otherwise).
+	 */
 	preConditions?: string[];
 	/** QTI item-ref weights, preserved for backend outcome processing. */
 	weights?: Array<{ identifier: string; value: number }>;
@@ -271,9 +322,15 @@ export interface AssessmentRubricBlock {
 	/** Rubric content (HTML) */
 	content: string;
 	/** View controls when rubric is shown */
-	view: QTIRole[];
+	/** Authored QTI `view` tokens (arbitrary token lists, not just roles). */
+	view: string[];
 	/** Optional rubric use (QTI rubricBlock@use), e.g. "passage" */
 	use?: string;
+	/**
+	 * The content's language: the block's `xml:lang`, else its nearest enclosing element's
+	 * (XML inheritance). Section layouts render it as the block's `lang`, `dir` and read-aloud voice.
+	 */
+	language?: string;
 }
 
 // ============================================================================
@@ -295,11 +352,19 @@ export interface SubmitResponsesRequest {
 	submittedAt: number;
 	/** Time spent on item (ms) for analytics */
 	timeSpent?: number;
+	/**
+	 * QTI endAttempt countAttempt (default true). False marks a hint / "show me" submission that
+	 * runs response processing without consuming an attempt: backends must not count it toward
+	 * maxAttempts and must not record it as the item's result — the candidate continues.
+	 */
+	countAttempt?: boolean;
 	/** Optional client timing evidence; production backends remain authoritative. */
 	timing?: SubmitTimingEvidence;
 	/**
 	 * Serialized item session used by backends to restore template/context variables while scoring.
 	 * Production backends should treat this as a client save format and validate against server-owned state.
+	 * Sent when the host enables `sendItemSessionToBackend`, and always to a backend that
+	 * declares `requiresItemSession` (the reference adapter does).
 	 */
 	itemSession?: SerializedItemSessionState;
 	/** Candidate comment, accepted only when the item's allowComment is on. */
@@ -312,6 +377,32 @@ export interface SubmitTimingEvidence {
 	limitSeconds?: number;
 	expired?: boolean;
 	allowLateSubmission?: boolean;
+	/**
+	 * The candidate's assessment clock in ms when the test has a maximum time. It runs
+	 * only while delivery runs: time behind an opt-in begin gate or a proctor pause is
+	 * excluded, unlike a wall clock measured from session creation.
+	 */
+	assessmentElapsedMs?: number;
+	/** The test's maximum time in seconds after PNP extended time, when it has one. */
+	assessmentLimitSeconds?: number;
+	/**
+	 * Why this submission runs: `candidate` (default) for a normal candidate action,
+	 * `time-expired` for the terminal response collection a hard time limit triggers
+	 * (the whole-test auto-submit, and the submit from an expiry dead end), `proctor` for
+	 * the collection a proctor's forced end of the test (`submit({ force: true })`) runs,
+	 * `unreachable` for a question the end of the test collects as it stands although its
+	 * QTI `allowSkipping` / `validateResponses` control would refuse it, because the
+	 * candidate can no longer reach it (its test part was left — a session restored from
+	 * before the part-leave gate, a branch rule).
+	 * Backends must accept a `time-expired` submission whose scope expired: the delivery
+	 * window closed with the expiry, and collecting the pending responses is the mandated
+	 * terminal step. A `proctor` collection is an administrative end of the test, made
+	 * during a pause or ahead of the candidate's own submit; record it as such (it
+	 * bypasses the candidate-side skipping and validation controls). Record an
+	 * `unreachable` one as skipped (or incomplete) as it stands, never as a normal
+	 * candidate submission.
+	 */
+	submissionReason?: 'candidate' | 'time-expired' | 'proctor' | 'unreachable';
 }
 
 /**
@@ -325,8 +416,13 @@ export interface SubmitResponsesResponse {
 	/** Scoring result (if submission mode allows immediate scoring) */
 	result?: AssessmentScoringResult;
 	/**
-	 * Backend-authoritative next item (branching/navigation decision).
-	 * If omitted, client may fall back to linear next/previous UI navigation.
+	 * Backend-authoritative next item (branching/navigation decision): the item the test's branch
+	 * rules and preconditions deliver after this submission, or `EXIT_TEST` / `EXIT_TESTPART` /
+	 * `EXIT_SECTION`. The player follows it on the candidate's move; a submission that stays on the
+	 * item (a practice check, a counted endAttemptInteraction) keeps it, and the candidate's next
+	 * move on from the item that submits nothing follows it. If omitted, the player moves to the
+	 * next item the delivery rules make eligible, evaluating the test's branch rules and
+	 * preconditions itself with the reference rules (for a test without any: the adjacent item).
 	 */
 	nextItemIdentifier?: string;
 	/**
@@ -336,6 +432,8 @@ export interface SubmitResponsesResponse {
 	updatedState?: AssessmentSessionState;
 	/** Test-level outcome values after the outcome processing this submission triggers */
 	outcomes?: TestOutcomeValues;
+	/** Set when test-level outcome processing failed; responses are still accepted and persisted. */
+	outcomeProcessingError?: OutcomeProcessingError;
 	/** Error message if success=false */
 	error?: string;
 }
@@ -343,6 +441,20 @@ export interface SubmitResponsesResponse {
 // ============================================================================
 // SCORING RESULTS
 // ============================================================================
+
+/**
+ * Structured, typed failure of one item's response processing.
+ *
+ * Mirrors `OutcomeProcessingError`: the submission is still accepted and delivery
+ * continues, but the item's score is a degenerate 0 (its declared maximum where known)
+ * and hosts must be able to tell "answered wrong" from "the engine failed to score".
+ */
+export interface ItemScoringError {
+	/** Stable code — currently always `ITEM_SCORING_FAILED`. */
+	code: 'ITEM_SCORING_FAILED';
+	/** Engine-side detail for logs and host callbacks; never shown verbatim to candidates. */
+	message: string;
+}
 
 /**
  * Scoring result returned from server
@@ -364,6 +476,11 @@ export interface AssessmentScoringResult {
 	feedback?: FeedbackItem[];
 	/** Correct response (only if role allows) */
 	correctResponse?: Record<string, ResponseValue>;
+	/**
+	 * Set when response processing for this item failed: the score is a degenerate 0
+	 * (the declared maximum where known), NOT a candidate's wrong answer.
+	 */
+	scoringError?: ItemScoringError;
 }
 
 export interface FeedbackItem {
@@ -408,6 +525,28 @@ export interface AssessmentSessionState {
 	itemSessions?: Record<string, SerializedItemSessionState>;
 	/** Candidate comments per item, captured where allowComment is on. */
 	itemComments?: Record<string, string>;
+	/** Items the candidate flagged for review, keyed by item identifier. */
+	itemFlags?: Record<string, boolean>;
+	/**
+	 * The backend's branch decision (`nextItemIdentifier`) kept per item with its
+	 * last-submission record: item identifier → target (an item, section or test part
+	 * identifier, or EXIT_TEST). Only the freshest counted submission's decision is kept —
+	 * any later counted submission replaces it — and delivery follows it on the next
+	 * forward step from that item that submits nothing, so a restored session lands
+	 * identically to the live one. (Session format addition; backends that never store it
+	 * just lose the kept decision across a resume.)
+	 */
+	branchDecisions?: Record<string, string>;
+	/**
+	 * The test-level outcome values the backend last returned (its outcome processing's
+	 * result, or undefined before the first submission): branch and preCondition rules read
+	 * them, so a restored session navigates identically to the live one. (Session format
+	 * addition; backends that never store it just lose the values across a resume, and the
+	 * restored rules evaluate on missing outcomes.)
+	 */
+	testOutcomes?: TestOutcomeValues;
+	/** Whether the candidate chose to hide the countdown timer (a persisted shell preference). */
+	timerHidden?: boolean;
 	/** Time tracking */
 	timing: {
 		/** Session start time */
@@ -424,7 +563,18 @@ export interface AssessmentSessionState {
 		currentItemIdentifier?: string;
 		currentSectionIdentifier?: string;
 		currentTestPartIdentifier?: string;
+		/**
+		 * A proctor pause was in force when the state was saved: a restored session
+		 * reopens paused, its clocks frozen, until the host resumes it.
+		 */
 		isPaused?: boolean;
+		/** The candidate-facing reason the proctor gave for the pause. */
+		pauseReason?: string;
+		/**
+		 * Client clock (ms) of the last autosave persisted into this snapshot. Shells
+		 * show it on the resume prompt ("You have answers saved from {time}").
+		 */
+		savedAt?: number;
 	};
 }
 
@@ -457,10 +607,10 @@ export interface FinalizeAssessmentResponse {
 	maxScore: number;
 	/** Per-item results */
 	itemScores: Record<string, AssessmentScoringResult>;
-	/** Assessment-level feedback (legacy: single string; prefer outcomes + assessment.testFeedback) */
-	feedback?: string;
 	/** Test-level outcome values after outcomeProcessing; testFeedback visibility reads them. */
 	outcomes?: TestOutcomeValues;
+	/** Set when test-level outcome processing failed; item results are still returned. */
+	outcomeProcessingError?: OutcomeProcessingError;
 	/** Server timestamp */
 	finalizedAt: number;
 }
@@ -539,6 +689,25 @@ export interface BackendAdapter {
 	 * Save session state (auto-save during assessment)
 	 */
 	saveState(request: SaveAssessmentStateRequest): Promise<SaveAssessmentStateResponse>;
+
+	/**
+	 * Whether this adapter persists candidate drafts through `saveState`. Autosave is
+	 * ON by default whenever the backend reports the capability (default `true`, so
+	 * adapters that implement `saveState` get autosave without extra wiring); set
+	 * `canSaveState: false` when the backend cannot store drafts or the host saves
+	 * state itself and wants the shell's autosave and its save indicator off.
+	 */
+	canSaveState?: boolean;
+
+	/**
+	 * Whether this backend scores from the candidate's serialized item session
+	 * (`SubmitResponsesRequest.itemSession`) and therefore must always receive it: a
+	 * templated item's instance (the key the candidate saw) and an adaptive item's
+	 * accumulated outcomes live there. When true the player sends it on every submission,
+	 * whatever `sendItemSessionToBackend` says. `ReferenceBackendAdapter` sets it; a
+	 * production backend that owns the item session server-side leaves it unset.
+	 */
+	requiresItemSession?: boolean;
 
 	/**
 	 * Finalize assessment and get results

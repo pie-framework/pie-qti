@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/default-components",
-  "version": "1.0.0-beta.4",
+  "version": "1.0.0-beta.5",
   "description": "Default Svelte-based component implementations for QTI (2.x and 3.0) player",
   "type": "module",
   "main": "./dist/index.js",
@@ -31,19 +31,20 @@
     "@pie-qti/i18n": "workspace:*",
     "@pie-qti/item-player": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
+    "@pie-qti/qti-processing": "workspace:*",
     "mathlive": "^0.111.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.6.2",
+    "@biomejs/biome": "^2.6.4",
     "@sveltejs/vite-plugin-svelte": "7.3.1",
-    "@types/node": "^26.6.4",
     "@tiptap/core": "3.32.0",
     "@tiptap/extension-mathematics": "3.32.0",
     "@tiptap/extension-placeholder": "3.32.0",
     "@tiptap/starter-kit": "3.32.0",
+    "@types/node": "^26.6.6",
     "jsdom": "^30.1.3",
     "linkedom": "^0.18.13",
-    "svelte": "5.57.1",
+    "svelte": "^5.57.1",
     "svelte-check": "^4.7.7",
     "typescript": "^5.9.3",
     "vite": "8.3.4",
@@ -98,6 +99,7 @@
   },
   "sideEffects": [
     "./dist/plugins.js",
+    "./dist/chunks/mathlive*.js",
     "./dist/shared.css",
     "./dist/shared/styles/*.css"
   ],
@@ -106,7 +108,5 @@
   },
   "files": [
     "dist"
-  ],
-  "unpkg": "./dist/plugins.js",
-  "jsdelivr": "./dist/plugins.js"
+  ]
 }

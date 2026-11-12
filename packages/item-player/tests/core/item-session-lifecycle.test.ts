@@ -1,5 +1,6 @@
-import { describe, expect, test } from 'bun:test';
-import { Player } from '../../src/core/Player.js';
+import { afterEach, describe, expect, test } from 'bun:test';
+import { createAssessmentItemDefinition } from '../../src/core/AssessmentItemDefinition.js';
+import type { ItemSession, OpenItemSessionOptions } from '../../src/core/ItemSession.js';
 
 const QTI3_CHOICE_ITEM = `<?xml version="1.0" encoding="UTF-8"?>
 <qti-assessment-item
@@ -76,86 +77,104 @@ const QTI3_TEMPLATE_ITEM = `<?xml version="1.0" encoding="UTF-8"?>
   </qti-item-body>
 </qti-assessment-item>`;
 
+const openSessions: ItemSession[] = [];
+
+function open(itemXml: string, options?: OpenItemSessionOptions): ItemSession {
+	const session = createAssessmentItemDefinition({ itemXml }).openSession(options);
+	openSessions.push(session);
+	return session;
+}
+
+afterEach(() => {
+	for (const session of openSessions.splice(0)) session.dispose();
+});
+
 describe('QTI item session lifecycle', () => {
 	test('suspendAttempt serializes responses without response processing or attempt counting', () => {
-		const player = new Player({ itemXml: QTI3_CHOICE_ITEM });
+		const session = open(QTI3_CHOICE_ITEM);
 
-		player.setResponses({ RESPONSE: 'choice_A' });
-		const result = player.suspendAttempt();
+		session.dispatch({ action: 'setResponse', responseIdentifier: 'RESPONSE', value: 'choice_A' });
+		const { result, current } = session.dispatch({ action: 'suspendAttempt' });
 
-		expect(result.action).toBe('suspendAttempt');
-		expect(result.lifecycleStatus).toBe('suspended');
-		expect(result.numAttempts).toBe(0);
-		expect(result.sessionState.responseVariables.RESPONSE.value).toBe('choice_A');
-		expect('correctResponse' in result.sessionState.responseVariables.RESPONSE).toBe(false);
-		expect(result.sessionState.outcomeVariables.SCORE.value).toBe(0);
-		expect(result.sessionState.contextVariables.numAttempts.value).toBe(0);
-		expect(result.sessionState.contextVariables.duration.value).toBeGreaterThanOrEqual(0);
+		expect(result?.action).toBe('suspendAttempt');
+		expect(result?.lifecycleStatus).toBe('suspended');
+		expect(current.lifecycleStatus).toBe('suspended');
+		expect(result?.numAttempts).toBe(0);
+		expect(result?.sessionState.responseVariables.RESPONSE?.value).toBe('choice_A');
+		// QTI ASI §10.3: the correct response is session state (a setCorrectResponse
+		// template rule can compute it), so it travels with the snapshot.
+		expect(result?.sessionState.responseVariables.RESPONSE?.correctResponse).toBe('choice_A');
+		expect(result?.sessionState.outcomeVariables.SCORE?.value).toBe(0);
+		expect(result?.sessionState.contextVariables.numAttempts?.value).toBe(0);
+		expect(result?.sessionState.contextVariables.duration?.value).toBeGreaterThanOrEqual(0);
 	});
 
 	test('scoreAttempt runs scoring without candidate attempt side effects', () => {
-		const player = new Player({ itemXml: QTI3_CHOICE_ITEM });
+		const session = open(QTI3_CHOICE_ITEM);
 
-		player.setResponses({ RESPONSE: 'choice_A' });
-		const scoreOnly = player.scoreAttempt();
+		session.dispatch({ action: 'setResponse', responseIdentifier: 'RESPONSE', value: 'choice_A' });
+		const scoreOnly = session.dispatch({ action: 'scoreAttempt' }).result;
 
-		expect(scoreOnly.action).toBe('scoreAttempt');
-		expect(scoreOnly.scoring?.score).toBe(1);
-		expect(scoreOnly.numAttempts).toBe(0);
-		expect(scoreOnly.completionStatus).toBe('not_attempted');
-		expect(scoreOnly.completed).toBe(false);
+		expect(scoreOnly?.action).toBe('scoreAttempt');
+		expect(scoreOnly?.scoring?.score).toBe(1);
+		expect(scoreOnly?.numAttempts).toBe(0);
+		// The candidate's response change began the attempt (QTI ASI §5.2.1: unknown once the
+		// attempt has begun); scoring without attempt side effects leaves it there — it does
+		// not finalize a non-adaptive item, so it is not 'completed' either.
+		expect(scoreOnly?.completionStatus).toBe('unknown');
+		expect(scoreOnly?.completed).toBe(false);
 
-		const submitted = player.endAttempt();
-		expect(submitted.scoring?.score).toBe(1);
-		expect(submitted.numAttempts).toBe(1);
-		expect(submitted.completionStatus).toBe('completed');
-		expect(submitted.lifecycleStatus).toBe('closed');
+		const submitted = session.dispatch({ action: 'endAttempt' }).result;
+		expect(submitted?.scoring?.score).toBe(1);
+		expect(submitted?.numAttempts).toBe(1);
+		expect(submitted?.completionStatus).toBe('completed');
+		expect(submitted?.lifecycleStatus).toBe('closed');
 	});
 
-	test('runItemSessionAction exposes submitAttempt through the unified result protocol', () => {
-		const player = new Player({ itemXml: QTI3_CHOICE_ITEM });
+	test('dispatch exposes submitAttempt through the unified result protocol', () => {
+		const session = open(QTI3_CHOICE_ITEM);
 
-		player.setResponses({ RESPONSE: 'choice_A' });
-		const result = player.runItemSessionAction({ action: 'submitAttempt' });
+		session.dispatch({ action: 'setResponse', responseIdentifier: 'RESPONSE', value: 'choice_A' });
+		const { result, current } = session.dispatch({ action: 'submitAttempt' });
 
-		expect(result.action).toBe('submitAttempt');
-		expect(result.scoring?.score).toBe(1);
-		expect(result.sessionState.responseVariables.RESPONSE.value).toBe('choice_A');
-		expect(result.sessionState.outcomeVariables.SCORE.value).toBe(1);
-		expect(result.numAttempts).toBe(1);
-		expect(player.getNumAttempts()).toBe(1);
+		expect(result?.action).toBe('submitAttempt');
+		expect(result?.scoring?.score).toBe(1);
+		expect(result?.sessionState.responseVariables.RESPONSE?.value).toBe('choice_A');
+		expect(result?.sessionState.outcomeVariables.SCORE?.value).toBe(1);
+		expect(result?.numAttempts).toBe(1);
+		expect(current.numAttempts).toBe(1);
 	});
 
-	test('restoreItemSession hydrates serialized variables for later scoring', () => {
-		const first = new Player({ itemXml: QTI3_CHOICE_ITEM });
-		first.setResponses({ RESPONSE: 'choice_A' });
-		const saved = first.suspendAttempt().sessionState;
+	test('a restored session hydrates serialized variables for later scoring', () => {
+		const first = open(QTI3_CHOICE_ITEM);
+		first.dispatch({ action: 'setResponse', responseIdentifier: 'RESPONSE', value: 'choice_A' });
+		const saved = first.dispatch({ action: 'suspendAttempt' }).result?.sessionState;
 
-		const restored = new Player({ itemXml: QTI3_CHOICE_ITEM });
-		restored.restoreItemSession(saved);
-		const scored = restored.scoreAttempt();
+		const restored = open(QTI3_CHOICE_ITEM, { restore: saved });
+		const scored = restored.dispatch({ action: 'scoreAttempt' }).result;
 
-		expect(restored.getResponses().RESPONSE).toBe('choice_A');
-		expect(scored.scoring?.score).toBe(1);
-		expect(scored.numAttempts).toBe(0);
+		expect(restored.state().responses.RESPONSE).toBe('choice_A');
+		expect(scored?.scoring?.score).toBe(1);
+		expect(scored?.numAttempts).toBe(0);
 	});
 
 	test('newTemplate clears responses and reruns template processing', () => {
-		const player = new Player({ itemXml: QTI3_TEMPLATE_ITEM });
-		expect(player.getTemplateVariables().NUMBER).toBe(5);
+		const session = open(QTI3_TEMPLATE_ITEM);
+		expect(session.state().templates.NUMBER).toBe(5);
 
-		player.setResponses({ RESPONSE: 5 });
-		player.endAttempt();
-		expect(player.getNumAttempts()).toBe(1);
-		expect(player.getResponses().RESPONSE).toBe(5);
+		session.dispatch({ action: 'setResponse', responseIdentifier: 'RESPONSE', value: 5 });
+		session.dispatch({ action: 'endAttempt' });
+		expect(session.state().numAttempts).toBe(1);
+		expect(session.state().responses.RESPONSE).toBe(5);
 
-		const result = player.newTemplate();
+		const { result, current } = session.dispatch({ action: 'newTemplate' });
 
-		expect(result.action).toBe('newTemplate');
-		expect(player.getResponses().RESPONSE).toBeNull();
-		expect(player.getTemplateVariables().NUMBER).toBe(5);
-		expect(player.getNumAttempts()).toBe(0);
-		expect(player.getCompletionStatus()).toBe('not_attempted');
-		expect(result.sessionState.templateVariables.NUMBER.value).toBe(5);
+		expect(result?.action).toBe('newTemplate');
+		expect(current.responses.RESPONSE).toBeNull();
+		expect(current.templates.NUMBER).toBe(5);
+		expect(current.numAttempts).toBe(0);
+		expect(current.completionStatus).toBe('not_attempted');
+		expect(current.lifecycleStatus).toBe('initial');
+		expect(result?.sessionState.templateVariables.NUMBER?.value).toBe(5);
 	});
 });

@@ -34,7 +34,10 @@ to register only the four player/section elements.
 `@pie-qti/player-elements` is the publishable UI artifact of the platform. Its vite build compiles
 Svelte component sources from the sibling packages' source trees (`assessment-player`,
 `section-player`, `item-player`) and inlines them, together with the Svelte runtime and all
-interaction implementations, into a self-contained bundle with zero runtime bare imports.
+interaction implementations, into a self-contained bundle with zero runtime bare imports. The two
+players' bare names are pinned to their source entries in `vite.config.ts` so a bare-name import and
+a compiled component never bundle the same module twice — `tests/bundle-single-copy.test.ts` reads
+the built sourcemaps and fails if a module ships in two copies again.
 
 Consequences for consumers:
 
@@ -70,26 +73,69 @@ document.body.append(item);
 const result = item.submit();
 ```
 
-Attribute-backed properties are `itemXml`, `role`, and `disabled`. JavaScript-only properties are:
+Attribute-backed properties are `item-xml`, `qti-role`, `disabled`, `locale`, `show-feedback`,
+and `show-solution`. JavaScript-only properties are:
 
 - `session` — an existing authoritative `ItemSession`; the element borrows it and never owns an
   injected session;
 - `plugins` — immutable `AssessmentItemDefinitionPlugin` descriptors used only when the element
   creates its own definition/session;
+- `stringComparison` — opt-in folds for string comparison in scoring, used only when the element
+  creates its own definition/session (see [String comparison](#string-comparison));
 - `renderItemBodyRubrics`, `typeset`, `i18n`, `security`, `pnp`, `deliveryContext`, `pci`,
   `resolveProcessingFragment`, `processingFragmentLimits`, and `responses`.
+
+`qti-role` (the `role` JS property) is the QTI view the item renders for: `candidate`, `scorer`,
+`proctor`, `testConstructor`, `tutor` or `author`. It is not the HTML `role` attribute — writing a
+QTI view name there would put an invalid ARIA token on your page, and since the attribute rename
+the player ignores it. Unknown `qti-role` values render as `candidate` and log a diagnostic.
 
 When `session` is supplied, its definition-fixed role and mutable state are authoritative. Do not
 create a second session for the same rendered attempt.
 
+The element keeps the session it opened across a detach and adopts it again on reattach: moving
+the element in the DOM (or hiding and re-showing it through a re-parent) resumes the attempt
+instead of restarting the item.
+
+Changing `itemXml`, `qti-role`, `security`, `pnp`, `deliveryContext`, `pci`, `stringComparison`,
+`plugins`, the processing-fragment options, `showFeedback` or `showSolution` re-opens the item
+(the response values carry over). Writing anything else — `disabled`, `i18n`, `typeset`,
+`responses`, or a no-op — never restarts the item, so the candidate's shuffle order, attempt
+count and submitted feedback survive.
+
+### Integrated feedback and correct responses
+
+Standalone delivery follows QTI's `itemSessionControl` defaults: `feedbackInline`/`feedbackBlock`
+stay hidden unless the host opts in with `showFeedback: true` (the `show-feedback` attribute), and
+correct responses stay hidden until the attempt ends unless the host opts in with
+`showSolution: true` (`show-solution`). This is a change from earlier versions, which always
+showed integrated feedback; an injected `session` keeps the presentation policy its owner passed
+to `openSession()`.
+
+```html
+<pie-qti-item-player item-xml="…" show-feedback></pie-qti-item-player>
+```
+
+The element never renders its own submit button (`showSubmit` stays `false`); hosts drive
+submission by calling `item.submit()`.
+
 Events are typed, bubbling, and composed:
 
 ```js
-item.addEventListener('ready', () => {});
+item.addEventListener('ready', () => {}); // fires once per successful mount, never on failure
 item.addEventListener('response-change', (event) => {});
 item.addEventListener('submit', (event) => {});
 item.addEventListener('complete', (event) => {});
+item.addEventListener('error', (event) => {
+  // { code, message, itemIdentifier? } — the raw message is for host logs only.
+  // The candidate sees a localized generic message; never render event.detail.message.
+  console.error(event.detail.code, event.detail.message);
+});
 ```
+
+`error` codes are `item-load-failed`, `response-processing-failed`, `response-dispatch-failed`,
+`submission-failed` and `render-failed`. See [Failure events and codes](#failure-events-and-codes)
+for how the failure channels differ across the four elements.
 
 Portable Custom Interaction execution is disabled until the host opts into one of two engines:
 a page-realm resolver that returns the trusted module, or the sandboxed engine
@@ -135,7 +181,11 @@ document.body.append(assessment);
 ```
 
 `backend`, `initSession`, `assessmentId`, `candidateId`, `config`, `security`, and `pci` are
-JavaScript properties. `config.plugins` is propagated to every compiled item definition.
+JavaScript properties. So are the per-item injection properties the item and section elements
+expose: `role` (declaratively the `qti-role` attribute — a bare `role` attribute stays the ARIA
+role), `i18n`, `pnp`, `plugins`, and `stringComparison`. Each wins over the same-named `config`
+field (`config` spells the locale provider `i18nProvider`). `config.plugins` is propagated to
+every compiled item definition.
 
 ### Explicit reference/preview delivery
 
@@ -154,7 +204,10 @@ document.body.append(assessment);
 
 Instead of `items`, set `itemBaseUrl` for bounded `assessmentItemRef@href` resolution and optionally
 configure `itemFetchPolicy`. Reference mode puts item XML, correct answers, and scoring rules in the
-browser. It is for demos/offline preview, not authoritative assessment delivery.
+browser. It is for demos/offline preview, not authoritative assessment delivery. Its local backend
+scores from the candidate's serialized item session, so every submission carries it
+(`config.sendItemSessionToBackend` cannot turn that off there): a templated item is scored against
+the instance the candidate saw, an adaptive item from its outcomes as submitted.
 
 Navigation and submission modes come from the QTI assessment structure; `config` does not override
 them.
@@ -167,8 +220,11 @@ assessment.addEventListener('load-error', (event) => console.error(event.detail.
 assessment.addEventListener('item-change', (event) => {});
 assessment.addEventListener('section-change', (event) => {});
 assessment.addEventListener('response-change', (event) => {});
-assessment.addEventListener('submit', (event) => {});
+assessment.addEventListener('submit', (event) => {}); // { results } — once, for every ending
 assessment.addEventListener('complete', () => {});
+assessment.addEventListener('player-error', (event) => {}); // { code?, message } — core/backend failure, never rendered to candidates
+assessment.addEventListener('autosave-change', (event) => {}); // { status: 'idle' | 'pending' | 'saving' | 'saved' | 'failed', lastSavedAt? }
+assessment.addEventListener('autosave-failed', (event) => {}); // { message } — the draft retries on the next change
 
 await assessment.next();
 await assessment.previous();
@@ -178,6 +234,96 @@ const results = await assessment.submit();
 const state = assessment.getState();
 await assessment.restoreState(state);
 ```
+
+### Proctor console
+
+A proctor console (or any host supervising delivery) reads and drives the session through the
+element:
+
+```js
+assessment.pause('Please wait for your proctor.'); // candidate-facing reason
+assessment.resume();
+assessment.isPaused();          // true while a pause holds (also right after a paused session restores)
+assessment.getPauseReason();    // the reason shown, if any
+assessment.getTimeState();      // { limited, remainingSeconds, elapsedSeconds, expired, scope, paused, started, ... }
+assessment.isFinalized();       // true once the session is terminal
+await assessment.flushAutosave(); // save the draft now
+await assessment.submit({ force: true }); // proctor force-submit: during a pause, queued behind a candidate action
+
+assessment.addEventListener('player-pause', (event) => console.log(event.detail.reason));
+assessment.addEventListener('player-resume', () => {});
+assessment.addEventListener('time-expired', (event) => {}); // whole test, or nothing left open
+assessment.addEventListener('scope-time-expired', (event) => {}); // { scope, identifier, deliveryContinues, nextIndex }
+assessment.addEventListener('session-finalized', (event) => {}); // { restored, results, endReason }
+```
+
+- A candidate's `submit()` is refused while paused; `submit({ force: true })` is the administrative
+  end of the test: it ignores minimum times and the QTI `allowSkipping` / `validateResponses`
+  controls, and each collected submission carries `timing.submissionReason: 'proctor'` — except
+  questions an expired time limit closed, which keep `time-expired` (time wins). It never
+  fails because the candidate is mid-action: it waits for the navigation or submission in flight
+  and then ends the test. Behind the begin gate it ends the test too (the completion screen
+  replaces the start screen).
+- Every ending — the candidate's submit, a proctor's force-submit, a QTI `EXIT_TEST` branch, a
+  whole-test time expiry — fires `complete`, `session-finalized` (`restored: false`) and `submit`
+  (`{ results }`) once. `session-finalized` and `results.endReason` say which: `candidate`,
+  `expiry`, `proctor` or `branch`; a proctor's ending shows "Your test was submitted by your
+  proctor." and announces it. An ending that collects a delivery the time already closed (the
+  whole test expired, or a scope expiry left nothing open) is `expiry` whoever submits it — the
+  automatic submission, the candidate after it failed, or a proctor — and shows the time-expired
+  heading.
+- A session restored paused fires `player-pause` once at mount; a session restored already
+  finalized fires `session-finalized` with `restored: true` (and no `endReason`, nor `submit`).
+- While paused, the player closes every dialog it contains and dispatches
+  `pie-qti-close-transient-ui` (`detail: { reason: 'pause' }`) on `document` for editors and popups
+  outside dialogs. Focus containment covers only the player: the host page stays operable.
+
+### Resume and Start over
+
+When the backend restores a draft, the shell offers "Resume where you left off" or "Start over".
+Start over clears the candidate's answers, flags and comments but keeps the time accounting:
+clocks, expired limits and a whole-test expiry persist, so restarting never grants new time.
+Set `allow-start-over="false"` (`allowStartOver = false`) to remove the Start over path; a restored
+draft then simply continues.
+
+### Layout and styling
+
+The shell needs no host stylesheet (no Tailwind or DaisyUI): it styles itself on the
+`--pie-qti-*` theme tokens, with fallbacks when no theme is loaded.
+
+- By default it fills the element's box. Give the element a height (it is a block box), or let
+  it size to its content between `--pie-qti-assessment-min-block-size` (default
+  `min(32rem, 100dvh)`) and `--pie-qti-assessment-max-block-size` (default `100dvh`).
+- `full-viewport` (`fullViewport`) fills the dynamic viewport inside the safe-area insets — add
+  `viewport-fit=cover` to the page's viewport meta — with page-level `header`/`main`/`nav`
+  landmarks. Use it when the player owns the page.
+- `heading-level` (`headingLevel`, 1–6) sets the assessment title's heading level so it fits
+  your page outline (default 2, or 1 with `full-viewport`); passage and item titles follow one
+  level below. Section elements accept `heading-level` for their passage and item titles
+  (default 3).
+
+Set these before the element mounts; changing them on a mounted assessment re-renders the
+shell, like `config`.
+
+```html
+<pie-qti-assessment-player full-viewport heading-level="1"></pie-qti-assessment-player>
+```
+
+## String comparison
+
+Scoring compares string answers as QTI defines: exactly, up to Unicode canonical equivalence, with
+case folded only where the item asks for it. A host whose candidates type with input methods that
+add bidi marks, tatweel or presentation forms to right-to-left text, or that accepts other scripts'
+digits in string answers, opts in:
+
+```js
+item.stringComparison = { foldScriptInput: true };
+assessment.config = { stringComparison: { foldScriptInput: true } };
+```
+
+`foldLetterVariants: true` also accepts Arabic spelling variants (hamza and madda alef forms for
+bare alef, tashkeel, ه for ة and ي for ى). In reference mode the assessment element's local backend
+scores with the same setting; an authoritative backend sets it on its own scorer.
 
 ## Section elements
 
@@ -192,15 +338,39 @@ section.typeset = typesetMath;
 section.addEventListener('qti-section-response-delta', (event) => {
   console.log(event.detail);
 });
+section.addEventListener('qti-section-framework-error', (event) => {
+  console.error(event.detail);
+});
+section.addEventListener('qti-section-display-settings', (event) => {
+  // event.detail.settings are the candidate's choices; event.detail.pnp is the
+  // profile the section now renders with. Store `pnp` and pass it back as the
+  // candidate's PNP next session to persist the settings.
+  console.log(event.detail);
+});
+section.addEventListener('qti-section-item-pane-ready', (event) => {
+  skipLink.target = event.detail.element;
+});
 document.body.append(section);
 ```
 
 Use `pie-qti-section-player-vertical` with the same `composition`, `security`, `pci`, and `typeset`
 properties for a vertical layout. The composition may carry the active item's live `session`; other
 item refs carry response snapshots. Shared passages/rubrics and direct item rubrics remain separate
-placement surfaces.
+placement surfaces, and the shared context's test feedback renders ahead of the rubric and item.
+A composition the layouts cannot render (a hand-built object missing `sharedContext` or the
+response snapshot) degrades to a `qti-section-framework-error` event with code
+`invalid-composition` instead of a blank element.
 
-## TypeScript and manual registration
+Events on both section elements: `qti-section-response-delta`, `qti-section-framework-error`,
+`qti-section-display-settings` and `qti-section-item-pane-ready` are typed, bubbling, composed
+`CustomEvent`s. `focusActiveItem(options?)` moves focus to the active item — selecting the
+question tab when the panes are stacked — so a skip link can land on the question.
+
+`display-settings="false"` (property `displaySettings`) turns the candidate's display settings
+tool off; by default it is offered. The section's tool bars suppress the assessment toolkit's
+FontAwesome injection with a `data:` stylesheet rendered inside the section's own DOM (never the
+host `<head>`); under a strict CSP `style-src` that marker is still reported, so allow `data:` in
+`style-src` or link a real FontAwesome stylesheet to avoid it.
 
 All four tags participate in `HTMLElementTagNameMap` inference:
 
@@ -217,6 +387,33 @@ defineQtiPlayerElements();
 
 The `/elements` entry is browser-only. Use the package root when only constants, parser helpers, or
 public types are needed in SSR/tooling code.
+
+## Failure events and codes
+
+Each element reports "the player failed" on its own channel, with its own code taxonomy. A host
+listens per element it renders:
+
+| Element | Failure event(s) | Event detail | Code style |
+|---|---|---|---|
+| `pie-qti-item-player` | `error` — one event for load, response dispatch, response processing, submission and render failures | `{ code, message, itemIdentifier? }` | kebab-case, always present |
+| `pie-qti-assessment-player` | `player-error` (runtime failures) and `load-error` (resource/parse load failures) | `{ code?, message }` / `{ message }` | camelCase, optional — a failure that is not a coded error carries no `code` |
+| `pie-qti-section-player-*` | `qti-section-framework-error` | `{ code, message, sectionIdentifier?, itemIdentifier?, cause? }` | kebab-case string |
+
+The item element's codes are `item-load-failed`, `response-processing-failed`,
+`response-dispatch-failed`, `submission-failed` and `render-failed`. The assessment element's
+`player-error` codes are the assessment player core's (camelCase, e.g. `invalidNavigationTarget`,
+`itemTimeExpired`) — because the code is optional, hosts switching on it need a default branch.
+The assessment element's `load-error` carries only `message`. The section elements report the
+section player's own codes plus the item-player codes bridged from the item players they mount
+(the section player's README lists them); the custom elements add `invalid-composition` for a
+composition they cannot render.
+
+The `qti-section-*` prefix on the section events is load-bearing: section layouts embed real
+`pie-qti-item-player` elements and re-namespace their bubbling events, so the section's own
+reports must not collide with the names the mounted items emit. Event names are stable per
+element; a host that renders several elements registers a listener per element — `error` on item
+elements, `player-error`/`load-error` on the assessment element, `qti-section-framework-error` on
+the section elements.
 
 ## Security boundary
 

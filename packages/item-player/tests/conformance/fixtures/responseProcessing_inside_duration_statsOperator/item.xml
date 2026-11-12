@@ -32,8 +32,11 @@
 	<outcomeDeclaration identifier="STATS_SAMPLE_SD" cardinality="single" baseType="float">
 		<defaultValue><value>0.0</value></defaultValue>
 	</outcomeDeclaration>
-	<outcomeDeclaration identifier="STATS_NULL_ON_NULL_MEMBER" cardinality="single" baseType="float">
+	<outcomeDeclaration identifier="STATS_IGNORES_NULL_MEMBER" cardinality="single" baseType="float">
 		<defaultValue/>
+	</outcomeDeclaration>
+	<outcomeDeclaration identifier="STATS_NULL_ON_ALL_NULL" cardinality="single" baseType="float">
+		<defaultValue><value>0.0</value></defaultValue>
 	</outcomeDeclaration>
 	<outcomeDeclaration identifier="STATS_NULL_ON_NON_NUMERIC" cardinality="single" baseType="float">
 		<defaultValue/>
@@ -66,25 +69,25 @@
 			</inside>
 		</setOutcomeValue>
 
-		<!-- duration comparisons -->
+		<!-- duration comparisons; item-XML durations are xsd:double seconds -->
 		<setOutcomeValue identifier="DUR_LT">
 			<durationLT>
-				<baseValue baseType="duration">PT1S</baseValue>
-				<baseValue baseType="duration">PT2S</baseValue>
+				<baseValue baseType="duration">1</baseValue>
+				<baseValue baseType="duration">2</baseValue>
 			</durationLT>
 		</setOutcomeValue>
 
 		<setOutcomeValue identifier="DUR_GTE">
 			<durationGTE>
-				<baseValue baseType="duration">PT2S</baseValue>
-				<baseValue baseType="duration">PT2S</baseValue>
+				<baseValue baseType="duration">2</baseValue>
+				<baseValue baseType="duration">2.0</baseValue>
 			</durationGTE>
 		</setOutcomeValue>
 
 		<setOutcomeValue identifier="DUR_NULL">
 			<durationLT>
 				<null/>
-				<baseValue baseType="duration">PT2S</baseValue>
+				<baseValue baseType="duration">2</baseValue>
 			</durationLT>
 		</setOutcomeValue>
 
@@ -111,10 +114,21 @@
 			</statsOperator>
 		</setOutcomeValue>
 
-		<setOutcomeValue identifier="STATS_NULL_ON_NULL_MEMBER">
+		<!-- multiple ignores NULL sub-expressions, so the mean is over {1} -->
+		<setOutcomeValue identifier="STATS_IGNORES_NULL_MEMBER">
 			<statsOperator name="mean">
 				<multiple>
 					<baseValue baseType="integer">1</baseValue>
+					<null/>
+				</multiple>
+			</statsOperator>
+		</setOutcomeValue>
+
+		<!-- every sub-expression NULL: multiple is NULL, and so is the mean -->
+		<setOutcomeValue identifier="STATS_NULL_ON_ALL_NULL">
+			<statsOperator name="mean">
+				<multiple>
+					<null/>
 					<null/>
 				</multiple>
 			</statsOperator>

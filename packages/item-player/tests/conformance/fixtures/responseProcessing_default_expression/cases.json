@@ -3,10 +3,8 @@
   "cases": [
     {
       "name": "default ignores current value changes (response + outcome)",
-      "responses": {},
+      "responses": { "R": 7 },
       "expect": { "outcomes": { "O": 10, "O_DEFAULT": 2, "R_DEFAULT": 5 } }
     }
   ]
 }
-
-

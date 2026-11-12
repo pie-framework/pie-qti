@@ -90,6 +90,34 @@ describe('standardTextEntryExtractor', () => {
 		expect(result.format).toBeUndefined();
 	});
 
+	test('extracts a non-decimal number base (QTI stringInteraction base)', () => {
+		const extractBase = (attributes: string) => {
+			const element = parseQTI(`<textEntryInteraction responseIdentifier="RESPONSE" ${attributes}/>`);
+			return standardTextEntryExtractor.extract(element, createTestContext(element, 'RESPONSE')).base;
+		};
+
+		expect(extractBase('base="2"')).toBe(2);
+		expect(extractBase('base="16"')).toBe(16);
+		// The default base, and a value QTI does not allow, are not carried.
+		expect(extractBase('')).toBeUndefined();
+		expect(extractBase('base="10"')).toBeUndefined();
+		expect(extractBase('base="1"')).toBeUndefined();
+		expect(extractBase('base="hex"')).toBeUndefined();
+	});
+
+	test('extracts stringIdentifier (QTI stringInteraction companion response)', () => {
+		const extractStringIdentifier = (attributes: string) => {
+			const element = parseQTI(`<textEntryInteraction responseIdentifier="NUM" ${attributes}/>`);
+			return standardTextEntryExtractor.extract(element, createTestContext(element, 'NUM')).stringIdentifier;
+		};
+
+		expect(extractStringIdentifier('stringIdentifier="STR"')).toBe('STR');
+		// Absent or blank, nothing is carried.
+		expect(extractStringIdentifier('')).toBeUndefined();
+		expect(extractStringIdentifier('stringIdentifier=""')).toBeUndefined();
+		expect(extractStringIdentifier('stringIdentifier="  "')).toBeUndefined();
+	});
+
 	describe('canHandle predicate', () => {
 		test('handles textEntryInteraction element', () => {
 			const xml = `<textEntryInteraction responseIdentifier="RESPONSE" />`;

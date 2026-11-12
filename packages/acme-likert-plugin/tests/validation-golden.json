@@ -1,0 +1,110 @@
+{
+  "likert": {
+    "(no responses)": {
+      "canSubmit": true,
+      "entries": {
+        "RESPONSE": "choiceInteraction, optional, complete, valid"
+      },
+      "gate": {
+        "entries": {
+          "RESPONSE": "choiceInteraction, optional, complete, valid"
+        },
+        "issues": []
+      },
+      "issues": []
+    },
+    "a level chosen": {
+      "canSubmit": true,
+      "entries": {
+        "RESPONSE": "choiceInteraction, optional, complete, valid"
+      },
+      "gate": {
+        "entries": {
+          "RESPONSE": "choiceInteraction, optional, complete, valid"
+        },
+        "issues": []
+      },
+      "issues": []
+    },
+    "an identifier that is not a level": {
+      "canSubmit": true,
+      "entries": {
+        "RESPONSE": "choiceInteraction, optional, complete, valid"
+      },
+      "gate": {
+        "entries": {
+          "RESPONSE": "choiceInteraction, optional, complete, valid"
+        },
+        "issues": []
+      },
+      "issues": []
+    }
+  },
+  "likertWithRequiredFollowUp": {
+    "(no responses)": {
+      "canSubmit": false,
+      "entries": {
+        "FOLLOW_UP": "choiceInteraction, required, incomplete, valid",
+        "RESPONSE": "choiceInteraction, optional, complete, valid"
+      },
+      "gate": {
+        "entries": {
+          "FOLLOW_UP": "choiceInteraction, required, incomplete, valid",
+          "RESPONSE": "choiceInteraction, optional, complete, valid"
+        },
+        "issues": []
+      },
+      "issues": []
+    },
+    "both answered": {
+      "canSubmit": true,
+      "entries": {
+        "FOLLOW_UP": "choiceInteraction, required, complete, valid",
+        "RESPONSE": "choiceInteraction, optional, complete, valid"
+      },
+      "gate": {
+        "entries": {
+          "FOLLOW_UP": "choiceInteraction, required, complete, valid",
+          "RESPONSE": "choiceInteraction, optional, complete, valid"
+        },
+        "issues": []
+      },
+      "issues": []
+    },
+    "only the Likert scale answered": {
+      "canSubmit": false,
+      "entries": {
+        "FOLLOW_UP": "choiceInteraction, required, incomplete, valid",
+        "RESPONSE": "choiceInteraction, optional, complete, valid"
+      },
+      "gate": {
+        "entries": {
+          "FOLLOW_UP": [
+            "choiceInteraction, required, incomplete, invalid",
+            "error: Response 'FOLLOW_UP' does not satisfy the constraints of its choiceInteraction"
+          ],
+          "RESPONSE": "choiceInteraction, optional, complete, valid"
+        },
+        "issues": [
+          "FOLLOW_UP incomplete"
+        ]
+      },
+      "issues": []
+    },
+    "only the follow-up answered": {
+      "canSubmit": true,
+      "entries": {
+        "FOLLOW_UP": "choiceInteraction, required, complete, valid",
+        "RESPONSE": "choiceInteraction, optional, complete, valid"
+      },
+      "gate": {
+        "entries": {
+          "FOLLOW_UP": "choiceInteraction, required, complete, valid",
+          "RESPONSE": "choiceInteraction, optional, complete, valid"
+        },
+        "issues": []
+      },
+      "issues": []
+    }
+  }
+}

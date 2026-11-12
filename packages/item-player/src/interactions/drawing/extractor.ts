@@ -6,6 +6,8 @@
 
 import type { ElementExtractor } from '../../extraction/types.js';
 import { normalizePixelDimension } from '../../security/styleValues.js';
+import { extractImageAlternative, imgAlternativeSource } from '../shared/imageAlt.js';
+import { findInteractionImage } from '../shared/interactionImage.js';
 
 /**
  * Image data for drawing interaction
@@ -16,6 +18,12 @@ export interface ImageData {
 	content?: string;
 	width?: string;
 	height?: string;
+	/** Short text alternative extracted from the QTI source. */
+	alt?: string;
+	/** Longer description for complex images (SVG <desc>, aria description). */
+	altDescription?: string;
+	/** True only when the author explicitly marked the image decorative (`<img alt="">`). */
+	decorative?: boolean;
 }
 
 /**
@@ -44,35 +52,53 @@ export const standardDrawingExtractor: ElementExtractor<DrawingData> = {
 	},
 
 	extract(element, context) {
-		const { utils } = context;
+		const { utils, dom } = context;
 
-		// Extract background image data from object element (optional)
-		const objectElements = utils.getChildrenByTag(element, 'object');
+		// Extract background image data from the object element (QTI 2.x) or an img
+		// element (QTI 3.0, plain or as a <picture>'s fallback img) (optional)
+		const interactionImage = findInteractionImage(element, utils);
 		let imageData: ImageData | null = null;
 
-		if (objectElements.length > 0) {
-			const objectElement = objectElements[0];
+		if (interactionImage?.kind === 'object') {
+			const objectElement = interactionImage.element;
 			const type = utils.getAttribute(objectElement, 'type', '');
 			const data = utils.getAttribute(objectElement, 'data', '');
 			const width = normalizePixelDimension(utils.getAttribute(objectElement, 'width', ''));
 			const height = normalizePixelDimension(utils.getAttribute(objectElement, 'height', ''));
+			const content = type.startsWith('image/svg') ? utils.getHtmlContent(objectElement) : '';
 
-			if (type.startsWith('image/svg')) {
-				// Extract inline SVG content
-				const content = utils.getHtmlContent(objectElement);
+			if (/<svg[\s>]/i.test(content)) {
+				// Inline SVG content
 				imageData = {
 					type: 'svg',
 					content,
 					...(width ? { width } : {}),
 					...(height ? { height } : {}),
+					...extractImageAlternative(objectElement, utils, dom, { inlineSvgContent: content }),
 				};
 			} else if (data) {
-				// External image reference
+				// External image (or SVG file) reference; the <object>'s text is its alternative
 				imageData = {
 					type: 'image',
 					src: data,
 					...(width ? { width } : {}),
 					...(height ? { height } : {}),
+					...extractImageAlternative(objectElement, utils, dom),
+				};
+			}
+		} else if (interactionImage) {
+			// QTI 3.0 <img>: the alt attribute is the text alternative (alt="" = decorative)
+			const imgElement = interactionImage.element;
+			const src = utils.getAttribute(imgElement, 'src', '');
+			const width = normalizePixelDimension(utils.getAttribute(imgElement, 'width', ''));
+			const height = normalizePixelDimension(utils.getAttribute(imgElement, 'height', ''));
+			if (src) {
+				imageData = {
+					type: 'image',
+					src,
+					...(width ? { width } : {}),
+					...(height ? { height } : {}),
+					...extractImageAlternative(imgElement, utils, dom, imgAlternativeSource(imgElement)),
 				};
 			}
 		}

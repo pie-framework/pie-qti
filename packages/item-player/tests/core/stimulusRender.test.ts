@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { ResolvedItemDeliveryContext } from '@pie-qti/ims-cp-core';
-import { buildEffectiveStimulusContent, injectStimulusContent } from '../../src/components/utils/stimulusRender.js';
+import { buildEffectiveStimulusContent, injectStimulusContent } from '../../src/presentation/stimulusRender.js';
 
 describe('shared stimulus runtime rendering helpers', () => {
 	test('prepends root-level resolved stimulus content before item body when no dock is present', () => {

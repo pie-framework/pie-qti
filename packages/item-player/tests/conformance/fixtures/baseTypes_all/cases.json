@@ -13,8 +13,9 @@
         "P": "B A",
         "DP": "A B",
         "PT": "10 20",
-        "DUR": "PT1H",
-        "FILE": "file://example.txt"
+        "DUR": "3600",
+        "FILE": "file://example.txt",
+        "REC": { "a": 7, "b": "ok" }
       },
       "expect": {
         "outcomes": {
@@ -46,7 +47,7 @@
         "P": "B A",
         "DP": "B A",
         "PT": "10 20",
-        "DUR": "PT1H",
+        "DUR": "3600",
         "FILE": "file://example.txt"
       },
       "expect": {
@@ -57,5 +58,3 @@
     }
   ]
 }
-
-

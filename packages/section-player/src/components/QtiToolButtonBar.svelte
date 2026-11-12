@@ -1,18 +1,37 @@
+<script module lang="ts">
+	// One FontAwesome suppression marker per page: the toolkit's own check is
+	// document-wide, and tool bars created in the same mount all read the same
+	// document, so the flag dedupes where the scan cannot.
+	let fontAwesomeMarkerPlaced = false;
+</script>
+
 <script lang="ts">
-	import { ToolkitCoordinator, ToolRegistry } from '@pie-players/pie-assessment-toolkit';
-	import { interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
+	import {
+		type I18nProvider as ToolkitI18nProvider,
+		ToolkitCoordinator,
+		ToolRegistry,
+	} from '@pie-players/pie-assessment-toolkit';
 	// pie-assessment-toolkit 0.3.65 moved the concrete tool registrations out of the
-	// toolkit core, so a host composes the capabilities it wants. The two
-	// registrations are imported individually rather than through
-	// createPackagedToolRegistry(), whose PACKAGED_TOOL_REGISTRATIONS statically
-	// references all eleven packaged tools and so drags every one into the bundle.
+	// toolkit core, so a host composes the capabilities it wants. The registrations
+	// are imported individually rather than through createPackagedToolRegistry(),
+	// whose PACKAGED_TOOL_REGISTRATIONS registers all the packaged tools.
 	import {
 		calculatorToolRegistration,
+		DEFAULT_TOOL_MODULE_LOADERS,
+		protractorToolRegistration,
+		rulerToolRegistration,
 		ttsToolRegistration,
 	} from '@pie-players/pie-default-tool-loaders';
-	import type { QtiSectionToolConfig } from '../contracts/index.js';
+	import { untrack } from 'svelte';
+	import { interfaceLocaleAttributes, type I18nProvider } from '@pie-qti/i18n';
+	import type { PnpProfile } from '@pie-qti/item-player';
+	import type { QtiSectionFrameworkError, QtiSectionToolConfig } from '../contracts/index.js';
+	import { interfaceText } from '../i18n/interface-text.js';
+	import type { QtiDisplaySettingsControls } from '../tools/display-settings.js';
 	import type { SpokenCatalog } from '../tts/spoken-catalogs.js';
-	import { resolveSectionTtsProviderConfig } from '../tools/section-tool-config.js';
+	import { companionMaterialsOf, companionToolIds } from '../tools/pnp-tool-supports.js';
+	import { resolveSectionTtsProviderConfig, toolkitAssessmentOf } from '../tools/section-tool-config.js';
+	import { toolkitI18n } from '../tools/toolkit-i18n.js';
 
 	interface Props {
 		tools?: QtiSectionToolConfig[];
@@ -27,6 +46,17 @@
 		scopeElement?: HTMLElement | null;
 		/** The section's interface locale, which the toolkit takes as its own. */
 		i18n?: I18nProvider;
+		/**
+		 * The assessment the scope belongs to. It names the toolkit's assessment
+		 * (its element ids and its policy provenance); without it the scope id stands in.
+		 */
+		assessmentId?: string;
+		/** The candidate's PNP. Its tool supports refine what the tool bar shows. */
+		pnp?: PnpProfile;
+		/** The section's display settings dialog; present, the bar opens it from its own button. */
+		displaySettingsControls?: QtiDisplaySettingsControls | null;
+		/** Host diagnostics for the bar's own failures; the message is for logs, never rendered to candidates. */
+		onFrameworkError?: (error: QtiSectionFrameworkError) => void;
 	}
 
 	const {
@@ -39,22 +69,36 @@
 		language,
 		scopeElement = null,
 		i18n,
+		assessmentId,
+		pnp,
+		displaySettingsControls = null,
+		onFrameworkError,
 	}: Props = $props();
 
 	let shellHost = $state<HTMLElement | null>(null);
 	let toolkitElement = $state<HTMLElement | null>(null);
 	let toolkitCoordinator = $state<ToolkitCoordinator | null>(null);
 	let toolkitElementsReady = $state(false);
-	// The toolkit's `locale` attribute is its only locale driver: its chrome stamps
-	// that locale's lang/dir and renders from its own catalogs.
+	// The toolkit renders its chrome from its own catalogs, not from the section's
+	// provider: it takes the section's interface locale and a provider over those
+	// catalogs, switches the provider to the locale and stamps its lang/dir.
 	const interfaceLocale = $derived(interfaceLocaleAttributes(i18n)?.lang);
+	// The locale and its provider travel together, so the toolkit never applies a
+	// new locale to the provider built for the previous one.
+	let toolkitLocale = $state<{ locale: string | undefined; provider: ToolkitI18nProvider } | null>(null);
 	const visibleTools = $derived(tools.filter((tool) => tool.enabled !== false));
 	const hasTts = $derived(visibleTools.some((tool) => tool.toolId === 'textToSpeech'));
 	const calculatorTool = $derived(visibleTools.find((tool) => tool.toolId === 'calculator'));
+	const rulerTool = $derived(visibleTools.find((tool) => tool.toolId === 'ruler'));
+	const protractorTool = $derived(visibleTools.find((tool) => tool.toolId === 'protractor'));
+	const hasToolkitTools = $derived(visibleTools.length > 0);
+	const displaySettingsLabel = $derived(interfaceText(i18n, 'sectionPlayer.displaySettings.title', 'Display settings'));
 	const toolbarTools = $derived(
 		[
 			hasTts ? 'textToSpeech' : '',
 			calculatorTool ? 'calculator' : '',
+			rulerTool ? 'ruler' : '',
+			protractorTool ? 'protractor' : '',
 		]
 			.filter(Boolean)
 			.join(','),
@@ -62,33 +106,58 @@
 	const contentKind = $derived(scopeLabel === 'passage' ? 'rubric-block-stimulus' : 'assessment-item');
 	const level = $derived(scopeLabel === 'passage' ? 'passage' : 'item');
 	const sourceMarkup = $derived(sourceXml.trim() || sourceText.trim());
-	// The toolkit core no longer ships a default tag map either, for the same reason:
-	// a map names capabilities, so it belongs to whoever decides which exist. These
-	// two entries mirror PACKAGED_TOOL_TAG_MAP.
+	// The assessment the tool policy names: identity from the host, the candidate's
+	// tool supports as its profile, so enforcement refines the bar by the PNP.
+	const toolkitAssessmentId = $derived(assessmentId ?? `qti-section-${scopeId}`);
+	const assessmentEntity = $derived(toolkitAssessmentOf(toolkitAssessmentId, pnp));
+	// The toolkit core ships no default tag map either: a map names capabilities, so
+	// it belongs to whoever decides which exist. These entries mirror PACKAGED_TOOL_TAG_MAP.
 	const toolRegistry = (() => {
 		const registry = new ToolRegistry();
 		registry.register(ttsToolRegistration);
 		registry.register(calculatorToolRegistration);
+		registry.register(rulerToolRegistration);
+		registry.register(protractorToolRegistration);
 		registry.setComponentOverrides({
 			toolTagMap: {
 				textToSpeech: 'pie-tool-tts-inline',
 				calculator: 'pie-tool-calculator',
+				ruler: 'pie-tool-ruler',
+				protractor: 'pie-tool-protractor',
 			},
 		});
 		registry.setToolModuleLoaders({
 			textToSpeech: () => import('@pie-players/pie-tool-tts-inline'),
 			calculator: () => import('@pie-players/pie-tool-calculator-desmos'),
+			// The packaged loaders keep the measurement overlays out of the initial
+			// bundle: their modules load when a ruler or protractor first renders.
+			ruler: DEFAULT_TOOL_MODULE_LOADERS.ruler,
+			protractor: DEFAULT_TOOL_MODULE_LOADERS.protractor,
 		});
 		return registry;
 	})();
 	const ttsProvider = $derived(visibleTools.find((tool) => tool.toolId === 'textToSpeech')?.provider ?? {});
 	const calculatorType = $derived(calculatorTool?.renderParams?.calculatorType);
-	// The calculator opens the type its item's `toolParameters` name.
-	const scopeSettings = $derived(
-		typeof calculatorType === 'string' ? { toolParameters: { calculator: { type: calculatorType } } } : null,
-	);
+	// The tools the item's companion materials list, among those the bar shows.
+	const requiredToolIds = $derived.by(() => {
+		if (level !== 'item') return [];
+		const shown = new Set(visibleTools.map((tool) => String(tool.toolId)));
+		return companionToolIds(companionMaterialsOf(sourceXml)).filter((toolId) => shown.has(toolId));
+	});
+	const scopeSettings = $derived.by(() => {
+		const settings: Record<string, unknown> = {};
+		// The calculator opens the type its item's `toolParameters` name.
+		if (typeof calculatorType === 'string') settings.toolParameters = { calculator: { type: calculatorType } };
+		// The item's companion materials are its requirements: under PNP enforcement a
+		// required tool skips the toolkit's content check, so a ruler an item asks for
+		// shows even where its markup holds no math the check recognises.
+		if (requiredToolIds.length > 0) settings.requiredTools = requiredToolIds;
+		return Object.keys(settings).length > 0 ? settings : null;
+	});
 	const toolsConfig = $derived({
-		pnpEnforcement: 'off',
+		// PNP/profile policy refines the bar: the bound assessment's profile (the
+		// candidate's supports) protects granted tools and withdraws prohibited ones.
+		pnpEnforcement: 'on' as const,
 		policy: {
 			allowed: visibleTools.map((tool) => String(tool.toolId)),
 			blocked: [],
@@ -128,7 +197,7 @@
 	const effectiveScopeElement = $derived(scopeElement || shellHost);
 
 	$effect(() => {
-		if (visibleTools.length === 0 || toolkitElementsReady) return;
+		if (!hasToolkitTools || toolkitElementsReady) return;
 		let cancelled = false;
 		void Promise.all([
 			import('@pie-players/pie-assessment-toolkit/components/item-scope-element'),
@@ -139,48 +208,148 @@
 				if (!cancelled) toolkitElementsReady = true;
 			})
 			.catch((error) => {
-				if (!cancelled) console.error('Unable to load assessment toolkit elements:', error);
+				if (cancelled) return;
+				console.error('Unable to load assessment toolkit elements:', error);
+				// Host diagnostics: the message is raw engine text for logs, never rendered
+				// to candidates. A remount retries the load; this failure does not.
+				const message = error instanceof Error ? error.message : 'Unable to load the assessment toolkit elements.';
+				onFrameworkError?.({
+					...(level === 'item' ? { itemIdentifier: scopeId } : {}),
+					code: 'toolkit-load-failed',
+					message: `${scopeId}: ${message}`,
+					cause: error,
+				});
 			});
 		return () => {
 			cancelled = true;
 		};
 	});
 	/**
-	 * Stop pie-assessment-toolkit from injecting FontAwesome into this page.
+	 * Whether this bar renders the marker that stops pie-assessment-toolkit from
+	 * injecting FontAwesome into the page.
 	 *
 	 * Its ItemToolBar appends FontAwesome Free from jsDelivr plus host-relative
 	 * /_fa-pro/*.min.css links at import time, expecting the embedding app to serve
 	 * FontAwesome Pro — Quiz Engine does; this repo does not, so those requests 404.
 	 * The injection is skipped when a stylesheet whose href matches
-	 * /font.?awesome|fa-?pro/i is already present, so a dummy data: URL suppresses it.
+	 * /font.?awesome|fa-?pro/i is already present anywhere in the document, so a
+	 * dummy `data:` stylesheet suppresses it.
+	 *
+	 * The marker renders inside this bar's own shell rather than the host's <head>:
+	 * the toolkit's check scans the whole document tree, so the suppression works
+	 * from here, and the marker leaves with the bar instead of accumulating in the
+	 * host document. A strict CSP `style-src` still reports the `data:` stylesheet
+	 * (allow `data:` in `style-src`, or link a real FontAwesome stylesheet, which
+	 * suppresses the injection without the marker). One marker per page: the flag
+	 * dedupes where the document scan cannot (bars created in the same mount).
 	 *
 	 * This runs regardless of the `ndsIcons` opt-in: the toolkit injects on import, not
 	 * on the decision to render vendored icon buttons. Removing it brings the 404s back,
 	 * which apps/demo/tests/playwright/section-player.pw.ts asserts against.
 	 */
-	function ensureFontAwesomeFallbackMarker() {
-		if (typeof document === 'undefined') return;
+	let ownsFontAwesomeMarker = false;
+	function claimFontAwesomeMarker(): boolean {
+		if (ownsFontAwesomeMarker) return true;
+		if (fontAwesomeMarkerPlaced || typeof document === 'undefined') return false;
 		const hasFontAwesomeLink = Array.from(document.querySelectorAll('link[rel="stylesheet"][href]')).some((link) =>
 			/font.?awesome|fa-?pro/i.test((link as HTMLLinkElement).href),
 		);
-		if (hasFontAwesomeLink) return;
-		const link = document.createElement('link');
-		link.rel = 'stylesheet';
-		link.href = 'data:text/css;charset=utf-8,/*fontawesome-pie-qti-fallback*/';
-		document.head.appendChild(link);
+		if (hasFontAwesomeLink) return false;
+		fontAwesomeMarkerPlaced = true;
+		ownsFontAwesomeMarker = true;
+		return true;
 	}
 
-	ensureFontAwesomeFallbackMarker();
+	// The page's marker claim ends when the bar that holds it goes away, so a section
+	// mounted later still suppresses a toolkit import that has not happened yet.
+	$effect(() => {
+		return () => {
+			if (ownsFontAwesomeMarker) {
+				fontAwesomeMarkerPlaced = false;
+				ownsFontAwesomeMarker = false;
+			}
+		};
+	});
+
+	// The parts of the tools config the toolkit lets a host change on a live
+	// coordinator: `updateToolsPlacement` patches the placement levels and
+	// `updateToolConfig` replaces one tool's provider config. `tools.policy` has no
+	// mutator, so a changed allowlist or blocklist can only take effect in a
+	// coordinator built with it — that is what this signature tracks.
+	const policySignature = $derived(JSON.stringify(toolsConfig.policy));
+	/** The placement the current coordinator last received, for skipping no-op updates. */
+	let appliedPlacementKey: string | null = null;
+	/** The provider configs the current coordinator last received, likewise. */
+	let appliedProvidersKey: string | null = null;
 
 	$effect(() => {
-		if (toolkitCoordinator) return;
-		toolkitCoordinator = new ToolkitCoordinator({
-			assessmentId: `qti-section-demo-${scopeId}`,
+		// A bar holding only the display settings button needs no toolkit. The
+		// coordinator guard reads untracked: writing the state below must not re-run
+		// (and so dispose) the effect that created it.
+		if (untrack(() => toolkitCoordinator) || !hasToolkitTools) return;
+		// A changed policy signature rebuilds: the coordinator's policy has no mutator.
+		void policySignature;
+		const config = untrack(() => toolsConfig);
+		const coordinator = new ToolkitCoordinator({
+			assessmentId: toolkitAssessmentId,
 			lazyInit: false,
 			toolConfigStrictness: 'off',
-			tools: toolsConfig as any,
+			tools: config as any,
 			toolRegistry,
 		});
+		// Bind the candidate's profile so enforcement reads it; the coordinator is
+		// ours, so the toolkit element will not apply its own assessment property.
+		coordinator.updateAssessment(assessmentEntity as any);
+		appliedPlacementKey = JSON.stringify(config.placement);
+		appliedProvidersKey = JSON.stringify(config.providers);
+		toolkitCoordinator = coordinator;
+		// The coordinator is ours: take it down with the bar (or with the rebuild), so
+		// a shell retry that unmounts and remounts bars does not leak one per remount.
+		return () => {
+			void coordinator.dispose();
+			if (toolkitCoordinator === coordinator) toolkitCoordinator = null;
+		};
+	});
+
+	$effect(() => {
+		const coordinator = toolkitCoordinator;
+		if (!coordinator) return;
+		const config = toolsConfig;
+		const placementKey = JSON.stringify(config.placement);
+		if (placementKey !== appliedPlacementKey) {
+			coordinator.updateToolsPlacement({
+				section: [...config.placement.section],
+				item: [...config.placement.item],
+				passage: [...config.placement.passage],
+			});
+			appliedPlacementKey = placementKey;
+		}
+		const providersKey = JSON.stringify(config.providers);
+		if (providersKey !== appliedProvidersKey) {
+			for (const [toolId, providerConfig] of Object.entries(config.providers)) {
+				if (!providerConfig) continue;
+				coordinator.updateToolConfig(toolId, providerConfig as any);
+			}
+			appliedProvidersKey = providersKey;
+		}
+	});
+
+	$effect(() => {
+		if (!toolkitCoordinator) return;
+		toolkitCoordinator.updateAssessment(assessmentEntity as any);
+	});
+
+	$effect(() => {
+		// The toolkit's catalogs come from the pie-players tiers: English bundled,
+		// every other locale through the generated package, fetched per locale.
+		if (!hasToolkitTools) return;
+		let cancelled = false;
+		void toolkitI18n.providerFor(interfaceLocale).then((provider) => {
+			if (!cancelled) toolkitLocale = { locale: interfaceLocale, provider };
+		});
+		return () => {
+			cancelled = true;
+		};
 	});
 
 	$effect(() => {
@@ -199,17 +368,56 @@
 	});
 </script>
 
-{#if visibleTools.length > 0 && toolkitElementsReady}
+{#if hasToolkitTools || displaySettingsControls}
 	<span bind:this={shellHost} class="qti-pie-tool-shell">
-		{#if toolkitCoordinator}
+		<!--
+			The FontAwesome suppression marker (see `claimFontAwesomeMarker`): a bar about
+			to load the toolkit renders it before that import can evaluate, inside the
+			section player's own DOM instead of the host's <head>.
+		-->
+		{#if hasToolkitTools && claimFontAwesomeMarker()}
+			<link rel="stylesheet" href="data:text/css;charset=utf-8,/*fontawesome-pie-qti-fallback*/" />
+		{/if}
+		{#if displaySettingsControls}
+			<button
+				type="button"
+				class="qti-display-settings-button"
+				data-testid="section-display-settings-button"
+				aria-haspopup="dialog"
+				onclick={() => void displaySettingsControls?.openDialog()}
+			>
+				<svg
+					class="qti-display-settings-icon"
+					xmlns="http://www.w3.org/2000/svg"
+					width="20"
+					height="20"
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<!-- Magnifier with a plus: the shared idiom for adjusting text size. -->
+					<circle cx="11" cy="11" r="7" />
+					<line x1="8.5" y1="11" x2="13.5" y2="11" />
+					<line x1="11" y1="8.5" x2="11" y2="13.5" />
+					<line x1="16.5" y1="16.5" x2="21" y2="21" />
+				</svg>
+				<span class="qti-display-settings-label">{displaySettingsLabel}</span>
+			</button>
+		{/if}
+		{#if hasToolkitTools && toolkitCoordinator && toolkitElementsReady && toolkitLocale}
 			<pie-assessment-toolkit
 				bind:this={toolkitElement}
-				assessment-id="qti-section-demo"
+				assessment-id={toolkitAssessmentId}
 				section-id={`section-${scopeId}`}
 				tools={toolsConfig}
 				{toolRegistry}
 				coordinator={toolkitCoordinator}
-				locale={interfaceLocale}
+				i18n={toolkitLocale.provider}
+				locale={toolkitLocale.locale}
 				lazy-init={false}
 			>
 				<pie-item-scope
@@ -242,10 +450,47 @@
 	.qti-pie-tool-shell {
 		display: inline-flex;
 		margin-inline-start: auto;
+		align-items: center;
+		gap: var(--pie-qti-space-2, 0.5rem);
 	}
 
 	pie-assessment-toolkit,
 	pie-item-scope {
 		display: inline-flex;
+	}
+
+	.qti-display-settings-button {
+		box-sizing: border-box;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--pie-qti-space-1, 0.25rem);
+		min-inline-size: var(--pie-qti-control-min-size, 2.75rem);
+		min-block-size: var(--pie-qti-control-min-size, 2.75rem);
+		padding-block: var(--pie-qti-space-2, 0.5rem);
+		padding-inline: var(--pie-qti-space-3, 0.75rem);
+		border: 1px solid var(--pie-qti-border-strong, #767676);
+		border-radius: var(--pie-qti-radius, 0.5rem);
+		background: var(--pie-qti-base-100, oklch(100% 0 0));
+		color: var(--pie-qti-base-content, oklch(21% 0 0));
+		font: inherit;
+		font-weight: 600;
+		line-height: 1.25;
+		cursor: pointer;
+	}
+
+	.qti-display-settings-button:hover {
+		background: var(--pie-qti-base-200, oklch(98% 0 0));
+	}
+
+	.qti-display-settings-button:focus-visible {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
+	}
+
+	.qti-display-settings-icon {
+		inline-size: 1.25rem;
+		block-size: 1.25rem;
+		flex: none;
 	}
 </style>

@@ -10,8 +10,45 @@
   - Intentionally minimal: interaction components may still add their own layout CSS.
 -->
 
+<script lang="ts">
+	import { onMount } from 'svelte';
+	// The one visually hidden rule (shared/styles/srOnly.ts). In a shadow root it is
+	// injected here — document styles do not pierce the boundary; in light DOM the
+	// module's document injection already covers it.
+	import { SR_ONLY_RULE, ensureSrOnlyStyles } from '../styles/srOnly.js';
+
+	let root: HTMLDivElement | undefined = $state();
+
+	onMount(() => {
+		const scope = root?.getRootNode();
+		if (!(scope instanceof ShadowRoot)) {
+			ensureSrOnlyStyles();
+			return;
+		}
+		if (scope.querySelector('style[data-sr-only-source]')) return;
+		const style = document.createElement('style');
+		style.setAttribute('data-sr-only-source', 'pie-qti-shadow');
+		style.textContent = SR_ONLY_RULE;
+		scope.appendChild(style);
+	});
+</script>
+
+<div bind:this={root} hidden aria-hidden="true"></div>
+
 <style>
 	/* KaTeX CSS is provided by host app bundles (avoid runtime @import 404s in nested routes). */
+
+	/*
+	 * Shared focus indicator (WCAG 2.4.7 / 2.4.13): a solid, opaque 2px ring in
+	 * --pie-qti-focus, which the theme guarantees at >= 3:1 on base surfaces.
+	 * :where() keeps specificity at zero, so interaction-specific focus styles
+	 * still win; this is only the baseline for every shadow root.
+	 */
+	:global(:where(:focus-visible)) {
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
+		outline-offset: 2px;
+	}
+
 	/* Buttons */
 	:global(.btn) {
 		display: inline-flex;
@@ -37,7 +74,7 @@
 		transform: scale(0.97);
 	}
 	:global(.btn:focus-visible) {
-		outline: 2px solid var(--pie-qti-primary, oklch(45% 0.24 277));
+		outline: 2px solid var(--pie-qti-focus, #4338ca);
 		outline-offset: 2px;
 	}
 	:global(.btn:disabled),
@@ -171,24 +208,39 @@
 		gap: 0.25rem;
 		padding: 0.25rem 0.5rem;
 		background: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 8%, transparent);
-		border: 1px solid var(--pie-qti-success, oklch(76% 0.177 163.223));
+		border: 1px solid var(--pie-qti-success-text, #15803d);
 		border-radius: 0.5rem;
 		color: var(--pie-qti-base-content, oklch(21% 0 0));
 		font-size: 0.875rem;
 	}
 
+	/*
+	 * Correctness cues are non-text indicators (WCAG 1.4.11): strokes use the
+	 * success TEXT colour, which is >= 4.5:1 on base surfaces, rather than the
+	 * success fill, which is about 2:1 on white. Fills stay tinted backgrounds.
+	 */
 	:global(.qti-correct-highlight) {
 		background-color: color-mix(in oklch, var(--pie-qti-success, oklch(76% 0.177 163.223)) 8%, transparent);
-		border: 2px solid var(--pie-qti-success, oklch(76% 0.177 163.223));
+		border: 2px solid var(--pie-qti-success-text, #15803d);
 		border-radius: 0.5rem;
 	}
 
 	:global(.border-success) {
-		border-color: var(--pie-qti-success, oklch(76% 0.177 163.223));
+		border-color: var(--pie-qti-success-text, #15803d);
 	}
 
+	/* Message/state text: always the *-text tokens (>= 4.5:1 on base surfaces), never fills. */
 	:global(.text-success) {
-		color: var(--pie-qti-success, oklch(76% 0.177 163.223));
+		color: var(--pie-qti-success-text, #15803d);
+	}
+	:global(.text-error) {
+		color: var(--pie-qti-error-text, #b91c1c);
+	}
+	:global(.text-warning) {
+		color: var(--pie-qti-warning-text, #92400e);
+	}
+	:global(.text-info) {
+		color: var(--pie-qti-info-text, #1d4ed8);
 	}
 
 	/* Rich QTI XHTML injected from prompts, choices, and vendor wrappers. */
@@ -248,11 +300,11 @@
 		background: var(--pie-qti-base-300, oklch(95% 0 0));
 	}
 
-	/* Form controls */
+	/* Form controls: boundaries use --pie-qti-border-strong (>= 3:1, WCAG 1.4.11). */
 	:global(.select),
 	:global(.textarea) {
 		border-radius: 0.6rem;
-		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		border: 1px solid var(--pie-qti-border-strong, #767676);
 		background: var(--pie-qti-base-100, oklch(100% 0 0));
 		color: var(--pie-qti-base-content, oklch(21% 0 0));
 		padding: 0.35rem 0.6rem;
@@ -372,29 +424,17 @@
 	:global(.stroke-current) {
 		stroke: currentColor;
 	}
-	:global(.sr-only) {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border-width: 0;
-	}
-
 	/* Form inputs */
 	:global(.file-input) {
 		border-radius: 0.6rem;
-		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		border: 1px solid var(--pie-qti-border-strong, #767676);
 		background: var(--pie-qti-base-100, oklch(100% 0 0));
 		color: var(--pie-qti-base-content, oklch(21% 0 0));
 		padding: 0.35rem 0.6rem;
 		font: inherit;
 	}
 	:global(.file-input-bordered) {
-		border: 1px solid var(--pie-qti-base-300, oklch(95% 0 0));
+		border: 1px solid var(--pie-qti-border-strong, #767676);
 	}
 	:global(.label) {
 		display: flex;

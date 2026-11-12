@@ -3,6 +3,21 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
+import { workspaceKitAliases, workspaceViteAliases } from '../../scripts/workspace-aliases.mjs';
+
+// The demo runs item-player from source, so its published entry points resolve to their
+// source files here. The unpublished component entry points (`@pie-qti/*/components`) come
+// from the workspace alias map, tsconfig.workspace-aliases.json, listed first so the
+// `@pie-qti/item-player` entry below never captures `@pie-qti/item-player/components`.
+const itemPlayerSource = {
+	'@pie-qti/item-player/security': '../../packages/item-player/src/security/index.ts',
+	'@pie-qti/item-player/element': '../../packages/item-player/src/element.ts',
+	'@pie-qti/item-player/web-components': '../../packages/item-player/src/web-components/index.ts',
+	'@pie-qti/item-player/iframe': '../../packages/item-player/src/iframe/index.ts',
+	'@pie-qti/item-player/server': '../../packages/item-player/src/server.ts',
+	'@pie-qti/item-player/pci': '../../packages/item-player/src/pci/index.ts',
+	'@pie-qti/item-player': '../../packages/item-player/src/index.ts',
+};
 
 export default defineConfig({
 	plugins: [
@@ -34,17 +49,8 @@ export default defineConfig({
 						: ''
 			},
 			alias: {
-				'@pie-qti/item-player/security': '../../packages/item-player/src/security/index.ts',
-				'@pie-qti/item-player/element': '../../packages/item-player/src/element.ts',
-				'@pie-qti/item-player/components': '../../packages/item-player/src/components/index.ts',
-				'@pie-qti/item-player/web-components': '../../packages/item-player/src/web-components/index.ts',
-				'@pie-qti/item-player/iframe': '../../packages/item-player/src/iframe/index.ts',
-				'@pie-qti/item-player/server': '../../packages/item-player/src/server.ts',
-				'@pie-qti/item-player': '../../packages/item-player/src/index.ts',
-				'$assessment-components': '../../packages/assessment-player/src/components/index.ts',
-				'@pie-qti/section-player/components': '../../packages/section-player/src/components/index.ts',
-				'@pie-qti/default-components/shared/components': '../../packages/default-components/src/shared/components/index.ts',
-				'@pie-qti/i18n/components': '../../packages/i18n/src/components/index.ts'
+				...workspaceKitAliases(),
+				...itemPlayerSource,
 			},
 			prerender: {
 				handleMissingId: 'warn',
@@ -53,41 +59,13 @@ export default defineConfig({
 		}),
 	],
 	resolve: {
-		alias: {
-			'@pie-qti/item-player/security': fileURLToPath(
-				new URL('../../packages/item-player/src/security/index.ts', import.meta.url),
-			),
-			'@pie-qti/item-player/element': fileURLToPath(
-				new URL('../../packages/item-player/src/element.ts', import.meta.url),
-			),
-			'@pie-qti/item-player/components': fileURLToPath(
-				new URL('../../packages/item-player/src/components/index.ts', import.meta.url),
-			),
-			'@pie-qti/item-player/web-components': fileURLToPath(
-				new URL('../../packages/item-player/src/web-components/index.ts', import.meta.url),
-			),
-			'@pie-qti/item-player/iframe': fileURLToPath(
-				new URL('../../packages/item-player/src/iframe/index.ts', import.meta.url),
-			),
-			'@pie-qti/item-player/server': fileURLToPath(
-				new URL('../../packages/item-player/src/server.ts', import.meta.url),
-			),
-			'@pie-qti/item-player': fileURLToPath(
-				new URL('../../packages/item-player/src/index.ts', import.meta.url),
-			),
-			'$assessment-components': fileURLToPath(
-				new URL('../../packages/assessment-player/src/components/index.ts', import.meta.url),
-			),
-			'@pie-qti/section-player/components': fileURLToPath(
-				new URL('../../packages/section-player/src/components/index.ts', import.meta.url),
-			),
-			'@pie-qti/default-components/shared/components': fileURLToPath(
-				new URL('../../packages/default-components/src/shared/components/index.ts', import.meta.url),
-			),
-			'@pie-qti/i18n/components': fileURLToPath(
-				new URL('../../packages/i18n/src/components/index.ts', import.meta.url),
-			),
-		},
+		alias: [
+			...workspaceViteAliases(),
+			...Object.entries(itemPlayerSource).map(([find, path]) => ({
+				find,
+				replacement: fileURLToPath(new URL(path, import.meta.url)),
+			})),
+		],
 	},
 	server: {
 		port: 5200,

@@ -45,6 +45,11 @@ The element also exposes `next()`, `previous()`, `navigateTo()`, `navigateToSect
 `getResponses()`, `getState()`, and `restoreState()`. Its public properties and events are documented
 in [`@pie-qti/player-elements`](../player-elements/README.md).
 
+`showSections`, `allowSectionNavigation` and `showProgress` are shell-presentation options: the
+headless core ignores them, the bundled shell renders from them, and omitting any of them means
+shown/enabled — set `false` to hide the section menu, to disable its entries, or to hide the
+progress indicator.
+
 ### Explicit reference/preview mode
 
 Raw assessment XML is a demo and offline-preview path. Enable it explicitly before assigning XML:
@@ -171,7 +176,20 @@ XML, own authoritative scoring state, and validate every client submission. See
   If validation or the backend request fails, the player restores the pre-submit item-session
   snapshot so the candidate can retry.
 - In `individual` mode, `next()` submits the current item before navigating and honors the backend's
-  `nextItemIdentifier` branch decision.
+  `nextItemIdentifier` branch decision. A practice check (`checkCurrentItem()`) stays on the item and
+  keeps that decision: moving on with the response unchanged follows it without submitting again.
+  Any later counted submission voids the kept decision, so the delivery rules re-evaluate on the
+  moved outcomes, and the decision is part of the saved session state — a resumed session lands
+  exactly where the live one would. Leaving a simultaneous part on Next submits the part's pending
+  responses first and then follows the decision returned for the part's last item.
+  A move with no backend decision (a jump into the next test part, or a simultaneous-part crossing
+  whose decision led nowhere) applies the test's branch rules and preconditions with the reference
+  rules, so a test part whose precondition fails is never entered. The end of the test never
+  navigates: `submit()` (and a time expiry's or a proctor's end) collects where the candidate stands
+  and keeps a branch decision its own submission returns on record instead of following it.
+- A practice item reopens for its remaining attempts from the attempt the backend accepted (its
+  attempt count included, so attempt k runs response processing as attempt k); once the test ends,
+  every item session is closed.
 - In `simultaneous` mode, `submit()` sends every unsubmitted item before finalization while preserving
   responses and serialized item sessions across backend state replacements.
 - `submit()` finishes by calling `finalizeAssessment()` and returns `AssessmentResults`.
@@ -190,8 +208,11 @@ the part is current and its `atEnd` once the candidate has moved past it or the 
 `onTestFeedbackChange(listener)` reports each change and returns an unsubscribe function.
 
 The optional `sendItemSessionToBackend` flag includes the rich serialized item-session snapshot in
-submission requests. Treat that snapshot as untrusted client save data; a production backend should
-validate it against server-owned source and state.
+submission requests. A backend that scores from that snapshot declares `requiresItemSession` and
+always receives it: `ReferenceBackendAdapter` (reference/preview mode) does, so a templated item is
+scored against the instance the candidate saw and an adaptive item's outcomes are taken as
+submitted. Treat that snapshot as untrusted client save data; a production backend should validate
+it against server-owned source and state.
 
 ## Core configuration
 
@@ -200,10 +221,10 @@ validate it against server-owned source and state.
 - `backend: BackendAdapter`
 - `initSession: InitSessionRequest`
 
-It also accepts definition plugins, security and PCI policy, PNP, i18n, deterministic RNG, section
-host/tool configuration, display hints, timing warnings, and compatibility callbacks. Prefer the
-`onItemChange()`, `onSectionChange()`, `onResponseChange()`, `onComplete()`, and timing subscription
-methods when lifecycle-managed unsubscription is useful.
+It also accepts definition plugins, security and PCI policy, PNP, i18n, a deterministic clock
+(`now`), section host/tool configuration, display hints, timing warnings, and lifecycle callbacks.
+Prefer the `onItemChange()`, `onSectionChange()`, `onResponseChange()`, `onComplete()`, and timing
+subscription methods when lifecycle-managed unsubscription is useful.
 
 Definition plugins use `AssessmentItemDefinitionPlugin` from `@pie-qti/item-player` and are applied
 to every item definition created by the assessment player.

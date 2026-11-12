@@ -19,7 +19,7 @@
 
 `textEntryInteraction` and `inlineChoiceInteraction` are the two QTI inline interactions — they appear embedded within the flow of a sentence or paragraph rather than as standalone blocks. `textEntryInteraction` renders as a single-line text input for short-answer or fill-in-the-blank responses. `inlineChoiceInteraction` renders as a dropdown selector. Both are used in cloze (fill-in-the-blank) assessment patterns where a sentence contains one or more response points. An item body may contain multiple instances of each type, each bound to a different `responseIdentifier`.
 
-These interactions differ from every other QTI interaction in this framework in one critical way: they have no dedicated Svelte web component in `@pie-qti/default-components`. Instead, they are rendered directly inside `ItemBody.svelte` in `@pie-qti/item-player` via a placeholder-substitution pipeline.
+These interactions differ from every other QTI interaction in this framework in one critical way: they have no dedicated Svelte web component in `@pie-qti/default-components`. Instead, they are rendered directly inside `ItemBody.svelte` in `@pie-qti/item-player`, mounted into the slot that marks their authored position in the item body.
 
 ---
 
@@ -27,17 +27,17 @@ These interactions differ from every other QTI interaction in this framework in 
 
 ### Why both interactions share one PRD
 
-Both interactions are inline — they render inside prose, participate in the same placeholder-substitution rendering pipeline, share the same accessibility challenge (accessible labels in the absence of a visible `<label>` element), and are the only two QTI interactions that bypass the web component registry entirely. Documenting them together reflects how the code treats them and avoids duplicating the rendering-pipeline explanation.
+Both interactions are inline — they render inside prose, mount the same way into slots in the item body, share the same accessibility challenge (accessible labels in the absence of a visible `<label>` element), and are the only two QTI interactions that bypass the web component registry entirely. Documenting them together reflects how the code treats them and avoids duplicating the rendering-pipeline explanation.
 
 ### Why there is no web component
 
-Block-level interactions (choice, match, slider, etc.) are rendered as custom elements (`<pie-qti-choice>`, etc.) because they occupy their own layout context and benefit from shadow DOM style encapsulation. Inline interactions must flow within prose — between words of a sentence. Custom elements default to `display: inline` but shadow DOM roots still create an `innerHTML`-boundary that makes it impossible to inject them into the middle of a serialised HTML string with `{@html}`. The approach taken is:
+Block-level interactions (choice, match, slider, etc.) are rendered as custom elements (`<pie-qti-choice>`, etc.) because they occupy their own layout context and benefit from shadow DOM style encapsulation. Inline interactions must flow within prose — between words of a sentence — so they are native `<input>` and `<select>` controls rendered by the item player. Every interaction, inline or block, is placed the same way:
 
-1. During HTML serialisation (`ItemBody.svelte`, `getItemBodyHtml()`), each `<textEntryInteraction>` and `<inlineChoiceInteraction>` tag is replaced with a sentinel placeholder string (`[TEXTENTRY:responseId]` / `[INLINECHOICE:responseId]`).
-2. The `inlineSegments` derived state in `ItemBody.svelte` splits the HTML string on these sentinels, producing an array of alternating `{type: 'html'}` and `{type: 'textEntry'|'inlineChoice'}` segments.
-3. The Svelte template iterates the segments: HTML segments are emitted with `{@html}`; interaction segments are emitted as native `<input>` or `<select>` elements.
+1. The presentation plan (`createItemPresentation`) replaces each interaction element in the composed item body with an empty slot element (`<span data-qti-interaction-slot="…">`, `inline` or `block` placement), matched to its interaction data by response identifier in document order, in either QTI spelling. The body is then sanitized once and finalized for Trusted Types.
+2. `ItemBody.svelte` renders that body as one piece of HTML, so a paragraph holding inline interactions stays one paragraph and the paragraphs around it stay separate.
+3. Each interaction mounts into its slot, keyed: a response change updates its props without remounting it, and a body re-render (feedback appearing after response processing) moves the live interaction into its new slot.
 
-This avoids the need for a shadow DOM root while preserving full Svelte reactivity for the interaction elements.
+This keeps every interaction at its authored position, inside paragraphs, layout columns and table cells alike.
 
 ### Why these interactions are exempt from the component registry
 
@@ -59,9 +59,9 @@ Custom renderers cannot currently override inline interactions via the component
 
 The `expectedLength` attribute is a QTI hint for how wide the input should appear (in characters). The implementation maps this to an inline `width` style: `expectedLength * 8` pixels, with a 100 px minimum. This is a heuristic — character widths vary by font — but it matches the common practice of other QTI delivery engines. Using the HTML `size` attribute would require additional CSS interaction to override the browser default metrics and would behave inconsistently across browsers. A 100 px minimum prevents single-character inputs from becoming unusably narrow.
 
-### Why `patternMask` is extracted but not enforced as a live constraint (G-04)
+### How `patternMask` is enforced (G-04)
 
-The extractor reads and exposes `patternMask` as a string on `TextEntryInteractionData`. However, the renderer in `ItemBody.svelte` does not wire `patternMask` to the `pattern` attribute of the `<input>`, meaning browsers do not enforce it with their native `:invalid` state or block form submission. This is gap G-04 — see [Known gaps](#known-gaps). When this gap is closed, the fix must also surface an accessible validation message, not just activate CSS `:invalid`.
+QTI defines `patternMask` as "a regular expression that the candidate's response must match in order to be considered valid", in XSD syntax (QTI 3.0 §5.162.5). The extractor delivers it on `TextEntryInteractionData`. The `<input>` carries it as its `pattern` attribute, translated from XSD to the browser's syntax (`xsdPatternSource`). When the field fails the pattern on blur, the input is marked `aria-invalid` and shows an error message. The message has `role="alert"` and is linked through `aria-describedby`; it is the author's `data-patternmask-message` or a localized default. Response validation (`Player.validateResponses()`) enforces the same pattern, so a host that drives the session without this input still sees an invalid response. A numeric response is the exception: it stores the number, not the text as typed, so only the input checks it.
 
 ### How shuffle persists for `inlineChoiceInteraction`
 
@@ -86,15 +86,15 @@ The extractor reads and exposes `patternMask` as a string on `TextEntryInteracti
 |-----------|---------|-----------|
 | `responseIdentifier` | ✅ Full | Extracted as `responseId`; used as the key in `player.declarations` and in `handleTextEntryInput` |
 | `expectedLength` | ✅ Full | Extracted as `number` (default `20`); drives input width as `expectedLength * 8` px, min 100 px |
-| `patternMask` | ✅ Extracted, ❌ not enforced | Stored in `TextEntryInteractionData.patternMask`; not wired to `<input pattern>` (G-04) |
+| `patternMask` | ✅ Full | Wired to `<input pattern>` (translated from XSD) with an accessible error message; enforced by response validation for `string` responses (G-04) |
 | `placeholderText` | ✅ Full | Extracted and rendered as the `placeholder` attribute on the `<input>` |
-| `format` | ❌ Not extracted | QTI 2.2 display-format hint; not in `TextEntryData` (G-03) |
-| `base` | ❌ Not extracted | Numeric base hint for integer responses; not extracted or used |
+| `format` | ✅ Extracted | QTI display-format hint. Delivered as `TextEntryInteractionData.format` and exposed as `data-format` on the `<input>`; it changes no other rendering (G-03) |
+| `base` | ✅ Full | Extracted when it is 2–36 and not 10; the player reads typed text for an `integer` or `float` response in that base (`101` in base 2 is 5) |
+| `stringIdentifier` | ✅ Full | Extracted as `stringIdentifier`. Every change also sets the string response it names to the text as entered, before the numeric response reads it (`3.50` where a float response is 3.5, `101` where a base-2 integer response is 5), or NULL when the field is empty; a restored session shows that text in the field. Ignored when it repeats `responseIdentifier` or names no declared response |
 
 #### Known gaps
 
-- **G-03** — `format` attribute not extracted. The extractor does not read `format`. When resolved: add `format?: string` to `TextEntryData`; expose it as a `data-format` attribute on the rendered `<input>`; optionally map known values (`plain`, `preFormatted`) to CSS classes.
-- **G-04** — `patternMask` extracted but not enforced as live input constraint. The rendered `<input>` does not carry a `pattern` attribute. When resolved: add `pattern={interaction.patternMask ?? undefined}` to the `<input>`; add an accessible error span wired via `aria-describedby`; activate on `:invalid` CSS state, not on blur-only.
+None against the specification. G-03 (`format`) and G-04 (`patternMask`) are resolved: see the attribute table.
 
 ---
 
@@ -108,7 +108,8 @@ The extractor reads and exposes `patternMask` as a string on `TextEntryInteracti
 |-----------|---------|-----------|
 | `responseIdentifier` | ✅ Full | Extracted as `responseId` |
 | `shuffle` | ✅ Full | Shuffles `choices` at extraction time, seeded from the item session GUID; stable for the whole session, including across re-renders and reloads |
-| `required` | ❌ Not extracted | Spec says: if `true`, candidate must select an option before submission is valid. Not in `InlineChoiceInteractionData`. Unimplemented gap. |
+| `required` | ✅ Full | When `true`, "a choice must be selected by the candidate in order to form a valid response" (QTI 2.1; QTI 3.0 §5.74.2). Delivered as `minChoices: 1`, so response validation reports an unanswered dropdown incomplete. QTI 3.0 `min-choices` (§5.74.3) is read into the same field |
+| `data-min-selections-message` | ✅ Full | QTI 3.0 (Table on `qti-inline-choice-interaction`, the only selections message its element defines). Delivered as `minSelectionsMessage` and stated in the dropdown's description (`aria-describedby`), since an inline dropdown has no refusal of its own to attach it to. |
 
 #### Supported child elements and their attributes
 
@@ -120,11 +121,11 @@ The extractor reads and exposes `patternMask` as a string on `TextEntryInteracti
 | `inlineChoice/@fixed` | ✅ Full | Extracted as `choice.fixed`; when `shuffle=true` the choice keeps its authored index. |
 | `inlineChoice/@templateIdentifier` | ✅ Full | A choice whose template variable hides it is dropped before extraction, by the shared visibility rule. |
 | `inlineChoice/@showHide` | ✅ Full | Inverts `templateIdentifier` visibility. |
-| `label` (child element, QTI 2.2+) | ❌ Not extracted | Placeholder text shown before selection. Not extracted (G-02). |
+| `label` (child element, QTI 2.2+) | ✅ Full | Its text is the placeholder option shown before selection, the first `<option>` with an empty value (G-02) |
 
 #### Known gaps
 
-- **G-02** — `<label>` child element not extracted. When an `inlineChoiceInteraction` has a `<label>` child, its text should be used as the placeholder option (the disabled first `<option>` the user sees before selecting). Currently the renderer always shows the i18n string `"Select..."`. When resolved: add `label?: string` to `InlineChoiceData`; use it as the disabled placeholder `<option>` text in `ItemBody.svelte`.
+None against the specification. G-02 (`<label>`) is resolved: see the table above.
 
 ---
 
@@ -145,12 +146,14 @@ The extractor reads and exposes `patternMask` as a string on `TextEntryInteracti
 - **FR-T2:** Width must be set as `expectedLength * 8` px with a minimum of 100 px.
 - **FR-T3:** When `placeholderText` is present in the extracted data, it must appear as the input's `placeholder` attribute.
 - **FR-T4:** The response value stored must be the raw string typed by the candidate. No trimming, normalisation, or type coercion is applied by the renderer; coercion is the scoring layer's responsibility.
-- **FR-T5:** When `patternMask` is present in the extracted data, it must (once G-04 is resolved) be wired to the `pattern` attribute of the `<input>` and must trigger an accessible validation message when violated.
+- **FR-T5:** When `patternMask` is present in the extracted data, it must be wired to the `pattern` attribute of the `<input>` and must trigger an accessible validation message when violated.
+- **FR-T6:** A numeric response (`baseType` `integer` or `float`) requests a numeric on-screen keyboard (`inputmode="numeric"` or `"decimal"`) only when its `patternMask` provably excludes `-` (for example `^[0-9]+$`): phone number pads offer no minus key, so a negative answer must stay typable. Every other response keeps the default text keyboard.
+- **FR-T7:** When `stringIdentifier` names a declared response other than the interaction's own, every change to the field sets that response to the text as entered, before the numeric response reads it (`3.50` where a float response is 3.5), or NULL when the field is empty. The field shows the companion's text while it is present, so a restored session reads "3.50" as typed rather than as 3.5. It keys no completion or validation: those read the main response only.
 
 ### `inlineChoiceInteraction`
 
 - **FR-I1:** The interaction must render as a `<select>` with `display: inline-block` and `vertical-align: baseline`.
-- **FR-I2:** An empty-value `<option>` using the i18n key `interactions.inline.selectPlaceholder` (fallback `"Select..."`) must always be the first option and represent the unselected state.
+- **FR-I2:** An empty-value `<option>` must always be the first option and represent the unselected state. Its text is the authored `<label>`, else `data-prompt`, else the i18n key `interactions.inline.selectPlaceholder` (fallback `"Select..."`). It stays selectable, so the candidate can return to no answer: QTI requires that a blank response can be selected when the interaction is not `required` (QTI 2.1 inlineChoiceInteraction).
 - **FR-I3:** Each `inlineChoice` child must render as an `<option>` with `value={choice.identifier}` and label text `{choice.text}`.
 - **FR-I4:** When `shuffle` is `true`, the non-fixed choices must appear in the shuffled order produced at extraction time.
 - **FR-I5:** The response value stored must be the `identifier` of the selected `inlineChoice`, not the display text.
@@ -164,21 +167,21 @@ The extractor reads and exposes `patternMask` as a string on `TextEntryInteracti
 
 Inline interactions present a unique accessibility challenge: unlike standalone block interactions, they have no visible `<label>` element adjacent to them. Screen reader users navigating by form control will encounter an `<input>` or `<select>` without a programmatic label unless the author or renderer supplies one.
 
-**Current approach:** Both the `<input>` and `<select>` carry `aria-label` attributes set to `"Text entry {responseId}"` and `"Inline choice {responseId}"` respectively. When the scorer role is active and a correct answer is known, the `aria-label` is extended with `". Correct answer: {value}"`.
+**Current approach:** The accessible name is the authored label (`aria-labelledby`, `aria-label`, then `title`), else the control's position among the item's inline interactions in document order: "Blank 2 of 4" (`interactions.inline.blankLabel`). The response identifier is never part of the name: identifiers are author data that mean nothing to a candidate and can hint at the answer (`CAPITAL_PARIS`), exposed to screen-reader users only. The control is described (`aria-describedby`) by the sentence or paragraph it sits in. When the scorer role is active and a correct answer is known, the name is extended with `". Correct answer: {value}"`.
 
 **Requirements:**
 
-- **NFR-A1:** Every `<input type="text">` for a `textEntryInteraction` must have an `aria-label` that uniquely identifies it within the item. Using only the `responseIdentifier` is acceptable as a baseline but item authors who provide `placeholderText` with descriptive content should have that content reflected in the label.
+- **NFR-A1:** Every `<input type="text">` for a `textEntryInteraction` must have an accessible name that identifies it within the item: the authored label, else its position ("Blank 2 of 4"). The response identifier must never be part of it.
 - **NFR-A2:** Every `<select>` for an `inlineChoiceInteraction` must have an `aria-label` that uniquely identifies it within the item.
 - **NFR-A3:** Keyboard navigation must be fully operable: Tab/Shift-Tab to move between inline interactions; Space/Arrow to operate the dropdown; typing directly into the text input.
-- **NFR-A4:** When `patternMask` validation is implemented (G-04), validation errors must be communicated via an `aria-describedby` pointing to an error message span, not only via `:invalid` CSS state.
+- **NFR-A4:** `patternMask` validation errors must be communicated via an `aria-describedby` pointing to an error message span, not only via `:invalid` CSS state.
 - **NFR-A5:** WCAG 2.2 SC 1.3.5 (Identify Input Purpose) — for text entry fields where the semantic purpose is discernible (e.g., a field asking for a number), `autocomplete` attributes should be omitted or set to `"off"` to prevent browser auto-fill from injecting incorrect values into assessment inputs.
 - **NFR-A6:** Touch targets for the `<input>` (min 100 px wide, `input-sm` height ~32 px) and `<select>` (min 120 px wide, `select-sm` height ~32 px) must meet the WCAG 2.2 SC 2.5.8 minimum target size of 24×24 px. Both currently exceed this threshold.
 - **NFR-A7:** Color alone must not be used to indicate the correct-answer state. The `✓` suffix on the correct option label and the `"Correct: {text}"` badge satisfy this requirement for the scorer role.
 
 ### Performance
 
-- **NFR-P1:** The regex-based placeholder substitution runs synchronously in a Svelte `$derived.by()`. For items with up to 20 inline interactions (the practical upper bound for a cloze passage), this is negligible. Items with more than 20 inline interactions may introduce perceptible lag — this has not been measured and is an open question.
+- **NFR-P1:** Slot placement parses the composed body once per presentation (one structural pass with `node-html-parser`, then the sanitizer's own). For items with up to 20 inline interactions (the practical upper bound for a cloze passage), this is negligible; larger cloze passages have not been measured.
 
 ### Cross-platform
 
@@ -193,19 +196,17 @@ Inline interactions present a unique accessibility challenge: unlike standalone 
 
 ## Design decisions
 
-### Placeholder-string pipeline instead of a portal or slot approach
+### Slots in one body instead of splitting the HTML
 
-**Decision:** Replace inline interaction elements with sentinel strings during HTML serialisation, then split on those sentinels to interleave Svelte-rendered inputs with `{@html}` HTML segments.  
-**Rationale:** The fundamental problem is that Svelte components and raw HTML cannot coexist in a single `{@html}` directive — `{@html}` emits a static HTML string with no reactivity. The alternatives are: (a) parse and reconstruct the entire item body as a Svelte component tree (prohibitively expensive for complex item bodies with rich formatting); (b) use a MutationObserver to hydrate interaction elements after `{@html}` renders (brittle, introduces a one-frame flash); (c) the sentinel approach. The sentinel approach is the simplest implementation that preserves Svelte reactivity for the interaction elements while allowing arbitrary HTML content around them.  
-**Alternatives considered:** Custom element portal (rejected: shadow DOM boundary incompatible with inline positioning); MutationObserver hydration (rejected: timing complexity, flash of unstyled content); full Svelte template reconstruction (rejected: too costly for the common case).  
-**Consequences:** Custom renderers cannot override inline interactions via the component registry. The placeholder regex must be kept in sync between the HTML transformation step (`ItemBody.svelte` lines 85–91) and the segment parser (lines 134–161). If QTI 3.0 element names (`qti-text-entry-interaction`) appear in the raw HTML, they must be normalised to the QTI 2.x form before the regex runs — or the regex must be extended to match both forms. Currently only the QTI 2.x forms are matched by the HTML transformation regex.
+**Decision:** Replace every interaction element with an empty slot element in the composed item body, render the body once, and mount each interaction into its slot.  
+**Rationale:** The earlier pipeline replaced inline interactions with sentinel strings and split the HTML string at them, rendering each piece with `{@html}`. Splitting a string inside a `<p>` leaves unbalanced markup that the browser repairs into separate paragraphs, which a `p { display: inline }` rule then ran together across the whole body; and block interactions, rendered after the body, lost their authored position (Part A text, a choice, Part B text, an extended text). Slots keep the authored markup intact and give every interaction a place to mount, including inside layout columns and table cells.  
+**Consequences:** `presentation.flow` is one `html` node followed by interaction mounts, each naming its `slot`. A host rendering the flow itself mounts each interaction into its slot (a mount with no slot goes after the body).
 
-### `aria-label` derived from `responseIdentifier`
+### `aria-label` from the authored label or the position, never the identifier
 
-**Decision:** Use `aria-label="Text entry {responseId}"` and `aria-label="Inline choice {responseId}"` as the accessible name for inline interactions.  
-**Rationale:** Inline interactions have no adjacent visible `<label>`. The surrounding prose provides context for sighted users but is not programmatically associated with the form control. The `responseIdentifier` is the only stable, unique identifier available at render time. Using `aria-label` rather than `aria-labelledby` avoids requiring a DOM ID on surrounding text, which may be multi-sentence prose with no obvious wrapping element.  
-**Alternatives considered:** `aria-labelledby` pointing to the nearest `<p>` or parent container (rejected: the nearest element may contain multiple inline interactions, making the label non-specific); no label at all (rejected: WCAG 2.2 SC 4.1.2 failure); author-provided label via `placeholderText` (partially adopted: `placeholderText` appears as `placeholder` but is not currently used in the `aria-label`).  
-**Consequences:** `responseIdentifier` values like `RESPONSE_1`, `RESPONSE_2` are not meaningful to a screen reader user. Item authors should use descriptive identifiers. This is a known accessibility limitation of the current implementation. A future improvement would combine the preceding sentence text with the identifier to form a richer label.
+**Decision:** Name an inline control by its authored label, else by its position among the item's inline interactions ("Blank 2 of 4"), and describe it by its sentence.  
+**Rationale:** Inline interactions have no adjacent visible `<label>`. The response identifier is stable but meaningless to candidates and can leak the answer to screen-reader users only, which makes the item unequal. The position is meaningful, stable and localizable, and the sentence the blank sits in supplies the context.  
+**Consequences:** Items with several blanks in one paragraph share that paragraph as their description; the position tells them apart.
 
 ### No dedicated web component for inline interactions
 
@@ -403,22 +404,21 @@ AC-A7: Touch target size
 ### Edge cases
 
 ```
-AC-E1: patternMask extracted but not enforced (documents current behaviour)
+AC-E1: patternMask is enforced
   Given: An item with textEntryInteraction patternMask="[0-9]+"
-  When: The candidate types "abc" into the input
-  Then: The input accepts "abc" without any validation error (current behaviour — G-04 not yet resolved)
-  Notes: Once G-04 is resolved, this AC must be updated to expect a validation error.
+  When: The candidate types "abc" into the input and leaves it
+  Then: The input is aria-invalid and an error message linked by aria-describedby is shown
+  And: Player.validateResponses() reports a string response "abc" invalid
 
-AC-E2: label child not extracted (documents current behaviour)
+AC-E2: label child is the placeholder
   Given: An item with inlineChoiceInteraction containing <label>Choose a country</label>
   When: The item is rendered
-  Then: The placeholder option text shows "Select..." (the i18n default), not "Choose a country" (current behaviour — G-02 not yet resolved)
-  Notes: Once G-02 is resolved, this AC must be updated to expect "Choose a country".
+  Then: The placeholder option text shows "Choose a country"
 
-AC-E3: required attribute not enforced (documents current behaviour)
-  Given: An item with inlineChoiceInteraction required="true"
-  When: The candidate submits without making a selection
-  Then: The submission is not blocked by the player (current behaviour — required is not extracted)
+AC-E3: required is enforced by response validation
+  Given: An item with inlineChoiceInteraction required="true" (or QTI 3.0 min-choices="1")
+  When: The response is validated without a selection
+  Then: The response is incomplete and canSubmit is false
 
 AC-E4: Single-character expectedLength uses minimum width
   Given: An item with textEntryInteraction expectedLength="1"
@@ -440,20 +440,18 @@ AC-E7: Response state preserved across re-render
   When: The responses prop is updated from outside (e.g., a restored session)
   Then: The input displays "hello" without the candidate re-typing it
 
-AC-E8: Missing interaction data for placeholder
-  Given: An item body HTML where a [TEXTENTRY:MISSING_ID] sentinel appears but no interaction with responseId="MISSING_ID" exists in the interactions array
+AC-E8: Interaction markup without interaction data
+  Given: An item body with a textEntryInteraction element whose response identifier matches no interaction in the interactions array
   When: The item is rendered
-  Then: The sentinel is silently dropped (not rendered); no crash occurs
+  Then: The element is hidden (not rendered as raw markup); no slot is created for it; no crash occurs
 ```
 
 ---
 
 ## Open questions
 
-- [ ] **G-03 priority**: The `format` attribute is a display hint. For numeric formats specifically, should the input switch to `type="number"` or remain `type="text"`? Using `type="number"` has known accessibility issues (screen reader announces "spin button"; step arrows clutter the input; leading zeros are stripped). Decision needed before closing G-03.
-- [ ] **Accessible label quality**: The current `aria-label` uses only the `responseIdentifier`. For items with identifiers like `RESPONSE_1`, this is not meaningful. Should the renderer attempt to use `placeholderText` as the primary label and `responseIdentifier` as a secondary qualifier? Requires UX review.
-- [ ] **QTI 3.0 HTML transformation regex**: The `ItemBody.svelte` placeholder replacement regex only matches QTI 2.x element names (`textEntryInteraction`, `inlineChoiceInteraction`). If element name normalisation has not run before `getItemBodyHtml()`, QTI 3.0 items with `qti-text-entry-interaction` tags will not be substituted and will appear as raw XML text in the rendered output. Confirm whether normalisation always runs before HTML serialisation.
-- [ ] **Performance with large cloze passages**: No measurement of the regex + string-split pipeline at 20+ inline interactions. If items with dense cloze (20+ blanks) are in the target content set, this should be benchmarked.
+- [ ] **G-03 priority**: The `format` attribute is a display hint. For numeric formats specifically, should the input switch to `type="number"` or remain `type="text"`? Using `type="number"` has known accessibility issues (screen reader announces "spin button"; step arrows clutter the input; leading zeros are stripped). G-03 itself is closed (`format` is delivered as `data-format`); this decision applies only if a format value is ever mapped to an input type. (Numeric responses get a numeric on-screen keyboard through `inputmode`, but only when the authored `patternMask` proves the answer cannot be negative — FR-T6 — since phone number pads have no minus key.)
+- [ ] **Performance with large cloze passages**: No measurement of slot placement at 20+ inline interactions. If items with dense cloze (20+ blanks) are in the target content set, this should be benchmarked.
 
 ---
 

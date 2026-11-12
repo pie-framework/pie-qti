@@ -1,15 +1,14 @@
 /**
- * Mapping expressions: mapResponse, mapResponsePoint, and mapOutcome — the
- * author-facing scoring features for partially-credited and spatial items.
+ * Mapping expressions: mapResponse and mapResponsePoint — the author-facing
+ * scoring features for partially-credited and spatial items.
  */
 
 import { describe, expect, it } from 'bun:test';
 import { buildResponseProcessingAst } from '../src/ast/build.js';
-import { OperatorRegistry } from '../src/eval/operators.js';
 import { execProgram } from '../src/exec/execute.js';
 import { DeclarationContext } from '../src/runtime/context.js';
 import type { DeclarationMap, QtiValue } from '../src/runtime/types.js';
-import { qtiValue } from '../src/runtime/value.js';
+import { qtiNull, qtiValue } from '../src/runtime/value.js';
 import { parseXml } from '../src/xml/parse.js';
 
 function responseProcessing(body: string): Element {
@@ -19,7 +18,7 @@ function responseProcessing(body: string): Element {
 function run(decls: DeclarationMap, body: string): DeclarationContext {
 	const ctx = new DeclarationContext(decls);
 	execProgram(
-		{ ctx, ops: new OperatorRegistry(), rng: () => 0.5 },
+		{ ctx, rng: () => 0.5 },
 		buildResponseProcessingAst(responseProcessing(body), {}),
 	);
 	return ctx;
@@ -36,16 +35,6 @@ function responseDecl(
 		baseType,
 		cardinality,
 		value: qtiValue(baseType, cardinality, value),
-		mapping,
-	};
-}
-
-function outcomeDecl(identifier: string, value: unknown, mapping?: DeclarationMap['OUT']['mapping']): DeclarationMap['OUT'] {
-	return {
-		identifier,
-		baseType: 'identifier',
-		cardinality: 'single',
-		value: qtiValue('identifier', 'single', value),
 		mapping,
 	};
 }
@@ -83,7 +72,9 @@ describe('mapResponse', () => {
 		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 0));
 	});
 
-	it('sums mapped values across a multiple-cardinality response', () => {
+	it('sums mapped values across a multiple-cardinality response, counting repeated values once', () => {
+		// QTI ASI §15.3: "If a container contains multiple instances of the same
+		// value then that value is counted once only" — {A,B,A} maps 2+1, not 2+1+2.
 		const ctx = run(
 			{
 				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
@@ -91,18 +82,89 @@ describe('mapResponse', () => {
 			},
 			`<setOutcomeValue identifier="OUT"><mapResponse identifier="RESPONSE"/></setOutcomeValue>`,
 		);
-		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 5));
+		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 3));
+	});
+
+	it('counts {B,B,C} as 1.5, not 2.5 (spec example)', () => {
+		const ctx = run(
+			{
+				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
+				RESPONSE: responseDecl(
+					['B', 'B', 'C'],
+					{
+						defaultValue: 0,
+						entries: {
+							B: { mapKey: 'B', mappedValue: 1 },
+							C: { mapKey: 'C', mappedValue: 0.5 },
+						},
+					},
+					'identifier',
+					'multiple',
+				),
+			},
+			`<setOutcomeValue identifier="OUT"><mapResponse identifier="RESPONSE"/></setOutcomeValue>`,
+		);
+		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 1.5));
+	});
+
+	it('counts repeated directed pairs once, keeping direction significant', () => {
+		const PAIR_MAPPING = {
+			defaultValue: 0,
+			entries: {
+				'W1 G1': { mapKey: 'W1 G1', mappedValue: 1 },
+			},
+		};
+		const ctx = run(
+			{
+				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
+				RESPONSE: responseDecl(['W1 G1', 'W1 G1'], PAIR_MAPPING, 'directedPair', 'multiple'),
+			},
+			`<setOutcomeValue identifier="OUT"><mapResponse identifier="RESPONSE"/></setOutcomeValue>`,
+		);
+		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 1));
+	});
+
+	it('counts a pair and its reversed spelling as the same value', () => {
+		// pair cardinality is unordered, so 'G1 W1' and 'W1 G1' are the same pair;
+		// mapping entries are stored under the order-normalized key, as the player
+		// parses them.
+		const PAIR_MAPPING = {
+			defaultValue: 0,
+			entries: {
+				'G1 W1': { mapKey: 'G1 W1', mappedValue: 1 },
+			},
+		};
+		const ctx = run(
+			{
+				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
+				RESPONSE: responseDecl(['W1 G1', 'G1 W1'], PAIR_MAPPING, 'pair', 'multiple'),
+			},
+			`<setOutcomeValue identifier="OUT"><mapResponse identifier="RESPONSE"/></setOutcomeValue>`,
+		);
+		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 1));
+	});
+
+	it('counts duplicates once for ordered cardinality, keeping position duplicates in the container', () => {
+		const ctx = run(
+			{
+				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
+				RESPONSE: responseDecl(['A', 'A', 'B'], MAPPING, 'identifier', 'ordered'),
+			},
+			`<setOutcomeValue identifier="OUT"><mapResponse identifier="RESPONSE"/></setOutcomeValue>`,
+		);
+		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 3));
 	});
 
 	it('clamps the summed value to the declared upper bound', () => {
 		const ctx = run(
 			{
 				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
-				RESPONSE: responseDecl(['A', 'A', 'A'], { ...MAPPING, upperBound: 4 }, 'identifier', 'multiple'),
+				RESPONSE: responseDecl(['A', 'B', 'A', 'B'], { ...MAPPING, upperBound: 2.5 }, 'identifier', 'multiple'),
 			},
 			`<setOutcomeValue identifier="OUT"><mapResponse identifier="RESPONSE"/></setOutcomeValue>`,
 		);
-		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 4));
+		// {A,B} sums to 3 once duplicates are collapsed, then clamps to 2.5.
+		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 2.5));
 	});
 
 	it('keeps directed-pair direction significant, per the QTI base type', () => {
@@ -249,39 +311,48 @@ describe('mapResponsePoint', () => {
 		);
 		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 2));
 	});
-});
 
-describe('mapOutcome', () => {
-	it('maps an outcome variable through its mapping', () => {
-		const ctx = run(
+	// Pins the ellipse and poly hit tests exactly: the area boundary counts as inside
+	// (their tests are inclusive), and a zero radius or malformed polygon holds nothing.
+	const scorePointIn = (entries: { shape: 'ellipse' | 'poly'; coords: string; mappedValue: number }[], value: string) =>
+		run(
 			{
 				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
-				FEEDBACK: outcomeDecl('FEEDBACK', 'correct', {
-					defaultValue: 0,
-					entries: {
-						correct: { mapKey: 'correct', mappedValue: 1 },
-					},
-				}),
+				RESPONSE: {
+					identifier: 'RESPONSE',
+					baseType: 'point',
+					cardinality: 'single',
+					value: qtiValue('point', 'single', value),
+					areaMapping: { defaultValue: 0, entries },
+				},
 			},
-			`<setOutcomeValue identifier="OUT"><mapOutcome identifier="FEEDBACK"/></setOutcomeValue>`,
-		);
-		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 1));
+			`<setOutcomeValue identifier="OUT"><mapResponsePoint identifier="RESPONSE"/></setOutcomeValue>`,
+		).getValue('OUT');
+
+	it('scores an ellipse area within its radii, on the boundary, not past it', () => {
+		const entries = [{ shape: 'ellipse' as const, coords: '50,50,20,10', mappedValue: 4 }];
+		expect(scorePointIn(entries, '50 55')).toEqual(qtiValue('float', 'single', 4));
+		expect(scorePointIn(entries, '30 50')).toEqual(qtiValue('float', 'single', 4));
+		expect(scorePointIn(entries, '50 65')).toEqual(qtiValue('float', 'single', 0));
+		expect(scorePointIn(entries, '75 50')).toEqual(qtiValue('float', 'single', 0));
+		// rx 0 or ry 0 would divide by zero; the area simply holds no point.
+		expect(
+			scorePointIn([{ shape: 'ellipse' as const, coords: '50,50,0,10', mappedValue: 4 }], '50 50'),
+		).toEqual(qtiValue('float', 'single', 0));
 	});
 
-	it('treats an unmapped outcome value as the mapping default', () => {
-		const ctx = run(
-			{
-				OUT: { identifier: 'OUT', baseType: 'float', cardinality: 'single', value: qtiValue('float', 'single', 0) },
-				FEEDBACK: outcomeDecl('FEEDBACK', 'partial', {
-					defaultValue: 0.5,
-					entries: {
-						correct: { mapKey: 'correct', mappedValue: 1 },
-					},
-				}),
-			},
-			`<setOutcomeValue identifier="OUT"><mapOutcome identifier="FEEDBACK"/></setOutcomeValue>`,
+	it('scores a poly area by ray casting over its vertices', () => {
+		const square = '0,0,10,0,10,10,0,10';
+		const entries = [{ shape: 'poly' as const, coords: square, mappedValue: 5 }];
+		expect(scorePointIn(entries, '5 5')).toEqual(qtiValue('float', 'single', 5));
+		expect(scorePointIn(entries, '15 5')).toEqual(qtiValue('float', 'single', 0));
+		// Fewer than six numbers, or an odd count, is no polygon at all.
+		expect(scorePointIn([{ shape: 'poly' as const, coords: '0,0,10,0,10', mappedValue: 5 }], '5 5')).toEqual(
+			qtiValue('float', 'single', 0),
 		);
-		expect(ctx.getValue('OUT')).toEqual(qtiValue('float', 'single', 0.5));
+		expect(scorePointIn([{ shape: 'poly' as const, coords: '0,0,10,0,10,10,0', mappedValue: 5 }], '5 5')).toEqual(
+			qtiValue('float', 'single', 0),
+		);
 	});
 });
 
@@ -309,5 +380,232 @@ describe('mapping inside a full response condition', () => {
       </responseCondition>`,
 		);
 		expect(ctx.getValue('SCORE')).toEqual(qtiValue('float', 'single', 1));
+	});
+});
+
+/**
+ * mapEntry caseSensitive (QTI ASI §5): it controls "whether or not a mapEntry string is matched
+ * case sensitively", entry by entry. A case-sensitive entry matches only its own spelling, so a
+ * response in another case takes the defaultValue. The player stores a case-insensitive entry
+ * under its lower-case key as well, which is how a lower-cased response finds it.
+ */
+describe('mapEntry case sensitivity', () => {
+	const OUT = { identifier: 'OUT', baseType: 'float' as const, cardinality: 'single' as const, value: qtiValue('float', 'single', 0) };
+
+	function mapped(
+		response: string,
+		entries: NonNullable<DeclarationMap['RESPONSE']['mapping']>['entries'],
+		baseType: 'identifier' | 'string',
+	): QtiValue {
+		return run(
+			{ OUT, RESPONSE: responseDecl(response, { defaultValue: 0, entries }, baseType) },
+			`<setOutcomeValue identifier="OUT"><mapResponse identifier="RESPONSE"/></setOutcomeValue>`,
+		).getValue('OUT');
+	}
+
+	const caseSensitive = { a: { mapKey: 'a', mappedValue: 1, caseSensitive: 'true' } };
+	// As the player parses a case-insensitive entry: its key plus a lower-case alias.
+	const caseInsensitive = {
+		Paris: { mapKey: 'Paris', mappedValue: 1, caseSensitive: 'false' },
+		paris: { mapKey: 'paris', mappedValue: 1, caseSensitive: 'false' },
+	};
+
+	for (const baseType of ['identifier', 'string'] as const) {
+		it(`does not match a case-sensitive ${baseType} entry in another case`, () => {
+			expect(mapped('A', caseSensitive, baseType)).toEqual(qtiValue('float', 'single', 0));
+			expect(mapped('a', caseSensitive, baseType)).toEqual(qtiValue('float', 'single', 1));
+		});
+
+		it(`matches a case-insensitive ${baseType} entry through its lower-case key`, () => {
+			expect(mapped('paris', caseInsensitive, baseType)).toEqual(qtiValue('float', 'single', 1));
+			expect(mapped('Paris', caseInsensitive, baseType)).toEqual(qtiValue('float', 'single', 1));
+		});
+	}
+
+	it('matches a case-insensitive string entry in any case', () => {
+		expect(mapped('PARIS', caseInsensitive, 'string')).toEqual(qtiValue('float', 'single', 1));
+		expect(mapped('pArIs', caseInsensitive, 'string')).toEqual(qtiValue('float', 'single', 1));
+	});
+
+	it('keeps each entry its own case sensitivity in one mapping', () => {
+		const mixed = { ...caseSensitive, ...caseInsensitive };
+		expect(mapped('PARIS', mixed, 'string')).toEqual(qtiValue('float', 'single', 1));
+		expect(mapped('A', mixed, 'string')).toEqual(qtiValue('float', 'single', 0));
+	});
+});
+
+/**
+ * The spec default for mapEntry@caseSensitive is "false" (QTI 2.2 XSD declares it optional with
+ * default "false"; the 2.1 Best Practice: "The default is false"; the QTI 3.0 implementation
+ * guide: string mapping is "by default, NOT case sensitive"), so an entry that names no
+ * caseSensitive matches case-insensitively. `<mapping>` itself defines no such attribute in any
+ * QTI version, so a mapping-level one is not read. Identifier values never fold case (QTI ASI
+ * §17). Container deduplication counts once what the mapping matches as the same value (§15.3),
+ * so {Paris, paris} counts once under case-insensitive matching.
+ */
+describe('mapEntry case sensitivity defaults to case-insensitive', () => {
+	const OUT = { identifier: 'OUT', baseType: 'float' as const, cardinality: 'single' as const, value: qtiValue('float', 'single', 0) };
+
+	function mapped(
+		response: unknown,
+		mapping: NonNullable<DeclarationMap['RESPONSE']['mapping']>,
+		baseType: 'identifier' | 'string',
+		cardinality: DeclarationMap['RESPONSE']['cardinality'] = 'single',
+	): QtiValue {
+		return run(
+			{ OUT, RESPONSE: responseDecl(response, mapping, baseType, cardinality) },
+			`<setOutcomeValue identifier="OUT"><mapResponse identifier="RESPONSE"/></setOutcomeValue>`,
+		).getValue('OUT');
+	}
+
+	const specDefault = {
+		defaultValue: 7,
+		entries: { photosynthesis: { mapKey: 'photosynthesis', mappedValue: 2 } },
+	};
+
+	it('matches a spec-default string mapping case-insensitively', () => {
+		expect(mapped('photosynthesis', specDefault, 'string')).toEqual(qtiValue('float', 'single', 2));
+		expect(mapped('Photosynthesis', specDefault, 'string')).toEqual(qtiValue('float', 'single', 2));
+		expect(mapped('PHOTOSYNTHESIS', specDefault, 'string')).toEqual(qtiValue('float', 'single', 2));
+		expect(mapped('respiration', specDefault, 'string')).toEqual(qtiValue('float', 'single', 7));
+	});
+
+	it('keeps an explicit caseSensitive="true" string entry exact', () => {
+		const exact = {
+			defaultValue: 7,
+			entries: { photosynthesis: { mapKey: 'photosynthesis', mappedValue: 2, caseSensitive: 'true' } },
+		};
+		expect(mapped('photosynthesis', exact, 'string')).toEqual(qtiValue('float', 'single', 2));
+		expect(mapped('Photosynthesis', exact, 'string')).toEqual(qtiValue('float', 'single', 7));
+	});
+
+	it('matches an entry without caseSensitive case-insensitively, as the XSD default reads', () => {
+		const lenient = {
+			defaultValue: 0,
+			entries: { Paris: { mapKey: 'Paris', mappedValue: 1 } },
+		};
+		expect(mapped('PARIS', lenient, 'string')).toEqual(qtiValue('float', 'single', 1));
+	});
+
+	it('counts {Paris, paris} of a spec-default string mapping once', () => {
+		// §15.3: repeated container values count once — under case-insensitive
+		// matching Paris and paris are the same value, and both find the Paris entry.
+		const cities = { defaultValue: 0.5, entries: { Paris: { mapKey: 'Paris', mappedValue: 1 } } };
+		expect(mapped(['Paris', 'paris'], cities, 'string', 'multiple')).toEqual(qtiValue('float', 'single', 1));
+		expect(mapped(['PARIS', 'Paris', 'paris'], cities, 'string', 'multiple')).toEqual(qtiValue('float', 'single', 1));
+		expect(mapped(['Paris', 'London'], cities, 'string', 'multiple')).toEqual(qtiValue('float', 'single', 1.5));
+	});
+
+	it('keeps case-distinct string values distinct under explicit caseSensitive="true" entries', () => {
+		const exact = {
+			defaultValue: 0.5,
+			entries: { Paris: { mapKey: 'Paris', mappedValue: 1, caseSensitive: 'true' } },
+		};
+		expect(mapped(['Paris', 'paris'], exact, 'string', 'multiple')).toEqual(qtiValue('float', 'single', 1.5));
+	});
+
+	it('matches identifier values exactly whatever the caseSensitive says', () => {
+		// QTI ASI §17: identifier values are case-sensitive; mapEntry@caseSensitive
+		// loosens string matching only.
+		const idMapping = {
+			defaultValue: 0.5,
+			entries: { Paris: { mapKey: 'Paris', mappedValue: 1, caseSensitive: 'false' } },
+		};
+		expect(mapped('Paris', idMapping, 'identifier')).toEqual(qtiValue('float', 'single', 1));
+		expect(mapped('paris', idMapping, 'identifier')).toEqual(qtiValue('float', 'single', 0.5));
+		expect(mapped(['Paris', 'paris'], idMapping, 'identifier', 'multiple')).toEqual(qtiValue('float', 'single', 1.5));
+	});
+
+	it('ignores a mapping-level caseSensitive attribute, which no QTI version defines', () => {
+		// caseSensitive exists on mapEntry only (2.1 XSD line 6347 Mapping.Type, 3.0 MappingDType).
+		// A mapping-level attribute is invalid content: it is not read, so the entries keep the
+		// spec default of case-insensitive matching.
+		const authored = {
+			defaultValue: 0.5,
+			caseSensitive: 'true',
+			entries: { Paris: { mapKey: 'Paris', mappedValue: 1 } },
+		} as NonNullable<DeclarationMap['RESPONSE']['mapping']>;
+		expect(mapped('PARIS', authored, 'string')).toEqual(qtiValue('float', 'single', 1));
+	});
+});
+
+/**
+ * QTI ASI: a container with no values is treated as NULL, and a mapping's lowerBound and
+ * upperBound bound the result of mapping a container. A NULL container is therefore the empty
+ * container: its values sum to 0, which the bounds then clamp — it does not take the mapping's
+ * defaultValue, which applies to a value with no mapping entry.
+ */
+describe('mapping a NULL response', () => {
+	const OUT = { identifier: 'OUT', baseType: 'float' as const, cardinality: 'single' as const, value: qtiValue('float', 'single', 0) };
+	/** A canonical penalising multi-select mapping (choice_multiple). */
+	const PENALTY = {
+		defaultValue: -2,
+		lowerBound: 0,
+		upperBound: 2,
+		entries: {
+			H: { mapKey: 'H', mappedValue: 1 },
+			O: { mapKey: 'O', mappedValue: 1 },
+			Cl: { mapKey: 'Cl', mappedValue: -1 },
+		},
+	};
+
+	function mapped(
+		value: QtiValue,
+		mapping: NonNullable<DeclarationMap['RESPONSE']['mapping']>,
+		cardinality: DeclarationMap['RESPONSE']['cardinality'],
+		expression = 'mapResponse',
+	): QtiValue {
+		return run(
+			{ OUT, RESPONSE: { identifier: 'RESPONSE', baseType: 'identifier', cardinality, value, mapping } },
+			`<setOutcomeValue identifier="OUT"><${expression} identifier="RESPONSE"/></setOutcomeValue>`,
+		).getValue('OUT');
+	}
+
+	for (const cardinality of ['multiple', 'ordered'] as const) {
+		it(`maps a NULL ${cardinality} response as the empty container, within the bounds`, () => {
+			const empty = mapped(qtiValue('identifier', cardinality, []), PENALTY, cardinality);
+			expect(empty).toEqual(qtiValue('float', 'single', 0));
+			expect(mapped(qtiNull('identifier', cardinality), PENALTY, cardinality)).toEqual(empty);
+			// Partial responses keep their mapped sums, clamped to the bounds.
+			expect(mapped(qtiValue('identifier', cardinality, ['H']), PENALTY, cardinality)).toEqual(qtiValue('float', 'single', 1));
+			expect(mapped(qtiValue('identifier', cardinality, ['N']), PENALTY, cardinality)).toEqual(qtiValue('float', 'single', 0));
+			expect(mapped(qtiValue('identifier', cardinality, ['H', 'O', 'Cl']), PENALTY, cardinality)).toEqual(
+				qtiValue('float', 'single', 1),
+			);
+		});
+	}
+
+	it('clamps a NULL container to a positive lower bound, as the empty container', () => {
+		const floor = { ...PENALTY, defaultValue: 1, lowerBound: 2 };
+		expect(mapped(qtiValue('identifier', 'multiple', []), floor, 'multiple')).toEqual(qtiValue('float', 'single', 2));
+		expect(mapped(qtiNull('identifier', 'multiple'), floor, 'multiple')).toEqual(qtiValue('float', 'single', 2));
+	});
+
+	it('maps a NULL container to 0 without bounds, not to the mapping default', () => {
+		const unbounded = { defaultValue: -2, entries: PENALTY.entries };
+		expect(mapped(qtiNull('identifier', 'multiple'), unbounded, 'multiple')).toEqual(qtiValue('float', 'single', 0));
+	});
+
+	it('maps a NULL single response to the mapping default within the bounds, as an unmapped value', () => {
+		const below = { ...PENALTY, defaultValue: -1 };
+		expect(mapped(qtiValue('identifier', 'single', 'N'), below, 'single')).toEqual(qtiValue('float', 'single', 0));
+		expect(mapped(qtiNull('identifier', 'single'), below, 'single')).toEqual(qtiValue('float', 'single', 0));
+		const within = { ...PENALTY, defaultValue: 0.25 };
+		expect(mapped(qtiNull('identifier', 'single'), within, 'single')).toEqual(qtiValue('float', 'single', 0.25));
+	});
+
+	it('maps a NULL point container (mapResponsePoint) as the empty container, within the bounds', () => {
+		const areaMapping = {
+			defaultValue: -2,
+			lowerBound: 0.5,
+			entries: [{ shape: 'circle' as const, coords: '50,50,10', mappedValue: 2 }],
+		};
+		const pointMapped = (value: QtiValue) =>
+			run(
+				{ OUT, RESPONSE: { identifier: 'RESPONSE', baseType: 'point', cardinality: 'multiple', value, areaMapping } },
+				`<setOutcomeValue identifier="OUT"><mapResponsePoint identifier="RESPONSE"/></setOutcomeValue>`,
+			).getValue('OUT');
+		expect(pointMapped(qtiValue('point', 'multiple', []))).toEqual(qtiValue('float', 'single', 0.5));
+		expect(pointMapped(qtiNull('point', 'multiple'))).toEqual(qtiValue('float', 'single', 0.5));
 	});
 });

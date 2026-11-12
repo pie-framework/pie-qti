@@ -10,7 +10,7 @@ import type {
 import { AssessmentPlayer } from '../src/core/AssessmentPlayer.js';
 import { ReferenceBackendAdapter } from '../src/integration/ReferenceBackendAdapter.js';
 import { toSectionComposition } from '../src/integration/toSectionComposition.js';
-import type { SecureAssessment, SubmitResponsesRequest } from '../src/integration/api-contract.js';
+import type { BackendAdapter, SecureAssessment, SubmitResponsesRequest } from '../src/integration/api-contract.js';
 
 function makeAdapter(assessment: SecureAssessment): ReferenceBackendAdapter {
 	localStorage.clear();
@@ -434,7 +434,7 @@ describe('QTI 3.0 Advanced — Submission mode item sessions', () => {
 		const acceptedLiveSession = player.getCurrentItemSession();
 		expect(acceptedLiveSession?.state().lifecycleStatus).toBe('closed');
 		expect(acceptedLiveSession?.state().numAttempts).toBe(1);
-		expect(toSectionComposition(player).activeItem.session).toBe(acceptedLiveSession);
+		expect(toSectionComposition(player).activeItem.session).toBe(acceptedLiveSession!);
 		expect(() => player.updateResponse('RESPONSE', 'wrong')).toThrow(
 			'Cannot update responses while item session is closed',
 		);
@@ -469,7 +469,7 @@ describe('QTI 3.0 Advanced — Submission mode item sessions', () => {
 		expect(restoredSession?.state().lifecycleStatus).toBe(before?.lifecycleStatus);
 		expect(restoredSession?.state().numAttempts).toBe(0);
 		expect(restoredSession?.state().responses.RESPONSE).toBe('correct');
-		expect(toSectionComposition(player).activeItem.session).toBe(restoredSession);
+		expect(toSectionComposition(player).activeItem.session).toBe(restoredSession!);
 		const partialState = player.getState({ includeItemSessions: true });
 		expect(partialState.itemScores?.['session-item-1']?.score).toBe(1);
 		expect(partialState.itemSessions?.['session-item-1']?.lifecycleStatus).toBe('closed');
@@ -588,7 +588,7 @@ describe('QTI 3.0 Advanced — Submission mode item sessions', () => {
 		expect(restoredSession?.state().lifecycleStatus).toBe(before?.lifecycleStatus);
 		expect(restoredSession?.state().numAttempts).toBe(0);
 		expect(restoredSession?.state().responses.RESPONSE).toBe('correct');
-		expect(toSectionComposition(player).activeItem.session).toBe(restoredSession);
+		expect(toSectionComposition(player).activeItem.session).toBe(restoredSession!);
 
 		await player.submitCurrentItem();
 		expect(submitCalls).toBe(2);
@@ -599,9 +599,37 @@ describe('QTI 3.0 Advanced — Submission mode item sessions', () => {
 		expect(accepted?.numAttempts).toBe(1);
 	});
 
-	it('does not submit rich item session variables by default', async () => {
+	it('does not submit rich item session variables to a production backend by default', async () => {
 		const assessment = makeTwoItemAssessment('individual');
 		const adapter = makeAdapter(assessment);
+		const submitted: SubmitResponsesRequest[] = [];
+		// A production backend owns the item session server-side: it does not declare
+		// `requiresItemSession`, so template variables (possible answer keys) stay local.
+		const production: BackendAdapter = {
+			initSession: (request) => adapter.initSession(request),
+			submitResponses: (request) => {
+				submitted.push(request);
+				return adapter.submitResponses(request);
+			},
+			saveState: (request) => adapter.saveState(request),
+			finalizeAssessment: (request) => adapter.finalizeAssessment(request),
+		};
+		const player = await AssessmentPlayer.create({
+			backend: production,
+			initSession: { assessmentId: assessment.identifier, candidateId: 'candidate-1' },
+		});
+
+		player.updateResponse('RESPONSE', 'correct');
+		await player.next();
+
+		expect(submitted[0]?.itemSession).toBeUndefined();
+		expect(player.getState({ includeItemSessions: true }).itemSessions?.['session-item-1']).toBeDefined();
+	});
+
+	it('always submits the item session to a backend that scores from it (reference mode)', async () => {
+		const assessment = makeTwoItemAssessment('individual');
+		const adapter = makeAdapter(assessment);
+		expect(adapter.requiresItemSession).toBe(true);
 		const submitted: SubmitResponsesRequest[] = [];
 		const originalSubmit = adapter.submitResponses.bind(adapter);
 		adapter.submitResponses = async (request) => {
@@ -611,13 +639,14 @@ describe('QTI 3.0 Advanced — Submission mode item sessions', () => {
 		const player = await AssessmentPlayer.create({
 			backend: adapter,
 			initSession: { assessmentId: assessment.identifier, candidateId: 'candidate-1' },
+			// The reference backend's requirement wins over a host's opt-out.
+			sendItemSessionToBackend: false,
 		});
 
 		player.updateResponse('RESPONSE', 'correct');
 		await player.next();
 
-		expect(submitted[0]?.itemSession).toBeUndefined();
-		expect(player.getState({ includeItemSessions: true }).itemSessions?.['session-item-1']).toBeDefined();
+		expect(submitted[0]?.itemSession?.itemIdentifier).toBe('session-item-1');
 	});
 
 	it('reference backend derives expiry from elapsed timing evidence', async () => {

@@ -36,7 +36,8 @@ const definition = createAssessmentItemDefinition({
   itemXml: qtiXml,
   role: 'candidate',
   security: {
-    parsingLimits: { enabled: true, rejectDoctype: true },
+    // Parsing limits are on by default; tune one here, or opt out with `enabled: false`.
+    parsingLimits: { maxItemXmlBytes: 2_000_000 },
     trustedTypesPolicyName: 'qti-content'
   },
   plugins
@@ -100,9 +101,14 @@ const presentation = session.present({
   renderItemBodyRubrics: true
 });
 
-for (const node of presentation.flow) {
-  if (node.kind === 'html') renderFinalHtml(node.html);
-  else mountInteraction(node.mount);
+const [body, ...interactions] = presentation.flow;
+if (body.kind === 'html') renderFinalHtml(container, body.html);
+for (const node of interactions) {
+  if (node.kind !== 'interaction') continue;
+  const slot = node.mount.slot === null
+    ? null
+    : container.querySelector(`[data-qti-interaction-slot="${node.mount.slot}"]`);
+  mountInteraction(node.mount, slot ?? afterBody);
 }
 
 renderRubrics(presentation.directRubrics);
@@ -112,6 +118,17 @@ The presentation contains role capabilities, disabled state, role-filtered corre
 policy-checked scoped CSS, ordered body flow, and direct `assessmentItem` rubric blocks. HTML values
 use `HtmlContent` (`string | TrustedHTML` when available); `FinalItemBodyHtml` marks content that has
 completed the body transform and delivery pipeline.
+
+The flow is one `html` node holding the whole item body, then one mount per interaction in document
+order. The item body is an ordered content model, so each interaction keeps its authored position:
+its element is replaced by an empty slot (`<span data-qti-interaction-slot="…">`, exported as
+`INTERACTION_SLOT_ATTRIBUTE`) and the mount's `slot` names it. Mount the interaction into its slot —
+between the paragraphs around it, inside a layout column or table cell, or in its sentence for an
+inline interaction; a mount whose `slot` is `null` (its element is not in the body) goes after the
+body. Slots and mount keys are stable across response changes, so a renderer can keep interactions
+mounted while only their props change. Inline mounts also carry their `position` among the item's
+inline interactions, which names them for assistive technology ("Blank 2 of 4") when no label is
+authored; never use the response identifier as a name.
 
 Item body, rubric block and modal feedback content resolves `printedVariable` against the current
 session in either QTI spelling, honouring `format` (C `printf` conversions), `base`, `index`,
@@ -169,6 +186,13 @@ import '@pie-qti/default-components/plugins';
 import '@pie-qti/item-player/element';
 ```
 
+## Loading from a CDN
+
+The package's entries are ES modules that import other `@pie-qti/*` packages by bare name, so a CDN
+serving the raw files cannot run them on their own. Use a bundler, an import map, or jsDelivr's
+`/+esm` endpoint, which rewrites bare imports. For a page without a build step, use
+[`@pie-qti/player-elements`](../player-elements/README.md): its `register` entry is self-contained.
+
 ## Definition plugins
 
 `AssessmentItemDefinitionPlugin` is the primary synchronous extension contract:
@@ -200,7 +224,10 @@ resource URL fields with a `delivery` schema. See
 ## Security boundary
 
 The player applies configured HTML sanitation, URL policy, parsing limits, and optional Trusted
-Types finalization to declared delivery fields. Plugins are trusted executable application code and
+Types finalization to declared delivery fields. The parsing limits (item XML size, HTML size,
+element count and depth, DOCTYPE rejection) apply by default at every entry point, including the
+server entry; set `security.parsingLimits.enabled: false` to opt out, for trusted content or behind
+an equivalent upstream limit. Plugins are trusted executable application code and
 are not sandboxed. Sanitized same-DOM content is still not equivalent to isolating untrusted
 JavaScript; use a suitably sandboxed cross-origin iframe when content is not trusted to run in the
 host origin.
@@ -253,6 +280,7 @@ model. It omits presentation, PNP DOM, PCI, catalogs, and browser component type
 - `@pie-qti/item-player/web-components`: interaction element base contracts.
 - `@pie-qti/item-player/element` and `/element-class`: standalone browser element compatibility.
 - `@pie-qti/item-player/iframe`: optional iframe host/protocol helpers.
+- `@pie-qti/item-player/pci`: PCI host, sandbox session, and AMD loader helpers.
 - `@pie-qti/item-player/security`: security utilities.
 
 Additional detail: [QTI compliance](./docs/QTI-COMPLIANCE.md),

@@ -1,13 +1,14 @@
 {
   "name": "@pie-qti/section-player",
-  "version": "1.0.0-beta.4",
+  "version": "1.0.0-beta.5",
   "description": "QTI section renderer contracts and layouts for composing item players with shared section context",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "rm -rf dist tsconfig.tsbuildinfo && tsc",
-    "test": "bun test",
+    "test": "bun test && bun run test:component",
+    "test:component": "vitest run",
     "typecheck": "tsc --noEmit && tsc -p ./tsconfig.test.json --noEmit",
     "check": "svelte-check --tsconfig ./tsconfig.svelte.json",
     "lint": "biome check .",
@@ -24,10 +25,12 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@pie-players/pie-assessment-toolkit": "1.0.0-beta.6",
-    "@pie-players/pie-default-tool-loaders": "1.0.0-beta.6",
-    "@pie-players/pie-tool-calculator-desmos": "1.0.0-beta.6",
-    "@pie-players/pie-tool-tts-inline": "1.0.0-beta.6",
+    "@pie-players/pie-assessment-toolkit": "1.0.0-beta.9",
+    "@pie-players/pie-default-tool-loaders": "1.0.0-beta.9",
+    "@pie-players/pie-i18n-generated": "1.0.0-beta.9",
+    "@pie-players/pie-players-shared": "1.0.0-beta.9",
+    "@pie-players/pie-tool-calculator-desmos": "1.0.0-beta.9",
+    "@pie-players/pie-tool-tts-inline": "1.0.0-beta.9",
     "@pie-qti/default-components": "workspace:*",
     "@pie-qti/i18n": "workspace:*",
     "@pie-qti/ims-cp-core": "workspace:*",
@@ -35,12 +38,16 @@
     "@pie-qti/qti-common": "workspace:*"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.6.2",
-    "@types/node": "^26.6.4",
+    "@biomejs/biome": "^2.6.4",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@types/node": "^26.6.6",
+    "jsdom": "^30.1.3",
     "linkedom": "^0.18.13",
     "svelte": "^5.57.1",
     "svelte-check": "^4.7.7",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
   },
   "exports": {
     ".": {

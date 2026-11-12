@@ -31,9 +31,9 @@
 
 **Why this is different from `hotspotInteraction`**: In `hotspotInteraction`, the `hotspotChoice` elements define named regions the candidate selects; the response is a set of `identifier` strings. In `selectPointInteraction`, there are no pre-defined choice regions — the candidate selects any pixel; the response is a `point` string. The scoring engine checks where the point lands using `areaMapping` post-response. This inverts the authoring model: the item author must think about scoring geometry when writing the `responseDeclaration`, not when writing the item body.
 
-**Why `maxChoices=0` is rejected rather than treated as unlimited**: The QTI spec defines `maxChoices=0` as meaning "no upper bound" (consistent with `choiceInteraction`). However, the extractor currently validates `maxChoices <= 0` as an error, and the component's `canSelectMore` derivation (`selectedPoints.length < maxChoices`) would immediately block all selections when `maxChoices=0` because `n < 0` is always false. This is a known spec divergence. In practice, K-12 assessments authored for this framework always provide an explicit `maxChoices ≥ 1`; the `maxChoices=0` unlimited case is not a common K-12 authoring pattern for point-selection. The gap is documented rather than fixed because fixing it requires coordinated changes to the extractor validator, the component, and test coverage. See [Known gaps](#known-gaps).
+**Why `maxChoices=0` means unlimited**: QTI defines `maxChoices=0` as no restriction on the number of points (see the `maxChoices` row below for the per-version defaults). The extractor accepts 0 and rejects only a negative value, and the component's `canSelectMore` treats 0 as unlimited.
 
-**Why the keyboard interaction is incomplete**: Keyboard-accessible coordinate selection on a free-form image is hard. The natural interaction is a mouse click or a touch tap. A fully accessible implementation would need a focus-managed crosshair that moves by arrow key in fixed steps, Tab/Enter to confirm, and a way to announce the current coordinate position via ARIA live region — none of which are currently implemented. The component is keyboard-reachable (the image container is `role="button"` with `tabindex=0`) but the `onkeydown` handler only prevents default for Enter and Space without placing any point. This is an accessibility gap. See [Non-functional requirements](#non-functional-requirements) for the required approach and [Known gaps](#known-gaps) for the backlog item.
+**How keyboard placement works**: Free-form coordinate selection has no native keyboard equivalent, so the component provides a crosshair. When the selection surface gets keyboard focus, a crosshair appears at the center of the image. Arrow keys move it by 5% of the image per press, or 1% with Shift. Enter or Space places a point there. A polite live region announces the position, each placement and removal, and when the maximum is reached. Each placed point has a "Remove point N" button. A pointer click places its point directly and shows no crosshair. QTI defines no keyboard interaction for this interaction, so the crosshair is an accessibility extension for WCAG 2.2 SC 2.1.1.
 
 ---
 
@@ -47,8 +47,8 @@
 | Attribute | Support | Behaviour |
 |-----------|---------|-----------|
 | `responseIdentifier` | Full | Extracted as `responseId`; bound to the response variable; included in `qti-change` event payload |
-| `maxChoices` | Partial | Values `>= 1` are extracted and enforced. The component blocks additional selections once `selectedPoints.length === maxChoices`. **`maxChoices=0` (unlimited) is rejected by the validator as an error** — see Known gaps |
-| `minChoices` | Full | Extracted and surfaced in the UI as a "select at least N" badge. Not enforced as a hard block at submission time (the response is accepted regardless); enforcement is a delivery-engine concern |
+| `maxChoices` | Full | `0` means no restriction; a value `>= 1` caps the points, and the component blocks additional selections once `selectedPoints.length === maxChoices`. An absent attribute takes the per-version spec default: 0 in QTI 2.2 (Table 5.95.2) and 3.0 (Table 5.128.2), or 1 when the response is single cardinality, which holds one point; QTI 2.1 content keeps 1, its information model (`maxChoices [1] = 1`) and XSD (default 0) disagreeing |
+| `minChoices` | Full | Extracted and surfaced in the UI as a "select at least N" badge. `Player.validateResponses()` reports a response with fewer points incomplete; whether that blocks submission is the delivery policy (in a test, `itemSessionControl.validateResponses`) |
 
 ### Child elements
 
@@ -62,13 +62,13 @@
 ### Response variable contract
 
 - **baseType:** `point`
-- **cardinality:** `single` when `maxChoices=1`; `multiple` when `maxChoices>1`
+- **cardinality:** `single` when `maxChoices=1`; `multiple` when `maxChoices>1` or `0`
 - **Wire format (single):** A single string `"x y"` — two integers separated by a space, where `x` and `y` are coordinates in natural image pixel space (origin top-left)
 - **Wire format (multiple):** An array of `"x y"` strings
 - **Null/empty:** `null` before any selection (single cardinality); `[]` before any selection (multiple cardinality)
 - **Internal representation:** The component maintains `selectedPoints: Point[]` where `Point = { x: number; y: number }`. Conversion between internal `Point[]` and the `"x y"` string format happens at every click and every inbound `response` prop sync.
 
-The component also accepts legacy inbound formats (`{ x, y }` object, or an array of `{ x, y }` objects) from the `response` prop for backwards compatibility. It always emits canonical `"x y"` strings outward.
+The component reads an inbound `response` only in that `"x y"` form (a string, or an array of them); any other value places no points. It always emits canonical `"x y"` strings outward.
 
 ### Scoring
 
@@ -121,10 +121,13 @@ All coordinates are in natural image pixel space (origin top-left).
 
 ### Known gaps
 
-- **`maxChoices=0` (unlimited) not supported:** The extractor validator rejects `maxChoices <= 0` as an error. The component's `canSelectMore` derivation would block all selections for `maxChoices=0`. The QTI spec allows `0` to mean "no upper bound." Not a common K-12 authoring pattern for this interaction type; deferred.
-- **Keyboard coordinate selection not implemented:** The component is keyboard-reachable but does not support keyboard-driven point placement. See Non-functional requirements for the required design.
-- **`AreaMapping.entries` type mismatch:** `@pie-qti/item-player` defines `AreaMapping.entries` as `Record<string, AreaMapEntry>` while `@pie-qti/qti-processing` expects `AreaMapEntry[]`. The evaluator iterates with `for...of`, which works on both arrays and record values, but the declared types diverge. Any code that reads `areaMapping.entries` as a Record (by key lookup) will not work correctly with the qti-processing runtime's array form. This should be unified to `AreaMapEntry[]` in both packages.
-- **No PNP support:** PNP personal needs (G-09, G-13, G-14) are not implemented for this interaction. The main gap for selectPointInteraction is that no alternative input modality is provided for candidates who cannot use a pointer device.
+- **No PNP support:** PNP personal needs (G-09, G-13, G-14) are not implemented for this interaction.
+
+Resolved since the previous review, and no longer gaps:
+
+- **`maxChoices=0`**: accepted as unlimited (see the rationale above).
+- **Keyboard coordinate selection**: the crosshair (see [Non-functional requirements](#non-functional-requirements)).
+- **`AreaMapping.entries` type**: both `@pie-qti/item-player` and `@pie-qti/qti-processing` use `AreaMapEntry[]`.
 
 ---
 
@@ -136,8 +139,8 @@ All coordinates are in natural image pixel space (origin top-left).
 - **FR-4:** Emit a `qti-change` CustomEvent from the root element after every point addition or removal. The event payload must contain `responseIdentifier` and `value`. For `maxChoices=1`, `value` is a single `"x y"` string or `null`. For `maxChoices>1`, `value` is an array of `"x y"` strings.
 - **FR-5:** When `selectedPoints.length === maxChoices`, block further clicks (do not add new points) and display an alert informing the candidate that the maximum has been reached.
 - **FR-6:** When `minChoices > 0`, display a badge indicating whether the minimum has been met. The badge must update reactively as points are added or removed.
-- **FR-7:** Provide a "Clear All" button when at least one point is selected. Activating it removes all points and emits a `qti-change` event with `null` (single cardinality) or `[]` (multiple cardinality).
-- **FR-8:** Accept an inbound `response` prop and initialize `selectedPoints` from it. Support `"x y"` string, `{ x, y }` object, and arrays of either form.
+- **FR-7:** Provide a "Clear answer" button when at least one point is selected. Activating it removes all points and emits a `qti-change` event with `null` (single cardinality) or `[]` (multiple cardinality).
+- **FR-8:** Accept an inbound `response` prop and initialize `selectedPoints` from it. Support the `"x y"` string and an array of `"x y"` strings; any other value places no points.
 - **FR-9:** When `disabled=true`, the image container must be non-interactive (no clicks accepted, cursor must be `default`). Point markers must be disabled. Clear All must be disabled. No `qti-change` events may fire.
 - **FR-10:** When `role='scorer'` and `correctResponse` is provided, display correct-answer markers (green, `✓` label) at the correct point positions on the image, overlaid on top of the candidate's markers. The scoring regions (`areaMapEntry` areas) must never be rendered visually.
 - **FR-11:** Support both external raster images (via `<object data="...">` or `<img src="...">`) and inline SVG (via `<object type="image/svg+xml">`).
@@ -152,16 +155,15 @@ All coordinates are in natural image pixel space (origin top-left).
 `selectPointInteraction` is the most accessibility-challenging standard QTI interaction because free-form coordinate selection has no natural keyboard equivalent. The following requirements define what "accessible" means for this interaction:
 
 - **Pointer operation (minimum):** The image container must be reachable by keyboard (Tab to focus, visible focus ring). At minimum, the focused container must announce its purpose via `aria-label` (e.g. "Click to select points on the image").
-- **Keyboard coordinate selection (required for full compliance):** When the image container has keyboard focus, pressing Enter or Space must open (or toggle) a keyboard navigation mode where:
-  - A visible crosshair cursor appears at the center of the image.
-  - Arrow keys move the crosshair in configurable pixel steps (default 10px in natural coordinates).
-  - An ARIA live region announces the current coordinate as the crosshair moves (e.g. "Position: 350, 200").
-  - Pressing Enter or Space places a point at the current crosshair position and fires `qti-change`.
-  - Pressing Escape exits keyboard navigation mode without placing a point.
-  - This keyboard mode is currently not implemented; it is required for WCAG 2.2 SC 2.1.1 compliance.
+- **Keyboard coordinate selection (WCAG 2.2 SC 2.1.1):** When the image container gets keyboard focus:
+  - A visible crosshair appears at the center of the image.
+  - Arrow keys move the crosshair by 5% of the image per press, or 1% with Shift.
+  - An ARIA live region announces the position as the crosshair moves (e.g. "Position: 50%, 50%.").
+  - Enter or Space places a point at the crosshair and fires `qti-change`.
+  - Moving focus away hides the crosshair; no point is placed without Enter or Space.
 - **Point markers:** Each point marker is a `<button>` with an `aria-label` that includes the point number and coordinates (e.g. "Remove point 1 at coordinates 350, 200"). This satisfies SC 4.1.2.
-- **Image alt text:** The `<img>` rendered for the background image uses `alt` text from the i18n key `interactions.selectPoint.canvas` (default: "Selection canvas"). Item authors should provide a more descriptive `alt` attribute via the `<object>` element's `alt` attribute when the image carries meaningful content. The extractor does not currently extract a custom `alt` text.
-- **Result announcement:** After placing or removing a point, the response state should be announced via an ARIA live region so screen-reader users know their action was recorded. Currently there is no live region in the component; this should be added alongside the keyboard navigation mode.
+- **Image alt text:** The image's text alternative comes from the QTI source: the `<object>` fallback text, `aria-label`/`aria-labelledby`, an inline SVG `<title>`/`<desc>`, or an `<img alt>`. Without one, the image is named by the localized fallback `interactions.selectPoint.imageFallback` ("Image for this question").
+- **Result announcement:** Placing or removing a point is announced through the component's polite live region.
 - **Touch target size:** Point markers are 32×32 CSS px by default, which is below WCAG 2.2 SC 2.5.8's 24×24 minimum. The correct-answer marker variant is 50×50. Both must meet 44×44 CSS px for full AA compliance on mobile.
 - **Cursor feedback:** The image container uses `cursor: crosshair` to signal it is a coordinate-selection target. This is a usability hint, not an accessibility requirement.
 
@@ -195,7 +197,7 @@ Labels used by the component are sourced from the `i18n` provider under the `int
 | `interactions.selectPoint.selectAtLeast` | "Select at least {minChoices}" |
 | `interactions.selectPoint.maxPointsReached` | "Maximum points reached. Remove a point to add a new one." |
 
-The "Clear All" button and the "Maximum points reached" alert use hardcoded English strings in the current implementation and are not yet i18n-keyed.
+The "Clear answer" button uses `interactions.choice.clearAnswer`, the key `choiceInteraction`, hottext and hotspot use for the control with the same function, so its name is the same across the player in every locale (WCAG 3.2.4).
 
 ---
 
@@ -207,6 +209,8 @@ The "Clear All" button and the "Maximum points reached" alert use hardcoded Engl
 **Rationale:** The `width` and `height` attributes on the QTI `<object>` element are the dimensions in which the item author placed their `areaMapEntry` coordinates. If the item author declared `width="500"` and placed a circle at `(350,200,20)`, those coordinates are in a 500-unit-wide coordinate space. Using the authored dimensions ensures the normalization aligns with the scoring geometry, regardless of what size the image file actually is. Using `img.naturalWidth` would be correct only if the image file dimensions exactly matched the authored dimensions — not a safe assumption for all content sources.  
 **Alternatives considered:** Use `img.naturalWidth` / `img.naturalHeight` from the DOM. Rejected: image load timing makes these unavailable synchronously, and they may differ from the QTI-authored coordinate space.  
 **Consequences:** If the authored `width`/`height` does not match the image's actual pixel dimensions, scoring regions will be misaligned. Item authors are responsible for declaring correct dimensions in the QTI XML.
+
+**When the item declares no dimensions:** the stage uses the raster image's natural size once loaded (the space points are then authored in); when the size is neither declared nor knowable, no points can be placed and an authoring diagnostic says so. A default stage size is never invented — a guessed space would silently misplace every point.
 
 ### Coordinate normalization formula
 
@@ -221,11 +225,11 @@ The "Clear All" button and the "Maximum points reached" alert use hardcoded Engl
 **Rationale:** Percentage positioning keeps markers at the correct visual location when the image is scaled by CSS. Pixel offsets would only be correct at 100% zoom. The image container uses `position: relative; display: inline-block` so the percentage is relative to the container's rendered size.  
 **Consequences:** Marker positions are recomputed on every render but do not require event listeners for resize. If the container width changes (e.g. window resize), Svelte re-renders and the derived percentages are re-applied.
 
-### The component accepts multiple inbound `response` formats
+### The component reads only the QTI `"x y"` response form
 
-**Decision:** The `response` prop is typed as `any` and accepts `"x y"` strings, `{ x, y }` objects, and arrays of either form. All are normalized to `Point[]` internally.  
-**Rationale:** Different integration layers pass different shapes. The item player's state store uses canonical `"x y"` strings (per QTI spec). Some vendor integrations may pass `{ x, y }` objects for convenience. Handling all forms in the component reduces adapter code in callers.  
-**Alternatives considered:** Restrict to canonical `"x y"` format only. Rejected: would break existing integrations without a migration path.  
+**Decision:** The `response` prop accepts `"x y"` strings and arrays of them, the QTI point form, normalized to `Point[]` internally. Other values, such as `{ x, y }` objects, place no points.  
+**Rationale:** The item player's state store holds canonical `"x y"` strings (per QTI spec), and nothing in the player produces another shape. The project is pre-1.0, so it keeps no earlier inbound format.  
+**Alternatives considered:** Also accept `{ x, y }` objects. Rejected: no producer emits them, and a second inbound shape is non-spec surface with no user.  
 **Consequences:** The `$effect` that syncs inbound `response` to `selectedPoints` must run on every render. It is idempotent and cheap, but it means the component does not treat `response` as write-once.
 
 ### Scoring regions are never rendered
@@ -246,7 +250,7 @@ interface SelectPointInteractionData extends BaseInteractionData {
   type: 'selectPointInteraction';
   responseId: string;       // from responseIdentifier attribute
   prompt: string | null;    // HTML content of <prompt> child, or null
-  maxChoices: number;       // must be >= 1; 0 is rejected by extractor validator
+  maxChoices: number;       // 0 = no restriction; absent: 0 (QTI 2.2/3.0, 1 for a single response), 1 (QTI 2.1)
   minChoices: number;       // must be >= 0; must be <= maxChoices
   imageData: ImageData | null;
 }
@@ -261,16 +265,15 @@ interface ImageData {
 ```
 
 **Invariants enforced by extractor:**
-- `maxChoices >= 1` (error if `<= 0`)
+- `maxChoices >= 0` (error if negative; `0` means no restriction)
 - `minChoices >= 0` (error if negative)
-- `minChoices <= maxChoices` (error if violated)
+- `minChoices <= maxChoices` when `maxChoices > 0` (error if violated)
 - `imageData` is never null for well-formed items (warning if absent)
 - For `type='image'`: `src` is non-empty (error if absent)
 - For `type='svg'`: `content` is non-empty (error if absent)
 
 **Invariants that are NOT enforced (gaps):**
 - The authored `width`/`height` values are not validated against the actual image file dimensions
-- `maxChoices=0` is rejected rather than treated as unlimited per the QTI spec
 
 ### `Point` (from `@pie-qti/item-player`)
 
@@ -292,7 +295,7 @@ interface AreaMapping {
   defaultValue?: number;
   lowerBound?: number;
   upperBound?: number;
-  entries: Record<string, AreaMapEntry>;  // Note: qti-processing uses AreaMapEntry[] — see Known gaps
+  entries: AreaMapEntry[];  // the same type in @pie-qti/qti-processing
 }
 
 interface AreaMapEntry {
@@ -345,9 +348,9 @@ AC-7: Remove point by clicking marker
   When: the candidate clicks the marker
   Then: the marker disappears; qti-change fires with value=null (single) or [] (multiple)
 
-AC-8: Clear All removes all points
+AC-8: Clear answer removes all points
   Given: an item with 2 points placed
-  When: the candidate clicks "Clear All"
+  When: the candidate clicks "Clear answer"
   Then: both markers disappear; qti-change fires with [] (or null for single cardinality)
 
 AC-9: Scoring correct point with circle areaMapping
@@ -453,10 +456,10 @@ AC-E1: No image renders placeholder without error
   When: the item renders
   Then: a "No image provided" placeholder is shown; clicking the placeholder does nothing; no JS error is thrown
 
-AC-E2: Legacy {x,y} response object is accepted
+AC-E2: An {x,y} response object places no points
   Given: a maxChoices=1 item with response={x:350, y:200} passed as the response prop
   When: the item renders
-  Then: one marker appears at (350,200) in natural coordinates; qti-change is not fired on mount
+  Then: no marker appears and the points list is empty; qti-change is not fired on mount
 
 AC-E3: maxChoices=1 with two points in inbound array — only first is shown
   Given: a maxChoices=1 item with response=["200 150", "400 300"] passed as the response prop
@@ -484,11 +487,11 @@ AC-E6: Point placed exactly on a shared areaMapEntry boundary
 
 ## Open questions
 
-- [ ] Should `maxChoices=0` be supported as "unlimited" (per QTI spec) rather than rejected as an error? This requires changes to the extractor validator and the `canSelectMore` derivation.
+- [x] Should `maxChoices=0` be supported as "unlimited" (per QTI spec) rather than rejected as an error? (resolved) Yes: the extractor accepts 0 and the component treats it as unlimited.
 - [ ] Should the component clamp an inbound `response` array that has more entries than `maxChoices` (AC-E3)? Currently it reflects all points without enforcing `maxChoices` on the inbound side.
-- [ ] What is the correct `alt` text strategy for the background image? The extractor does not extract an `alt` attribute from `<object>` elements. Item authors currently rely on the generic "Selection canvas" default. Should the extractor propagate a custom `alt` attribute from the QTI source?
-- [ ] Should keyboard coordinate selection (the crosshair mode) be implemented as part of this component or as a wrapper accessible component that the host platform provides? The QTI spec does not define keyboard interaction for this interaction type; it is an accessibility extension.
-- [ ] The `AreaMapping.entries` type is `Record<string, AreaMapEntry>` in `@pie-qti/item-player` and `AreaMapEntry[]` in `@pie-qti/qti-processing`. Which should be the canonical type? The array form is simpler and maps directly to the XML structure (ordered entries, no natural key). Recommend unifying to `AreaMapEntry[]`.
+- [x] What is the correct `alt` text strategy for the background image? (resolved) The extractor reads the author's text alternative (see Non-functional requirements); the localized fallback applies only when there is none.
+- [x] Should keyboard coordinate selection (the crosshair mode) be implemented as part of this component or as a wrapper accessible component that the host platform provides? (resolved) It is part of the component; QTI defines no keyboard interaction for this interaction, so it is an accessibility extension.
+- [x] Which `AreaMapping.entries` type is canonical? (resolved) `AreaMapEntry[]`, in both packages.
 
 ---
 

@@ -1,18 +1,27 @@
 export { defineQtiPlayerElements } from './define.js';
 export {
 	defineQtiAssessmentPlayerElement,
+	type QtiAssessmentAutosaveChangeDetail,
+	type QtiAssessmentAutosaveFailedDetail,
+	type QtiAssessmentErrorDetail,
 	type QtiAssessmentItemChangeDetail,
 	type QtiAssessmentLoadErrorDetail,
+	type QtiAssessmentPauseDetail,
 	type QtiAssessmentPlayerEventMap,
 	QtiAssessmentPlayerElement,
 	type QtiAssessmentResponseChangeDetail,
+	type QtiAssessmentScopeTimeExpiredDetail,
 	type QtiAssessmentSectionChangeDetail,
+	type QtiAssessmentSessionFinalizedDetail,
 	type QtiAssessmentSubmitDetail,
+	type QtiAssessmentTimeExpiredDetail,
 } from './elements/QtiAssessmentPlayerElement.js';
 export {
 	defineQtiItemPlayerElement,
 	QtiItemPlayerElement,
 	type QtiItemPlayerCompleteDetail,
+	type QtiItemPlayerErrorCode,
+	type QtiItemPlayerErrorDetail,
 	type QtiItemPlayerEventMap,
 	type QtiItemPlayerResponseChangeDetail,
 	type QtiItemPlayerResponseMap,
@@ -22,8 +31,11 @@ export {
 export {
 	defineQtiSectionPlayerSplitPaneElement,
 	QtiSectionPlayerSplitPaneElement,
+	type QtiSectionDisplaySettingsEvent,
+	type QtiSectionFrameworkError,
+	type QtiSectionItemPaneReadyDetail,
 	type QtiSectionPlayerEventMap,
-	type QtiSectionResponseDeltaDetail,
+	type QtiSectionResponseDeltaEvent,
 } from './elements/QtiSectionPlayerSplitPaneElement.js';
 export {
 	defineQtiSectionPlayerVerticalElement,

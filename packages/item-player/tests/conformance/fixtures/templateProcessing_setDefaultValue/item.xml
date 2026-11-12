@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="templateProcessing_setDefaultValue" title="templateProcessing setDefaultValue" adaptive="false" timeDependent="false">
+  <!-- QTI ASI §10.3: setDefaultValue is a template rule. It carries an expression
+       that CHANGES the variable's default value (§5.1), so later resets use the
+       new default. It is not a responseProcessing rule. -->
+  <templateDeclaration identifier="KEY" cardinality="single" baseType="string">
+    <defaultValue><value>?</value></defaultValue>
+  </templateDeclaration>
+  <responseDeclaration identifier="R" cardinality="single" baseType="string">
+    <defaultValue><value>A</value></defaultValue>
+  </responseDeclaration>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="integer">
+    <defaultValue><value>0</value></defaultValue>
+  </outcomeDeclaration>
+  <outcomeDeclaration identifier="DEFAULT_SEEN" cardinality="single" baseType="string">
+    <defaultValue><value>?</value></defaultValue>
+  </outcomeDeclaration>
+
+  <templateProcessing>
+    <setTemplateValue identifier="KEY"><baseValue baseType="string">C</baseValue></setTemplateValue>
+    <!-- Replaces R's declared default "A" with "C" for this session -->
+    <setDefaultValue identifier="R"><variable identifier="KEY"/></setDefaultValue>
+  </templateProcessing>
+
+  <itemBody>
+    <p>Key: <printedVariable identifier="KEY"/></p>
+    <textEntryInteraction responseIdentifier="R" expectedLength="1"/>
+  </itemBody>
+
+  <responseProcessing>
+    <!-- The default expression reads the default the template rule installed -->
+    <setOutcomeValue identifier="DEFAULT_SEEN">
+      <default identifier="R"/>
+    </setOutcomeValue>
+    <responseCondition>
+      <responseIf>
+        <match>
+          <variable identifier="R"/>
+          <variable identifier="KEY"/>
+        </match>
+        <setOutcomeValue identifier="SCORE"><baseValue baseType="integer">1</baseValue></setOutcomeValue>
+      </responseIf>
+    </responseCondition>
+  </responseProcessing>
+</assessmentItem>

@@ -13,7 +13,7 @@
   </responseDeclaration>
   <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
   <itemBody>
-    <gapMatchInteraction responseIdentifier="RESPONSE">
+    <gapMatchInteraction responseIdentifier="RESPONSE" maxAssociations="2">
       <prompt>Drag the correct words into the gaps.</prompt>
       <gapText identifier="sunlight" matchMax="1">sunlight</gapText>
       <gapText identifier="plants" matchMax="1">plants</gapText>

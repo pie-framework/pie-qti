@@ -12,6 +12,7 @@ import { parse } from 'node-html-parser';
 import { dockApipLinks, readApipAccessibility } from '../catalog/apipAccessibility.js';
 import { enforceItemXmlLimits } from '../core/parsingLimits.js';
 import { normalizeInteractionTypeFromTagName } from '../interactions/modules.js';
+import { readResponseIdentifier } from '../extraction/responseIdentifier.js';
 import type { PlayerSecurityConfig } from '../types/index.js';
 import type { QTIElement } from '../interactions/shared/types.js';
 import { type ContentHandlers, resolveContent } from './contentPass.js';
@@ -65,6 +66,9 @@ export class AssessmentItemDocument {
 	private readonly assessmentItem: Element;
 	/** Immutable serialized source for session-local mutable extraction views. */
 	private readonly extractionSource: string;
+	/** textEntryInteraction number bases by response identifier, read on first use. */
+	private textEntryBases?: ReadonlyMap<string, number>;
+	private extendedTextBases?: ReadonlyMap<string, number>;
 
 	constructor({
 		itemXml,
@@ -83,22 +87,6 @@ export class AssessmentItemDocument {
 		this.assessmentItem = findAssessmentItem(this.xmlDocument);
 		dockApipLinks(this.assessmentItem, readApipAccessibility(this.itemXml));
 		this.extractionSource = this.serializeItemBodyForExtraction();
-	}
-
-	detectVersion(): '2.0' | '2.1' | '2.2' | '3.0' | 'unknown' {
-		const namespace = this.assessmentItem.namespaceURI;
-		if (namespace?.includes('v3p0') || namespace?.includes('imsqtiasi_v3p0')) return '3.0';
-		if (namespace?.includes('v2p2') || namespace?.includes('imsqti_v2p2')) return '2.2';
-		if (namespace?.includes('v2p1') || namespace?.includes('imsqti_v2p1')) return '2.1';
-		if (namespace?.includes('v2p0') || namespace?.includes('imsqti_v2p0')) return '2.0';
-
-		const localName = this.assessmentItem.localName || this.assessmentItem.tagName;
-		if (localName === 'qti-assessment-item' || localName === 'qti-assessment-test') return '3.0';
-
-		const version = this.assessmentItem.getAttribute('version');
-		if (version?.startsWith('3.')) return '3.0';
-		if (version === '2.2' || version === '2.1' || version === '2.0') return version;
-		return 'unknown';
 	}
 
 	getProcessingElement(kind: ProcessingKind): Element | null {
@@ -160,13 +148,42 @@ export class AssessmentItemDocument {
 		});
 	}
 
+	/**
+	 * The number base the extendedTextInteraction bound to `responseIdentifier` reads typed
+	 * numeric text in (QTI ASI stringInteraction `base`, default 10), or undefined when no
+	 * extendedTextInteraction is bound to it. Read once, per interaction identifier, into a
+	 * map of numbers: the item body source is immutable, and caching the base avoids
+	 * re-parsing the (mutable) extraction view on every value coercion.
+	 */
 	getExtendedTextBase(responseIdentifier: string): number | undefined {
-		const interaction = this.findExtractionElements(['extendedTextInteraction']).find(
-			(candidate) => candidate.responseIdentifier === responseIdentifier,
-		);
-		if (!interaction) return undefined;
-		const base = Number(interaction.element.getAttribute?.('base') ?? 10);
-		return Number.isInteger(base) && base >= 2 && base <= 36 ? base : 10;
+		if (!this.extendedTextBases) {
+			const bases = new Map<string, number>();
+			for (const { responseIdentifier: id, element } of this.findExtractionElements(['extendedTextInteraction'])) {
+				if (bases.has(id)) continue;
+				const base = Number(element.getAttribute?.('base') ?? 10);
+				bases.set(id, Number.isInteger(base) && base >= 2 && base <= 36 ? base : 10);
+			}
+			this.extendedTextBases = bases;
+		}
+		return this.extendedTextBases.get(responseIdentifier);
+	}
+
+	/**
+	 * The number base the textEntryInteraction bound to `responseIdentifier` reads a numeric
+	 * response in (QTI ASI stringInteraction `base`, default 10), or undefined when no
+	 * textEntryInteraction is bound to it. Read once: the item body source is immutable.
+	 */
+	getTextEntryBase(responseIdentifier: string): number | undefined {
+		if (!this.textEntryBases) {
+			const bases = new Map<string, number>();
+			for (const { responseIdentifier: id, element } of this.findExtractionElements(['textEntryInteraction'])) {
+				if (bases.has(id)) continue;
+				const base = Number(element.getAttribute?.('base') ?? 10);
+				bases.set(id, Number.isInteger(base) && base >= 2 && base <= 36 ? base : 10);
+			}
+			this.textEntryBases = bases;
+		}
+		return this.textEntryBases.get(responseIdentifier);
 	}
 
 	private findRubricElements(): Element[] {
@@ -193,6 +210,40 @@ export class AssessmentItemDocument {
 	findDeclarationElements(kind: 'response' | 'outcome' | 'template' | 'context'): Element[] {
 		const tagName = `${kind}declaration`;
 		return findDescendants(this.assessmentItem, this.elementNameMapper.toNative(tagName));
+	}
+
+	/**
+	 * Variable identifiers the content pass substitutes live from the session's variable
+	 * context while body and rubric content serialize: those named by `printedVariable`
+	 * (`printedvariable` canonically) inside the item body or a rubric block. Template and
+	 * processing do not author or remove elements — the compiled document is immutable and
+	 * handlers resolve clones — so this set is fixed per item and cached.
+	 */
+	printedVariableIdentifiers(): ReadonlySet<string> {
+		this.printedVariableIds ??= this.collectPrintedVariableIdentifiers();
+		return this.printedVariableIds;
+	}
+
+	private printedVariableIds?: ReadonlySet<string>;
+
+	private collectPrintedVariableIdentifiers(): ReadonlySet<string> {
+		const identifiers = new Set<string>();
+		const roots: Element[] = [this.getItemBodyElement(), ...this.findRubricElements()].filter(
+			(element): element is Element => Boolean(element)
+		);
+		for (const root of roots) this.collectPrintedVariableIdentifiersIn(root, identifiers);
+		return identifiers;
+	}
+
+	private collectPrintedVariableIdentifiersIn(element: Element, identifiers: Set<string>): void {
+		const tag = element.tagName ?? element.localName ?? '';
+		if (this.elementNameMapper.toCanonical(tag) === 'printedvariable') {
+			const identifier = this.getMappedAttribute(element, 'identifier')?.trim();
+			if (identifier) identifiers.add(identifier);
+		}
+		for (const child of childElements(element)) {
+			this.collectPrintedVariableIdentifiersIn(child, identifiers);
+		}
 	}
 
 	/** The item body's `xml:lang`, else the item's: the language its content is written in. */
@@ -305,14 +356,7 @@ export class AssessmentItemDocument {
 	}
 
 	private getExtractionResponseIdentifier(element: QTIElement): string {
-		const nativeName = this.attributeNameMapper.toNative('responseIdentifier');
-		return (
-			element.getAttribute?.('responseIdentifier') ||
-			element.getAttribute?.(nativeName) ||
-			element.getAttribute?.('response-identifier') ||
-			element.getAttribute?.('responseidentifier') ||
-			''
-		);
+		return readResponseIdentifier(element, this.attributeNameMapper) ?? '';
 	}
 }
 

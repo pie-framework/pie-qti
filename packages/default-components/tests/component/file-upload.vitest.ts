@@ -85,4 +85,80 @@ describe('FileUpload', () => {
 
 		expect(harness.changes).toEqual([null]);
 	});
+
+	const value = {
+		name: 'answer.txt',
+		type: 'text/plain',
+		size: 5,
+		lastModified: 0,
+		dataUrl: 'data:text/plain;base64,aGVsbG8=',
+	};
+
+	function findRemove(host: HTMLElement): HTMLButtonElement {
+		return Array.from(host.querySelectorAll('button')).find(
+			(button) => button.textContent?.trim() === 'Remove file',
+		)!;
+	}
+
+	test('removing the file resets the input and keeps focus on it (round 6)', async () => {
+		const harness = mountFileUpload({ value });
+		const remove = findRemove(harness.host);
+		expect(remove).not.toBeNull();
+
+		// Choose a file so the native input holds a filename, then remove it.
+		await chooseFile(harness.input, new File(['later'], 'later.txt', { type: 'text/plain' }));
+		await waitFor(() => harness.changes.length > 0);
+		harness.changes.length = 0;
+
+		remove.focus();
+		remove.click();
+		await settle();
+
+		// The response cleared, the native input reset (re-choosing the same file works),
+		// and focus landed on the input instead of the document body.
+		expect(harness.changes).toEqual([null]);
+		expect(harness.input.value).toBe('');
+		expect(document.activeElement).toBe(harness.input);
+	});
+
+	test('the removal is announced politely (round 6)', async () => {
+		const harness = mountFileUpload({ value });
+		const remove = findRemove(harness.host);
+		remove.click();
+		await settle();
+
+		const live = harness.host.querySelector('[aria-live="polite"]');
+		expect(live?.textContent).toContain('File removed.');
+	});
+
+	test('re-choosing the same file after a removal works (round 6)', async () => {
+		const harness = mountFileUpload({ value });
+		const file = () => new File(['same'], 'same.txt', { type: 'text/plain' });
+		await chooseFile(harness.input, file());
+		await waitFor(() => harness.changes.length > 0);
+
+		findRemove(harness.host).click();
+		await settle();
+		expect(harness.changes.at(-1)).toBeNull();
+
+		// The native input keeps no value, so re-choosing the same file fires a change.
+		await chooseFile(harness.input, file());
+		await waitFor(() => harness.changes.length > 2);
+		expect((harness.changes.at(-1) as { name: string }).name).toBe('same.txt');
+	});
+
+	test('candidate-visible strings never fall back to raw catalog keys (round 6)', async () => {
+		const harness = mountFileUpload({ value });
+		const text = harness.host.textContent ?? '';
+		expect(text).not.toContain('interactions.upload.');
+		expect(text).toContain('Upload a file');
+		expect(text).toContain('Selected:');
+		expect(text).toContain('Remove file');
+
+		// The oversize error carries its English fallback, not the key.
+		const limited = mountFileUpload({ maxFileSizeBytes: 5 });
+		await chooseFile(limited.input, new File(['way more than five bytes'], 'big.txt', { type: 'text/plain' }));
+		expect(limited.errorText()).toContain('Maximum size is 5 bytes');
+		expect(limited.errorText()).not.toContain('interactions.upload.');
+	});
 });

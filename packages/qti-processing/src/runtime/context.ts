@@ -44,6 +44,22 @@ export class DeclarationContext {
 		d.correctResponse = value;
 	}
 
+	/**
+	 * QTI ASI §10.3: the setDefaultValue template rule CHANGES the variable's
+	 * default value to the evaluated expression, and the variable's current value
+	 * becomes the new default (§5.1: variables are instantiated from their
+	 * defaults). Later resets — attempt starts, outcome resets at the start of
+	 * response processing — then use the new default. A templateConstraint
+	 * restart discards the change with the rest of the rejected pass.
+	 */
+	setDefaultValue(id: string, value: QtiValue): void {
+		const d = this.decls[id];
+		if (!d) return;
+		const defaultValue = conformNumericBaseType(value, d);
+		d.defaultValue = cloneQtiValue(defaultValue);
+		d.value = cloneQtiValue(defaultValue);
+	}
+
 	getAll(): DeclarationMap {
 		return this.decls;
 	}

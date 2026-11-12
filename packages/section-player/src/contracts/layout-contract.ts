@@ -9,7 +9,7 @@ export type QtiSectionNavigationMode = 'linear' | 'nonlinear';
 export type QtiSectionSubmissionMode = 'individual' | 'simultaneous';
 export type QtiSharedHtmlBlockKind = 'passage' | 'instructions' | 'rubric' | 'stimulus' | 'test-feedback';
 export type QtiSharedHtmlBlockScope = 'assessment' | 'testPart' | 'section' | 'item' | 'stimulus';
-export type QtiSectionToolId = 'textToSpeech' | 'calculator' | (string & {});
+export type QtiSectionToolId = 'textToSpeech' | 'calculator' | 'ruler' | 'protractor' | (string & {});
 export type QtiSectionToolScope = 'section' | 'passage' | 'item';
 
 export interface QtiSectionToolConfig {
@@ -24,6 +24,8 @@ export interface QtiSectionToolConfig {
 
 export interface QtiSectionModel {
   identifier: string;
+  /** The assessment the section belongs to; names the tool bars' toolkit assessment. */
+  assessmentId?: string;
   title?: string;
   role?: QtiSectionRole;
   view?: string[];
@@ -69,6 +71,12 @@ export interface QtiSharedHtmlBlock {
   source?: string;
   view?: string[];
   tools?: QtiSectionToolConfig[];
+  /**
+   * The passage or stimulus title (for example a QTI 3 `qti-assessment-stimulus`
+   * `title`). Section layouts head the block with it; untitled passages get a
+   * neutral localized label.
+   */
+  title?: string;
   rawHtml?: string;
   /** The block's content language, from its `xml:lang`; sets its `lang` and its read-aloud voice. */
   language?: string;
@@ -131,6 +139,17 @@ export interface ResolvedQtiSectionComposition {
   diagnostics: QtiSectionDiagnostic[];
   security?: PlayerSecurityConfig;
   host?: QtiSectionRuntimeHostContract;
+  /**
+   * The assessment the section belongs to. It names the tool bars' toolkit
+   * assessment and keys the candidate's session display settings; layouts fall
+   * back to the section identifier.
+   */
+  assessmentId?: string;
+  /**
+   * The candidate's PNP. A layout given no `pnp` of its own applies this one: its
+   * display needs to the whole section surface, the rest to the items.
+   */
+  pnp?: PnpProfile;
 }
 
 export interface ResolveQtiSectionCompositionOptions {
@@ -142,9 +161,12 @@ export interface ResolveQtiSectionCompositionOptions {
   responsesByItemIdentifier?: Record<string, Record<string, unknown>>;
   security?: PlayerSecurityConfig;
   host?: QtiSectionRuntimeHostContract;
+  /** The assessment the section belongs to; see `ResolvedQtiSectionComposition.assessmentId`. */
+  assessmentId?: string;
   /**
    * The candidate's PNP. Its tool supports turn on the tools the host offers with
-   * `enabled: false`, remove prohibited ones and fill unset tool parameters.
+   * `enabled: false`, remove prohibited ones and fill unset tool parameters. The
+   * composition carries it on, for layouts to apply.
    */
   pnp?: PnpProfile;
 }

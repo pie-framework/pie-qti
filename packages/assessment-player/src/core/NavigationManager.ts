@@ -1,116 +1,42 @@
 /**
- * NavigationManager
+ * The presented-items record for the assessment player's navigation UI hints:
+ * every item delivery has shown (the review screen's visited marks ride it).
  *
- * Handles navigation logic for linear and nonlinear assessment modes.
- * - Linear: Sequential forward navigation only; once left, an item cannot be revisited
- * - Nonlinear: Free navigation (can jump to any item)
+ * Deliberately kept separate from the backend contract's `state.visitedItems`
+ * (the session state the coordinator owns): the two records coincide only where
+ * a submission happened, and merging them is `getState()`'s job, not this
+ * class's. Deliberately NOT a navigation decision-maker either: QTI's real
+ * navigation rules (testPart sequencing, time locks, review-after-submit, branch
+ * targets) live in `AssessmentPlayer`'s navigation policy, which reads session
+ * state this class knows nothing about. Keeping only presentation tracking here
+ * avoids a second, divergent source of navigation truth.
  */
 
-export type NavigationMode = 'linear' | 'nonlinear';
-
 export class NavigationManager {
-	private mode: NavigationMode;
-	private totalItems: number;
-	private visitedItems: Set<number>;
+	/** The flat delivery indexes presented so far. */
+	private presentedIndexes: Set<number>;
 
-	constructor(mode: NavigationMode, totalItems: number) {
-		this.mode = mode;
-		this.totalItems = totalItems;
-		this.visitedItems = new Set<number>();
+	constructor() {
+		this.presentedIndexes = new Set<number>();
 	}
 
-	/**
-	 * Check if navigation to a specific index is allowed
-	 */
-	canNavigateTo(targetIndex: number, currentIndex: number): boolean {
-		// Out of bounds check
-		if (targetIndex < 0 || targetIndex >= this.totalItems) {
-			return false;
-		}
-
-		// In nonlinear mode, can navigate anywhere
-		if (this.mode === 'nonlinear') {
-			return true;
-		}
-
-		// Linear mode permits staying on the current item or advancing exactly
-		// one item. QTI forbids returning after the candidate moves on.
-		return targetIndex === currentIndex || targetIndex === currentIndex + 1;
-	}
-
-	/**
-	 * Check if "next" navigation is allowed
-	 */
-	canNext(currentIndex: number): boolean {
-		return currentIndex < this.totalItems - 1;
-	}
-
-	/**
-	 * Check if "previous" navigation is allowed
-	 */
-	canPrevious(currentIndex: number): boolean {
-		return this.mode === 'nonlinear' && currentIndex > 0;
-	}
-
-	/**
-	 * Get the next valid index
-	 */
-	getNextIndex(currentIndex: number): number | null {
-		if (!this.canNext(currentIndex)) {
-			return null;
-		}
-		return currentIndex + 1;
-	}
-
-	/**
-	 * Get the previous valid index
-	 */
-	getPreviousIndex(currentIndex: number): number | null {
-		if (!this.canPrevious(currentIndex)) {
-			return null;
-		}
-		return currentIndex - 1;
-	}
-
-	/**
-	 * Mark an item as visited
-	 */
+	/** Mark an item as presented. */
 	markVisited(index: number): void {
-		this.visitedItems.add(index);
+		this.presentedIndexes.add(index);
 	}
 
-	/**
-	 * Check if an item has been visited
-	 */
+	/** Whether the candidate has been presented this item (by flat index). */
 	isVisited(index: number): boolean {
-		return this.visitedItems.has(index);
+		return this.presentedIndexes.has(index);
 	}
 
-	/**
-	 * Get all visited item indices
-	 */
-	getVisitedItems(): number[] {
-		return Array.from(this.visitedItems).sort((a, b) => a - b);
+	/** The presented flat indexes, ascending (for snapshots). */
+	getVisited(): number[] {
+		return [...this.presentedIndexes].sort((a, b) => a - b);
 	}
 
-	/**
-	 * Get navigation mode
-	 */
-	getMode(): NavigationMode {
-		return this.mode;
-	}
-
-	/**
-	 * Reset visited items (e.g., for retaking assessment)
-	 */
-	reset(): void {
-		this.visitedItems.clear();
-	}
-
-	/**
-	 * Restore state (for save/resume)
-	 */
+	/** Restore the presented-index record (for save/resume). */
 	restoreState(visitedItems: number[]): void {
-		this.visitedItems = new Set(visitedItems);
+		this.presentedIndexes = new Set(visitedItems);
 	}
 }

@@ -10,17 +10,13 @@
  */
 
 import { createWriteStream, existsSync } from 'node:fs';
+import { exceedsCompressionRatio, hasUnsafeEncodedPathToken, isPackageRelativeHref, resolveArchiveLimit } from '@pie-qti/ims-cp-core';
 import { lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import * as unzipper from 'unzipper';
-import {
-  DEFAULT_ARCHIVE_EXTRACTION_LIMITS,
-  exceedsCompressionRatio,
-  resolveArchiveLimit,
-} from '@pie-qti/ims-cp-core/archive-limits';
 import { type ManifestResource, type ParsedManifest, parseManifest } from '@pie-qti/ims-cp-core/manifest-parser';
 import { type LocalizedManifest, buildLocalizedManifest } from '@pie-qti/ims-cp-core/localized-resources';
 
@@ -50,7 +46,12 @@ export type OpenContentPackageOptions = ArchiveExtractionLimits & {
 
 type ResolvedArchiveLimits = Required<ArchiveExtractionLimits>;
 
-const DEFAULT_ARCHIVE_LIMITS = DEFAULT_ARCHIVE_EXTRACTION_LIMITS;
+const DEFAULT_ARCHIVE_LIMITS: ResolvedArchiveLimits = {
+  maxCompressedSize: 100 * 1024 * 1024,
+  maxTotalUncompressedSize: 250 * 1024 * 1024,
+  maxEntries: 1000,
+  maxCompressionRatio: 200,
+};
 
 export type OpenContentPackage = {
   /** Absolute filesystem root directory for the opened package */
@@ -418,8 +419,17 @@ function joinPosix(...parts: Array<string | undefined>) {
 function applyXmlBase(parentBase: string, xmlBase?: string) {
   if (!xmlBase) return parentBase;
   // xml:base can be absolute URI; we treat it as a path-like base and normalize to a package-relative path
-  // for our file-resolution use-case.
+  // for our file-resolution use-case. Absolute, protocol-bearing, or encoded-traversal bases are
+  // rejected outright (never silently rewritten into the package).
+  if (!isSafeRelativePath(xmlBase)) {
+    throw new Error(`Unsafe xml:base in manifest: ${xmlBase}`);
+  }
   return joinPosix(parentBase, xmlBase);
+}
+
+/** A manifest href/xml:base that stays inside the package (no absolute, protocol, or encoded traversal forms). */
+function isSafeRelativePath(value: string): boolean {
+  return isPackageRelativeHref(value) && !hasUnsafeEncodedPathToken(value);
 }
 
 /**
@@ -450,8 +460,16 @@ export async function loadResolvedManifest(packageRoot: string): Promise<Resolve
 
   const resolveResource = (r: ManifestResource): ResolvedManifestResource => {
     const baseResource = applyXmlBase(baseManifest, r.xmlBase);
+    if (r.href && !isSafeRelativePath(r.href)) {
+      throw new Error(`Unsafe resource href in manifest: ${r.href}`);
+    }
     const hrefResolved = r.href ? joinPosix(baseResource, r.href) : undefined;
-    const filesResolved = (r.files ?? []).map((f: string) => joinPosix(baseResource, f));
+    const filesResolved = (r.files ?? []).map((f: string) => {
+      if (!isSafeRelativePath(f)) {
+        throw new Error(`Unsafe resource file href in manifest: ${f}`);
+      }
+      return joinPosix(baseResource, f);
+    });
     return { ...r, hrefResolved, filesResolved };
   };
 

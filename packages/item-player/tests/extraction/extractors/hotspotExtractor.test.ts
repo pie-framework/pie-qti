@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { standardHotspotExtractor } from '../../../src/interactions/hotspot/extractor.js';
+import { type HotspotData, standardHotspotExtractor } from '../../../src/interactions/hotspot/extractor.js';
 import { createTestContext, parseQTI } from '../test-utils.js';
 
 describe('standardHotspotExtractor', () => {
@@ -217,7 +217,7 @@ describe('standardHotspotExtractor', () => {
 
 	describe('validation', () => {
 		test('validates correct hotspot data', () => {
-			const data = {
+			const data: HotspotData = {
 				hotspotChoices: [
 					{ identifier: 'H1', shape: 'rect', coords: '0,0,100,100' },
 					{ identifier: 'H2', shape: 'circle', coords: '200,200,50' },
@@ -234,7 +234,7 @@ describe('standardHotspotExtractor', () => {
 		});
 
 		test('reports error for empty hotspotChoices', () => {
-			const data = {
+			const data: HotspotData = {
 				hotspotChoices: [],
 				imageData: { type: 'image', src: 'test.png', width: '500', height: '400' },
 				maxChoices: 1,
@@ -248,7 +248,7 @@ describe('standardHotspotExtractor', () => {
 		});
 
 		test('reports warning for missing image data', () => {
-			const data = {
+			const data: HotspotData = {
 				hotspotChoices: [{ identifier: 'H1', shape: 'rect', coords: '0,0,100,100' }],
 				imageData: null,
 				maxChoices: 1,
@@ -262,7 +262,7 @@ describe('standardHotspotExtractor', () => {
 		});
 
 		test('reports error for duplicate hotspot identifiers', () => {
-			const data = {
+			const data: HotspotData = {
 				hotspotChoices: [
 					{ identifier: 'H1', shape: 'rect', coords: '0,0,100,100' },
 					{ identifier: 'H1', shape: 'circle', coords: '200,200,50' },
@@ -279,7 +279,7 @@ describe('standardHotspotExtractor', () => {
 		});
 
 		test('reports warning when maxChoices exceeds hotspot count', () => {
-			const data = {
+			const data: HotspotData = {
 				hotspotChoices: [
 					{ identifier: 'H1', shape: 'rect', coords: '0,0,100,100' },
 					{ identifier: 'H2', shape: 'circle', coords: '200,200,50' },
@@ -293,6 +293,35 @@ describe('standardHotspotExtractor', () => {
 
 			expect(validation.valid).toBe(true);
 			expect(validation.warnings).toContain('maxChoices (5) exceeds the number of hotspots (2)');
+		});
+
+		// QTI 3.0 §8.29: the default shape is "the entire area of the associated image", so its
+		// coords say nothing; every other shape needs them.
+		test('a default-shape hotspot needs no coords; other shapes still do', () => {
+			const xml = `
+				<hotspotInteraction responseIdentifier="RESPONSE" maxChoices="1">
+					<object type="image/png" data="map.png" width="400" height="300" />
+					<hotspotChoice identifier="LAKE" shape="rect" coords="40,40,160,140" />
+					<hotspotChoice identifier="ELSEWHERE" shape="default" coords="" hotspotLabel="Somewhere else" />
+				</hotspotInteraction>
+			`;
+			const element = parseQTI(xml);
+			const data = standardHotspotExtractor.extract(element, createTestContext(element, 'RESPONSE'));
+
+			expect(data.hotspotChoices[1]).toEqual({
+				identifier: 'ELSEWHERE',
+				shape: 'default',
+				coords: '',
+				hotspotLabel: 'Somewhere else',
+			});
+			expect(standardHotspotExtractor.validate!(data).valid).toBe(true);
+
+			const withoutCoords = standardHotspotExtractor.validate!({
+				...data,
+				hotspotChoices: [{ identifier: 'LAKE', shape: 'rect', coords: '' }],
+			});
+			expect(withoutCoords.valid).toBe(false);
+			expect(withoutCoords.errors).toContain('Hotspot LAKE must have coords');
 		});
 	});
 });

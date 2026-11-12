@@ -1,5 +1,3 @@
-import type { InterpolationTableDef, MatchTableDef } from '../runtime/types.js';
-
 export type AstNodeId = string;
 
 export type ProcessingProgram = {
@@ -18,7 +16,6 @@ export type StatementNode =
 	| SetDefaultValueStmt
 	| LookupOutcomeValueStmt
 	| SetOutcomeValueStmt
-	| SetResponseValueStmt
 	| SetTemplateValueStmt
 	| SetCorrectResponseStmt
 	| TemplateConditionStmt;
@@ -38,12 +35,10 @@ export type ExpressionNode =
 	| NumberRespondedExpr
 	| NumberSelectedExpr
 	| CustomOperatorExpr
-	| PreConditionExpr
 	| RandomExpr
 	| MatchExpr
 	| EqualExpr
 	| EqualRoundedExpr
-	| NotEqualExpr
 	| MemberExpr
 	| ContainsExpr
 	| ContainerSizeExpr
@@ -56,23 +51,13 @@ export type ExpressionNode =
 	| DurationLTExpr
 	| DurationGTEExpr
 	| StatsOperatorExpr
-	| RecordExpr
 	| FieldValueExpr
 	| SubstringExpr
-	| LookupTableExpr
 	| PowerExpr
-	| ModExpr
 	| IntegerDivideExpr
-	| MeanExpr
-	| SampleVarianceExpr
-	| SampleSDExpr
-	| PopVarianceExpr
-	| PopSDExpr
-	| IsTypeOfExpr
 	| StringMatchExpr
 	| PatternMatchExpr
 	| IsNullExpr
-	| IsNotNullExpr
 	| LtExpr
 	| LteExpr
 	| GtExpr
@@ -81,7 +66,6 @@ export type ExpressionNode =
 	| OrExpr
 	| NotExpr
 	| AnyNExpr
-	| AllNExpr
 	| SumExpr
 	| SubtractExpr
 	| ProductExpr
@@ -91,7 +75,6 @@ export type ExpressionNode =
 	| RoundExpr
 	| TruncateExpr
 	| MapResponseExpr
-	| MapOutcomeExpr
 	| MapResponsePointExpr
 	| RandomExpr
 	| RandomIntegerExpr
@@ -142,13 +125,6 @@ export type LookupOutcomeValueStmt = {
 	expr: ExpressionNode;
 };
 
-export type SetResponseValueStmt = {
-	kind: 'stmt.setResponseValue';
-	id: AstNodeId;
-	identifier: string;
-	expr: ExpressionNode;
-};
-
 export type SetTemplateValueStmt = {
 	kind: 'stmt.setTemplateValue';
 	id: AstNodeId;
@@ -167,6 +143,8 @@ export type SetDefaultValueStmt = {
 	kind: 'stmt.setDefaultValue';
 	id: AstNodeId;
 	identifier: string;
+	/** QTI ASI §10.3: the new default value comes from this expression [1]. */
+	expr: ExpressionNode;
 };
 
 export type ExitResponseStmt = {
@@ -206,6 +184,11 @@ export type VariableExpr = {
 	kind: 'expr.variable';
 	id: AstNodeId;
 	identifier: string;
+	/**
+	 * Test scope only (QTI ASI §15.1): a weight of the assessmentItemRef whose identifier
+	 * prefixes `identifier` (ITEMREF.VARIABLE), applied to integer and float item variables.
+	 */
+	weightIdentifier?: string;
 };
 
 export type CorrectExpr = {
@@ -267,15 +250,6 @@ export type CustomOperatorExpr = {
 	values: ExpressionNode[];
 };
 
-/**
- * preCondition is a LogicSingle wrapper used by the QTI spec.
- * We treat it as a boolean-context wrapper around its child expression.
- */
-export type PreConditionExpr = {
-	kind: 'expr.preCondition';
-	id: AstNodeId;
-	expr: ExpressionNode;
-};
 
 export type RandomExpr = {
 	kind: 'expr.random';
@@ -323,13 +297,6 @@ export type EqualRoundedExpr = {
 	figures: string;
 };
 
-export type NotEqualExpr = {
-	kind: 'expr.notEqual';
-	id: AstNodeId;
-	a: ExpressionNode;
-	b: ExpressionNode;
-};
-
 export type MemberExpr = {
 	kind: 'expr.member';
 	id: AstNodeId;
@@ -337,6 +304,7 @@ export type MemberExpr = {
 	container: ExpressionNode;
 };
 
+/** QTI contains: whether the first container (`container`) contains the second (`value`). */
 export type ContainsExpr = {
 	kind: 'expr.contains';
 	id: AstNodeId;
@@ -376,6 +344,10 @@ export type RepeatExpr = {
 	values: ExpressionNode[]; // 1..N
 };
 
+/**
+ * QTI delete: the container (the second sub-expression) with every instance of the single value
+ * (the first sub-expression) removed.
+ */
 export type DeleteExpr = {
 	kind: 'expr.delete';
 	id: AstNodeId;
@@ -412,12 +384,6 @@ export type StatsOperatorExpr = {
 	values: ExpressionNode;
 };
 
-export type RecordExpr = {
-	kind: 'expr.record';
-	id: AstNodeId;
-	fields: Array<{ fieldIdentifier: string; value: ExpressionNode }>;
-};
-
 export type FieldValueExpr = {
 	kind: 'expr.fieldValue';
 	id: AstNodeId;
@@ -428,27 +394,16 @@ export type FieldValueExpr = {
 export type SubstringExpr = {
 	kind: 'expr.substring';
 	id: AstNodeId;
-	value: ExpressionNode;
-	start: ExpressionNode;
-	length?: ExpressionNode;
-};
-
-export type LookupTableExpr = {
-	kind: 'expr.lookupTable';
-	id: AstNodeId;
-	source: ExpressionNode;
-	table: MatchTableDef | InterpolationTableDef;
+	/** The candidate substring (QTI: "the first expression"). */
+	a: ExpressionNode;
+	/** The string searched for the substring (QTI: "the second expression"). */
+	b: ExpressionNode;
+	/** substring@caseSensitive, default true (QTI 2.1 §4.10); required `case-sensitive` in 3.0. */
+	caseSensitive: boolean;
 };
 
 export type PowerExpr = {
 	kind: 'expr.power';
-	id: AstNodeId;
-	a: ExpressionNode;
-	b: ExpressionNode;
-};
-
-export type ModExpr = {
-	kind: 'expr.mod';
 	id: AstNodeId;
 	a: ExpressionNode;
 	b: ExpressionNode;
@@ -459,43 +414,6 @@ export type IntegerDivideExpr = {
 	id: AstNodeId;
 	a: ExpressionNode;
 	b: ExpressionNode;
-};
-
-export type MeanExpr = {
-	kind: 'expr.mean';
-	id: AstNodeId;
-	values: ExpressionNode;
-};
-
-export type SampleVarianceExpr = {
-	kind: 'expr.sampleVariance';
-	id: AstNodeId;
-	values: ExpressionNode;
-};
-
-export type SampleSDExpr = {
-	kind: 'expr.sampleSD';
-	id: AstNodeId;
-	values: ExpressionNode;
-};
-
-export type PopVarianceExpr = {
-	kind: 'expr.popVariance';
-	id: AstNodeId;
-	values: ExpressionNode;
-};
-
-export type PopSDExpr = {
-	kind: 'expr.popSD';
-	id: AstNodeId;
-	values: ExpressionNode;
-};
-
-export type IsTypeOfExpr = {
-	kind: 'expr.isTypeOf';
-	id: AstNodeId;
-	value: ExpressionNode;
-	baseType: ExpressionNode;
 };
 
 export type StringMatchExpr = {
@@ -512,17 +430,10 @@ export type PatternMatchExpr = {
 	id: AstNodeId;
 	value: ExpressionNode;
 	pattern: ExpressionNode;
-	caseSensitive: boolean;
 };
 
 export type IsNullExpr = {
 	kind: 'expr.isNull';
-	id: AstNodeId;
-	expr: ExpressionNode;
-};
-
-export type IsNotNullExpr = {
-	kind: 'expr.isNotNull';
 	id: AstNodeId;
 	expr: ExpressionNode;
 };
@@ -539,14 +450,14 @@ export type NotExpr = { kind: 'expr.not'; id: AstNodeId; expr: ExpressionNode };
 export type AnyNExpr = {
 	kind: 'expr.anyN';
 	id: AstNodeId;
-	min: number;
-	max: number;
+	/**
+	 * min and max are integerOrVariableRef (QTI ASI §10.2): the literal bound, or the identifier
+	 * of the variable that holds it, read when the expression is evaluated.
+	 */
+	min: number | string;
+	max: number | string;
 	ops: ExpressionNode[];
 };
-
-// Historical/non-standard helper used in some older QTI engines:
-// "at most max operands are true" (equivalent to anyN with min=0 and a max bound).
-export type AllNExpr = { kind: 'expr.allN'; id: AstNodeId; max: number; ops: ExpressionNode[] };
 
 export type SumExpr = { kind: 'expr.sum'; id: AstNodeId; values: ExpressionNode[] };
 export type SubtractExpr = { kind: 'expr.subtract'; id: AstNodeId; a: ExpressionNode; b: ExpressionNode };
@@ -559,8 +470,6 @@ export type RoundExpr = { kind: 'expr.round'; id: AstNodeId; value: ExpressionNo
 export type TruncateExpr = { kind: 'expr.truncate'; id: AstNodeId; value: ExpressionNode };
 
 export type MapResponseExpr = { kind: 'expr.mapResponse'; id: AstNodeId; identifier: string };
-
-export type MapOutcomeExpr = { kind: 'expr.mapOutcome'; id: AstNodeId; identifier: string };
 
 export type MapResponsePointExpr = { kind: 'expr.mapResponsePoint'; id: AstNodeId; identifier: string };
 

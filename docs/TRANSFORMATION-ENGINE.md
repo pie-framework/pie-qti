@@ -583,7 +583,7 @@ const engine = new TransformEngine();
 engine.use(new VendorCustomPlugin());
 ```
 
-> `createEngine()` is not exported from `@pie-qti/transform-core` — construct the engine directly with `new TransformEngine()`. For tests, `createTestEngine()` from `@pie-qti/test-utils` provides a preconfigured engine.
+> `createEngine()` is not exported from `@pie-qti/transform-core` — construct the engine directly with `new TransformEngine()` and register plugins with `engine.use(...)`. `@pie-qti/test-utils` does not provide a preconfigured engine either; it provides mock plugins (`MockTransformPlugin`, `createMockPlugin`) and result assertions (`expectSuccessfulTransform`) for plugin-level tests. Tests that want one-call engine setup define a small local helper around `new TransformEngine()`, as `packages/to-pie/tests/test-utils.ts` does.
 
 ### Testing Plugins
 
@@ -603,7 +603,9 @@ describe('VendorCustomPlugin', () => {
     const result = await handle.result();
 
     expect(result.errors).toHaveLength(0);
-    expect(result.items).toHaveLength(1);
+    expect(result.pieConfig).toBeDefined();
+    expect(result.metadata.sourceFormat).toBe('qti22');
+    expect(result.metadata.targetFormat).toBe('pie');
   });
 });
 ```

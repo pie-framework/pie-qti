@@ -1,14 +1,15 @@
 /**
  * QTI test structure shared by backends and the client: the itemSessionControl cascade, the
- * session-start draw of selection and ordering, delivery order, and test-scope expressions.
+ * session-start draw of selection and ordering, delivery order, the delivery-rules walk
+ * (branch rules, preconditions, eligibility), and test-scope expressions.
  */
 
 import {
 	buildExpression,
 	DeclarationContext,
 	type DeclarationMap,
+	durationSecondsFromMilliseconds,
 	evalExpr,
-	OperatorRegistry,
 	parseXml,
 	type QtiValue,
 	qtiNull,
@@ -16,6 +17,7 @@ import {
 } from '@pie-qti/qti-processing';
 import type {
 	SecureAssessment,
+	SecureBranchRule,
 	SecureItemRef,
 	SecureItemSessionControl,
 	SecureSection,
@@ -45,6 +47,48 @@ const ADAPTIVE_ITEM_ROOT = /<(?:[\w-]+:)?(?:qti-assessment-item|assessmentItem)\
 /** True when the item root declares `adaptive="true"`. */
 export function isAdaptiveItemXml(itemXml: string): boolean {
 	return ADAPTIVE_ITEM_ROOT.test(itemXml);
+}
+
+export interface EndAttemptInteractionInfo {
+	/** The response declaration the interaction is bound to. */
+	responseIdentifier: string;
+	/** QTI `countAttempt` (QTI 3 `count-attempt`); true unless authored as false. */
+	countAttempt: boolean;
+}
+
+/**
+ * The item's endAttemptInteraction bindings, read from the item XML. Assessment delivery uses this
+ * to recognize an end-attempt response on the session's normal response path: activation counts the
+ * attempt unless authored with countAttempt="false" (a hint request).
+ */
+export function endAttemptInteractionInfo(itemXml: string): EndAttemptInteractionInfo[] {
+	const out: EndAttemptInteractionInfo[] = [];
+	let root: Element | null = null;
+	try {
+		root = parseXml(itemXml).documentElement;
+	} catch {
+		return out;
+	}
+	if (!root) return out;
+	const visit = (element: Element): void => {
+		const name = toCanonicalQtiName(element.localName ?? element.nodeName).toLowerCase();
+		if (name === 'endattemptinteraction') {
+			const responseIdentifier =
+				element.getAttribute('responseIdentifier') ?? element.getAttribute('response-identifier');
+			const raw = element.getAttribute('countAttempt') ?? element.getAttribute('count-attempt');
+			if (responseIdentifier) {
+				out.push({
+					responseIdentifier,
+					countAttempt: raw ? raw.trim().toLowerCase() !== 'false' : true,
+				});
+			}
+		}
+		for (let child = element.firstChild; child; child = child.nextSibling) {
+			if (child.nodeType === 1) visit(child as Element);
+		}
+	};
+	visit(root);
+	return out;
 }
 
 /**
@@ -102,6 +146,166 @@ export function deliveredItems(assessment: SecureAssessment): DeliveredItem[] {
 		for (const section of testPart.sections ?? []) visit(section, testPart, []);
 	}
 	return out;
+}
+
+/**
+ * Next item after `delivered[index]`. Branch rules come first: the item's, then each enclosing
+ * section's it ends (inner to outer), then the test part's when it ends that too. Item and
+ * section rules apply in linear navigation only. With no matching rule, navigation falls through
+ * to the following item. Preconditions then skip forward from the target. EXIT_TEST means the
+ * remaining items are all skipped; undefined means the current item was the last. `onError`
+ * receives any condition evaluation failure (see `evaluateTestCondition`).
+ */
+export function nextItemIdentifier(
+	assessment: SecureAssessment,
+	delivered: DeliveredItem[],
+	index: number,
+	decls: DeclarationMap,
+	rng: () => number,
+	onError?: (expressionXml: string, error: unknown) => void,
+): string | undefined {
+	const start = branchTarget(assessment, delivered, index, decls, rng, onError) ?? index + 1;
+	const next = firstEligibleItem(assessment, delivered, start, delivered[index], decls, rng, onError);
+	return next ?? (index + 1 < delivered.length ? 'EXIT_TEST' : undefined);
+}
+
+function branchTarget(
+	assessment: SecureAssessment,
+	delivered: DeliveredItem[],
+	index: number,
+	decls: DeclarationMap,
+	rng: () => number,
+	onError?: (expressionXml: string, error: unknown) => void,
+): number | undefined {
+	const current = delivered[index]!;
+	const following = delivered[index + 1];
+	const linear = isLinear(assessment, current.testPart);
+	const holders: Array<{ rules?: SecureBranchRule[]; exitSection?: SecureSection }> = [];
+	if (linear) {
+		holders.push({ rules: current.item.branchRule, exitSection: current.sections[current.sections.length - 1] });
+		for (let level = current.sections.length - 1; level >= 0; level--) {
+			const section = current.sections[level]!;
+			if (following?.sections.includes(section)) break;
+			holders.push({ rules: section.branchRule, exitSection: current.sections[level - 1] });
+		}
+	}
+	if (following?.testPart !== current.testPart) holders.push({ rules: current.testPart.branchRule });
+
+	for (const { rules, exitSection } of holders) {
+		for (const rule of rules ?? []) {
+			if (rule.conditionXml && !evaluateTestCondition(rule.conditionXml, decls, rng, onError)) continue;
+			const target = resolveBranchTarget(rule.target, delivered, index, exitSection);
+			if (target !== undefined) return target;
+		}
+	}
+	return undefined;
+}
+
+/** The delivered-item shape literal branch-target resolution reads (`DeliveredItem` and `FlatItem` both). */
+export type ScopedDeliveredItem = {
+	item: { identifier: string };
+	/** Enclosing sections, outermost first. */
+	sections: readonly { identifier: string }[];
+	testPart: { identifier: string };
+};
+
+/**
+ * The one literal branch-target resolver both live engines share — the reference backend's
+ * `resolveBranchTarget` and the client's `exitBoundaries.branchTargetIndex` — so identical
+ * branch XML cannot branch differently on the two paths. Forward-only per QTI 2.2 §5.15
+ * ("the test jumps forward … the target must refer to an item or section … that has not yet
+ * been presented"): the first delivered item strictly after `currentIndex` whose item,
+ * enclosing-section, or test-part identifier matches `target`, tried in that order;
+ * `undefined` when none does. A target naming an already-presented item therefore resolves
+ * to nothing (the rule is skipped, delivery falls through), never backwards.
+ */
+export function firstForwardBranchTarget(
+	target: string,
+	items: readonly ScopedDeliveredItem[],
+	currentIndex: number,
+): number | undefined {
+	return (
+		firstAfter(items, currentIndex, (item) => item.item.identifier === target) ??
+		firstAfter(items, currentIndex, (item) => item.sections.some((section) => section.identifier === target)) ??
+		firstAfter(items, currentIndex, (item) => item.testPart.identifier === target)
+	);
+}
+
+/** The first element strictly after `from` that satisfies `match`; undefined when none does. */
+function firstAfter<T>(items: readonly T[], from: number, match: (item: T) => boolean): number | undefined {
+	for (let j = from + 1; j < items.length; j++) if (match(items[j]!)) return j;
+	return undefined;
+}
+
+/** Index a branch target resolves to, forward of `index`; delivered.length ends the test. */
+function resolveBranchTarget(
+	target: string,
+	delivered: DeliveredItem[],
+	index: number,
+	exitSection: SecureSection | undefined,
+): number | undefined {
+	const current = delivered[index]!;
+	switch (target) {
+		case 'EXIT_TEST':
+			return delivered.length;
+		case 'EXIT_TESTPART':
+			return firstAfter(delivered, index, (d) => d.testPart !== current.testPart) ?? delivered.length;
+		case 'EXIT_SECTION':
+			if (!exitSection) return undefined;
+			return firstAfter(delivered, index, (d) => !d.sections.includes(exitSection)) ?? delivered.length;
+		default:
+			return firstForwardBranchTarget(target, delivered, index);
+	}
+}
+
+/**
+ * First item from `start` whose preconditions hold. A test part's are checked on entering it in
+ * any navigation mode; a newly entered section's (outermost first) and the item's only in linear
+ * navigation. A failing part or section skips everything inside it. `onError` receives any
+ * condition evaluation failure (see `evaluateTestCondition`).
+ */
+export function firstEligibleItem(
+	assessment: SecureAssessment,
+	delivered: DeliveredItem[],
+	start: number,
+	from: DeliveredItem | undefined,
+	decls: DeclarationMap,
+	rng: () => number,
+	onError?: (expressionXml: string, error: unknown) => void,
+): string | undefined {
+	const holds = (conditions: string[] | undefined): boolean =>
+		(conditions ?? []).every((condition) => evaluateTestCondition(condition, decls, rng, onError));
+	const skipPast = (j: number, inside: (d: DeliveredItem) => boolean): number => {
+		let next = j + 1;
+		while (next < delivered.length && inside(delivered[next]!)) next++;
+		return next;
+	};
+	let j = start;
+	candidates: while (j < delivered.length) {
+		const candidate = delivered[j]!;
+		const previous = j === start ? from : delivered[j - 1];
+		if (candidate.testPart !== previous?.testPart && !holds(candidate.testPart.preConditions)) {
+			j = skipPast(j, (d) => d.testPart === candidate.testPart);
+			continue;
+		}
+		if (isLinear(assessment, candidate.testPart)) {
+			for (const section of candidate.sections) {
+				if (previous?.sections.includes(section) || holds(section.preConditions)) continue;
+				j = skipPast(j, (d) => d.sections.includes(section));
+				continue candidates;
+			}
+			if (!holds(candidate.item.preConditions)) {
+				j++;
+				continue;
+			}
+		}
+		return candidate.item.identifier;
+	}
+	return undefined;
+}
+
+function isLinear(assessment: SecureAssessment, testPart: SecureTestPart): boolean {
+	return (testPart.navigationMode ?? assessment.navigationMode) === 'linear';
 }
 
 /**
@@ -362,6 +566,46 @@ export function addItemVariableDeclarations(
 	return decls;
 }
 
+/** Millisecond scope clocks the timing state carries; absent clocks read as 0 seconds. */
+export interface ScopeTiming {
+	/** Total assessment elapsed time (ms). */
+	totalTime?: number;
+	/** Elapsed time per testPart identifier (ms). */
+	testPartTimes?: Record<string, number>;
+	/** Elapsed time per section identifier (ms). */
+	sectionTimes?: Record<string, number>;
+}
+
+/**
+ * Adds the QTI built-in duration variables test-scope expressions read: `duration` for the whole
+ * test, `TESTPART_ID.duration` and `SECTION_ID.duration` for each delivered part and section.
+ * QTI durations are seconds; the timing state keeps milliseconds, so the values are converted.
+ * Authored identifiers win: an existing declaration is never replaced.
+ */
+export function addScopeDurationDeclarations(
+	decls: DeclarationMap,
+	assessment: SecureAssessment,
+	timing: ScopeTiming | undefined,
+): DeclarationMap {
+	const durationSeconds = (ms: number | undefined): number =>
+		durationSecondsFromMilliseconds(Number(ms) || 0);
+	const putDuration = (identifier: string, seconds: number): void => {
+		if (!decls[identifier]) decls[identifier] = declaration(identifier, qtiValue('duration', 'single', seconds));
+	};
+	putDuration('duration', durationSeconds(timing?.totalTime));
+	const visitSections = (sections: readonly SecureSection[]): void => {
+		for (const section of sections) {
+			putDuration(`${section.identifier}.duration`, durationSeconds(timing?.sectionTimes?.[section.identifier]));
+			visitSections(section.sections ?? []);
+		}
+	};
+	for (const testPart of assessment.testParts ?? []) {
+		putDuration(`${testPart.identifier}.duration`, durationSeconds(timing?.testPartTimes?.[testPart.identifier]));
+		visitSections(testPart.sections ?? []);
+	}
+	return decls;
+}
+
 /** Item variables with each variableMapping's source also readable as its target identifier. */
 export function applyVariableMappings(
 	variables: Record<string, QtiValue>,
@@ -381,16 +625,36 @@ export function evaluateTestExpression(expressionXml: string, decls: Declaration
 	const root = parseXml(expressionXml).documentElement;
 	if (!root) return qtiNull();
 	const expr = buildExpression(root, { scope: 'test', elementNameMapper: qtiElementNameMapper });
-	return evalExpr({ ctx: new DeclarationContext(structuredClone(decls)), ops: new OperatorRegistry(), rng }, expr);
+	return evalExpr({ ctx: new DeclarationContext(structuredClone(decls)), rng }, expr);
 }
 
-/** True only when the expression evaluates to boolean true; NULL and errors read as false. */
-export function evaluateTestCondition(expressionXml: string, decls: DeclarationMap, rng: () => number): boolean {
+/**
+ * True only when the expression evaluates to boolean true; NULL reads as false (QTI:
+ * a NULL condition result is false).
+ *
+ * An evaluation ERROR also reads as false, but unlike a NULL it is reported: delivery
+ * proceeds on the default path (a broken branchRule or preCondition must never abort a
+ * candidate's test), yet the failure is never indistinguishable from an authored false.
+ * Callers that own an error surface pass `onError` — the AssessmentPlayer reports a
+ * coded `testConditionFailed` through `config.onError` — and without one the failure
+ * stays a console warning (the reference backend's own evaluation).
+ *
+ * Documented divergence from the strict spec reading: QTI 2.1/3.0 leave undefined how
+ * delivery proceeds when a condition expression cannot be evaluated; reading it as
+ * false keeps delivery on the default path and reporting keeps it observable.
+ */
+export function evaluateTestCondition(
+	expressionXml: string,
+	decls: DeclarationMap,
+	rng: () => number,
+	onError?: (expressionXml: string, error: unknown) => void,
+): boolean {
 	try {
 		const out = evaluateTestExpression(expressionXml, decls, rng);
 		return out.kind === 'value' && out.value === true;
 	} catch (err) {
-		console.warn('[assessment-player] test condition failed to evaluate:', err);
+		if (onError) onError(expressionXml, err);
+		else console.warn('[assessment-player] test condition failed to evaluate:', err);
 		return false;
 	}
 }
@@ -398,4 +662,75 @@ export function evaluateTestCondition(expressionXml: string, decls: DeclarationM
 /** Plain value of a QTI value, null for NULL, in the shape item template defaults take. */
 export function plainQtiValue(value: QtiValue): unknown {
 	return value.kind === 'value' ? value.value : null;
+}
+
+/** A serialized item-session variable, as `SerializedItemSessionState` carries it. */
+interface SerializedVariableShape {
+	baseType?: string;
+	cardinality: string;
+	value: unknown;
+}
+
+/**
+ * The QTI values of a serialized item session's response, outcome and template
+ * variables (NULL where unset), keyed by variable identifier — the item's variables a
+ * test-scope expression reads as `ITEM.VARIABLE`.
+ */
+export function itemSessionVariableValues(session: {
+	responseVariables?: Record<string, SerializedVariableShape>;
+	outcomeVariables?: Record<string, SerializedVariableShape>;
+	templateVariables?: Record<string, SerializedVariableShape>;
+}): Record<string, QtiValue> {
+	const out: Record<string, QtiValue> = {};
+	for (const group of [session.responseVariables, session.outcomeVariables, session.templateVariables]) {
+		for (const [identifier, variable] of Object.entries(group ?? {})) {
+			out[identifier] = toQtiValue(variable.baseType as string, variable.cardinality, variable.value);
+		}
+	}
+	return out;
+}
+
+/**
+ * An item's variables as test-level branch rules and preconditions read them (`ITEM.VARIABLE`),
+ * in the shape the reference backend records after a counted submission (its item test state):
+ * the session's context (numAttempts, duration, completionStatus), template, outcome and response
+ * variables, with `scoredOutcomes` — the backend's scored outcome values, authoritative where the
+ * delivered item carries no response processing — over them, typed by the session's own
+ * declarations (a value without one is read as the reference backend reads a bare score: a
+ * number as float, anything else as string). Record outcomes keep the session's value.
+ */
+export function recordedItemVariableValues(
+	session:
+		| {
+				contextVariables?: Record<string, SerializedVariableShape>;
+				responseVariables?: Record<string, SerializedVariableShape>;
+				outcomeVariables?: Record<string, SerializedVariableShape>;
+				templateVariables?: Record<string, SerializedVariableShape>;
+		  }
+		| undefined,
+	scoredOutcomes: Record<string, unknown> | undefined,
+): Record<string, QtiValue> {
+	const out: Record<string, QtiValue> = {};
+	for (const group of [
+		session?.contextVariables,
+		session?.templateVariables,
+		session?.outcomeVariables,
+		session?.responseVariables,
+	]) {
+		for (const [identifier, variable] of Object.entries(group ?? {})) {
+			out[identifier] = toQtiValue(variable.baseType as string, variable.cardinality, variable.value);
+		}
+	}
+	for (const [identifier, value] of Object.entries(scoredOutcomes ?? {})) {
+		const declared = out[identifier];
+		if (value === undefined || declared?.cardinality === 'record') continue;
+		if (declared?.baseType) {
+			out[identifier] = toQtiValue(declared.baseType, declared.cardinality ?? 'single', value);
+		} else if (typeof value === 'number') {
+			out[identifier] = qtiValue('float', 'single', value);
+		} else if (value !== null && typeof value !== 'object') {
+			out[identifier] = qtiValue('string', 'single', String(value));
+		}
+	}
+	return out;
 }

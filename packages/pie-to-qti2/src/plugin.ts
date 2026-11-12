@@ -17,7 +17,9 @@ import {
   type TransformPlugin,
   sourceDigest,
 } from '@pie-qti/transform-types';
+import { createAssessmentGenerator } from './generators/assessment.js';
 import { generateManifest } from './generators/manifest-generator.js';
+import { escapeXml } from './utils/qti-builder.js';
 import {
   generatePassageFile,
   generatePassageFromStimulus,
@@ -408,6 +410,8 @@ export class PieToQtiPlugin implements TransformPlugin {
             dependencies: generatedPassageFiles.map(pf => pf.id),
             baseId: pieItem.baseId,
             extensions: pieItem.extensions,
+            curriculumStandards: pieItem.curriculumStandards,
+            skillLevels: pieItem.skillLevels,
           },
         ],
         passages: generatedPassageFiles.map(pf => ({
@@ -435,8 +439,6 @@ export class PieToQtiPlugin implements TransformPlugin {
   private transformAssessment(assessment: any, startTime: number, logger: any): TransformOutput {
     logger?.info('Transforming PIE assessment to QTI assessmentTest');
 
-    // Dynamically import and use AssessmentGenerator
-    const { createAssessmentGenerator } = require('./generators/assessment.js');
     const generator = createAssessmentGenerator();
 
     if (!generator.canHandle(assessment)) {
@@ -453,7 +455,7 @@ export class PieToQtiPlugin implements TransformPlugin {
     };
 
     const result = generator.generate(context);
-    const warnings: string[] = [...(result.warnings || [])];
+    const warnings: string[] = [...(result.metadata?.warnings || [])];
     const catalogWarning = catalogsNotExportedWarning(
       `Assessment "${assessment.identifier || assessment.id}"`,
       assessment,
@@ -663,11 +665,3 @@ function hasQtiSource(pieItem: PieItem): boolean {
 /**
  * Escape XML special characters
  */
-function escapeXml(unsafe: string): string {
-  return String(unsafe)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}

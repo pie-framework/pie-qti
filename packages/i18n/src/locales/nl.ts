@@ -55,14 +55,6 @@ export default {
 		errorNoData: 'Geen interactiegegevens verstrekt',
 	},
 
-	units: {
-		bytes: '{count} bytes',
-		kilobytes: '{count} KB',
-		megabytes: '{count} MB',
-		seconds: '{count} seconden',
-		minutes: '{count} minuten',
-		hours: '{count} uren',
-	},
 
 	// Meervoudsvoorbeelden
 	// Gebruik i18n.plural('plurals.items', { count: n }) om deze te benaderen
@@ -105,13 +97,6 @@ export default {
 		},
 	},
 
-	validation: {
-		required: 'Dit veld is verplicht',
-		invalidFormat: 'Ongeldig formaat',
-		tooShort: 'Te kort (minimaal {min} tekens)',
-		tooLong: 'Te lang (maximaal {max} tekens)',
-		outOfRange: 'Waarde moet tussen {min} en {max} liggen',
-	},
 
 	interactions: {
 		choice: {
@@ -122,6 +107,13 @@ export default {
 			correct: 'Correct',
 			revealChoice: 'Keuze {index} tonen',
 			groupLabel: 'Antwoordopties',
+			maxChoicesReached: 'Je kunt maximaal {max} selecteren. Deselecteer er een om een andere te kiezen.',
+			clearAnswer: 'Antwoord wissen',
+			minChoicesHint: {
+				one: 'Selecteer minimaal {count} antwoord.',
+				other: 'Selecteer minimaal {count} antwoorden.',
+			},
+			eliminateChoice: 'Uitsluiten',
 		},
 
 		upload: {
@@ -138,6 +130,8 @@ export default {
 			errorReadFailed: 'Kan bestand niet lezen',
 			errorTooLarge: 'Bestand is te groot (maximaal {max} MB)',
 			unknownType: 'Onbekend bestandstype',
+			fileRemoved: 'Bestand verwijderd.',
+			errorFileTooLarge: 'Bestand {filename} is te groot. De maximale grootte is {maxBytes} bytes.',
 		},
 
 		drawing: {
@@ -153,6 +147,8 @@ export default {
 			updated: 'Tekening bijgewerkt.',
 			cleared: 'Tekening gewist.',
 			generated: 'Gegenereerd:',
+			imageFallback: 'Achtergrond van de tekening',
+			imageLoadError: 'De achtergrondafbeelding kon niet worden geladen.',
 		},
 
 		extendedText: {
@@ -164,15 +160,43 @@ export default {
 			underline: 'Onderstreept',
 			bulletList: 'Opsommingslijst',
 			numberedList: 'Genummerde lijst',
-			insertMath: 'Wiskundige vergelijking invoegen',
 			insertInlineMath: 'Inline wiskunde invoegen',
 			insertBlockMath: 'Wiskundeblok invoegen',
-			enterMathExpression: 'Voer je wiskundige expressie in:',
-			latexSource: 'LaTeX-bron:',
-			keyboard: 'Toetsenbord',
+			responseLabel: 'Antwoord',
+			responseNumber: 'Antwoord {number}',
+			addResponse: 'Antwoord toevoegen',
+			removeResponseNumber: 'Antwoord {number} verwijderen',
+			responseRemoved: 'Antwoord {number} verwijderd.',
+			charactersRemaining: {
+				one: 'Nog {count} teken over',
+				other: 'Nog {count} tekens over',
+			},
+			expectedLengthReached: {
+				one: 'Verwachte lengte van {count} teken bereikt.',
+				other: 'Verwachte lengte van {count} tekens bereikt.',
+			},
+			correctAnswerHeading: 'Juist antwoord:',
+			editMath: 'Wiskunde bewerken',
+			minStringsHint: {
+				one: 'Schrijf ten minste {count} antwoord.',
+				other: 'Schrijf ten minste {count} antwoorden.',
+			},
+			minStringsRemoveRefused: 'Antwoord niet verwijderd: er zijn ten minste {count} antwoorden nodig.',
+			patternMismatch: 'Dit antwoord heeft niet de verwachte notatie.',
+		},
+
+		mathInput: {
+			insertInlineTitle: 'Inline wiskunde invoegen',
+			insertBlockTitle: 'Wiskundeblok invoegen',
+			editInlineTitle: 'Inline wiskunde bewerken',
+			editBlockTitle: 'Wiskundeblok bewerken',
+			instructions: 'Typ de expressie of open het wiskundetoetsenbord. Druk op Escape om te annuleren.',
+			fieldLabel: 'Wiskundige expressie',
+			latexSourceLabel: 'LaTeX-bron',
+			latexEmpty: 'De LaTeX-code verschijnt hier',
+			toggleKeyboard: 'Wiskundetoetsenbord',
 			update: 'Bijwerken',
 			insert: 'Invoegen',
-			correctAnswerHeading: 'Juist antwoord:',
 		},
 
 		slider: {
@@ -183,13 +207,17 @@ export default {
 			step: 'Stap: {step}',
 			ariaLabel: 'Schuifregelaarwaarde van {lowerBound} tot {upperBound}',
 			statTitle: 'Geselecteerde waarde',
+			noValueSelected: 'Geen waarde geselecteerd',
 		},
 
 		hottext: {
 			selected: 'Geselecteerd:',
 			selectText: 'Selecteer tekst uit de passage',
-			clearSelection: 'Selectie wissen',
 			ariaLabel: 'Tekstselectie-interactie',
+			maxChoicesReached: 'Je kunt maximaal {max} selecteren. Deselecteer er een om een andere te kiezen.',
+			// Geen vinkje: HottextInteraction plaatst zelf een "✓ " voor dit kenmerk.
+			minimumMet: 'Minimum bereikt',
+			selectAtLeast: 'Selecteer minimaal {minChoices}',
 		},
 
 		hotspot: {
@@ -200,9 +228,19 @@ export default {
 			unknownImageDimensions:
 				'Deze hotspot kan niet worden weergegeven: de afmetingen van de afbeelding zijn onbekend, waardoor de selecteerbare gebieden niet geplaatst kunnen worden. Voeg breedte en hoogte toe aan de afbeelding of geef de afmetingen van het bestand op.',
 			correctList: 'Juist: {ids}',
+			imageFallback: 'Afbeelding bij deze vraag',
+			imageLoadError: 'De afbeelding kon niet worden geladen.',
+			regionOfTotal: 'Gebied {index} van {total}',
+			selectedRegion: 'Geselecteerd: {region}',
+			maxChoicesReached: 'Je kunt maximaal {max} selecteren. Deselecteer er een om een andere te kiezen.',
+			minChoicesHint: {
+				one: 'Selecteer minimaal {count} gebied.',
+				other: 'Selecteer minimaal {count} gebieden.',
+			},
 		},
 
 		selectPoint: {
+			unknownImageDimensions: 'Deze select-point-interactie kan niet worden getoond: de afmetingen van de afbeelding zijn onbekend, dus punten kunnen niet correct worden geplaatst. Voeg breedte en hoogte toe aan de afbeelding, of geef de afmetingen van het bestand op.',
 			instruction: 'Klik op de afbeelding om punten te selecteren',
 			instructionAria: 'Klik om punten op de afbeelding te selecteren',
 			maxPointsReached: 'Maximaal aantal punten bereikt. Verwijder een punt om een nieuwe toe te voegen.',
@@ -217,6 +255,16 @@ export default {
 			minimumMet: '✓ Minimum bereikt',
 			selectAtLeast: 'Selecteer minimaal {minChoices}',
 			correctPointAt: 'Punt van het juiste antwoord op coördinaten {x}, {y}',
+			imageFallback: 'Afbeelding bij deze vraag',
+			imageLoadError: 'De afbeelding kon niet worden geladen.',
+			stageLabel: 'Gebied voor het kiezen van punten',
+			keyboardInstructions: 'Klik op de afbeelding om een punt te plaatsen. Met het toetsenbord: zet de focus op de afbeelding, verplaats het vizier met de pijltjestoetsen (houd Shift ingedrukt voor kleinere stappen) en druk op Enter of spatie om een punt te plaatsen.',
+			placedPoints: 'Geplaatste punten',
+			pointAtPercent: 'Punt {index} op {x}%, {y}%',
+			percentPosition: '{x}%, {y}%',
+			pointPlaced: 'Punt {index} geplaatst op {x}%, {y}%.',
+			pointRemoved: 'Punt {index} verwijderd.',
+			allPointsRemoved: 'Alle punten verwijderd.',
 		},
 
 		match: {
@@ -241,18 +289,26 @@ export default {
 			navigateToTarget: 'Navigeer naar een doel en druk op Spatie of Enter om te koppelen',
 			selectionCancelled: 'Selectie geannuleerd',
 			matchCleared: 'Koppeling gewist voor {item}',
-			maxReached: 'Maximum aantal koppelingen bereikt. Verwijder een paar om een nieuw paar toe te voegen.',
+			associationLimitReached: 'Koppeling niet mogelijk: de limiet van {max} is bereikt.',
+			sourceLimitReached: 'Niet mogelijk: {label} kan niet in meer koppelingen zitten.',
 			pairCreated: '{source} gekoppeld aan {target}.',
+			minAssociationsHint: {
+				one: 'Maak minimaal {count} koppeling.',
+				other: 'Maak minimaal {count} koppelingen.',
+			},
+			minChoiceUsesHint: 'Heeft meer koppelingen nodig: {items}.',
 			matchedWithSentence: 'Gekoppeld aan {targets}.',
 			selectedForMatchingSentence: 'Geselecteerd voor koppeling.',
 			availableForMatchingSentence: 'Beschikbaar voor koppeling.',
 			notCompatibleSentence: 'Niet compatibel met de geselecteerde bron.',
+			selectionCancelledItem: 'Selectie van {item} geannuleerd.',
 		},
 
 		gapMatch: {
-			filledGapAriaLabelWithHeld: 'Lege plek {gapId}, ingevuld met {word}. Selecteer om te vervangen door {heldWord}.',
-			blankGapAriaLabelWithHeld: 'Lege plek {gapId}. Selecteer om {heldWord} hier te plaatsen.',
-			placed: '{word} is geplaatst in lege plek {gapId}.',
+			filledGapAriaLabelWithHeld: 'Lege plek {position} van {total}, ingevuld met {word}. Selecteer om te vervangen door {heldWord}.',
+			blankGapAriaLabelWithHeld: 'Lege plek {position} van {total}. Selecteer om {heldWord} hier te plaatsen.',
+			placed: '{word} is geplaatst in lege plek {position} van {total}.',
+			associationLimitReached: 'Koppeling niet mogelijk: de limiet van {max} is bereikt.',
 			pointerInstructions: 'Selecteer een woord en daarna een lege plek. Je kunt ook slepen.',
 			instruction: 'Sleep woorden om de lege plaatsen in te vullen',
 			available: 'Beschikbare woorden',
@@ -262,8 +318,14 @@ export default {
 			removeFromBlanks: '{word} verwijderen uit de lege plaatsen',
 			selectPlaceholder: 'Selecteren...',
 			gapAriaLabel: 'Gat {gapId}',
-			blankGapAriaLabel: 'Lege plek {gapId}. Sleep hier een antwoord naartoe.',
-			filledGapAriaLabel: 'Lege plek {gapId}, ingevuld met {word}. Klik om te wissen.',
+			blankGapAriaLabel: 'Lege plek {position} van {total}. Sleep hier een antwoord naartoe.',
+			filledGapAriaLabel: 'Lege plek {position} van {total}, ingevuld met {word}. Selecteer om te wissen.',
+			wordSelected: '{word} opgepakt. Selecteer een lege plek om het te plaatsen, of druk op Escape om te annuleren.',
+			pickUpCancelled: 'Het oppakken van {word} is geannuleerd.',
+			minPlacementsHint: 'Nog te plaatsen in de lege plekken: {words}.',
+			notCompatibleSentence: 'Niet compatibel met het geselecteerde woord.',
+			wordRemovedFromBlanks: '{word} verwijderd uit de gaten.',
+			requiredBlanksLegend: 'Lege plekken met een * zijn verplicht.',
 		},
 
 		graphicGapMatch: {
@@ -286,9 +348,8 @@ export default {
 			pickedUp: 'Opgepakt: {label}. Ga met Tab naar een hotspot en druk op Enter om het te plaatsen.',
 			alreadyPlacedSentence: 'Al geplaatst op een hotspot.',
 			unavailableSentence: 'Niet beschikbaar door een beperking van de koppelgroep.',
-			heldHint: 'Opgepakt. Ga met Tab naar een hotspot en druk op Enter om het te plaatsen.',
+			heldHint: 'Ga met Tab naar een hotspot en druk op Enter om het te plaatsen.',
 			pickUpHint: 'Druk op Spatie of Enter om op te pakken.',
-			selectedHint: 'Geselecteerd voor plaatsing.',
 			selectHint: 'Druk op Spatie om te selecteren.',
 			hotspotContains: 'Hotspot {number}. Bevat {label}.',
 			hotspotCorrectAnswer: 'Hotspot {number}. Juist antwoord: {label}.',
@@ -298,11 +359,17 @@ export default {
 			placeLabelHint: 'Druk op Spatie of Enter om het label te plaatsen.',
 			labelFallback: 'Label',
 			pickUpInstructions: 'Druk op Spatie of Enter om een label op te pakken. Tab naar een hotspot op de afbeelding en druk op Enter om het te plaatsen. Druk op Escape om te annuleren.',
+			imageFallback: 'Afbeelding bij deze vraag',
+			imageLoadError: 'De afbeelding kon niet worden geladen.',
+			unknownImageDimensions: 'De hotspots kunnen niet worden weergegeven: de afmetingen van de afbeelding zijn onbekend. Voeg breedte en hoogte toe aan de afbeelding.',
+			minPlacementsHint: 'Nog te plaatsen op de gebieden: {labels}.',
+			associationLimitReached: 'Koppeling niet mogelijk: de limiet van {max} is bereikt.',
 		},
 
 		order: {
-			moveEarlier: 'Naar voren',
-			moveLater: 'Naar achteren',
+			moveEarlierItem: '{item} naar voren verplaatsen',
+			moveLaterItem: '{item} naar achteren verplaatsen',
+			eliminateItem: '{item} schrappen',
 			instruction: 'Gebruik de verplaatsknoppen of sleep items om de volgorde te wijzigen.',
 			keyboardInstructions: 'Druk op Spatie of Enter om een item te pakken. Gebruik pijltjestoetsen om het item te verplaatsen. Druk opnieuw op Spatie of Enter om neer te zetten. Druk op Escape om te annuleren.',
 			grabbed: 'Gepakt. Gebruik pijltjestoetsen om te verplaatsen.',
@@ -317,9 +384,32 @@ export default {
 			itemDropped: '{item} neergezet op positie {position} van {total}',
 			itemMoved: '{item} verplaatst naar positie {position} van {total}',
 			selectionCancelled: '{item} selectie geannuleerd',
-			itemPosition: '{item}. Positie {position} van {total}.',
 			itemFallback: 'Item',
 			orderConfirmed: 'Volgorde bevestigd',
+			minChoicesHint: {
+				one: 'Zet minimaal {count} item in volgorde.',
+				other: 'Zet minimaal {count} items in volgorde.',
+			},
+			yourOrder: 'Jouw volgorde',
+			notInOrder: 'Niet in je volgorde',
+			emptyOrder: 'Er staat nog niets in je volgorde.',
+			addItem: '{item} aan je volgorde toevoegen',
+			removeItem: '{item} uit je volgorde verwijderen',
+			itemAdded: '{item} toegevoegd aan je volgorde op positie {position} van {total}.',
+			itemRemoved: '{item} verwijderd uit je volgorde.',
+			orderLimitReached: {
+				one: 'Je volgorde kan {max} item bevatten. Verwijder het om een ander toe te voegen.',
+				other: 'Je volgorde kan maximaal {max} items bevatten. Verwijder er een om een ander toe te voegen.',
+			},
+			correctOrder: 'Juiste volgorde',
+			subsetExactHint: {
+				one: 'Kies {count} item voor je volgorde.',
+				other: 'Kies {count} items en zet ze in volgorde.',
+			},
+			subsetRangeHint: {
+				one: 'Kies {min} tot {max} item en zet ze in volgorde.',
+				other: 'Kies {min} tot {max} items en zet ze in volgorde.',
+			},
 		},
 
 		associate: {
@@ -342,9 +432,24 @@ export default {
 			clickHotspotsToAssociate: 'Klik op twee hotspots op de afbeelding om een associatie te maken.',
 			clickAnotherHotspot: 'Geselecteerd: <strong>{label}</strong>. Klik op een andere hotspot om een associatie te maken.',
 			removeAssociationBetween: 'Associatie tussen {first} en {second} verwijderen',
+			inPairSentence: 'Zit in een associatie.',
+			removedAssociationBetween: 'Associatie tussen {first} en {second} verwijderd.',
+			minAssociationsHint: {
+				one: 'Maak minimaal {count} associatie.',
+				other: 'Maak minimaal {count} associaties.',
+			},
+			minChoiceUsesHint: 'Heeft meer associaties nodig: {items}.',
+			maxAssociationsHint: {
+				one: 'U kunt maximaal {count} associatie maken.',
+				other: 'U kunt maximaal {count} associaties maken.',
+			},
+			choiceLimitReached: 'Niet mogelijk: {label} kan niet in meer associaties zitten.',
+			associationLimitReached: 'Associatie niet mogelijk: de limiet van {max} is bereikt.',
+			notAvailableSentence: 'Niet beschikbaar door een beperking van de koppelgroep.',
 		},
 
 		positionObject: {
+			unknownImageDimensions: 'Objecten kunnen niet worden geplaatst: de afmetingen van de sferafbeelding zijn onbekend. Voeg breedte en hoogte toe aan de afbeelding, of geef de afmetingen van het bestand op.',
 			instruction: 'Sleep objecten op de afbeelding',
 			placeObject: 'Plaats {object} op afbeelding',
 			removeObject: 'Verwijder {object}',
@@ -354,25 +459,39 @@ export default {
 			positioned: '{label} gepositioneerd op ({x}, {y})',
 			minimumRequired: 'Minimaal vereist: {minChoices}',
 			maximumAllowed: 'Maximum: {maxChoices}',
+			maxChoicesReached: {
+				one: 'Plaatsen niet mogelijk: de limiet van {max} is bereikt.',
+				other: 'Plaatsen niet mogelijk: de limiet van {max} is bereikt.',
+			},
+			objectLimitReached: 'Niet mogelijk: {object} kan niet opnieuw worden geplaatst.',
 			availableObjects: 'Beschikbare objecten',
-			objectUsage: '{label} ({usageCount}/{matchMax} gebruikt)',
 			availableObjectsCount: 'Beschikbare objecten ({count}/{max})',
 			dragObjectsInstruction: 'Sleep objecten op het canvas om ze te positioneren.',
 			used: '{usageCount}/{matchMax} gebruikt',
+			usedUnlimited: '{usageCount} gebruikt, onbeperkt',
 			objectSelected: '{object} geselecteerd. Ga met Tab naar het canvas en gebruik de pijltjestoetsen om het te positioneren. Druk op Enter om het te plaatsen of op Escape om te annuleren.',
 			objectPlacedAt: '{object} geplaatst op {x}%, {y}%.',
 			placementCancelled: 'Plaatsing geannuleerd.',
 			correctPositionFor: 'Juiste positie voor {label} op ({x}, {y})',
 			availableObjectsTotal: 'Beschikbare objecten ({count})',
 			paletteInstructions: 'Sleep objecten op het canvas, of druk op Enter of Spatie op een object en gebruik de pijltjestoetsen om het op het canvas te positioneren.',
+			imageFallback: 'Afbeelding bij deze vraag',
+			imageLoadError: 'De afbeelding kon niet worden geladen.',
+			objectFallback: 'Voorwerp {index}',
+			objectRemoved: '{object} verwijderd.',
+			canvasActiveLabel: 'Positioneringsvlak: gebruik de pijltjestoetsen om het vizier te verplaatsen, Enter om te plaatsen en Escape om te annuleren',
+			placedAtPercent: '{label} op {x}%, {y}%',
+			correctPositionAtPercent: 'Juiste positie voor {label}: {x}%, {y}%',
 		},
 
 		endAttempt: {
 			buttonLabel: 'Poging beëindigen',
 			ended: 'Poging beëindigd',
 			requested: 'Aangevraagd',
-			warningMessage: 'Je poging is beëindigd en kan niet meer worden gewijzigd.',
+			warningMessage: 'Je poging is beëindigd.',
 			confirmMessage: 'Weet je zeker dat je je poging wilt beëindigen? Je kunt je antwoorden niet meer wijzigen.',
+			confirm: 'Ja, poging beëindigen',
+			cancel: 'Annuleren',
 		},
 
 		media: {
@@ -389,19 +508,34 @@ export default {
 			ariaLabel: 'Media-inhoud',
 			maxPlayLimitReached: 'Maximale afspeellimiet bereikt',
 			playCount: 'Aantal keer afgespeeld:',
-			remaining: 'Resterend:',
 			requirementMet: '✓ Vereiste voldaan',
 			playAtLeastCount: {
 				one: 'Speel minimaal {count} keer af',
 				other: 'Speel minimaal {count} keer af',
 			},
 			browserNoSupport: 'Je browser ondersteunt dit mediatype niet.',
+			playsLeft: {
+				one: 'Nog {count} keer af te spelen',
+				other: 'Nog {count} keer af te spelen',
+			},
+			playStartedOfMax: 'Afspeelbeurt {count} van {max} gestart.',
+			playStarted: 'Afspeelbeurt {count} gestart.',
+			requiredPlaysReached: 'Vereist aantal afspeelbeurten bereikt.',
+			controls: 'Mediabediening',
+			captions: 'Ondertitels',
+			captionsOff: 'Uit',
+			playsNeeded: {
+				one: 'Nog {count} keer afspelen vereist',
+				other: 'Nog {count} keer afspelen vereist',
+			},
+			trackFallbackLabel: 'Spoor {index}',
 			audioNoSupport: 'Je browser ondersteunt het audio-element niet.',
 			videoNoSupport: 'Je browser ondersteunt het video-element niet.',
 			objectDisabled: 'Dit item gebruikt een ingesloten objecttype dat standaard is uitgeschakeld om veiligheidsredenen.',
 		},
 
 		graphicOrder: {
+			unknownImageDimensions: 'De gebieden kunnen niet worden getoond: de afmetingen van de afbeelding zijn onbekend. Voeg breedte en hoogte toe aan de afbeelding, of geef de afmetingen van het bestand op.',
 			instruction: 'Klik op hotspots om ze te ordenen',
 			diagramLabel: 'Ordeningsdiagram',
 			altText: 'Ordeningsdiagram',
@@ -410,6 +544,47 @@ export default {
 			confirmOrder: 'Volgorde bevestigen',
 			confirmOrderNoChanges: 'Volgorde bevestigen (Geen wijzigingen)',
 			confirmAria: 'Bevestig deze volgorde als je antwoord',
+			imageFallback: 'Afbeelding bij deze vraag',
+			imageLoadError: 'De afbeelding kon niet worden geladen.',
+			unlabeledItem: 'Onderdeel {index}',
+			minChoicesHint: {
+				one: 'Zet minimaal {count} item in volgorde.',
+				other: 'Zet minimaal {count} items in volgorde.',
+			},
+			subsetExactHint: {
+				one: 'Kies {count} item voor je volgorde.',
+				other: 'Kies {count} items en zet ze in volgorde.',
+			},
+			subsetRangeHint: {
+				one: 'Kies {min} tot {max} item en zet ze in volgorde.',
+				other: 'Kies {min} tot {max} items en zet ze in volgorde.',
+			},
+		},
+
+		graphicAssociate: {
+			unknownImageDimensions: 'Deze grafische koppeling kan niet worden getoond: de afmetingen van de afbeelding zijn onbekend, dus de hotspots kunnen niet worden geplaatst. Voeg breedte en hoogte toe aan de afbeelding, of geef de afmetingen van het bestand op.',
+			imageFallback: 'Afbeelding bij deze vraag',
+			imageLoadError: 'De afbeelding kon niet worden geladen.',
+			unlabeledHotspot: 'Gebied {index}',
+			hotspotConnections: '{label} ({usageCount}/{matchMax} verbindingen)',
+			hotspotConnectionsUnlimited: '{label} ({usageCount} verbindingen, onbeperkt)',
+			notAvailableSentence: 'Niet beschikbaar door een beperking van de koppelgroep.',
+			selectAnotherHotspot: 'Geselecteerd: {label}. Selecteer nog een hotspot om een associatie te maken.',
+			associationsCount: 'Associaties ({count}/{max})',
+			associationsCountUnlimited: 'Associaties ({count})',
+			clickHotspotsToAssociate: 'Selecteer twee hotspots op de afbeelding om een associatie te maken.',
+			pairDescription: '{first} geassocieerd met {second}',
+			removeAssociation: 'Associatie tussen {first} en {second} verwijderen',
+			minimumRequired: 'Minimaal vereist: {minAssociations}',
+			associationMade: 'Koppeling gemaakt.',
+			associationRemoved: 'Koppeling verwijderd.',
+			associationLimitReached: 'Koppeling niet mogelijk: de limiet van {max} is bereikt.',
+			hotspotLimitReached: 'Niet mogelijk: {label} kan niet in meer koppelingen zitten.',
+			minAssociationsHint: {
+				one: 'Maak minimaal {count} associatie.',
+				other: 'Maak minimaal {count} associaties.',
+			},
+			minHotspotUsesHint: 'Heeft meer associaties nodig: {items}.',
 		},
 
 		custom: {
@@ -426,10 +601,24 @@ export default {
 		inline: {
 			placeholder: '...',
 			selectPlaceholder: 'Selecteren...',
-			textEntryLabel: 'Tekstinvoer {id}',
-			choiceLabel: 'Inline keuze {id}',
-			formatHint: 'Notatie: {mask}',
+			blankLabel: 'Invulplek {index} van {count}',
+			patternMismatch: 'Dit antwoord heeft niet de verwachte notatie.',
+			patternMismatchWithHint: 'Dit antwoord heeft niet de verwachte notatie. Gebruik deze notatie: {hint}',
+			correctChoice: 'Juist: {choice}',
 		},
+	},
+
+	/**
+	 * Aankondiging voor schermlezers wanneer een interactie niet kan worden
+	 * weergegeven. Vertaling nog te laten controleren door een native speaker.
+	 */
+	interaction: {
+		renderError: 'Dit interactieve element ({type}) kon niet worden weergegeven.',
+	},
+
+	/** Toegankelijke naam van de groep die een draagbare aangepaste interactie (PCI) rendert. */
+	customInteraction: {
+		portableLabel: 'Draagbare aangepaste interactie',
 	},
 
 	item: {
@@ -438,36 +627,34 @@ export default {
 		loadError: 'Fout bij laden van item: {error}',
 		parsingError: 'Kan QTI XML niet parseren',
 		processingError: 'Kan antwoorden niet verwerken',
+		submitError: 'Je antwoord kon niet worden verzonden. Probeer het opnieuw.',
 		submit: 'Verzenden',
 		complete: 'Voltooien',
 		completed: 'Voltooid',
 		attempt: 'Poging {numAttempts}',
 	},
 
-	itemSession: {
-		attempt: 'Poging {numAttempts}',
-		attemptsRemaining: '{attemptsRemaining} pogingen over',
-		maxAttempts: 'Max. pogingen: {maxAttempts}',
-	},
 
 	feedback: {
+		title: 'Terugkoppeling',
 		close: 'Feedback sluiten',
 		closeFeedback: 'Feedback negeren',
 		testFeedback: 'Testfeedback',
+		shown: 'Er wordt terugkoppeling getoond.',
 	},
 
 	assessment: {
 		title: 'Toets',
 		loading: 'Toets laden...',
-		loadingError: 'Time-out bij laden van toets. Deze toets is mogelijk ongeldig of de speler kon niet worden geïnitialiseerd.',
+		loadingError: 'Deze toets kon niet worden geladen. Probeer het opnieuw.',
+		stillLoading: 'Nog steeds aan het laden. Wacht even.',
+		loadingRetry: 'Opnieuw proberen',
 		question: 'Vraag {current} van {total}',
 		questionAnnouncement: 'Vraag {current} van {total}',
 		section: 'Sectie {current} van {total}',
 		sectionDefault: 'Sectie {number}',
 		readingPassage: 'Leestekst',
 		readingPassages: 'Leesteksten',
-		expandPassage: 'Tekst uitvouwen',
-		collapsePassage: 'Tekst samenvouwen',
 		closeMenu: 'Menu sluiten',
 
 		attempts: {
@@ -478,6 +665,22 @@ export default {
 			maxReached: 'Max. pogingen bereikt',
 			required: 'Moet antwoorden voordat je verder kunt',
 			reviewNotAllowed: 'Niet toegestaan na verzending',
+			attemptOf: 'Poging {current} van {total}',
+			current: 'Poging {current}',
+		},
+
+		// Practice delivery: the item-level check control (stays on the item, shows feedback).
+		checkAnswer: {
+			button: 'Antwoord controleren',
+			submittedAnnouncement: 'Je antwoord is ingediend.',
+			attemptsUsedUp: 'Je hebt al je pogingen voor deze vraag gebruikt.',
+		},
+
+		// QTI allowComment: the candidate comment disclosure.
+		comments: {
+			heading: 'Opmerkingen voor het toetsteam',
+			label: 'Jouw opmerkingen',
+			placeholder: 'Schrijf een opmerking voor het toetsteam (optioneel).',
 		},
 
 		navigation: {
@@ -487,6 +690,64 @@ export default {
 			jumpTo: 'Ga naar vraag {number}',
 			sectionMenu: 'Sectiemenu',
 			progress: 'Voortgang: {percent}%',
+			answeredCount: '{answered} van {total} beantwoord',
+		},
+
+		flag: {
+			label: 'Markeren voor revisie',
+			flaggedAnnouncement: 'Vraag {number} gemarkeerd voor revisie.',
+			unflaggedAnnouncement: 'Markering van vraag {number} verwijderd.',
+		},
+
+		review: {
+			title: 'Bekijk je antwoorden',
+			open: 'Vragen herzien',
+			backToQuestion: 'Terug naar de vraag',
+			flagged: 'Gemarkeerd',
+			flaggedCount: '{count} gemarkeerd voor revisie',
+			questionsGroup: 'Vragen',
+			linearNote: 'In dit onderdeel kun je alleen vooruit, dus deze vragen staan alleen ter herziening op een rij.',
+			goToItem: 'Ga naar vraag {number}',
+			currentItem: 'Huidige vraag',
+			statusAnswered: 'Beantwoord',
+			statusPartially: 'Deels beantwoord',
+			statusUnanswered: 'Niet beantwoord',
+			notVisited: 'Nog niet bezocht',
+		},
+
+		submit: {
+			dialogTitle: 'Je toets inleveren?',
+			dialogDescription: 'Je kunt je antwoorden na het inleveren niet meer wijzigen.',
+			flaggedLine: '{count} vragen gemarkeerd voor revisie',
+			unansweredHeading: '{count} vragen niet beantwoord',
+			unansweredHeadingOne: '1 vraag niet beantwoord',
+			needsAnswerHeading: '{count} vragen hebben een antwoord nodig voordat je kunt inleveren',
+			needsAnswerHeadingOne: '1 vraag heeft een antwoord nodig voordat je kunt inleveren',
+			incompleteHeadingOne: '1 antwoord is onvolledig en moet worden aangevuld voordat je kunt inleveren',
+			incompleteHeading: '{count} antwoorden zijn onvolledig en moeten worden aangevuld voordat je kunt inleveren',
+			requirement: {
+				minChoices: 'selecteer er minstens {count}',
+				minStrings: 'vul er minstens {count} in',
+				minAssociations: 'koppel er minstens {count}',
+				minPlays: 'minimaal afspelen: {count}',
+				incomplete: 'maak je antwoord compleet',
+			},
+			incompleteJump: 'Ga naar vraag {number}: {requirement}',
+			incompleteEntry: 'Vraag {number}: {requirement}',
+			allAnswered: 'Je hebt alle vragen beantwoord.',
+			confirm: 'Toets inleveren',
+			cancel: 'Verder werken',
+		},
+
+		leavePart: {
+			title: 'Dit onderdeel verlaten?',
+			description: 'Als je doorgaat, kun je niet terug naar de vragen in dit onderdeel.',
+			confirm: 'Doorgaan',
+			cancel: 'In dit onderdeel blijven',
+			needsAnswerHeadingOne: '1 vraag in dit onderdeel moet nog worden beantwoord voordat je het kunt verlaten',
+			needsAnswerHeading: '{count} vragen in dit onderdeel moeten nog worden beantwoord voordat je het kunt verlaten',
+			incompleteHeadingOne: '1 antwoord in dit onderdeel is onvolledig en moet worden aangevuld voordat je het kunt verlaten',
+			incompleteHeading: '{count} antwoorden in dit onderdeel zijn onvolledig en moeten worden aangevuld voordat je het kunt verlaten',
 		},
 
 		sections: {
@@ -501,9 +762,77 @@ export default {
 			timeRemaining: 'Resterende tijd: {time}',
 			timeElapsed: 'Verstreken tijd: {time}',
 			timeUp: 'Tijd is om!',
+			warningMinutesOne: 'Nog 1 minuut',
+			warningMinutes: 'Nog {count} minuten',
+			warningTime: 'Nog {time}',
+			paused: 'Gepauzeerd',
+			label: 'Timer',
+		},
+
+		start: {
+			begin: 'Beginnen',
+			resume: 'Verdergaan',
+			timeMinutesOne: 'Je hebt 1 minuut.',
+			timeMinutes: 'Je hebt {count} minuten.',
+			timeExact: 'Je hebt {time}.',
+			scopedTimeLimits: 'Sommige onderdelen van deze toets hebben een eigen tijdslimiet.',
+			paused: 'Deze toets is gepauzeerd. Wacht tot hij wordt hervat.',
+		},
+
+		timeExpiry: {
+			autoSubmitted: 'De tijd is om. Je antwoorden zijn ingediend.',
+			submitTitle: 'De tijd voor deze toets is om',
+			submitDescription: 'Je kunt je antwoorden niet meer wijzigen. Dien je toets in om af te ronden.',
+			partTitle: 'De tijd voor dit onderdeel is om',
+			sectionTitle: 'De tijd voor deze sectie is om',
+			questionTitle: 'De tijd voor deze vraag is om',
+			scopeDescription: 'Je gaat verder met het volgende deel van de toets.',
+			movingToQuestion: 'Je gaat verder met vraag {number}.',
+			closedDescription: 'Je kunt de antwoorden van de vragen hierin niet meer wijzigen.',
+			continue: 'Verder',
+		},
+
+		pause: {
+			title: 'Toets gepauzeerd',
+			message: 'Je toets is gepauzeerd. Wacht tot hij wordt hervat.',
+			announcement: 'De toets is gepauzeerd.',
+			withReason: 'De toets is gepauzeerd: {reason}',
+			resumed: 'De toets gaat weer verder.',
+		},
+
+		// Autosave: de opslagindicator naast het aantal beantwoorde vragen.
+		autosave: {
+			saved: 'Opgeslagen · {time}',
+			savedShort: 'Opgeslagen',
+			saving: 'Opslaan…',
+			notSaved: 'Niet opgeslagen',
+		},
+
+		// Een herstelde snapshot met opgeslagen antwoorden: doorgaan of opnieuw beginnen.
+		resume: {
+			title: 'Je toets hervatten?',
+			description: 'Je hebt antwoorden opgeslagen van {time}.',
+			descriptionNoTime: 'Je hebt opgeslagen antwoorden van een eerdere sessie.',
+			resumeAction: 'Doorgaan waar je was gebleven',
+			startOver: 'Opnieuw beginnen',
+			confirmTitle: 'Opnieuw beginnen en je opgeslagen antwoorden verwijderen?',
+			confirmDescription:
+				'Je opgeslagen antwoorden worden verwijderd en de toets begint opnieuw vanaf het begin. Dit kan niet ongedaan worden gemaakt.',
+			confirmAction: 'Verwijderen en opnieuw beginnen',
+			cancel: 'Mijn opgeslagen antwoorden bewaren',
+			resumedAnnouncement: 'Je opgeslagen antwoorden zijn hersteld.',
+			restartedAnnouncement: 'De toets is opnieuw begonnen vanaf het begin.',
+		},
+
+		// De inhoud van een vraag werkte niet: gewone taal, geen ontwikkelaarstekst, en de toets gaat verder.
+		itemError: {
+			title: 'Deze vraag kon niet worden weergegeven.',
+			tryAgain: 'Opnieuw proberen',
+			continue: 'Doorgaan',
 		},
 
 		feedback: {
+			title: 'Terugkoppeling',
 			correct: 'Correct',
 			incorrect: 'Incorrect',
 			partiallyCorrect: 'Gedeeltelijk correct',
@@ -522,15 +851,74 @@ export default {
 			exit: 'Afsluiten',
 		},
 
+		// The shell completion screen after finalization (+ the opt-in results summary).
+		complete: {
+			alreadySubmitted: 'Deze toets is al ingediend.',
+			finished: 'Je hebt de toets afgerond.',
+			timeExpired: 'De tijd is om. De toets is afgerond en je antwoorden zijn ingediend.',
+			byProctor: 'Je toets is ingeleverd door je toezichthouder.',
+			byProctorAnnouncement: 'Je toezichthouder heeft je toets ingeleverd.',
+			resultsHeading: 'Overzicht van de resultaten',
+			totalScore: 'Totale score: {score} van {maxScore}',
+			itemName: 'Vraag {number}',
+		},
+
 		errors: {
 			navigationFailed: 'Navigatie mislukt. Probeer het opnieuw.',
 			submitFailed: 'Kan toets niet verzenden. Probeer het opnieuw.',
 			loadFailed: 'Kan vraag niet laden.',
 			saveFailed: 'Kan antwoord niet opslaan.',
+			unexpected: 'Er is iets misgegaan. Probeer het opnieuw.',
+			supportCode: 'Ondersteuningscode: {code}',
+			codes: {
+				invalidNavigationTarget: 'Die vraag of sectie is niet beschikbaar.',
+				linearNavigationOnly: 'In dit deel kun je alleen naar de volgende vraag.',
+				navigationNotAllowed: 'Je kunt nu niet naar daar gaan.',
+				navigationInFlight: 'Wacht even voordat je het opnieuw probeert.',
+				testFinalized: 'Deze toets is al ingediend.',
+				minTimeNotElapsed: 'Blijf nog minstens {remaining} seconden bij deze inhoud voordat je verdergaat.',
+				itemTimeExpired: 'De tijdslimiet voor deze vraag is verlopen.',
+				reviewNotAllowed: 'Je kunt niet terug naar deze vraag.',
+				responseRequired: 'Je moet deze vraag beantwoorden voordat je verdergaat.',
+				finalizeResponseRequired: 'Sommige vragen hebben nog een antwoord nodig voordat je kunt inleveren: {items}.',
+				finalizeResponseInvalid: 'Sommige antwoorden zijn nog niet compleet. Controleer deze vragen voordat je inlevert: {items}.',
+				leavePartResponseRequired: 'Sommige vragen in dit onderdeel moeten nog worden beantwoord voordat je verder kunt: {items}.',
+				leavePartResponseInvalid: 'Sommige antwoorden in dit onderdeel zijn nog niet compleet. Controleer ze voordat je verder gaat: {items}.',
+				attemptValidationFailed: 'Controleer je antwoord. Een geldige reactie is vereist.',
+				maxAttemptsReached: 'Je hebt al je pogingen voor deze vraag gebruikt.',
+				itemSessionLocked: 'Deze vraag is gesloten en kan niet meer worden gewijzigd.',
+				commentsNotAllowed: 'Opmerkingen zijn niet toegestaan bij deze vraag.',
+				submitFailed: 'Je antwoorden konden niet worden ingediend. Je antwoorden zijn er nog. Probeer het opnieuw.',
+				finalizeFailed: 'De toets kon nog niet worden ingediend. Je antwoorden zijn er nog. Probeer het opnieuw.',
+				assessmentPaused: 'Je toets is gepauzeerd. Wacht tot hij wordt hervat.',
+				outcomeProcessingFailed: 'Je antwoorden zijn opgeslagen, maar de resultaten konden niet worden berekend. Neem contact op met de ondersteuning als dit aanhoudt.',
+			},
 		},
 		playerLabel: 'Toetsspeler',
 		instructions: 'Instructies',
 		rubrics: 'Beoordelingsrubrieken',
+		skipToQuestion: 'Naar vraag springen',
+	},
+
+	// Section player chrome: passage/question panes and their headings.
+	sectionPlayer: {
+		passage: 'Tekst',
+		passageNumbered: 'Tekst {number}',
+		passages: 'Teksten',
+		question: 'Vraag',
+		passageAndQuestion: 'Tekst en vraag',
+		// The candidate's display settings tool and its dialog.
+		displaySettings: {
+			title: 'Weergave-instellingen',
+			description: 'Wijzigingen gelden meteen en blijven aan voor deze sessie.',
+			textSize: 'Tekstgrootte',
+			sizeDefault: 'Standaard',
+			sizeLarge: 'Groot',
+			sizeLarger: 'Groter',
+			sizeLargest: 'Grootst',
+			highContrast: 'Tekst met meer contrast',
+			textSpacing: 'Extra tekstafstand',
+		},
 	},
 
 	i18n: {
@@ -548,6 +936,7 @@ export default {
 		answerRecorded: 'Antwoord opgeslagen',
 		resizer: 'Grootte van tekst- en vraagpanelen aanpassen',
 		sentence: '{text}.',
+		choiceFallback: 'Keuze {index}',
 		correctAnswer: 'Juist antwoord.',
 		correctAnswerIs: 'Juist antwoord: {answer}.',
 		correctPosition: 'Juiste positie.',
@@ -563,124 +952,6 @@ export default {
 		catalogRequestUsage: '{usage} aanvragen: {term}',
 	},
 
-	demo: {
-		selectSampleItem: 'Selecteer voorbeelditem',
-		configurationPanel: 'Configuratiepaneel',
-		viewingAs: 'Bekijken als',
-		role: 'Rol',
-		candidate: 'Kandidaat',
-		author: 'Auteur',
-		proctor: 'Toezichthouder',
-		scorer: 'Beoordelaar',
-		tutor: 'Begeleider',
-		showCorrectAnswers: 'Juiste antwoorden tonen',
-		showFeedback: 'Feedback tonen',
-		settings_aria: 'Instellingenmenu openen',
-		xmlEditor: 'XML-editor',
-
-		// Navigation
-		appName: 'PIE QTI Speler',
-		home: 'Home',
-		itemDemo: 'Item Demo',
-		assessmentDemo: 'Toets Demo',
-		likertDemo: 'Likert Plugin Demo',
-		iframeDemo: 'Iframe Demo',
-		theme: 'Thema',
-
-		// Home Page
-		homeTitle: 'QTI Speler',
-		homeSubtitle: 'Een moderne, framework-onafhankelijke speler voor QTI beoordelingsitems. Werkt standaard 100% client-side, met optionele server-side hooks voor productiegebruik.',
-		homeMetaDescription: 'Moderne QTI speler met optionele backend-integratie',
-		tryItems: 'Items Proberen',
-		tryAssessments: 'Toetsen Proberen',
-		trySectionPlayer: 'Sectiespeler',
-		pluginDemo: 'Plugin Demo',
-		dropQtiFile: 'Sleep QTI XML bestand hier',
-		orClickToSelect: 'of klik om een bestand te selecteren',
-		selectFile: 'Bestand Selecteren',
-		selectedFile: 'Geselecteerd:',
-		loadInPlayer: 'Laden in Speler',
-		footerTitle: 'QTI Speler',
-		footerLicense: 'MIT Gelicentieerd • Open Source',
-
-		// Settings Panel
-		settings: 'Instellingen',
-		candidateStudent: 'Kandidaat (Leerling)',
-		testConstructor: 'Toetssamensteller',
-		controlsRubricVisibility: 'Beheert zichtbaarheid van rubric en weergave van juiste antwoorden',
-		useBackendScoring: 'Gebruik Serverbeoordeling',
-		scoreOnServer: 'Beoordeel antwoorden op de server in plaats van client-side',
-		sessionManagement: 'Sessiebeheer',
-		saving: 'Opslaan...',
-		saveSession: 'Sessie Opslaan',
-		loadSession: 'Sessie Laden',
-
-		// Export & Template
-		exportResponses: 'Antwoorden Exporteren',
-		json: 'JSON',
-		csv: 'CSV',
-		templateProcessing: 'Sjabloonverwerking',
-		rerunTemplateProcessing: 'Voer templateProcessing opnieuw uit en reset de itemsessie',
-		regenerateVariant: 'Variant Opnieuw Genereren',
-		templateVariablesDebug: 'Sjabloonvariabelen (Debug)',
-		variable: 'Variabele',
-		value: 'Waarde',
-
-		// Keyboard Shortcuts
-		keyboardShortcuts: 'Sneltoetsen',
-		submitAnswersShortcut: 'Antwoorden verzenden',
-		tryAgainShortcut: 'Opnieuw proberen',
-		exportJsonShortcut: 'JSON exporteren',
-		saveSessionShortcut: 'Sessie opslaan',
-		useCmdOnMacOS: 'Gebruik <kbd class="kbd kbd-xs">Cmd</kbd> op macOS',
-
-		// Results Panel
-		results: 'Resultaten',
-		score: 'Score',
-		outcomeVariables: 'Uitkomstvariabelen',
-
-		// Misc
-		format: 'Formaat',
-		selectItemOrPasteXml: 'Selecteer een voorbeelditem of plak aangepaste XML om te beginnen.',
-		pageTitle: 'Speler Demo - PIE QTI Speler',
-
-		// Sample Item Descriptions
-		sampleItemDescriptions: {
-			'': 'Aangepast geüpload item',
-			'simple-choice': 'Basis aftrekopgave met plausibele afleidingsantwoorden',
-			'partial-credit': 'Meerkeuzevraag met gedeeltelijk krediet via mapResponse',
-			'capital-cities': 'Aardrijkskundevraag met geschudde keuzes',
-			'text-entry': 'Invulvraag met hoofdletterongevoelige matching',
-			'extended-text': 'Meerregelige tekstantwoordvraag',
-			'inline-choice': 'Dropdownmenu ingebed in tekst',
-			'order-interaction': 'Items in de juiste volgorde plaatsen',
-			'match-interaction': 'Items uit twee kolommen koppelen',
-			'associate-interaction': 'Associaties tussen items maken',
-			'gap-match': 'Woorden in gaten in de tekst slepen',
-			'graphic-gap-match-solar-system': 'Label de vier binnenplaneten van ons zonnestelsel',
-			'slider': 'Een waarde op een numerieke schuifregelaar selecteren',
-			'hotspot': 'Klik op de Blauwe Planeet in deze astronomievraag',
-			'hotspot-partial-credit': 'Identificeer planeet met vloeibaar water (gedeeltelijk krediet voor terrestrische planeten)',
-			'template-variable-demo': 'templateProcessing genereert waarden; responseProcessing beoordeelt ze',
-			'upload-interaction': 'Een bestand uploaden als antwoord (baseType=file)',
-			'drawing-interaction': 'Tekenen op een canvas (baseType=file, PNG dataUrl)',
-			'media-audio': 'Audiospeler met afspeeltellertracking en minPlays vereiste',
-			'media-video': 'Videospeler met afspeeltellertracking en maxPlays limiet',
-			'hottext-single': 'Klik om één enkel woord in tekst te selecteren (grammaticavraag)',
-			'hottext-multiple': 'Klik om meerdere tekstsegmenten te selecteren (begrijpend lezen)',
-			'select-point': 'Klik op de afbeelding om een puntlocatie te selecteren (aardrijkskundevraag)',
-			'graphic-order': 'Slepen om items op een afbeelding te herschikken (geologische lagen)',
-			'graphic-associate': 'Klik op paren hotspots om associaties te maken (orgaankoppeling)',
-			'position-object': 'Meubelstukobjecten op een kamerindeling slepen en positioneren',
-			'end-attempt': 'Knop om de beoordelingspoging te beëindigen',
-			'custom-interaction': 'Toont een fallback-UI voor customInteraction en staat een handmatig antwoord toe',
-			'choice-with-stimulus': 'Vraag met leespassage inline ingebed',
-			'math-inline': 'Meerkeuzevraag met inline MathML wiskundeweergave',
-			'math-extended': 'Uitgebreid antwoord met MathML en rich text editor voor het tonen van wiskundig werk',
-			'math-fractions': 'Breukenrekenen met MathML blokweergave',
-			'adaptive-capitals': 'Adaptieve vraag met meerdere pogingen en progressieve feedback en hints',
-		},
-	},
 
 	transform: {
 		// App title and navigation
