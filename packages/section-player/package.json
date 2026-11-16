@@ -28,7 +28,7 @@
     "@pie-players/pie-assessment-toolkit": "1.0.0-beta.9",
     "@pie-players/pie-default-tool-loaders": "1.0.0-beta.9",
     "@pie-players/pie-i18n-generated": "1.0.0-beta.9",
-    "@pie-players/pie-players-shared": "1.0.0-beta.9",
+    "@pie-players/pie-players-shared": "1.0.0-beta.10",
     "@pie-players/pie-tool-calculator-desmos": "1.0.0-beta.9",
     "@pie-players/pie-tool-tts-inline": "1.0.0-beta.9",
     "@pie-qti/default-components": "workspace:*",
