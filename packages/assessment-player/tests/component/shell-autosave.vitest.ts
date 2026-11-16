@@ -172,8 +172,9 @@ describe('resume prompt', () => {
 		await until(() => dialog() === null);
 
 		// The restored answer is back in the restored item's input.
-		const input = m.host.querySelector<HTMLInputElement>('input[type="text"], input:not([type])');
-		await until(() => (input?.value ?? '') === 'water', 6000);
+		// Re-query on each poll: when the dialog closes the restored item may not have rendered its input yet.
+		const input = () => m.host.querySelector<HTMLInputElement>('input[type="text"], input:not([type])');
+		await until(() => (input()?.value ?? '') === 'water', 6000);
 	});
 
 	test('Start over confirms, deletes the draft and restarts at question 1', { timeout: 20000 }, async () => {
