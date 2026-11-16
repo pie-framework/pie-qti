@@ -87,7 +87,7 @@
     "@types/bun": "^1.4.4",
     "lefthook": "^2.1.16",
     "publint": "^0.3.25",
-    "turbo": "^2.11.10",
+    "turbo": "^2.11.11",
     "typescript": "^6.0.3"
   },
   "overrides": {
