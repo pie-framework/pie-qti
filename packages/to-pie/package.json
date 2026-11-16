@@ -46,7 +46,7 @@
 	"devDependencies": {
 		"@pie-qti/test-utils": "workspace:*",
 		"@pie-qti/transform-core": "workspace:*",
-		"typescript": "^5.9.3"
+		"typescript": "^6.0.3"
 	},
 	"type": "module",
 	"repository": {

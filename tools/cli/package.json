@@ -31,7 +31,7 @@
 	"devDependencies": {
 		"@types/node": "^26.6.6",
 		"oclif": "^6.0.10",
-		"typescript": "^5.9.3"
+		"typescript": "^6.0.3"
 	},
 	"engines": {
 		"node": ">=22.0.0"

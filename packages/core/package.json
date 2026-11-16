@@ -46,7 +46,7 @@
 	},
 	"devDependencies": {
 		"@pie-qti/test-utils": "workspace:*",
-		"typescript": "^5.9.3"
+		"typescript": "^6.0.3"
 	},
 	"repository": {
 		"type": "git",

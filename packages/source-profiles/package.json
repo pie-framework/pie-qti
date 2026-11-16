@@ -33,7 +33,7 @@
 		"@pie-qti/transform-types": "workspace:*"
 	},
 	"devDependencies": {
-		"typescript": "^5.9.3"
+		"typescript": "^6.0.3"
 	},
 	"license": "MIT",
 	"repository": {
