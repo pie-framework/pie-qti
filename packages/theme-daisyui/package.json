@@ -23,9 +23,9 @@
   ],
   "license": "MIT",
   "devDependencies": {
-    "@biomejs/biome": "^2.6.4",
-    "daisyui": "^5.7.50",
-    "typescript": "^5.9.3"
+    "@biomejs/biome": "^2.6.8",
+    "daisyui": "^5.8.1",
+    "typescript": "^6.0.3"
   },
   "exports": {
     ".": {

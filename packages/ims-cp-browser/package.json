@@ -16,7 +16,7 @@
     "jszip": "^3.10.2"
   },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   },
   "scripts": {
     "build": "tsc",
