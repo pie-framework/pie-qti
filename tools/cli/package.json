@@ -30,7 +30,7 @@
 	},
 	"devDependencies": {
 		"@types/node": "^26.6.6",
-		"oclif": "^6.0.10",
+		"oclif": "^6.0.15",
 		"typescript": "^6.0.3"
 	},
 	"engines": {
