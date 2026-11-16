@@ -79,6 +79,10 @@ export default defineConfig({
 			// build then dies with "Could not find profile folder" (microsoft/playwright#42768,
 			// fixed upstream in Firefox 158, not yet in Playwright's firefox-1555). Redirecting
 			// the home lookup to a throwaway directory sidesteps the protected path.
+			//
+			// @playwright/test is pinned to 1.64.1 (Firefox 157): 1.65.1's Firefox 159 crashes the
+			// page when axe's button-name rule runs after a button inside pie-qti-order or
+			// pie-qti-match has had focus (pointer-interaction-alternatives.pw.ts).
 			name: 'firefox',
 			use: {
 				...devices['Desktop Firefox'],
