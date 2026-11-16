@@ -26,7 +26,7 @@
 		"@pie-qti/to-pie": "workspace:*",
 		"@pie-qti/transform-core": "workspace:*",
 		"@pie-qti/transform-types": "workspace:*",
-		"node-html-parser": "^9.0.5"
+		"node-html-parser": "^9.0.7"
 	},
 	"devDependencies": {
 		"@types/node": "^26.6.6",

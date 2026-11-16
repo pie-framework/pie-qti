@@ -91,7 +91,7 @@
       "devDependencies": {
         "@pie-qti/item-player": "workspace:*",
         "@types/bun": "^1.4.4",
-        "node-html-parser": "^9.0.5",
+        "node-html-parser": "^9.0.7",
         "typescript": "^6.0.3",
       },
       "peerDependencies": {
@@ -109,7 +109,7 @@
         "@pie-qti/qti-common": "workspace:*",
         "@pie-qti/qti-processing": "workspace:*",
         "@pie-qti/section-player": "workspace:*",
-        "node-html-parser": "^9.0.5",
+        "node-html-parser": "^9.0.7",
       },
       "devDependencies": {
         "@biomejs/biome": "^2.6.8",
@@ -142,7 +142,7 @@
         "@pie-qti/logger": "workspace:*",
         "@pie-qti/qti-common": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
-        "node-html-parser": "^9.0.5",
+        "node-html-parser": "^9.0.7",
       },
       "devDependencies": {
         "@pie-qti/test-utils": "workspace:*",
@@ -181,7 +181,7 @@
       "version": "1.0.0-beta.3",
       "dependencies": {
         "@pie-qti/transform-types": "workspace:*",
-        "node-html-parser": "^9.0.5",
+        "node-html-parser": "^9.0.7",
         "uuid": "^14.0.3",
       },
       "devDependencies": {
@@ -214,7 +214,7 @@
       "version": "1.0.0-beta.5",
       "dependencies": {
         "@pie-qti/logger": "workspace:*",
-        "node-html-parser": "^9.0.5",
+        "node-html-parser": "^9.0.7",
       },
       "devDependencies": {
         "typescript": "^6.0.3",
@@ -241,7 +241,7 @@
         "@pie-qti/ims-cp-core": "workspace:*",
         "@pie-qti/qti-common": "workspace:*",
         "@pie-qti/qti-processing": "workspace:*",
-        "node-html-parser": "^9.0.5",
+        "node-html-parser": "^9.0.7",
       },
       "devDependencies": {
         "@biomejs/biome": "^2.6.8",
@@ -282,7 +282,7 @@
       "dependencies": {
         "@pie-qti/qti-common": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
-        "node-html-parser": "^9.0.5",
+        "node-html-parser": "^9.0.7",
         "uuid": "^14.0.3",
         "xml-formatter": "^3.6.4",
       },
@@ -319,7 +319,7 @@
       "name": "@pie-qti/qti-common",
       "version": "1.0.0-beta.5",
       "dependencies": {
-        "node-html-parser": "^9.0.5",
+        "node-html-parser": "^9.0.7",
       },
       "devDependencies": {
         "@types/bun": "^1.4.4",
@@ -389,7 +389,7 @@
       },
       "devDependencies": {
         "@types/bun": "^1.4.4",
-        "node-html-parser": "^9.0.5",
+        "node-html-parser": "^9.0.7",
         "typescript": "^6.0.3",
       },
     },
@@ -420,7 +420,7 @@
         "@pie-qti/transform-types": "workspace:*",
         "fast-xml-parser": "^5.12.1",
         "image-size": "^2.0.4",
-        "node-html-parser": "^9.0.5",
+        "node-html-parser": "^9.0.7",
         "uuid": "^14.0.3",
         "xmllint-wasm": "^5.3.0",
       },
@@ -435,7 +435,7 @@
       "version": "1.0.0-beta.5",
       "dependencies": {
         "@pie-qti/logger": "workspace:*",
-        "node-html-parser": "^9.0.5",
+        "node-html-parser": "^9.0.7",
       },
       "devDependencies": {
         "typescript": "^6.0.3",
@@ -477,7 +477,7 @@
         "@pie-qti/to-pie": "workspace:*",
         "@pie-qti/transform-core": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
-        "node-html-parser": "^9.0.5",
+        "node-html-parser": "^9.0.7",
       },
       "devDependencies": {
         "@types/node": "^26.6.6",
@@ -1500,7 +1500,7 @@
 
     "node-emoji": ["node-emoji@2.2.0", "", { "dependencies": { "@sindresorhus/is": "^4.6.0", "char-regex": "^1.0.2", "emojilib": "^2.4.0", "skin-tone": "^2.0.0" } }, "sha512-Z3lTE9pLaJF47NyMhd4ww1yFTAP8YhYI8SleJiHzM46Fgpm5cnNzSl9XfzFNqbaz+VlJrIj3fXQ4DeN1Rjm6cw=="],
 
-    "node-html-parser": ["node-html-parser@9.0.5", "", { "dependencies": { "css-select": "^5.1.0", "entities": "^8.0.0" } }, "sha512-LpUc74Ax3L6AsxTEqoep0GDqCBbsPjtn74sYaiazxGXfwhe6iqD4E5sHTJFCU+wBxVMX+Dd7mvLim0QM1vsvpw=="],
+    "node-html-parser": ["node-html-parser@9.0.7", "", { "dependencies": { "css-select": "^5.1.0", "entities": "^8.0.0" } }, "sha512-0Io6nKYNN2e+QSoJFxU991Z8kX4H2Ogy3l14Ow0XxR2Wonk9l5qBonx1dYO97UyVfYJ1U9H0WHZOIZW6q5KPrA=="],
 
     "node-int64": ["node-int64@0.4.0", "", {}, "sha512-O5lz91xSOeoXP6DulyHfllpq+Eg00MWitZIbtPfoSEvqIHdl5gfcY6hYzDWnj0qD5tz52PI08u9qUvSVeUBeHw=="],
 

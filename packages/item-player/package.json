@@ -32,7 +32,7 @@
     "@pie-qti/ims-cp-core": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
     "@pie-qti/qti-processing": "workspace:*",
-    "node-html-parser": "^9.0.5"
+    "node-html-parser": "^9.0.7"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.8",
