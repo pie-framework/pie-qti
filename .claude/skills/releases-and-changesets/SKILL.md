@@ -61,13 +61,27 @@ When adding a package that will publish to npm:
 | `bun run release:with-version` | Canonical local release command: temporary all-package changeset, version, restore workspace ranges, auth check, publish verification, tests, release, restore ranges. |
 | `bun run release` | Lower-level publish wrapper used by `release:with-version`; do not run directly unless the maintainer asks. |
 
+## During the 1.0.0-beta pre mode
+
+While `.changeset/pre.json` is active, every package in the fixed group publishes as `1.0.0-beta.N` under the `beta` dist-tag, and `latest` stays where it was. The release workflow cannot move it: the OIDC trusted publisher has no dist-tag rights ("Allow npm dist-tag" is a website-only toggle per package, not an `npm trust` flag).
+
+When the maintainer promotes a release, re-point `latest` locally for all packages in the fixed group, after `npm login`. npm asks for a browser approval per package, so run it in an interactive terminal:
+
+```sh
+for p in $(jq -r '.fixed[0][]' .changeset/config.json); do
+  npm dist-tag add "$p@<version>" latest
+done
+```
+
+Verify afterwards with `npm view @pie-qti/<pkg> dist-tags`. A brand-new package must be published once before `npm trust github` accepts its trusted-publisher configuration; its first release cannot go through OIDC.
+
 ## Preflight
 
 Before a release, confirm:
 
 - working tree and branch are intentional,
 - pending changesets have the expected bump levels,
-- `.env` contains the npm token required by `bun run check:npm-auth`,
+- npm auth works. CI publishes through npm OIDC trusted publishing with no stored token (`docs/development/trusted-publishing.md`). Locally a normal `npm login` is enough: `check:npm-auth` runs `npm whoami` and falls back to interactive `npm login` (see `AUTO_LOGIN_ENABLED` in `scripts/check-npm-auth.mjs`); it uses `NPM_TOKEN`/`NODE_AUTH_TOKEN` from `.env` only when one is set,
 - `bun run verify:publish` passes,
 - `bun run test` passes when preparing an actual publish.
 

@@ -9,15 +9,21 @@ You are acting as a QTI (Question and Test Interoperability) specification exper
 
 ## Your knowledge base
 
-### Spec sources to consult (in order)
-1. **Local QTI repos** — check these first for reference implementations and prior art (paths relative to project root):
-   - `../qti3-item-player` — QTI 3.0 item player (JavaScript)
-   - `../qti-scoring-engine` — QTI scoring engine
-   - `../qti-components` — QTI web components
-   - `../qti-sdk` — QTI SDK
-   - `../QTI.JS` — QTI.JS reference implementation
-2. **This codebase** — the current working directory — for how the project currently implements spec concepts
-3. **Project context** — `CONTEXT.md` in the project root — for canonical project terminology
+### Sources to consult
+1. **This codebase** — read `CONTEXT.md`, the relevant implementation and tests, and the focused
+   local references (`docs/QTI_techguide.md`, `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`, and this
+   skill's `references/` files). These establish current behavior and project terminology, not
+   normative QTI requirements.
+2. **Official 1EdTech QTI publications** — use the applicable 2.1, 2.2, or 3.0 specification and
+   validation/certification material for normative semantics. Prefer the information model and
+   implementation guide over summaries.
+3. **Local conformance material, when present** — `../pie-qti-conformance` contains this project's
+   certification runner and evidence. Inspect what each runner actually asserts; a smoke-run pass
+   is not proof that interaction, navigation, or scoring semantics were exercised.
+4. **Optional sibling reference implementations** — if repositories such as
+   `../qti3-item-player`, `../qti-scoring-engine`, `../qti-components`, `../qti-sdk`, or `../QTI.JS`
+   exist, use them as non-normative prior art. Never assume they are present and never treat an
+   implementation as overriding the specification.
 
 ### Core QTI concepts you must reason about correctly
 
@@ -75,10 +81,14 @@ You are acting as a QTI (Question and Test Interoperability) specification exper
 - `ordering`: `shuffle` for randomizing item/section order
 - `selection`: `select` (count), `withReplacement` for random subsets
 - `rubricBlock`: role-filtered content in sections (`candidate`, `scorer`, `proctor`, `tutor`, `testConstructor`)
+- A **composite item** is an `assessmentItem` containing more than one interaction. It is not a
+  separate interaction type, and QTI does not define a `qti-composite-interaction` element.
 
 ## How to respond
 
-1. **Read the relevant codebase first.** Before answering, check the codebase and local QTI repos to see how the concept is currently implemented. This project may have intentional deviations or open gaps.
+1. **Read the relevant codebase first.** Before answering, check the implementation and tests, then
+   inspect any applicable local conformance material or available reference repository. This
+   project may have intentional deviations or open gaps.
 
 2. **State what the spec requires.** Quote or paraphrase the spec behavior precisely.
 
@@ -146,12 +156,16 @@ When writing or reviewing PRDs, also reason about how each interaction is *inten
 - `mapping` with no `mappingDefault`: unmapped response values score 0 by default, which is usually correct but should be explicit.
 - `patternMask` on textEntryInteraction is a display hint in QTI 2.1 and a validation hint in 2.2; it does NOT normalise the response before scoring. `RESPONSE = "42"` and `RESPONSE = " 42"` are different strings.
 
-### Web research directive
+### Official research directive
 
-When local documentation (`docs/QTI_techguide.md`, `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md`) is insufficient to answer a spec question precisely:
-1. Use WebFetch to retrieve the IMS QTI 2.2 spec: search for "IMS QTI 2.2 Assessment Item Information Model" to find the current URL, then fetch the relevant section.
-2. For QTI 3.0 questions, search for "IMS QTI 3.0 Assessment Item Information Model".
-3. Cross-reference against `../qti3-item-player`, `../qti-scoring-engine`, and `../qti-components` for reference implementations.
+When local documentation is insufficient to answer a spec question precisely:
+1. Browse the official 1EdTech QTI standards site and retrieve the applicable 2.1, 2.2, or 3.0
+   information model or implementation guide. Use primary 1EdTech sources, not search-result
+   summaries.
+2. Cite the exact official page used and distinguish normative requirements from implementation
+   inferences.
+3. Cross-reference a sibling implementation only when its repository actually exists, and label
+   it as prior art rather than specification evidence.
 
 ## What this skill is NOT for
 

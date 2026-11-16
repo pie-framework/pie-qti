@@ -2,7 +2,7 @@
 name: api-design-reviewer
 description: Reviews public APIs in framework code for consistency, usability, type safety, breaking changes, and maintainability. Use when designing new APIs, reviewing API changes, or conducting framework code reviews.
 allowed-tools: Read, Glob, Grep, Bash
-model: claude-sonnet-4-20250514
+model: Codex-sonnet-4-20250514
 ---
 
 # API Design Reviewer

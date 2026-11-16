@@ -63,12 +63,14 @@ When adding a package that will publish to npm:
 
 ## During the 1.0.0-beta pre mode
 
-While `.changeset/pre.json` is active, the player/platform group publishes prereleases under the `beta` dist-tag and the transformation group publishes plain patches — but `changeset publish` tags *every* package it publishes `beta` (see `getReleaseTag` in `@changesets/cli`), and the OIDC trusted publisher cannot manage dist-tags ("Allow npm dist-tag" is a website-only toggle per package, not an `npm trust` flag). The release workflow's dist-tag fixup therefore fails after publishing.
+While `.changeset/pre.json` is active, every package in the fixed group publishes as `1.0.0-beta.N` under the `beta` dist-tag, and `latest` stays where it was. The release workflow cannot move it: the OIDC trusted publisher has no dist-tag rights ("Allow npm dist-tag" is a website-only toggle per package, not an `npm trust` flag).
 
-Re-point `latest` locally as the maintainer after each beta-period release (web-auth prompt per package):
+When the maintainer promotes a release, re-point `latest` locally for all packages in the fixed group, after `npm login`. npm asks for a browser approval per package, so run it in an interactive terminal:
 
 ```sh
-npm dist-tag add @pie-qti/<pkg>@<version> latest   # once per transformation package that released
+for p in $(jq -r '.fixed[0][]' .changeset/config.json); do
+  npm dist-tag add "$p@<version>" latest
+done
 ```
 
 Verify afterwards with `npm view @pie-qti/<pkg> dist-tags`. A brand-new package must be published once before `npm trust github` accepts its trusted-publisher configuration; its first release cannot go through OIDC.
@@ -79,7 +81,7 @@ Before a release, confirm:
 
 - working tree and branch are intentional,
 - pending changesets have the expected bump levels,
-- npm auth works: `check:npm-auth` uses `NPM_TOKEN`/`NODE_AUTH_TOKEN` from `.env` when present (the CI path), but locally a normal `npm login` is enough — with no token and an interactive TTY it runs `npm whoami` and falls back to interactive `npm login` on failure (see `AUTO_LOGIN_ENABLED` in `scripts/check-npm-auth.mjs`). CI has no TTY, so there the token is required,
+- npm auth works. CI publishes through npm OIDC trusted publishing with no stored token (`docs/development/trusted-publishing.md`). Locally a normal `npm login` is enough: `check:npm-auth` runs `npm whoami` and falls back to interactive `npm login` (see `AUTO_LOGIN_ENABLED` in `scripts/check-npm-auth.mjs`); it uses `NPM_TOKEN`/`NODE_AUTH_TOKEN` from `.env` only when one is set,
 - `bun run verify:publish` passes,
 - `bun run test` passes when preparing an actual publish.
 
