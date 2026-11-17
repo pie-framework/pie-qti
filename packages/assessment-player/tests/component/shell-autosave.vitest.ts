@@ -93,7 +93,18 @@ afterEach(() => {
 
 describe('save indicator', () => {
 	test('shows Saving… then Saved · time as the real save settles', { timeout: 15000 }, async () => {
-		const { m } = await mountShell();
+		const { m, backend } = await mountShell();
+		// Hold the save open so "Saving…" stays up until the test has seen it; a save that settles
+		// between two polls would otherwise skip straight to "Saved".
+		let release: () => void = () => {};
+		const held = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const referenceSave = backend.saveState.bind(backend);
+		backend.saveState = async (request) => {
+			await held;
+			return referenceSave(request);
+		};
 		const indicator = () => m.host.querySelector('[data-testid="assessment-save-status"]');
 
 		await until(() => indicator() !== null);
@@ -101,6 +112,7 @@ describe('save indicator', () => {
 		instance.updateResponse('RESPONSE', 'water');
 
 		await until(() => (indicator()?.textContent ?? '').includes('Saving'));
+		release();
 		await until(() => /Saved · \d{1,2}:\d{2}/.test(indicator()?.textContent ?? ''), 5000);
 		expect(indicator()?.getAttribute('aria-live')).toBe('polite');
 	});
