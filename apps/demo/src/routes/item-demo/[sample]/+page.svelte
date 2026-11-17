@@ -7,7 +7,7 @@
 	import type { SvelteI18nProvider } from '@pie-qti/i18n';
 	import { SAMPLE_ITEMS } from '#lib/sample-items.js';
 	import { getItemXmlForLocale, hasMultilingualVariants } from '#lib/locale-aware-items.js';
-	import { getSecurityConfig } from '#lib/player-config.js';
+	import { getPciConfig, getSecurityConfig } from '#lib/player-config.js';
 	import { DemoItemSessionController } from '#lib/item-session.svelte.js';
 	import ConfigurationPanel from './components/ConfigurationPanel.svelte';
 	import QuestionPanel from './components/QuestionPanel.svelte';
@@ -92,6 +92,7 @@
 					itemXml: xml,
 					role: selectedRole,
 					security: getSecurityConfig(),
+					pci: getPciConfig(),
 				},
 				{ responses: initialResponses },
 			);

@@ -2319,6 +2319,78 @@ export const CUSTOM_INTERACTION = `<?xml version="1.0" encoding="UTF-8"?>
   </itemBody>
 </assessmentItem>`;
 
+/**
+ * QTI 3.0 portable custom interaction. The two AMD modules live under
+ * `static/pci/tally-counter/modules/`; the item demo resolves them against the app's base URL
+ * through an allow-listed module resolver.
+ */
+export const PCI_TALLY_COUNTER = `<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item
+  xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
+  identifier="pci-tally-counter"
+  title="Portable Custom Interaction - Tally Counter"
+  adaptive="false"
+  time-dependent="false">
+
+  <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="integer">
+    <qti-correct-response>
+      <qti-value>7</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
+    <qti-default-value>
+      <qti-value>0.0</qti-value>
+    </qti-default-value>
+  </qti-outcome-declaration>
+
+  <qti-outcome-declaration identifier="MAXSCORE" cardinality="single" base-type="float">
+    <qti-default-value>
+      <qti-value>1.0</qti-value>
+    </qti-default-value>
+  </qti-outcome-declaration>
+
+  <qti-item-body>
+    <p>There are 4 apples in a basket. Ana puts 3 more apples in the basket.</p>
+    <p>How many apples are in the basket now? Use the buttons to set your answer.</p>
+    <qti-portable-custom-interaction
+      response-identifier="RESPONSE"
+      custom-interaction-type-identifier="urn:example:pci:tally_counter">
+      <qti-interaction-modules>
+        <qti-interaction-module id="tally_lib" primary-path="pci/tally-counter/modules/tally_lib.js"/>
+        <qti-interaction-module id="tally_counter" primary-path="pci/tally-counter/modules/tally_counter.js"/>
+      </qti-interaction-modules>
+      <qti-interaction-markup>
+        <div class="tally-mount"></div>
+      </qti-interaction-markup>
+      <qti-pci-properties>
+        <qti-pci-property key="label" value="Apples"/>
+        <qti-pci-property key="min" value="0"/>
+        <qti-pci-property key="max" value="20"/>
+      </qti-pci-properties>
+    </qti-portable-custom-interaction>
+  </qti-item-body>
+
+  <qti-response-processing>
+    <qti-response-condition>
+      <qti-response-if>
+        <qti-match>
+          <qti-variable identifier="RESPONSE"/>
+          <qti-correct identifier="RESPONSE"/>
+        </qti-match>
+        <qti-set-outcome-value identifier="SCORE">
+          <qti-base-value base-type="float">1.0</qti-base-value>
+        </qti-set-outcome-value>
+      </qti-response-if>
+      <qti-response-else>
+        <qti-set-outcome-value identifier="SCORE">
+          <qti-base-value base-type="float">0.0</qti-base-value>
+        </qti-set-outcome-value>
+      </qti-response-else>
+    </qti-response-condition>
+  </qti-response-processing>
+</qti-assessment-item>`;
+
 export const MATH_INLINE = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentItem
   xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2"
@@ -3109,6 +3181,12 @@ export const SAMPLE_ITEMS: SampleItem[] = [
     title: 'Custom Interaction (Fallback)',
     description: 'Shows a fallback UI for customInteraction and allows a manual response',
     xml: CUSTOM_INTERACTION,
+  },
+  {
+    id: 'pci-tally-counter',
+    title: 'Portable Custom Interaction (QTI 3.0)',
+    description: 'Tally counter loaded as a QTI 3.0 portable custom interaction module',
+    xml: PCI_TALLY_COUNTER,
   },
   {
     id: 'choice-with-stimulus',
