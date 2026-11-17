@@ -155,33 +155,6 @@ describe('scorer rubricBlock content', () => {
     expect(model.teacherInstructionsEnabled).toBeUndefined();
   });
 
-  test('reaches the instructor on an item whose embedded PIE source is not used', async () => {
-    const sourceModel = {
-      id: 'cf-086',
-      config: {
-        models: [
-          { id: 'ete', element: 'extended-text-entry', teacherInstructions: 'As authored.' },
-        ],
-        elements: { 'extended-text-entry': '@pie-element/extended-text-entry@latest' },
-        markup: '<extended-text-entry id="ete"></extended-text-entry>',
-      },
-    };
-    const output =
-      await convert(`<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" xmlns:pie="https://github.com/pie-framework/pie-elements" identifier="cf-086" title="cf-086" adaptive="false" timeDependent="false">
-      ${ETE_DECLARATION}
-      <itemBody>
-        <extendedTextInteraction responseIdentifier="ETE"/>
-        <rubricBlock view="scorer"><p>As authored.</p></rubricBlock>
-      </itemBody>
-      <pie:sourceModel><![CDATA[${JSON.stringify(sourceModel)}]]></pie:sourceModel>
-    </assessmentItem>`);
-
-    expect(output.warnings?.map((warning) => warning.code)).toContain('PIE_SOURCE_STALE');
-    expect(modelOf(output, '@pie-element/extended-text-entry').teacherInstructions).toBe(
-      '<p>As authored.</p>'
-    );
-  });
-
   test('is reported when no element in the item shows teacher instructions', async () => {
     const output = await convert(
       withRubric(

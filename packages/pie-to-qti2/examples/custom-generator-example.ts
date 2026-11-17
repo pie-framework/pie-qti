@@ -180,13 +180,6 @@ async function transformExample() {
       console.log('  Warnings:', (result.metadata as any).warnings);
     }
   }
-
-  // Verify PIE extension is embedded
-  if (qtiXml.includes('<pie:sourceModel>')) {
-    console.log('\n✅ PIE source model embedded for lossless round-trip');
-  } else {
-    console.log('\n⚠️  Warning: PIE source model not embedded');
-  }
 }
 
 // ============================================================================

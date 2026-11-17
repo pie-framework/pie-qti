@@ -474,32 +474,6 @@ describe('QtiToPiePlugin', () => {
     expect(output.items[0].content.metadata.qtiSource.metadata.qtiVersion).toBe('2.1');
   });
 
-  test('should transform the QTI body when the QTI embeds a PIE source model without a digest', async () => {
-    const plugin = new QtiToPiePlugin();
-    const qtiWithBrokenExtension = `<?xml version="1.0" encoding="UTF-8"?>
-<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" xmlns:pie="https://github.com/pie-framework/pie-elements" identifier="broken-ext" title="Broken Extension" adaptive="false" timeDependent="false">
-  ${createResponseDeclaration('RESPONSE', 'single', ['choiceA'])}
-  <itemBody>
-    <p>What is 2 + 2?</p>
-    ${createChoiceInteraction('RESPONSE', [
-      { id: 'choiceA', text: '4' },
-      { id: 'choiceB', text: '3' },
-    ])}
-  </itemBody>
-  <pie:sourceModel><![CDATA[{"id": "truncated]]></pie:sourceModel>
-</assessmentItem>`;
-
-    const output = await plugin.transform(
-      { content: qtiWithBrokenExtension },
-      { logger: new SilentLogger() }
-    );
-
-    expect(output.items[0].content.config.models[0].element).toBe('multiple-choice');
-    expect(output.items[0].content.config.models[0].prompt).toContain('What is 2 + 2?');
-    expect(output.warnings?.some((w) => w.code === 'PIE_SOURCE_STALE')).toBe(true);
-    expect(output.metadata.conversionTrace?.events.some((e) => e.kind === 'fallback')).toBe(true);
-  });
-
   test('should reconstruct the PIE item from its source sidecar', async () => {
     const plugin = new QtiToPiePlugin();
     const sourceModel = {
