@@ -157,12 +157,11 @@ export interface MetadataExtractor {
 ```
 
 After the standard transform, the plugin picks the extractor whose `vendor`
-matches the detected vendor — otherwise the built-in
-`StandardMetadataExtractor` (`vendor: 'standard'`, registered by default,
-which maps standard LOM/QTI metadata). The returned record's
-`extractedMetadata.extensions` merge into `pieItem.extensions`; if no
-extractor matches at all, the plugin falls back to its generic
-`extractExtensions()` pass.
+matches the detected vendor — otherwise the registered
+`StandardMetadataExtractor` (`vendor: 'standard'`, registered by default),
+which maps standard LOM/QTI metadata. The returned record's
+`extractedMetadata.extensions` merge into `pieItem.extensions`; with no
+matching extractor, no extensions merge.
 
 The demo extractor (`acme-metadata-extractor.ts`) pulls difficulty,
 item-bank id, authoring tool, and subject/standards fields. For richer
@@ -373,9 +372,9 @@ expect(result.pieConfig).toBeDefined();
 expect(result.metadata.sourceFormat).toBe('qti22');
 ```
 
-For lossless round-trip coverage, use the PIE source sidecar: QTI items
-carry `<item>.pie.json` sidecars and `extractPieExtension` (from
-`@pie-qti/to-pie`) round-trips the original PIE data — see
+For lossless round-trip coverage, use the PIE source sidecar: a QTI → PIE
+result carries `items[0].sidecar`, and passing it back as `input.sidecar`
+restores the original PIE data unchanged — see
 [PIE-QTI-TRANSFORMATION-GUIDE.md](./PIE-QTI-TRANSFORMATION-GUIDE.md).
 
 ---
