@@ -1,6 +1,6 @@
 # @pie-qti/pie-to-qti2
 
-Bidirectional transformation plugin that converts PIE (Platform for Interactive Education) items to QTI 2.2 or QTI 3.0 with lossless round-trip support.
+Bidirectional transformation plugin that converts PIE (Portable Interactions and Elements) items to QTI 2.2 or QTI 3.0 with lossless round-trip support.
 
 ## Overview
 

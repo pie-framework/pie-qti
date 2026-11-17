@@ -1,17 +1,17 @@
 # PRD: hottextInteraction
 
 <!--
-  Status: draft
+  Status: current
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: hottextInteraction
-  Last reviewed: 2026-11-09
+  Last reviewed: 2026-11-17
 -->
 
-**Status:** draft  
+**Status:** current  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-11-09
+**Last reviewed:** 2026-11-17
 
 ---
 
@@ -32,7 +32,7 @@
 
 **Why `maxChoices=1` produces a string response, not a one-element array**: The QTI spec defines the `hottextInteraction` response variable as `single` cardinality when `maxChoices=1` and `multiple` cardinality when `maxChoices>1`. The component encodes this: when `maxChoices=1` it emits a bare identifier string (or `null`); when `maxChoices>1` it emits an `string[]`. This mirrors how `choiceInteraction` handles the radio vs. checkbox distinction. Delivery system code that processes responses must branch on the response type; the extractor's `maxChoices` value is the canonical signal.
 
-**Why `maxChoices=0` is not treated as "unlimited"**: Unlike `choiceInteraction`, the `hottextInteraction` spec defines `maxChoices` default as `1` (not `0`). The QTI spec states `0` means unlimited for both interaction types, but practically all real K-12 `hottextInteraction` items use a fixed positive value. The extractor defaults `maxChoices` to `1` when the attribute is absent, consistent with the spec default. The validator emits a warning when `maxChoices > hottext count`, which catches the most common authoring errors.
+**Why `maxChoices=0` means unlimited**: The QTI spec states `0` means no restriction, and the component follows it through the shared capacity rule: `canSelectMore` uses `isAtLimit()` (`limit > 0 && count >= limit`), so only a positive limit can refuse a selection and `maxChoices=0` never does. The extractor defaults `maxChoices` to `1` when the attribute is absent, consistent with the spec default. The validator emits a warning when `maxChoices > hottext count`, which catches the most common authoring errors.
 
 **Why hottext elements are not shuffled**: The QTI spec does not define a `shuffle` attribute on `hottextInteraction`. The position of each hottext span within the prose is fixed by the author's intent — rearranging them would alter the meaning of the text. This is unlike `choiceInteraction` where the choices are semantically independent options.
 
@@ -59,7 +59,7 @@
 |-----------|---------|-----------|
 | `responseIdentifier` | Full | Extracted as `responseId`; used in `qti-change` event payload |
 | `maxChoices` | Full | Enforced at selection time, and it decides the widget. With `maxChoices=1` the spans form a radio group: a new selection replaces the current one, activating the selected span again keeps it (a radio is never unchecked by activating it), and "Clear answer" retracts the answer. With `maxChoices>1` each span is a toggle button: activating a selected span deselects it, and once `selectedIds.length === maxChoices` further selections are refused until a deselection occurs. Default `1` when absent. |
-| `minChoices` | ✅ Full | Extracted when `> 0`. While the response selects fewer spans, the footer states the requirement ("Select at least 2"), flipping to "Minimum met" once reached; response validation reports a shorter response incomplete. |
+| `minChoices` | ✅ Full | Extracted when `> 0`. While the response selects fewer spans, the shared minimum-requirement hint states the requirement ("Select at least 2"), announced once per unmet stretch and clearing once the minimum is met; response validation reports a shorter response incomplete. |
 | `data-min-selections-message` | ✅ Full | QTI 3.0 (Table on `qti-hottext-interaction`). States the unmet-minimum badge instead of the localized "Select at least {n}". |
 | `data-max-selections-message` | ✅ Full | QTI 3.0 (Table on `qti-hottext-interaction`). Shown at the cap for any cardinality and announced on a refused selection, exactly as on `choiceInteraction`. |
 
@@ -90,9 +90,9 @@
 
 ### Known gaps
 
-- **`minChoices` not surfaced to the component**: `minChoices` is extracted by `standardHottextExtractor` and present in the local `HottextData` type (in the extractor file), but `HottextInteractionData` (in `packages/item-player/src/interactions/shared/types.ts`) does not include the field. The component therefore cannot render a "Select at least N" hint or gate submission. This is analogous to the `choiceInteraction` `minChoices` gap. Not tracked under a named gap item in `docs/SPEC-GAPS-PLAN.md` but consistent with the pattern described by G-06.
+- **`minChoices` surfaced to the component** (resolved 2026-11-17): `HottextInteractionData` carries `minChoices` (with `minSelectionsMessage` and `maxSelectionsMessage`), and the component renders the unmet-minimum hint — the author's `data-min-selections-message`, else `interactions.hottext.selectAtLeast` ("Select at least {n}") — through the shared minimum-requirement hint while the response selects fewer spans, with response validation reporting a shorter response incomplete.
 - **`fixed` on `<hottext>` not extracted**: As noted above, this is a deliberate no-op because `hottextInteraction` has no shuffle.
-- **G-09 (PNP)**: When `pnp.cognitive.eliminationTool` is enabled, candidates should be able to dismiss non-selectable spans from consideration. Not implemented.
+- **G-09 (PNP)**: When `pnp.cognitive.eliminationTool` is enabled, candidates should be able to dismiss non-selectable spans from consideration. Not implemented. (Only the choice and order plugins implement the elimination tool.)
 
 ---
 
@@ -189,12 +189,11 @@ WCAG 2.2 Level AA is mandatory for all assessment interactions.
 **Alternatives considered:** Set `tabindex="-1"` on non-selectable spans when at capacity. Rejected for this implementation; left as a future improvement. Refusing a second selection under `maxChoices=1` (the earlier behavior) was replaced by switching.  
 **Consequences:** A keyboard user at a `maxChoices>1` capacity will Tab to inactive spans. The `aria-pressed="false"` state on those spans is accurate (not selected), but there is no ARIA attribute that communicates "cannot be selected right now". A future improvement could use `aria-disabled="true"` on non-selectable spans at capacity.
 
-### `minChoices` is extracted but not forwarded to the component
+### `minChoices` is extracted and surfaced to the component
 
-**Decision:** `standardHottextExtractor` extracts `minChoices` from the XML and includes it in the returned `HottextData` object (when `> 0`), but `HottextInteractionData` does not declare the field, so it is dropped before reaching the component.  
-**Rationale:** This is a known gap (consistent with `choiceInteraction`'s handling), not a deliberate design choice. The field exists in the extractor's local type (`HottextData`) but was not added to the shared `HottextInteractionData` type in `interactions.ts`.  
-**Alternatives considered:** Add `minChoices?: number` to `HottextInteractionData` and render a "Select at least N" hint. This is the correct end state.  
-**Consequences:** Items with `minChoices > 0` will not show a minimum-selection hint to candidates. Submission is not blocked by `minChoices`. This is an authoring-time gap that affects candidates on items that explicitly specify `minChoices`.
+**Decision:** `standardHottextExtractor` extracts `minChoices`, the shared `HottextInteractionData` delivers it, and the component states the unmet minimum on the question.  
+**Behavior:** While the response selects fewer than `minChoices` spans, the shared minimum-requirement hint states the requirement — the author's `data-min-selections-message` when present, else `interactions.hottext.selectAtLeast` ("Select at least {n}") — names itself in the answer group's `aria-describedby`, and is announced politely once per unmet stretch; response validation reports a response short of the minimum as incomplete. Meeting the minimum clears the hint.  
+**Consequences:** Items authored with `minChoices` get the same minimum-response treatment as `choiceInteraction` (WCAG 3.3.2 / 3.3.3).
 
 ### Response emits single string for `maxChoices=1`, array for `maxChoices>1`
 
@@ -214,12 +213,13 @@ interface HottextInteractionData extends BaseInteractionData {
   responseId: string;               // from responseIdentifier attribute
   prompt: string | null;            // HTML content of <prompt> child, or null
   maxChoices: number;               // 1 = single cardinality; >1 = multiple cardinality
+  minChoices: number;               // 0 = no authored minimum; else the required selection count
   contentHtml: HtmlContent;         // sanitized HTML of the entire passage including <hottext> elements
   hottextChoices: Array<{
     identifier: string;             // from hottext identifier attribute; must be unique
     text: string;                   // text content of the hottext element (plain text, not HTML)
   }>;
-  // minChoices is NOT present here — see Known gaps
+  // also carries optional interactionClasses, maxSelectionsMessage and minSelectionsMessage
 }
 ```
 
@@ -227,16 +227,16 @@ interface HottextInteractionData extends BaseInteractionData {
 - `hottextChoices` has at least one entry (error if zero)
 - All `identifier` values are non-empty and unique within the interaction (error on duplicate)
 - `maxChoices >= 0` (error if negative)
-- `minChoices <= maxChoices` when both are defined (error)
+- `minChoices >= 0` (error if negative)
+- `minChoices > maxChoices` (with `maxChoices > 0`) emits a warning (not an error)
 - `maxChoices > hottextChoices.length` emits a warning (not an error)
 
 **Invariants not enforced:**
-- `minChoices` is not forwarded to the component; no submission-time enforcement
 - The `fixed` attribute on individual `<hottext>` elements is not present in `hottextChoices`
 
 ### `HottextData` (extractor-internal, from `hottextExtractor.ts`)
 
-This is a superset of `HottextInteractionData` that exists only in the extractor before the data is merged with `BaseInteractionData`. It includes `minChoices?: number`. The discrepancy between this type and `HottextInteractionData` is the root of the minChoices gap.
+This is the extractor's local type, carrying the same fields as `HottextInteractionData` (including `minChoices`). The extraction pipeline merges it with `BaseInteractionData` — adding `type` and `responseId` — before delivery.
 
 ### Component props
 
@@ -457,12 +457,11 @@ AC-E2: maxChoices exceeds total hottext count
 AC-E3: maxChoices=0 (unlimited)
   Given: an item with maxChoices=0
   When: the item renders and the candidate selects spans
-  Then: all spans can be selected (canSelectMore is true when maxChoices=0 is evaluated);
-  Notes: verify component behavior for maxChoices=0 — the derived `canSelectMore` uses
-         `selectedIds.length < parsedInteraction.maxChoices`; when maxChoices=0, this
-         expression is `selectedIds.length < 0` which is always false and would block
-         all selections. This is a potential bug; item authors should not use maxChoices=0
-         for hottextInteraction in the current implementation.
+  Then: all spans can be selected; no selection is refused and no limit message appears;
+        unselected spans keep the "selectable" cue
+  Notes: `canSelectMore` uses the shared `isAtLimit()` (`limit > 0 && count >= limit`,
+         packages/default-components/src/shared/utils/capacity.ts), so maxChoices=0 is
+         unlimited, exactly as the spec defines.
 
 AC-E4: Single hottext span in a long passage
   Given: an item with one hottext span in a 200-word passage
@@ -505,9 +504,9 @@ AC-E9: Response synced to external state change
 
 ## Open questions
 
-- [ ] **`maxChoices=0` bug**: The `canSelectMore` derived value is `selectedIds.length < parsedInteraction.maxChoices`. When `maxChoices=0` this is always false, blocking all selections. Is `maxChoices=0` a valid value for `hottextInteraction`? The spec says it means unlimited, but the extractor defaults to `1` when absent. If `0` is a valid authored value, the component needs a guard: `maxChoices === 0 || selectedIds.length < maxChoices`.
+- [x] **`maxChoices=0` bug** (resolved 2026-11-17): not a bug. `canSelectMore` uses the shared `isAtLimit()` (`limit > 0 && count >= limit`), so only a positive limit restricts and `0` means unlimited, exactly as the spec defines. No guard is needed.
 - [x] **`maxChoices=1` behavior** (resolved 2026-11-09): single-select hottext is a radio group. Selecting another span replaces the selection, activating the selected span again keeps it, and "Clear answer" retracts the answer, as in `choiceInteraction`. See the decision "Single-select hottext is a radio group, not a set of toggle buttons" above.
-- [ ] **`minChoices` gap**: Should `minChoices` be added to `HottextInteractionData` and surfaced as a "Select at least N" footer hint? This is low-effort to add but requires agreement on the UI pattern.
+- [x] **`minChoices` gap** (resolved 2026-11-17): `minChoices` is delivered in `HottextInteractionData`, and the component states the unmet minimum — the author's `data-min-selections-message`, else "Select at least {n}" (`interactions.hottext.selectAtLeast`) — through the shared minimum-requirement hint; response validation reports a shorter response incomplete. See the decision "`minChoices` is extracted and surfaced to the component".
 - [ ] **Touch target size for short spans**: Single-word hottext spans (especially short words like "a", "or", "in") may not meet the 24×24 px touch target minimum. Should the component enforce a minimum `min-width` / `min-height` on hottext elements?
 
 ---

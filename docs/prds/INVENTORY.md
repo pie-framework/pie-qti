@@ -36,30 +36,30 @@ docs/prds/
 
 ## Interaction PRDs (`interactions/`)
 
-One PRD per QTI interaction type implemented in `@pie-qti/default-components`.
+One PRD per QTI interaction type. Extraction and data models live in `packages/item-player/src/interactions/<interaction>/`; the default renderers (`pie-qti-*` custom elements) live in `@pie-qti/default-components`.
 
 | File | QTI Type | Component | Status |
 |------|----------|-----------|--------|
-| `interactions/choice.md` | `choiceInteraction` | `pie-qti-choice` | draft |
-| `interactions/order.md` | `orderInteraction` | `pie-qti-order` | draft |
-| `interactions/match.md` | `matchInteraction` | `pie-qti-match` | draft |
-| `interactions/associate.md` | `associateInteraction` | `pie-qti-associate` | draft |
-| `interactions/gap-match.md` | `gapMatchInteraction` | `pie-qti-gap-match` | draft |
-| `interactions/graphic-gap-match.md` | `graphicGapMatchInteraction` | `pie-qti-graphic-gap-match` | draft |
-| `interactions/hotspot.md` | `hotspotInteraction` | `pie-qti-hotspot` | draft |
-| `interactions/hottext.md` | `hottextInteraction` | `pie-qti-hottext` | draft |
-| `interactions/extended-text.md` | `extendedTextInteraction` | `pie-qti-extended-text` | draft |
-| `interactions/slider.md` | `sliderInteraction` | `pie-qti-slider` | draft |
-| `interactions/select-point.md` | `selectPointInteraction` | `pie-qti-select-point` | draft |
-| `interactions/graphic-order.md` | `graphicOrderInteraction` | `pie-qti-graphic-order` | draft |
-| `interactions/graphic-associate.md` | `graphicAssociateInteraction` | `pie-qti-graphic-associate` | draft |
-| `interactions/position-object.md` | `positionObjectInteraction` | `pie-qti-position-object` | draft |
-| `interactions/media.md` | `mediaInteraction` | `pie-qti-media` | draft |
-| `interactions/end-attempt.md` | `endAttemptInteraction` | `pie-qti-end-attempt` | draft |
-| `interactions/upload.md` | `uploadInteraction` | `pie-qti-upload` | draft |
-| `interactions/drawing.md` | `drawingInteraction` | `pie-qti-drawing` | draft |
+| `interactions/choice.md` | `choiceInteraction` | `pie-qti-choice` | current |
+| `interactions/order.md` | `orderInteraction` | `pie-qti-order` | current |
+| `interactions/match.md` | `matchInteraction` | `pie-qti-match` | current |
+| `interactions/associate.md` | `associateInteraction` | `pie-qti-associate` | current |
+| `interactions/gap-match.md` | `gapMatchInteraction` | `pie-qti-gap-match` | current |
+| `interactions/graphic-gap-match.md` | `graphicGapMatchInteraction` | `pie-qti-graphic-gap-match` | current |
+| `interactions/hotspot.md` | `hotspotInteraction` | `pie-qti-hotspot` | current |
+| `interactions/hottext.md` | `hottextInteraction` | `pie-qti-hottext` | current |
+| `interactions/extended-text.md` | `extendedTextInteraction` | `pie-qti-extended-text` | current |
+| `interactions/slider.md` | `sliderInteraction` | `pie-qti-slider` | current |
+| `interactions/select-point.md` | `selectPointInteraction` | `pie-qti-select-point` | current |
+| `interactions/graphic-order.md` | `graphicOrderInteraction` | `pie-qti-graphic-order` | current |
+| `interactions/graphic-associate.md` | `graphicAssociateInteraction` | `pie-qti-graphic-associate` | current |
+| `interactions/position-object.md` | `positionObjectInteraction` | `pie-qti-position-object` | current |
+| `interactions/media.md` | `mediaInteraction` | `pie-qti-media` | current |
+| `interactions/end-attempt.md` | `endAttemptInteraction` | `pie-qti-end-attempt` | current |
+| `interactions/upload.md` | `uploadInteraction` | `pie-qti-upload` | current |
+| `interactions/drawing.md` | `drawingInteraction` | `pie-qti-drawing` | current |
 | `interactions/custom.md` | `customInteraction` / `qti-portable-custom-interaction` | `pie-qti-custom` | current |
-| `interactions/inline-interactions.md` | `textEntryInteraction`, `inlineChoiceInteraction` | inline renderers | draft |
+| `interactions/inline-interactions.md` | `textEntryInteraction`, `inlineChoiceInteraction` | inline renderers | current |
 
 Each interaction PRD answers:
 - What does this interaction do (QTI spec summary, in plain language)?
@@ -78,20 +78,19 @@ Subsystem-level PRDs covering how major packages work and how to extend them.
 
 | File | Subsystem | Packages | Status |
 |------|-----------|----------|--------|
-| `architecture/item-player.md` | QTI Item Player | `@pie-qti/item-player` | draft |
+| `architecture/item-player.md` | QTI Item Player | `@pie-qti/item-player` | current |
 | `architecture/assessment-player.md` | Assessment Shell | `@pie-qti/assessment-player` | current |
-| `architecture/transform-engine.md` | Transform Engine & Plugin System | `@pie-qti/transform-core`, `@pie-qti/transform-types` | draft |
-| `architecture/qti-to-pie.md` | QTI → PIE Transform | `@pie-qti/to-pie` | draft |
-| `architecture/pie-to-qti.md` | PIE → QTI Transform | `@pie-qti/pie-to-qti2` | draft |
-| `architecture/response-processing.md` | Response Processing Engine | `@pie-qti/qti-processing` | needs-update |
-| `architecture/web-components.md` | Web Component Infrastructure | `@pie-qti/default-components`, `@pie-qti/player-elements`, `@pie-qti/web-component-loaders` | needs-update |
-| `architecture/item-player-plugin-system.md` | Item Player Plugin / Extension API | `@pie-qti/item-player` | draft |
-| `architecture/vendor-extensions.md` | Vendor Transform Extensions (five-hook system; for whole-pipeline replacement and player-side extractors) | `@pie-qti/to-pie` vendor hooks | draft |
-| `architecture/ims-content-packages.md` | IMS Content Package Support | `@pie-qti/ims-cp-*` | draft |
-| `architecture/storage.md` | Pluggable Storage Backends | `@pie-qti/storage` | draft |
-| `architecture/security.md` | Security Model (sanitization, iframe isolation, Trusted Types) | `@pie-qti/item-player`, `@pie-qti/default-components`, `@pie-qti/section-player`, `@pie-qti/player-elements`, `@pie-qti/qti-processing`, `@pie-qti/storage` | current |
-| `architecture/pie-projection-adapters.md` | PIE Projection Adapters | `@pie-qti/to-pie`, `@pie-qti/pie-to-qti2`, `@pie-qti/transform-core` | draft (dormant — see its 2026-10-18 update note) |
-| `architecture/qti-section-player-and-toolkit.md` | QTI Section Player & Assessment Toolkit | `@pie-qti/section-player`, `@pie-qti/assessment-toolkit` | draft |
+| `architecture/transform-engine.md` | Transform Engine & Plugin System | `@pie-qti/transform-core`, `@pie-qti/transform-types` | current |
+| `architecture/qti-to-pie.md` | QTI → PIE Transform | `@pie-qti/to-pie` | current |
+| `architecture/pie-to-qti.md` | PIE → QTI Transform | `@pie-qti/pie-to-qti2` | current |
+| `architecture/response-processing.md` | Response Processing Engine | `@pie-qti/qti-processing` | current |
+| `architecture/web-components.md` | Web Component Infrastructure | `@pie-qti/default-components`, `@pie-qti/player-elements`, `@pie-qti/web-component-loaders` | current |
+| `architecture/item-player-plugin-system.md` | Item Player Plugin / Extension API | `@pie-qti/item-player` | current |
+| `architecture/vendor-extensions.md` | Vendor Transform Extensions (five-hook system; for whole-pipeline replacement and player-side extractors) | `@pie-qti/to-pie` vendor hooks | current |
+| `architecture/ims-content-packages.md` | IMS Content Package Support | `@pie-qti/ims-cp-*` | current |
+| `architecture/security.md` | Security Model (sanitization, iframe isolation, Trusted Types) | `@pie-qti/item-player`, `@pie-qti/default-components`, `@pie-qti/section-player`, `@pie-qti/player-elements`, `@pie-qti/qti-processing` | current |
+| `architecture/pie-projection-adapters.md` | PIE Projection Adapters | `@pie-qti/to-pie`, `@pie-qti/pie-to-qti2`, `@pie-qti/transform-core` | reference (dormant decision record; reduced 2026-11-17) |
+| `architecture/qti-section-player-and-toolkit.md` | QTI Section Player & Assessment Toolkit | `@pie-qti/section-player`, `@pie-qti/assessment-toolkit` | current |
 
 IMS Content Package support is listed under architecture because the implementation spans the `@pie-qti/ims-cp-*` packages and transform/load pipelines rather than a runtime system concern like i18n or theming.
 

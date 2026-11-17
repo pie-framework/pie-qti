@@ -1,16 +1,16 @@
 # PRD: Vendor Transform Extensions
 
 <!--
-  Status: draft
+  Status: current
   Type: architecture
   Packages: @pie-qti/to-pie (hooks), @pie-qti/item-player (plugin side)
-  Last reviewed: 2026-04-27
+  Last reviewed: 2026-11-17
 -->
 
-**Status:** draft  
+**Status:** current
 **Type:** architecture  
 **Packages:** `@pie-qti/to-pie` (transform-side hooks), `@pie-qti/item-player` (player-side plugin API)  
-**Last reviewed:** 2026-04-27
+**Last reviewed:** 2026-11-17
 
 ---
 
@@ -175,16 +175,19 @@ All five hook interfaces are defined in `packages/types/src/transform/vendor-ext
 ```
 AC-1: Vendor detector result routes to transformer
   Given: A QtiToPiePlugin constructed with AcmeVendorDetector and AcmeSliderTransformer
-  When: A QTI document containing xmlns:acme="http://acme.com/qti" is transformed
-  Then: AcmeVendorDetector.detect() returns VendorInfo with vendor="acme" and confidence >= 0.5
+  When: A QTI document carrying xmlns:acme="…" and data-vendor="acme" is transformed
+        (two signals; the demo detector scores 0.5 + 0.4)
+  Then: AcmeVendorDetector.detect() returns VendorInfo with vendor="acme" and confidence >= 0.6,
+        the pipeline's fixed gate (packages/to-pie/src/plugin.ts detectVendor)
         AND AcmeSliderTransformer.canHandle() is called with that VendorInfo
         AND (if canHandle returns true) AcmeSliderTransformer.transform() is called
-  Notes: The detector and transformer are decoupled — canHandle can still return false even when the detector fires.
+  Notes: The detector and transformer are decoupled — canHandle can still return false even when the
+        detector fires, and a namespace-only document (confidence 0.5) stays below the 0.6 gate.
 ```
 
 ```
 AC-2: Confidence threshold filters weak detections
-  Given: A QtiToPiePlugin with a threshold of 0.5 and a detector that returns confidence=0.3
+  Given: A detector that returns confidence=0.3 (the pipeline gate is a fixed >= 0.6)
   When: A document is transformed
   Then: The VendorTransformer for that vendor is NOT invoked
         AND the base transform is used instead
@@ -290,7 +293,8 @@ AC-E4: Likert extractor validate catches scale too small
 
 - [ ] Should `VendorDetector` be allowed to return multiple `VendorInfo` entries (ordered by confidence) so the pipeline can fall back from one vendor label to another? Currently the pipeline picks the single highest-confidence result.
 - [ ] Is there a need for a `VendorTransformer` cleanup hook (analogous to `TransformPlugin.dispose()`) for transformers that hold external connections or caches?
-- [ ] The `createAcmeExtensions()` factory uses `require()` (CommonJS) internally but the package is declared as `"type": "module"`. This is a latent bug in the demo package; it should use dynamic `import()`.
+- [x] The `createAcmeExtensions()` factory uses `require()` (CommonJS) internally but the package is declared as `"type": "module"`. This is a latent bug in the demo package; it should use dynamic `import()`.
+  Resolved (2026-11-17): fixed — `packages/demo-vendor-extensions/src` contains no `require()` calls; the factory is ESM throughout.
 
 ---
 

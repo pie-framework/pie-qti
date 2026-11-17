@@ -7,7 +7,7 @@ This repo ships:
 - **Host helper**: `@pie-qti/item-player/iframe` (browser-only)
 - **Protocol types**: `QtiIframeEnvelope` + runtime validators
 
-It does **not** ship a production-ready iframe runtime page/app. Integrators host their own runtime (the `example` app contains a **reference runtime** for demo/testing only).
+It does **not** ship a production-ready iframe runtime page/app. Integrators host their own runtime (the demo app (`apps/demo`) contains a **reference runtime** for demo/testing only).
 
 ## Core idea
 

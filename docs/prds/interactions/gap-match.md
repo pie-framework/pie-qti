@@ -1,17 +1,17 @@
 # PRD: gapMatchInteraction
 
 <!--
-  Status: draft
+  Status: current
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: gapMatchInteraction
-  Last reviewed: 2026-11-09
+  Last reviewed: 2026-11-17
 -->
 
-**Status:** draft  
+**Status:** current  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor, type)  
-**Last reviewed:** 2026-11-09
+**Last reviewed:** 2026-11-17
 
 ---
 
@@ -144,7 +144,7 @@ WCAG 2.2 Level AA is mandatory.
 
 ### Cross-platform
 
-- Drag-and-drop uses the HTML Drag and Drop API (`dragstart`, `dragenter`, `dragover`, `dragleave`, `drop`). This API is not available on iOS Safari without workarounds. The click-based fallback (click gap to clear) must work on all platforms. A full pointer-event or touch-event alternative for placing labels is required for mobile parity. **This is an open gap** — currently there is no touch-drag implementation.
+- Drag-and-drop uses the HTML Drag and Drop API (`dragstart`, `dragenter`, `dragover`, `dragleave`, `drop`). Where that API is unavailable or unreliable — touch especially — the same select-then-place flow carries placement (the K-02 pick-up flow, under Accessibility): tap, click or press Enter/Space on a label to pick it up, then tap a gap to place it; a tap on a filled gap with nothing held clears it. Placement and clearing thus work without drag on every platform.
 - Gap buttons must remain inline with the surrounding text at all viewport widths. The minimum gap width (`min-width: 6.25rem`) must not cause line overflow on narrow screens. Test at 320px viewport width.
 
 ### i18n
@@ -153,10 +153,22 @@ The following strings must be translateable via the `I18nProvider`:
 
 | i18n key | Default |
 |----------|---------|
+| `interactions.gapMatch.pointerInstructions` | `"Select a word, then select a blank. You can also drag and drop."` |
 | `interactions.gapMatch.availableLabel` | `"Available words to place"` |
-| `interactions.gapMatch.blankGapAriaLabel` | `"Blank {gapId}. Drop an answer here."` |
-| `interactions.gapMatch.filledGapAriaLabel` | `"Blank {gapId}, filled with {word}. Click to clear."` |
+| `interactions.gapMatch.availableHeading` | `"Available words:"` |
+| `interactions.gapMatch.wordSelected` | `"{word} picked up. Select a blank to place it, or press Escape to cancel."` |
+| `interactions.gapMatch.pickUpCancelled` | `"Pick-up of {word} cancelled."` |
+| `interactions.gapMatch.placed` | `"Placed {word} in blank {position} of {total}."` |
+| `interactions.gapMatch.blankGapAriaLabel` | `"Blank {position} of {total}. Drop an answer here."` |
+| `interactions.gapMatch.blankGapAriaLabelWithHeld` | `"Blank {position} of {total}. Select to place {heldWord} here."` |
+| `interactions.gapMatch.filledGapAriaLabel` | `"Blank {position} of {total}, filled with {word}. Select to clear."` |
+| `interactions.gapMatch.filledGapAriaLabelWithHeld` | `"Blank {position} of {total}, filled with {word}. Select to replace with {heldWord}."` |
+| `interactions.gapMatch.notCompatibleSentence` | `"Not compatible with the selected word."` |
+| `interactions.gapMatch.associationLimitReached` | `"Association not possible: the limit of {max} is reached."` |
+| `interactions.gapMatch.minPlacementsHint` | `"Still to place in the blanks: {words}."` |
 | `interactions.gapMatch.removeWord` | `"Remove word"` |
+| `interactions.gapMatch.removeFromBlanks` | `"Remove {word} from the blanks"` |
+| `interactions.gapMatch.wordRemovedFromBlanks` | `"{word} removed from the blanks."` |
 | `interactions.gapMatch.requiredBlanksLegend` | `"Blanks marked * are required."` |
 | `common.required` (with `accessibility.sentence`) | `"Required."` (a required gap's description) |
 | `common.errorNoData` | `"No interaction data provided"` |
@@ -401,10 +413,13 @@ AC-A7: Disabled interaction is conveyed via aria-disabled on gaps
   When: a screen reader inspects any gap button
   Then: the button announces aria-disabled="true" or equivalent; it still receives focus (aria-disabled, not HTML disabled, so it remains in the tab order for review)
 
-AC-A8: Palette labels are keyboard-reachable
+AC-A8: Palette labels are keyboard-reachable and pick-up places them
   Given: the item rendered without disabled
   When: the user presses Tab repeatedly from the start of the component
-  Then: all palette labels receive focus in order; each can be activated with Enter or Space (currently activates nothing — note: this is the gap identified in Non-functional requirements; this AC documents the current reachability, not the full select-then-place flow)
+  Then: all palette labels receive focus in order; Enter or Space picks a label up
+        ("{word} picked up. Select a blank to place it, or press Escape to cancel."), Tab
+        reaches the gaps, and Enter or Space on a gap places the held label there; Escape
+        cancels the pick-up and returns focus to the label (the K-02 flow under Accessibility)
 ```
 
 ### Edge cases
@@ -457,7 +472,7 @@ AC-E8: matchGroup on the gap constrains too, and placed labels never block other
 
 ## Open questions
 
-- [ ] **Touch/mobile drag-and-drop**: The HTML Drag and Drop API does not fire `dragstart`/`drop` on iOS Safari. Is there a pointer-events or touch-events fallback planned? Until resolved, mobile candidates can only clear gaps, not fill them via drag.
+- [x] **Touch/mobile drag-and-drop** (resolved 2026-11-17): placement does not depend on the HTML Drag and Drop API. The pick-up flow (K-02) serves pointer, touch and keyboard alike: select a word, then select a blank ("Select a word, then select a blank. You can also drag and drop.", `interactions.gapMatch.pointerInstructions`). Drag and drop remains an enhancement for pointer devices that support it.
 - [ ] **Large pool performance**: At what label count does `renderPromptWithGaps()` become perceptibly slow? Should a threshold trigger a different rendering strategy (e.g. virtual list for the palette)?
 
 ---

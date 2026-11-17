@@ -1,17 +1,17 @@
 # PRD: selectPointInteraction
 
 <!--
-  Status: draft
+  Status: current
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: selectPointInteraction
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-11-17
 -->
 
-**Status:** draft  
+**Status:** current  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-11-17
 
 ---
 
@@ -121,7 +121,7 @@ All coordinates are in natural image pixel space (origin top-left).
 
 ### Known gaps
 
-- **No PNP support:** PNP personal needs (G-09, G-13, G-14) are not implemented for this interaction.
+- **Framework PNP features do not apply here:** The framework-wide PNP work (G-09 elimination tool, G-13 structural labels, G-14 sign language and TTS pronunciation routing) is Done across the player. None of it carries a select-point-specific behavior — a point set has no choices to eliminate, and `plugins/select-point/` has no `pnp`/elimination code — so this interaction is out of their scope rather than missing them.
 
 Resolved since the previous review, and no longer gaps:
 

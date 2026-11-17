@@ -1,17 +1,17 @@
 # PRD: drawingInteraction
 
 <!--
-  Status: draft
+  Status: current
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: drawingInteraction
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-11-17
 -->
 
-**Status:** draft  
+**Status:** current  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor, drawing utilities)  
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-11-17
 
 ---
 

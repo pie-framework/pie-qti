@@ -3,14 +3,14 @@
 <!--
   Status: current
   Type: architecture
-  Packages: @pie-qti/item-player, @pie-qti/default-components, @pie-qti/section-player, @pie-qti/player-elements, @pie-qti/qti-processing, @pie-qti/storage
-  Last reviewed: 2026-08-13
+  Packages: @pie-qti/item-player, @pie-qti/default-components, @pie-qti/section-player, @pie-qti/player-elements, @pie-qti/qti-processing
+  Last reviewed: 2026-11-17
 -->
 
 **Status:** current
 **Type:** architecture  
-**Packages:** `@pie-qti/item-player`, `@pie-qti/default-components`, `@pie-qti/section-player`, `@pie-qti/player-elements`, `@pie-qti/qti-processing`, `@pie-qti/storage`
-**Last reviewed:** 2026-08-13
+**Packages:** `@pie-qti/item-player`, `@pie-qti/default-components`, `@pie-qti/section-player`, `@pie-qti/player-elements`, `@pie-qti/qti-processing`
+**Last reviewed:** 2026-11-17
 
 ---
 
@@ -38,12 +38,13 @@ the host origin should still be delivered through a suitably sandboxed, cross-or
 - Parsing limits are on by default at every layer: the item and assessment custom elements, the
   lower-level `Player` and `AssessmentItemDocument`, the server entry and the sanitizer. An
   explicit `enabled: false` remains available to hosts with an equivalent upstream policy.
-- Filesystem storage canonicalizes its root and rejects pre-existing symbolic links that resolve
-  outside it; Node archive extraction additionally rejects a symbolic link used as the extraction
-  root and contains each existing output path to the canonical target. Segment-aware containment
-  and validated session identifiers remain in place. A caller that can mutate those trees
-  concurrently can still create a time-of-check/time-of-use race, so output roots must not be
-  writable by unrelated principals.
+- Node archive extraction (`extractZipToDirSafe` in `@pie-qti/ims-cp-node`) rejects a symbolic link
+  used as the extraction root, skips entries whose paths contain `..` or are absolute, and contains
+  each existing output path to the canonical target (walking path components for symlink escapes)
+  before writing. The shared size/entry-count/compression-ratio guardrails come from the single
+  archive-safety policy in `packages/ims-cp-core/src/archive/limits.ts`. A caller that can mutate
+  the target tree concurrently can still create a time-of-check/time-of-use race, so output roots
+  must not be writable by unrelated principals.
 - Direct XML parser dependencies require `@xmldom/xmldom@^0.8.13` and the lockfile is refreshed.
 - Assessment resource resolution enforces URL policy, base path/origin containment, redirect
   rejection, timeout, content type, per-resource and aggregate byte budgets, canonical caching,
@@ -195,9 +196,13 @@ elements and attributes that have no legitimate use in QTI item bodies.
 - **FR-24:** Every QTI-derived HTML sink in item, section, and assessment rendering,
   including accessibility/TTS projections and interaction-specific prompt reconstruction, must
   use the shared `PlayerSecurityConfig`-aware sanitizer before `innerHTML` or `{@html}` insertion.
-- **FR-25:** Filesystem storage containment must use segment-aware `path.relative()`
-  checks, reject invalid session identifiers, contain pre-existing symbolic links to the canonical
-  root, reject links that escape it, and document the residual concurrent-mutation race boundary.
+- **FR-25:** Node archive-extraction containment must reject a symbolic link used as the
+  extraction root, skip entries whose paths contain `..` or start with `/` or `\`, and verify
+  every existing output path resolves within the canonical target (including walking path
+  components for symlink escapes) before writing; shared compressed/decompressed-size,
+  entry-count, and compression-ratio guardrails must come from the single archive-safety policy
+  in `@pie-qti/ims-cp-core` (`src/archive/limits.ts`), and the residual concurrent-mutation race
+  boundary must stay documented.
 - **FR-26:** Assessment item resolution must use a host-configurable resolver with URL
   policy, same-origin/base containment defaults, abort timeout, response byte/content-type limits,
   and bounded item count/concurrency.

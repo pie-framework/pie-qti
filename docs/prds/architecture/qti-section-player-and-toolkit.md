@@ -1,16 +1,16 @@
 # PRD: QTI Section Player and Assessment Toolkit
 
 <!--
-  Status: draft
+  Status: current
   Type: architecture
   Packages: @pie-qti/section-player, @pie-qti/assessment-toolkit, @pie-qti/assessment-player, @pie-qti/item-player, @pie-qti/ims-cp-core, @pie-qti/player-elements, @pie-qti/web-component-loaders
-  Last reviewed: 2026-08-13
+  Last reviewed: 2026-11-17
 -->
 
-**Status:** draft
+**Status:** current
 **Type:** architecture
 **Packages:** `@pie-qti/section-player`, `@pie-qti/assessment-toolkit`, `@pie-qti/assessment-player`, `@pie-qti/item-player`, `@pie-qti/ims-cp-core`, `@pie-qti/player-elements`, `@pie-qti/web-component-loaders`
-**Last reviewed:** 2026-08-13
+**Last reviewed:** 2026-11-17
 
 ---
 
@@ -254,73 +254,39 @@ The host derives this from manifest resources, `assessmentTest` XML, package fil
 
 ---
 
-## Implementation plan
+## Implementation status (2026-11-17)
 
-### Phase 0: Define contracts before package scaffolding
+The phased plan that previously lived here is complete; the subsystem shipped and the
+duplicate assessment-player rendering path was retired in the player cleanup that closed
+2026-11-10. The requirements above describe the shipped behavior. What exists, in brief:
 
-- Create contract files for `QtiSectionModel`, `QtiSectionItemRef`, `QtiSharedContext`, `ResolvedQtiSectionComposition`, section diagnostics, resolver hooks, snapshot events, active item events, and framework errors.
-- Add tests that assert `QtiSectionItemRef.deliveryContext` accepts `ResolvedItemDeliveryContext` from `@pie-qti/ims-cp-core`.
-- Define the assessment-player adapter boundary without importing `assessment-player` types into `section-player`.
-
-### Phase 1: Expose shared-content security
-
-- Add a public reusable security surface before moving shared renderers.
-- Reuse or extract `PlayerSecurityConfig`, `UrlPolicyConfig`, parsing limits, Trusted Types policy handling, `sanitizeHtml`, and `sanitizeResourceUrl`.
-- Add malicious-content fixtures for script tags, event handler attributes, `srcdoc`, blocked URL schemes, nested passage assets, stimulus stylesheets, and split-pane/vertical variants.
-- Update `architecture/security.md` when the public security API is implemented.
-
-### Phase 2: Scaffold `@pie-qti/section-player`
-
-- Add `packages/section-player/package.json`.
-- Add `packages/section-player/src/index.ts`.
-- Add `packages/section-player/src/contracts/layout-contract.ts`.
-- Add `packages/section-player/src/contracts/runtime-host-contract.ts`.
-- Add split-pane and vertical Svelte layout components after the contracts and security API exist.
-- Keep layout components XML-agnostic; they consume `ResolvedQtiSectionComposition`.
-
-### Phase 3: Extract reusable section UI
-
-- Own `SplitPaneResizer.svelte`, `RubricDisplay.svelte`, `ItemRenderer.svelte`, and related accessibility/focus behavior exclusively in `@pie-qti/section-player`; do not retain duplicate assessment-player implementations.
-- Preserve assessment-player behavior first.
-- Sanitize every shared passage/rubric/stimulus/test-feedback render sink before using HTML rendering.
-
-### Phase 4: Introduce QTI assessment toolkit contracts
-
-- Add `@pie-qti/assessment-toolkit` only where QTI-specific coordination is needed.
-- Include QTI role/view mapping, PNP/catalog context, stimulus/rubric/passage normalization, security propagation, and lifecycle/error alignment.
-- Import stable `pie-players` contracts only from stable public paths. Do not depend on `runtime/internal` symbols or draft projection exports.
-
-### Phase 5: Delegate assessment-player section rendering
-
-- Keep `packages/assessment-player/src/core/AssessmentPlayer.ts` as the full-assessment orchestration layer.
-- Adapt current navigation state, current item, shared section/testPart rubric blocks, responses,
-  section metadata, per-item delivery context, and the exact active `ItemSession` into
-  `ResolvedQtiSectionComposition`; direct item rubrics stay on that session's presentation.
-- Replace split-pane/rubric/item rendering in `AssessmentShell.svelte` with the section player while preserving navigation, focus, i18n, typeset, security, PNP, and submission behavior.
-
-### Phase 6: Expose browser entrypoints
-
-- Add section custom element registration to `packages/player-elements/src/constants.ts`, `packages/player-elements/src/define.ts`, `packages/player-elements/src/index.ts`, and the relevant element wrapper files.
-- Update `packages/web-component-loaders/src/index.ts` and `packages/web-component-loaders/README.md` so hosts can load section player custom elements without deep imports.
-- Add demo routes in `apps/demo` that exercise the initial split-pane section-with-passage custom element and the vertical active-item custom element. QTI 3 stimulus and malicious shared-content demo cases remain follow-up coverage beyond the initial browser entrypoint smoke tests.
-
-### Phase 7: Host preview integration (outside this repo)
-
-- A host server resolver builds `QtiSectionPreviewContext`.
-- Parse test XML to locate the selected item's containing section when possible.
-- Resolve all section item XML, not only the selected item.
-- Host-transformed item XML overrides source item XML, with diagnostics for a missing transformed test shell.
-- Render the section player when shared section context exists; otherwise retain the item-only preview.
-
-### Phase 8: Test in layers
-
-- Contract tests for section model normalization and CE exports.
-- Unit tests for QTI 2.1 passage normalization and QTI 3 stimulus/catalog/style delivery context pass-through.
-- Security tests for shared HTML sanitization in split-pane and vertical layouts.
-- Component tests for split-pane keyboard resizing, focus management, mobile vertical fallback, and role/view filtering.
-- Regression tests proving `@pie-qti/assessment-player` still renders current passages, rubrics, item players, navigation, and test feedback through the new section player.
-- Demo-backed Playwright coverage in `apps/demo`.
-- Host tests for item-to-section resolution, multi-test ambiguity diagnostics, package-relative asset URLs, and item-only fallback.
+- **Contracts first:** `packages/section-player/src/contracts/` defines the section layout
+  contract and runtime-host contract; `QtiSectionItemRef.deliveryContext` carries
+  `ResolvedItemDeliveryContext` from `@pie-qti/ims-cp-core`.
+- **Shared-content security:** the public `@pie-qti/item-player/security` subpath exposes the
+  reusable security surface; every shared passage/rubric/stimulus/test-feedback render sink in
+  the section player goes through it (`packages/section-player/src/security/`,
+  `SanitizedHtml.svelte`).
+- **Section player package:** `packages/section-player/src/` holds `composition/`, `runtime/`,
+  `security/`, `visibility/`, `pnp/`, `tts/`, `tools/`, and `i18n/`, with layout components
+  `SectionPlayerSplitPane.svelte`, `SectionPlayerVertical.svelte` (plus `SectionLayout.svelte`
+  and `SplitPaneResizer.svelte`), `ItemRenderer.svelte`, `RubricDisplay.svelte`,
+  `TestFeedback.svelte`, `SectionDisplaySettings.svelte`, and `PlayerBaseStyles.svelte`.
+- **Assessment toolkit:** `packages/assessment-toolkit/src/` implements QTI role/view mapping
+  (`role-view.ts`), shared-context normalization, and tool normalization; it does not define
+  competing `pie-players` contracts.
+- **Assessment-player delegation:** `AssessmentShell.svelte` delegates active-section rendering
+  to the section player; `packages/assessment-player/src/core/AssessmentPlayer.ts` remains the
+  full-assessment orchestration layer and adapts its state into the section contract.
+- **Browser entrypoints:** `pie-qti-section-player-splitpane` and
+  `pie-qti-section-player-vertical` are registered in `packages/player-elements/src/constants.ts`
+  and loadable through `@pie-qti/web-component-loaders`; demo routes exercise them in `apps/demo`.
+- **Tool bar:** the section player's tool bar is composed from the `@pie-players` 1.0.0-beta.10
+  packages (text-to-speech, calculator, ruler, protractor) via `QtiToolButtonBar.svelte`; its
+  chrome renders in the section locale from the toolkit's catalogs (English bundled, other
+  locales from `@pie-players/pie-i18n-generated`).
+- **Host preview integration** (Phase 7 material) remains a host-side concern outside this repo;
+  the contract it needs (`QtiSectionPreviewContext` shape, item-only fallback) is defined above.
 
 ---
 
@@ -362,7 +328,7 @@ The host derives this from manifest resources, `assessmentTest` XML, package fil
 
 ## Open questions
 
-- [ ] When should the initial public `@pie-qti/item-player/security` subpath be extracted into a package-neutral `@pie-qti/qti-security` package, if ever?
+- [ ] The public `@pie-qti/item-player/security` subpath shipped (see Implementation status); whether to extract it into a package-neutral `@pie-qti/qti-security` package — so item-player and section-player cannot diverge — remains an open long-term question.
 - [ ] Which `pie-players` contracts are stable enough for `@pie-qti/assessment-toolkit` v1, and which should remain documented as deferred alignment?
 - [ ] Which future standalone section-player demos should cover QTI 3 stimulus resources, malicious shared-content fixtures, and synthetic multi-item sections after the active-item-only baseline is accepted?
 

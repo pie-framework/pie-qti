@@ -64,6 +64,6 @@ This directory includes eval sets for:
 - `customInteraction` (`pie-qti-custom`)
 - `extendedTextInteraction` (`pie-qti-extended-text`)
 - `textEntryInteraction` (`pie-qti-text-entry`)
-- `inlineChoiceInteraction` (inline item-body rendering)
+- Inline (item-body-level) coverage — there is no dedicated `inlineChoiceInteraction` eval set; inline rendering cases are exercised inside the `choice/`, `edge-cases/`, and `text-entry/` sets
 - `mediaInteraction` (`pie-qti-media`)
 - edge cases under `docs/evals/default-components/edge-cases/`

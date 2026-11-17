@@ -3,7 +3,7 @@
 **Status**: Landed — phases 1–3 and the sandboxed engine on 2026-10-17, under the
 [completeness goal](version-1-0-2026-10.md). This file is condensed to the decisions and the data
 behind them; the full implementation plan lives in git history (PRs #337–#342, merged 2026-10-17).
-**Last reviewed**: 2026-10-18
+**Last reviewed**: 2026-11-17
 **Scope**: `packages/item-player/src/pci/`,
 `packages/item-player/src/interactions/portable-custom/`,
 `packages/item-player/src/iframe/`,
