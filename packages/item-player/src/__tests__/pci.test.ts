@@ -970,6 +970,19 @@ describe('portableCustomExtractor', () => {
 		expect(data.config.maxLength).toBe('500');
 	});
 
+	it('extracts config from data-* attributes under their dataset names', () => {
+		const el = parseEl(
+			PCI_XML.replace(
+				'custom-interaction-type-identifier="urn:example:echo-pci"',
+				'custom-interaction-type-identifier="urn:example:echo-pci" data-display-format="grid" data-theme="dark"'
+			)
+		);
+		const data = portableCustomExtractor.extract(el, makeContext(el));
+		expect(data.config.displayFormat).toBe('grid');
+		expect(data.config.theme).toBe('dark');
+		expect(data.config.maxLength).toBe('500');
+	});
+
 	it('validate returns invalid when primaryPath is empty', () => {
 		const result = portableCustomExtractor.validate!({
 			responseIdentifier: 'R',

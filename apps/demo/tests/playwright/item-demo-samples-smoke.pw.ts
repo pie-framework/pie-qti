@@ -139,6 +139,8 @@ test.describe('item demo portable custom interaction', () => {
 		await expect(more).toBeVisible({ timeout: 40_000 });
 		await expect(pci.getByRole('alert')).toHaveCount(0);
 		await expect(pci.getByRole('button', { name: 'One fewer' })).toBeDisabled();
+		// The label arrives as the interaction's data-label attribute.
+		await expect(pci.getByRole('status', { name: 'Apples' })).toBeVisible();
 
 		const axe = await new AxeBuilder({ page })
 			.include('pie-qti-portable-custom')

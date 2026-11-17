@@ -2355,7 +2355,10 @@ export const PCI_TALLY_COUNTER = `<?xml version="1.0" encoding="UTF-8"?>
     <p>How many apples are in the basket now? Use the buttons to set your answer.</p>
     <qti-portable-custom-interaction
       response-identifier="RESPONSE"
-      custom-interaction-type-identifier="urn:example:pci:tally_counter">
+      custom-interaction-type-identifier="urn:example:pci:tally_counter"
+      data-label="Apples"
+      data-min="0"
+      data-max="20">
       <qti-interaction-modules>
         <qti-interaction-module id="tally_lib" primary-path="pci/tally-counter/modules/tally_lib.js"/>
         <qti-interaction-module id="tally_counter" primary-path="pci/tally-counter/modules/tally_counter.js"/>
@@ -2363,11 +2366,6 @@ export const PCI_TALLY_COUNTER = `<?xml version="1.0" encoding="UTF-8"?>
       <qti-interaction-markup>
         <div class="tally-mount"></div>
       </qti-interaction-markup>
-      <qti-pci-properties>
-        <qti-pci-property key="label" value="Apples"/>
-        <qti-pci-property key="min" value="0"/>
-        <qti-pci-property key="max" value="20"/>
-      </qti-pci-properties>
     </qti-portable-custom-interaction>
   </qti-item-body>
 

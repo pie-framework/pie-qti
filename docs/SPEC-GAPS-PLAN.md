@@ -704,7 +704,7 @@ In QTI 3.0, `<qti-portable-custom-interaction>` carries:
 - `response-identifier` and `custom-interaction-type-identifier` attributes
 - A `<qti-interaction-markup>` child with the initial DOM scaffold
 - A `<qti-interaction-modules>` child listing ES module paths (`primary-path`, `fallback-path`)
-- A `<qti-pci-properties>` child with static key/value configuration
+- Static configuration as `data-*` attributes on the element (some earlier content uses a non-schema `<qti-pci-properties>` child)
 
 The player must: (a) load the module at `primary-path` (falling back to `fallback-path`);
 (b) call `module.initialize(domScaffold, config, boundTo)` once the DOM is ready;

@@ -1270,7 +1270,9 @@ The key advance over `customInteraction` is **portability**: a PCI carries its r
 <qti-portable-custom-interaction
   response-identifier="RESPONSE"
   custom-interaction-type-identifier="org.example.chemistry-editor"
-  module="./pci-modules/chem-editor/index.js">
+  module="./pci-modules/chem-editor/index.js"
+  data-allowed-elements="C,H,O,N"
+  data-display-mode="structural">
 
   <qti-interaction-markup>
     <!-- HTML/SVG used as the initial DOM scaffold for the PCI -->
@@ -1282,12 +1284,6 @@ The key advance over `customInteraction` is **portability**: a PCI carries its r
       primary-path="./pci-modules/chem-editor/index.js"
       fallback-path="./pci-modules/chem-editor/index-legacy.js"/>
   </qti-interaction-modules>
-
-  <qti-pci-properties>
-    <!-- Static configuration passed to the module at init -->
-    <qti-pci-property name="allowedElements" value="C,H,O,N"/>
-    <qti-pci-property name="displayMode" value="structural"/>
-  </qti-pci-properties>
 
 </qti-portable-custom-interaction>
 ```
@@ -1307,7 +1303,7 @@ qtiCustomInteractionContext.register({
   /**
    * @param {HTMLElement} dom - The element holding the qti-interaction-markup scaffold
    * @param {Object} configuration - responseIdentifier, status ('interacting' | 'closed' |
-   *   'solution' | 'review'), properties (from qti-pci-properties), onready, ondone
+   *   'solution' | 'review'), properties (from data-* attributes, dataset-named), onready, ondone
    * @param {*} state - A previous getState() snapshot, or the restored response as
    *   QTI variable JSON; undefined on a fresh attempt
    */
