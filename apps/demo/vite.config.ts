@@ -3,21 +3,11 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
-import { workspaceKitAliases, workspaceViteAliases } from '../../scripts/workspace-aliases.mjs';
+import { tsconfigOwnPathEntries, viteAliases } from '../../scripts/workspace-aliases.mjs';
 
-// The demo runs item-player from source, so its published entry points resolve to their
-// source files here. The unpublished component entry points (`@pie-qti/*/components`) come
-// from the workspace alias map, tsconfig.workspace-aliases.json, listed first so the
-// `@pie-qti/item-player` entry below never captures `@pie-qti/item-player/components`.
-const itemPlayerSource = {
-	'@pie-qti/item-player/security': '../../packages/item-player/src/security/index.ts',
-	'@pie-qti/item-player/element': '../../packages/item-player/src/element.ts',
-	'@pie-qti/item-player/web-components': '../../packages/item-player/src/web-components/index.ts',
-	'@pie-qti/item-player/iframe': '../../packages/item-player/src/iframe/index.ts',
-	'@pie-qti/item-player/server': '../../packages/item-player/src/server.ts',
-	'@pie-qti/item-player/pci': '../../packages/item-player/src/pci/index.ts',
-	'@pie-qti/item-player': '../../packages/item-player/src/index.ts',
-};
+// The demo's module aliases are the `paths` of its tsconfig: the workspace alias map plus
+// item-player's published entry points, which the demo runs from source.
+const tsconfigPath = fileURLToPath(new URL('./tsconfig.json', import.meta.url));
 
 export default defineConfig({
 	plugins: [
@@ -48,10 +38,6 @@ export default defineConfig({
 						? '/examples'
 						: ''
 			},
-			alias: {
-				...workspaceKitAliases(),
-				...itemPlayerSource,
-			},
 			prerender: {
 				handleMissingId: 'warn',
 				handleUnseenRoutes: 'ignore' // Ignore dynamic routes like /a11y-components/[fixture]
@@ -59,13 +45,7 @@ export default defineConfig({
 		}),
 	],
 	resolve: {
-		alias: [
-			...workspaceViteAliases(),
-			...Object.entries(itemPlayerSource).map(([find, path]) => ({
-				find,
-				replacement: fileURLToPath(new URL(path, import.meta.url)),
-			})),
-		],
+		alias: viteAliases(tsconfigOwnPathEntries(tsconfigPath) ?? []),
 	},
 	server: {
 		port: 5200,

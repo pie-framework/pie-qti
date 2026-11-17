@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { builtinModules } from "node:module";
-import { WORKSPACE_ALIAS_MAP_PATH, workspaceAliasEntries } from "./workspace-aliases.mjs";
+import { WORKSPACE_ALIAS_MAP_PATH, tsconfigOwnPathEntries, workspaceAliasEntries } from "./workspace-aliases.mjs";
 
 const ROOT = process.cwd();
 const rootManifestPath = path.join(ROOT, "package.json");
@@ -392,6 +392,37 @@ function validateWorkspaceAliases(workspaceByName) {
 	return violations;
 }
 
+/**
+ * A tsconfig with its own `paths` replaces the extended workspace alias map, so it must carry
+ * every entry of the map, each to the same target.
+ */
+function validateWorkspaceAliasCopies(workspaceEntries) {
+	const violations = [];
+	const expected = workspaceAliasEntries();
+	for (const workspace of workspaceEntries) {
+		for (const file of fs.readdirSync(workspace.dir)) {
+			if (!/^tsconfig.*\.json$/.test(file)) continue;
+			const tsconfigPath = path.join(workspace.dir, file);
+			const own = tsconfigOwnPathEntries(tsconfigPath);
+			if (!own) continue;
+			const targets = new Map(own.map(({ name, target }) => [name, target]));
+			for (const { name, target } of expected) {
+				const actual = targets.get(name);
+				if (actual === target) continue;
+				violations.push({
+					type: "stale-workspace-alias-copy",
+					file: path.relative(ROOT, tsconfigPath),
+					name,
+					reason: actual
+						? `maps to ${path.relative(ROOT, actual)}, the map to ${path.relative(ROOT, target)}`
+						: "is missing",
+				});
+			}
+		}
+	}
+	return violations;
+}
+
 function main() {
 	const warnOnly = process.argv.includes("--warn-only");
 
@@ -439,7 +470,10 @@ function main() {
 	const workspaceByName = new Map(workspaceEntries.map((w) => [w.name, w]));
 	const exportKeysByName = new Map(workspaceEntries.map((w) => [w.name, exportKeysOf(readJson(w.manifestPath))]));
 	const workspaceAliasNames = workspaceAliasEntries().map(({ name }) => name);
-	const violations = validateWorkspaceAliases(workspaceByName);
+	const violations = [
+		...validateWorkspaceAliases(workspaceByName),
+		...validateWorkspaceAliasCopies(workspaceEntries),
+	];
 
 	for (const workspace of workspaceEntries) {
 		const manifest = readJson(workspace.manifestPath);
@@ -675,6 +709,11 @@ function main() {
 		} else if (violation.type === "invalid-workspace-alias") {
 			logger(
 				`  [invalid-workspace-alias] ${path.relative(ROOT, WORKSPACE_ALIAS_MAP_PATH)}: "${violation.name}": ${violation.reason}.`,
+			);
+		} else if (violation.type === "stale-workspace-alias-copy") {
+			logger(
+				`  [stale-workspace-alias-copy] ${violation.file}: "${violation.name}" ${violation.reason}.\n` +
+					`      fix: its own compilerOptions.paths replace ${path.relative(ROOT, WORKSPACE_ALIAS_MAP_PATH)}, so copy every entry of the map.`,
 			);
 		} else if (violation.type === "undeclared-script-binary") {
 			logger(
