@@ -28,7 +28,6 @@ const MULTILINGUAL_MAPPINGS: Record<string, string> = {
 	'hotspot-interaction': 'hotspot-interaction',
 	'hottext-multiple': 'hottext-multiple',
 	'hottext-single': 'hottext-single',
-	'hottext-interaction-single': 'hottext-single', // Legacy alias
 	'inline-choice': 'inline-choice',
 	'match-interaction': 'match-interaction',
 	'order-interaction': 'order-interaction',

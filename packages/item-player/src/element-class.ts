@@ -17,7 +17,7 @@ import type {
 	AssessmentItemDefinitionPlugin,
 } from './core/AssessmentItemDefinition.js';
 import type { ItemSession } from './core/ItemSession.js';
-import { isQtiRole, parseQtiRole } from './core/rolePolicy.js';
+import { parseQtiRole } from './core/rolePolicy.js';
 import type { PnpProfile } from './pnp/types.js';
 import {
 	SESSION_INPUTS,
@@ -366,7 +366,6 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 	}
 
 	connectedCallback() {
-		this.#warnLegacyRoleAttribute();
 		this.#mountController.mountOrUpdate(this.#getProps());
 	}
 
@@ -438,17 +437,6 @@ export class PieQtiItemPlayerElement extends HTMLElementBase {
 			if (this.#awaited !== awaited || this.#i18n !== i18n || this.#locale !== locale) return;
 			this.#update();
 		});
-	}
-
-	/** The `role` attribute is the ARIA role now; QTI-role values there used to configure the player. */
-	#warnLegacyRoleAttribute() {
-		const legacy = this.getAttribute('role');
-		if (legacy && isQtiRole(legacy)) {
-			warnOnce(
-				'item-player:role-attribute',
-				`The 'role' attribute is the ARIA role and no longer configures the player. Use qti-role="${legacy}" to render the ${legacy} view.`,
-			);
-		}
 	}
 
 	/**

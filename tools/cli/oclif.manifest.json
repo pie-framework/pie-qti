@@ -91,12 +91,6 @@
           "allowNo": true,
           "type": "boolean"
         },
-        "loadPassageContent": {
-          "description": "Deprecated; package transforms preserve passage evidence as sidecars",
-          "name": "loadPassageContent",
-          "allowNo": false,
-          "type": "boolean"
-        },
         "copyMediaAssets": {
           "description": "Copy sidecar source assets into output directory",
           "name": "copyMediaAssets",

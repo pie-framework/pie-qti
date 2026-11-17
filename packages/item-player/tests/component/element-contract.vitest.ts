@@ -222,17 +222,4 @@ describe('qti-role attribute', () => {
 		expect(element.querySelector('.qti-item-body-content')).not.toBeNull();
 	});
 
-	test('a legacy role attribute carrying a QTI role points hosts at qti-role', async () => {
-		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		const element = document.createElement(TAG) as PieQtiItemPlayerElement;
-		element.setAttribute('role', 'scorer');
-		element.itemXml = FEEDBACK_ITEM;
-		document.body.appendChild(element);
-		elements.push(element);
-		await settle();
-
-		expect(
-			warn.mock.calls.some((call) => String(call[0]).includes('qti-role')),
-		).toBe(true);
-	});
 });

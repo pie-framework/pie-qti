@@ -5,8 +5,6 @@
  * transform-types (not in to-pie) so that config-driven vendor modules can be
  * type-checked at the transform-core registry boundary — the framework seam —
  * rather than only inside the to-pie plugin.
- *
- * to-pie re-exports these names for backward compatibility.
  */
 
 import type { TransformContext, TransformOutput } from './plugin.js';
