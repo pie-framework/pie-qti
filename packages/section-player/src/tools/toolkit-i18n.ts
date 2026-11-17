@@ -50,6 +50,13 @@ const BUNDLED_TAGS = new Set(
  */
 const PSEUDO_TAGS = new Set([PSEUDO_LOCALE_EXPANDED, PSEUDO_LOCALE_RTL].map((tag) => normalizeLanguageTag(tag)));
 
+/**
+ * The provider names the locale it serves, and a tag no catalog ships is served only when it
+ * carries host messages. An empty set under `ar-XB` keeps that tag and its right-to-left
+ * direction while every string falls back to English.
+ */
+const PSEUDO_RTL_MESSAGES: Record<string, MessageCatalog> = { [PSEUDO_LOCALE_RTL]: {} };
+
 /** The interface providers section tool bars hand the pie-players toolkit. */
 export interface ToolkitI18n {
 	/**
@@ -57,7 +64,7 @@ export interface ToolkitI18n {
 	 *
 	 * English comes from the bundled tier at once. Any other locale waits for the generated tier
 	 * and its catalog, so the toolkit never renders English under another locale's `lang`. A
-	 * locale neither tier ships renders English under its own tag. Never rejects: without the
+	 * locale neither tier ships renders English and names `en-US`. Never rejects: without the
 	 * generated tier the tool bar still renders, in English.
 	 */
 	providerFor(locale: string | undefined): Promise<I18nProvider>;
@@ -94,7 +101,7 @@ export function createToolkitI18n(
 	// sharing every catalog.
 	let bundled: I18nServiceApi | undefined;
 	const bundledProvider = (): I18nServiceApi => {
-		bundled ??= createPieI18n();
+		bundled ??= createPieI18n({ customMessages: PSEUDO_RTL_MESSAGES });
 		return bundled;
 	};
 	let composed: Promise<I18nServiceApi> | undefined;
