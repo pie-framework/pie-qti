@@ -281,6 +281,60 @@ test.describe('graphic order list reflows at 320 px', () => {
 });
 
 /**
+ * Reflow (WCAG 1.4.10): at 320 CSS px the hotspots are narrower than their labels' longest
+ * words. A label wraps between words and widens past its hotspot for a word that does not fit,
+ * so no word is split across lines and nothing overflows the viewport.
+ */
+test.describe('graphic associate hotspot labels reflow at 320 px', () => {
+	test.use({ hasTouch: true, viewport: { width: 320, height: 720 } });
+
+	test('labels wrap at word boundaries with no horizontal scroll', async ({ page }) => {
+		const root = await openFixture(page, 'graphic-associate-long-labels');
+		const host = root.locator('pie-qti-graphic-associate');
+		const labels = host.locator('.qti-ga-hotspot-label');
+		await expect(labels).toHaveCount(3);
+
+		for (let index = 0; index < 3; index++) {
+			const measurements = await labels.nth(index).evaluate((label) => {
+				const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
+				const splitWords: string[] = [];
+				const range = document.createRange();
+				for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+					const text = node.textContent ?? '';
+					for (const match of text.matchAll(/\S+/g)) {
+						range.setStart(node, match.index);
+						range.setEnd(node, match.index + match[0].length);
+						if (range.getClientRects().length > 1) splitWords.push(match[0]);
+					}
+				}
+				range.selectNodeContents(label);
+				const box = label.getBoundingClientRect();
+				return {
+					text: label.textContent?.trim() ?? '',
+					splitWords,
+					lines: range.getClientRects().length,
+					left: box.left,
+					right: box.right,
+				};
+			});
+			expect(measurements.splitWords, `"${measurements.text}" breaks inside a word`).toEqual([]);
+			expect(measurements.left, `"${measurements.text}" starts off-screen`).toBeGreaterThanOrEqual(0);
+			expect(measurements.right, `"${measurements.text}" runs off-screen`).toBeLessThanOrEqual(320);
+			// A two-word label in a hotspot narrower than both words wraps between them.
+			if (measurements.text === 'Gas Exchange') expect(measurements.lines).toBe(2);
+		}
+
+		expect(await host.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+		expect(await root.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+
+		// The labels keep their function: the hotspots still pair.
+		await host.getByRole('button', { name: /^Leaf/ }).tap();
+		await host.getByRole('button', { name: /^Photosynthesis/ }).tap();
+		await expect(page.getByTestId('response')).toHaveText('["LEAF PHOTOSYNTHESIS"]');
+	});
+});
+
+/**
  * Graphic gap match: a whole-image (`default`) hotspot listed last must not take the
  * clicks and drops of the hotspots it covers — its zone lies beneath the others, like the
  * hotspot interaction's default region.

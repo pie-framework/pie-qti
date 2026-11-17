@@ -208,6 +208,41 @@ const GRAPHIC_ORDER_LONG_LABELS = `<?xml version="1.0" encoding="UTF-8"?>
   <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
 </assessmentItem>`;
 
+/**
+ * Graphic associate with hotspots narrower than their labels' words once the image scales
+ * down: at 320 CSS px (WCAG 1.4.10 Reflow) a label wraps between words, never inside one, and
+ * nothing scrolls sideways. The hotspots run down the middle of the image, so a label wider
+ * than its hotspot stays on the image.
+ */
+const GRAPHIC_ASSOCIATE_LONG_LABELS = `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="graphic-associate-long-labels"
+  title="Graphic associate long labels" adaptive="false" timeDependent="false">
+  <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="pair">
+    <correctResponse>
+      <value>LEAF PHOTOSYNTHESIS</value>
+    </correctResponse>
+  </responseDeclaration>
+  <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+  <itemBody>
+    <graphicAssociateInteraction responseIdentifier="RESPONSE" maxAssociations="1">
+      <prompt>Connect the leaf to the process that happens in it.</prompt>
+      <object type="image/svg+xml" width="400" height="240">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240">
+          <title>Three labelled boxes in a column</title>
+          <rect width="400" height="240" fill="#f8fafc"/>
+          <rect x="180" y="20" width="40" height="40" fill="#bbf7d0" stroke="#166534" stroke-width="2"/>
+          <rect x="180" y="100" width="40" height="40" fill="#bfdbfe" stroke="#1e3a8a" stroke-width="2"/>
+          <rect x="180" y="180" width="40" height="40" fill="#fde68a" stroke="#92400e" stroke-width="2"/>
+        </svg>
+      </object>
+      <associableHotspot identifier="LEAF" shape="rect" coords="180,20,220,60" matchMax="1" hotspotLabel="Leaf">Leaf</associableHotspot>
+      <associableHotspot identifier="PHOTOSYNTHESIS" shape="rect" coords="180,100,220,140" matchMax="1" hotspotLabel="Photosynthesis">Photosynthesis</associableHotspot>
+      <associableHotspot identifier="GAS" shape="rect" coords="180,180,220,220" matchMax="1" hotspotLabel="Gas Exchange">Gas Exchange</associableHotspot>
+    </graphicAssociateInteraction>
+  </itemBody>
+  <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
+</assessmentItem>`;
+
 export const GRAPHIC_INTERACTION_FIXTURES: Readonly<Record<string, string>> = {
 	'hotspot-multiple': HOTSPOT_MULTIPLE,
 	'hotspot-default': HOTSPOT_DEFAULT_SHAPE,
@@ -215,4 +250,5 @@ export const GRAPHIC_INTERACTION_FIXTURES: Readonly<Record<string, string>> = {
 	'graphic-associate-polygon': GRAPHIC_ASSOCIATE_POLYGON,
 	'graphic-gap-match-default': GRAPHIC_GAP_MATCH_DEFAULT,
 	'graphic-order-long-labels': GRAPHIC_ORDER_LONG_LABELS,
+	'graphic-associate-long-labels': GRAPHIC_ASSOCIATE_LONG_LABELS,
 };

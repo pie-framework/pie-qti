@@ -628,6 +628,8 @@
 	   No overflow clipping: focus rings and grown hit areas at the image edge must stay visible. */
 	.qti-ga-stage {
 		position: relative;
+		/* Query container for the hotspot labels' width cap (100cqi: the stage's width). */
+		container-type: inline-size;
 		width: 100%;
 		box-sizing: border-box;
 		border-radius: 0.75rem;
@@ -767,9 +769,11 @@
 	}
 
 	/* Above the hit-area SVG in the button; takes no pointer input (inherited). The label wraps
-	   inside its hotspot rather than being cut off: under increased text spacing (WCAG 1.4.12)
-	   a label such as "Gas Exchange" outgrows a one-line box, and an ellipsis would lose the
-	   words sighted candidates pick regions by. */
+	   between words inside its hotspot, never cut off: an ellipsis would lose the words sighted
+	   candidates pick regions by (WCAG 1.4.12). As a flex item it keeps its min-content width,
+	   so a word wider than the hotspot (a scaled-down image at 320 CSS px, WCAG 1.4.10) widens
+	   the label past the hotspot, centred on it, instead of splitting. Only a token wider than
+	   the whole stage breaks inside itself. */
 	.qti-ga-hotspot-label {
 		position: relative;
 		font-size: 0.75rem;
@@ -779,9 +783,8 @@
 		background: var(--pie-qti-base-100, #fff);
 		border-radius: 0.25rem;
 		color: var(--pie-qti-base-content, #1f2937);
-		max-width: 100%;
-		min-width: 0;
-		overflow-wrap: anywhere;
+		max-width: 100cqi;
+		overflow-wrap: break-word;
 		text-align: center;
 	}
 	.qti-ga-hotspot-selected .qti-ga-hotspot-label {
