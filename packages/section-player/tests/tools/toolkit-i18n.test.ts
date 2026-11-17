@@ -88,10 +88,10 @@ describe('toolkit i18n: other locales from the generated tier, lazily', () => {
 		expect(loadGeneratedCatalog.mock.calls).toEqual([['nl-NL'], ['es']]);
 	});
 
-	test('a locale no tier ships renders English under its own tag', async () => {
+	test('a locale no tier ships renders English and names en-US', async () => {
 		const { loadGeneratedCatalog, importTier } = fakeTier({ 'nl-NL': catalogPlaying('Voorlezen starten') });
 		const provider = await createToolkitI18n(importTier).providerFor('xx-YY');
-		expect(provider.getLocale()).toBe('xx-YY');
+		expect(provider.getLocale()).toBe('en-US');
 		expect(provider.t(PLAY)).toBe('Play reading');
 		expect(loadGeneratedCatalog).not.toHaveBeenCalled();
 	});
@@ -117,7 +117,7 @@ describe('toolkit i18n: other locales from the generated tier, lazily', () => {
 		};
 		const toolkit = createToolkitI18n(flakyImport);
 		const offline = await toolkit.providerFor('nl-NL');
-		expect(offline.getLocale()).toBe('nl-NL');
+		expect(offline.getLocale()).toBe('en-US');
 		expect(offline.t(PLAY)).toBe('Play reading');
 		const online = await toolkit.providerFor('nl-NL');
 		expect(online.t(PLAY)).toBe('Voorlezen starten');
