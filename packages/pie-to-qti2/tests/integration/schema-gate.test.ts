@@ -2,12 +2,15 @@
  * Schema gate: every generator's output validates against the QTI 2.2 XSD.
  */
 
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, setDefaultTimeout, test } from 'bun:test';
 import { QtiToPiePlugin, validateQti } from '@pie-qti/to-pie';
 import type { PieItem } from '@pie-qti/transform-types';
 import { generatePassageXml } from '../../src/generators/passage-generator.js';
 import { PieToQtiPlugin } from '../../src/plugin.js';
 import { cases, itemFor } from './schema-gate-cases.js';
+
+// A QTI 2.2 schema compile takes seconds, several times that on a loaded CI runner.
+setDefaultTimeout(120_000);
 
 describe('Schema gate: QTI 2.2 XSD', () => {
   const pieToQti = new PieToQtiPlugin();

@@ -1,5 +1,8 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, setDefaultTimeout, test } from 'bun:test';
 import { detectQtiSchemaVersion, QtiValidator, validateQti, validateQtiBatch } from '../../src/utils/qti-validator';
+
+// A QTI 2.2 schema compile takes seconds, several times that on a loaded CI runner.
+setDefaultTimeout(120_000);
 
 /**
  * `qti-validator.ts` shipped with **no tests at all**, which is how it kept a

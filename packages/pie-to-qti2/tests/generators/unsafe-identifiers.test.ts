@@ -5,7 +5,7 @@
  * output to before.
  */
 
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, setDefaultTimeout, test } from 'bun:test';
 import type { PieItem } from '@pie-qti/transform-types';
 import { validateQti } from '@pie-qti/to-pie';
 import { CategorizeGenerator } from '../../src/generators/categorize.js';
@@ -13,6 +13,9 @@ import { DragInTheBlankGenerator } from '../../src/generators/drag-in-the-blank.
 import { ImageClozeAssociationGenerator } from '../../src/generators/image-cloze-association.js';
 import { MatchListGenerator } from '../../src/generators/match-list.js';
 import type { GeneratorContext } from '../../src/generators/types.js';
+
+// A QTI 2.2 schema compile takes seconds, several times that on a loaded CI runner.
+setDefaultTimeout(120_000);
 
 const logger = { debug() {}, info() {}, warn() {}, error() {} };
 
