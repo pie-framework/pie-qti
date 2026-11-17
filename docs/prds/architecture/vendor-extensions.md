@@ -46,9 +46,9 @@ If a registered `VendorTransformer.transform()` throws, the pipeline treats it a
 
 A single QTI document can match multiple heuristic signals (namespace, attribute, generator tag, CSS class prefix). Summing fractional confidence scores lets a detector distinguish between a strong signal (namespace match alone: 0.5) and a weak one (CSS class prefix: 0.1), and report the aggregate. Callers can reject results below a configurable threshold (default: 0.3). Without scoring, detectors would need to either require all signals (fragile) or accept any signal (noisy). The `AcmeVendorDetector` demonstrates the pattern: each pattern increments the confidence, and the detector returns `null` if the total stays below 0.3.
 
-### Why metadata uses embedded CDATA (round-trip)
+### Vendor metadata round-trip
 
-Vendor metadata extracted by `MetadataExtractor` is attached to the output PIE item as a plain `Record<string, any>`. When a PIE item is serialised back to QTI (via `@pie-qti/pie-to-qti2`), metadata that was present in the original QTI `<qtiMetadata>` section is round-tripped as a CDATA block inside a `<qti-metadata-field name="vendor-metadata">` element. This preserves opaque vendor data across QTI→PIE→QTI round-trips without the framework needing to understand its structure. The CDATA wrapper is necessary because the metadata values can contain arbitrary JSON, including characters that would break XML well-formedness.
+`MetadataExtractor.extract()` returns a plain `Record<string, any>`; its `extensions` member is merged onto the output PIE item's `extensions`, with transformer-generated keys winning. Opaque vendor data survives a QTI→PIE→QTI round-trip without the framework understanding its structure: the PIE item keeps the original QTI in `metadata.qtiSource`, which `@pie-qti/pie-to-qti2` writes back unchanged while the PIE config is unchanged, and a generated package carries the item's `extensions` as IEEE LOM classifications on its manifest `<resource>`, which `transformQtiPackageToPie` reads back.
 
 ---
 

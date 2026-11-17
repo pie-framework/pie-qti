@@ -364,7 +364,7 @@ Key references:
 
 #### Two paths: lossless vs best-effort
 
-1) **Lossless path**: if the item arrives with the PIE source sidecar pie-to-qti2 wrote beside it and still has the sidecar's recorded `qtiDigest`, the transformer returns the sidecar's PIE model verbatim (perfect PIE reconstruction). A stale sidecar, or a PIE model embedded in the item by releases before the sidecar, falls through to the best-effort path with a `PIE_SOURCE_STALE` warning.
+1) **Lossless path**: if the item arrives with the PIE source sidecar pie-to-qti2 wrote beside it and still has the sidecar's recorded `qtiDigest`, the transformer returns the sidecar's PIE model verbatim (perfect PIE reconstruction). A stale sidecar falls through to the best-effort path with a `PIE_SOURCE_STALE` warning; QTI with no sidecar takes the best-effort path.
 2) **Best-effort path**: otherwise, it detects interaction/test type and transforms QTI semantics into the closest PIE model(s).
 
 #### Vendor extensibility
@@ -413,7 +413,7 @@ Key reference:
 For stable references across systems:
 
 - PIE `baseId` travels in the PIE source sidecar and, in a content package, as an IEEE LOM identifier (catalog `pie:baseId`) on the item's `<resource>`
-- the reverse transform restores `baseId` so repeated round-trips remain stable
+- the reverse transform restores `baseId` from the sidecar, or in a package from the resource LOM, so repeated round-trips remain stable
 
 Key reference:
 

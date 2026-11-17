@@ -75,7 +75,7 @@ Lossy information examples:
 - **FR-7:** A `GeneratorRegistry` SHALL allow a caller to register a custom generator with `override: true` to replace any built-in generator for a given element type.
 - **FR-8:** A registered wildcard generator SHALL be tried as a last resort when no typed generator matches.
 - **FR-9:** When generating a package, the plugin SHALL write each PIE `extensions` key as an IEEE LOM `classification` on the item's manifest `<resource>`, with `taxonPath/source` `pie:extension:<key>`, no `purpose`, and the JSON of any value other than a string in the classification's `description`.
-- **FR-10:** PIE `baseId` SHALL be preserved as `externalId` metadata and `sourceSystemId="pie"` in the QTI item, enabling the reverse transform to restore the original identifier.
+- **FR-10:** When generating a package, the plugin SHALL write PIE `baseId` as an IEEE LOM `general/identifier` with catalog `pie:baseId` on the item's manifest `<resource>`, enabling the reverse transform to restore the original identifier.
 - **FR-11:** A PIE object with a top-level `sections` array SHALL be treated as an assessment and transformed to `<assessmentTest>` rather than `<assessmentItem>`.
 - **FR-12:** `outcomeProcessingXml`, `branchRule`, and `preCondition` on assessment items SHALL be inserted verbatim into the generated QTI without re-parsing or re-serialisation.
 - **FR-13:** `deduplicatePassageFiles` SHALL return each passage only once when called on results from batch item transformations sharing the same passage ID.
@@ -244,9 +244,11 @@ AC-9: extensions preservation
 
 AC-10: baseId round-trip
   Given: A PIE item with baseId: 'stable-id-001'
-  When: transform() is called
-  Then: output.items[0].content contains <qti-metadata-field name="externalId" value="stable-id-001"/>
-        AND <qti-metadata-field name="sourceSystemId" value="pie"/>
+  When: transform() is called with generatePackage: true
+  Then: output.manifest has a LOM general/identifier with catalog pie:baseId and entry 'stable-id-001'
+        on the item's resource
+        AND output.items[0].content has no qti-metadata element
+        AND transformQtiPackageToPie on that package without the sidecar returns baseId 'stable-id-001'
 
 AC-11: Inline passage strategy
   Given: A PIE item with config.models containing an @pie-element/passage model followed by a choice model

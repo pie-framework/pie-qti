@@ -85,10 +85,10 @@ const qtiResult = await pieToQti.transform(
 );
 const qtiXml = qtiResult.items[0].content;
 
-// QTI → PIE (lossless round-trip)
+// QTI → PIE (lossless round-trip via the PIE source sidecar)
 const qtiToPie = new QtiToPiePlugin();
 const pieResult = await qtiToPie.transform(
-  { content: qtiXml },
+  { content: qtiXml, sidecar: qtiResult.items[0].sidecar },
   { logger: console }
 );
 const reconstructed = pieResult.items[0].content;
@@ -418,7 +418,7 @@ const original = createPieItem();
 const qtiResult = await pieToQti.transform({ content: original });
 const qtiXml = qtiResult.items[0].content;
 
-const pieResult = await qtiToPie.transform({ content: qtiXml });
+const pieResult = await qtiToPie.transform({ content: qtiXml, sidecar: qtiResult.items[0].sidecar });
 const reconstructed = pieResult.items[0].content;
 
 // Verify
@@ -442,8 +442,8 @@ const pieItem = {
   config: { models: [...] }
 };
 
-// Preserved in QTI as custom metadata fields
-// Round-trips perfectly back to PIE
+// Carried in the PIE source sidecar, and as IEEE LOM on the item's manifest resource in a package
+// Round-trips back to PIE
 ```
 
 ## Common Patterns
@@ -520,7 +520,7 @@ async function validateRoundTrip(pieItem: any): Promise<boolean> {
     const qtiXml = qtiResult.items[0].content;
 
     // QTI → PIE
-    const pieResult = await qtiToPie.transform({ content: qtiXml });
+    const pieResult = await qtiToPie.transform({ content: qtiXml, sidecar: qtiResult.items[0].sidecar });
     const reconstructed = pieResult.items[0].content;
 
     // Compare (deep equality)

@@ -57,7 +57,7 @@ At `0.1.x` the CLI's command interface, output schemas, and config format are st
 - **FR-11:** `batch-transform` must continue processing remaining items when a single item transform fails; it must not abort the entire job. Failed items must be recorded in the report rather than causing a non-zero exit code, unless all items fail.
 - **FR-12:** When `--extract-nested-zips` is set (default true), `batch-transform` and `analyze` must recursively extract ZIP files found inside the initial extraction directory.
 - **FR-13:** When `--cleanup-temp` is set (default true on both commands), all files extracted to the temporary directory must be deleted after the command completes (whether it succeeds or fails).
-- **FR-14:** When `--load-passage-content` is set on `batch-transform`, `<object type="text/html">` references inside item XML must be resolved relative to the package directory and the referenced file content inlined before transformation.
+- **FR-14:** `batch-transform` must transform each package through `transformQtiPackagePathToPie`, which preserves passage evidence as package sidecars, written under `<outputDir>/<packageName>/sidecars/`. Item XML is passed to the transform as authored.
 - **FR-15:** When `--copy-media-assets` is set on `batch-transform`, image, audio, and video files found in the input packages must be copied to `<outputDir>/images/`, `<outputDir>/audio/`, and `<outputDir>/video/` respectively. Duplicate filenames (same basename) must be skipped after the first copy.
 - **FR-16:** The `discover-qti <input>` command must accept a directory or ZIP file, parse its manifest (if present) or fall back to XML scanning, and emit a structured JSON document describing the package: file inventory, manifest summary, per-item interaction types and dependencies, per-passage inventory, per-test item counts, and media asset lists.
 - **FR-17:** When `--output <file>` is passed to `discover-qti`, the JSON must be written to the file; otherwise it must be written to stdout.
@@ -393,7 +393,7 @@ Then: stdout lists all four commands: transform, analyze-qti, batch-transform, d
 ```
 Given: The batch-transform command
 When: bun run pie-qti -- batch-transform --help
-Then: stdout lists all flags including --output-dir, --max-parallel, --extract-nested-zips, --load-passage-content, --copy-media-assets, --generate-report, --cleanup-temp, --temp-dir
+Then: stdout lists all flags including --output-dir, --max-parallel, --extract-nested-zips, --copy-media-assets, --generate-report, --cleanup-temp, --temp-dir
   and each flag entry includes its description and default value
 ```
 
@@ -436,16 +436,7 @@ Then: stdout shows "Found 0 QTI packages" (root itself is not a package)
   and the subdirectory packages are not analyzed
 ```
 
-**AC-EC2: batch-transform with passageContent loading inlines object references**
-```
-Given: A QTI item that contains <object type="text/html" data="passage.html">
-  and passage.html exists in the same package directory
-When: bun run pie-qti -- batch-transform ./pkg/ -o ./out/ --load-passage-content
-Then: The transformed output for that item contains the inlined passage HTML
-  and the <object> tag is replaced by the passage content
-```
-
-**AC-EC3: discover-qti on a ZIP file cleans up extraction**
+**AC-EC2: discover-qti on a ZIP file cleans up extraction**
 ```
 Given: A ZIP file ./pkg.zip
   and no --extract-dir is specified

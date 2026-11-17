@@ -87,7 +87,6 @@ Extracted by `portableCustomExtractor` (priority 20) into `ExtractedPci`. `PciHo
 | `<qti-interaction-modules>` / `<qti-interaction-module>` | Supported | `primaryPath` and `fallbackPath` extracted and passed to `PciHost` |
 | `<qti-interaction-markup>` | Supported | Inner HTML extracted as `markup`; passed to `PciHost.initialize()` as the DOM scaffold |
 | `data-*` attributes | Supported | Collected into `config: Record<string, string>` under their `HTMLElement.dataset` names (`data-display-format` → `displayFormat`); passed to the module as `configuration.properties` |
-| `<qti-pci-properties>` / `<qti-pci-property>` | Supported (non-schema) | Not in the QTI 3.0 schema; read for earlier content, with a `data-*` attribute winning on the same key |
 
 ### QTI 2.x Portable Custom Interaction wrapper
 

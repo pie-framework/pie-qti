@@ -168,8 +168,7 @@ by to-pie and exported unchanged is written back as the original document, in it
 once its PIE config changes, the QTI is generated from the config.
 
 Releases before the sidecar embedded the PIE item as `<pie:sourceModel>` inside `assessmentItem`.
-to-pie no longer uses it as the PIE item, since it carries no digest, and warns `PIE_SOURCE_STALE`;
-without a registered metadata extractor it still reads the item's `extensions` from it.
+to-pie does not read it, and transforms such an item from its QTI body.
 
 ## Validation
 
