@@ -1,16 +1,16 @@
 # PRD: QTI Item Player
 
 <!--
-  Status: draft
+  Status: current
   Type: architecture
   Packages: @pie-qti/item-player
-  Last reviewed: 2026-08-13
+  Last reviewed: 2026-11-17
 -->
 
-**Status:** draft  
+**Status:** current  
 **Type:** architecture  
 **Packages:** `@pie-qti/item-player`  
-**Last reviewed:** 2026-08-13
+**Last reviewed:** 2026-11-17
 
 ---
 
@@ -50,7 +50,7 @@ The player instead ships conservative same-DOM guardrails by default (HTML sanit
 
 The `@pie-qti/qti-processing` package compiles `<responseProcessing>`, `<outcomeProcessing>`, and `<templateProcessing>` XML into a typed AST during definition construction (`buildResponseProcessingAst`, `buildOutcomeProcessingAst`, `buildTemplateProcessingAst`). Sessions share those immutable programs and execute them through `execProgram`.
 
-Two alternatives were rejected: (1) interpreting the XML nodes directly on each scoring call — this re-traverses the DOM every time and makes it impossible to serialize or cache the program; (2) generating JavaScript via `eval`/`new Function` — this violates strict CSP and introduces code injection risk. The AST approach produces a serializable, inspectable program that can be executed multiple times without re-parsing and supports all 45 QTI operators without eval.
+Two alternatives were rejected: (1) interpreting the XML nodes directly on each scoring call — this re-traverses the DOM every time and makes it impossible to serialize or cache the program; (2) generating JavaScript via `eval`/`new Function` — this violates strict CSP and introduces code injection risk. The AST approach produces a serializable, inspectable program that can be executed multiple times without re-parsing and supports all 64 QTI expression kinds without eval.
 
 The `customOperators` key in `AssessmentItemDefinitionConfig` is the escape hatch for QTI `<customOperator>` elements. Implementations are registered by operator `class` attribute (preferred) or `definition` URI and run synchronously inside `execProgram`. Because custom operators run inside the scoring engine, they are treated as integrator-trusted code — the player does not sandbox them.
 

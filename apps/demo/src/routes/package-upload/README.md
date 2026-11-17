@@ -44,6 +44,7 @@ All package processing happens in the browser:
 
 - `src/routes/package-upload/+page.svelte` - Main upload page
 - `src/routes/package-upload/[packageId]/item/[itemId]/+page.svelte` - Item viewer
+- `src/routes/package-upload/[packageId]/test/[testId]/+page.svelte` - Test viewer (structure preview and XML)
 
 ### Components
 
@@ -113,7 +114,7 @@ The `processPackage()` function returns:
 To test the feature:
 
 1. Start the dev server: `bun run dev`
-2. Navigate to <http://localhost:5173/package-upload>
+2. Navigate to <http://localhost:5200/package-upload>
 3. Upload a QTI package ZIP file
 4. Verify package contents are displayed correctly
 5. Click an item to view it
@@ -124,11 +125,10 @@ To test the feature:
 - **Storage limits**: Browser storage has size limits (~5-10MB for localStorage, more for sessionStorage)
 - **Large packages**: Packages with many large images may exceed browser storage capacity
 - **Session-based**: Package files cleared when browser tab is closed (sessionStorage)
-- **No test viewer**: Only item viewing is implemented currently
+- **Test viewing is structure-only**: the test viewer shows the analyzed assessment test structure and its XML, not full assessment playback
 
 ## Future Enhancements
 
-- [ ] Implement test/assessment viewer
 - [ ] Add IndexedDB support for larger packages
 - [ ] Implement asset path resolution in items
 - [ ] Add package export functionality

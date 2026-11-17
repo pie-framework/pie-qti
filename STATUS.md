@@ -139,8 +139,7 @@ The current high-signal verification commands are:
 At the player cleanup's close (2026-11-10, `develop` `8f76acd7`) the full gate with
 409 end-to-end tests, `verify:certification` (the public certification gate,
 including its browser evidence subset), the dedicated accessibility suites, the
-WebKit and Firefox tagged specs, and `verify:publish:quick` all passed; see
-[`docs/plans/player-cleanup-2026-11.md`](docs/plans/player-cleanup-2026-11.md).
+WebKit and Firefox tagged specs, and `verify:publish:quick` all passed.
 `verify:publish:quick`'s ATTW fallback handles the same known Node-10 and
 CSS-resolution diagnostics as the structured-report path.
 

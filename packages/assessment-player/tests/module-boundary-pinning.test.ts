@@ -1,7 +1,7 @@
 /**
  * Module boundary pinning: the core never imports the integration layer at runtime.
  *
- * The decided architecture (docs/plans/player-cleanup-2026-11.md) keeps the client's
+ * The decided architecture (the 2026-11 player cleanup) keeps the client's
  * navigation legality and presented-items record separate from the backend branch
  * evaluation: the pure delivery-rules walk (branch rules, preconditions, eligibility)
  * lives in the shared `core/testStructure.ts`, and `integration/test-navigation.ts`

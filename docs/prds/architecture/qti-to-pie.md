@@ -1,13 +1,13 @@
 # PRD: QTI → PIE Transform
 
 <!--
-  Status: draft
+  Status: current
   Type: architecture
   Packages: @pie-qti/to-pie
   Last reviewed: 2026-05-15
 -->
 
-**Status:** draft
+**Status:** current
 **Type:** architecture
 **Packages:** `@pie-qti/to-pie`
 **Last reviewed:** 2026-05-15

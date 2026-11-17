@@ -1,17 +1,17 @@
 # PRD: Inline Interactions — `textEntryInteraction` and `inlineChoiceInteraction`
 
 <!--
-  Status: draft
+  Status: current
   Type: interaction
   Packages: @pie-qti/item-player
   QTI types: textEntryInteraction, inlineChoiceInteraction
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-11-17
 -->
 
-**Status:** draft  
+**Status:** current  
 **Type:** interaction  
 **Packages:** `@pie-qti/item-player` (extractor + renderer; no separate web component package)  
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-11-17
 
 ---
 
@@ -366,14 +366,19 @@ AC-17: QTI 3.0 element names are handled
 
 ```
 AC-A1: Text entry has accessible name
-  Given: An item with textEntryInteraction responseIdentifier="BLANK_CAPITAL"
+  Given: An item with textEntryInteraction responseIdentifier="BLANK_CAPITAL", the second of
+         four inline interactions, with no authored label or title
   When: The input is inspected with a screen reader or accessibility tool
-  Then: The input has an accessible name containing "BLANK_CAPITAL" (via aria-label)
+  Then: The input's accessible name is the positional "Blank 2 of 4"
+        (interactions.inline.blankLabel, via aria-label), never the response identifier
 
 AC-A2: Inline choice has accessible name
-  Given: An item with inlineChoiceInteraction responseIdentifier="COUNTRY_SELECT"
+  Given: An item with inlineChoiceInteraction responseIdentifier="COUNTRY_SELECT" and an
+         authored aria-label "Country:"
   When: The select is inspected
-  Then: The select has an accessible name containing "COUNTRY_SELECT" (via aria-label)
+  Then: The select's accessible name is the authored label "Country:" — an authored
+        aria-label/aria-labelledby wins, else the authored title, else the positional
+        "Blank n of m"; the response identifier is never part of the name
 
 AC-A3: Keyboard navigation between inline interactions
   Given: An item body with two inline interactions (one text entry, one inline choice)
@@ -464,7 +469,9 @@ AC-E8: Interaction markup without interaction data
 - Extractor — text entry: `packages/item-player/src/interactions/text-entry/extractor.ts`
 - Extractor — inline choice: `packages/item-player/src/interactions/inline-choice/extractor.ts`
 - Type definitions: `packages/item-player/src/interactions/shared/types.ts` (`TextEntryInteractionData`, `InlineChoiceInteractionData`)
-- Standalone renderer (secondary, used in demos): `packages/default-components/src/shared/components/InlineInteractionRenderer.svelte`
+- Renderer — text entry: `packages/item-player/src/interactions/text-entry/InlineTextEntry.svelte`
+- Renderer — inline choice: `packages/item-player/src/interactions/inline-choice/InlineChoice.svelte`
+- Accessible-name rule: `packages/item-player/src/interactions/inline/accessibleName.ts`
 - Existing eval: `docs/evals/default-components/text-entry/evals.yaml`
 - Adjacent PRD: `docs/prds/interactions/choice.md` (for comparison with a block-level interaction)
 - Adjacent PRD: `docs/prds/interactions/extended-text.md` (shares `patternMask` gap G-04)

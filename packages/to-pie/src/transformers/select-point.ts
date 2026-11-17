@@ -9,9 +9,9 @@
  * charting/graphing fill their remaining defaults — so only fields the source actually
  * declares are set.
  *
- * Field mappings are grounded in `pie-elements-ng` -
- * `packages/elements-react/<element>/src/controller/defaults.ts`, the matching
- * `src/author/defaults.ts`, and `docs/evals/elements-react/<element>/samples/default.json`.
+ * Field mappings are grounded in the `pie-elements-ng` repository
+ * (`packages/elements-react/<element>/src/controller/defaults.ts` and the matching
+ * `src/author/defaults.ts`).
  */
 
 import type { PieItem, PieModel } from '@pie-qti/transform-types';
@@ -224,8 +224,7 @@ export function transformChartingSelectPoint(context: SelectPointTransformContex
  * A `category` param to a charting `data` entry.
  *
  * The source names the starting height `initialValue`; charting's `data` entries call it
- * `value` (`docs/evals/elements-react/charting/samples/default.json`). Everything else passes
- * through, so `interactive` and any future key survive.
+ * `value`. Everything else passes through, so `interactive` and any future key survive.
  */
 function toChartingCategory(category: unknown): unknown {
   if (typeof category !== 'object' || category === null) {

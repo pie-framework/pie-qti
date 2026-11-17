@@ -1,17 +1,17 @@
 # PRD: mediaInteraction
 
 <!--
-  Status: draft
+  Status: current
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type (interactions only): mediaInteraction
-  Last reviewed: 2026-11-07
+  Last reviewed: 2026-11-17
 -->
 
-**Status:** draft  
+**Status:** current  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components`, `@pie-qti/item-player`  
-**Last reviewed:** 2026-11-07
+**Last reviewed:** 2026-11-17
 
 ---
 
@@ -132,7 +132,7 @@ The value stored is the integer play count (number of times the `ended` event ha
 
 ### Known gaps
 
-No items from `docs/SPEC-GAPS-PLAN.md` (G-01 through G-15) directly affect `mediaInteraction`. The gaps related to `showControls` and `pausable` are documented above as deliberate omissions rather than tracked gaps.
+No items from `docs/SPEC-GAPS-PLAN.md` (G-01 through G-27) directly affect `mediaInteraction`. The gaps related to `showControls` and `pausable` are documented above as deliberate omissions rather than tracked gaps.
 
 **`object` element and play tracking:** The spec does not define a mechanism for tracking play count when an `<object>` embed is used. The framework's `object` rendering path has no `ended` event, so `minPlays`/`maxPlays` enforcement does not function for `object`-type media. This is a spec ambiguity, not a framework bug — the spec predates HTML5 native media elements. See Design Decisions.
 

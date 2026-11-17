@@ -32,13 +32,12 @@ User-facing guide for bidirectional PIE ↔ QTI transformations. Covers:
 
 ### [VENDOR-TRANSFORM-PLUGIN-GUIDE.md](./VENDOR-TRANSFORM-PLUGIN-GUIDE.md)
 
-Developer guide for building vendor-specific transform plugins. Includes:
+Developer guide for extending the QTI → PIE pipeline for proprietary content. Includes:
 
-- Plugin interface deep dive
-- Vendor detection patterns
-- Custom transformers and asset resolution
-- Complete working examples
-- Testing strategies
+- Choosing between source profiles, the five vendor hooks, and wrapper plugins
+- The five vendor hooks (detector, transformer, CSS-class extractor, metadata extractor, asset resolver) with the reference implementation in `packages/demo-vendor-extensions/`
+- Plugin selection semantics (priority-based; what `canHandle()` does and does not do)
+- Testing with `@pie-qti/test-utils` helpers and deployment packaging
 
 **Status:** Active developer guide
 
@@ -71,8 +70,9 @@ Architecture and authoring guide for QTI source profiles. Covers:
 
 Subdirectories:
 
-- `plans/` (1.0 plan of record; the PCI runtime/sandbox and player-cleanup decision records; the
-  legacy audit)
+- `plans/` (1.0 plan of record; the PCI runtime/sandbox decision record. Closed execution
+  history — the no-legacy audit and the player-cleanup plan — was condensed into
+  [`SPEC-GAPS-PLAN.md`](./SPEC-GAPS-PLAN.md) and deleted; the full text lives in git history)
 - `certification/` (public coverage matrix and gate)
 - `evals/` (browser interaction eval cases)
 

@@ -25,6 +25,29 @@ AI agent or a human engineer. Sections are ordered by priority tier.
 >   localized positional name. No QTI version defines `title` on those elements or on any
 >   base type, but inline controls carry no visible label element to name them, and authors
 >   label them with `title` in practice; without it the only fallback is a positional name.
+
+> **Deliberate keeps and closed decisions (2026-11-10, no-legacy audit close):** leniencies that
+> survive the no-legacy policy, each with its recorded reason. The audit itself is deleted; the
+> full classification lives in git history.
+>
+> - PCI variable-JSON ISO-8601 durations (`packages/item-player/src/pci/qtiVariableJson.ts`):
+>   required by the PCI v1.0 Appendix A binding — an external spec, not project history. Only
+>   the XML-lexical ISO-duration tolerance was removed; XML durations are seconds floats.
+> - The official IMS rptemplates (`match_correct`, `map_response`, …, `CC2_*`, `match_nothing`,
+>   `packages/item-player/src/core/responseProcessingTemplates.ts`): official 1EdTech template
+>   files sourced from `purl.imsglobal.org`; removing them would break real converted/official
+>   content.
+> - IMS-CP lenient path-resolution heuristics (`packages/ims-cp-core/src/qti-heuristics.ts`):
+>   documented, configurable, diagnosed features for real-world third-party packages — a product
+>   decision, not legacy. Revisit only with evidence of misuse.
+> - `SecureItemRef.itemXml` beside `deliveryContext`
+>   (`packages/assessment-player/src/integration/api-contract.ts`): dual shape with two live
+>   producers (the reference adapter and the QTI test parser) — layering, not back-compat.
+> - `@pie-qti/element-schemas` was **deleted** (player-cleanup round 7): zero importers repo-wide
+>   and only 2 of its 13 schemas matched what the transformers actually emit, so a
+>   published-but-unwired validator gave false confidence. Re-sync from upstream pie-elements
+>   only if a real consumer appears; `packages/to-pie/schemas/` XSDs are unrelated vendored
+>   official schemas and stay.
 >   PRD: `docs/prds/interactions/inline-interactions.md` §Accessibility, "Current approach".
 
 > **Goal (2026-10-17):** feature completeness against the QTI 2.2 and 3.0 specifications and a
@@ -1073,6 +1096,29 @@ Known, accepted delivery limits from the round-5 delivery review and the later l
 - No mid-session time extension: PNP extended time is fixed when the player is created — `packages/assessment-player/src/core/TimeManager.ts`.
 - PNP `line-reader` is parsed into the profile's tool supports, but no built-in line reader renders it — `packages/item-player/src/pnp/parsePnpXml.ts`.
 - The section tool bar hosts only the tools the host configures; there is no built-in calculator, ruler, protractor or TTS of pie-qti's own — `packages/section-player/src/components/QtiToolButtonBar.svelte`.
+
+Accepted limits recorded at the player-cleanup close (2026-11-10) — each is open polish work,
+not a defect in the behavior shipped today:
+
+- Object-typed element options compare by reference: rebuilding an equal `security`/`pnp` config
+  object every render re-opens the element's session (`packages/player-elements`).
+- A permanently removed element keeps its session until page unload.
+- Section elements have no `showFeedback` pass-through.
+- Persisted-display settings use fingerprints with known limits (strict CSP `style-src` reports
+  the tool bar's `data:` stylesheet marker).
+- `SectionLayout` does not deep-validate direct-Svelte compositions; the registered custom
+  elements do.
+- Graphic-associate label wrapping under narrow viewports and text-spacing overrides needs
+  polish (`packages/default-components/src/plugins/graphic-associate/`).
+- PCI has no demo fixture in `apps/demo`; the browser-level review did not exercise it.
+- Non-English `item.submitError` strings lack native-speaker review
+  (`packages/i18n/src/locales/`).
+- Deferred internal polish: component splits beyond the shared-module extraction
+  (PositionObject, GraphicGapMatch internals), section spoken-catalog parsing vs the item's,
+  `TimeManager` tick restructuring, hottext's imperative DOM work.
+- Documented non-implementations (deliberate, per interaction PRD): order
+  `data-choices-container-width`, `mediaInteraction@coords`, tabular match
+  (`data-first-column-header`).
 
 ---
 

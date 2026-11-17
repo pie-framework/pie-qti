@@ -1,13 +1,13 @@
 # PRD: Item Player Plugin System
 
 <!--
-  Status: draft
+  Status: current
   Type: architecture
   Packages: @pie-qti/item-player
   Last reviewed: 2026-08-13
 -->
 
-**Status:** draft  
+**Status:** current  
 **Type:** architecture  
 **Packages:** `@pie-qti/item-player`  
 **Last reviewed:** 2026-08-13

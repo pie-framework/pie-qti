@@ -4,13 +4,13 @@
   Status: current
   Type: system
   Packages: @pie-qti/item-player, @pie-qti/default-components
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-11-17
 -->
 
 **Status:** current
 **Type:** system
 **Packages:** `@pie-qti/item-player`, `@pie-qti/default-components`
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-11-17
 
 ---
 

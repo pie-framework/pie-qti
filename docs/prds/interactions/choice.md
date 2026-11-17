@@ -1,17 +1,17 @@
 # PRD: choiceInteraction
 
 <!--
-  Status: draft
+  Status: current
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: choiceInteraction
-  Last reviewed: 2026-11-07
+  Last reviewed: 2026-11-17
 -->
 
-**Status:** draft  
+**Status:** current  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-11-07
+**Last reviewed:** 2026-11-17
 
 ---
 
@@ -56,7 +56,7 @@
 | `minChoices` | ✅ Full | Delivered in `ChoiceInteractionData`. Response validation reports fewer selections incomplete, and the component states the minimum while the response is short of it. |
 | `data-max-selections-message` | ✅ Full | QTI 3.0 §5.40.4: "rendered upon violation of the max-choices constraint". Stated at the cap through one `role="alert"` (for any cardinality) and announced on a refused selection; without it, the localized default shows only where a selection can actually be refused (`maxChoices>1`). |
 | `data-min-selections-message` | ✅ Full | Replaces the localized minimum hint while the response selects fewer than `minChoices`. |
-| `orientation` | ❌ Not extracted | Visual hint (`horizontal`/`vertical`). Not in `ChoiceInteractionData`. The component always renders vertically. Low priority since most K-12 content doesn't use it. |
+| `orientation` | ❌ Not extracted | Visual hint (`horizontal`/`vertical`). Not in `ChoiceInteractionData`. Horizontal layout is honoured through the QTI 3.0 shared-vocabulary class instead: the `qti-orientation-horizontal` class, delivered in `interactionClasses`, lays the choices out in a row that reflows to one column on narrow containers, `qti-orientation-vertical` (and the default) keeps the single column, and the vertical CJK writing modes (`qti-writing-orientation-vertical-*`) are served the same way. |
 
 ### Supported attributes on `simpleChoice`
 
@@ -151,13 +151,17 @@ interface ChoiceInteractionData extends BaseInteractionData {
   responseId: string;           // from responseIdentifier attribute
   shuffle: boolean;             // shuffled order applied at extraction time
   maxChoices: number;           // 1 = single (radio), >1 or 0 = multiple (checkbox); absent: 1 (QTI 2.2/3.0), 0 (QTI 2.1)
+  minChoices: number;           // 0 = no authored minimum; else required selections
   prompt: string | null;        // HTML content of <prompt> child, or null
   choices: Array<{
     identifier: string;         // from simpleChoice identifier attribute
     text: HtmlContent;          // HTML content of simpleChoice (may contain MathML, feedbackInline)
+    fixed?: boolean;            // authored fixed: keeps its index under shuffle
     classes?: string[];         // CSS classes from simpleChoice element (for custom renderers)
   }>;
-  interactionClasses?: string[]; // CSS classes from choiceInteraction element (for custom renderer detection)
+  interactionClasses?: string[]; // CSS classes from choiceInteraction element (orientation, qti-choices-*; for custom renderer detection)
+  maxSelectionsMessage?: string | null; // data-max-selections-message: stated at the cap
+  minSelectionsMessage?: string | null; // data-min-selections-message: replaces the minimum hint
 }
 ```
 
@@ -180,7 +184,8 @@ AC-1: Single-select renders as radio buttons
   Given: an item with choiceInteraction maxChoices=1 and 4 simpleChoices (A, B, C, D)
   When: the item is rendered at /item-demo/simple-choice
   Then: four radio inputs are visible, each with a label containing the choice text
-  Notes: inputs must share the same name attribute (the responseIdentifier)
+  Notes: inputs share one name attribute so the browser enforces single selection; the name
+         is unique per rendered instance, not the responseIdentifier
 
 AC-2: Selecting a radio updates the response and fires qti-change
   Given: the item from AC-1 is rendered
@@ -328,7 +333,7 @@ AC-E6: Candidate role does not reveal correct answers
 
 - [x] Should `minChoices` be extracted and surfaced as a validation hint in the component (e.g. "Select at least N options")? (resolved) Yes: it is delivered, stated by the component and enforced by response validation.
 - [x] Should `fixed` on `simpleChoice` be extracted? (resolved) Yes: `fixed=true` choices keep their authored index when `shuffle=true`.
-- [ ] Should `orientation=horizontal` be honoured with a CSS grid or flex layout? Deferred; most items are vertical.
+- [x] Should `orientation=horizontal` be honoured with a CSS grid or flex layout? (resolved) Yes, through the shared-vocabulary class path: the element's classes are delivered as `interactionClasses`, and `qti-orientation-horizontal` lays the choices out in an auto-fitting grid that reflows to one column on narrow containers; `qti-orientation-vertical` and the vertical CJK writing modes are served the same way. The `orientation` attribute itself stays unextracted.
 
 ---
 
@@ -340,4 +345,4 @@ AC-E6: Candidate role does not reveal correct answers
 - Component: `packages/default-components/src/plugins/choice/ChoiceInteraction.svelte`
 - Extractor: `packages/item-player/src/interactions/choice/extractor.ts`
 - Type: `packages/item-player/src/interactions/shared/types.ts` — `ChoiceInteractionData`
-- Adjacent PRDs: [order.md](order.md) (shares shuffle pattern), [hottext.md](hottext.md) (similar selection mechanics), [match.md](match.md) (matchGroup/matchMin gaps)
+- Adjacent PRDs: [order.md](order.md) (shares shuffle pattern), [hottext.md](hottext.md) (similar selection mechanics), [match.md](match.md) (shares the `matchGroup`/`matchMin` rules — G-01/G-06, Done)

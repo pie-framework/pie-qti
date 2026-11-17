@@ -1,17 +1,17 @@
 # PRD: uploadInteraction
 
 <!--
-  Status: draft
+  Status: current
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: uploadInteraction
-  Last reviewed: 2026-04-28
+  Last reviewed: 2026-11-17
 -->
 
-**Status:** draft
+**Status:** current
 **Type:** interaction
 **Packages:** `@pie-qti/default-components`, `@pie-qti/item-player`
-**Last reviewed:** 2026-04-28
+**Last reviewed:** 2026-11-17
 
 ---
 

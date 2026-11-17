@@ -1,16 +1,16 @@
 # PRD: Response Processing Engine
 
 <!--
-  Status: needs-update
+  Status: current
   Type: architecture
   Packages: @pie-qti/qti-processing
-  Last reviewed: 2026-07-13
+  Last reviewed: 2026-11-17
 -->
 
-**Status:** needs-update
+**Status:** current  
 **Type:** architecture  
 **Packages:** `@pie-qti/qti-processing`  
-**Last reviewed:** 2026-07-13
+**Last reviewed:** 2026-11-17
 
 ---
 
@@ -53,7 +53,7 @@ Adding a new expression operator requires:
 2. **`ast/build.ts`**: Add a `case` in `buildExpression()` that parses the XML element attributes and children into the new node type.
 3. **`eval/evaluator.ts`**: Add a `case` in `evalExpr()` that evaluates the new node given an `EvalEnv`.
 
-This is the minimum set. Unit tests live in `src/test/`. The three-file discipline is intentional: it keeps each layer's responsibility explicit and prevents the evaluator from containing parsing logic or vice versa.
+This is the minimum set. Unit tests live in `packages/qti-processing/tests/`; `src/test/` holds only the `TestEvalContext` contracts. The three-file discipline is intentional: it keeps each layer's responsibility explicit and prevents the evaluator from containing parsing logic or vice versa.
 
 ### Why `DeclarationContext` is mutable
 
@@ -99,7 +99,7 @@ The QTI processing model is inherently stateful: `setOutcomeValue` and `setTempl
 `match`, `equal`, `equalRounded`, `lt`, `lte`, `gt`, `gte` (negation is `not(...)` — QTI defines no `notEqual`)
 
 **Arithmetic**  
-`sum`, `subtract`, `product`, `divide`, `power`, `integerDivide`, `integerModulus`, `integerToFloat`, `round`, `roundTo`, `truncate`, `mathOperator` (sin/cos/tan/asin/acos/atan/atan2/exp/ln/log/signum/floor/ceil/abs/toDegrees/toRadians), `mathConstant` (pi/e)
+`sum`, `subtract`, `product`, `divide`, `min`, `max` (operands may be single, multiple or ordered — a container takes part with each of its values; a NULL operand, an empty container, or a non-numeric value gives NULL; integer when every operand is integer), `power`, `integerDivide`, `integerModulus`, `integerToFloat`, `round`, `roundTo`, `truncate`, `mathOperator` (sin/cos/tan/asin/acos/atan/atan2/exp/ln/log/signum/floor/ceil/abs/toDegrees/toRadians), `mathConstant` (pi/e)
 
 **Logic**  
 `and`, `or`, `not`, `anyN` (the at-most-N bound is `anyN` with `min="0"` — QTI defines no `allN`)
@@ -174,7 +174,7 @@ None. The notes below record architecture choices the specification leaves to th
 - **Bundle size:** `decimal.js` is the only non-trivial runtime dependency. The package must remain tree-shakeable so hosts that only use item-player (not qti-processing directly) can exclude unused expression kinds.
 - **Cross-platform:** Must run without modification in browser and Node.js. No `document`, `window`, or browser-only globals.
 - **Security:** No `eval()`, `new Function()`, or dynamic code execution of any kind. All operator logic is compiled TypeScript.
-- **Testability:** Each layer (build, eval, exec) must be independently testable without the others. Test fixtures live in `src/test/`.
+- **Testability:** Each layer (build, eval, exec) must be independently testable without the others. Test fixtures live in `packages/qti-processing/tests/`.
 
 ---
 

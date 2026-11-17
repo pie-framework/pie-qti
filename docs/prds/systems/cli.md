@@ -4,13 +4,13 @@
   Status: current
   Type: system
   Packages: @pie-qti/transform-cli
-  Last reviewed: 2026-04-27
+  Last reviewed: 2026-11-17
 -->
 
 **Status:** current  
 **Type:** system  
 **Packages:** `@pie-qti/transform-cli`  
-**Last reviewed:** 2026-04-27
+**Last reviewed:** 2026-11-17
 
 > **Note:** This package is under active development. The command interface and output formats described here reflect the current implementation but may change without a major version bump until the package reaches 1.0.
 
@@ -68,11 +68,11 @@ At `0.1.x` the CLI's command interface, output schemas, and config format are st
 
 ## Non-functional requirements
 
-- **Performance:** `batch-transform` uses a configurable `--max-parallel` concurrency limit (default 10). Note: the current implementation serializes package processing in a sequential `for` loop; the `maxParallel` option is wired but not yet applied to per-item concurrency. For large content banks (>1,000 items), the temporary extraction and sequential transform loop is the primary bottleneck. The `analyze` command uses synchronous `fs.readFileSync` throughout; for packages with hundreds of items this is acceptable in a CLI context but would not be appropriate in a server context.
+- **Performance:** `batch-transform` uses a configurable `--max-parallel` concurrency limit (default 10): packages are processed in chunks of that size, with each chunk's packages transformed concurrently (`Promise.all` over the chunk; `tools/cli/src/commands/batch-transform.ts`). For large content banks (>1,000 items), the temporary extraction and the per-package transform remain the primary bottleneck. The `analyze` command uses synchronous `fs.readFileSync` throughout; for packages with hundreds of items this is acceptable in a CLI context but would not be appropriate in a server context.
 - **Error handling:** Parse failures on individual XML files must be caught and accumulated, not thrown. The final summary must always be printed, and the temp directory must always be cleaned up, even after errors (the `try/finally` structure in `BatchTransformer.transform()` enforces this). The `transform` command exits non-zero on any error; `batch-transform` exits non-zero only when all items fail.
 - **Security:** The CLI reads files from the local filesystem only. ZIP extraction uses `extractZipToDirSafe` from `@pie-qti/ims-cp-node`, which must prevent path-traversal attacks (entries with `..` components in their paths must be rejected). The CLI does not start any network listeners or make outbound network requests.
 - **Node.js version:** Requires Node.js >=22.0.0 per `engines` in package.json, the floor oclif sets. ESM-only output (the package is `"type": "module"`).
-- **Stability:** At version `0.1.x` the CLI is under active development. Command names, flag names, and output formats are not yet considered stable. Callers in CI pipelines should pin to a specific version and review the changelog on upgrade.
+- **Stability:** At version `1.0.0-beta` (the current `1.0.0-beta.5` prerelease line) the CLI is under active development toward 1.0. Command names, flag names, and output formats are not yet considered stable. Callers in CI pipelines should pin to a specific version and review the changelog on upgrade.
 
 ---
 

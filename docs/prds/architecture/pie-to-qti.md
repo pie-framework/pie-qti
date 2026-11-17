@@ -1,22 +1,22 @@
 # PRD: PIE to QTI 2.2 Transform
 
 <!--
-  Status: draft
+  Status: current
   Type: architecture
   Packages: @pie-qti/pie-to-qti2
-  Last reviewed: 2026-10-18
+  Last reviewed: 2026-11-17
 -->
 
-**Status:** draft
+**Status:** current
 **Type:** architecture
 **Packages:** `@pie-qti/pie-to-qti2`
-**Last reviewed:** 2026-10-18
+**Last reviewed:** 2026-11-17
 
 ---
 
 ## Summary
 
-`@pie-qti/pie-to-qti2` transforms PIE (Platform for Interactive Education) assessment items and assessments into QTI 2.2 XML (namespace `imsqti_v2p2`), or into QTI 3.0 (namespace `imsqtiasi_v3p0`) with `targetVersion: '3.0'`. It implements the `TransformPlugin` interface from `@pie-qti/transform-types` and integrates with the transform engine in `@pie-qti/transform-core`. The package supports the full PIE item model: single interactions, multi-model items (passage + interaction + rubric), and full `assessmentTest` documents with sections, branch rules, and scoring logic. The original PIE source travels as a digested sidecar (`<item>.pie.json`, `qtiDigest`; see `packages/pie-to-qti2/src/utils/pie-source-sidecar.ts`), enabling a lossless round-trip back to PIE via `@pie-qti/to-pie`.
+`@pie-qti/pie-to-qti2` transforms PIE (Portable Interactions and Elements) assessment items and assessments into QTI 2.2 XML (namespace `imsqti_v2p2`), or into QTI 3.0 (namespace `imsqtiasi_v3p0`) with `targetVersion: '3.0'`. It implements the `TransformPlugin` interface from `@pie-qti/transform-types` and integrates with the transform engine in `@pie-qti/transform-core`. The package supports the full PIE item model: single interactions, multi-model items (passage + interaction + rubric), and full `assessmentTest` documents with sections, branch rules, and scoring logic. The original PIE source travels as a digested sidecar (`<item>.pie.json`, `qtiDigest`; see `packages/pie-to-qti2/src/utils/pie-source-sidecar.ts`), enabling a lossless round-trip back to PIE via `@pie-qti/to-pie`.
 
 ---
 
@@ -317,4 +317,4 @@ AC-E5: Registry throws on duplicate without override
 - QTI spec: IMS QTI 2.2.2, §4 assessmentItem; §6 assessmentTest; §8 IMS Content Packaging
 - Implementation: `packages/pie-to-qti2/src/`
 - Adjacent PRDs: `architecture/qti-to-pie.md`, `architecture/transform-engine.md`, `architecture/ims-content-packages.md`
-- Existing docs: `packages/pie-to-qti2/README.md`, `packages/pie-to-qti2/docs/CUSTOM-GENERATORS.md`, `packages/pie-to-qti2/docs/ASSESSMENT-TRANSFORMATIONS.md`, `packages/pie-to-qti2/docs/EXTERNAL-PASSAGES.md`, `packages/pie-to-qti2/docs/MANIFEST-GENERATION.md`, `packages/pie-to-qti2/docs/PASSAGE-DEDUPLICATION.md`
+- Existing docs: `packages/pie-to-qti2/README.md`, `packages/pie-to-qti2/CUSTOM-GENERATORS.md`, `packages/pie-to-qti2/docs/ASSESSMENT-TRANSFORMATIONS.md`, `packages/pie-to-qti2/docs/EXTERNAL-PASSAGES.md`, `packages/pie-to-qti2/docs/MANIFEST-GENERATION.md`, `packages/pie-to-qti2/docs/PASSAGE-DEDUPLICATION.md`

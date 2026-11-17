@@ -1,14 +1,14 @@
 # PRD: sliderInteraction
 
 <!--
-  Status: draft
+  Status: current
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: sliderInteraction
   Last reviewed: 2026-11-07
 -->
 
-**Status:** draft  
+**Status:** current  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
 **Last reviewed:** 2026-11-07

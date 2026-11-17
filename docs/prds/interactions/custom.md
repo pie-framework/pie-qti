@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type (interactions only): customInteraction / qti-portable-custom-interaction
-  Last reviewed: 2026-07-13
+  Last reviewed: 2026-11-17
 -->
 
 **Status:** current
 **Type:** interaction
 **Packages:** `@pie-qti/default-components`, `@pie-qti/item-player`
-**Last reviewed:** 2026-07-13
+**Last reviewed:** 2026-11-17
 
 ---
 
@@ -193,14 +193,17 @@ When a PCI module is loaded, the module is responsible for its own internal acce
 
 ### i18n
 
-The fallback UI surfaces three localised strings via the `@pie-qti/i18n` provider:
+The fallback UI surfaces these localised strings via the `@pie-qti/i18n` provider:
 
 | Key | Default (English) |
 | --- | ----------------- |
 | `interactions.custom.unsupported` | `'Unsupported customInteraction'` |
+| `interactions.custom.description` | `'This item contains a vendor-specific interaction. This player does not execute custom interactions.'` |
 | `interactions.custom.manualResponse` | `'Manual response (optional)'` |
 | `interactions.custom.placeholder` | `'Enter a manual response (fallback)'` |
 | `interactions.custom.attributes` | `'Attributes'` |
+| `interactions.custom.xml` | `'XML'` |
+| `interactions.custom.promptHeading` | `'Prompt:'` |
 
 The `i18n` prop is optional; all strings have English defaults. RTL layout is handled by the global `dir` attribute on the document root — the fallback component uses `display: grid` without explicit direction, which respects inherited `dir`.
 
@@ -593,8 +596,11 @@ AC-G5: stored response reaches the module on restore
 ```
 Given: A session is restored with a previously stored PCI response value
 When: The player mounts the PCI interaction
-Then: module.setResponse(storedValue) is called after initialize
-  AND the module reflects the restored state in its UI
+Then: module.setResponse() is NOT called — the spec contract has no setter
+  AND the stored value seeds getInstance() as the module's state (a held restore() waits for
+      initialize), and the module reflects the restored state in its UI
+When: A restore() lands on an already-mounted module instead
+Then: The module is rebuilt from the caller's value through onRemountRequest/remount, as in AC-G8
 ```
 
 AC-G8: a module keeps the response it reported
