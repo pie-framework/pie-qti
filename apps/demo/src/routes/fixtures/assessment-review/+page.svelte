@@ -35,11 +35,11 @@
 		nonlinear: {
 			identifier: 'review-safety',
 			title: 'Review safety check',
-			navigationMode: 'nonlinear',
-			submissionMode: 'simultaneous',
 			testParts: [
 				{
 					identifier: 'part-1',
+					navigationMode: 'nonlinear',
+					submissionMode: 'simultaneous',
 					sections: [
 						{
 							identifier: 'section-1',
@@ -58,11 +58,10 @@
 		'linear-parts': {
 			identifier: 'linear-parts',
 			title: 'Linear parts check',
-			navigationMode: 'nonlinear',
-			submissionMode: 'simultaneous',
 			testParts: [
 				{
 					identifier: 'part-1',
+					submissionMode: 'simultaneous',
 					navigationMode: 'linear',
 					sections: [
 						{
@@ -75,6 +74,7 @@
 				},
 				{
 					identifier: 'part-2',
+					submissionMode: 'simultaneous',
 					navigationMode: 'nonlinear',
 					sections: [
 						{
@@ -90,8 +90,6 @@
 		required: {
 			identifier: 'required-answers',
 			title: 'Required answers check',
-			navigationMode: 'nonlinear',
-			submissionMode: 'individual',
 			testParts: [
 				{
 					identifier: 'part-1',
@@ -115,8 +113,6 @@
 		'required-parts': {
 			identifier: 'required-parts',
 			title: 'Required parts check',
-			navigationMode: 'nonlinear',
-			submissionMode: 'individual',
 			testParts: [
 				{
 					identifier: 'part-1',

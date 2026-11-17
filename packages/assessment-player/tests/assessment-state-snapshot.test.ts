@@ -6,10 +6,10 @@ import type { SecureAssessment } from '../src/integration/api-contract.js';
 const assessment: SecureAssessment = {
 	identifier: 'snapshot-assessment',
 	title: 'Save and resume',
-	navigationMode: 'nonlinear',
-	submissionMode: 'simultaneous',
 	testParts: [{
 		identifier: 'part',
+		navigationMode: 'nonlinear',
+		submissionMode: 'simultaneous',
 		sections: [{
 			identifier: 'section',
 			visible: true,

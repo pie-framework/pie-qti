@@ -11,8 +11,8 @@
 	let failureStage = 'responses';
 	const assessment: SecureAssessment = {
 		identifier: 'submission-recovery', title: 'Submission recovery',
-		navigationMode: 'nonlinear', submissionMode: 'simultaneous',
-		testParts: [{ identifier: 'part', sections: [{
+		 
+		testParts: [{ identifier: 'part', navigationMode: 'nonlinear', submissionMode: 'simultaneous', sections: [{
 			identifier: 'section', visible: true,
 			assessmentItemRefs: [{ identifier: 'choice', role: 'candidate', itemXml: `<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="choice" title="Choice" adaptive="false" timeDependent="false">
   <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier"><correctResponse><value>water</value></correctResponse></responseDeclaration>

@@ -149,10 +149,6 @@ export interface SecureTimeLimits {
 export interface SecureAssessment {
 	identifier: string;
 	title: string;
-	/** Navigation mode affects UI */
-	navigationMode: 'linear' | 'nonlinear';
-	/** Submission mode affects when responses are finalized */
-	submissionMode: 'individual' | 'simultaneous';
 	/** Test parts contain sections */
 	testParts: SecureTestPart[];
 	/** Overall time limit in seconds (optional) */
@@ -174,9 +170,10 @@ export interface SecureAssessment {
 
 export interface SecureTestPart {
 	identifier: string;
-	/** Navigation and submission modes are scoped to each QTI testPart. */
-	navigationMode?: 'linear' | 'nonlinear';
-	submissionMode?: 'individual' | 'simultaneous';
+	/** QTI testPart navigationMode. */
+	navigationMode: 'linear' | 'nonlinear';
+	/** QTI testPart submissionMode: when responses are finalized. */
+	submissionMode: 'individual' | 'simultaneous';
 	/** Sections contain items */
 	sections: SecureSection[];
 	/** TestPart-level time limit. */

@@ -22,11 +22,11 @@ export const READING_COMPREHENSION_ASSESSMENT: SampleAssessment = {
 	assessment: {
 		identifier: 'READING-COMP-001',
 		title: 'Reading Comprehension: The Water Cycle',
-		navigationMode: 'nonlinear',
-		submissionMode: 'simultaneous',
 		testParts: [
 			{
 				identifier: 'part-1',
+				navigationMode: 'nonlinear',
+				submissionMode: 'simultaneous',
 				sections: [
 					{
 						identifier: 'section-1',
@@ -174,11 +174,11 @@ export const MATH_ASSESSMENT: SampleAssessment = {
 	assessment: {
 		identifier: 'MATH-GRADE5-001',
 		title: 'Grade 5 Mathematics Assessment',
-		navigationMode: 'nonlinear',
-		submissionMode: 'simultaneous',
 		testParts: [
 			{
 				identifier: 'part-1',
+				navigationMode: 'nonlinear',
+				submissionMode: 'simultaneous',
 				sections: [
 					{
 						identifier: 'section-arithmetic',
@@ -321,11 +321,11 @@ export const SCIENCE_ASSESSMENT: SampleAssessment = {
 	assessment: {
 		identifier: 'SCIENCE-001',
 		title: 'Life Cycles Assessment',
-		navigationMode: 'linear',
-		submissionMode: 'individual',
 		testParts: [
 			{
 				identifier: 'part-1',
+				navigationMode: 'linear',
+				submissionMode: 'individual',
 				// Must answer each question, cannot go back.
 				itemSessionControl: {
 					allowReview: false,
@@ -463,11 +463,11 @@ export const MIXED_TOPICS_ASSESSMENT: SampleAssessment = {
 	assessment: {
 		identifier: 'MIXED-001',
 		title: 'General Knowledge Assessment',
-		navigationMode: 'nonlinear',
-		submissionMode: 'simultaneous',
 		testParts: [
 			{
 				identifier: 'part-1',
+				navigationMode: 'nonlinear',
+				submissionMode: 'simultaneous',
 				sections: [
 					{
 						identifier: 'section-geography',
@@ -662,11 +662,11 @@ export const SAMPLE_ASSESSMENTS: SampleAssessment[] = [
 		assessment: {
 			identifier: 'SHOWCASE-001',
 			title: 'Interaction Showcase',
-			navigationMode: 'nonlinear',
-			submissionMode: 'simultaneous',
 			testParts: [
 				{
 					identifier: 'part-1',
+					navigationMode: 'nonlinear',
+					submissionMode: 'simultaneous',
 					sections: [
 						{
 							identifier: 'section-passage',

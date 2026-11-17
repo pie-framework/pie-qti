@@ -824,7 +824,7 @@ to score them.
 
 Key types are in `packages/assessment-player/src/integration/api-contract.ts`. Invariants not obvious from the types:
 
-- **`SecureTestPart.navigationMode` / `submissionMode`** are authoritative per part; top-level fields are compatibility fallbacks.
+- **`SecureTestPart.navigationMode` / `submissionMode`** are required on every part and are the only source of the modes; `SecureAssessment` carries neither.
 - **`SecureItemRef.itemXml`** must be pre-filtered by the server. For `candidate` role, `<correctResponse>` and `<responseProcessing>` must be absent. The client does not validate this; it trusts the server.
 - **`AssessmentSessionState.itemResponses`** is keyed by item identifier, then by response variable identifier. The inner value type is `Record<string, ResponseValue>`. A missing outer key means the item has never been visited; an empty inner object means the item was visited but no response was entered.
 - **`AssessmentSessionState.itemSessions`** contains serialized handoff values for inactive/restorable items. It never contains or represents a second live session. `getCurrentItemSession()` is the sole live reference and is not persistence data.
@@ -849,28 +849,28 @@ Key types are in `packages/assessment-player/src/integration/api-contract.ts`. I
 
 ```
 AC-1: Linear navigation blocks forward skips
-  Given: An assessment with navigationMode 'linear' and 3 items, currently on item 0
+  Given: A test part with navigationMode 'linear' and 3 items, currently on item 0
   When: navigateTo(2) is called
   Then: The call throws an error mentioning linear navigation
   Notes: navigateTo(1) must succeed
 
 AC-2: Linear navigation blocks backward movement
-  Given: An assessment with navigationMode 'linear', currently on item 2
+  Given: A test part with navigationMode 'linear', currently on item 2
   When: previous() is called
   Then: currentItemIndex remains 2 and onItemChange does not fire
 
 AC-3: Nonlinear navigation allows arbitrary jumps
-  Given: An assessment with navigationMode 'nonlinear' and 5 items, currently on item 0
+  Given: A test part with navigationMode 'nonlinear' and 5 items, currently on item 0
   When: navigateTo(4) is called
   Then: currentItemIndex becomes 4 and onItemChange fires
 
 AC-4: Individual submission mode submits before navigation
-  Given: An assessment with submissionMode 'individual', currently on item 0 with a response
+  Given: A test part with submissionMode 'individual', currently on item 0 with a response
   When: next() is called
   Then: BackendAdapter.submitResponses is called before BackendAdapter-controlled navigation, and currentItemIndex advances to 1 (or to the nextItemIdentifier returned by the backend)
 
 AC-5: Simultaneous submission mode sends all items on finalize
-  Given: An assessment with submissionMode 'simultaneous', all items visited with responses
+  Given: A test part with submissionMode 'simultaneous', all items visited with responses
   When: submit() is called
   Then: BackendAdapter.submitResponses is called once per item that has not already been submitted, then BackendAdapter.finalizeAssessment is called exactly once
 

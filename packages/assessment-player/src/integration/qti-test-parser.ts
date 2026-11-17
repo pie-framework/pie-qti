@@ -573,16 +573,6 @@ export async function parseAssessmentTestXml(
 
 	// Parse testParts
 	const testPartEls = childrenByTag(root, 'testPart');
-	const firstTestPart = testPartEls[0];
-
-	// Retain top-level compatibility fields while preserving the authoritative
-	// mode on every testPart below.
-	const navigationMode = (getAttr(firstTestPart ?? root, 'navigationMode') ?? 'nonlinear') as
-		| 'linear'
-		| 'nonlinear';
-	const submissionMode = (getAttr(firstTestPart ?? root, 'submissionMode') ?? 'simultaneous') as
-		| 'individual'
-		| 'simultaneous';
 
 	const testParts: SecureTestPart[] = [];
 	for (const tp of testPartEls) {
@@ -622,33 +612,10 @@ export async function parseAssessmentTestXml(
 		});
 	}
 
-	// If no testParts, try top-level sections
-	if (testParts.length === 0) {
-		const topSections: SecureSection[] = [];
-		for (const child of childElements(root)) {
-			if (toCanonicalQtiName(child.localName) === 'assessmentSection') {
-				topSections.push(await parseSection(child));
-			} else if (toCanonicalQtiName(child.localName) === 'assessmentSectionRef') {
-				const resolved = await resolveSectionRef(child);
-				if (resolved) topSections.push(resolved);
-			}
-		}
-		if (topSections.length > 0) {
-			testParts.push({
-				identifier: 'part-1',
-				navigationMode,
-				submissionMode,
-				sections: topSections,
-			});
-		}
-	}
-
 	return {
 		identifier: getAttr(root, 'identifier') ?? 'assessment',
 		// Left empty when absent: shells show a localized generic title, not English text.
 		title: getAttr(root, 'title') ?? '',
-		navigationMode,
-		submissionMode,
 		testParts,
 		timeLimits,
 		outcomeDeclarations: outcomeDeclarations.length > 0 ? outcomeDeclarations : undefined,

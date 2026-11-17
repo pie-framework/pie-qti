@@ -83,7 +83,7 @@
 				referenceMode: true,
 				assessmentTestXml,
 				items,
-				config: { role: 'candidate', navigationMode: 'nonlinear', showSections: true, ...(i18nProvider ? { i18nProvider } : {}) },
+				config: { role: 'candidate', showSections: true, ...(i18nProvider ? { i18nProvider } : {}) },
 				security: getSecurityConfig(),
 			});
 

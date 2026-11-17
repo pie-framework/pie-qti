@@ -178,29 +178,10 @@ export function parseAssessmentTestXml(
 	const identifier = getAttr(assessmentTestEl as Element, 'identifier');
 	const title = getAttr(assessmentTestEl as Element, 'title');
 
-	// Prefer explicit testPart(s); if missing, synthesize one from top-level sections
-	const testPartsEls = Array.from(assessmentTestEl.childNodes)
+	const testParts = Array.from(assessmentTestEl.childNodes)
 		.filter((n): n is Element => (n as any).nodeType === 1)
-		.filter((el) => toCanonicalQtiName((el as Element).localName) === 'testPart');
-
-	let testParts: ParsedTestPart[] | undefined;
-	if (testPartsEls.length > 0) {
-		testParts = testPartsEls.map((testPart) => parseTestPart(testPart, maxSectionDepth));
-	} else {
-		const topSections = Array.from(assessmentTestEl.childNodes)
-			.filter((n): n is Element => (n as any).nodeType === 1)
-			.filter((el) => toCanonicalQtiName((el as Element).localName) === 'assessmentSection')
-			.map((section) => parseSection(section, 1, maxSectionDepth));
-
-		testParts = [
-			{
-				identifier: 'part-1',
-				navigationMode: 'nonlinear',
-				submissionMode: 'simultaneous',
-				sections: topSections,
-			},
-		];
-	}
+		.filter((el) => toCanonicalQtiName((el as Element).localName) === 'testPart')
+		.map((testPart) => parseTestPart(testPart, maxSectionDepth));
 
 	return {
 		identifier,

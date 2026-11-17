@@ -60,11 +60,11 @@ const EXTENDED_TEXT_XML = `<assessmentItem xmlns="http://www.imsglobal.org/xsd/i
 const T4_T7_ASSESSMENT: SecureAssessment = {
 	identifier: 'qti22-basic-t4-t7',
 	title: 'QTI 2.2 Basic T4 and T7 Test Structures',
-	navigationMode: 'linear',
-	submissionMode: 'individual',
 	testParts: [
 		{
 			identifier: 'part1',
+			navigationMode: 'linear',
+			submissionMode: 'individual',
 			sections: [
 				{
 					identifier: 'section1',

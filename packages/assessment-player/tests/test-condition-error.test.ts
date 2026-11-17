@@ -196,7 +196,6 @@ describe('reference backend decisions with an unevaluable precondition', () => {
 			console.warn = (...args: unknown[]) => warns.push(args);
 			try {
 				return firstEligibleItem(
-					assessment,
 					deliveredItems(assessment),
 					0,
 					undefined,

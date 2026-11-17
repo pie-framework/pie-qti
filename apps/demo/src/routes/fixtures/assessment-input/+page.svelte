@@ -8,8 +8,8 @@
 	let target: HTMLDivElement;
 	const assessment: SecureAssessment = {
 		identifier: 'input-continuity', title: 'Input continuity',
-		navigationMode: 'nonlinear', submissionMode: 'simultaneous',
-		testParts: [{ identifier: 'part', sections: [{
+		 
+		testParts: [{ identifier: 'part', navigationMode: 'nonlinear', submissionMode: 'simultaneous', sections: [{
 			identifier: 'section', visible: true,
 			assessmentItemRefs: [{
 				identifier: 'entry', role: 'candidate',

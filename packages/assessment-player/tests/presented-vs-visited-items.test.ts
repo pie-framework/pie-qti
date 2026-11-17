@@ -38,8 +38,6 @@ async function fixture() {
 	const assessment: SecureAssessment = {
 		identifier: 'presented-vs-visited',
 		title: 'Presented vs visited',
-		navigationMode: 'nonlinear',
-		submissionMode: 'individual',
 		testParts: [
 			{
 				identifier: 'part-1',

@@ -12,8 +12,6 @@ const backend: BackendAdapter = {
 			assessment: {
 				identifier: request.assessmentId,
 				title: 'Secure assessment',
-				navigationMode: 'nonlinear',
-				submissionMode: 'simultaneous',
 				testParts: [],
 			},
 		};

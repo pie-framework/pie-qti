@@ -10,16 +10,8 @@
  * entry), which decides *where* the rules go, not whether a move is legal.
  */
 
-import type { SecureAssessment, SecureSection, SecureTestPart } from '../integration/api-contract.js';
+import type { SecureSection } from '../integration/api-contract.js';
 import type { FlatItem } from './deliveryStructure.js';
-
-/** The part's effective QTI navigation mode (the assessment-level field is the fallback). */
-export function effectiveNavigationMode(
-	testPart: SecureTestPart,
-	assessment: SecureAssessment,
-): 'linear' | 'nonlinear' {
-	return testPart.navigationMode ?? assessment.navigationMode ?? 'nonlinear';
-}
 
 /**
  * Whether jumping to a presented section is legal right now: in linear navigation there
@@ -30,13 +22,12 @@ export function effectiveNavigationMode(
 export function isLegalSectionTarget(options: {
 	section: SecureSection;
 	items: readonly FlatItem[];
-	assessment: SecureAssessment;
 	finalized: boolean;
 	currentIndex: number;
 	isItemLocked: (q: FlatItem) => boolean;
 	canReviewItem: (q: FlatItem) => boolean;
 }): boolean {
-	const { section, items, assessment, finalized, currentIndex, isItemLocked, canReviewItem } = options;
+	const { section, items, finalized, currentIndex, isItemLocked, canReviewItem } = options;
 	if (finalized) return false;
 	const current = items[currentIndex];
 	if (!current) return false;
@@ -44,7 +35,7 @@ export function isLegalSectionTarget(options: {
 		q.sections.some((s) => s.identifier === section.identifier),
 	);
 	if (members.length === 0) return false;
-	const mode = effectiveNavigationMode(current.testPart, assessment);
+	const mode = current.testPart.navigationMode;
 	if (mode === 'linear') {
 		return members.some((q) => q === current);
 	}
@@ -69,16 +60,15 @@ export function canNavigateByTestPart(options: {
 	targetIndex: number;
 	currentIndex: number;
 	items: readonly FlatItem[];
-	assessment: SecureAssessment;
 	forward: () => number;
 }): boolean {
-	const { targetIndex, currentIndex, items, assessment, forward } = options;
+	const { targetIndex, currentIndex, items, forward } = options;
 	if (targetIndex < 0 || targetIndex >= items.length) return false;
 	const current = items[currentIndex];
 	const target = items[targetIndex];
 	if (!current || !target) return false;
 	if (targetIndex === currentIndex) return true;
-	const mode = effectiveNavigationMode(current.testPart, assessment);
+	const mode = current.testPart.navigationMode;
 	if (current.testPart === target.testPart && mode === 'nonlinear') return true;
 	if (targetIndex < currentIndex) return false;
 	return targetIndex === forward();

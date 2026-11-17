@@ -434,10 +434,10 @@ describe('ReferenceBackendAdapter', () => {
 			return {
 				identifier: 'branch-test',
 				title: 'Branch Test',
-				navigationMode: 'linear',
-				submissionMode: 'individual',
 				testParts: [{
 					identifier: 'part1',
+					navigationMode: 'linear',
+					submissionMode: 'individual',
 					sections: [{
 						identifier: 'section1',
 						visible: true,
@@ -563,10 +563,10 @@ describe('ReferenceBackendAdapter', () => {
 			return {
 				identifier: 'select-test',
 				title: 'Select Test',
-				navigationMode: 'linear',
-				submissionMode: 'individual',
 				testParts: [{
 					identifier: 'part1',
+					navigationMode: 'linear',
+					submissionMode: 'individual',
 					sections: [{
 						identifier: 'section1',
 						visible: true,
@@ -631,7 +631,6 @@ describe('ReferenceBackendAdapter', () => {
 		it('selection always includes required children', async () => {
 			const { AssessmentPlayer } = await import('../src/core/AssessmentPlayer.js');
 			const assessment = makeSelectAssessment(2, false, 5);
-			assessment.navigationMode = 'nonlinear';
 			assessment.testParts[0]!.navigationMode = 'nonlinear';
 			assessment.testParts[0]!.sections[0]!.assessmentItemRefs[4]!.required = true;
 			const seeded = new ReferenceBackendAdapter({ rng: () => 0 });
@@ -653,7 +652,6 @@ describe('ReferenceBackendAdapter', () => {
 		it('ordering retains fixed children at their post-selection positions', async () => {
 			const { AssessmentPlayer } = await import('../src/core/AssessmentPlayer.js');
 			const assessment = makeSelectAssessment(5, true, 5);
-			assessment.navigationMode = 'nonlinear';
 			assessment.testParts[0]!.navigationMode = 'nonlinear';
 			assessment.testParts[0]!.sections[0]!.assessmentItemRefs[1]!.fixed = true;
 			const seeded = new ReferenceBackendAdapter({ rng: () => 0 });

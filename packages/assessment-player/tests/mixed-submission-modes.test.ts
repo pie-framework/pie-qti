@@ -14,8 +14,6 @@ async function fixture(modes: SubmissionMode[], failItemOnce?: string) {
 	const assessment: SecureAssessment = {
 		identifier: 'mixed-modes',
 		title: 'Mixed submission modes',
-		navigationMode: 'nonlinear',
-		submissionMode: modes[0],
 		testParts: modes.map((submissionMode, part) => ({
 			identifier: `part-${part}`,
 			navigationMode: 'nonlinear',

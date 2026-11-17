@@ -83,8 +83,6 @@ async function create(testParts: SecureTestPart[], options: CreateOptions = {}) 
 	const assessment: SecureAssessment = {
 		identifier: 'expiry-hop-lock',
 		title: 'Expiry hop lock',
-		navigationMode: testParts[0]?.navigationMode ?? 'nonlinear',
-		submissionMode: testParts[0]?.submissionMode ?? 'individual',
 		testParts,
 	};
 	// What happened, in order: backend submits as they are accepted, item changes, scope expiries.

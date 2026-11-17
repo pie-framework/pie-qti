@@ -92,8 +92,6 @@ async function create(parts: SecureTestPart[], options: CreateOptions = {}) {
 	const assessment: SecureAssessment = {
 		identifier: 'round4',
 		title: 'Round four',
-		navigationMode: parts[0]?.navigationMode ?? 'nonlinear',
-		submissionMode: parts[0]?.submissionMode ?? 'individual',
 		...(options.timeLimits ? { timeLimits: options.timeLimits } : {}),
 		testParts: parts,
 	};

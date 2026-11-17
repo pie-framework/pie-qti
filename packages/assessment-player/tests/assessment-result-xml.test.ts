@@ -286,12 +286,12 @@ function resultsData() {
 	const assessment: SecureAssessment = {
 		identifier: 'TEST',
 		title: 'Results test',
-		navigationMode: 'nonlinear',
-		submissionMode: 'individual',
 		outcomeDeclarations: [{ identifier: 'TOTAL', baseType: 'float', cardinality: 'single' }],
 		testParts: [
 			{
 				identifier: 'P1',
+				navigationMode: 'nonlinear',
+				submissionMode: 'individual',
 				sections: [
 					{
 						identifier: 'S1',

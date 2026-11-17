@@ -146,8 +146,6 @@ describe('a throwing scopeTimeExpired listener cannot lose the expiry hop', () =
 		const assessment: SecureAssessment = {
 			identifier: 'expiry-listener-throw',
 			title: 'Expiry listener throw',
-			navigationMode: 'nonlinear',
-			submissionMode: 'individual',
 			testParts: [part('part-1', [section('s1', [ref('q1', { timeLimits: { maxTime: 3 } }), ref('q2')])])],
 		};
 		const backend = new ReferenceBackendAdapter();

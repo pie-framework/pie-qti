@@ -96,8 +96,6 @@
 		practice: () => ({
 			identifier: 'practice-flow',
 			title: 'Practice check',
-			navigationMode: 'nonlinear',
-			submissionMode: 'individual',
 			testParts: [
 				{
 					identifier: 'part-1',
@@ -120,8 +118,6 @@
 		simultaneous: () => ({
 			identifier: 'practice-simultaneous',
 			title: 'Simultaneous check',
-			navigationMode: 'nonlinear',
-			submissionMode: 'simultaneous',
 			testParts: [
 				{
 					identifier: 'part-1',
@@ -143,8 +139,6 @@
 		'linear-feedback': () => ({
 			identifier: 'practice-linear',
 			title: 'Linear feedback check',
-			navigationMode: 'linear',
-			submissionMode: 'individual',
 			testParts: [
 				{
 					identifier: 'part-1',
@@ -167,11 +161,11 @@
 		complete: () => ({
 			identifier: 'practice-complete',
 			title: 'Completion check',
-			navigationMode: 'nonlinear',
-			submissionMode: 'simultaneous',
 			testParts: [
 				{
 					identifier: 'part-1',
+					navigationMode: 'nonlinear',
+					submissionMode: 'simultaneous',
 					sections: [
 						{
 							identifier: 'section-1',

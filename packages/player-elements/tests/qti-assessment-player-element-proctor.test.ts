@@ -19,11 +19,11 @@ const itemXml = `<assessmentItem ${NS} identifier="q1" title="Q1" adaptive="fals
 const assessment = {
 	identifier: 'proctor-assessment',
 	title: 'Proctor console',
-	navigationMode: 'nonlinear' as const,
-	submissionMode: 'simultaneous' as const,
 	testParts: [
 		{
 			identifier: 'part',
+			navigationMode: 'nonlinear' as const,
+			submissionMode: 'simultaneous' as const,
 			sections: [
 				{
 					identifier: 'section',

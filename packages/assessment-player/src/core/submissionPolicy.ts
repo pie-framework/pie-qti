@@ -10,19 +10,10 @@
  * (`responseValidationFor`) and only shapes the blocker's user-facing `requirement`.
  */
 
-import type { SecureAssessment, SecureTestPart } from '../integration/api-contract.js';
 import type { FlatItem } from './deliveryStructure.js';
 import { isSkippedResponseSet, type ResponseDefault } from './AssessmentSessionCoordinator.js';
 import type { ItemSessionControlSettings } from './ItemSessionController.js';
 import { AssessmentPlayerError, type AssessmentPlayerErrorCode } from './errors.js';
-
-/** The part's effective QTI submission mode (the assessment-level field is the fallback). */
-export function effectiveSubmissionMode(
-	testPart: SecureTestPart,
-	assessment: SecureAssessment,
-): 'individual' | 'simultaneous' {
-	return testPart.submissionMode ?? assessment.submissionMode;
-}
 
 /**
  * QTI itemSessionControl `allowSkipping` / `validateResponses` for one item's

@@ -119,13 +119,6 @@ rejecting hard-limit submissions from assessment elapsed time or submitted timin
 | `itemSessionControl.validateResponses` | Implemented (individual parts) | An answered item whose responses do not satisfy its interactions is not submitted by `next()`, `submitCurrentItem()`, `checkCurrentItem()` or the end of the test (rejected naming the items), nor left behind when the part is left; not applicable to simultaneous parts (QTI) |
 | `itemSessionControl.allowReview` | Partial | Consulted for nonlinear review through `AssessmentPlayer`, and only once an item's session is over: after its last attempt (an adaptive item: once completed) — while attempts remain the candidate may return to use them. The standalone `NavigationManager` has no session-control policy |
 
-### Compatibility fields
-
-`SecureAssessment.navigationMode` and `SecureAssessment.submissionMode` are retained for callers that
-construct the delivery model directly or omit per-part values. XML ingestion also sets them from the
-first test part. New code must treat `SecureTestPart.navigationMode` and
-`SecureTestPart.submissionMode` as authoritative for the active part.
-
 ---
 
 ## Functional requirements
@@ -490,11 +483,6 @@ And: No warning or expiry callback is emitted
   already ran past its hard maximum locks before any item is entered, and the live timer does not
   fire it again). The per-scope warning-emitted set is not persisted, so a restored session can
   announce a warning threshold again.
-
-- [ ] **Top-level mode fields remain redundant.** They are needed for compatibility today, but they
-  make it possible for hand-built `SecureAssessment` values to disagree with their test parts. The
-  API should eventually make the per-part fields required and deprecate the assessment-level mode
-  fields.
 
 ---
 
