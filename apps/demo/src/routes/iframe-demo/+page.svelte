@@ -9,6 +9,9 @@
 	const i18nContext = getContext<{ value: SvelteI18nProvider | null }>('i18n');
 	const i18n = $derived(i18nContext?.value);
 
+	// The iframe host sends its configuration across the frame boundary, where a PCI module
+	// resolver (a function) cannot go, so PCI samples are not offered here.
+	const IFRAME_SAMPLES = SAMPLE_ITEMS.filter((item) => !item.xml.includes('qti-portable-custom-interaction'));
 	let selectedSampleId = $state('simple-choice');
 	let lastResponses = $state<Record<string, unknown>>({});
 	let lastSubmitResult = $state<any | null>(null);
@@ -49,7 +52,7 @@
 		lastError = null;
 		lastSubmitResult = null;
 
-		const item = SAMPLE_ITEMS.find((s) => s.id === selectedSampleId);
+		const item = IFRAME_SAMPLES.find((s) => s.id === selectedSampleId);
 		if (!item) return;
 
 		await host.init({
@@ -129,12 +132,12 @@
 					bind:value={selectedSampleId}
 					onchange={() => initSelectedSample()}
 				>
-					{#each SAMPLE_ITEMS as item}
+					{#each IFRAME_SAMPLES as item}
 						<option value={item.id}>{item.title}</option>
 					{/each}
 				</select>
 				<div class="label">
-					<span class="label-text-alt">{i18n?.t(`demo.sampleItemDescriptions.${selectedSampleId}`) ?? SAMPLE_ITEMS.find((s) => s.id === selectedSampleId)?.description}</span>
+					<span class="label-text-alt">{i18n?.t(`demo.sampleItemDescriptions.${selectedSampleId}`) ?? IFRAME_SAMPLES.find((s) => s.id === selectedSampleId)?.description}</span>
 				</div>
 			</div>
 

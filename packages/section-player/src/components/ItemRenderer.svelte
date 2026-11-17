@@ -25,6 +25,8 @@
 		typeset?: (root: HTMLElement) => void | Promise<void>;
 		/** Heading level of the item title, so it fits the page outline. Default 3. */
 		headingLevel?: number;
+		/** The item player's standalone integrated-feedback policy; an item ref's live `session` keeps its own. */
+		showFeedback?: boolean;
 		/** The assessment the item's tool bar names. */
 		assessmentId?: string;
 		/** The section's display settings dialog; present, the item header opens it from its tool bar. */
@@ -45,6 +47,7 @@
 		pnp,
 		typeset,
 		headingLevel = 3,
+		showFeedback = false,
 		assessmentId,
 		displaySettingsControls = null,
 		onResponseChange,
@@ -210,6 +213,7 @@
 					pnp,
 					role,
 					disabled,
+					showFeedback,
 					typeset,
 					i18n,
 				}}

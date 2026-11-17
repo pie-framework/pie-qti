@@ -695,6 +695,9 @@ export class Player {
 	}
 
 	public runItemSessionAction(command: ItemSessionActionCommand): ItemSessionActionResult {
+		// A mounted PCI module answers through getResponse() when the delivery engine asks, and
+		// need not call ondone after each change: settle its value before processing or saving.
+		this.getResponses();
 		switch (command.action) {
 			case 'suspendAttempt':
 				return this.runSuspendAttemptAction();

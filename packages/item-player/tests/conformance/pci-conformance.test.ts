@@ -107,6 +107,25 @@ describe('PCI conformance: the registry contract over real module files', () => 
 		session.dispose();
 	});
 
+	test('ending the attempt scores the response a module reports only through getResponse()', async () => {
+		const session = openFixtureSession('pci-amd-echo');
+		const host = getItemSessionBinding(session).createPciHost(pciInteractionOf(session));
+		const { dom, input } = makeDom();
+
+		await host.load();
+		host.initialize(dom);
+
+		// No ondone: the module answers only when the delivery engine asks.
+		input.dispatchInput('echoed');
+		expect(session.state().responses.RESPONSE).toBeNull();
+
+		session.dispatch({ action: 'endAttempt' });
+		expect(session.state().responses.RESPONSE).toBe('ECHOED');
+		expect(session.state().outcomes.SCORE).toBe(1);
+
+		session.dispose();
+	});
+
 	test('a held response reaches getInstance as QTI variable JSON state', async () => {
 		const session = openFixtureSession('pci-amd-echo');
 		const host = getItemSessionBinding(session).createPciHost(pciInteractionOf(session));

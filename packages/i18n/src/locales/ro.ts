@@ -666,9 +666,9 @@ export default {
 	assessment: {
 		title: 'Evaluare',
 		loading: 'Se încarcă evaluarea...',
-		loadingError: 'Această evaluare nu a putut fi încărcată. Încercați din nou.',
+		loadingError: 'Această evaluare nu a putut fi încărcată. Încearcă din nou.',
 		stillLoading: 'Se încarcă în continuare. Vă rugăm să așteptați o clipă.',
-		loadingRetry: 'Încercați din nou',
+		loadingRetry: 'Încearcă din nou',
 		question: 'Întrebarea {current} din {total}',
 		questionAnnouncement: 'Întrebarea {current} din {total}',
 		section: 'Secțiunea {current} din {total}',
@@ -847,7 +847,7 @@ export default {
 		// Conținutul unei întrebări a eșuat: limbaj clar, fără text tehnic, iar testul continuă.
 		itemError: {
 			title: 'Această întrebare nu a putut fi afișată.',
-			tryAgain: 'Încercați din nou',
+			tryAgain: 'Încearcă din nou',
 			continue: 'Continuați',
 		},
 
