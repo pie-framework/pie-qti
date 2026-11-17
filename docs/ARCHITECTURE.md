@@ -73,7 +73,7 @@ Everything lives under `packages/` and `apps/`:
 
 ## QTI players: architecture & extensibility
 
-> **Status**: Production-ready for the supported QTI delivery scope
+> **Status**: 1.0.0-beta; supported scope and open gaps in [STATUS.md](../STATUS.md)
 
 ![Item player extensibility](images/item_player_extensibility.jpeg)
 
@@ -270,7 +270,7 @@ Key references:
 
 ## Internationalization (i18n)
 
-> **Status**: Production-ready for the supported QTI delivery scope
+> **Status**: 1.0.0-beta; supported scope and open gaps in [STATUS.md](../STATUS.md)
 > **Package**: `@pie-qti/i18n`
 
 ### Overview
