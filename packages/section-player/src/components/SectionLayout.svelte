@@ -48,6 +48,13 @@
 		headingLevel?: number;
 		/** Offer the candidate the display settings tool. Default true. */
 		displaySettings?: boolean;
+		/**
+		 * Integrated feedback (`feedbackInline` / `feedbackBlock`) for items whose session the
+		 * item player owns (item refs carrying `responses`). QTI's
+		 * `itemSessionControl@showFeedback` default is false. An item ref's live `session`
+		 * keeps its own policy.
+		 */
+		showFeedback?: boolean;
 		/** The settings the candidate starts with; defaults to what they chose earlier in this page session. */
 		initialDisplaySettings?: QtiCandidateDisplaySettings;
 		onResponseChange?: (itemIdentifier: string, responseIdentifier: string, value: unknown) => void;
@@ -67,6 +74,7 @@
 		typeset,
 		headingLevel = 3,
 		displaySettings = true,
+		showFeedback = false,
 		initialDisplaySettings,
 		onResponseChange,
 		onFrameworkError,
@@ -202,6 +210,7 @@
 		pnp={hostPnp}
 		{typeset}
 		{headingLevel}
+		{showFeedback}
 		{assessmentId}
 		displaySettingsControls={displaySettings ? displaySettingsControls : null}
 		onResponseChange={handleResponseChange}

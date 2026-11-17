@@ -39,6 +39,7 @@ type SectionPlayerElementProps = {
 	typeset?: (root: HTMLElement) => void | Promise<void>;
 	headingLevel?: number;
 	displaySettings?: boolean;
+	showFeedback?: boolean;
 	onResponseChange: (itemIdentifier: string, responseIdentifier: string, value: unknown) => void;
 	onItemPaneReady?: (element: HTMLElement) => void;
 	onFrameworkError?: (error: QtiSectionFrameworkError) => void;
@@ -70,7 +71,7 @@ function compositionProblemOf(composition: ResolvedQtiSectionComposition): strin
 
 export abstract class QtiSectionPlayerElementBase extends BaseSvelteMountElement<SectionPlayerElementProps> {
 	static get observedAttributes() {
-		return ['heading-level', 'display-settings'];
+		return ['heading-level', 'display-settings', 'show-feedback'];
 	}
 
 	#composition: ResolvedQtiSectionComposition | null = null;
@@ -80,6 +81,7 @@ export abstract class QtiSectionPlayerElementBase extends BaseSvelteMountElement
 	#typeset: ((root: HTMLElement) => void | Promise<void>) | undefined;
 	#headingLevel: number | undefined;
 	#displaySettings: boolean | undefined;
+	#showFeedback: boolean | undefined;
 	#lastCompositionProblem: string | null = null;
 
 	attributeChangedCallback(name: string, _oldValue: string | null, newValue: string | null) {
@@ -87,6 +89,8 @@ export abstract class QtiSectionPlayerElementBase extends BaseSvelteMountElement
 			this.#headingLevel = parseHeadingLevel(newValue);
 		} else if (name === 'display-settings') {
 			this.#displaySettings = parseDisplaySettings(newValue);
+		} else if (name === 'show-feedback') {
+			this.#showFeedback = newValue === null ? undefined : true;
 		} else {
 			return;
 		}
@@ -120,6 +124,21 @@ export abstract class QtiSectionPlayerElementBase extends BaseSvelteMountElement
 	set displaySettings(value: boolean) {
 		if (value) this.removeAttribute('display-settings');
 		else this.setAttribute('display-settings', 'false');
+	}
+
+	/**
+	 * Integrated feedback (`feedbackInline` / `feedbackBlock`) for items whose session the
+	 * item player owns (item refs carrying `responses`), as the item element's
+	 * `show-feedback`. QTI's `itemSessionControl@showFeedback` default is false. An item
+	 * ref's live `session` keeps its own policy. Reflects the `show-feedback` attribute.
+	 */
+	get showFeedback(): boolean | undefined {
+		return this.#showFeedback;
+	}
+
+	set showFeedback(value: boolean | undefined) {
+		if (value) this.setAttribute('show-feedback', '');
+		else this.removeAttribute('show-feedback');
 	}
 
 	get composition() {
@@ -255,6 +274,7 @@ export abstract class QtiSectionPlayerElementBase extends BaseSvelteMountElement
 			typeset: this.#typeset,
 			...(this.#headingLevel === undefined ? {} : { headingLevel: this.#headingLevel }),
 			...(this.#displaySettings === undefined ? {} : { displaySettings: this.#displaySettings }),
+			...(this.#showFeedback === undefined ? {} : { showFeedback: this.#showFeedback }),
 			onResponseChange: (itemIdentifier, responseIdentifier, value) => {
 				const detail: QtiSectionResponseDeltaEvent = {
 					sectionIdentifier: composition.section.identifier,
