@@ -35,7 +35,7 @@ export interface QtiPciInstance {
 export interface QtiPciConfiguration {
 	responseIdentifier: string;
 	status: PciInteractionStatus;
-	/** Configuration from the interaction's `data-*` attributes (dataset names) and any `qti-pci-properties`. */
+	/** Configuration from the interaction's `data-*` attributes, under their dataset names. */
 	properties: Record<string, string>;
 	templateVariables?: Record<string, unknown>;
 	contextVariables?: Record<string, unknown>;
@@ -346,7 +346,7 @@ export interface ExtractedPci {
 	resolutionConfigPath?: string;
 	/** Inner HTML of the <qti-interaction-markup> element. */
 	markup: HtmlContent;
-	/** Configuration from the interaction's `data-*` attributes (dataset names) and any <qti-pci-properties>. */
+	/** Configuration from the interaction's `data-*` attributes, under their dataset names. */
 	config: Record<string, string>;
 }
 

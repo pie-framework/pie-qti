@@ -120,21 +120,8 @@ export const portableCustomExtractor: ElementExtractor<
 
 		// --- Config ---
 		// QTI 3.0 carries PCI configuration as data-* attributes on the interaction element, named
-		// as HTMLElement.dataset names them. <qti-pci-properties> is not in the QTI 3.0 schema but
-		// earlier content uses it; a data-* attribute wins when both set a key.
+		// as HTMLElement.dataset names them.
 		const config: Record<string, string> = {};
-
-		const propsEl = findDescendant(pciElement, ['pciproperties', 'qti-pci-properties']);
-
-		if (propsEl) {
-			const propEls = findDescendants(propsEl, ['pciproperty', 'qti-pci-property']);
-			for (const propEl of propEls) {
-				const key = utils.getAttribute(propEl, 'key') || utils.getAttribute(propEl, 'name') || '';
-				const value = utils.getAttribute(propEl, 'value') || (propEl.textContent ?? '').trim() || '';
-				if (key) config[key] = value;
-			}
-		}
-
 		for (const [name, value] of Object.entries(pciElement.attributes ?? {})) {
 			const key = datasetKey(name);
 			if (key) config[key] = value;
