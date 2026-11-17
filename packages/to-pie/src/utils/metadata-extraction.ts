@@ -27,7 +27,7 @@ export function extractExtensions(qtiXml: string | HTMLElement): Record<string, 
     ? parse(qtiXml, { lowerCaseTagName: false, comment: false })
     : qtiXml;
 
-  // Priority 1: Try PIE extension first (perfect reconstruction)
+  // Priority 1: the inline pie:sourceModel that pie-to-qti2 0.1.25 and earlier embedded in the item.
   const pieExtension = doc.querySelector('pie\\:sourceModel') ||
                        Array.from(doc.getElementsByTagName('*'))
                          .find(el => el.rawTagName === 'pie:sourceModel');

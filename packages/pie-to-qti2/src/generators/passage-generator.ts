@@ -46,7 +46,7 @@ function stimulusDiv({ title, content }: PassageParts): string {
  *
  * ID Selection Logic:
  * - QTI identifier: baseId (if present), otherwise id
- * - Metadata: sourceSystemId = "pie", externalId = identifier value
+ * - baseId and extensions travel as LOM on the passage's manifest resource
  */
 export function generatePassageXml(passage: PieModel | ResolvedPassage): string {
   const parts = passageParts(passage);

@@ -1127,10 +1127,8 @@ export class QtiToPiePlugin implements TransformPlugin {
   }
 
   /**
-   * Extract baseId from QTI metadata
-   *
-   * Looks for baseId/externalId in qti-metadata section
-   * Supports round-trip compatibility with pie-to-qti2
+   * Reads the in-item `qti-metadata` baseId that pie-to-qti2 0.1.25 and earlier wrote. Current
+   * exports carry baseId as manifest LOM, which `applyPieResourceLom` applies at package level.
    */
   private extractBaseId(itemElement: any): string | undefined {
     if (!itemElement) return undefined;
