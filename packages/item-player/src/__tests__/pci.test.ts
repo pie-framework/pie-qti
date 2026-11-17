@@ -1169,9 +1169,11 @@ describe('Player PCI integration', () => {
 		session.dispatch({ action: 'endAttempt' });
 		const revisionAfterClose = session.state().revision;
 		const configuration = lastConfiguration;
+		// Ending the attempt asked the mounted module, which answers 'module-answer'.
+		expect(session.state().responses.PCI_RESPONSE).toBe('module-answer');
 		configuration?.onready((host as any).instance as QtiPciInstance, undefined);
 
-		expect(session.state().responses.PCI_RESPONSE).toBe('submitted-answer');
+		expect(session.state().responses.PCI_RESPONSE).toBe('module-answer');
 		expect(session.state().revision).toBe(revisionAfterClose);
 		expect(revisions).toEqual([revisionAfterClose]);
 		session.dispose();
