@@ -42,7 +42,7 @@ The player then opts in per host:
 ```js
 element.pci = {
 	baseUrl: 'https://packages.example.com/bank/',
-	sandbox: { runnerUrl: 'https://qti.pie-framework.org/pci-runner.html' },
+	sandbox: { runnerUrl: 'https://pci-runner.example.com/pci-runner.html' },
 };
 ```
 

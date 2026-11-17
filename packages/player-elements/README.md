@@ -156,7 +156,7 @@ item.pci = {
 // Or sandboxed: module URLs are resolved and handed to the runner frame.
 // item.pci = {
 //   baseUrl: 'https://content.example/items/item-1/',
-//   sandbox: { runnerUrl: 'https://qti.pie-framework.org/pci-runner.html' },
+//   sandbox: { runnerUrl: 'https://pci-runner.example.com/pci-runner.html' },
 // };
 ```
 

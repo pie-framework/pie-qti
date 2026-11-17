@@ -1,6 +1,6 @@
 # QTI Delivery Coverage
 
-**Last reviewed:** 2026-10-17
+**Last reviewed:** 2026-11-17
 
 This document describes implementation coverage. It is not a claim of full conformance or formal
 1EdTech certification. The player has broad QTI 2.2 and 3.0 coverage and a compatibility path for
@@ -28,12 +28,12 @@ usable in a browser or scores according to the official template semantics.
 ## Confirmed conformance gaps
 
 `docs/SPEC-GAPS-PLAN.md` is the authoritative, live tracker for conformance work — the list below
-covers only what is still open in the item player as of 2026-10-17. Gaps closed since this file was
-last audited (position-object hierarchy G-17, QTI 3 foreign-vocabulary mapping G-18, record
+covers only what is still open in the item player as of 2026-11-17. Every gap there is Done,
+including position-object hierarchy G-17, QTI 3 foreign-vocabulary mapping G-18, record
 cardinality G-21, response-template aliases G-19, extended-text response shapes G-23, processing
 fragments G-24, PNP structured labels and braille G-13, the PCI spec contract and AMD module
-resolution G-08 phases 1–3, with clean-room conformance fixtures) are tracked there as Done and
-are no longer repeated here.
+resolution G-08 phases 1–3 (with clean-room conformance fixtures), results reporting G-26 and the
+compliance checks G-27; they are not repeated here.
 
 ### Interaction delivery
 
@@ -43,6 +43,13 @@ are no longer repeated here.
   and the sandboxed engine (plan phase 4) offers opt-in hardened execution in a cross-origin
   runner frame. Page-realm module execution stays gated on the host resolver — a trust decision;
   the sandboxed engine is the containment.
+- The sandbox postMessage bridge is verified in jsdom only; a real-browser handshake against a
+  deployed `@pie-qti/pci-runner` is still open, and no project-hosted runner origin exists yet.
+
+### Delivery limits
+
+- PNP `line-reader` is parsed into the profile's tool supports, but no built-in line reader
+  renders it (SPEC-GAPS-PLAN Delivery backlog).
 
 ### QTI 2.1
 
@@ -98,11 +105,14 @@ try {
 - Public coverage matrix: [`docs/certification/`](../../../docs/certification/)
 - Official package runner/evidence: sibling private `pie-qti-conformance` repository when available
 
-The current official-package runner is smoke-oriented: construction/no-throw or direct
-`ItemSession.dispatch({ action: 'setResponse', ... })` paths
-do not prove that a candidate can render and operate every interaction or that the resulting score
-is exact. Certification evidence should therefore include packed-NPM browser interaction and score
-assertions.
+The official-package runner records an assertion level per check and requires scoring
+discrimination and end-to-end delivery outcomes, guarded by a synthetic self-test that proves the
+checks can fail. Its results before 2026-11 were smoke-oriented: construction/no-throw or direct
+`ItemSession.dispatch({ action: 'setResponse', ... })` paths, which do not prove that a candidate
+can render and operate every interaction or that the resulting score is exact. The evidence on
+record is from the published `0.1.21` candidate and is refreshed against the next published beta
+(see [`STATUS.md`](../../../STATUS.md#certification-readiness)). Certification evidence should
+include packed-NPM browser interaction and score assertions.
 
 ## Official resources
 

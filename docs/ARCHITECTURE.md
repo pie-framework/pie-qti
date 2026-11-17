@@ -14,7 +14,7 @@ High-level architecture overview for PIE-QTI.
 ### Transformations
 
 - **QTI → PIE**: parse QTI content and produce PIE JSON, with a lossless round-trip path when the source originated from PIE.
-- **PIE → QTI**: generate QTI 2.2 XML from PIE JSON, including IMS Content Package support and a lossless round-trip path.
+- **PIE → QTI**: generate QTI 2.2 or QTI 3.0 XML from PIE JSON, including IMS Content Package support and a lossless round-trip path.
 
 ### Tools
 
@@ -55,7 +55,8 @@ Everything lives under `packages/` and `apps/`:
 - `packages/i18n`: Internationalization (i18n) system for player UI (type-safe translations, runtime locale switching)
 - `packages/typeset-katex`: KaTeX typesetting adapter (host-provided `typeset()` function)
 - `packages/qti-processing`: response processing operators/templates used by the item player
-- `packages/player-elements`, `packages/web-component-loaders`: web-component build/load helpers
+- `packages/player-elements`: framework-neutral custom elements for item, section, and assessment delivery
+- `packages/web-component-loaders`: idempotent client-side loaders for the PIE QTI web components
 - `packages/theme`, `packages/theme-daisyui`: theme tokens and the DaisyUI bridge
 - `packages/logger`, `packages/test-utils`: logging and shared test support
 
@@ -363,7 +364,7 @@ Key references:
 
 #### Two paths: lossless vs best-effort
 
-1) **Lossless path**: if the QTI contains a PIE extension, the transformer extracts the embedded PIE model verbatim (perfect PIE reconstruction).
+1) **Lossless path**: if the item arrives with the PIE source sidecar pie-to-qti2 wrote beside it and still has the sidecar's recorded `qtiDigest`, the transformer returns the sidecar's PIE model verbatim (perfect PIE reconstruction). A stale sidecar, or a PIE model embedded in the item by releases before the sidecar, falls through to the best-effort path with a `PIE_SOURCE_STALE` warning.
 2) **Best-effort path**: otherwise, it detects interaction/test type and transforms QTI semantics into the closest PIE model(s).
 
 #### Vendor extensibility
@@ -411,13 +412,13 @@ Key reference:
 
 For stable references across systems:
 
-- PIE `baseId` is preserved into QTI metadata
+- PIE `baseId` travels in the PIE source sidecar and, in a content package, as an IEEE LOM identifier (catalog `pie:baseId`) on the item's `<resource>`
 - the reverse transform restores `baseId` so repeated round-trips remain stable
 
 Key reference:
 
-- `packages/to-pie/src/plugin.ts` (`extractBaseId`)
-- `packages/pie-to-qti2/src/plugin.ts` (`addSearchMetadata` stores `sourceSystemId` and `externalId`)
+- `packages/pie-to-qti2/src/utils/lom.ts` (writes the LOM identifier)
+- `packages/to-pie/src/utils/manifest-lom.ts` (reads it back)
 
 ---
 
@@ -427,29 +428,16 @@ Key reference:
 
 A product import surface can wire the reusable packages together along these lines:
 
-- upload and extraction (pluggable storage backend with session management),
+- upload and extraction (a host-implemented `StorageBackend`),
 - analysis (discover items/tests, count interactions, record issues),
 - transformation (batch convert to PIE),
 - preview (QTI player preview and PIE player preview side-by-side).
 
 ### Storage architecture
 
-Use the **pluggable storage system** (`@pie-qti/storage`) that abstracts storage backends:
-
-- **Default**: Filesystem backend
-- **Optional**: S3, database, or custom backends via configuration
-
-Sessions are typically stored with separate metadata files:
-
-- `metadata.json` - Core session state (id, status, timestamps)
-- `analysis.json` - Analysis results (packages, items, interactions)
-- `transformation.json` - Transform results (items, assessments, errors)
-
-This separation enables:
-
-- Independent loading of analysis/transformation data
-- Efficient storage backends (only fetch what's needed)
-- Clear data ownership and versioning
+Storage is a host-implemented contract: the transform orchestration reads and writes through the
+`StorageBackend` interface in `@pie-qti/transform-types`, and the host supplies the filesystem, S3,
+database or other backend.
 
 Key references:
 
