@@ -4,12 +4,15 @@
  * named in a warning. Assessments carry no APIP, so their catalogs are named whole.
  */
 
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, setDefaultTimeout, test } from 'bun:test';
 import { extractCatalogFromItemXml } from '@pie-qti/item-player';
 import { validateQtiBatch } from '@pie-qti/to-pie';
 import type { PieItem } from '@pie-qti/transform-types';
 import { PieToQtiPlugin } from '../../src/plugin.js';
 import { findAccessibilityCatalogs } from '../../src/utils/accessibility-catalogs.js';
+
+// A QTI 2.2 schema compile takes seconds, several times that on a loaded CI runner.
+setDefaultTimeout(120_000);
 
 const logger = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} };
 
