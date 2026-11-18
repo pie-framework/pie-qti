@@ -1,5 +1,15 @@
 # @pie-qti/transform-core
 
+## 1.0.0-beta.6
+
+### Patch Changes
+
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies
+  - @pie-qti/logger@1.0.0-beta.6
+  - @pie-qti/qti-common@1.0.0-beta.6
+  - @pie-qti/transform-types@1.0.0-beta.6
+
 ## 1.0.0-beta.5
 
 ### Major Changes

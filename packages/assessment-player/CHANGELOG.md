@@ -1,5 +1,27 @@
 # @pie-qti/assessment-player
 
+## 1.0.0-beta.6
+
+### Patch Changes
+
+- a21240c: Breaking: `SecureAssessment.navigationMode` and `SecureAssessment.submissionMode` are removed, and backends must send both modes on every `SecureTestPart`. The test parsers no longer synthesize a test part from sections placed directly under `assessmentTest`, which the QTI schema does not allow.
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies [c34df8a]
+- Updated dependencies [b99736b]
+- Updated dependencies [723f617]
+- Updated dependencies [fff0220]
+- Updated dependencies [5485d10]
+- Updated dependencies [598dfab]
+- Updated dependencies [442a6e0]
+- Updated dependencies
+  - @pie-qti/item-player@1.0.0-beta.6
+  - @pie-qti/ims-cp-core@1.0.0-beta.6
+  - @pie-qti/section-player@1.0.0-beta.6
+  - @pie-qti/i18n@1.0.0-beta.6
+  - @pie-qti/assessment-toolkit@1.0.0-beta.6
+  - @pie-qti/qti-common@1.0.0-beta.6
+  - @pie-qti/qti-processing@1.0.0-beta.6
+
 ## 1.0.0-beta.5
 
 ### Patch Changes

@@ -1,5 +1,21 @@
 # @pie-qti/item-player
 
+## 1.0.0-beta.6
+
+### Patch Changes
+
+- c34df8a: Breaking: `batch-transform` no longer accepts the no-op `--load-passage-content` flag; drop it from scripts. The item player no longer warns when the `role` attribute carries a QTI role, so hosts select the view with `qti-role`.
+- 723f617: QTI 3.0 portable custom interactions now receive their `data-*` attributes as `configuration.properties`, keyed by their `HTMLElement.dataset` names (`data-display-format` becomes `displayFormat`). The `qti-pci-properties` child, which no QTI version defines, is no longer read: move its values to `data-*` attributes.
+- fff0220: Ending, suspending or submitting an attempt now asks each mounted PCI for its current response first, so a module that answers through `getResponse()` without calling `ondone` after every change is scored and saved with the candidate's answer instead of null.
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies [b99736b]
+- Updated dependencies [598dfab]
+- Updated dependencies
+  - @pie-qti/ims-cp-core@1.0.0-beta.6
+  - @pie-qti/i18n@1.0.0-beta.6
+  - @pie-qti/qti-common@1.0.0-beta.6
+  - @pie-qti/qti-processing@1.0.0-beta.6
+
 ## 1.0.0-beta.5
 
 ### Patch Changes

@@ -1,5 +1,21 @@
 # @pie-qti/default-components
 
+## 1.0.0-beta.6
+
+### Patch Changes
+
+- 22c2503: Graphic-associate hotspot labels wrap between words at 320 CSS px instead of splitting a word across lines: a word wider than its scaled-down hotspot widens the label around the hotspot, and only a token wider than the whole image breaks inside itself.
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies [c34df8a]
+- Updated dependencies [723f617]
+- Updated dependencies [fff0220]
+- Updated dependencies [598dfab]
+- Updated dependencies
+  - @pie-qti/item-player@1.0.0-beta.6
+  - @pie-qti/i18n@1.0.0-beta.6
+  - @pie-qti/qti-common@1.0.0-beta.6
+  - @pie-qti/qti-processing@1.0.0-beta.6
+
 ## 1.0.0-beta.5
 
 ### Patch Changes

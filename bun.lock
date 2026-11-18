@@ -100,7 +100,7 @@
     },
     "packages/assessment-player": {
       "name": "@pie-qti/assessment-player",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "dependencies": {
         "@pie-qti/assessment-toolkit": "workspace:*",
         "@pie-qti/i18n": "workspace:*",
@@ -125,7 +125,7 @@
     },
     "packages/assessment-toolkit": {
       "name": "@pie-qti/assessment-toolkit",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "dependencies": {
         "@pie-qti/section-player": "workspace:*",
       },
@@ -137,7 +137,7 @@
     },
     "packages/core": {
       "name": "@pie-qti/transform-core",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "dependencies": {
         "@pie-qti/logger": "workspace:*",
         "@pie-qti/qti-common": "workspace:*",
@@ -151,7 +151,7 @@
     },
     "packages/default-components": {
       "name": "@pie-qti/default-components",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "dependencies": {
         "@pie-qti/i18n": "workspace:*",
         "@pie-qti/item-player": "workspace:*",
@@ -190,7 +190,7 @@
     },
     "packages/i18n": {
       "name": "@pie-qti/i18n",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "devDependencies": {
         "@types/bun": "^1.4.4",
         "svelte": "^5.57.3",
@@ -200,7 +200,7 @@
     },
     "packages/ims-cp-browser": {
       "name": "@pie-qti/ims-cp-browser",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "dependencies": {
         "@pie-qti/ims-cp-core": "workspace:*",
         "jszip": "^3.10.2",
@@ -211,7 +211,7 @@
     },
     "packages/ims-cp-core": {
       "name": "@pie-qti/ims-cp-core",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "dependencies": {
         "@pie-qti/logger": "workspace:*",
         "node-html-parser": "^9.0.7",
@@ -222,7 +222,7 @@
     },
     "packages/ims-cp-node": {
       "name": "@pie-qti/ims-cp-node",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "dependencies": {
         "@pie-qti/ims-cp-core": "workspace:*",
         "unzipper": "^0.12.3",
@@ -235,7 +235,7 @@
     },
     "packages/item-player": {
       "name": "@pie-qti/item-player",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "dependencies": {
         "@pie-qti/i18n": "workspace:*",
         "@pie-qti/ims-cp-core": "workspace:*",
@@ -259,14 +259,14 @@
     },
     "packages/logger": {
       "name": "@pie-qti/logger",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "devDependencies": {
         "typescript": "^6.0.3",
       },
     },
     "packages/pci-runner": {
       "name": "@pie-qti/pci-runner",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "dependencies": {
         "@pie-qti/item-player": "workspace:*",
       },
@@ -278,7 +278,7 @@
     },
     "packages/pie-to-qti2": {
       "name": "@pie-qti/pie-to-qti2",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "dependencies": {
         "@pie-qti/qti-common": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
@@ -295,7 +295,7 @@
     },
     "packages/player-elements": {
       "name": "@pie-qti/player-elements",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "dependencies": {
         "@pie-qti/assessment-player": "workspace:*",
         "@pie-qti/default-components": "workspace:*",
@@ -317,7 +317,7 @@
     },
     "packages/qti-common": {
       "name": "@pie-qti/qti-common",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "dependencies": {
         "node-html-parser": "^9.0.7",
       },
@@ -329,7 +329,7 @@
     },
     "packages/qti-processing": {
       "name": "@pie-qti/qti-processing",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "dependencies": {
         "@pie-qti/qti-common": "workspace:*",
         "@xmldom/xmldom": "^0.9.12",
@@ -343,7 +343,7 @@
     },
     "packages/section-player": {
       "name": "@pie-qti/section-player",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "dependencies": {
         "@pie-players/pie-assessment-toolkit": "1.0.0-beta.10",
         "@pie-players/pie-default-tool-loaders": "1.0.0-beta.10",
@@ -372,7 +372,7 @@
     },
     "packages/source-profiles": {
       "name": "@pie-qti/source-profiles",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "dependencies": {
         "@pie-qti/transform-types": "workspace:*",
       },
@@ -382,7 +382,7 @@
     },
     "packages/test-utils": {
       "name": "@pie-qti/test-utils",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "dependencies": {
         "@pie-qti/logger": "workspace:*",
         "@pie-qti/transform-types": "workspace:*",
@@ -395,7 +395,7 @@
     },
     "packages/theme": {
       "name": "@pie-qti/theme",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "devDependencies": {
         "@biomejs/biome": "^2.6.8",
         "typescript": "^6.0.3",
@@ -403,7 +403,7 @@
     },
     "packages/theme-daisyui": {
       "name": "@pie-qti/theme-daisyui",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "devDependencies": {
         "@biomejs/biome": "^2.6.8",
         "daisyui": "^5.8.1",
@@ -412,7 +412,7 @@
     },
     "packages/to-pie": {
       "name": "@pie-qti/to-pie",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "dependencies": {
         "@pie-qti/ims-cp-core": "workspace:*",
         "@pie-qti/ims-cp-node": "workspace:*",
@@ -432,7 +432,7 @@
     },
     "packages/types": {
       "name": "@pie-qti/transform-types",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "dependencies": {
         "@pie-qti/logger": "workspace:*",
         "node-html-parser": "^9.0.7",
@@ -443,7 +443,7 @@
     },
     "packages/typeset-katex": {
       "name": "@pie-qti/typeset-katex",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "dependencies": {
         "katex": "^0.19.0",
       },
@@ -454,7 +454,7 @@
     },
     "packages/web-component-loaders": {
       "name": "@pie-qti/web-component-loaders",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "dependencies": {
         "@pie-qti/player-elements": "workspace:*",
       },
@@ -466,7 +466,7 @@
     },
     "tools/cli": {
       "name": "@pie-qti/transform-cli",
-      "version": "1.0.0-beta.5",
+      "version": "1.0.0-beta.6",
       "bin": {
         "pie-transform": "./bin/run.js",
       },

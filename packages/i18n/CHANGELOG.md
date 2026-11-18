@@ -1,5 +1,12 @@
 # @pie-qti/i18n
 
+## 1.0.0-beta.6
+
+### Patch Changes
+
+- 598dfab: Romanian retry and loading-error strings now use the informal register the rest of the catalog uses.
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+
 ## 1.0.0-beta.5
 
 ### Minor Changes

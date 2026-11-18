@@ -1,5 +1,14 @@
 # @pie-qti/ims-cp-node
 
+## 1.0.0-beta.6
+
+### Patch Changes
+
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies [b99736b]
+- Updated dependencies
+  - @pie-qti/ims-cp-core@1.0.0-beta.6
+
 ## 1.0.0-beta.5
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @pie-qti/ims-cp-core
 
+## 1.0.0-beta.6
+
+### Patch Changes
+
+- b99736b: Breaking: QTI from pie-to-qti2 releases before the source sidecar no longer round-trips its PIE data. The inline `pie:sourceModel` and the item's `qti-metadata` fields are not read, so such items convert from their QTI body like any other QTI, and `baseId` and `extensions` come from manifest LOM only. `hasPieExtension`, `extractPieExtension`, `PIE_NAMESPACE` and `PIE_PREFIX` are removed from `@pie-qti/to-pie`; `extractExtensionsFromQtiXml` and the `extensions` field of `QtiItemMetadata` are removed from `@pie-qti/ims-cp-core`.
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies
+  - @pie-qti/logger@1.0.0-beta.6
+
 ## 1.0.0-beta.5
 
 ### Patch Changes
