@@ -139,35 +139,43 @@ published bump. See [docs/development/publish-verification.md](../docs/developme
 
 ## Semantic Versioning
 
-We follow [Semantic Versioning 2.0.0](https://semver.org/):
+We use [Semantic Versioning 2.0.0](https://semver.org/) vocabulary to describe the intent of changes:
 
-- **Major (1.0.0 → 2.0.0)** - Breaking changes
+- **Major** - Breaking changes
   - API changes that break existing code
   - Removed features
   - Changed behavior that breaks compatibility
 
-- **Minor (1.0.0 → 1.1.0)** - New features (backwards compatible)
+- **Minor** - New features (backwards compatible)
   - New interactions or components
   - New configuration options
   - Enhanced functionality
 
-- **Patch (1.0.0 → 1.0.1)** - Bug fixes (backwards compatible)
+- **Patch** - Bug fixes (backwards compatible)
   - Bug fixes
   - Performance improvements
   - Documentation updates
 
 ### Choosing Version Bump
 
-When creating a changeset:
+The changeset type does **not** control the published version bump. All publishable `packages/*`
+release together in lockstep and the release flow is **patch-only**: when merges to `master` have
+no changeset, a temporary patch changeset is auto-generated, and `check:fixed-versioning` enforces
+that the shared version line only moves through deliberate version-line preparations (such as the
+1.0.0-beta prep).
+
+Changeset files still matter — use them to document what changed, including backwards-compatibility
+notes for the changelog:
 
 ```bash
 bun run changeset
 
-# Prompt: What kind of change is this?
-# - patch: Bug fixes, docs, small improvements
-# - minor: New features, enhancements
-# - major: Breaking changes
+# Record the semver type that describes your change (patch/minor/major);
+# the release machinery normalizes the published bump to a patch per release.
 ```
+
+See **Lockstep versioning** under [Releasing to Production](#5-releasing-to-production) and
+[docs/development/publish-verification.md](../docs/development/publish-verification.md).
 
 ## CI/CD Behavior
 

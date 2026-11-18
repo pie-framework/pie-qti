@@ -92,8 +92,6 @@ describe('QTI 3.0 Advanced — T1/T9 Outcome Declaration & Processing', () => {
 		const assessment: SecureAssessment = {
 			identifier: 'qti3-t9-outcome-processing',
 			title: 'QTI 3.0 T9 Outcome Processing',
-			navigationMode: 'linear',
-			submissionMode: 'individual',
 			outcomeDeclarations: [
 				{ identifier: 'SCORE_TOTAL', baseType: 'float', cardinality: 'single', defaultValue: 0 },
 			],
@@ -108,6 +106,8 @@ describe('QTI 3.0 Advanced — T1/T9 Outcome Declaration & Processing', () => {
 			testParts: [
 				{
 					identifier: 'part-1',
+					navigationMode: 'linear',
+					submissionMode: 'individual',
 					sections: [
 						{
 							identifier: 'section-1',
@@ -378,11 +378,11 @@ describe('QTI 3.0 Advanced — Submission mode item sessions', () => {
 		return {
 			identifier: `qti3-${submissionMode}-sessions`,
 			title: `QTI 3.0 ${submissionMode} item sessions`,
-			navigationMode: 'nonlinear',
-			submissionMode,
 			testParts: [
 				{
 					identifier: 'part-1',
+					navigationMode: 'nonlinear',
+					submissionMode,
 					sections: [
 						{
 							identifier: 'section-1',
@@ -703,11 +703,11 @@ describe('QTI 3.0 Advanced — Submission mode item sessions', () => {
 		const assessment: SecureAssessment = {
 			identifier: 'vendor-assessment',
 			title: 'Vendor assessment',
-			navigationMode: 'nonlinear',
-			submissionMode: 'individual',
 			testParts: [
 				{
 					identifier: 'part-1',
+					navigationMode: 'nonlinear',
+					submissionMode: 'individual',
 					sections: [
 						{
 							identifier: 'section-1',
@@ -751,10 +751,10 @@ describe('QTI 3.0 Advanced — Submission mode item sessions', () => {
 		const assessment: SecureAssessment = {
 			identifier: 'scorer-assessment',
 			title: 'Scorer assessment',
-			navigationMode: 'nonlinear',
-			submissionMode: 'individual',
 			testParts: [{
 				identifier: 'part-1',
+				navigationMode: 'nonlinear',
+				submissionMode: 'individual',
 				sections: [{
 					identifier: 'section-1',
 					visible: true,

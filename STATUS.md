@@ -1,6 +1,6 @@
 # PIE QTI Project Status
 
-**Last updated**: 2026-10-18
+**Last updated**: 2026-11-17
 
 This is the short project snapshot. Package READMEs, `docs/`, and the CI
 workflows are the authoritative sources for detailed behavior.
@@ -9,9 +9,13 @@ workflows are the authoritative sources for detailed behavior.
 
 ### QTI Players
 
-The core player packages are pre-1.0 and have broad clean-room coverage, but the
-2026-07 architecture/conformance review found blockers that prevent a general
-"all valid QTI" or certification-ready claim. See `docs/SPEC-GAPS-PLAN.md`.
+The core player packages are pre-1.0, published on one prerelease version line
+(currently `1.0.0-beta.5`), and have broad clean-room coverage. Every gap in
+`docs/SPEC-GAPS-PLAN.md` is Done, including the blockers the 2026-07
+architecture/conformance review found; its Delivery backlog lists the accepted
+delivery limits. That supports no "all valid QTI" or certification claim:
+official-suite evidence attaches to published candidates only (see Certification
+Readiness).
 
 - `@pie-qti/item-player` registers extractors for all 21 standard QTI 2.2
   interaction names. The current tree includes schema-valid position-object
@@ -21,12 +25,16 @@ The core player packages are pre-1.0 and have broad clean-room coverage, but the
   proof that every interaction is candidate-operable in every browser/profile.
 - `@pie-qti/assessment-player` sequences QTI assessment tests, sections, item
   refs, item session control, rubric blocks, and response submission.
+- `@pie-qti/section-player` presents a section's items in vertical and split-pane
+  layouts, with a tool bar composed from `@pie-players` 1.0.0-beta.10 packages
+  (text-to-speech, calculator, ruler, protractor).
+- `@pie-qti/player-elements` ships the framework-neutral custom elements for item,
+  section, and assessment delivery.
 - `@pie-qti/default-components` supplies the default web-component renderers.
 - `textEntryInteraction` and `inlineChoiceInteraction` are first-class inline
   interactions rendered in item-body flow.
 - Interaction code is organized under
-  `packages/item-player/src/interactions/<interaction>/`, with compatibility
-  barrels preserving older import paths.
+  `packages/item-player/src/interactions/<interaction>/`.
 
 ### QTI 3.0
 
@@ -44,8 +52,10 @@ QTI 3.0 naming infrastructure and broad standard interaction delivery are implem
   JSON, `getState()` restore, AMD loading with resolution configs, clean-room
   conformance fixtures) plus the opt-in sandboxed engine — `PciConfiguration.sandbox`
   runs modules in a hardened cross-origin frame (`@pie-qti/pci-runner` is the
-  deployable runner page; the `qti.pie-framework.org` deployment follows the next
-  release). Page-realm execution still requires an explicit host resolver;
+  deployable runner page). No project-hosted runner exists yet: the Pages deployment
+  at `qti.pie-framework.org` publishes the docs and examples only. The sandbox
+  bridge is verified at jsdom level; a real-browser handshake against a deployed
+  runner is still open. Page-realm execution still requires an explicit host resolver;
   browser-level evidence attaches to the next published candidate — see
   [`docs/plans/pci-runtime-and-sandbox-2026-08.md`](docs/plans/pci-runtime-and-sandbox-2026-08.md).
 - Dynamic assessment-structure semantics are implemented: preconditions, section/testPart
@@ -69,10 +79,15 @@ The public repository uses clean-room certification coverage only.
   constructed and rendered, test structure parsed). The private runner now records an
   assertion level per check and requires scoring discrimination and end-to-end delivery
   outcomes; it is guarded by a synthetic self-test that proves the checks can fail. On
-  the pinned `0.1.21` candidate it reports two defects that are already fixed in this
-  tree (test-level `sum(testVariables(…))` and QTI 3.0 result attribution); see
-  [`docs/SPEC-GAPS-PLAN.md`](docs/SPEC-GAPS-PLAN.md). A residue of criteria remains
-  manual-only where the content under test declares no correct response.
+  the pinned `0.1.21` candidate it reports two defects that are fixed in this tree and
+  first shipped in `1.0.0-beta.0` (test-level `sum(testVariables(…))` and QTI 3.0
+  result attribution); see [`docs/SPEC-GAPS-PLAN.md`](docs/SPEC-GAPS-PLAN.md). A
+  residue of criteria remains manual-only where the content under test declares no
+  correct response.
+- The official-suite evidence on record is from the `0.1.21` candidate. It is
+  refreshed against the next published beta, step 4 ("Evidence refresh") of the
+  1.0 plan's sequencing; until then no `1.0.0-beta` release carries official-package
+  evidence.
 - Certifiable lines are QTI 2.2 and QTI 3.0 DELIVERY (Basic and Advanced) plus the
   QTI 3.0 Elevated Accessibility profile. The QTI 2.1 certification line is closed;
   2.1 support is ingest compatibility only. See
@@ -83,7 +98,7 @@ The public repository uses clean-room certification coverage only.
   catalogs), current official-suite evidence, and honest status surfaces. A
   production host integration exercising the players remains the practical
   acceptance test at or before the release. The certification track runs
-  independently and can be claimed at 0.x.
+  independently and can be claimed before 1.0.
 
 ### Transformation
 
@@ -91,6 +106,10 @@ The transformation engine remains useful, but is consumed as packages and CLI
 tooling rather than a bundled web app.
 
 - Core transformation packages and CLI tooling remain part of the project.
+- `@pie-qti/to-pie` ingests QTI 2.1, 2.2, and 3.0 (3.0 normalized to the 2.2
+  vocabulary); `@pie-qti/pie-to-qti2` writes QTI 2.2 and, with
+  `targetVersion: '3.0'`, QTI 3.0; its tests validate both outputs against the
+  official schemas.
 - New product import workflows should be built in host applications, such as a
   CMS, using the transformation packages directly.
 
@@ -117,10 +136,12 @@ The current high-signal verification commands are:
 - `bun run verify:apps:deploy`
 - `bun run verify:publish:quick`
 
-The complete public certification gate passed on 2026-07-13, including the targeted
-Chromium interaction and accessibility suites. `verify:publish:quick` also passes;
-its ATTW fallback now handles the same known Node-10 and CSS-resolution diagnostics
-as the structured-report path.
+At the player cleanup's close (2026-11-10, `develop` `8f76acd7`) the full gate with
+409 end-to-end tests, `verify:certification` (the public certification gate,
+including its browser evidence subset), the dedicated accessibility suites, the
+WebKit and Firefox tagged specs, and `verify:publish:quick` all passed.
+`verify:publish:quick`'s ATTW fallback handles the same known Node-10 and
+CSS-resolution diagnostics as the structured-report path.
 
 ## Intentional Non-Goals
 

@@ -141,9 +141,9 @@ export {
 } from './utils/passage-links.js';
 // Standard metadata extractor (default implementation)
 export { StandardMetadataExtractor, createStandardMetadataExtractor } from './extractors/standard-metadata-extractor.js';
-// PIE extension utilities for lossless round-trip
+// PIE source data for lossless round-trip
 export type { PieExtensionData, PieExtensionMetadata } from './utils/pie-extension.js';
-export { extractDataAttributes, extractPieExtension, hasPieExtension, PIE_NAMESPACE, PIE_PREFIX } from './utils/pie-extension.js';
+export { extractDataAttributes } from './utils/pie-extension.js';
 // PIE config element/markup naming, shared by the conversion and the preview
 export {
   escapePieAttribute,

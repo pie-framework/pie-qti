@@ -39,11 +39,11 @@
 	const assessmentFor = (selected: Scenario): SecureAssessment => ({
 		identifier: `resilience-${selected}`,
 		title: 'Resilience check',
-		navigationMode: 'nonlinear',
-		submissionMode: 'simultaneous',
 		testParts: [
 			{
 				identifier: 'part-1',
+				navigationMode: 'nonlinear',
+				submissionMode: 'simultaneous',
 				sections: [
 					{
 						identifier: 'section-1',

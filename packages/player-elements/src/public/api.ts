@@ -535,6 +535,12 @@ export interface QtiSectionPlayerElement extends HTMLElement {
 	 */
 	displaySettings: boolean;
 	/**
+	 * Integrated feedback for items whose session the item player owns (item refs carrying
+	 * `responses`), as the item element's `showFeedback`; QTI's
+	 * `itemSessionControl@showFeedback` default is false. Reflects `show-feedback`.
+	 */
+	showFeedback?: boolean;
+	/**
 	 * Move focus to the active item, first selecting the question tab when the
 	 * panes are stacked. Shells use this for skip links and after navigation;
 	 * resolves whether focus moved.

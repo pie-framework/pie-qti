@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/section-player",
-  "version": "1.0.0-beta.5",
+  "version": "1.0.0-beta.6",
   "description": "QTI section renderer contracts and layouts for composing item players with shared section context",
   "type": "module",
   "main": "./dist/index.js",
@@ -25,12 +25,12 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@pie-players/pie-assessment-toolkit": "1.0.0-beta.9",
-    "@pie-players/pie-default-tool-loaders": "1.0.0-beta.9",
-    "@pie-players/pie-i18n-generated": "1.0.0-beta.9",
-    "@pie-players/pie-players-shared": "1.0.0-beta.9",
-    "@pie-players/pie-tool-calculator-desmos": "1.0.0-beta.9",
-    "@pie-players/pie-tool-tts-inline": "1.0.0-beta.9",
+    "@pie-players/pie-assessment-toolkit": "1.0.0-beta.10",
+    "@pie-players/pie-default-tool-loaders": "1.0.0-beta.10",
+    "@pie-players/pie-i18n-generated": "1.0.0-beta.10",
+    "@pie-players/pie-players-shared": "1.0.0-beta.10",
+    "@pie-players/pie-tool-calculator-desmos": "1.0.0-beta.10",
+    "@pie-players/pie-tool-tts-inline": "1.0.0-beta.10",
     "@pie-qti/default-components": "workspace:*",
     "@pie-qti/i18n": "workspace:*",
     "@pie-qti/ims-cp-core": "workspace:*",
@@ -38,16 +38,16 @@
     "@pie-qti/qti-common": "workspace:*"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.6.4",
+    "@biomejs/biome": "^2.6.8",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/node": "^26.6.6",
-    "jsdom": "^30.1.3",
+    "jsdom": "^31.0.1",
     "linkedom": "^0.18.13",
-    "svelte": "^5.57.1",
-    "svelte-check": "^4.7.7",
-    "typescript": "^5.9.3",
-    "vite": "^8.3.4",
-    "vitest": "^5.0.5"
+    "svelte": "^5.57.3",
+    "svelte-check": "^4.7.8",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
   },
   "exports": {
     ".": {

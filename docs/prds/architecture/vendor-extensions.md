@@ -1,16 +1,16 @@
 # PRD: Vendor Transform Extensions
 
 <!--
-  Status: draft
+  Status: current
   Type: architecture
   Packages: @pie-qti/to-pie (hooks), @pie-qti/item-player (plugin side)
-  Last reviewed: 2026-04-27
+  Last reviewed: 2026-11-17
 -->
 
-**Status:** draft  
+**Status:** current
 **Type:** architecture  
 **Packages:** `@pie-qti/to-pie` (transform-side hooks), `@pie-qti/item-player` (player-side plugin API)  
-**Last reviewed:** 2026-04-27
+**Last reviewed:** 2026-11-17
 
 ---
 
@@ -46,9 +46,9 @@ If a registered `VendorTransformer.transform()` throws, the pipeline treats it a
 
 A single QTI document can match multiple heuristic signals (namespace, attribute, generator tag, CSS class prefix). Summing fractional confidence scores lets a detector distinguish between a strong signal (namespace match alone: 0.5) and a weak one (CSS class prefix: 0.1), and report the aggregate. Callers can reject results below a configurable threshold (default: 0.3). Without scoring, detectors would need to either require all signals (fragile) or accept any signal (noisy). The `AcmeVendorDetector` demonstrates the pattern: each pattern increments the confidence, and the detector returns `null` if the total stays below 0.3.
 
-### Why metadata uses embedded CDATA (round-trip)
+### Vendor metadata round-trip
 
-Vendor metadata extracted by `MetadataExtractor` is attached to the output PIE item as a plain `Record<string, any>`. When a PIE item is serialised back to QTI (via `@pie-qti/pie-to-qti2`), metadata that was present in the original QTI `<qtiMetadata>` section is round-tripped as a CDATA block inside a `<qti-metadata-field name="vendor-metadata">` element. This preserves opaque vendor data across QTI→PIE→QTI round-trips without the framework needing to understand its structure. The CDATA wrapper is necessary because the metadata values can contain arbitrary JSON, including characters that would break XML well-formedness.
+`MetadataExtractor.extract()` returns a plain `Record<string, any>`; its `extensions` member is merged onto the output PIE item's `extensions`, with transformer-generated keys winning. Opaque vendor data survives a QTI→PIE→QTI round-trip without the framework understanding its structure: the PIE item keeps the original QTI in `metadata.qtiSource`, which `@pie-qti/pie-to-qti2` writes back unchanged while the PIE config is unchanged, and a generated package carries the item's `extensions` as IEEE LOM classifications on its manifest `<resource>`, which `transformQtiPackageToPie` reads back.
 
 ---
 
@@ -175,16 +175,19 @@ All five hook interfaces are defined in `packages/types/src/transform/vendor-ext
 ```
 AC-1: Vendor detector result routes to transformer
   Given: A QtiToPiePlugin constructed with AcmeVendorDetector and AcmeSliderTransformer
-  When: A QTI document containing xmlns:acme="http://acme.com/qti" is transformed
-  Then: AcmeVendorDetector.detect() returns VendorInfo with vendor="acme" and confidence >= 0.5
+  When: A QTI document carrying xmlns:acme="…" and data-vendor="acme" is transformed
+        (two signals; the demo detector scores 0.5 + 0.4)
+  Then: AcmeVendorDetector.detect() returns VendorInfo with vendor="acme" and confidence >= 0.6,
+        the pipeline's fixed gate (packages/to-pie/src/plugin.ts detectVendor)
         AND AcmeSliderTransformer.canHandle() is called with that VendorInfo
         AND (if canHandle returns true) AcmeSliderTransformer.transform() is called
-  Notes: The detector and transformer are decoupled — canHandle can still return false even when the detector fires.
+  Notes: The detector and transformer are decoupled — canHandle can still return false even when the
+        detector fires, and a namespace-only document (confidence 0.5) stays below the 0.6 gate.
 ```
 
 ```
 AC-2: Confidence threshold filters weak detections
-  Given: A QtiToPiePlugin with a threshold of 0.5 and a detector that returns confidence=0.3
+  Given: A detector that returns confidence=0.3 (the pipeline gate is a fixed >= 0.6)
   When: A document is transformed
   Then: The VendorTransformer for that vendor is NOT invoked
         AND the base transform is used instead
@@ -290,7 +293,8 @@ AC-E4: Likert extractor validate catches scale too small
 
 - [ ] Should `VendorDetector` be allowed to return multiple `VendorInfo` entries (ordered by confidence) so the pipeline can fall back from one vendor label to another? Currently the pipeline picks the single highest-confidence result.
 - [ ] Is there a need for a `VendorTransformer` cleanup hook (analogous to `TransformPlugin.dispose()`) for transformers that hold external connections or caches?
-- [ ] The `createAcmeExtensions()` factory uses `require()` (CommonJS) internally but the package is declared as `"type": "module"`. This is a latent bug in the demo package; it should use dynamic `import()`.
+- [x] The `createAcmeExtensions()` factory uses `require()` (CommonJS) internally but the package is declared as `"type": "module"`. This is a latent bug in the demo package; it should use dynamic `import()`.
+  Resolved (2026-11-17): fixed — `packages/demo-vendor-extensions/src` contains no `require()` calls; the factory is ESM throughout.
 
 ---
 

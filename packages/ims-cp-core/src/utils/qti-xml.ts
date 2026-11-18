@@ -17,8 +17,6 @@ export interface QtiItemMetadata {
 	description?: string;
 	/** Language code (e.g., "en-US") */
 	language?: string;
-	/** Host-owned key/value pairs of the PIE item, or the QTI metadata fields */
-	extensions?: Record<string, any>;
 	/** Detected interaction types */
 	interactionTypes?: string[];
 }
@@ -99,90 +97,6 @@ export function extractIdentifierFromQtiXml(xmlContent: string): string | undefi
 }
 
 /**
- * Extract a PIE item's extensions from QTI item XML content
- *
- * Priority 1: Check for PIE extension with embedded extensions (perfect reconstruction)
- * Priority 2: Parse QTI metadata section with qti-metadata-field elements
- *
- * @param xmlContent QTI XML content as string
- * @returns Extracted search metadata object
- *
- * @example
- * ```ts
- * const xml = `
- *   <assessmentItem>
- *     <qti-metadata>
- *       <qti-metadata-field name="domain" value="math" />
- *       <qti-metadata-field name="gradeLevel" value="5,6,7" data-type="array" />
- *     </qti-metadata>
- *   </assessmentItem>
- * `;
- * const metadata = extractExtensionsFromQtiXml(xml);
- * // { domain: "math", gradeLevel: ["5", "6", "7"] }
- * ```
- */
-export function extractExtensionsFromQtiXml(xmlContent: string): Record<string, any> {
-	if (!xmlContent) return {};
-
-	const metadata: Record<string, any> = {};
-
-	// Priority 1: Try PIE extension first (perfect reconstruction)
-	const pieExtensionMatch = xmlContent.match(
-		/<pie:sourceModel[^>]*>([\s\S]*?)<\/pie:sourceModel>/i
-	);
-
-	if (pieExtensionMatch && pieExtensionMatch[1]) {
-		try {
-			const sourceModel = JSON.parse(pieExtensionMatch[1].trim());
-			const extensions = sourceModel.extensions;
-			if (extensions) {
-				return extensions;
-			}
-		} catch (e) {
-			// Fall through to QTI metadata parsing
-		}
-	}
-
-	// Priority 2: Parse <qti-metadata> section
-	const metadataSection = xmlContent.match(/<qti-metadata[^>]*>([\s\S]*?)<\/qti-metadata>/i);
-
-	if (metadataSection && metadataSection[1]) {
-		const fieldsContent = metadataSection[1];
-
-		// Extract all qti-metadata-field elements
-		const fieldMatches = fieldsContent.matchAll(
-			/<qti-metadata-field\s+([^>]+)\/?>(?:<\/qti-metadata-field>)?/gi
-		);
-
-		for (const match of fieldMatches) {
-			const attributesStr = match[1];
-
-			// Extract name, value, and data-type attributes
-			const nameMatch = attributesStr.match(/name=["']([^"']+)["']/i);
-			const valueMatch = attributesStr.match(/value=["']([^"']*)["']/i);
-			const dataTypeMatch = attributesStr.match(/data-type=["']([^"']+)["']/i);
-
-			const name = nameMatch?.[1];
-			const value = valueMatch?.[1];
-			const dataType = dataTypeMatch?.[1];
-
-			if (!name || value === undefined) continue;
-
-			// Restore original type
-			if (dataType === 'array') {
-				metadata[name] = value.split(',').map((v) => v.trim());
-			} else if (dataType === 'number') {
-				metadata[name] = parseFloat(value);
-			} else {
-				metadata[name] = value;
-			}
-		}
-	}
-
-	return metadata;
-}
-
-/**
  * Extract interaction types from QTI item XML content
  *
  * Detects all QTI interaction types present in the item.
@@ -244,7 +158,6 @@ export function extractInteractionTypesFromQtiXml(xmlContent: string): string[] 
  * // {
  * //   identifier: "item1",
  * //   title: "Question 1",
- * //   extensions: {...},
  * //   interactionTypes: ["choiceInteraction"]
  * // }
  * ```
@@ -253,7 +166,6 @@ export function extractQtiItemMetadata(xmlContent: string): QtiItemMetadata {
 	return {
 		identifier: extractIdentifierFromQtiXml(xmlContent),
 		title: extractTitleFromQtiXml(xmlContent),
-		extensions: extractExtensionsFromQtiXml(xmlContent),
 		interactionTypes: extractInteractionTypesFromQtiXml(xmlContent),
 	};
 }

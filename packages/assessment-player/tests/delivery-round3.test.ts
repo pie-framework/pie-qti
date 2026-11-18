@@ -56,8 +56,6 @@ async function practiceFixture(items: SecureItemRef[]) {
 	const assessment: SecureAssessment = {
 		identifier: 'round3-feedback',
 		title: 'Attempt-relative feedback',
-		navigationMode: 'nonlinear',
-		submissionMode: 'individual',
 		testParts: [
 			{
 				identifier: 'part-1',
@@ -199,8 +197,6 @@ describe('visited marks after a reload', () => {
 		const assessment: SecureAssessment = {
 			identifier: 'visited-reload',
 			title: 'Visited marks',
-			navigationMode: 'nonlinear',
-			submissionMode: 'simultaneous',
 			testParts: [
 				{
 					identifier: 'part-1',

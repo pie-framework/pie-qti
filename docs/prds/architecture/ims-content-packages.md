@@ -1,16 +1,16 @@
 # PRD: IMS Content Package Support
 
 <!--
-  Status: draft
+  Status: current
   Type: architecture
   Packages: @pie-qti/ims-cp-core, @pie-qti/ims-cp-browser, @pie-qti/ims-cp-node
-  Last reviewed: 2026-07-13
+  Last reviewed: 2026-11-17
 -->
 
-**Status:** draft  
+**Status:** current  
 **Type:** architecture  
 **Packages:** `@pie-qti/ims-cp-core`, `@pie-qti/ims-cp-browser`, `@pie-qti/ims-cp-node`  
-**Last reviewed:** 2026-07-13
+**Last reviewed:** 2026-11-17
 
 ---
 
@@ -65,7 +65,6 @@ The `getLocaleFallbackChain()` function deduplicates entries, so requesting `en-
 - **Supported resource types:** `imsqti_item_xmlv2p1`, `imsqti_item_xmlv2p2`, `imsqti_test_xmlv2p1`, `imsqti_test_xmlv2p2`, `imsqti_assessment_xmlv2p1`, `imsqti_apip_xmlv2p2`, `webcontent`, `associatedcontent/imsqti_item_xmlv2p1`
 - **Deliberately omitted:** Sub-manifest nesting (the parser finds the top-level `<resources>` element only). Sub-manifests inside `<manifest>` children are not recursed into.
 - **Known divergences:** Passage detection uses a heuristic: `webcontent` resources and resources with `apip` in the type are classified as passages. The IMS CP spec does not define a passage type; this is an application-level convention adopted from QTI packaging practice.
-- **G-15 gap:** Shared external catalog files (`imsqti_catalog_xmlv3p0` resource type) are not yet detected or loaded by `PackageLoader`. Items that rely on package-level catalogs instead of inline `<qti-catalog>` elements will silently receive no catalog data. See `docs/SPEC-GAPS-PLAN.md` §G-15.
 
 ---
 
@@ -339,7 +338,6 @@ AC-E4: detectAndMergeDuplicates merges identical passage content
 
 ## Open questions
 
-- [ ] **G-15 (shared external catalog files):** The manifest parser recognises no `imsqti_catalog_xmlv3p0` resource type. When should this be implemented? The gap is Tier 3 (deferred) in `docs/SPEC-GAPS-PLAN.md`. The `PackageLoader` in `ims-cp-browser` would need a second pass to detect and expose catalog resources after manifest parsing.
 - [ ] **Sub-manifest support:** The manifest parser ignores nested `<manifest>` elements. Is this a real-world concern for any content banks the framework targets?
 - [ ] **`detectAndMergeDuplicates()` timing:** This is called in one place (batch transform). Should it be called automatically by the registry after a configurable call count, or always explicitly by the caller?
 - [ ] **`sessionStorage` quota for large packages:** The 50 MB browser limit plus base64 encoding overhead can exceed typical `sessionStorage` quotas. Should `ims-cp-browser` fall back to IndexedDB automatically, or should this be an explicit caller choice?

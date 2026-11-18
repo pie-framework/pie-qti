@@ -11,8 +11,6 @@ const backend: BackendAdapter = {
 			assessment: {
 				identifier: request.assessmentId,
 				title: 'Properties assessment',
-				navigationMode: 'nonlinear',
-				submissionMode: 'simultaneous',
 				testParts: [],
 			},
 		};

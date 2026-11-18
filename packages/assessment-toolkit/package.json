@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/assessment-toolkit",
-  "version": "1.0.0-beta.5",
+  "version": "1.0.0-beta.6",
   "description": "Pure TypeScript helpers for composing QTI assessment player shared section context",
   "type": "module",
   "main": "./dist/index.js",
@@ -25,9 +25,9 @@
     "@pie-qti/section-player": "workspace:*"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.6.4",
+    "@biomejs/biome": "^2.6.8",
     "@types/node": "^26.6.6",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   },
   "exports": {
     ".": {

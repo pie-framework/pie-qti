@@ -33,8 +33,8 @@ This document analyzes the **9 new success criteria** added in WCAG 2.2 and asse
 - ✅ **Svelte UI Components** (PRIMARY FOCUS):
   - `SortableList.svelte` - Reorderable list for orderInteraction
   - `MatchDragDrop.svelte` - Matching interface for matchInteraction
-  - `GraphicGapMatch.svelte` - Image-based gap matching
-  - `InlineInteractionRenderer.svelte` - Inline interaction rendering
+  - `GraphicGapMatchInteraction.svelte` - Image-based gap matching
+  - `InlineTextEntry.svelte` / `InlineChoice.svelte` (item-player inline renderers) - Inline interaction rendering
 
 ---
 
@@ -51,8 +51,8 @@ WCAG 2.2 AA requires 24×24 CSS px targets for SC 2.5.8. The project accessibili
 **Player Components Analysis:**
 - ✅ **SortableList**: No fixed headers/footers that could obscure focused items
 - ✅ **MatchDragDrop**: Items remain visible when focused
-- ✅ **GraphicGapMatch**: Drop zones and draggable items are fully visible when focused
-- ✅ **InlineInteractionRenderer**: Inline inputs remain visible in document flow
+- ✅ **GraphicGapMatchInteraction**: Drop zones and draggable items are fully visible when focused
+- ✅ **InlineTextEntry / InlineChoice**: Inline inputs remain visible in document flow
 
 **Notes:**
 - Player components do not create sticky headers, modals, or overlays
@@ -124,7 +124,7 @@ WCAG 2.2 AA requires 24×24 CSS px targets for SC 2.5.8. The project accessibili
 - ✅ Visual indication of selected state (`aria-pressed`, visual styling)
 - ✅ Clear button (`✕`) to remove matches
 
-#### **GraphicGapMatch.svelte**
+#### **GraphicGapMatchInteraction.svelte**
 - ⚠️ **Needs verification** - Image-based component may require specific keyboard patterns
 - Should support: Select label → Tab to drop zone → Space/Enter to place
 
@@ -152,12 +152,12 @@ WCAG 2.2 AA requires 24×24 CSS px targets for SC 2.5.8. The project accessibili
   - DaisyUI `btn-xs`: `height: 1.5rem` (24px), meets WCAG minimum but not the stricter 44px project target ⚠️
   - Adequate spacing between adjacent buttons ✅
 
-#### **GraphicGapMatch.svelte**
+#### **GraphicGapMatchInteraction.svelte**
 - Drop zones: SVG-based, size depends on QTI XML coordinates
 - ⚠️ **Needs verification:** Ensure drop zones are at least 24×24px and expand toward 44×44px where item meaning allows
 - May need to enforce minimum size or provide magnification
 
-#### **InlineInteractionRenderer.svelte**
+#### **InlineTextEntry.svelte / InlineChoice.svelte**
 - Inline inputs: Standard form controls (browsers ensure minimum size) ✅
 - Dropdown selects: Standard form controls ✅
 
@@ -165,7 +165,7 @@ WCAG 2.2 AA requires 24×24 CSS px targets for SC 2.5.8. The project accessibili
 - Inline text inputs: Exception applies (essential for text entry)
 - Spacing exception: Adequate spacing between all interactive elements
 
-**Recommendation:** Add minimum size enforcement for GraphicGapMatch drop zones.
+**Recommendation:** Add minimum size enforcement for graphic-gap-match drop zones.
 
 ---
 
@@ -288,7 +288,7 @@ WCAG 2.2 AA requires 24×24 CSS px targets for SC 2.5.8. The project accessibili
 
 ---
 
-### GraphicGapMatch.svelte ⚠️ Needs Verification
+### GraphicGapMatchInteraction.svelte ⚠️ Needs Verification
 
 **Current Status:** Likely WCAG 2.1 compliant, WCAG 2.2 needs verification
 
@@ -298,14 +298,14 @@ WCAG 2.2 AA requires 24×24 CSS px targets for SC 2.5.8. The project accessibili
 - ⚠️ Image alternatives: Need to verify `<title>` or `aria-label` for SVG elements
 
 **Recommended Actions:**
-1. Audit GraphicGapMatch component for WCAG 2.2 specific criteria
+1. Audit the GraphicGapMatchInteraction component for WCAG 2.2 specific criteria
 2. Ensure minimum 24×24px drop zone size, and prefer 44×44px learner-friendly targets where feasible
 3. Implement keyboard navigation for SVG-based gap matching
 4. Add comprehensive ARIA labels for SVG elements
 
 ---
 
-### InlineInteractionRenderer.svelte ✅ WCAG 2.2 Level AA Compliant
+### Inline renderers (InlineTextEntry.svelte / InlineChoice.svelte) ✅ WCAG 2.2 Level AA Compliant
 
 **Strengths:**
 - ✅ Uses native form controls (browser handles accessibility)
@@ -402,10 +402,10 @@ test('SortableList is accessible', async ({ page }) => {
 ### Components Following Guidelines (3/4):
 - ✅ **SortableList.svelte** - Follows WCAG 2.2 Level AA guidelines
 - ✅ **MatchDragDrop.svelte** - Follows WCAG 2.2 Level AA guidelines
-- ✅ **InlineInteractionRenderer.svelte** - Follows WCAG 2.2 Level AA guidelines
+- ✅ **InlineTextEntry / InlineChoice** - Follows WCAG 2.2 Level AA guidelines
 
 ### Needs Verification (1/4):
-- ⚠️ **GraphicGapMatch.svelte** - Likely compliant, needs formal audit for:
+- ⚠️ **GraphicGapMatchInteraction.svelte** - Likely compliant, needs formal audit for:
   - 2.5.7 (Dragging Movements)
   - 2.5.8 (Target Size)
 

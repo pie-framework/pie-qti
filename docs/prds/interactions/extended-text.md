@@ -1,23 +1,23 @@
 # PRD: extendedTextInteraction
 
 <!--
-  Status: draft
+  Status: current
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type (interactions only): extendedTextInteraction
-  Last reviewed: 2026-11-09
+  Last reviewed: 2026-11-17
 -->
 
-**Status:** draft  
+**Status:** current  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components`, `@pie-qti/item-player`  
-**Last reviewed:** 2026-11-09
+**Last reviewed:** 2026-11-17
 
 ---
 
 ## Summary
 
-`extendedTextInteraction` is the QTI interaction type for multi-line free-text entry. It is the standard vehicle for short-answer, constructed-response, and essay items in K-12 assessments. The PIE-QTI implementation renders `format="xhtml"` as a rich-text editor (`RichTextEditor.svelte`, backed by TipTap) and `format="plain"`/`"preformatted"` as a native `<textarea>`; `multiple`/`ordered` cardinality renders one named field per response string, with add and remove controls. The response variable has baseType `string` and cardinality `single`. `patternMask` is enforced by response validation: a response that does not match it is invalid, and the field says so inline when the candidate leaves it (the author's `data-patternmask-message`, else a localized sentence). Human scoring via instructor rubric is the expected path for most deployed items.
+`extendedTextInteraction` is the QTI interaction type for multi-line free-text entry. It is the standard vehicle for short-answer, constructed-response, and essay items in K-12 assessments. The PIE-QTI implementation renders `format="xhtml"` as a rich-text editor (`RichTextEditor.svelte`, backed by TipTap) and `format="plain"`/`"preformatted"` as a native `<textarea>`; `multiple`/`ordered` cardinality renders one named field per response string, with add and remove controls. The bound response declaration's cardinality — `single`, `multiple`, `ordered`, or `record` — and its baseType (`string`, `integer`, or `float`) are extracted with the interaction; a `record` response captures exactly one numeric string, whose text is mirrored as typed into the string response `stringIdentifier` names. `patternMask` is enforced by response validation: a response that does not match it is invalid, and the field says so inline when the candidate leaves it (the author's `data-patternmask-message`, else a localized sentence). Human scoring via instructor rubric is the expected path for most deployed items.
 
 ---
 
@@ -66,14 +66,9 @@ The QTI 3.0 tag name is `qti-extended-text-interaction` (kebab-case) with attrib
 | `placeholderText` | 2.x / 3.0 | Supported | Passed to TipTap `Placeholder` extension. Rendered via `::before` pseudo-element when the editor is empty. Default: `"Enter your response..."`. |
 | `format` | 2.2 / 3.0 | Partially supported | Extracted and stored. All three values (`plain`, `preFormatted`, `xhtml`) render the same TipTap editor; no format-specific rendering distinctions are implemented. Unknown values emit a validator warning. Default: `"plain"`. |
 | `patternMask` | 2.x / 3.0 | Enforced by validation | Delivered as `ExtendedTextInteractionData.patternMask`, with `patternMaskMessage` from `data-patternmask-message`. `Player.validateResponses()` marks a `string` response invalid when any of its strings does not match the XSD pattern (QTI 3.0 §5.48.4). The pattern also decides the numeric keyboard (FR-25). A field whose text fails the mask shows the message inline when the candidate leaves it (FR-26). |
-
-### Unsupported / omitted attributes
-
-| Attribute | Reason for omission |
-|-----------|---------------------|
-| `minStrings` | Only relevant for `cardinality="multiple"` multi-part responses. Multi-part cardinality is not implemented; all responses are `single` cardinality `string`. |
-| `maxStrings` | Same as `minStrings`. |
-| `stringIdentifier` | Used to bind individual strings in `record` cardinality responses. `record` cardinality is not implemented. |
+| `minStrings` | 2.x / 3.0 | Supported | Extracted (default 0) and enforced in the UI for `multiple`/`ordered` responses: a removal that would take the response below the minimum is refused with an explanatory message, and an unmet minimum is stated on the question. Validated as a non-negative integer that must not exceed `maxStrings`. |
+| `maxStrings` | 2.x / 3.0 | Supported | Extracted (default 1 for `single`/`record`, 0 otherwise; 0 means no authored upper bound). Caps the number of fields a multi-part response shows. Validated as a non-negative integer. |
+| `stringIdentifier` | 2.x / 3.0 | Supported | Extracted when authored. Names the response variable (baseType `string`) that holds the candidate's text exactly as entered — `3.50` where a numeric response is 3.5 — or NULL while the field is empty; the field shows that text, so a restored session reads it as typed rather than as 3.5. |
 
 ### Known gaps
 
@@ -92,7 +87,7 @@ None against the specification. The `patternMask` gap is resolved (2026-11-09): 
 - **FR-7:** When `role="scorer"` and a non-null `correctResponse` is provided, the component must display the correct response below the editor in a visually distinct container.
 - **FR-8:** The extractor must accept both `extendedTextInteraction` (QTI 2.x) and `qti-extended-text-interaction` (QTI 3.0 kebab-case) element names.
 - **FR-9:** The extractor must apply default values when attributes are absent: `expectedLines=3`, `format="plain"`, `placeholderText=""`. An absent `expectedLength` stays absent: it is a hint with no default in QTI 2.1, 2.2 or 3.0, and the counters count against it.
-- **FR-10:** The extractor must emit a validation error if `expectedLines < 1` or `expectedLength < 1`. It must emit a validation warning (not error) for an unrecognized `format` value.
+- **FR-10:** The extractor must emit a validation error if `expectedLines` or `expectedLength` is not a non-negative integer (both are `xs:nonNegativeInteger` in the QTI 2.2 XSD, so 0 is valid). It must emit a validation warning (not error) for an unrecognized `format` value.
 - **FR-11:** The toolbar must include Bold, Italic, Insert Inline Math, and Insert Block Math controls. All toolbar controls must be disabled when the editor is not editable.
 - **FR-12:** The math editor (MathLive modal) must open when the user activates Insert Inline Math or Insert Block Math. Confirming the modal must insert a KaTeX-rendered math node at the cursor and return focus to the editor. Cancelling (Cancel, Escape, or a click on the backdrop) must close it without modification and return focus to the control that opened it — the toolbar button, or the editor when an existing math node was opened for editing.
 - **FR-21:** Each response field must be named by the interaction prompt (single field) or by its visible "Response N" label inside a group the prompt names (multiple/ordered); without a prompt a single field gets the localized generic name "Response". `placeholderText` is a hint only (`placeholder`/`aria-placeholder`), never the accessible name.
@@ -169,12 +164,11 @@ None against the specification. The `patternMask` gap is resolved (2026-11-09): 
 **Rationale:** Creating a new TipTap editor is expensive (ProseMirror schema instantiation, plugin setup, DOM mutation). Re-creating on every `disabled` toggle or external `value` update would cause visible flickering and lose undo history.  
 **Consequences:** The `$effect` that handles external `value` updates must not overwrite in-progress edits (guarded by `editor.isFocused`) and must not fire a `qti-change` event for the programmatic update (guarded by `isProgrammaticUpdate` flag and the `lastEmitted` tracking variable). Future engineers modifying this loop should read the comments carefully.
 
-### `minStrings` / `maxStrings` / `record` cardinality are out of scope
+### Multi-string and record cardinality are implemented
 
-**Decision:** Multi-string and record-cardinality response modes are not implemented.  
-**Rationale:** Multi-string mode (multiple separate text boxes mapped to multiple response strings) requires a fundamentally different UI: either multiple editors or a UI that adds/removes text entries. `record` cardinality maps named fields to individual strings. Neither pattern appears in the K-12 item corpus in scope for this project. Implementing them would require a new component design.  
-**Alternatives considered:** A dynamic list of editors for `maxStrings > 1`.  
-**Consequences:** Items that use `minStrings`, `maxStrings`, or `stringIdentifier` attributes will be silently ignored by the extractor. These attributes should be documented as unsupported, and the extractor validator could emit a warning if they are present.
+**Decision:** The extractor reads the bound response declaration's cardinality (`single`, `multiple`, `ordered`, or `record`) and delivers it with the interaction; the component serves all four. `minStrings`, `maxStrings`, and `stringIdentifier` are extracted attributes, not omitted ones.  
+**Behavior:** A `multiple` or `ordered` response renders one named field per string, with add and remove controls (FR-21, FR-22). `minStrings` is enforced in the UI: a removal that would take the response below it is refused with an explanatory message, and an unmet minimum is stated on the question. `maxStrings` caps how many fields a multi-part response shows; 0 means no authored upper bound. A `record` response captures exactly one numeric string, entered in `base`, whose text is mirrored as typed into the string response `stringIdentifier` names (`3.50` where the numeric response is 3.5).  
+**Validation:** The extractor rejects a `record` response that declares a `baseType` or that asks for more than one string (`minStrings`/`maxStrings` above 1), as well as a negative `minStrings`/`maxStrings` or a `minStrings` above `maxStrings`.
 
 ---
 
@@ -185,23 +179,30 @@ None against the specification. The `patternMask` gap is resolved (2026-11-09): 
 Defined in `packages/item-player/src/interactions/shared/types.ts`:
 
 ```typescript
-export interface ExtendedTextInteractionData extends BaseInteractionData {
-  type: 'extendedTextInteraction';
+export interface ExtendedTextInteractionData extends BaseInteractionData<'extendedTextInteraction'> {
+  cardinality: 'single' | 'multiple' | 'ordered' | 'record';
+  baseType?: string;          // From the bound responseDeclaration; absent for record
+  base: number;               // Numeric base a numeric response is entered in; default 10
+  stringIdentifier?: string;  // Names the string response holding the typed text
+  minStrings: number;         // Default 0
+  maxStrings: number;         // Default 1 (single/record) or 0; zero means no authored upper bound
   expectedLines: number;      // Default 3; used for editor minHeight
   expectedLength?: number;    // Absent when not authored; stored but not enforced in UI
+  prompt: HtmlContent | null;
   placeholderText: string;    // Default ""; rendered as TipTap placeholder
   format: string;             // Default "plain"; stored but all values use same editor
+  interactionClasses?: string[]; // e.g. qti-height-lines-N
 }
 ```
 
-Note: the interface also carries `patternMask` and `patternMaskMessage` (optional), which this sketch omits.
+Note: the interface also carries `patternMask` and `patternMaskMessage` (optional, the FR-26 pattern-mask delivery), which this sketch omits.
 
 ### `ExtendedTextData` (extractor output)
 
 Defined in `packages/item-player/src/interactions/extended-text/extractor.ts`. Structurally identical to `ExtendedTextInteractionData` minus the `type` and `responseId` fields (those are added by the base extraction machinery). The extractor's `validate()` enforces:
 
-- `expectedLines >= 1` (error if violated)
-- `expectedLength >= 1` (error if violated)
+- `expectedLines >= 0` (non-negative integer; error if violated)
+- `expectedLength >= 0` (non-negative integer when authored; error if violated)
 - `format` is one of `plain | preFormatted | xhtml` (warning if not)
 
 ### Response variable contract
@@ -314,9 +315,10 @@ AC-17: Extractor defaults
   Then: expectedLines=3, format="plain", placeholderText=""; expectedLength is absent
 
 AC-18: Extractor validation — invalid expectedLines
-  Given: Data with expectedLines=0
+  Given: Data with expectedLines=-2
   When: validate() is called
-  Then: valid=false and errors includes "expectedLines must be at least 1"
+  Then: valid=false and errors includes "expectedLines must be a non-negative integer"
+  Note: expectedLines=0 is valid (xs:nonNegativeInteger) and yields the 200px floor height (FR-3).
 
 AC-19: qti-change event on every edit
   Given: An editable component with an event listener on the host

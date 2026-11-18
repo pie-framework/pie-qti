@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/ims-cp-browser",
-  "version": "1.0.0-beta.5",
+  "version": "1.0.0-beta.6",
   "description": "Browser-compatible IMS Content Package utilities",
   "type": "module",
   "main": "./dist/index.js",
@@ -16,7 +16,7 @@
     "jszip": "^3.10.2"
   },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   },
   "scripts": {
     "build": "tsc",

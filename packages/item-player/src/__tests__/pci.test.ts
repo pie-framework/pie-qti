@@ -687,7 +687,9 @@ describe('qtiVariableJson', () => {
 const PCI_XML = `
 <qti-portable-custom-interaction
   response-identifier="PCI_RESPONSE"
-  custom-interaction-type-identifier="urn:example:echo-pci">
+  custom-interaction-type-identifier="urn:example:echo-pci"
+  data-theme="light"
+  data-max-length="500">
   <qti-interaction-modules>
     <qti-interaction-module
       id="echoModule"
@@ -697,10 +699,6 @@ const PCI_XML = `
   <qti-interaction-markup>
     <div class="echo-container">Enter text here</div>
   </qti-interaction-markup>
-  <qti-pci-properties>
-    <qti-pci-property key="theme" value="light"/>
-    <qti-pci-property key="maxLength" value="500"/>
-  </qti-pci-properties>
 </qti-portable-custom-interaction>
 `;
 
@@ -963,11 +961,21 @@ describe('portableCustomExtractor', () => {
 		expect(data.markup).toContain('echo-container');
 	});
 
-	it('extracts config key/value pairs from qti-pci-properties', () => {
+	it('extracts config from data-* attributes under their dataset names', () => {
 		const el = parseEl(PCI_XML);
 		const data = portableCustomExtractor.extract(el, makeContext(el));
-		expect(data.config.theme).toBe('light');
-		expect(data.config.maxLength).toBe('500');
+		expect(data.config).toEqual({ theme: 'light', maxLength: '500' });
+	});
+
+	it('does not read the non-schema qti-pci-properties child', () => {
+		const el = parseEl(
+			PCI_XML.replace(
+				'</qti-interaction-markup>',
+				'</qti-interaction-markup><qti-pci-properties><qti-pci-property key="extra" value="x"/></qti-pci-properties>'
+			)
+		);
+		const data = portableCustomExtractor.extract(el, makeContext(el));
+		expect(data.config.extra).toBeUndefined();
 	});
 
 	it('validate returns invalid when primaryPath is empty', () => {
@@ -1169,9 +1177,11 @@ describe('Player PCI integration', () => {
 		session.dispatch({ action: 'endAttempt' });
 		const revisionAfterClose = session.state().revision;
 		const configuration = lastConfiguration;
+		// Ending the attempt asked the mounted module, which answers 'module-answer'.
+		expect(session.state().responses.PCI_RESPONSE).toBe('module-answer');
 		configuration?.onready((host as any).instance as QtiPciInstance, undefined);
 
-		expect(session.state().responses.PCI_RESPONSE).toBe('submitted-answer');
+		expect(session.state().responses.PCI_RESPONSE).toBe('module-answer');
 		expect(session.state().revision).toBe(revisionAfterClose);
 		expect(revisions).toEqual([revisionAfterClose]);
 		session.dispose();

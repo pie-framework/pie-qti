@@ -10,7 +10,6 @@ import type { HTMLElement } from 'node-html-parser';
 import {
 	extractTitleFromQtiXml,
 	extractIdentifierFromQtiXml,
-	extractExtensionsFromQtiXml,
 	extractInteractionTypesFromQtiXml,
 } from '@pie-qti/ims-cp-core';
 
@@ -20,7 +19,6 @@ import {
  * Uses shared utilities from @pie-qti/ims-cp-core to extract:
  * - title
  * - identifier
- * - extensions (from PIE extension or qti-metadata section)
  * - interactionTypes (detected interaction elements)
  *
  * This extractor has vendor: 'standard' and should run with low priority
@@ -41,7 +39,6 @@ export class StandardMetadataExtractor implements MetadataExtractor {
 		return {
 			title: extractTitleFromQtiXml(qtiXml),
 			identifier: extractIdentifierFromQtiXml(qtiXml),
-			extensions: extractExtensionsFromQtiXml(qtiXml),
 			interactionTypes: extractInteractionTypesFromQtiXml(qtiXml),
 		};
 	}

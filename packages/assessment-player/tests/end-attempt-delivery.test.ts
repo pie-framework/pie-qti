@@ -92,8 +92,6 @@ async function fixture(
 	const assessment: SecureAssessment = {
 		identifier: `end-attempt-${submissionMode}-${items.length}`,
 		title: 'End attempt delivery',
-		navigationMode: 'nonlinear',
-		submissionMode,
 		testParts: [
 			{
 				identifier: 'part-1',

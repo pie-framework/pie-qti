@@ -1,6 +1,6 @@
 {
 	"name": "@pie-qti/transform-types",
-	"version": "1.0.0-beta.5",
+	"version": "1.0.0-beta.6",
 	"description": "TypeScript type definitions for PIE Transform",
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
@@ -26,10 +26,10 @@
 	"license": "MIT",
 	"dependencies": {
 		"@pie-qti/logger": "workspace:*",
-		"node-html-parser": "^9.0.5"
+		"node-html-parser": "^9.0.7"
 	},
 	"devDependencies": {
-		"typescript": "^5.9.3"
+		"typescript": "^6.0.3"
 	},
 	"type": "module",
 	"repository": {

@@ -118,20 +118,13 @@ export const portableCustomExtractor: ElementExtractor<
 		const markupSource = markupEl ?? instanceEl;
 		const markup = markupSource ? utils.getHtmlContent(markupSource) : '';
 
-		// --- Config from <qti-pci-properties>/<qti-pci-property> ---
-		// qti-pci-properties is NOT in the standard QTI 3.0 element mapper, so we use the
-		// native node-html-parser querySelector (available as element.querySelector on the raw element).
+		// --- Config ---
+		// QTI 3.0 carries PCI configuration as data-* attributes on the interaction element, named
+		// as HTMLElement.dataset names them.
 		const config: Record<string, string> = {};
-
-		const propsEl = findDescendant(pciElement, ['pciproperties', 'qti-pci-properties']);
-
-		if (propsEl) {
-			const propEls = findDescendants(propsEl, ['pciproperty', 'qti-pci-property']);
-			for (const propEl of propEls) {
-				const key = utils.getAttribute(propEl, 'key') || utils.getAttribute(propEl, 'name') || '';
-				const value = utils.getAttribute(propEl, 'value') || (propEl.textContent ?? '').trim() || '';
-				if (key) config[key] = value;
-			}
+		for (const [name, value] of Object.entries(pciElement.attributes ?? {})) {
+			const key = datasetKey(name);
+			if (key) config[key] = value;
 		}
 
 		return {
@@ -186,6 +179,13 @@ function pickEntryModule(
 		if (modules[index].primaryPath) return modules[index];
 	}
 	return modules[modules.length - 1];
+}
+
+/** The HTMLElement.dataset key for a `data-*` attribute name, or undefined for any other attribute. */
+function datasetKey(attributeName: string): string | undefined {
+	const name = attributeName.toLowerCase();
+	if (!name.startsWith('data-') || name.length === 5) return undefined;
+	return name.slice(5).replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());
 }
 
 function localTagName(element: ExtractableElement): string {

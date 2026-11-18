@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/i18n",
-  "version": "1.0.0-beta.5",
+  "version": "1.0.0-beta.6",
   "description": "Internationalization (i18n) package for PIE-QTI player ecosystem",
   "type": "module",
   "main": "./dist/index.js",
@@ -38,9 +38,9 @@
   ],
   "license": "MIT",
   "devDependencies": {
-    "svelte": "^5.57.1",
-    "svelte-check": "^4.7.7",
-    "typescript": "^5.9.3",
+    "svelte": "^5.57.3",
+    "svelte-check": "^4.7.8",
+    "typescript": "^6.0.3",
     "@types/bun": "^1.4.4"
   },
   "repository": {

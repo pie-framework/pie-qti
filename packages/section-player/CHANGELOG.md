@@ -1,5 +1,25 @@
 # @pie-qti/section-player
 
+## 1.0.0-beta.6
+
+### Patch Changes
+
+- 5485d10: Section tool bars move to `@pie-players` 1.0.0-beta.10. A tool bar in a locale neither catalog tier ships renders English and now names `en-US` as its `lang`, as do tool bars whose generated catalogs failed to load; `ar-XB` still keeps its own tag and right-to-left direction.
+- 442a6e0: The section player elements accept `show-feedback` (property `showFeedback`), as the item element does, and the section layouts take a `showFeedback` prop: items whose session the item player owns show their integrated feedback after a submit only when it is set. An item ref carrying a live `session` keeps that session's own policy.
+- Temporary release changeset: patch all publishable packages to keep lockstep versions.
+- Updated dependencies [c34df8a]
+- Updated dependencies [b99736b]
+- Updated dependencies [22c2503]
+- Updated dependencies [723f617]
+- Updated dependencies [fff0220]
+- Updated dependencies [598dfab]
+- Updated dependencies
+  - @pie-qti/item-player@1.0.0-beta.6
+  - @pie-qti/ims-cp-core@1.0.0-beta.6
+  - @pie-qti/default-components@1.0.0-beta.6
+  - @pie-qti/i18n@1.0.0-beta.6
+  - @pie-qti/qti-common@1.0.0-beta.6
+
 ## 1.0.0-beta.5
 
 ### Minor Changes

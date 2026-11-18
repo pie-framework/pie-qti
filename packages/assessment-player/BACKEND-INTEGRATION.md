@@ -79,8 +79,6 @@ return {
   assessment: {
     identifier: 'math-final',
     title: 'Mathematics final',
-    navigationMode: 'linear',
-    submissionMode: 'individual',
     testParts: [
       {
         identifier: 'part-1',

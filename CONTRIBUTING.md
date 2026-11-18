@@ -86,9 +86,15 @@ This is a monorepo with multiple packages:
 - Reference issues in commits when applicable
 - Keep commits focused and atomic
 
+### Branching and releases
+
+The repository branches off `develop` (integration) and releases from `master`.
+See [`.github/BRANCHING_STRATEGY.md`](.github/BRANCHING_STRATEGY.md) for the branch model, the
+lockstep patch-only release flow, and what changeset files are for.
+
 ## Pull Request Process
 
-1. **Fork the repository** and create a branch from `master`
+1. **Fork the repository** and create a branch from `develop` (from `master` only for `hotfix/*` branches — see [`.github/BRANCHING_STRATEGY.md`](.github/BRANCHING_STRATEGY.md))
 
 2. **Make your changes**
    - Follow code standards

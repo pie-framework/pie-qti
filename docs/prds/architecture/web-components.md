@@ -1,16 +1,16 @@
 # PRD: Web Component Infrastructure
 
 <!--
-  Status: needs-update
+  Status: current
   Type: architecture
   Packages: @pie-qti/default-components, @pie-qti/player-elements, @pie-qti/web-component-loaders
-  Last reviewed: 2026-08-13
+  Last reviewed: 2026-11-17
 -->
 
-**Status:** needs-update
+**Status:** current
 **Type:** architecture
 **Packages:** `@pie-qti/default-components`, `@pie-qti/player-elements`, `@pie-qti/web-component-loaders`
-**Last reviewed:** 2026-08-13
+**Last reviewed:** 2026-11-17
 
 ---
 
@@ -24,7 +24,7 @@ Three packages form the web component layer of the QTI player:
 
 ### Current implementation audit (2026-08-13)
 
-This PRD describes the intended public contract. The following implementation gaps remain:
+This PRD describes the intended public contract. The following audit notes record the current implementation state:
 
 - `@pie-qti/player-elements/register` now owns a complete default runtime, including the player and
   default interaction elements. Its main entry is registration-free and SSR-safe; manual/custom
@@ -42,11 +42,12 @@ This PRD describes the intended public contract. The following implementation ga
   disposes it. Without that property, the standalone item path creates and owns a session from
   `itemXml` through `createAssessmentItemDefinition(...).openSession()`.
 - The assessment element now accepts an injected authoritative backend/session and requires
-  explicit `referenceMode` before constructing `ReferenceBackendAdapter`. Its local XML parser still
-  preserves only a small subset of `assessmentTest` and silently drops valid test semantics such as
-  selection, ordering, branching, timing, and assessment-level outcome processing.
+  explicit `referenceMode` before constructing `ReferenceBackendAdapter`.
 
-Resolve the incomplete assessment-test XML facade before promoting this PRD to `current`.
+**Update (2026-11-17):** the assessment-test XML facade gap named in earlier audits is closed.
+`packages/assessment-player/src/integration/qti-test-parser.ts` parses `timeLimits`, `branchRule`,
+section `selection` (including `withReplacement`) and `ordering`, assessment-level outcome
+declarations, and `outcomeProcessing`, so nothing outstanding blocks this PRD's `current` status.
 
 ---
 
@@ -403,7 +404,7 @@ AC-E4: A string response that reads as JSON stays as written
 
 ## Open questions
 
-- [ ] `textEntryInteraction` and `inlineChoiceInteraction` are currently handled as inline renderers inside `ItemBody.svelte` rather than as separate custom elements. Should they be promoted to standalone web components for consistency? What are the implications for inline-within-content rendering?
+- [ ] `textEntryInteraction` and `inlineChoiceInteraction` are first-class standard interaction modules now — extractors and inline placement live in `packages/item-player/src/interactions/text-entry/` and `inline-choice/`, and they are delivered through the same pipeline as block interactions (rendering now lives in the dedicated `InlineTextEntry.svelte` / `InlineChoice.svelte` components that `ItemBody.svelte` mounts at the authored position). `@pie-qti/default-components` still ships no standalone custom elements for them; they mount inline within the composed body flow. Is a standalone element form (e.g. `pie-qti-text-entry`) needed for hosts that would place an inline interaction outside a composed body?
 - [ ] The `ShadowBaseStyles` component duplicates a subset of DaisyUI class definitions. When DaisyUI 5 changes its class names (it is moving to `btn-primary` → `btn btn-primary` semantics in some versions), these need to be kept in sync. Is there a test or CI check that catches this drift?
 - [ ] Define a facade-owned assessment config and secure backend/resolver injection contract without exposing `BackendAssessmentPlayerConfig` or other implementation-package types.
 

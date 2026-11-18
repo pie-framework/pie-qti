@@ -4,12 +4,15 @@
  * named in a warning. Assessments carry no APIP, so their catalogs are named whole.
  */
 
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, setDefaultTimeout, test } from 'bun:test';
 import { extractCatalogFromItemXml } from '@pie-qti/item-player';
-import { validateQti } from '@pie-qti/to-pie';
+import { validateQtiBatch } from '@pie-qti/to-pie';
 import type { PieItem } from '@pie-qti/transform-types';
 import { PieToQtiPlugin } from '../../src/plugin.js';
 import { findAccessibilityCatalogs } from '../../src/utils/accessibility-catalogs.js';
+
+// A QTI 2.2 schema compile takes seconds, several times that on a loaded CI runner.
+setDefaultTimeout(120_000);
 
 const logger = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} };
 
@@ -49,10 +52,12 @@ function catalogWarnings(warnings: string[]): string[] {
   return warnings.filter((warning) => warning.includes('accessibility catalogs'));
 }
 
-async function expectValid(xml: string): Promise<void> {
-  const validation = await validateQti(xml, { xsdSeverity: 'error' });
-  expect(validation.schemaValidated).toBe(true);
-  expect(validation.errors.map((error) => error.message)).toEqual([]);
+// Each schema compile pulls the whole QTI 2.2 closure with APIP and costs seconds (far more on CI),
+// so the documents are collected here and validated together at the end of the file.
+const exported: Array<{ path: string; content: string }> = [];
+
+function expectValid(path: string, xml: string): void {
+  exported.push({ path, content: xml });
 }
 
 describe('accessibility catalogs on export', () => {
@@ -66,7 +71,7 @@ describe('accessibility catalogs on export', () => {
       '<apip:accessElement identifier="term-water"><apip:contentLinkInfo qtiLinkIdentifierRef="apip-target-1">'
     );
     expect(xml).toMatch(/<\/itemBody>[\s\S]*<apip:apipAccessibility [^>]*>[\s\S]*<\/apip:apipAccessibility>\s*<\/assessmentItem>/);
-    await expectValid(xml);
+    expectValid('linked item', xml);
     expect(extractCatalogFromItemXml(xml).get('term-water')?.entries).toEqual([
       { usage: 'spoken', html: '<speak>water</speak>' },
     ]);
@@ -95,7 +100,7 @@ describe('accessibility catalogs on export', () => {
     expect(xml).toContain('qtiLinkIdentifierRef="stem"><apip:textLink><apip:fullString/></apip:textLink>');
     expect(xml).toMatch(/<img id="apip-target-2" [^>]*data-catalog-idref="map-braille"/);
     expect(xml).toContain('qtiLinkIdentifierRef="apip-target-2"><apip:objectLink/>');
-    await expectValid(xml);
+    expectValid('authored id item', xml);
   });
 
   test('names what the export does not write, and why', async () => {
@@ -126,7 +131,7 @@ describe('accessibility catalogs on export', () => {
         '"shared-1" (no exported element refers to it)',
     ]);
     expect(result.items[0].content as string).toContain('<apip:accessElement identifier="term-water">');
-    await expectValid(result.items[0].content as string);
+    expectValid('partly written item', result.items[0].content as string);
   });
 
   test('writes the catalogs of a resolved passage into its passage file', async () => {
@@ -150,7 +155,7 @@ describe('accessibility catalogs on export', () => {
     expect(result.items[0].content as string).not.toContain('apip:');
     expect(passage.xml).toContain('<span id="apip-target-1" data-catalog-idref="passage-term">falls</span>');
     expect(passage.xml).toContain('<apip:accessElement identifier="passage-term">');
-    await expectValid(passage.xml);
+    expectValid('resolved passage', passage.xml);
   });
 
   test('writes the catalogs of a passage object into its passage file, apart from the item', async () => {
@@ -177,7 +182,7 @@ describe('accessibility catalogs on export', () => {
     expect(xml).toContain('<apip:accessElement identifier="term-water">');
     expect(xml).not.toContain('stimulus-term');
     expect(passage.xml).toContain('<apip:accessElement identifier="stimulus-term">');
-    await expectValid(passage.xml);
+    expectValid('passage object', passage.xml);
   });
 
   test('names assessment catalogs', async () => {
@@ -212,5 +217,17 @@ describe('accessibility catalogs on export', () => {
         config: { markup: "<p data-catalog-idref='single'>x</p><p data-catalog-idref=bare>y</p>" },
       })
     ).toEqual(['single', 'bare']);
+  });
+
+  test('every exported document validates against the QTI 2.2 schema with APIP', async () => {
+    const results = await validateQtiBatch(exported, { xsdSeverity: 'error' });
+    expect([...results.keys()]).toEqual(exported.map(({ path }) => path));
+    for (const [path, validation] of results) {
+      expect({ path, schemaValidated: validation.schemaValidated, errors: validation.errors.map((e) => e.message) }).toEqual({
+        path,
+        schemaValidated: true,
+        errors: [],
+      });
+    }
   });
 });

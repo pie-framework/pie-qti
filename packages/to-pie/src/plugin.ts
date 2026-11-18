@@ -40,10 +40,9 @@ import {
   withItemBodyPartition,
 } from './utils/item-body-partition.js';
 import { serializeChildrenWithReplacements } from './utils/markup-extraction.js';
-import { extractExtensions } from './utils/metadata-extraction.js';
 import { passageResourceIndex } from './utils/passage-resources.js';
 import { makePieItemPlayerReady } from './utils/player-config.js';
-import { hasPieExtension, type PieExtensionData } from './utils/pie-extension.js';
+import type { PieExtensionData } from './utils/pie-extension.js';
 import { pieElementTagForModel, piePackageName, piePlaceholderMarkup } from './utils/pie-markup.js';
 import { readPieSourceSidecar } from './utils/pie-source-sidecar.js';
 import { contentAfterInteraction } from './utils/prompt-extraction.js';
@@ -210,7 +209,7 @@ export class QtiToPiePlugin implements TransformPlugin {
    * @param options - Optional configuration for vendor extensions
    *
    * @example
-   * // Create with no options (backward compatible)
+   * // Create with no options
    * const plugin = new QtiToPiePlugin();
    *
    * @example
@@ -411,15 +410,6 @@ export class QtiToPiePlugin implements TransformPlugin {
       addTraceEvent(trace, { kind: 'fallback', scope: 'item', itemId, message });
     }
 
-    // Earlier pie-to-qti2 versions embedded the PIE source in the item with no digest, so it cannot
-    // be shown to match the item and is not used.
-    if (hasPieExtension(authoredXml)) {
-      const message = `Embedded PIE source model in item ${itemId} has no digest to show it matches the item; the item was transformed from its QTI body.`;
-      logger?.warn(message);
-      warnings.push({ itemId, code: 'PIE_SOURCE_STALE', message });
-      addTraceEvent(trace, { kind: 'fallback', scope: 'item', itemId, message });
-    }
-
     // Parse XML once for all detection and transformation
     const doc = parse(qtiXml, {
       lowerCaseTagName: false,
@@ -483,8 +473,8 @@ export class QtiToPiePlugin implements TransformPlugin {
             kind: 'handler-selected',
             scope: 'item',
             itemId,
-            handlerId: `legacy-vendor-transformer:${vendorTransformer.vendor}`,
-            message: `Using legacy vendor transformer for ${vendorTransformer.vendor}.`,
+            handlerId: `vendor-transformer:${vendorTransformer.vendor}`,
+            message: `Using vendor transformer for ${vendorTransformer.vendor}.`,
           });
           const output = await vendorTransformer.transform(authoredXml, vendorInfo, context, authoredDoc);
           return withTraceMetadata(output, trace, profileRuntime, warnings);
@@ -497,8 +487,8 @@ export class QtiToPiePlugin implements TransformPlugin {
             kind: 'fallback',
             scope: 'item',
             itemId,
-            handlerId: `legacy-vendor-transformer:${vendorTransformer.vendor}`,
-            message: `Legacy vendor transformer failed and generic fallback will be attempted: ${(error as Error).message}`,
+            handlerId: `vendor-transformer:${vendorTransformer.vendor}`,
+            message: `Vendor transformer failed and generic fallback will be attempted: ${(error as Error).message}`,
           });
           // Fall through to standard transformation
         }
@@ -523,10 +513,7 @@ export class QtiToPiePlugin implements TransformPlugin {
     // Detect item type and use appropriate transformer
     const interactionType = this.detectInteractionType(qtiXml, interactionAnalysis);
 
-    // Extract baseId for round-trip compatibility
-    const baseId = this.extractBaseId(assessmentItem);
-
-    logger?.debug(`Processing item: ${itemId} (type: ${interactionType})${baseId ? ` [baseId: ${baseId}]` : ''}`);
+    logger?.debug(`Processing item: ${itemId} (type: ${interactionType})`);
 
     const builtInContext: BuiltInTransformContext = {
       interactionType,
@@ -535,7 +522,6 @@ export class QtiToPiePlugin implements TransformPlugin {
       assessmentItem: conversionItem,
       itemBodyPlan,
       sourcePath,
-      baseId,
       logger,
     };
     const partition = partitioned?.partition;
@@ -647,16 +633,6 @@ export class QtiToPiePlugin implements TransformPlugin {
           pieItem.extensions = {
             ...extractedMetadata.extensions,
             // Preserve any transformer-generated metadata
-            ...(pieItem.metadata?.extensions || {}),
-          };
-        }
-      } else {
-        // Fallback to old method if no extractor available
-        const extractedExtensions = extractExtensions(authoredDoc);
-        if (Object.keys(extractedExtensions).length > 0) {
-          logger?.info(`Extracted extensions with ${Object.keys(extractedExtensions).length} fields (legacy method)`);
-          pieItem.extensions = {
-            ...extractedExtensions,
             ...(pieItem.metadata?.extensions || {}),
           };
         }
@@ -1124,49 +1100,6 @@ export class QtiToPiePlugin implements TransformPlugin {
       return fromManifest;
     }
     return `item-${shortHash(qtiXml)}`;
-  }
-
-  /**
-   * Extract baseId from QTI metadata
-   *
-   * Looks for baseId/externalId in qti-metadata section
-   * Supports round-trip compatibility with pie-to-qti2
-   */
-  private extractBaseId(itemElement: any): string | undefined {
-    if (!itemElement) return undefined;
-
-    // Look for qti-metadata section
-    const qtiMetadata = itemElement.querySelector?.('qti-metadata') ||
-                       itemElement.getElementsByTagName?.('qti-metadata')?.[0];
-
-    if (!qtiMetadata) return undefined;
-
-    // Look for metadata fields
-    const metadataFields = qtiMetadata.getElementsByTagName('qti-metadata-field');
-
-    for (const field of Array.from(metadataFields)) {
-      const name = (field as any).getAttribute('name');
-      const value = (field as any).getAttribute('value');
-
-      // Check for externalId (pie-to-qti2 convention)
-      if (name === 'externalId' && value) {
-        // Verify this came from PIE by checking sourceSystemId
-        const sourceField = Array.from(metadataFields).find(
-          (f: any) => f.getAttribute('name') === 'sourceSystemId'
-        );
-
-        if ((sourceField as any)?.getAttribute('value') === 'pie') {
-          return value;
-        }
-      }
-
-      // Check for explicit baseId field
-      if (name === 'baseId' && value) {
-        return value;
-      }
-    }
-
-    return undefined;
   }
 
   /**

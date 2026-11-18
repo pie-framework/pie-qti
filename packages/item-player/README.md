@@ -257,7 +257,7 @@ const pci = {
   }),
   // Or the sandboxed engine: module URLs are resolved and handed to the runner
   // frame; nothing is evaluated in the page.
-  // sandbox: { runnerUrl: 'https://qti.pie-framework.org/pci-runner.html' },
+  // sandbox: { runnerUrl: 'https://pci-runner.example.com/pci-runner.html' },
 };
 ```
 

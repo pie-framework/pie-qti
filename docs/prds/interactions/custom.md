@@ -5,13 +5,13 @@
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type (interactions only): customInteraction / qti-portable-custom-interaction
-  Last reviewed: 2026-07-13
+  Last reviewed: 2026-11-17
 -->
 
 **Status:** current
 **Type:** interaction
 **Packages:** `@pie-qti/default-components`, `@pie-qti/item-player`
-**Last reviewed:** 2026-07-13
+**Last reviewed:** 2026-11-17
 
 ---
 
@@ -33,7 +33,7 @@ PIE-QTI supports both forms:
 
 In QTI 2.x, `customInteraction` was intentionally opaque. The spec defined the element, required a `responseIdentifier`, and left everything else — markup structure, JavaScript behaviour, response format — to the delivery platform. Two platforms serving the same item with a `customInteraction` would each render it their own way, or not at all. This was the accepted trade-off: authors gained capability (arbitrary interaction types) at the cost of interoperability.
 
-QTI 3.0 resolved this with PCI. A `qti-portable-custom-interaction` element carries its module code (`primary-path`/`fallback-path` ES module URLs), its initial DOM scaffold (`qti-interaction-markup`), and its static configuration (`qti-pci-properties`) inside the item package. Any conformant QTI 3.0 player that implements the `IMSGLOBAL.PCI` module interface can run it. The standard removes the platform-coupling that made 2.x custom interactions a portability dead end.
+QTI 3.0 resolved this with PCI. A `qti-portable-custom-interaction` element carries its module code (`primary-path`/`fallback-path` ES module URLs), its initial DOM scaffold (`qti-interaction-markup`), and its static configuration (`data-*` attributes on the element) inside the item package. Any conformant QTI 3.0 player that implements the `IMSGLOBAL.PCI` module interface can run it. The standard removes the platform-coupling that made 2.x custom interactions a portability dead end.
 
 ### Why the QTI 2.x fallback is a warning, not an error
 
@@ -86,7 +86,7 @@ Extracted by `portableCustomExtractor` (priority 20) into `ExtractedPci`. `PciHo
 | `custom-interaction-type-identifier` | Supported | Stored as `customInteractionTypeIdentifier` in `ExtractedPci`; logged but not used for dispatch |
 | `<qti-interaction-modules>` / `<qti-interaction-module>` | Supported | `primaryPath` and `fallbackPath` extracted and passed to `PciHost` |
 | `<qti-interaction-markup>` | Supported | Inner HTML extracted as `markup`; passed to `PciHost.initialize()` as the DOM scaffold |
-| `<qti-pci-properties>` / `<qti-pci-property>` | Supported | Key/value pairs parsed into `config: Record<string, string>`; passed to `module.initialize()` |
+| `data-*` attributes | Supported | Collected into `config: Record<string, string>` under their `HTMLElement.dataset` names (`data-display-format` → `displayFormat`); passed to the module as `configuration.properties` |
 
 ### QTI 2.x Portable Custom Interaction wrapper
 
@@ -102,7 +102,7 @@ Extracted by `portableCustomExtractor` (priority 20) into `ExtractedPci`. `PciHo
 `PciHost` (`packages/item-player/src/pci/PciHost.ts`) manages the QTI 3.0 §6.1 registry contract:
 
 1. `load()` — passes the resolved primary path and authored-path context to the host's `moduleResolver`, falling back to `fallback-path` when present. A conformant module registers itself against the page's `qtiCustomInteractionContext` as its code evaluates; the host adopts that registration (`registry.ts` installs the global). Throws `PciModuleResolverRequiredError` when execution has not been explicitly enabled and `PciLoadError` when resolution fails or the module never registers.
-2. `initialize(dom)` — instantiates through the registered `getInstance(dom, configuration, state)` factory. `configuration` carries `responseIdentifier`, a `status` of `interacting`/`closed`/`solution`/`review` derived from role and attempt state, and the `qti-pci-properties` values as `properties`; `configuration.onready` and `ondone` capture the module's response and state. A held response reaches the module as the `state` argument, in QTI variable JSON.
+2. `initialize(dom)` — instantiates through the registered `getInstance(dom, configuration, state)` factory. `configuration` carries `responseIdentifier`, a `status` of `interacting`/`closed`/`solution`/`review` derived from role and attempt state, and the configuration values as `properties`; `configuration.onready` and `ondone` capture the module's response and state. A held response reaches the module as the `state` argument, in QTI variable JSON.
 3. `getResponse()` — reads the module's QTI variable JSON and converts it to the player's runtime value shape, except while a requested rebuild is outstanding (see below).
 4. `getState()` — the mounted module's own state snapshot (its `getState()` output), kept answerable after teardown.
 5. `offerResponse(value)` / `restore(value)` — response ownership. `offerResponse()` offers a value the player believes to be current and is declined, returning `false`, once the mounted module has reported a response of its own; since the spec contract has no setter, an accepted offer that differs from what the module was seeded with re-instantiates it. `restore()` replaces the response authoritatively and returns ownership to the player. Session deserialization and reset-to-default use `restore()`; ordinary `setResponses()` traffic uses `offerResponse()`, because every candidate change — a PCI's own included — echoes back through that method.
@@ -192,14 +192,17 @@ When a PCI module is loaded, the module is responsible for its own internal acce
 
 ### i18n
 
-The fallback UI surfaces three localised strings via the `@pie-qti/i18n` provider:
+The fallback UI surfaces these localised strings via the `@pie-qti/i18n` provider:
 
 | Key | Default (English) |
 | --- | ----------------- |
 | `interactions.custom.unsupported` | `'Unsupported customInteraction'` |
+| `interactions.custom.description` | `'This item contains a vendor-specific interaction. This player does not execute custom interactions.'` |
 | `interactions.custom.manualResponse` | `'Manual response (optional)'` |
 | `interactions.custom.placeholder` | `'Enter a manual response (fallback)'` |
 | `interactions.custom.attributes` | `'Attributes'` |
+| `interactions.custom.xml` | `'XML'` |
+| `interactions.custom.promptHeading` | `'Prompt:'` |
 
 The `i18n` prop is optional; all strings have English defaults. RTL layout is handled by the global `dir` attribute on the document root — the fallback component uses `display: grid` without explicit direction, which respects inherited `dir`.
 
@@ -592,8 +595,11 @@ AC-G5: stored response reaches the module on restore
 ```
 Given: A session is restored with a previously stored PCI response value
 When: The player mounts the PCI interaction
-Then: module.setResponse(storedValue) is called after initialize
-  AND the module reflects the restored state in its UI
+Then: module.setResponse() is NOT called — the spec contract has no setter
+  AND the stored value seeds getInstance() as the module's state (a held restore() waits for
+      initialize), and the module reflects the restored state in its UI
+When: A restore() lands on an already-mounted module instead
+Then: The module is rebuilt from the caller's value through onRemountRequest/remount, as in AC-G8
 ```
 
 AC-G8: a module keeps the response it reported

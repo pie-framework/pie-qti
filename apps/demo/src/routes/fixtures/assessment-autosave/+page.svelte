@@ -37,12 +37,12 @@
 	const ASSESSMENT: SecureAssessment = {
 		identifier: 'autosave-resume',
 		title: 'Autosave resume check',
-		navigationMode: 'nonlinear',
-		submissionMode: 'simultaneous',
 		timeLimits: { maxTime: 600 },
 		testParts: [
 			{
 				identifier: 'part-1',
+				navigationMode: 'nonlinear',
+				submissionMode: 'simultaneous',
 				sections: [
 					{
 						identifier: 'section-1',

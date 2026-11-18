@@ -24,11 +24,11 @@ const CHOICE_XML = (identifier: string) =>
 const TWO_SECTION_ASSESSMENT = {
 	identifier: 'events-two-sections',
 	title: 'Event API fixture',
-	navigationMode: 'nonlinear',
-	submissionMode: 'individual',
 	testParts: [
 		{
 			identifier: 'part-1',
+			navigationMode: 'nonlinear',
+			submissionMode: 'individual',
 			sections: [
 				{
 					identifier: 'section-1',
@@ -57,12 +57,12 @@ const TWO_SECTION_ASSESSMENT = {
 const TIMED_ASSESSMENT = {
 	identifier: 'events-timed',
 	title: 'Timed fixture',
-	navigationMode: 'nonlinear',
-	submissionMode: 'individual',
 	timeLimits: { maxTime: 300 },
 	testParts: [
 		{
 			identifier: 'part-1',
+			navigationMode: 'nonlinear',
+			submissionMode: 'individual',
 			sections: [
 				{
 					identifier: 'section-1',

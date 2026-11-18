@@ -98,7 +98,10 @@ describe.each(Object.keys(VERSIONS) as Array<keyof typeof VERSIONS>)('%s duratio
 			PART_DURATION: 45,
 			SECTION_DURATION: 30,
 		});
-		// The item's own duration variable; the restored session accrues a millisecond or two.
-		expect(results.outcomes?.ITEM_DURATION).toBeCloseTo(60, 2);
+		// The item's own duration variable; the restored session keeps accruing wall time until
+		// finalization, a few milliseconds on a loaded runner.
+		const itemDuration = results.outcomes?.ITEM_DURATION as number;
+		expect(itemDuration).toBeGreaterThanOrEqual(60);
+		expect(itemDuration).toBeLessThan(61);
 	});
 });

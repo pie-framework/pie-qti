@@ -54,7 +54,7 @@ describe('@pie-qti/player-elements main entry', () => {
 				'pie-qti-section-player-splitpane',
 				'pie-qti-section-player-vertical',
 				'pie-qti-choice',
-				'nds-icon-button',
+				'pie-nds-icon-button',
 			].filter((tagName) => customElements.get(tagName));
 			if (leaked.length > 0) throw new Error('elements entry registered: ' + leaked.join(','));
 		`;

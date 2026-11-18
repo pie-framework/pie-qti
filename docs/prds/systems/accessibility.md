@@ -4,13 +4,13 @@
   Status: current
   Type: system
   Packages: @pie-qti/item-player, @pie-qti/assessment-player, @pie-qti/default-components
-  Last reviewed: 2026-05-04
+  Last reviewed: 2026-11-17
 -->
 
 **Status:** current
 **Type:** system
 **Packages:** `@pie-qti/item-player`, `@pie-qti/assessment-player`, `@pie-qti/default-components`
-**Last reviewed:** 2026-05-04
+**Last reviewed:** 2026-11-17
 
 ---
 
@@ -420,7 +420,7 @@ Then: Focus is not moved away from the candidate's current position
 
 - [ ] **Timer announcement thresholds are hard-coded:** The 5-minute, 1-minute, and 30-second thresholds are documented intent but their implementation in `AssessmentTimer.svelte` / `TimeManager.ts` should be verified. If not present, they must be added. Whether these thresholds should be configurable in assessment configuration has not been decided.
 
-- [ ] **Screen reader test matrix:** The required screen reader / browser pairs for QA sign-off are NVDA+Chrome and VoiceOver+Safari (macOS). There is no current automated test coverage for screen reader behavior; all AC-SR criteria require manual verification. The feasibility of axe-core or similar automated checks for a subset of criteria should be evaluated.
+- [x] **Automated axe checks (resolved 2026-11-17):** feasible and in place. `@axe-core/playwright` is a demo dependency, wired in `apps/demo/playwright.config.ts` and used by the automated suites `a11y-regression.pw.ts`, `component-fixtures-a11y.pw.ts`, `qti3-stage5-a11y.pw.ts` and `assessment-a11y-behavior.pw.ts` under `apps/demo/tests/playwright/`, run with `bun run verify:a11y`. Axe covers the axe-checkable criteria; screen-reader behavior remains manual — the required QA pairs are NVDA+Chrome and VoiceOver+Safari (macOS), and all AC-SR criteria still require manual verification.
 
 ---
 

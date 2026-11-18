@@ -5,8 +5,8 @@
 	"devDependencies": {
 		"@pie-qti/item-player": "workspace:*",
 		"@types/bun": "^1.4.4",
-		"node-html-parser": "^9.0.5",
-		"typescript": "^5.9.3"
+		"node-html-parser": "^9.0.7",
+		"typescript": "^6.0.3"
 	},
 	"peerDependencies": {
 		"@pie-qti/item-player": "workspace:*"

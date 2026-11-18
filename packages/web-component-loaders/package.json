@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/web-component-loaders",
-  "version": "1.0.0-beta.5",
+  "version": "1.0.0-beta.6",
   "main": "./dist/index.js",
   "dependencies": {
     "@pie-qti/player-elements": "workspace:*"
@@ -8,7 +8,7 @@
   "devDependencies": {
     "@pie-qti/default-components": "workspace:*",
     "@pie-qti/theme-daisyui": "workspace:*",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   },
   "exports": {
     ".": {

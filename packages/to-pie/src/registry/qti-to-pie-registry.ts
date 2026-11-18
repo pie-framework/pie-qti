@@ -78,7 +78,6 @@ export interface BuiltInTransformContext {
   itemBodyPlan?: QtiItemBodyPlan;
   interactionUnit?: PlannedQtiInteractionUnit;
   sourcePath?: string;
-  baseId?: string;
   logger?: { warn?(message: string): void; info?(message: string): void };
 }
 
@@ -174,7 +173,6 @@ export function createDefaultQtiToPieRegistry(): QtiToPieRegistry {
             choiceInteraction,
             context.itemId,
             {
-              baseId: context.baseId,
               promptBoundaryStart: previousPlannedInteraction(context, choiceInteraction),
             }
           ),
@@ -182,9 +180,7 @@ export function createDefaultQtiToPieRegistry(): QtiToPieRegistry {
       }
       return {
         kind: 'pie-item',
-        content: await transformMultipleChoice(context.assessmentItem, context.itemId, {
-          baseId: context.baseId,
-        }),
+        content: await transformMultipleChoice(context.assessmentItem, context.itemId, {}),
       };
     },
   });
@@ -208,7 +204,6 @@ export function createDefaultQtiToPieRegistry(): QtiToPieRegistry {
             extendedTextInteraction,
             context.itemId,
             {
-              baseId: context.baseId,
               promptBoundaryStart: previousPlannedInteraction(context, extendedTextInteraction),
             }
           ),
@@ -216,9 +211,7 @@ export function createDefaultQtiToPieRegistry(): QtiToPieRegistry {
       }
       return {
         kind: 'pie-item',
-        content: await transformExtendedResponse(context.assessmentItem, context.itemId, {
-          baseId: context.baseId,
-        }),
+        content: await transformExtendedResponse(context.assessmentItem, context.itemId, {}),
       };
     },
   });
@@ -259,7 +252,6 @@ export function createDefaultQtiToPieRegistry(): QtiToPieRegistry {
       const itemBody = assessmentItem?.getElementsByTagName('itemBody')[0];
       if (assessmentItem && itemBody && matchInteraction) {
         const options = {
-          baseId: context.baseId,
           promptBoundaryStart: previousPlannedInteraction(context, matchInteraction),
         };
         return {
@@ -361,7 +353,6 @@ export function createDefaultQtiToPieRegistry(): QtiToPieRegistry {
           itemBody,
           interaction,
           itemId: context.itemId,
-          ...(context.baseId && { baseId: context.baseId }),
           promptBoundaryStart: previousPlannedInteraction(context, interaction),
         }),
       };

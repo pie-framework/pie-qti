@@ -67,7 +67,7 @@ Until then the dependable signals are:
 
   ```bash
   bun run check:provenance            # defaults to the version in the workspace
-  bun run check:provenance 0.1.16
+  bun run check:provenance 1.0.0-beta.5
   ```
 
   It distinguishes published-without-provenance (no trusted publisher, or a token fallback)
@@ -77,6 +77,6 @@ Until then the dependable signals are:
   produced it:
 
   ```bash
-  curl -s https://registry.npmjs.org/@pie-qti/theme | jq '.versions["0.1.16"]._npmUser'
+  curl -s https://registry.npmjs.org/@pie-qti/theme | jq '.versions["1.0.0-beta.5"]._npmUser'
   # trustedPublisher.oidcConfigId present => published via OIDC; absent => published with a token
   ```

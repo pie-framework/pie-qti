@@ -1,4 +1,6 @@
+import AxeBuilder from '@axe-core/playwright';
 import { SAMPLE_ITEMS } from '../../src/lib/sample-items.js';
+import { WCAG_AA_TAGS } from './a11y-utils';
 import { expect, test } from './fixtures';
 
 /**
@@ -126,4 +128,31 @@ test.describe('item demo samples smoke', () => {
 			}
 		});
 	}
+});
+
+test.describe('item demo portable custom interaction', () => {
+	test('the PCI sample loads its modules, reports its response and scores', async ({ page }) => {
+		await page.goto('/item-demo/pci-tally-counter');
+
+		const pci = page.locator('pie-qti-portable-custom');
+		const more = pci.getByRole('button', { name: 'One more' });
+		await expect(more).toBeVisible({ timeout: 40_000 });
+		await expect(pci.getByRole('alert')).toHaveCount(0);
+		await expect(pci.getByRole('button', { name: 'One fewer' })).toBeDisabled();
+		// The label arrives as the interaction's data-label attribute.
+		await expect(pci.getByRole('status', { name: 'Apples' })).toBeVisible();
+
+		const axe = await new AxeBuilder({ page })
+			.include('pie-qti-portable-custom')
+			.withTags(WCAG_AA_TAGS)
+			.analyze();
+		expect(axe.violations).toEqual([]);
+
+		for (let i = 0; i < 7; i++) await more.click();
+		await expect(pci.locator('output')).toHaveText('7');
+
+		// The module's getResponse() is pulled at submit; the score is the evidence it arrived.
+		await page.getByRole('button', { name: /Submit Answer/i }).click();
+		await expect(page.getByText('1.00 / 1.00')).toBeVisible();
+	});
 });

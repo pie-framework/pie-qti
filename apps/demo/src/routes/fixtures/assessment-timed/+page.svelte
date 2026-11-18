@@ -48,12 +48,12 @@
 			assessment: {
 				identifier: 'timed-auto',
 				title: 'Timed delivery check',
-				navigationMode: 'nonlinear',
-				submissionMode: 'simultaneous',
 				timeLimits: { maxTime: 6 },
 				testParts: [
 					{
 						identifier: 'part-1',
+						navigationMode: 'nonlinear',
+						submissionMode: 'simultaneous',
 						sections: [
 							{
 								identifier: 'section-1',
@@ -73,11 +73,11 @@
 			assessment: {
 				identifier: 'timed-dead-end',
 				title: 'Dead end check',
-				navigationMode: 'nonlinear',
-				submissionMode: 'simultaneous',
 				testParts: [
 					{
 						identifier: 'part-1',
+						navigationMode: 'nonlinear',
+						submissionMode: 'simultaneous',
 						timeLimits: { maxTime: 3 },
 						sections: [
 							{
@@ -99,12 +99,12 @@
 			assessment: {
 				identifier: 'timed-pause',
 				title: 'Pause check',
-				navigationMode: 'nonlinear',
-				submissionMode: 'simultaneous',
 				timeLimits: { maxTime: 600 },
 				testParts: [
 					{
 						identifier: 'part-1',
+						navigationMode: 'nonlinear',
+						submissionMode: 'simultaneous',
 						sections: [
 							{
 								identifier: 'section-1',
@@ -124,12 +124,12 @@
 			assessment: {
 				identifier: 'timed-gate',
 				title: 'Begin gate check',
-				navigationMode: 'nonlinear',
-				submissionMode: 'simultaneous',
 				timeLimits: { maxTime: 600 },
 				testParts: [
 					{
 						identifier: 'part-1',
+						navigationMode: 'nonlinear',
+						submissionMode: 'simultaneous',
 						rubricBlocks: [
 							{
 								identifier: 'instructions',
@@ -157,12 +157,12 @@
 			assessment: {
 				identifier: 'timed-late',
 				title: 'Late submission check',
-				navigationMode: 'nonlinear',
-				submissionMode: 'simultaneous',
 				timeLimits: { maxTime: 2, allowLateSubmission: true },
 				testParts: [
 					{
 						identifier: 'part-1',
+						navigationMode: 'nonlinear',
+						submissionMode: 'simultaneous',
 						sections: [
 							{
 								identifier: 'section-1',
@@ -181,11 +181,11 @@
 			assessment: {
 				identifier: 'timed-section-expiry',
 				title: 'Section expiry check',
-				navigationMode: 'nonlinear',
-				submissionMode: 'simultaneous',
 				testParts: [
 					{
 						identifier: 'part-1',
+						navigationMode: 'nonlinear',
+						submissionMode: 'simultaneous',
 						sections: [
 							{
 								identifier: 'section-1',

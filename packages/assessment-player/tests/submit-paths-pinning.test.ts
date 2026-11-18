@@ -62,8 +62,6 @@ async function fixture(modes: SubmissionMode[], options: FixtureOptions = {}) {
 	const assessment: SecureAssessment = {
 		identifier: 'submit-paths',
 		title: 'Submit path pinning',
-		navigationMode: 'nonlinear',
-		submissionMode: modes[0]!,
 		testParts: modes.map((submissionMode, part) => ({
 			identifier: `part-${part + 1}`,
 			navigationMode: 'nonlinear',

@@ -222,7 +222,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		// here; the stored draw is what a resume returns.
 		const assessment = drawAssessment(this.getAssessment(request.assessmentId), this.rng);
 		const firstItemIdentifier =
-			firstEligibleItem(assessment, deliveredItems(assessment), 0, undefined, testOutcomeDeclarations(assessment), this.rng) ?? '';
+			firstEligibleItem(deliveredItems(assessment), 0, undefined, testOutcomeDeclarations(assessment), this.rng) ?? '';
 
 		const state: AssessmentSessionState = {
 			currentItemIdentifier: firstItemIdentifier,
@@ -430,7 +430,7 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 			...applyVariableMappings(currentVariables, current.item.variableMappings),
 			...(currentVariables.SCORE ? {} : { SCORE: qtiValue('float', 'single', result.score) }),
 		});
-		const nextId = nextItemIdentifier(session.assessment, delivered, index, decls, this.rng);
+		const nextId = nextItemIdentifier(delivered, index, decls, this.rng);
 
 		return {
 			success: true,
@@ -662,11 +662,11 @@ export class ReferenceBackendAdapter implements BackendAdapter {
 		return {
 			identifier: assessmentId,
 			title: 'Demo Assessment',
-			navigationMode: 'nonlinear',
-			submissionMode: 'simultaneous',
 			testParts: [
 				{
 					identifier: 'part1',
+					navigationMode: 'nonlinear',
+					submissionMode: 'simultaneous',
 					rubricBlocks: [],
 					itemSessionControl: {
 						maxAttempts: 1,

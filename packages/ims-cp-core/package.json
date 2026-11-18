@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/ims-cp-core",
-  "version": "1.0.0-beta.5",
+  "version": "1.0.0-beta.6",
   "description": "Core IMS Content Package manifest parsing utilities (browser + Node.js)",
   "type": "module",
   "main": "./dist/index.js",
@@ -41,10 +41,10 @@
   },
   "dependencies": {
     "@pie-qti/logger": "workspace:*",
-    "node-html-parser": "^9.0.5"
+    "node-html-parser": "^9.0.7"
   },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   },
   "scripts": {
     "build": "tsc",

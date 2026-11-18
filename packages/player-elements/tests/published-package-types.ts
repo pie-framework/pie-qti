@@ -34,8 +34,6 @@ const backend: QtiAssessmentBackend = {
 			assessment: {
 				identifier: 'assessment-1',
 				title: 'Assessment',
-				navigationMode: 'linear',
-				submissionMode: 'individual',
 				testParts: [],
 			},
 		};

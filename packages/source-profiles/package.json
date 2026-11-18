@@ -1,6 +1,6 @@
 {
 	"name": "@pie-qti/source-profiles",
-	"version": "1.0.0-beta.5",
+	"version": "1.0.0-beta.6",
 	"description": "Source profile detectors and extraction helpers for real-world QTI packages",
 	"type": "module",
 	"main": "./dist/index.js",
@@ -33,7 +33,7 @@
 		"@pie-qti/transform-types": "workspace:*"
 	},
 	"devDependencies": {
-		"typescript": "^5.9.3"
+		"typescript": "^6.0.3"
 	},
 	"license": "MIT",
 	"repository": {

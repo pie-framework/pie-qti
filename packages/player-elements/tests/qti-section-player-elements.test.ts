@@ -204,6 +204,33 @@ describe('section player custom elements', () => {
 		expect(element.hasAttribute('display-settings')).toBe(false);
 	});
 
+	test('show-feedback reaches the layout as showFeedback and reflects the property', () => {
+		if (!customElements.get('test-qti-section-player-splitpane')) {
+			customElements.define('test-qti-section-player-splitpane', TestSplitPaneElement);
+		}
+		// The item element's attribute name: a section forwards the same item option.
+		expect(QtiSectionPlayerSplitPaneElement.observedAttributes).toContain('show-feedback');
+		const element = document.createElement('test-qti-section-player-splitpane') as TestSplitPaneElement;
+		element.composition = createComposition();
+		// Unset, the layout's own default (QTI's: hidden) applies.
+		expect(element.showFeedback).toBeUndefined();
+		expect('showFeedback' in element.exposeProps()).toBe(false);
+
+		// A boolean attribute, as on the item element: present is on, whatever its value.
+		element.attributeChangedCallback('show-feedback', null, '');
+		expect(element.showFeedback).toBe(true);
+		expect(element.exposeProps().showFeedback).toBe(true);
+
+		element.attributeChangedCallback('show-feedback', '', null);
+		expect(element.showFeedback).toBeUndefined();
+		expect('showFeedback' in element.exposeProps()).toBe(false);
+
+		element.showFeedback = true;
+		expect(element.getAttribute('show-feedback')).toBe('');
+		element.showFeedback = false;
+		expect(element.hasAttribute('show-feedback')).toBe(false);
+	});
+
 	test('framework errors, display settings changes and the item pane reach the host as typed events', () => {
 		if (!customElements.get('test-qti-section-player-splitpane')) {
 			customElements.define('test-qti-section-player-splitpane', TestSplitPaneElement);

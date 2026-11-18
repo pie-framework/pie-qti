@@ -3,22 +3,6 @@ import { expect, test } from './fixtures';
 const silenceWavBase64 =
 	'UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 
-/**
- * TTS read-along highlighting cannot mark anything while
- * `@pie-players/pie-assessment-toolkit` ships its HighlightCoordinator twice — once as a
- * standalone module and once inlined into `PieAssessmentToolkit.custom-element.js`. Both copies
- * call `CSS.highlights.set('tts-word'|'tts-sentence', ...)`, so the tools add ranges to one
- * Highlight instance while the registry holds the other, and neither the ranges nor the
- * `data-pie-tts-*-element` fallback ever land. Synthesis and playback are unaffected.
- * Reproduces identically at 0.3.53 and 0.3.63.
- *
- * Marked expected-to-fail rather than skipped so the run turns red — "expected to fail but
- * passed" — the moment upstream ships a single instance, which is the signal to delete this.
- */
-function expectedToFailOnDuplicateHighlightCoordinator() {
-	test.fail();
-}
-
 function speechMarksForText(text: string) {
 	return Array.from(text.matchAll(/\S+/g)).map((match, index) => ({
 		time: index * 80,
@@ -149,10 +133,10 @@ test.describe('section player web components', () => {
 	});
 
 	test('split-pane route marks passage text while TTS is playing', async ({ page }) => {
-		expectedToFailOnDuplicateHighlightCoordinator();
 		await page.addInitScript(() => {
 			HTMLMediaElement.prototype.play = function () {
 				this.dispatchEvent(new Event('play'));
+				this.dispatchEvent(new Event('playing'));
 				let tick = 0;
 				const interval = window.setInterval(() => {
 					this.currentTime = tick * 0.08;
@@ -188,7 +172,7 @@ test.describe('section player web components', () => {
 			.poll(async () => {
 				return page.evaluate(() => {
 					const highlights = (CSS as unknown as { highlights?: { get(name: string): Iterable<Range> | undefined } }).highlights;
-					return Array.from(highlights?.get('tts-sentence') ?? []).some((range) => /Reading Passage/i.test(range.toString()));
+					return Array.from(highlights?.get('pie-tts-sentence') ?? []).some((range) => /Reading Passage/i.test(range.toString()));
 				});
 			}, { timeout: 10_000 })
 			.toBe(true);
@@ -196,17 +180,17 @@ test.describe('section player web components', () => {
 			.poll(async () => {
 				return page.evaluate(() => {
 					const highlights = (CSS as unknown as { highlights?: { get(name: string): Iterable<Range> | undefined } }).highlights;
-					return Array.from(highlights?.get('tts-word') ?? []).some((range) => /Reading|Passage/i.test(range.toString()));
+					return Array.from(highlights?.get('pie-tts-word') ?? []).some((range) => /Reading|Passage/i.test(range.toString()));
 				});
 			})
 			.toBe(true);
 	});
 
 	test('split-pane route tracks interaction TTS on visible question content', async ({ page }) => {
-		expectedToFailOnDuplicateHighlightCoordinator();
 		await page.addInitScript(() => {
 			HTMLMediaElement.prototype.play = function () {
 				this.dispatchEvent(new Event('play'));
+				this.dispatchEvent(new Event('playing'));
 				let tick = 0;
 				const interval = window.setInterval(() => {
 					this.currentTime = tick * 0.08;
@@ -258,10 +242,10 @@ test.describe('section player web components', () => {
 				};
 				const prompt = query('.qti-choice-prompt')[0];
 				const choice = query('.qti-choice-text').find((element) => element.textContent?.includes('x=-2 or x=-3'));
-				state.prompt ||= !!prompt && (prompt.hasAttribute('data-pie-tts-sentence-element') || highlightedRanges('tts-sentence').some((range) => rangeIsInside(range, prompt)));
-				state.choice ||= !!choice && (choice.hasAttribute('data-pie-tts-sentence-element') || highlightedRanges('tts-sentence').some((range) => rangeIsInside(range, choice)));
+				state.prompt ||= !!prompt && (prompt.hasAttribute('data-pie-tts-sentence-element') || highlightedRanges('pie-tts-sentence').some((range) => rangeIsInside(range, prompt)));
+				state.choice ||= !!choice && (choice.hasAttribute('data-pie-tts-sentence-element') || highlightedRanges('pie-tts-sentence').some((range) => rangeIsInside(range, choice)));
 				if (choice) {
-					state.choiceWord ||= choice.hasAttribute('data-pie-tts-word-element') || highlightedRanges('tts-word').some((range) => rangeIsInside(range, choice));
+					state.choiceWord ||= choice.hasAttribute('data-pie-tts-word-element') || highlightedRanges('pie-tts-word').some((range) => rangeIsInside(range, choice));
 				}
 			};
 			window.setInterval(inspect, 50);

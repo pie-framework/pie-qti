@@ -4,7 +4,6 @@
  * These items are QTI 3.0 versions of common QTI 2.x patterns, demonstrating:
  * - QTI 3.0 element naming (kebab-case with qti- prefix)
  * - QTI 3.0 attribute naming (kebab-case for multi-word attributes)
- * - Backward compatibility validation
  *
  * Structure mirrors sample-items.ts for easy comparison.
  */

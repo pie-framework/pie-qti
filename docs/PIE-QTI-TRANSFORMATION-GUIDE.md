@@ -1,10 +1,10 @@
 # PIE ↔ QTI Transformation Guide
 
-Complete guide to bidirectional transformation between PIE (Platform for Interactive Education) and QTI formats.
+Complete guide to bidirectional transformation between PIE (Portable Interactions and Elements) and QTI formats.
 
 ## Overview
 
-The `pie-qti` ecosystem provides lossless bidirectional transformation between PIE and QTI, with QTI ingest and QTI 2.2 export:
+The `pie-qti` ecosystem provides lossless bidirectional transformation between PIE and QTI, with QTI 2.1/2.2/3.0 ingest and QTI 2.2 or QTI 3.0 export:
 
 ```
 PIE Item/Assessment ←→ QTI Item/AssessmentTest
@@ -15,7 +15,7 @@ PIE Item/Assessment ←→ QTI Item/AssessmentTest
 - **Lossless Round-Trips**: Transform PIE → QTI → PIE with perfect preservation when the PIE source sidecar (QTI → PIE) or the embedded QTI source and config (PIE → QTI) is unchanged; best-effort semantic transformation otherwise
 - **Item-Level Support**: Transform individual questions/interactions
 - **Assessment-Level Support**: Transform multi-item tests with scoring logic
-- **17+ Interaction Types**: Complete coverage of PIE elements
+- **22 Interaction Extractors**: Broad coverage of standard QTI interaction types (pre-1.0; remaining conformance work is tracked in the [spec-gap plan](./SPEC-GAPS-PLAN.md))
 - **Adaptive Navigation**: Branch rules and conditional display
 - **External Resources**: Passages, images, and multimedia
 - **IMS Content Packages**: Generate distributable QTI packages
@@ -85,10 +85,10 @@ const qtiResult = await pieToQti.transform(
 );
 const qtiXml = qtiResult.items[0].content;
 
-// QTI → PIE (lossless round-trip)
+// QTI → PIE (lossless round-trip via the PIE source sidecar)
 const qtiToPie = new QtiToPiePlugin();
 const pieResult = await qtiToPie.transform(
-  { content: qtiXml },
+  { content: qtiXml, sidecar: qtiResult.items[0].sidecar },
   { logger: console }
 );
 const reconstructed = pieResult.items[0].content;
@@ -418,7 +418,7 @@ const original = createPieItem();
 const qtiResult = await pieToQti.transform({ content: original });
 const qtiXml = qtiResult.items[0].content;
 
-const pieResult = await qtiToPie.transform({ content: qtiXml });
+const pieResult = await qtiToPie.transform({ content: qtiXml, sidecar: qtiResult.items[0].sidecar });
 const reconstructed = pieResult.items[0].content;
 
 // Verify
@@ -442,8 +442,8 @@ const pieItem = {
   config: { models: [...] }
 };
 
-// Preserved in QTI as custom metadata fields
-// Round-trips perfectly back to PIE
+// Carried in the PIE source sidecar, and as IEEE LOM on the item's manifest resource in a package
+// Round-trips back to PIE
 ```
 
 ## Common Patterns
@@ -520,7 +520,7 @@ async function validateRoundTrip(pieItem: any): Promise<boolean> {
     const qtiXml = qtiResult.items[0].content;
 
     // QTI → PIE
-    const pieResult = await qtiToPie.transform({ content: qtiXml });
+    const pieResult = await qtiToPie.transform({ content: qtiXml, sidecar: qtiResult.items[0].sidecar });
     const reconstructed = pieResult.items[0].content;
 
     // Compare (deep equality)

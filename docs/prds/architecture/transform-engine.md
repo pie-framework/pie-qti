@@ -1,16 +1,16 @@
 # PRD: Transform Engine & Plugin System
 
 <!--
-  Status: draft
+  Status: current
   Type: architecture
   Packages: @pie-qti/transform-core, @pie-qti/transform-types
-  Last reviewed: 2026-04-27
+  Last reviewed: 2026-11-17
 -->
 
-**Status:** draft
+**Status:** current
 **Type:** architecture
 **Packages:** `@pie-qti/transform-core`, `@pie-qti/transform-types`
-**Last reviewed:** 2026-04-27
+**Last reviewed:** 2026-11-17
 
 ---
 
@@ -106,7 +106,7 @@ The framework grew from a need to move content bidirectionally between the PIE a
 
 **Decision:** `TransformContext.storage` is typed as `any` rather than `StorageBackend`.
 **Rationale:** `TransformContext` lives in `@pie-qti/transform-types`. `StorageBackend` lives in the same package under `/storage`. To avoid a compile-time circular dependency between the transform and storage type modules while keeping them in the same package, the field is typed as `any` with a comment explaining the intended type.
-**Consequences:** Plugin authors accessing `context.storage` must cast to `StorageBackend` themselves. This should be fixed by either extracting `StorageBackend` to a separate package or restructuring the type exports — tracked as a known rough edge.
+**Consequences:** Plugin authors accessing `context.storage` must cast to `StorageBackend` themselves. The `any` typing stays deliberately: the standalone `@pie-qti/storage` package was deleted (it had no consumers) and `StorageBackend` remains in this package (`packages/types/src/storage/index.ts`) beside `TransformContext` by design.
 
 ---
 
@@ -230,8 +230,10 @@ AC-E4: Batch transform default concurrency is 5
 
 ## Open questions
 
-- [ ] Should `PluginRegistry.findPlugin` implement a full `canHandle` cascade as documented in `TRANSFORMATION-ENGINE.md`, or is the current static-priority behavior (return first by priority, no cascade) the intended long-term design? The documentation and implementation diverge — one of them must be updated.
-- [ ] `TransformContext.storage` typed as `any` should be resolved. Preferred fix: move `StorageBackend` to its own package (`@pie-qti/storage-types`) so both `transform-types` and downstream can depend on it without circularity.
+- [x] Should `PluginRegistry.findPlugin` implement a full `canHandle` cascade as documented in `TRANSFORMATION-ENGINE.md`, or is the current static-priority behavior (return first by priority, no cascade) the intended long-term design? The documentation and implementation diverge — one of them must be updated.
+  Resolved (2026-11-17): the implementation is the intended design — selection is the format pair filtered by priority (first wins), and `canHandle()` is a consumer-facing contract (`findCompatiblePlugins`), never consulted by the engine path. Both `TRANSFORMATION-ENGINE.md` and `VENDOR-TRANSFORM-PLUGIN-GUIDE.md` were rewritten to document this, with the vendor-content guidance moved to the vendor hooks (which do run per input).
+- [x] `TransformContext.storage` typed as `any` should be resolved. Preferred fix: move `StorageBackend` to its own package (`@pie-qti/storage-types`) so both `transform-types` and downstream can depend on it without circularity.
+  Resolved (2026-11-17): overtaken — the standalone `@pie-qti/storage` package was deleted (it had no consumers) and `StorageBackend` deliberately stays in `@pie-qti/transform-types` (`packages/types/src/storage/index.ts`) alongside `TransformContext`, so the same-package `any` typing stands; plugin authors still cast `context.storage` to `StorageBackend`.
 - [ ] `InMemoryOrchestrator.sleep()` uses `setTimeout`, which is not deterministic in Temporal-style workflow engines. If this code is ever ported to Temporal, `sleep` must be replaced with `workflow.sleep`. Add a code comment.
 
 ---
@@ -240,5 +242,5 @@ AC-E4: Batch transform default concurrency is 5
 
 - QTI spec: http://www.imsglobal.org/question/qtiv2p2/imsqti_v2p2.html
 - Implementation: `packages/core/src/`, `packages/types/src/`
-- Adjacent PRDs: `architecture/qti-to-pie.md`, `architecture/pie-to-qti.md`, `architecture/storage.md`
+- Adjacent PRDs: `architecture/qti-to-pie.md`, `architecture/pie-to-qti.md`
 - Existing docs: `docs/TRANSFORMATION-ENGINE.md`, `docs/PIE-QTI-TRANSFORMATION-GUIDE.md`, `docs/VENDOR-TRANSFORM-PLUGIN-GUIDE.md`

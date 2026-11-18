@@ -18,17 +18,17 @@ Comprehensive guide to the PIE-QTI transformation framework architecture, plugin
 
 ## Overview
 
-The PIE-QTI transformation framework provides a flexible, plugin-based architecture for bidirectional content transformation between assessment formats: QTI → PIE ingest and PIE → QTI 2.2 export.
+The PIE-QTI transformation framework provides a flexible, plugin-based architecture for bidirectional content transformation between assessment formats: QTI → PIE ingest and PIE → QTI 2.2 or QTI 3.0 export (3.0 via `targetVersion: '3.0'`).
 
 ### Key Features
 
 - **Plugin-Based Architecture** — Extensible through custom plugins
 - **Priority-Based Selection** — Vendor plugins override default transformers
 - **Format Agnostic** — Support for multiple source and target formats
-- **Asset Resolution** — Handle vendor-specific asset URLs and CDN integration
+- **Asset Resolution contract** — an `AssetResolver` hook hosts can drive for vendor-specific asset URLs and CDN integration (asset URLs themselves pass through the transform as authored)
 - **Vendor Extensions** — Custom transformers for proprietary QTI extensions
 - **Source Profiles** — Scored, traceable detection of real-world QTI sources with composable item handlers, decorators, fallback policy, package sidecars, and structured conversion trace (see [SOURCE-PROFILES.md](SOURCE-PROFILES.md))
-- **Storage Abstraction** — Pluggable storage backends (filesystem, S3, database)
+- **Storage Abstraction** — The `StorageBackend` contract (`@pie-qti/transform-types`) is host-implemented: optional for single transforms, required for batch. No concrete backends ship in this repository.
 
 ### Architecture Diagram
 
@@ -40,7 +40,7 @@ The diagram illustrates:
 - **Plugin Registry** — Priority-based plugin management
 - **Transform Plugins** — Format-specific transformers (QTI→PIE, PIE→QTI)
 - **Vendor Extensions** — Custom plugins for vendor-specific content
-- **Storage Backends** — Abstraction for file storage (local, S3, etc.)
+- **Storage Backends** — The `StorageBackend` contract, implemented by the embedding application
 
 For the dedicated QTI → PIE extension surface introduced for real-world third-party imports (source profiles, item handlers, decorators, fallback policy, package sidecars, conversion trace), see the diagram in [SOURCE-PROFILES.md](SOURCE-PROFILES.md).
 
@@ -89,9 +89,10 @@ For the dedicated QTI → PIE extension surface introduced for real-world third-
 │  ┌──────────────────────────────────────────────────────┐  │
 │  │          Storage Abstraction                         │  │
 │  │                                                       │  │
-│  │  - Filesystem backend                                │  │
-│  │  - S3 backend                                        │  │
-│  │  - Database backend                                  │  │
+│  │  StorageBackend contract (@pie-qti/transform-types)  │  │
+│  │  - Host-implemented backends                         │  │
+│  │  - Optional for single transforms                    │  │
+│  │  - Required for batch transforms                     │  │
 │  └──────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -129,26 +130,26 @@ class TransformEngine {
 - Select best plugin for format pair
 - Handle plugin conflicts and overrides
 
-**Selection Algorithm:**
+**Selection Algorithm** (`PluginRegistry.findPlugin`):
 ```typescript
-// Plugins sorted by priority (descending)
-// First plugin where canHandle() returns true wins
+// Filter by the exact format pair, sort by priority (descending), first wins.
+// canHandle() is NOT consulted — selection is priority-based on the pair alone.
 const candidates = plugins
   .filter(p => p.sourceFormat === source && p.targetFormat === target)
   .sort((a, b) => (b.priority ?? 100) - (a.priority ?? 100));
 
-for (const plugin of candidates) {
-  if (await plugin.canHandle(input)) {
-    return plugin;
-  }
-}
+return candidates[0];
 ```
+
+`canHandle()` exists on the plugin contract for your own consumers and tests
+(`PluginRegistry.findCompatiblePlugins` calls it) — the engine's transform
+path never does. Registration throws on duplicate plugin `id`s.
 
 #### Transform Plugins
 
 **Packages:**
 - `@pie-qti/to-pie` — QTI → PIE
-- `@pie-qti/pie-to-qti2` — PIE → QTI 2.2
+- `@pie-qti/pie-to-qti2` — PIE → QTI 2.2 (default) or QTI 3.0 via `targetVersion: '3.0'`
 - Vendor-specific plugins (custom)
 
 **Interface:**
@@ -167,10 +168,10 @@ interface TransformPlugin {
 ```
 
 **Responsibilities:**
-- Detect if content can be handled
-- Perform format transformation
-- Report errors and warnings
-- Return transformed content with metadata
+- Declare the formats it transforms (`sourceFormat` → `targetFormat`) and its priority
+- Perform the format transformation
+- Report errors and warnings through the `TransformOutput` contract
+- Optionally offer `canHandle()` for consumers/tests and `initialize`/`validate`/`dispose` lifecycle hooks
 
 ---
 
@@ -180,50 +181,31 @@ interface TransformPlugin {
 
 ```mermaid
 graph TD
-    A[Registration] --> B[Format Detection]
-    B --> C[Plugin Selection]
-    C --> D{canHandle?}
-    D -->|Yes| E[Execute Transform]
-    D -->|No| F[Try Next Plugin]
-    F --> D
-    E --> G[Return Result]
+    A[Registration via engine.use] --> B[Format Detection]
+    B --> C[Plugin Selection: highest priority for the format pair]
+    C --> D["plugin.initialize? if present"]
+    D --> E[Execute transform]
+    E --> G[Return WorkflowHandle]
 ```
 
 ### Plugin Priority
 
-Plugins are selected based on priority when multiple plugins support the same format pair:
+When multiple plugins are registered for the same `(sourceFormat, targetFormat)` pair, the
+**highest-priority** plugin is selected — unconditionally, for every input on that pair:
 
 | Priority Range | Purpose | Example Use Case |
 |----------------|---------|------------------|
 | 1-99 | Low priority | Fallback implementations |
 | 100-499 | Normal priority | Default framework plugins |
-| 500-999 | High priority | **Vendor-specific overrides** |
+| 500-999 | High priority | Vendor-specific overrides |
 | 1000+ | Critical priority | Framework internals |
 
-**Example:**
-
-```typescript
-// Default QTI plugin (priority: 100)
-export class QtiToPiePlugin implements TransformPlugin {
-  readonly priority = 100;
-  // Handles all standard QTI content
-}
-
-// Vendor plugin (priority: 500)
-export class VendorAcmePlugin implements TransformPlugin {
-  readonly priority = 500;
-  // Handles ACME-specific QTI extensions
-
-  async canHandle(input: TransformInput): Promise<boolean> {
-    return input.content.includes('xmlns:acme=');
-  }
-}
-```
-
-When both plugins are registered:
-1. Engine checks VendorAcmePlugin first (higher priority)
-2. If `canHandle()` returns true, uses VendorAcmePlugin
-3. Otherwise, falls back to QtiToPiePlugin
+A wrapper plugin registered at priority 500 for `qti22` → `pie` therefore takes
+over **all** `qti22` → `pie` traffic — there is no per-input fallback to the
+lower-priority plugin. Build any "is this my vendor's content?" decision inside
+`transform()` (delegate to `QtiToPiePlugin` for content you don't handle), or
+better, use the [vendor hooks](VENDOR-TRANSFORM-PLUGIN-GUIDE.md) instead of a
+wrapper plugin for vendor content on a supported pair.
 
 ### Plugin Registration
 
@@ -295,35 +277,63 @@ export function createEngine(): TransformEngine {
 ```typescript
 interface TransformInput {
   content: string | object;           // QTI XML string or PIE object
-  format?: TransformFormat;           // Optional format hint
-  metadata?: Record<string, unknown>; // Additional metadata
+  format?: TransformFormat;           // Optional format hint (auto-detected if absent)
+  metadata?: Record<string, any>;     // Additional metadata (hosts may hint the vendor here)
+  sidecar?: unknown;                  // PIE source sidecar for lossless round-trip
 }
 
 interface TransformContext {
-  logger?: Logger;
+  logger?: ServerLogger;
+  vendor?: string;                    // Vendor hint from TransformOptions
+  options?: Record<string, any>;      // The TransformOptions the engine was called with
   storage?: StorageBackend;
-  config?: Record<string, unknown>;
-  credentials?: Record<string, string>;
+  sessionId?: string;
+  userId?: string;
+  metadata?: Record<string, unknown>;
 }
 ```
 
 ### Output Structure
 
+Two shapes matter, at two levels:
+
+**Plugin-level** — what `plugin.transform()` returns and what
+`expectSuccessfulTransform` asserts:
+
 ```typescript
 interface TransformOutput {
   items: TransformOutputItem[];      // Transformed items
   format: TransformFormat;            // Output format
-  metadata: TransformMetadata;        // Transform metadata
-  warnings?: TransformWarning[];      // Non-fatal issues
-  errors?: TransformError[];          // Fatal errors
-  passageFiles?: PassageFile[];       // External passages (PIE→QTI)
-  manifest?: string;                  // IMS manifest (PIE→QTI)
+  metadata: TransformMetadata;        // sourceFormat, targetFormat, pluginId,
+                                      // timestamp, itemCount, processingTime,
+                                      // + optional qtiVersion, conversionTrace,
+                                      // sourceProfiles, sourceDiagnostics
+  warnings?: TransformWarning[];
+  errors?: TransformError[];
 }
 
 interface TransformOutputItem {
   content: any;                       // Transformed content
   format: TransformFormat;            // Item format
+  sidecar?: PieSourceSidecar;         // `<item>.pie.json` round-trip data
 }
+```
+
+The PIE → QTI plugin additionally attaches `passageFiles` and, when package
+generation is requested, a `manifest` onto its results — those are
+`@pie-qti/pie-to-qti2` additions, not part of the shared `TransformOutput`
+contract.
+
+**Engine-level** — what `engine.transform(...)` resolves to via the
+`WorkflowHandle`:
+
+```typescript
+const handle = await engine.transform(input, { targetFormat: 'pie' });
+const result = await handle.result();
+// result: TransformItemOutput = { pieConfig, warnings, errors, metadata }
+//   pieConfig — the transformed content
+//   errors    — string[] (messages)
+//   metadata  — TransformMetadata plus itemId and vendorDetected?
 ```
 
 ### Error Handling
@@ -344,30 +354,24 @@ interface TransformError {
   code?: string;
   category: ErrorCategory;
   recoverable: boolean;               // Can retry?
-  fatal: boolean;                     // Stop entire transform?
   cause?: Error;
   context?: Record<string, unknown>;
 }
 ```
 
-**Usage Example:**
+At the engine level, `result.errors` is a plain `string[]`; the categorized
+`TransformError` objects live on the plugin-level `TransformOutput`:
 
 ```typescript
 try {
   const handle = await engine.transform(input, { targetFormat: 'pie' });
   const result = await handle.result();
 
-  if (result.errors && result.errors.length > 0) {
-    const fatal = result.errors.filter(e => e.fatal);
-    if (fatal.length > 0) {
-      throw new Error(`Fatal errors: ${fatal.map(e => e.message).join(', ')}`);
-    }
-
-    // Log non-fatal errors
-    result.errors.forEach(e => console.warn(e.message));
+  if (result.errors.length > 0) {
+    throw new Error(`Transform failed: ${result.errors.join(', ')}`);
   }
 
-  return result;
+  return result.pieConfig;
 } catch (error) {
   // Handle transform failure
 }
@@ -381,26 +385,30 @@ The transformation framework provides multiple extensibility points for custom b
 
 ### 1. Custom Transform Plugins
 
-Create plugins for new format pairs or vendor-specific content.
+Create plugins for **new format pairs** — an independent source format, or a new export target.
 
 **Use Cases:**
-- Support new assessment formats (e.g., Moodle XML)
-- Handle vendor-specific QTI extensions
+- Support new assessment formats (e.g., Moodle XML → PIE)
 - Implement specialized transformations
+
+> For vendor-specific handling of QTI content, use the vendor hooks instead
+> (below and in the [Vendor Plugin Guide](VENDOR-TRANSFORM-PLUGIN-GUIDE.md)) — a
+> wrapper plugin registered on a supported pair takes over that pair entirely.
 
 **Example:**
 
 ```typescript
-export class CustomFormatPlugin implements TransformPlugin {
-  readonly id = 'custom-format-to-pie';
-  readonly sourceFormat = 'custom' as TransformFormat;
+export class MoodleXmlPlugin implements TransformPlugin {
+  readonly id = 'moodle-xml-to-pie';
+  readonly sourceFormat = 'moodle-xml' as TransformFormat;
   readonly targetFormat = 'pie' as TransformFormat;
-  readonly priority = 500;
+  readonly priority = 100;
 
+  // canHandle is for your own consumers/tests — the engine selects this plugin
+  // for the pair above regardless of it.
   async canHandle(input: TransformInput): Promise<boolean> {
-    // Detect custom format
     return typeof input.content === 'string' &&
-           input.content.startsWith('<?xml version="1.0"?>');
+           input.content.includes('<quiz>');
   }
 
   async transform(input: TransformInput, context: TransformContext): Promise<TransformOutput> {
@@ -409,68 +417,63 @@ export class CustomFormatPlugin implements TransformPlugin {
 }
 ```
 
-### 2. Custom Transformers
+### 2. Vendor Transformers (within the QTI → PIE plugin)
 
-Extend transformation logic within a plugin for specific content types.
-
-**Use Cases:**
-- Handle custom interaction types
-- Transform proprietary response processing
-- Map vendor-specific elements
-
-**Example:**
+For vendor-specific content on the QTI → PIE pair, `QtiToPiePlugin` accepts a
+`VendorTransformer` hook — a whole-item replacement that runs only when a
+`VendorDetector` matched the vendor, with automatic fallback to the standard
+pipeline if it throws:
 
 ```typescript
-export interface ContentTransformer<TInput, TOutput> {
-  canTransform(input: TInput): boolean;
-  transform(input: TInput): TOutput;
-}
+import type { VendorTransformer } from '@pie-qti/transform-types';
 
-export class AcmeInteractionTransformer implements ContentTransformer<any, any> {
-  canTransform(input: any): boolean {
-    return input.type === 'customInteraction' &&
-           input.attributes?.['data-vendor'] === 'acme';
+export class AcmeSliderTransformer implements VendorTransformer {
+  vendor = 'acme';
+
+  canHandle(qtiXml: string, vendorInfo: VendorInfo, parsedDoc: HTMLElement): boolean {
+    return parsedDoc.querySelectorAll('sliderInteraction').length > 0;
   }
 
-  transform(input: any): any {
-    // Map ACME interaction to PIE element
-    return {
-      element: '@pie-element/drag-and-drop',
-      mode: 'sequence',
-      // ... transformed properties
-    };
+  async transform(qtiXml: string, vendorInfo: VendorInfo, context: TransformContext,
+                  parsedDoc: HTMLElement): Promise<TransformOutput> {
+    // Map the vendor interaction to a PIE model
   }
 }
 ```
+
+Registration, the other four hooks (detector, CSS-class extractor, metadata
+extractor, asset resolver), and the per-item firing order are in the
+[Vendor Plugin Guide](VENDOR-TRANSFORM-PLUGIN-GUIDE.md);
+`packages/demo-vendor-extensions/` is the reference implementation.
 
 ### 3. Asset Resolvers
 
-Resolve vendor-specific asset URLs to accessible locations.
-
-**Use Cases:**
-- Resolve CDN URLs
-- Generate presigned S3 URLs
-- Proxy protected assets
-
-**Example:**
+The `AssetResolver` contract resolves vendor-specific asset URLs to
+accessible locations:
 
 ```typescript
-export interface AssetResolver {
-  canResolve(url: string): boolean;
-  resolve(url: string, context?: AssetContext): Promise<string>;
-}
+import type { AssetResolver, ResolvedAsset } from '@pie-qti/transform-types';
 
 export class AcmeCDNResolver implements AssetResolver {
-  canResolve(url: string): boolean {
-    return url.startsWith('acme://') || url.startsWith('acme-cdn://');
+  name = 'acme-cdn';
+
+  canResolve(assetType: string, assetUrl: string): boolean {
+    return assetUrl.startsWith('acme://') || assetUrl.startsWith('acme-cdn://');
   }
 
-  async resolve(url: string, context?: AssetContext): Promise<string> {
-    const path = url.replace(/^acme(-cdn)?:\/\//, '');
-    return `https://cdn.acme.com/assets/${path}`;
+  async resolve(assetType: string, assetUrl: string, baseDir: string): Promise<ResolvedAsset> {
+    const path = assetUrl.replace(/^acme(-cdn)?:\/\//, '');
+    return { url: `https://cdn.acme.com/assets/${path}` };
   }
 }
 ```
+
+**The pipeline does not call resolvers on its own** — asset URLs pass through
+the transform as authored (a stylesheet `href` lands in
+`config.resources.stylesheets[]` exactly as received). Drive resolution
+yourself with `resolveAssetWithHooks` from `@pie-qti/to-pie`, or rewrite URLs
+to durable references before transforming. See the
+[Vendor Plugin Guide](VENDOR-TRANSFORM-PLUGIN-GUIDE.md) for both patterns.
 
 ### 4. Source Profiles (preferred for QTI → PIE imports)
 
@@ -510,29 +513,38 @@ See [SOURCE-PROFILES.md](SOURCE-PROFILES.md) for the full authoring reference (d
 
 ### 5. Storage Backends
 
-Implement custom storage for packages and transformed content.
+Batch transforms require a storage backend; single transforms work without one.
+No concrete backends ship in this repository — hosts implement the
+`StorageBackend` contract from `@pie-qti/transform-types`
+(`packages/types/src/storage/index.ts`: `readText`/`writeText`,
+`readBuffer`/`writeBuffer`, `write`, streaming operations, `exists`, `list`,
+`delete`, plus optional batch and directory helpers) and pass it to
+`new TransformEngine(orchestrator, storage)`.
 
 **Use Cases:**
 - Enterprise storage systems
 - Cloud storage providers
 - Database storage
 
-**Example:**
+**Example (host-implemented):**
 
 ```typescript
-export interface StorageBackend {
-  read(path: string): Promise<Buffer>;
-  write(path: string, data: Buffer): Promise<void>;
-  exists(path: string): Promise<boolean>;
-  list(path: string): Promise<string[]>;
-}
+import type { StorageBackend } from '@pie-qti/transform-types';
 
 export class DatabaseStorageBackend implements StorageBackend {
-  async read(path: string): Promise<Buffer> {
-    const record = await db.files.findOne({ path });
-    return Buffer.from(record.content);
+  readonly name = 'database';
+
+  async initialize(): Promise<void> { /* connect */ }
+
+  async readText(uri: string): Promise<string> {
+    const record = await db.files.findOne({ uri });
+    return record.content.toString('utf-8');
   }
-  // ... other methods
+
+  async writeText(uri: string, content: string): Promise<void> {
+    await db.files.updateOne({ uri }, { content }, { upsert: true });
+  }
+  // ... implement the remaining required members
 }
 ```
 
@@ -649,22 +661,21 @@ Plugin and vendor-extension support is a package-level contract. Production host
 
 ### Storage Integration
 
-Hosts can use configurable storage backends, for example:
+Storage is a host concern: the `storage` key in the transform config only
+records the backend name the host should act on (see [CONFIGURATION.md](CONFIGURATION.md)).
+The host implements `StorageBackend` from `@pie-qti/transform-types` and wires it
+into the engine:
 
 ```typescript
-export function createStorageBackend(config: StorageConfig): StorageBackend {
-  switch (config.type) {
-    case 'filesystem':
-      return new FilesystemBackend(config.path);
-    case 's3':
-      return new S3Backend(config.bucket, config.credentials);
-    case 'database':
-      return new DatabaseBackend(config.connectionString);
-    default:
-      throw new Error(`Unknown storage type: ${config.type}`);
-  }
-}
+import { TransformEngine } from '@pie-qti/transform-core';
+import { MyHostStorageBackend } from './my-storage-backend';
+
+const storage = new MyHostStorageBackend(hostConfig.storage.options);
+const engine = new TransformEngine(undefined, storage);
 ```
+
+A reference in-memory mock exists for tests in `@pie-qti/test-utils`
+(`packages/test-utils/src/mocks/storage.ts`).
 
 ---
 
@@ -738,39 +749,41 @@ Config files register plugins per format pair and configure storage, custom dete
    - Vendor overrides: 500-699
    - Special cases: 700-999
 
-2. **Implement Robust Detection**
-   ```typescript
-   async canHandle(input: TransformInput): Promise<boolean> {
-     // Check multiple signals
-     // Be specific to avoid false positives
-     // Return false on any doubt
-   }
-   ```
+2. **Detect Vendors with Graded Confidence**
+   For vendor detection (the `VendorDetector` hook), check multiple signals
+   and scale `confidence` with how many matched — detections below 0.6 are
+   ignored by the pipeline, so be specific to avoid false positives.
 
 3. **Handle Errors Gracefully**
    ```typescript
    try {
-     return await this.transform(input);
+     return await this.transform(input, context);
    } catch (error) {
      return {
        items: [],
+       format: this.targetFormat,
+       metadata: { /* required TransformMetadata fields */ },
        errors: [{
+         message: error instanceof Error ? error.message : 'Unknown error',
          category: ErrorCategory.INTERNAL,
-         message: error.message,
-         fatal: true,
+         recoverable: false,
        }],
      };
    }
    ```
 
-4. **Preserve Metadata**
+4. **Fill In the Full Metadata**
+   `TransformMetadata` requires `sourceFormat`, `targetFormat`, `pluginId`,
+   `timestamp`, `itemCount`, and `processingTime` — hosts and the batch
+   pipeline rely on all of them:
    ```typescript
    result.metadata = {
      sourceFormat: this.sourceFormat,
      targetFormat: this.targetFormat,
      pluginId: this.id,
-     vendor: this.vendorId,
      timestamp: new Date(),
+     itemCount: result.items.length,
+     processingTime: Date.now() - startTime,
    };
    ```
 
@@ -786,33 +799,25 @@ Config files register plugins per format pair and configure storage, custom dete
 
 ### Asset Resolution
 
-1. **Use Resolver Chain**
+1. **Use Resolver Chains via the Real Contract**
    ```typescript
-   private resolvers = [
-     new CDNResolver(),
-     new S3Resolver(),
-     new LocalResolver(),
-   ];
+   import { resolveAssetWithHooks } from '@pie-qti/to-pie';
 
-   async resolveAsset(url: string): Promise<string> {
-     for (const resolver of this.resolvers) {
-       if (resolver.canResolve(url)) {
-         return await resolver.resolve(url);
-       }
-     }
-     return url; // Fallback to original
-   }
+   // AssetResolvers: canResolve(assetType, assetUrl) → resolve(assetType, assetUrl, baseDir)
+   const resolved = await resolveAssetWithHooks(resolvers, 'image', url, baseDir);
    ```
+   The transform pipeline does not invoke resolvers itself — call the helper
+   from host code (before or after transforming), or rewrite URLs to durable
+   references before the transform.
 
 2. **Cache Resolved URLs**
    ```typescript
-   private cache = new Map<string, string>();
+   private cache = new Map<string, ResolvedAsset>();
 
-   async resolveAsset(url: string): Promise<string> {
-     if (this.cache.has(url)) {
-       return this.cache.get(url)!;
-     }
-     const resolved = await this.doResolve(url);
+   async resolveAsset(resolvers: AssetResolver[], type: string, url: string): Promise<ResolvedAsset> {
+     const cached = this.cache.get(url);
+     if (cached) return cached;
+     const resolved = await resolveAssetWithHooks(resolvers, type, url, this.baseDir);
      this.cache.set(url, resolved);
      return resolved;
    }
@@ -822,9 +827,15 @@ Config files register plugins per format pair and configure storage, custom dete
 
 1. **Batch Operations**
    ```typescript
-   async transformBatch(inputs: TransformInput[]): Promise<TransformOutput[]> {
-     return Promise.all(inputs.map(i => this.transform(i)));
-   }
+   // Requires a storage backend: new TransformEngine(orchestrator, storage)
+   const handle = await engine.transformBatch(inputs, {
+     sourceFormat: 'qti22',
+     targetFormat: 'pie',
+     parallel: 5, // Process 5 items concurrently
+   });
+
+   const result = await handle.result();
+   console.log(`${result.successful.length} succeeded, ${result.failed.length} failed`);
    ```
 
 2. **Lazy Initialization**
@@ -839,12 +850,12 @@ Config files register plugins per format pair and configure storage, custom dete
    }
    ```
 
-3. **Stream Large Files**
-   ```typescript
-   async transformStream(input: ReadStream): Promise<WriteStream> {
-     // Use streaming for large QTI packages
-   }
-   ```
+3. **Large Packages**
+   The engine has no streaming transform API; the `StorageBackend` contract
+   carries the streaming members (`createReadStream`/`createWriteStream`) for
+   host-side storage of large content. For big imports, transform per item via
+   `transformBatch` and persist through the backend rather than holding a whole
+   package in memory.
 
 ---
 

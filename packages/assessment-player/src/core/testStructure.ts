@@ -157,20 +157,18 @@ export function deliveredItems(assessment: SecureAssessment): DeliveredItem[] {
  * receives any condition evaluation failure (see `evaluateTestCondition`).
  */
 export function nextItemIdentifier(
-	assessment: SecureAssessment,
 	delivered: DeliveredItem[],
 	index: number,
 	decls: DeclarationMap,
 	rng: () => number,
 	onError?: (expressionXml: string, error: unknown) => void,
 ): string | undefined {
-	const start = branchTarget(assessment, delivered, index, decls, rng, onError) ?? index + 1;
-	const next = firstEligibleItem(assessment, delivered, start, delivered[index], decls, rng, onError);
+	const start = branchTarget(delivered, index, decls, rng, onError) ?? index + 1;
+	const next = firstEligibleItem(delivered, start, delivered[index], decls, rng, onError);
 	return next ?? (index + 1 < delivered.length ? 'EXIT_TEST' : undefined);
 }
 
 function branchTarget(
-	assessment: SecureAssessment,
 	delivered: DeliveredItem[],
 	index: number,
 	decls: DeclarationMap,
@@ -179,7 +177,7 @@ function branchTarget(
 ): number | undefined {
 	const current = delivered[index]!;
 	const following = delivered[index + 1];
-	const linear = isLinear(assessment, current.testPart);
+	const linear = current.testPart.navigationMode === 'linear';
 	const holders: Array<{ rules?: SecureBranchRule[]; exitSection?: SecureSection }> = [];
 	if (linear) {
 		holders.push({ rules: current.item.branchRule, exitSection: current.sections[current.sections.length - 1] });
@@ -265,7 +263,6 @@ function resolveBranchTarget(
  * condition evaluation failure (see `evaluateTestCondition`).
  */
 export function firstEligibleItem(
-	assessment: SecureAssessment,
 	delivered: DeliveredItem[],
 	start: number,
 	from: DeliveredItem | undefined,
@@ -288,7 +285,7 @@ export function firstEligibleItem(
 			j = skipPast(j, (d) => d.testPart === candidate.testPart);
 			continue;
 		}
-		if (isLinear(assessment, candidate.testPart)) {
+		if (candidate.testPart.navigationMode === 'linear') {
 			for (const section of candidate.sections) {
 				if (previous?.sections.includes(section) || holds(section.preConditions)) continue;
 				j = skipPast(j, (d) => d.sections.includes(section));
@@ -304,9 +301,6 @@ export function firstEligibleItem(
 	return undefined;
 }
 
-function isLinear(assessment: SecureAssessment, testPart: SecureTestPart): boolean {
-	return (testPart.navigationMode ?? assessment.navigationMode) === 'linear';
-}
 
 /**
  * Draws selection and ordering for one session. Required children are always selected; selected

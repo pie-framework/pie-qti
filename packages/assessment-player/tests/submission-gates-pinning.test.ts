@@ -34,8 +34,6 @@ async function fixture(options: {
 	const assessment: SecureAssessment = {
 		identifier: 'submission-gates',
 		title: 'Submission gates',
-		navigationMode: 'nonlinear',
-		submissionMode: 'individual',
 		testParts: [
 			{
 				identifier: 'part-1',

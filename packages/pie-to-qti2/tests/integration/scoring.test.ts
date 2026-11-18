@@ -5,11 +5,14 @@
  * declarations and processing rather than their text.
  */
 
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, setDefaultTimeout, test } from 'bun:test';
 import { createAssessmentItemDefinition } from '@pie-qti/item-player/server';
 import { validateQti } from '@pie-qti/to-pie';
 import type { PieItem } from '@pie-qti/transform-types';
 import { PieToQtiPlugin } from '../../src/plugin.js';
+
+// A QTI 2.2 schema compile takes seconds, several times that on a loaded CI runner.
+setDefaultTimeout(120_000);
 
 const plugin = new PieToQtiPlugin();
 const logger = { debug() {}, info() {}, warn() {}, error() {} };

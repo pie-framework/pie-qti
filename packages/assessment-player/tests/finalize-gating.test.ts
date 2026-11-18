@@ -65,8 +65,6 @@ async function fixture(options: FixtureOptions = {}) {
 	const assessment: SecureAssessment = {
 		identifier: 'finalize-gating',
 		title: 'Finalize gating',
-		navigationMode,
-		submissionMode,
 		...(options.timeLimits ? { timeLimits: options.timeLimits } : {}),
 		testParts: [
 			{

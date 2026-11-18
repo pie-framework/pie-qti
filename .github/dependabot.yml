@@ -45,6 +45,11 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      # The @pie-players packages publish as one set and pin each other exactly, so bumping one
+      # alone installs a second copy of pie-players-shared beside the rest.
+      pie-players:
+        patterns:
+          - "@pie-players/*"
       # Group testing dependencies
       test-dependencies:
         patterns:

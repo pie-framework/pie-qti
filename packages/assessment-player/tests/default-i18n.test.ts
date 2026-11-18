@@ -6,11 +6,11 @@ import { ReferenceBackendAdapter } from '../src/integration/ReferenceBackendAdap
 const ASSESSMENT = {
 	identifier: 'default-i18n',
 	title: 'Default i18n fixture',
-	navigationMode: 'nonlinear',
-	submissionMode: 'individual',
 	testParts: [
 		{
 			identifier: 'part-1',
+			navigationMode: 'nonlinear',
+			submissionMode: 'individual',
 			sections: [
 				{
 					identifier: 'section-1',

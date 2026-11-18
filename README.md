@@ -9,18 +9,18 @@
 This project provides two major capabilities:
 
 1. **QTI 2.1, 2.2 & 3.0 Players** — Standards-oriented item and assessment players with a shared version-normalization architecture
-2. **PIE ↔ QTI Transformation Framework** — Bidirectional transforms between QTI and PIE, with CLI, web app, and IMS Content Package support
+2. **PIE ↔ QTI Transformation Framework** — Bidirectional transforms between QTI and PIE, with CLI and IMS Content Package support
 
 📚 **[Live Examples](https://qti.pie-framework.org/examples/)**
 
 ![QTI Player Examples](docs/images/examples-screenshot-1.png)
 
-> **Project Status**: The players have broad clean-room coverage but are not yet fully conformant or certified. Several delivery blockers are tracked in [SPEC-GAPS-PLAN.md](docs/SPEC-GAPS-PLAN.md). The transform framework is under active development. See [STATUS.md](STATUS.md) for details.
+> **Project Status**: The players have broad clean-room coverage and every gap in [SPEC-GAPS-PLAN.md](docs/SPEC-GAPS-PLAN.md) is closed, but they are not certified: the official-suite evidence on record is from the `0.1.21` candidate and is refreshed against the next published beta. The transform framework is under active development. See [STATUS.md](STATUS.md) for details.
 
 ---
 
 > [!WARNING]
-> This project is on the 1.0.0-beta line: APIs may still change, formal QTI certification is still in progress, and the current review found conformance and security blockers for arbitrary untrusted/high-stakes delivery. Evaluate the documented gaps for your content profile, use a backend-authoritative assessment integration, and contact the maintainers before adopting it for a non-trivial production system.
+> This project is on the 1.0.0-beta line: APIs may still change and formal QTI certification is still in progress. Evaluate the documented delivery limits for your content profile, use a backend-authoritative assessment integration, and contact the maintainers before adopting it for a non-trivial production system.
 
 ---
 
@@ -114,7 +114,7 @@ See [`@pie-qti/i18n`](packages/i18n/) for the complete i18n API and [custom tran
 
 > **Status**: Under active development
 
-Bidirectional transformation between QTI XML and PIE JSON: QTI → PIE ingest, plus PIE → QTI 2.2 export.
+Bidirectional transformation between QTI XML and PIE JSON: QTI → PIE ingest, plus PIE → QTI 2.2 and QTI 3.0 export.
 
 ### Architecture Overview
 
@@ -144,7 +144,7 @@ See [Transformation Engine Documentation](docs/TRANSFORMATION-ENGINE.md) for com
 - Lossless reconstruction when PIE contains embedded QTI and its config is unchanged
 - Generator registry for custom PIE model handling
 - IMS Content Package generation (`imsmanifest.xml`)
-- Output validates against the QTI 2.2 XSD and carries response processing ([status](packages/pie-to-qti2/docs/QTI-COMPLIANCE.md#conformance-status))
+- Output validates against the QTI 2.2 XSD, or the QTI 3.0 schemas with `targetVersion: '3.0'`, and carries response processing ([status](packages/pie-to-qti2/docs/QTI-COMPLIANCE.md#conformance-status))
 
 ### Extension Points
 
@@ -152,7 +152,7 @@ The transform pipeline is extensible at the package level. Production import wor
 
 - **Transform Plugins** — Add support for custom formats or vendor-specific QTI variants
 - **Vendor Extensions** — Customize transformation behavior (detectors, transformers, asset resolvers)
-- **Storage Backends** — Choose filesystem, S3, database, or implement custom storage
+- **Storage Backends** — Implement the `StorageBackend` contract from `@pie-qti/transform-types`; no backend implementations ship in this repository
 
 ### CLI (`@pie-qti/transform-cli`)
 

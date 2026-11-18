@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/test-utils",
-  "version": "1.0.0-beta.5",
+  "version": "1.0.0-beta.6",
   "description": "Shared test utilities for PIE-QTI packages",
   "type": "module",
   "main": "./dist/index.js",
@@ -24,8 +24,8 @@
   },
   "devDependencies": {
     "@types/bun": "^1.4.4",
-    "node-html-parser": "^9.0.5",
-    "typescript": "^5.9.3"
+    "node-html-parser": "^9.0.7",
+    "typescript": "^6.0.3"
   },
   "license": "MIT",
   "repository": {

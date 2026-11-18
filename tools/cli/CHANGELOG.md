@@ -1,5 +1,18 @@
 # @pie-qti/transform-cli
 
+## 1.0.0-beta.6
+
+### Patch Changes
+
+- c34df8a: Breaking: `batch-transform` no longer accepts the no-op `--load-passage-content` flag; drop it from scripts. The item player no longer warns when the `role` attribute carries a QTI role, so hosts select the view with `qti-role`.
+- Updated dependencies [b99736b]
+- Updated dependencies
+  - @pie-qti/to-pie@1.0.0-beta.6
+  - @pie-qti/ims-cp-node@1.0.0-beta.6
+  - @pie-qti/logger@1.0.0-beta.6
+  - @pie-qti/transform-core@1.0.0-beta.6
+  - @pie-qti/transform-types@1.0.0-beta.6
+
 ## 1.0.0-beta.5
 
 ### Patch Changes

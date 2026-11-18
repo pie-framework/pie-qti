@@ -1,22 +1,22 @@
 # PRD: PIE to QTI 2.2 Transform
 
 <!--
-  Status: draft
+  Status: current
   Type: architecture
   Packages: @pie-qti/pie-to-qti2
-  Last reviewed: 2026-10-18
+  Last reviewed: 2026-11-17
 -->
 
-**Status:** draft
+**Status:** current
 **Type:** architecture
 **Packages:** `@pie-qti/pie-to-qti2`
-**Last reviewed:** 2026-10-18
+**Last reviewed:** 2026-11-17
 
 ---
 
 ## Summary
 
-`@pie-qti/pie-to-qti2` transforms PIE (Platform for Interactive Education) assessment items and assessments into QTI 2.2 XML (namespace `imsqti_v2p2`), or into QTI 3.0 (namespace `imsqtiasi_v3p0`) with `targetVersion: '3.0'`. It implements the `TransformPlugin` interface from `@pie-qti/transform-types` and integrates with the transform engine in `@pie-qti/transform-core`. The package supports the full PIE item model: single interactions, multi-model items (passage + interaction + rubric), and full `assessmentTest` documents with sections, branch rules, and scoring logic. The original PIE source travels as a digested sidecar (`<item>.pie.json`, `qtiDigest`; see `packages/pie-to-qti2/src/utils/pie-source-sidecar.ts`), enabling a lossless round-trip back to PIE via `@pie-qti/to-pie`.
+`@pie-qti/pie-to-qti2` transforms PIE (Portable Interactions and Elements) assessment items and assessments into QTI 2.2 XML (namespace `imsqti_v2p2`), or into QTI 3.0 (namespace `imsqtiasi_v3p0`) with `targetVersion: '3.0'`. It implements the `TransformPlugin` interface from `@pie-qti/transform-types` and integrates with the transform engine in `@pie-qti/transform-core`. The package supports the full PIE item model: single interactions, multi-model items (passage + interaction + rubric), and full `assessmentTest` documents with sections, branch rules, and scoring logic. The original PIE source travels as a digested sidecar (`<item>.pie.json`, `qtiDigest`; see `packages/pie-to-qti2/src/utils/pie-source-sidecar.ts`), enabling a lossless round-trip back to PIE via `@pie-qti/to-pie`.
 
 ---
 
@@ -75,7 +75,7 @@ Lossy information examples:
 - **FR-7:** A `GeneratorRegistry` SHALL allow a caller to register a custom generator with `override: true` to replace any built-in generator for a given element type.
 - **FR-8:** A registered wildcard generator SHALL be tried as a last resort when no typed generator matches.
 - **FR-9:** When generating a package, the plugin SHALL write each PIE `extensions` key as an IEEE LOM `classification` on the item's manifest `<resource>`, with `taxonPath/source` `pie:extension:<key>`, no `purpose`, and the JSON of any value other than a string in the classification's `description`.
-- **FR-10:** PIE `baseId` SHALL be preserved as `externalId` metadata and `sourceSystemId="pie"` in the QTI item, enabling the reverse transform to restore the original identifier.
+- **FR-10:** When generating a package, the plugin SHALL write PIE `baseId` as an IEEE LOM `general/identifier` with catalog `pie:baseId` on the item's manifest `<resource>`, enabling the reverse transform to restore the original identifier.
 - **FR-11:** A PIE object with a top-level `sections` array SHALL be treated as an assessment and transformed to `<assessmentTest>` rather than `<assessmentItem>`.
 - **FR-12:** `outcomeProcessingXml`, `branchRule`, and `preCondition` on assessment items SHALL be inserted verbatim into the generated QTI without re-parsing or re-serialisation.
 - **FR-13:** `deduplicatePassageFiles` SHALL return each passage only once when called on results from batch item transformations sharing the same passage ID.
@@ -244,9 +244,11 @@ AC-9: extensions preservation
 
 AC-10: baseId round-trip
   Given: A PIE item with baseId: 'stable-id-001'
-  When: transform() is called
-  Then: output.items[0].content contains <qti-metadata-field name="externalId" value="stable-id-001"/>
-        AND <qti-metadata-field name="sourceSystemId" value="pie"/>
+  When: transform() is called with generatePackage: true
+  Then: output.manifest has a LOM general/identifier with catalog pie:baseId and entry 'stable-id-001'
+        on the item's resource
+        AND output.items[0].content has no qti-metadata element
+        AND transformQtiPackageToPie on that package without the sidecar returns baseId 'stable-id-001'
 
 AC-11: Inline passage strategy
   Given: A PIE item with config.models containing an @pie-element/passage model followed by a choice model
@@ -317,4 +319,4 @@ AC-E5: Registry throws on duplicate without override
 - QTI spec: IMS QTI 2.2.2, §4 assessmentItem; §6 assessmentTest; §8 IMS Content Packaging
 - Implementation: `packages/pie-to-qti2/src/`
 - Adjacent PRDs: `architecture/qti-to-pie.md`, `architecture/transform-engine.md`, `architecture/ims-content-packages.md`
-- Existing docs: `packages/pie-to-qti2/README.md`, `packages/pie-to-qti2/docs/CUSTOM-GENERATORS.md`, `packages/pie-to-qti2/docs/ASSESSMENT-TRANSFORMATIONS.md`, `packages/pie-to-qti2/docs/EXTERNAL-PASSAGES.md`, `packages/pie-to-qti2/docs/MANIFEST-GENERATION.md`, `packages/pie-to-qti2/docs/PASSAGE-DEDUPLICATION.md`
+- Existing docs: `packages/pie-to-qti2/README.md`, `packages/pie-to-qti2/CUSTOM-GENERATORS.md`, `packages/pie-to-qti2/docs/ASSESSMENT-TRANSFORMATIONS.md`, `packages/pie-to-qti2/docs/EXTERNAL-PASSAGES.md`, `packages/pie-to-qti2/docs/MANIFEST-GENERATION.md`, `packages/pie-to-qti2/docs/PASSAGE-DEDUPLICATION.md`

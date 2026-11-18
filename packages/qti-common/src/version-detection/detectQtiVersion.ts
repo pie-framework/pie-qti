@@ -133,7 +133,7 @@ function detectFromString(xml: string): QtiVersionDetection {
 	}
 
 	// A QTI namespace elsewhere in the document (a prefixed or nested declaration, a schema
-	// location, even a comment) still decides, as it always has, but is not the root's.
+	// location, even a comment) decides at medium confidence when the root declares none.
 	for (const [version, tokens] of DOCUMENT_NAMESPACE_TOKENS) {
 		if (tokens.some((token) => xml.includes(token))) {
 			return {
@@ -159,7 +159,7 @@ function detectFromString(xml: string): QtiVersionDetection {
 
 	if (/<assessment(Item|Test)[\s>]/.test(xml)) {
 		const localName = root && /^assessment(Item|Test)$/.test(root.localName) ? root.localName : 'assessmentItem';
-		// The root's own version attribute, else (as before) the first version="…" in the document.
+		// The root's own version attribute, else the first version="…" in the document.
 		const rootVersion = root?.attributes.get('version');
 		const versionAttribute = rootVersion ?? xml.match(/version=["']([^"']+)["']/)?.[1] ?? null;
 		return detectFromRoot(localName, versionAttribute, root?.namespace ?? null, rootVersion !== undefined);
@@ -168,7 +168,7 @@ function detectFromString(xml: string): QtiVersionDetection {
 	return unknown(root ? `<${root.name}> is not a QTI assessmentItem or assessmentTest root.` : 'No XML root element found.');
 }
 
-/** The search order and namespace tokens of the legacy document-wide check. */
+/** The search order and namespace tokens of the document-wide check. */
 const DOCUMENT_NAMESPACE_TOKENS: ReadonlyArray<readonly [DetectedVersion, readonly string[]]> = [
 	['3.0', ['imsqtiasi_v3p0', '/v3p0/']],
 	['2.2', ['imsqti_v2p2', '/v2p2/']],

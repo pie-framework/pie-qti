@@ -291,17 +291,17 @@ const pieItem = {
   config: { /* ... */ }
 };
 
-// After PIE → QTI → PIE round-trip
+// After PIE → QTI package → PIE round-trip
 const roundTripped = await transformPieThenQti(pieItem);
-console.log(roundTripped.id);     // 'item-stable-123' (restored from baseId)
 console.log(roundTripped.baseId); // 'item-stable-123' (preserved)
 ```
 
 **Key guarantees:**
 
-- `baseId` is preserved bidirectionally via QTI `<qti-metadata-field name="externalId">`
-- When transforming QTI → PIE, baseId becomes the PIE item's `id` if present
-- When transforming PIE → QTI → PIE, the stable `baseId` is maintained
+- pie-to-qti2 writes `baseId` in the PIE source sidecar and as an IEEE LOM `general/identifier`
+  (catalog `pie:baseId`) on the item's manifest `<resource>`
+- `transformQtiPackageToPie` restores `baseId` from a fresh sidecar, otherwise from the resource LOM;
+  a bare item transform without a sidecar gets no `baseId`
 - Vendor-specific identifiers are preserved through custom metadata
 
 ### Output Format Consistency
@@ -350,8 +350,7 @@ still has that digest:
   `fallback` trace event.
 - **Unreadable sidecar:** the QTI body is transformed, with a `PIE_EXTENSION_UNREADABLE` warning.
 
-QTI from releases before the sidecar embeds the PIE item as `<pie:sourceModel>`. It carries no digest,
-so it is ignored with a `PIE_SOURCE_STALE` warning and the QTI body is transformed.
+QTI exported before the sidecar existed has none, and transforms from its QTI body like any QTI.
 
 The reverse direction works the same way: every transformed item keeps the original QTI in
 `metadata.qtiSource` with a digest of the final PIE config, and pie-to-qti2 writes the original QTI back
@@ -361,8 +360,8 @@ only while the config is unchanged.
 
 `baseId` and `extensions` travel in the sidecar. Without a fresh one, `transformQtiPackageToPie`
 reads them from the IEEE LOM pie-to-qti2 writes on the item's manifest resource, keeping any value the
-item already has; a bare item transform reads `baseId` from a `qti-metadata-field` named `externalId`
-or `baseId`, which earlier pie-to-qti2 releases wrote.
+item already has. They are never read from the item XML, so a bare item transform without a sidecar
+gets neither.
 
 ### Best Practices for Round-Trip Scenarios
 

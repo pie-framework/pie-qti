@@ -62,8 +62,6 @@ function makeSimpleChoiceItem(identifier: string): string {
 const T1_T9_ASSESSMENT: SecureAssessment = {
 	identifier: 't1-outcome-declaration-t9-outcome-processing',
 	title: 'T1 - Outcome Declaration and T9 Outcome Processing',
-	navigationMode: 'linear',
-	submissionMode: 'individual',
 	outcomeDeclarations: [
 		{ identifier: 'SCORE_TOTAL', baseType: 'float', cardinality: 'single', defaultValue: 0 },
 	],
@@ -78,6 +76,8 @@ const T1_T9_ASSESSMENT: SecureAssessment = {
 	testParts: [
 		{
 			identifier: 'testPart-1',
+			navigationMode: 'linear',
+			submissionMode: 'individual',
 			sections: [
 				{
 					identifier: 'assessmentSection-1',
@@ -97,11 +97,11 @@ const T1_T9_ASSESSMENT: SecureAssessment = {
 const T5_ASSESSMENT: SecureAssessment = {
 	identifier: 't5-item-session-control',
 	title: 'T5 - Test Parts - Item Session Control',
-	navigationMode: 'nonlinear',
-	submissionMode: 'individual',
 	testParts: [
 		{
 			identifier: 'testPart-1',
+			navigationMode: 'nonlinear',
+			submissionMode: 'individual',
 			itemSessionControl: { maxAttempts: 0, allowSkipping: true },
 			sections: [
 				{
@@ -122,12 +122,12 @@ const T5_ASSESSMENT: SecureAssessment = {
 const T12_ASSESSMENT: SecureAssessment = {
 	identifier: 't12-sections',
 	title: 'T12 - Sections',
-	navigationMode: 'linear',
-	submissionMode: 'individual',
 	timeLimits: { maxTime: 60 },
 	testParts: [
 		{
 			identifier: 'testPart-1',
+			navigationMode: 'linear',
+			submissionMode: 'individual',
 			sections: [
 				{
 					identifier: 'assessmentSection-1',
@@ -200,11 +200,11 @@ async function createPlayerWithSectionRubrics(
 	return createPlayer({
 		identifier: 'task-5-section-rubrics',
 		title: 'Task 5 Section Rubrics',
-		navigationMode: 'nonlinear',
-		submissionMode: 'individual',
 		testParts: [
 			{
 				identifier: 'testPart-1',
+				navigationMode: 'nonlinear',
+				submissionMode: 'individual',
 				rubricBlocks: [
 					{
 						identifier: 'testpart-directions',
@@ -237,11 +237,11 @@ async function createTwoItemPlayerWithRepeatedResponseIdentifier(): Promise<Asse
 	return createPlayer({
 		identifier: 'task-5-repeated-response-identifiers',
 		title: 'Task 5 Repeated Response Identifiers',
-		navigationMode: 'nonlinear',
-		submissionMode: 'individual',
 		testParts: [
 			{
 				identifier: 'testPart-1',
+				navigationMode: 'nonlinear',
+				submissionMode: 'individual',
 				sections: [
 					{
 						identifier: 'section-1',

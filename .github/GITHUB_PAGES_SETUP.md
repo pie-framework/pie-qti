@@ -97,24 +97,22 @@ Steps:
 
 ## Repository Setup
 
-### Initial Setup
+The one-time repository setup is already done for this repo:
 
-1. **Enable GitHub Pages** in repository settings:
-   - Go to Settings → Pages
-   - Source: GitHub Actions
-   - (Don't use "Deploy from branch" — we use Actions)
+- **GitHub Pages** is enabled with the "GitHub Actions" source (Settings → Pages; not
+  "Deploy from branch")
+- **Custom domain** is configured: `qti.pie-framework.org` is a CNAME to
+  `pie-framework.github.io`, set under Settings → Pages; because the domain is custom,
+  the apps build with an empty base path
 
-2. **Custom domain** (already configured for this repo):
-   - `qti.pie-framework.org` is a CNAME to `pie-framework.github.io`
-   - Set as the custom domain under Settings → Pages
-   - Because the domain is custom, the apps build with an empty base path
+Deploying is then just pushing to `master`:
 
-3. **Push to master branch**:
+1. **Push to master branch**:
    ```bash
    git push origin master
    ```
 
-4. **Check Actions tab**:
+2. **Check Actions tab**:
    - The "Deploy to GitHub Pages" workflow runs automatically
    - The deployment URL appears in the workflow output
 

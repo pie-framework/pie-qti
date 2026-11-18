@@ -37,8 +37,7 @@ export function templateDefaultsFor(options: {
 	byPart: TemplateDefaultsByPart;
 }): Record<string, unknown> | undefined {
 	const { q, items, assessment, outcomes, persistedSessions, byPart } = options;
-	const mode = q.testPart.navigationMode ?? assessment.navigationMode ?? 'nonlinear';
-	if (mode !== 'nonlinear') {
+	if (q.testPart.navigationMode !== 'nonlinear') {
 		if (!q.item.templateDefaults?.length) return undefined;
 		return evaluateTemplateDefaults(q, testOutcomeDeclarations(assessment, outcomes ?? undefined));
 	}

@@ -80,23 +80,7 @@ The orchestration layer is fully extensible. You can implement custom orchestrat
 
 ## Storage Configuration
 
-Configure where uploaded files, sessions, and outputs are stored. The `storage.backend` key selects the backend; `options` are passed to the backend implementation.
-
-### In-Memory Backend (Default)
-
-The in-memory backend stores files in memory and is suitable for development and testing:
-
-```json
-{
-  "storage": {
-    "backend": "memory"
-  }
-}
-```
-
-### Filesystem Backend
-
-Store files on the local filesystem. The filesystem backend uses `rootDir` (not `basePath`):
+The `storage` key in the config file only **records** a backend name (plus a free-form `options` object) for the embedding application's benefit:
 
 ```json
 {
@@ -109,35 +93,27 @@ Store files on the local filesystem. The filesystem backend uses `rootDir` (not 
 }
 ```
 
-### Custom Storage Backends
+**No storage backends ship in this repository.** The config loader neither validates nor constructs a backend — `storage.backend` is an unvalidated name string (`packages/core/src/config/config-loader.ts`), and the `TransformEngine` constructor defaults to an in-memory orchestrator with **no** storage backend. As with the `logger` settings, the storage section comes back to the embedding application to act on: the host implements the `StorageBackend` interface from `@pie-qti/transform-types` and passes the implementation to the engine:
 
-The storage layer is fully extensible. You can implement custom storage backends by implementing the `StorageBackend` interface. The `options` field accepts any configuration your custom backend needs.
+```typescript
+import { TransformEngine } from '@pie-qti/transform-core';
+import type { StorageBackend } from '@pie-qti/transform-types';
 
-Example configurations for custom backends:
-
-```json
-{
-  "storage": {
-    "backend": "s3",
-    "options": {
-      "bucket": "my-qti-bucket",
-      "region": "us-east-1",
-      "endpoint": "https://s3.amazonaws.com"
-    }
-  }
+// Host-implemented: no built-in backends ship in this repository
+class MyFilesystemStorage implements StorageBackend {
+  readonly name = 'filesystem';
+  // ... implement initialize, readText, writeText, readBuffer, writeBuffer,
+  // write, createReadStream, createWriteStream, exists, list, delete, and
+  // any optional members your use case needs
 }
+
+const engine = new TransformEngine(undefined, new MyFilesystemStorage());
 ```
 
-```json
-{
-  "storage": {
-    "backend": "database",
-    "options": {
-      "connectionString": "postgresql://user:pass@localhost:5432/pie_qti"
-    }
-  }
-}
-```
+Notes:
+
+- Storage is **optional for single `engine.transform()` calls** and **required for `engine.transformBatch()`** — batching throws `Storage backend required for batch transformation` without one.
+- The `options` object is not interpreted by the transform packages; shape it however your backend implementation needs (`rootDir` above is illustrative).
 
 ## Plugin Configuration
 
@@ -221,28 +197,28 @@ Configure vendor-specific QTI extensions under the `vendorExtensions` key. Each 
 
 Available lists: `detectors`, `transformers`, `assetResolvers`, `cssClassExtractors`, `metadataExtractors` (see `VendorExtensionConfig` in `packages/types/src/config/vendor-config.ts`).
 
-### Extension Handler API
+### Extension module contract
 
-Handlers should implement:
+A config-loaded extension module must export objects implementing the hook
+interfaces from `@pie-qti/transform-types` (`VendorDetector`,
+`VendorTransformer`, `AssetResolver`, `CssClassExtractor`,
+`MetadataExtractor`) — or a `VendorExtensionPlugin` exposing any of the five
+optional `register*` methods:
 
 ```typescript
-export class CustomExtensionHandler implements VendorExtensionHandler {
-  namespace = 'http://www.myorg.com/qti/v1';
+import type { VendorExtensionPlugin, VendorDetector } from '@pie-qti/transform-types';
+import { MyDetector } from './my-detector.js';
 
-  canHandle(element: Element): boolean {
-    return element.tagName === 'myorg:customInteraction';
-  }
-
-  async transform(element: Element, context: TransformContext): Promise<PieElement> {
-    // Transform vendor extension to PIE format
-    return {
-      type: 'custom-interaction',
-      id: element.getAttribute('identifier'),
-      // ... PIE configuration
-    };
-  }
+export class MyExtensionPlugin implements VendorExtensionPlugin {
+  registerVendorDetector(detector: VendorDetector): void { /* collect */ }
+  // ...registerVendorTransformer, registerAssetResolver, etc.
 }
 ```
+
+The loader (`config/vendor-registry.js` in `@pie-qti/transform-core`)
+dynamically imports the module and registers what it finds. The hook
+interfaces themselves and the per-item firing order are documented in the
+[Vendor Plugin Guide](./VENDOR-TRANSFORM-PLUGIN-GUIDE.md).
 
 ## Format Detectors
 
@@ -289,7 +265,7 @@ Four environment variables are read, all by `loadFromEnv()` in `packages/core/sr
 
 ```bash
 export PIE_QTI_CONFIG=/path/to/config.json   # Config file path
-export PIE_QTI_STORAGE_BACKEND=filesystem    # memory, filesystem, s3, database, or a custom backend name
+export PIE_QTI_STORAGE_BACKEND=filesystem    # backend name recorded for the host; not validated, no built-in backends ship
 export PIE_QTI_STORAGE_ROOT_DIR=./uploads    # Only read when PIE_QTI_STORAGE_BACKEND=filesystem
 export PIE_QTI_LOG_LEVEL=debug               # debug, info, warn, error
 ```
@@ -428,7 +404,8 @@ export PIE_QTI_CONFIG=./config.json
 # loadFromEnv() contributed nothing, and the file was merged over it.
 export PIE_QTI_STORAGE_BACKEND=s3  # Ignored
 
-# Result: filesystem backend from the file is used
+# Result: the merged config records storage.backend = "filesystem" for the
+# embedding application to act on
 ```
 
 ## API Changes (Orchestration Update)
@@ -470,16 +447,7 @@ console.log(result.pieConfig);
 
 1. **Use config files for shared settings** - Check config files into version control
 2. **Use environment variables for secrets** - Never commit AWS keys, database passwords
-3. **Use `env:` prefix in config** - Reference environment variables in config files:
-   ```json
-   {
-     "storage": {
-       "options": {
-         "apiKey": "env:AWS_SECRET_ACCESS_KEY"
-       }
-     }
-   }
-   ```
+3. **Use environment variables for deployment-specific values** - `loadFromEnv()` picks up `PIE_QTI_STORAGE_BACKEND`, `PIE_QTI_STORAGE_ROOT_DIR`, and `PIE_QTI_LOG_LEVEL`; the config file overrides them (see [Configuration Precedence](#configuration-precedence)). Config values are never interpolated — there is no `env:` prefix mechanism.
 4. **Start simple** - Begin with defaults (in-memory orchestrator), add config as needed
 5. **Document custom plugins** - Add README for custom plugin implementations
 6. **Version config files** - Include schema version for future compatibility

@@ -572,7 +572,7 @@ import {
 **Solutions**:
 1. Ensure the PIE sidecar (`<item>.pie.json`) is present beside the QTI item and listed under its `<resource>`; the plugin writes it automatically.
 2. Use `data-pie-*` attributes for PIE-specific features
-3. Confirm the QTI item was not modified between the two transforms (the sidecar is only honored while the item is unchanged); `extractPieExtension` from `@pie-qti/to-pie` can still read legacy `<pie:sourceModel>` data embedded by older exports
+3. Confirm the QTI item was not modified between the two transforms (the sidecar is only honored while the item is unchanged)
 
 ### TypeScript Errors
 

@@ -25,7 +25,7 @@ Detects Acme-specific QTI content patterns.
 
 ### 2. VendorTransformer - `AcmeSliderTransformer`
 
-Transforms the currently unsupported `sliderInteraction` type.
+Takes over `sliderInteraction` conversion for Acme content.
 
 **What it does:**
 - Handles QTI `sliderInteraction` elements
@@ -33,11 +33,11 @@ Transforms the currently unsupported `sliderInteraction` type.
 - Creates a placeholder PIE item (hello world implementation)
 - **TODO:** Create proper PIE slider element in the future
 
-**Why sliderInteraction is unsupported:**
-- The item-player HAS a `sliderExtractor` (can render QTI sliders)
-- The to-pie transformer LACKS a slider transformer (can't convert to PIE)
-- No obvious 1:1 mapping to existing PIE elements
-- This extension demonstrates solving that gap
+**Why a slider:**
+- The item-player renders QTI sliders
+- `@pie-qti/to-pie` converts `sliderInteraction` to `@pie-element/number-line` by default; a vendor
+  transformer runs before the built-in transformers for content its vendor's detector claims
+- This extension demonstrates replacing a built-in conversion for one vendor's content
 
 **Implementation:** [acme-slider-transformer.ts](src/acme-slider-transformer.ts)
 

@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@acme/likert-scale-plugin": "workspace:*",
-    "@pie-players/tts-server-polly": "1.0.0-beta.9",
+    "@pie-players/tts-server-polly": "1.0.0-beta.10",
     "@pie-qti/assessment-player": "workspace:*",
     "@pie-qti/default-components": "workspace:*",
     "@pie-qti/i18n": "workspace:*",
@@ -49,22 +49,22 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
-    "@playwright/test": "^1.64.1",
-    "@sveltejs/adapter-static": "^4.0.0",
-    "@sveltejs/kit": "^3.1.1",
+    "@playwright/test": "1.64.1",
+    "@sveltejs/adapter-static": "^4.0.1",
+    "@sveltejs/kit": "^3.2.0",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
-    "@tailwindcss/vite": "^4.3.3",
+    "@tailwindcss/vite": "^4.3.5",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^26.6.6",
     "@types/unzipper": "^0.10.11",
     "@types/xml2js": "^0.4.14",
-    "daisyui": "^5.7.50",
+    "daisyui": "^5.8.1",
     "js-yaml": "^5.5.0",
-    "svelte": "^5.57.1",
-    "svelte-check": "^4.7.7",
-    "tailwindcss": "^4.2.2",
+    "svelte": "^5.57.3",
+    "svelte-check": "^4.7.8",
+    "tailwindcss": "^4.3.5",
     "typescript": "^6.0.3",
-    "vite": "^8.3.4"
+    "vite": "^8.3.8"
   },
   "engines": {
     "node": ">=22.17.0"

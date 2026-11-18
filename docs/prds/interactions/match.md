@@ -1,14 +1,14 @@
 # PRD: matchInteraction
 
 <!--
-  Status: draft
+  Status: current
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: matchInteraction
   Last reviewed: 2026-11-09
 -->
 
-**Status:** draft  
+**Status:** current  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
 **Last reviewed:** 2026-11-09

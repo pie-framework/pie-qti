@@ -116,7 +116,6 @@ import {
 	resolveExitBoundary,
 } from './exitBoundaries.js';
 import {
-	effectiveSubmissionMode,
 	submissionBlockerFor,
 	submissionGate as submissionGatePolicy,
 	throwForBlockers,
@@ -1105,7 +1104,7 @@ export class AssessmentPlayer {
 	}
 
 	private isIndividual(q: FlatItem): boolean {
-		return effectiveSubmissionMode(q.testPart, this.assessment) === 'individual';
+		return q.testPart.submissionMode === 'individual';
 	}
 
 	/**
@@ -1362,7 +1361,6 @@ export class AssessmentPlayer {
 		return isLegalSectionTarget({
 			section,
 			items: this.items,
-			assessment: this.assessment,
 			finalized: this.finalized,
 			currentIndex: this.currentItemIndex,
 			isItemLocked: (q) => this.isItemLocked(q),
@@ -1937,7 +1935,7 @@ export class AssessmentPlayer {
 		}
 		const countAttempt = this.endAttemptResponseMap(q).get(responseId);
 		if (countAttempt === undefined) return;
-		if (effectiveSubmissionMode(q.testPart, this.assessment) !== 'individual') return;
+		if (q.testPart.submissionMode !== 'individual') return;
 
 		queueMicrotask(() => {
 			void this.runExclusive(async () => {
@@ -2135,7 +2133,7 @@ export class AssessmentPlayer {
 
 		// Enforce navigation rules (UI hints, still backend-authoritative for real deployments).
 		if (!options.restoring && this.currentItemIndex >= 0 && !this.canNavigateByTestPart(index, this.currentItemIndex)) {
-			const currentMode = this.items[this.currentItemIndex]?.testPart.navigationMode ?? this.assessment.navigationMode;
+			const currentMode = this.items[this.currentItemIndex]?.testPart.navigationMode;
 			if (currentMode === 'linear' && index > this.nextUnlockedIndex(this.currentItemIndex)) {
 				throw new AssessmentPlayerError(
 					'linearNavigationOnly',
@@ -2164,7 +2162,7 @@ export class AssessmentPlayer {
 			// questions as they stand). The move's own submission already ran for next();
 			// a direct jump leaves the current item behind, so it is included here.
 			if (target.testPart !== currentItem.testPart) this.assertCanLeaveScope(currentItem);
-			if (target.testPart !== currentItem.testPart && effectiveSubmissionMode(currentItem.testPart, this.assessment) === 'simultaneous') {
+			if (target.testPart !== currentItem.testPart && currentItem.testPart.submissionMode === 'simultaneous') {
 				// Commit this part before leaving it; a failed request keeps the learner
 				// in the current part so its remaining answers can be retried.
 				await this.submitSimultaneousItems(this.items.filter((q) => q.testPart === currentItem.testPart));
@@ -2391,7 +2389,7 @@ export class AssessmentPlayer {
 
 	/** The part's effective QTI submission mode. */
 	private isSimultaneousSubmission(q: FlatItem): boolean {
-		return effectiveSubmissionMode(q.testPart, this.assessment) === 'simultaneous';
+		return q.testPart.submissionMode === 'simultaneous';
 	}
 
 	/**
@@ -2515,7 +2513,7 @@ export class AssessmentPlayer {
 		if (!this.hasDeliveryRules) return this.nextUnlockedIndex(q.index);
 		const decls = this.navigationDeclarationsFor(q);
 		const first = this.indexOfItem(
-			nextItemIdentifier(this.assessment, this.deliveredForRules, q.index, decls, Math.random, this.reportTestConditionFailure),
+			nextItemIdentifier(this.deliveredForRules, q.index, decls, Math.random, this.reportTestConditionFailure),
 		);
 		if (first < 0) return -1;
 		if (!this.isItemLocked(this.items[first]!)) return first;
@@ -2543,7 +2541,6 @@ export class AssessmentPlayer {
 		while (start < this.items.length) {
 			const index = this.indexOfItem(
 				firstEligibleItem(
-					this.assessment,
 					this.deliveredForRules,
 					start,
 					previous,
@@ -2658,7 +2655,7 @@ export class AssessmentPlayer {
 		const q = this.items[this.currentItemIndex];
 		if (!q) return null;
 		const id = q.identifier;
-		const mode = effectiveSubmissionMode(q.testPart, this.assessment);
+		const mode = q.testPart.submissionMode;
 		const adaptive = isAdaptiveItemXml(q.item.itemXml);
 		if (mode !== 'individual') {
 			return {
@@ -3094,7 +3091,7 @@ export class AssessmentPlayer {
 				this.items.filter(
 					(item) =>
 						item.testPart === current.testPart &&
-						effectiveSubmissionMode(item.testPart, this.assessment) === 'simultaneous',
+						item.testPart.submissionMode === 'simultaneous',
 				),
 			);
 		}
@@ -3168,7 +3165,6 @@ export class AssessmentPlayer {
 			targetIndex,
 			currentIndex,
 			items: this.items,
-			assessment: this.assessment,
 			forward,
 		});
 	}
@@ -3473,10 +3469,8 @@ export class AssessmentPlayer {
 			);
 		}
 		const isIndividual = (q: FlatItem) => this.isIndividual(q);
-		// Submission modes belong to test parts. The assessment-level field is only
-		// a fallback for older hosts that do not supply a mode on each part.
 		await this.submitSimultaneousItems(
-			this.items.filter((q) => effectiveSubmissionMode(q.testPart, this.assessment) === 'simultaneous'),
+			this.items.filter((q) => q.testPart.submissionMode === 'simultaneous'),
 		);
 		if (this.finalized && this.finalResults) return this.finalResults;
 		await this.submitSimultaneousItems(
@@ -4083,7 +4077,7 @@ export class AssessmentPlayer {
 			if (q.testPart !== from.testPart) break;
 			if (this.isOpenTarget(q)) return i;
 		}
-		const mode = from.testPart.navigationMode ?? this.assessment.navigationMode ?? 'nonlinear';
+		const mode = from.testPart.navigationMode;
 		if (mode === 'nonlinear') {
 			for (let i = fromIndex - 1; i >= 0; i--) {
 				const q = this.items[i]!;

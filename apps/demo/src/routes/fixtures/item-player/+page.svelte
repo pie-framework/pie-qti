@@ -5,7 +5,7 @@
 	import { onDestroy, untrack } from 'svelte';
 	import { DemoItemSessionController } from '#lib/item-session.svelte.js';
 	import { SAMPLE_ITEMS } from '#lib/sample-items.js';
-	import { getSecurityConfig } from '#lib/player-config.js';
+	import { getPciConfig, getSecurityConfig } from '#lib/player-config.js';
 
 	let selectedSampleId = $state('simple-choice');
 	let xmlContent = $state('');
@@ -22,6 +22,7 @@
 			itemXml: xml,
 			role: selectedRole,
 			security: getSecurityConfig(),
+			pci: getPciConfig(),
 		});
 	}
 

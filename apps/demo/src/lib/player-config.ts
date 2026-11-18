@@ -6,7 +6,11 @@
  */
 
 import { resolve } from '$app/paths';
-import type { PlayerSecurityConfig } from '@pie-qti/item-player';
+import {
+	createAllowlistPciModuleResolver,
+	type PciConfiguration,
+	type PlayerSecurityConfig,
+} from '@pie-qti/item-player';
 
 /**
  * Get the asset base URL for the current deployment.
@@ -42,5 +46,22 @@ export function getSecurityConfig(): PlayerSecurityConfig {
 			assetBaseUrl: getAssetBaseUrl(),
 			...(servedOverHttp ? { allowHttp: true } : {}),
 		},
+	};
+}
+
+/**
+ * PCI configuration for the demo's own portable custom interactions.
+ *
+ * Authored module paths resolve against the app's base URL, and the resolver imports only from
+ * `static/pci/`, the directory the demo ships its PCI modules in. Returns undefined during SSR.
+ */
+export function getPciConfig(): PciConfiguration | undefined {
+	const baseUrl = getAssetBaseUrl();
+	if (!baseUrl) return undefined;
+	return {
+		baseUrl,
+		moduleResolver: createAllowlistPciModuleResolver({
+			allowedPathPrefixes: [new URL('pci/', baseUrl).href],
+		}),
 	};
 }

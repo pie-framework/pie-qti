@@ -56,7 +56,7 @@ describe('parseAssessmentTestXml', () => {
 		expect(section?.assessmentItemRefs?.[0]?.title).toBe('Item 1');
 	});
 
-	test('synthesizes a default testPart when assessmentTest has top-level sections only', () => {
+	test('reads no sections outside a testPart', () => {
 		const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <assessmentTest xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" identifier="TEST-2" title="No Parts">
   <assessmentSection identifier="S1" title="Section 1">
@@ -65,9 +65,7 @@ describe('parseAssessmentTestXml', () => {
 </assessmentTest>`;
 
 		const parsed = parseAssessmentTestXml(xml);
-		expect(parsed.testParts?.length).toBe(1);
-		expect(parsed.testParts?.[0]?.identifier).toBe('part-1');
-		expect(parsed.testParts?.[0]?.sections.length).toBe(1);
+		expect(parsed.testParts).toEqual([]);
 	});
 
 	test('bounds inline assessmentSection recursion by default and supports an explicit override', () => {

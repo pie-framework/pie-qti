@@ -33,8 +33,6 @@ function assessment(options: { outcomeProcessing?: boolean } = {}): SecureAssess
 	return {
 		identifier: 'listener-order',
 		title: 'Listener order',
-		navigationMode: 'nonlinear',
-		submissionMode: 'individual',
 		...(options.outcomeProcessing
 			? {
 				outcomeDeclarations: [

@@ -1,6 +1,6 @@
 {
   "name": "@pie-qti/typeset-katex",
-  "version": "1.0.0-beta.5",
+  "version": "1.0.0-beta.6",
   "description": "KaTeX-based math typesetting adapter for PIE QTI players (supports QTI 2.2 and 3.0) (host-provided `typeset` function).",
   "type": "module",
   "main": "./dist/index.js",
@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "linkedom": "^0.18.13",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   },
   "repository": {
     "type": "git",

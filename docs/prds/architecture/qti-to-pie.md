@@ -1,13 +1,13 @@
 # PRD: QTI → PIE Transform
 
 <!--
-  Status: draft
+  Status: current
   Type: architecture
   Packages: @pie-qti/to-pie
   Last reviewed: 2026-05-15
 -->
 
-**Status:** draft
+**Status:** current
 **Type:** architecture
 **Packages:** `@pie-qti/to-pie`
 **Last reviewed:** 2026-05-15
@@ -16,7 +16,7 @@
 
 ## Summary
 
-`@pie-qti/to-pie` contains `QtiToPiePlugin`, the standard transform plugin that converts QTI 2.2 assessment items and assessment tests into the PIE model format. The plugin implements two distinct paths: a **lossless path** for QTI that originated from PIE (detected by the presence of a `pie:sourceModel` namespace extension) and a **best-effort path** for arbitrary third-party QTI (which embeds the original QTI XML in the output for future round-trip use).
+`@pie-qti/to-pie` contains `QtiToPiePlugin`, the standard transform plugin that converts QTI 2.2 assessment items and assessment tests into the PIE model format. The plugin implements two distinct paths: a **lossless path** for QTI that originated from PIE (selected by a fresh PIE source sidecar beside the item) and a **best-effort path** for arbitrary third-party QTI (which embeds the original QTI XML in the output for future round-trip use).
 
 Two complementary extension surfaces sit on the best-effort path:
 
@@ -33,17 +33,21 @@ An `itemBody` with more than one interaction is not rejected outright: a scoped 
 
 ### Why the lossless check happens before any parsing
 
-When PIE content is exported to QTI via `@pie-qti/pie-to-qti2`, the original PIE model is serialized as JSON inside a `<pie:sourceModel><![CDATA[…]]></pie:sourceModel>` element under the QTI root. If this extension is present, the QTI XML was machine-generated and the PIE model is intact — no transformation is needed or desirable. Transforming it anyway would risk losing PIE-specific fields that have no QTI equivalent.
+When PIE content is exported to QTI via `@pie-qti/pie-to-qti2`, the original PIE item is written beside the QTI item as a `<item>.pie.json` source sidecar, listed under the item's manifest `<resource>`, recording a digest of the QTI item it was written beside (`qtiDigest`). While the item's digest still matches, the QTI was machine-generated from that PIE item and is unchanged since, so the sidecar's `sourceModel` is returned as the PIE item without transformation. Transforming it anyway would lose PIE-specific fields that have no QTI equivalent.
 
-The check (`hasPieExtension`) tests for two string markers in the raw XML before invoking the HTML parser: the `xmlns:pie` namespace declaration and the opening `<pie:sourceModel>` tag. Using raw string search before DOM parsing avoids the cost of parsing XML that will not be transformed, and it is safe because both strings together are unique enough to avoid false positives in normal QTI content.
+`transformQtiPackageToPie` reads the sidecar listed under each item resource and passes it as `input.sidecar`; a bare item transform takes it from the caller. The sidecar check compares digests before the HTML parser runs, so an item with a fresh sidecar is never parsed. The sidecar only adds fidelity and the body is complete QTI, so a stale sidecar (the item changed after export) falls back to the QTI body with a `PIE_SOURCE_STALE` warning and a `fallback` trace event, and an unreadable one with a `PIE_EXTENSION_UNREADABLE` warning.
 
 **The lossless check must happen before format detection, vendor detection, and all other processing.** Any reordering would silently discard PIE-originated content and fall into the lossy best-effort path.
+
+### Why baseId and extensions come from the manifest
+
+QTI admits no foreign elements in an item, so pie-to-qti2 writes a PIE item's `baseId` and `extensions` as IEEE LOM on the item's manifest `<resource>`: `baseId` as a `general/identifier` under catalog `pie:baseId`, each `extensions` key as a `classification` with `taxonPath/source` `pie:extension:<key>`. `transformQtiPackageToPie` reads them (`readPieResourceLom`) and applies them to each item's output (`applyPieResourceLom`), keeping any value the item already has, so a fresh sidecar's source model wins. The item XML carries neither, so a bare single-item transform gets `baseId` and `extensions` only from a sidecar, and `extensions` also from a vendor `MetadataExtractor`.
 
 ### Why original QTI XML is embedded in best-effort output
 
 When QTI arrives from a third-party system (not from PIE), the plugin transforms it to PIE as faithfully as possible but cannot guarantee perfect round-trips. Rather than discarding the source, the plugin calls `embedQtiSourceInPie`, which stores the original XML string in `pieItem.metadata.qtiSource.xml`. This gives the PIE→QTI path (`@pie-qti/pie-to-qti2`) the option to regenerate the original QTI rather than re-synthesizing XML from the PIE model — a much higher-fidelity export path for content that will be distributed back to QTI consumers.
 
-This is distinct from the lossless PIE extension: the PIE extension carries the original *PIE* model inside QTI XML (enabling PIE→QTI→PIE round-trips); the embedded QTI source carries the original *QTI* XML inside the PIE model (enabling QTI→PIE→QTI round-trips for third-party content).
+This is distinct from the PIE source sidecar: the sidecar carries the original *PIE* item beside the QTI XML (enabling PIE→QTI→PIE round-trips); the embedded QTI source carries the original *QTI* XML inside the PIE model (enabling QTI→PIE→QTI round-trips for third-party content).
 
 ### Why vendor hooks are on the plugin, not the engine
 
@@ -102,13 +106,13 @@ A composite that mixes in an interaction outside the scoped set, repeats a non-r
 
 ## Functional requirements
 
-- **FR-1:** When QTI XML contains both `xmlns:pie="https://github.com/pie-framework/pie-elements"` and `<pie:sourceModel>`, the plugin MUST extract the CDATA-wrapped JSON from `pie:sourceModel` and return it verbatim as the PIE item, without any QTI→PIE transformation. This path MUST be taken before XML parsing or vendor detection.
-- **FR-2:** When QTI XML does not contain a PIE extension, the plugin MUST embed the original QTI XML string in the output PIE item at `metadata.qtiSource.xml`.
+- **FR-1:** When the input carries a PIE source sidecar whose `qtiDigest` matches the item, the plugin MUST return the sidecar's `sourceModel` verbatim as the PIE item, without any QTI→PIE transformation. This path MUST be taken before XML parsing or vendor detection. A sidecar whose digest does not match MUST produce a `PIE_SOURCE_STALE` warning, and one that does not match the sidecar contract a `PIE_EXTENSION_UNREADABLE` warning; in both cases the item MUST be transformed from its QTI body.
+- **FR-2:** When the item is not restored from a PIE source sidecar, the plugin MUST embed the original QTI XML string in the output PIE item at `metadata.qtiSource.xml`.
 - **FR-3:** Interaction type detection MUST use the ordered check list: `assessmentTest` first, then `assessmentPassage`/`assessmentStimulus`, then EBSR (two `choiceInteraction`), then the standard interaction element names in order.
 - **FR-4:** When vendor detectors are registered, the plugin MUST run all detectors against `(qtiXml, parsedDoc)` and select the one with the highest confidence score. If the best score is below 0.6, no vendor is detected.
 - **FR-5:** When a vendor is detected and a matching `VendorTransformer` is registered for that vendor, the plugin MUST delegate to the vendor transformer. If the vendor transformer throws, the plugin MUST log a warning and fall through to the standard transformation path.
 - **FR-6:** Metadata extraction MUST prefer a vendor-specific `MetadataExtractor` (matched by `extractor.vendor === vendorInfo.vendor`) over the standard extractor (`extractor.vendor === 'standard'`). The standard extractor is registered by default in the constructor.
-- **FR-7:** `baseId` MUST be extracted from `<qti-metadata-field name="externalId">` only when `<qti-metadata-field name="sourceSystemId">` has value `"pie"`, confirming the item originated in PIE.
+- **FR-7:** `transformQtiPackageToPie` MUST set each PIE item's `baseId` from the LOM `general/identifier` under catalog `pie:baseId` on the item's manifest `<resource>`, and merge its `extensions` from the resource's `pie:extension:<key>` classifications, keeping any value the item already has. The plugin MUST NOT read `baseId` or `extensions` from the item XML.
 - **FR-8:** For `assessmentTest` input, the plugin MUST return an assessment object (not a single item) that includes `testParts`, `sections`, `itemRefs`, `timeLimits`, and `outcomeProcessingXml`. A personal needs profile is per-candidate data, so a `personalNeedsProfile` or `access-for-all-pnp` element in the test MUST produce a `QTI_PNP_IN_CONTENT` warning naming the element, and the assessment MUST omit it.
 - **FR-9:** Vendor hooks registered via constructor options (`vendorDetectors`, `vendorTransformers`, `assetResolvers`, `cssClassExtractors`, `metadataExtractors`) MUST behave identically to hooks registered via `registerVendorDetector(...)` et al. after construction.
 - **FR-10:** An `itemBody` with more than one interaction MUST be composed into one PIE item, not silently reduced to its first interaction, when every interaction's type is in the scoped composite set and any repeated type is one of the types allowed to repeat. An itemBody with a `customInteraction`, `customOperator`, or an interaction nested inside a `feedbackBlock` MUST NOT take the composite path, regardless of how many interactions it has.
@@ -149,8 +153,8 @@ A composite that mixes in an interaction outside the scoped set, repeats a non-r
 ### The standard MetadataExtractor is registered in the constructor
 
 **Decision:** `createStandardMetadataExtractor()` is called in the constructor and registered with `vendor: 'standard'`. It runs when no vendor-specific extractor matches.
-**Rationale:** Every PIE item needs `extensions` populated from QTI metadata fields (subject, grade level, DOK, etc.). Making this automatic prevents callers from forgetting to register it. Callers who want to override metadata extraction for a specific vendor register an extractor with `vendor: 'acme'`; the standard extractor continues to handle all other vendors.
-**Alternatives considered:** Requiring callers to register all extractors explicitly — rejected because it creates a footgun (forgetting metadata extraction produces items that are invisible to search systems).
+**Rationale:** A default extractor means every transform has one to run without the caller registering it. It returns `title`, `identifier` and `interactionTypes` and no `extensions`; those come from manifest LOM at package level, or from a vendor extractor. Callers who want to override metadata extraction for a specific vendor register an extractor with `vendor: 'acme'`; the standard extractor continues to handle all other vendors.
+**Alternatives considered:** Requiring callers to register all extractors explicitly — rejected because every caller would have to register the same default.
 **Consequences:** Vendor packages that want to completely replace standard metadata extraction for their content must register an extractor with `vendor` matching the detected vendor ID. They cannot prevent the standard extractor from running for non-vendor content.
 
 ---
@@ -225,18 +229,20 @@ Key source files:
 - `packages/types/src/source-profile.ts` — `QtiSourceProfile`, `QtiItemHandler`, `QtiItemDecorator`, `SourceProfileMatch`, `SourceProfileDiagnostic`, `SourceProfileFallbackPolicy`, `ConversionTrace`, `TransformTraceEvent`
 - `packages/source-profiles/src/` — default generic `QtiSourceProfile` implementations such as `common-cartridge-csm`; host packages register partner/publisher profiles using the same API
 - `packages/types/src/transform/vendor-extensions.ts` — `VendorDetector`, `VendorTransformer`, `VendorInfo`, `AssetResolver`, `CssClassExtractor`, `MetadataExtractor`, `VendorClasses`, `ResolvedAsset`, `VendorExtensionHooks` (exported from `@pie-qti/transform-types`)
-- `packages/to-pie/src/utils/pie-extension.ts` — `hasPieExtension`, `extractPieExtension`, `PieExtensionData`, `PIE_NAMESPACE`, `PIE_PREFIX`
+- `packages/to-pie/src/utils/pie-source-sidecar.ts` — `readPieSourceSidecar`, `findPieSourceSidecarPath`; the sidecar contract (`PieSourceSidecar`, `PIE_SOURCE_SIDECAR_FORMAT`) is in `@pie-qti/transform-types`
+- `packages/to-pie/src/utils/manifest-lom.ts` — `readPieResourceLom`, `applyPieResourceLom`; the LOM encoding constants are in `@pie-qti/transform-types` `pie-lom`
 - `packages/to-pie/src/utils/qti-extension-embedder.ts` — `embedQtiSourceInPie`, `extractQtiSourceFromPie`, `hasQtiSource`
-- `packages/to-pie/src/extractors/standard-metadata-extractor.ts` — standard metadata extraction from QTI metadata fields
+- `packages/to-pie/src/extractors/standard-metadata-extractor.ts` — standard metadata extraction (title, identifier, interaction types)
 
 **Invariants not obvious from the types:**
 
-- `hasPieExtension` uses raw string search (not DOM query). It checks for both `xmlns:pie="https://github.com/pie-framework/pie-elements"` AND `<pie:sourceModel>`. Both must be present for the lossless path to activate.
-- `extractPieExtension` returns `{ hasExtension: false, sourceModel: null }` on any parse failure — it never throws. Callers must check `hasExtension` before using `sourceModel`.
+- The sidecar's `qtiDigest` is compared with the digest of the item as authored, before QTI 3.0 normalization. Any edit to the item after export, whitespace included, makes the sidecar stale.
+- `readPieSourceSidecar` returns `null` for a value that does not match the contract (unparseable JSON, a different `format`, `version` other than 1, no object `sourceModel`) — it never throws.
+- `readPieResourceLom` reads an unparseable manifest as carrying no LOM. `baseId` and `extensions` count only under the `pie:baseId` catalog and `pie:extension:` source; element names are matched by local name, so either LOM binding is read.
 - `VendorInfo.confidence` is a float 0.0–1.0. The minimum threshold for vendor dispatch is 0.6 (hardcoded in `detectVendor`). A detector's internal threshold to return a result is independent — the `AcmeVendorDetector` has a separate threshold of 0.3 before returning a result at all.
 - `VendorTransformer.transform` receives the pre-parsed `parsedDoc` (a `node-html-parser` `HTMLElement`). The doc is re-used from the plugin's parse call. Vendor transformers must not use it after the transform call returns, as the reference is not guaranteed to remain valid.
 - `embedQtiSourceInPie` returns a new object (spread) — it does not mutate the input `pieItem`.
-- Metadata extraction result is merged onto `pieItem.extensions` with transformer-generated metadata winning on key conflict (`{ ...extracted.extensions, ...(pieItem.metadata?.extensions || {}) }`).
+- A metadata extractor's `extensions` (a vendor extractor's; the standard extractor returns none) are merged onto `pieItem.extensions` with transformer-generated metadata winning on key conflict (`{ ...extracted.extensions, ...(pieItem.metadata?.extensions || {}) }`).
 - The plugin's `id` is `'qti22-to-pie'`, `sourceFormat` is `'qti22'`, `targetFormat` is `'pie'`. These values are used as keys by the engine's `PluginRegistry` — changing them is a breaking API change.
 
 ---
@@ -246,16 +252,22 @@ Key source files:
 ### Functional
 
 ```
-AC-1: Lossless round-trip via PIE extension
-  Given: QTI XML produced by @pie-qti/pie-to-qti2 (contains xmlns:pie namespace and pie:sourceModel)
-  When: QtiToPiePlugin.transform is called
+AC-1: Lossless round-trip via the PIE source sidecar
+  Given: QTI XML produced by @pie-qti/pie-to-qti2 and the PIE source sidecar written beside it
+  When: QtiToPiePlugin.transform is called with the item as content and the sidecar as sidecar
   Then: The returned PIE item is deeply equal to the original PIE item that was exported to QTI
         and metadata.losslessRoundTrip === true in the TransformOutput metadata
   Notes: Verify with a real PIE item containing vendor-specific fields. The lossless path
          must return the model even if the QTI XML contains a valid (but irrelevant) interaction type.
 
+AC-1a: A stale sidecar falls back to the QTI body
+  Given: QTI XML produced by @pie-qti/pie-to-qti2, edited after export, and its original sidecar
+  When: QtiToPiePlugin.transform is called with both
+  Then: The item is transformed from its QTI body; result.warnings has a PIE_SOURCE_STALE entry
+        and the conversion trace has a fallback event
+
 AC-2: Best-effort transform embeds original QTI XML
-  Given: Standard third-party QTI XML (no PIE extension) for a choiceInteraction
+  Given: Standard third-party QTI XML (no PIE source sidecar) for a choiceInteraction
   When: QtiToPiePlugin.transform is called
   Then: result.items[0].content.metadata.qtiSource.xml equals the input QTI XML string
 
@@ -301,24 +313,24 @@ AC-8a: a personal needs profile in an assessmentTest is reported, not converted
   Then: result.warnings has a QTI_PNP_IN_CONTENT entry naming the element; the assessment
         content has no personalNeedsProfile
 
-AC-9: baseId extracted from PIE-originated QTI
-  Given: QTI XML with <qti-metadata-field name="sourceSystemId" value="pie"/> and
-         <qti-metadata-field name="externalId" value="item-stable-123"/>
-  When: transform is called (no PIE extension present — testing the metadata extraction path)
-  Then: The resulting PIE item's id is 'item-stable-123'
+AC-9: baseId and extensions read from manifest LOM
+  Given: A package whose item resource carries LOM with a general/identifier under catalog
+         pie:baseId and entry 'item-stable-123', and a classification with taxonPath/source
+         pie:extension:subject and taxon 'Mathematics', and no sidecar
+  When: transformQtiPackageToPie is called
+  Then: The item's PIE content has baseId 'item-stable-123' and extensions.subject 'Mathematics'
 
-AC-10: Standard metadata extractor runs by default
-  Given: QTI XML with <qti-metadata-field name="subject" value="Mathematics"/>
-         and no vendor-specific MetadataExtractor registered
+AC-10: Item XML carries no baseId or extensions
+  Given: A bare item transform (no package) of QTI XML with no PIE source sidecar
   When: transform is called
-  Then: result.items[0].content.extensions.subject equals 'Mathematics'
+  Then: result.items[0].content has no baseId, and no extensions unless a vendor
+        MetadataExtractor or transformer supplied them
 
 AC-11: Vendor metadata extractor takes priority over standard
-  Given: A registered MetadataExtractor with vendor='acme' returning { subject: 'Science' }
+  Given: A registered MetadataExtractor with vendor='acme' returning extensions { subject: 'Science' }
          and QTI XML that the AcmeVendorDetector detects with confidence >= 0.6
   When: transform is called
-  Then: result.items[0].content.extensions.subject equals 'Science' (from vendor extractor)
-        not 'Mathematics' (from standard extractor)
+  Then: result.items[0].content.extensions.subject equals 'Science' (from the vendor extractor)
 
 AC-12: Scoped composite items compose into one PIE item
   Given: An itemBody with a choiceInteraction and a textEntryInteraction (both in the scoped
@@ -342,15 +354,16 @@ AC-13: Composites outside the scoped set fail as a per-item, not per-package, er
 ### Edge cases
 
 ```
-AC-E1: hasPieExtension is a no-parse string check
-  Given: QTI XML containing xmlns:pie namespace but no pie:sourceModel element
-  When: hasPieExtension is called
-  Then: Returns false (both markers must be present)
+AC-E1: An unreadable sidecar falls back without throwing
+  Given: QTI XML and a sidecar that is invalid JSON or does not match the sidecar contract
+  When: transform is called with both
+  Then: The item is transformed from its QTI body with a PIE_EXTENSION_UNREADABLE warning
 
-AC-E2: extractPieExtension returns safe result on malformed CDATA
-  Given: QTI XML with pie:sourceModel containing invalid JSON in CDATA
-  When: extractPieExtension is called
-  Then: Returns { hasExtension: false, sourceModel: null } without throwing
+AC-E2: A fresh sidecar's values win over manifest LOM
+  Given: A package item with a fresh sidecar whose sourceModel has baseId 'from-sidecar',
+         and resource LOM with a pie:baseId entry 'from-manifest'
+  When: transformQtiPackageToPie is called
+  Then: The item's PIE content has baseId 'from-sidecar'
 
 AC-E3: Detector that throws is skipped
   Given: Two detectors: first throws Error, second returns confidence=0.8

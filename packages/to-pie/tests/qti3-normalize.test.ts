@@ -344,7 +344,7 @@ describe('misplaced prompt repair', () => {
 describe('QTI 3.0 detection and unsupported constructs', () => {
   test('detects QTI 3.0 by its root element', () => {
     expect(isQti3Document(`<?xml version="1.0"?>\n${item('')}`)).toBe(true);
-    // A pie-to-qti2 export carries qti-metadata inside a QTI 2.2 item.
+    // A QTI 2.2 root decides, whatever qti-* elements it contains.
     expect(
       isQti3Document(
         '<assessmentItem identifier="i1"><qti-metadata><qti-metadata-field name="x"/></qti-metadata></assessmentItem>'

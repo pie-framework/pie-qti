@@ -26,7 +26,10 @@ Known approximations, each valid QTI:
 - **Metadata.** `baseId` and `extensions` travel in the sidecar and, for a QTI consumer that
   ignores it, as IEEE LOM on the item's `<resource>` in the package manifest (see
   [Manifest Generation](./MANIFEST-GENERATION.md#resource-metadata)). A bare item transform has no
-  manifest, so only the sidecar carries them.
+  manifest, so only the sidecar carries them. `curriculumStandards` and `skillLevels` travel in the
+  sidecar too; a QTI 3.0 package also carries the standards as Curriculum Standards Metadata 1.1
+  and both fields as LOM classifications, while a QTI 2.2 package carries them in the sidecar
+  only.
 
 ## QTI 3.0
 
@@ -165,7 +168,7 @@ by to-pie and exported unchanged is written back as the original document, in it
 once its PIE config changes, the QTI is generated from the config.
 
 Releases before the sidecar embedded the PIE item as `<pie:sourceModel>` inside `assessmentItem`.
-to-pie no longer reads it, since it carries no digest, and warns `PIE_SOURCE_STALE`.
+to-pie does not read it, and transforms such an item from its QTI body.
 
 ## Validation
 

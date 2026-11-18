@@ -1,17 +1,17 @@
 # PRD: positionObjectInteraction
 
 <!--
-  Status: draft
+  Status: current
   Type: interaction
   Packages: @pie-qti/default-components, @pie-qti/item-player
   QTI type: positionObjectInteraction
-  Last reviewed: 2026-11-09
+  Last reviewed: 2026-11-17
 -->
 
-**Status:** draft  
+**Status:** current  
 **Type:** interaction  
 **Packages:** `@pie-qti/default-components` (component), `@pie-qti/item-player` (extractor)  
-**Last reviewed:** 2026-11-09
+**Last reviewed:** 2026-11-17
 
 ---
 
@@ -623,6 +623,6 @@ Resolved and removed since the previous review: strict `positionObjectStage` nes
 - Eval scenarios: `docs/evals/default-components/position-object/evals.yaml`
 - Spec gaps plan: `docs/SPEC-GAPS-PLAN.md` §G-17 (`positionObjectStage` hierarchy, closed)
 - Adjacent PRDs:
-  - `docs/prds/interactions/graphic-gap-match.md` — the recommended alternative for labeled object placement (`planned`)
+  - `docs/prds/interactions/graphic-gap-match.md` — the recommended alternative for labeled object placement (implemented)
   - `docs/prds/interactions/select-point.md` — simpler coordinate-click interaction when no draggable object is needed
   - `docs/prds/interactions/hotspot.md` — for clicking predefined regions rather than free placement

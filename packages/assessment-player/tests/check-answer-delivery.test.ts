@@ -113,8 +113,6 @@ async function fixture(
 	const assessment: SecureAssessment = {
 		identifier: `check-${submissionMode}-${items.map((i) => i.identifier).join('-')}`,
 		title: 'Check answer delivery',
-		navigationMode: 'nonlinear',
-		submissionMode,
 		testParts: [
 			{
 				identifier: 'part-1',

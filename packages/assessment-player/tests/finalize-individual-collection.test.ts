@@ -34,8 +34,6 @@ async function fixture(itemSessionControl?: SecureAssessment['testParts'][number
 	const assessment: SecureAssessment = {
 		identifier: 'finalize-collect',
 		title: 'Nonlinear individual collection',
-		navigationMode: 'nonlinear',
-		submissionMode: 'individual',
 		testParts: [
 			{
 				identifier: 'part-1',

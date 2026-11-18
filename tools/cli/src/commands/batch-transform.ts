@@ -21,9 +21,6 @@ export interface BatchTransformOptions {
   /** Whether to extract nested ZIP files */
   extractNestedZips?: boolean;
 
-  /** Deprecated: package transforms preserve passage evidence as sidecars */
-  loadPassageContent?: boolean;
-
   /** Whether to copy sidecar source assets to output */
   copyMediaAssets?: boolean;
 
@@ -87,7 +84,6 @@ export class BatchTransformer {
   constructor(options: BatchTransformOptions) {
     const defaults: Omit<Required<BatchTransformOptions>, 'outputDir'> = {
       extractNestedZips: true,
-      loadPassageContent: false,
       copyMediaAssets: false,
       generateReport: true,
       tempDir: path.join('/tmp', `pie-batch-${Date.now()}`),
@@ -506,10 +502,6 @@ export default class BatchTransform extends Command {
       default: true,
       allowNo: true,
     }),
-    loadPassageContent: Flags.boolean({
-      description: 'Deprecated; package transforms preserve passage evidence as sidecars',
-      default: false,
-    }),
     copyMediaAssets: Flags.boolean({
       description: 'Copy sidecar source assets into output directory',
       default: false,
@@ -544,7 +536,6 @@ export default class BatchTransform extends Command {
       outputDir: flags.outputDir,
       maxParallel: flags.maxParallel,
       extractNestedZips: flags.extractNestedZips,
-      loadPassageContent: flags.loadPassageContent,
       copyMediaAssets: flags.copyMediaAssets,
       generateReport: flags.generateReport,
       cleanupTemp: flags.cleanupTemp,
