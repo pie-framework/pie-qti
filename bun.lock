@@ -163,7 +163,7 @@
         "@biomejs/biome": "^2.6.8",
         "@sveltejs/vite-plugin-svelte": "^7.3.1",
         "@tiptap/core": "3.34.0",
-        "@tiptap/extension-mathematics": "3.34.0",
+        "@tiptap/extension-mathematics": "3.35.0",
         "@tiptap/extension-placeholder": "3.34.0",
         "@tiptap/starter-kit": "3.34.0",
         "@types/node": "^26.6.6",
@@ -1004,7 +1004,7 @@
 
     "@tiptap/extension-list-keymap": ["@tiptap/extension-list-keymap@3.34.0", "", { "peerDependencies": { "@tiptap/extension-list": "3.34.0" } }, "sha512-QG3gBIb9bbbfKNDw/ilJRl0urybJ1u+zzI5oTiDq4zVr86pROi7lPG0qj1bTW2uM3e519KLEYAJMhP6/m9SzkQ=="],
 
-    "@tiptap/extension-mathematics": ["@tiptap/extension-mathematics@3.34.0", "", { "peerDependencies": { "@tiptap/core": "3.34.0", "@tiptap/pm": "3.34.0", "katex": "^0.16.4 || ^0.17.0 || ^0.18.0" } }, "sha512-zuUY2/h1o5n0nRIvxRFVCqWhpqoxTPt60/BhYLg7W+vTqPt/8ew7D47au6axjWxPx1bQMAxWpzvfSjNk0lsxjg=="],
+    "@tiptap/extension-mathematics": ["@tiptap/extension-mathematics@3.35.0", "", { "peerDependencies": { "@tiptap/core": "3.35.0", "@tiptap/pm": "3.35.0", "katex": "^0.16.4 || ^0.17.0 || ^0.18.0" } }, "sha512-/PoCCU1Ipzx37M8929K6QThPPtNESEfdHP2tSjUXxRRgSu3BRvsY4gMR2TrnLI0nz2RJ1cyEQegKpFVhRC3izQ=="],
 
     "@tiptap/extension-ordered-list": ["@tiptap/extension-ordered-list@3.34.0", "", { "peerDependencies": { "@tiptap/extension-list": "3.34.0" } }, "sha512-wFTfwBDKPowFwOH3VIXr1Oq3HbAa81OxslC9PW3ckEfAn9ckYXN/BWqGch87JLBPvLkW6NFYOwPD0OmwtnUBVA=="],
 
