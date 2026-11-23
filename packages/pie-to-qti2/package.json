@@ -36,7 +36,7 @@
 		"@pie-qti/transform-types": "workspace:*",
 		"node-html-parser": "^9.0.7",
 		"uuid": "^14.0.3",
-		"xml-formatter": "^3.6.4"
+		"xml-formatter": "^3.7.1"
 	},
 	"devDependencies": {
 		"@pie-qti/item-player": "workspace:*",
