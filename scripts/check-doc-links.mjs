@@ -33,8 +33,9 @@ const PATH_PREFIXES = [
 ];
 // Spans known to be non-paths despite matching a prefix: `docs/specs/` is a deliberate
 // negative statement ("do not assume this exists"), `docs/short-description` is a branch-name
-// example, and `packages/...` is a placeholder.
-const PATH_ALLOWLIST = new Set(["docs/specs/", "docs/short-description"]);
+// example, `packages/...` is a placeholder, and the apps' build output paths are generated
+// (they exist only after a build, never in a fresh checkout).
+const PATH_ALLOWLIST = new Set(["docs/specs/", "docs/short-description", "apps/docs/build", "apps/demo/build"]);
 
 function codeSpansOutsideFences(content) {
 	const spans = [];

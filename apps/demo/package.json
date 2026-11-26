@@ -30,6 +30,7 @@
     "@pie-qti/item-player": "workspace:*",
     "@pie-qti/logger": "workspace:*",
     "@pie-qti/player-elements": "workspace:*",
+    "@pie-qti/pci-runner": "workspace:*",
     "@pie-qti/qti-common": "workspace:*",
     "@pie-qti/section-player": "workspace:*",
     "@pie-qti/typeset-katex": "workspace:*",
