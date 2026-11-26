@@ -40,7 +40,7 @@
     "lint": "bun run lint:biome && bun run lint:svelte",
     "lint:biome": "biome check .",
     "lint:svelte": "turbo check",
-    "lint:all": "bun run lint && bun run check && bun run typecheck && bun run check:package-metadata && bun run check:publish-side-effects && bun run check:custom-elements && bun run check:deps && bun run check:dist-dependencies && bun run check:demo-player-contract && bun run check:publish-surface && bun run check:sourcemaps && bun run check:doc-links",
+    "lint:all": "bun run lint && bun run check && bun run typecheck && bun run check:package-metadata && bun run check:publish-side-effects && bun run check:custom-elements && bun run check:deps && bun run check:dist-dependencies && bun run check:demo-player-contract && bun run check:publish-surface && bun run check:sourcemaps && bun run check:doc-links && bun run check:skills-sync",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "clean:outputs": "rm -rf packages/*/dist tools/*/dist packages/*/tsconfig.tsbuildinfo tools/*/tsconfig.tsbuildinfo",
@@ -77,6 +77,7 @@
     "check:custom-elements": "bun ./scripts/check-custom-elements.mjs",
     "check:publish-side-effects": "bun ./scripts/check-publish-side-effects.mjs",
     "check:doc-links": "bun ./scripts/check-doc-links.mjs",
+    "check:skills-sync": "diff -r .agents/skills .claude/skills || (echo 'check-skills-sync: .claude/skills must match .agents/skills; copy the changed skill files over' && false)",
     "check:i18n": "bun run --cwd packages/i18n check:i18n"
   },
   "devDependencies": {
