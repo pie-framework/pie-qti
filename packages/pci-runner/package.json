@@ -15,7 +15,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "vite build && mv dist/index.html dist/pci-runner.html && tsc --noEmit",
+    "build": "vite build && cp index.html dist/pci-runner.html && tsc --noEmit",
     "dev": "vite build --watch",
     "test": "bun test",
     "typecheck": "tsc --noEmit",

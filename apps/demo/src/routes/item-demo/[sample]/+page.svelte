@@ -16,7 +16,12 @@
 	import { exportToCsv, exportToJson } from './lib/export-utils';
 	import * as PanelResize from './lib/panel-resize';
 	import { loadSessionFromServer, saveSessionToServer } from './lib/session-api';
-	import type { DemoResponseMap, DemoResponseValue, SessionData } from './lib/types';
+	import type {
+		DemoResponseMap,
+		DemoResponseValue,
+		SessionData,
+	} from './lib/types';
+	import type { SerializedItemSessionState } from '@pie-qti/item-player';
 	import QtiDiagnosticsPanel from '#lib/components/QtiDiagnosticsPanel.svelte';
 	import { analyzeQtiItemCompatibility, type QtiCompatibilityReport } from '#lib/qti-diagnostics.js';
 
@@ -76,7 +81,11 @@
 	}
 
 	// Load player
-	function loadPlayer(xml: string, initialResponses?: DemoResponseMap) {
+	function loadPlayer(
+		xml: string,
+		initialResponses?: DemoResponseMap,
+		serializedState?: SerializedItemSessionState | null,
+	) {
 		try {
 			errorMessage = '';
 			scoringResult = null;
@@ -94,7 +103,11 @@
 					security: getSecurityConfig(),
 					pci: getPciConfig(),
 				},
-				{ responses: initialResponses },
+				// Restore carries the saved responses itself (a submitted session is
+				// no longer writable, so a responses override would throw); the plain
+				// responses option only seeds fresh sessions. A restored PCI
+				// re-instantiates with its saved getInstance state.
+				serializedState ? { restore: serializedState } : { responses: initialResponses },
 			);
 			diagnostics = analyzeQtiItemCompatibility(xml, {
 				session: itemSession.session ?? undefined,
@@ -187,6 +200,7 @@
 				itemXml: xmlContent,
 				responses,
 				scoringResult,
+				serializedState: itemSession.session?.serialize() ?? null,
 			};
 
 			const newSessionId = await saveSessionToServer(sessionId, sessionData);
@@ -214,7 +228,11 @@
 			sessionId = id;
 
 			if (sessionData.itemXml) {
-				loadPlayer(sessionData.itemXml, sessionData.responses || {});
+				loadPlayer(
+					sessionData.itemXml,
+					sessionData.responses || {},
+					sessionData.serializedState ?? null,
+				);
 			}
 
 			alert('Session loaded successfully!');
@@ -423,6 +441,34 @@
 			/>
 
 			<QtiDiagnosticsPanel report={diagnostics} />
+
+			<!-- Session Management: persists the live session on the demo server and
+				restores it into a fresh one. Save is also bound to Ctrl/Cmd+S. -->
+			<div class="card bg-base-100 shadow-sm">
+				<div class="card-body gap-3">
+					<h2 class="card-title">Session</h2>
+					<div class="flex gap-2">
+						<button
+							class="btn btn-outline btn-sm flex-1"
+							onclick={saveSession}
+							disabled={isSaving || !itemSession.session}
+						>
+							{isSaving ? 'Saving...' : 'Save Session'}
+						</button>
+						<button
+							class="btn btn-outline btn-sm flex-1"
+							onclick={loadSession}
+							disabled={!itemSession.session}
+						>
+							Load Session
+						</button>
+					</div>
+					<p class="text-xs opacity-70">
+						Save keeps responses, scoring and the item XML under a session id; Load re-creates
+						the player from them (a restored PCI re-instantiates with its saved state).
+					</p>
+				</div>
+			</div>
 		</div>
 
 		<!-- Draggable Divider (desktop only) -->

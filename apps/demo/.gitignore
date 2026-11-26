@@ -5,6 +5,10 @@
 uploads/
 !uploads/.gitkeep
 
+# PCI runner page copied from packages/pci-runner/dist by vite.config.ts
+static/pci-runner.html
+static/pci-runner.js
+
 # Generated config artifacts (should not be committed)
 vite.config.js
 vite.config.js.map

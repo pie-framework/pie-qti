@@ -37,7 +37,8 @@ async function expandOutcomeVariables(page: Page) {
 }
 
 async function ensureTemplateDebugOpen(page: Page) {
-	// SettingsPanel renders a <details> titled "Template Variables (Debug)" when template variables exist.
+	// The template debug table is optional; when a sample renders none, the guarded
+	// lookup below is skipped and readTemplateVariable falls back to the prompt text.
 	const details = page
 		.locator('details', { has: page.getByText('Template Variables (Debug)', { exact: true }) })
 		.first();

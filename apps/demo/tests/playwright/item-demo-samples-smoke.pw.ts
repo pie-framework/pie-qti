@@ -156,3 +156,72 @@ test.describe('item demo portable custom interaction', () => {
 		await expect(page.getByText('1.00 / 1.00')).toBeVisible();
 	});
 });
+
+test.describe('item demo PCI sandbox runner', () => {
+	test('the same PCI runs in the sandboxed runner frame over the postMessage handshake', async ({
+		page,
+	}) => {
+		await page.goto('/item-demo/pci-tally-counter?pciSandbox=1');
+
+		// The module renders inside the runner iframe (`sandbox="allow-scripts"`, opaque
+		// origin); every contract call crosses postMessage. Seeing the module's own DOM
+		// inside the frame is the handshake evidence.
+		const runner = page.frameLocator('pie-qti-portable-custom iframe[src*="pci-runner.html"]');
+		const more = runner.getByRole('button', { name: 'One more' });
+		await expect(more).toBeVisible({ timeout: 40_000 });
+		await expect(runner.getByRole('status', { name: 'Apples' })).toBeVisible();
+
+		for (let i = 0; i < 7; i++) await more.click();
+		await expect(runner.locator('output')).toHaveText('7');
+
+		// getResponse() is pushed to the host on the runner's poll interval ("at most
+		// one interval stale") — let one cycle land before submit reads the cache.
+		await page.waitForTimeout(600);
+		await page.getByRole('button', { name: /Submit Answer/i }).click();
+		await expect(page.getByText('1.00 / 1.00')).toBeVisible();
+	});
+});
+
+test.describe('item demo PCI restore', () => {
+	test('a saved session re-instantiates the PCI with its submitted response', async ({ page }) => {
+		const dialogTexts: string[] = [];
+		let promptReply = '';
+		page.on('dialog', (dialog) => {
+			dialogTexts.push(dialog.message());
+			if (dialog.type() === 'prompt') void dialog.accept(promptReply);
+			else void dialog.accept();
+		});
+
+		await page.goto('/item-demo/pci-tally-counter');
+		const pci = page.locator('pie-qti-portable-custom');
+		const more = pci.getByRole('button', { name: 'One more' });
+		await expect(more).toBeVisible({ timeout: 40_000 });
+		for (let i = 0; i < 3; i++) await more.click();
+		await expect(pci.locator('output')).toHaveText('3');
+
+		// The PCI value enters the session's response variables at submit, so the
+		// serialized state (what a save persists) carries it only then.
+		await page.getByRole('button', { name: /Submit Answer/i }).click();
+		await expect(page.getByText(/0\.00 \/ 1\.00/)).toBeVisible();
+
+		// Save Session fires its alert only after the demo server accepts the session.
+		await page.getByRole('button', { name: 'Save Session' }).click();
+		await expect
+			.poll(() => dialogTexts.find((text) => text.includes('Session saved!')), { timeout: 15_000 })
+			.toBeTruthy();
+		const saved = dialogTexts.find((text) => text.includes('Session saved!'));
+		const id = saved?.match(/ID:\s*(\S+)/)?.[1];
+		expect(id, 'session id').toBeTruthy();
+
+		// A reload drops all player state; the module restarts untouched at its minimum.
+		await page.reload();
+		await expect(more).toBeVisible({ timeout: 40_000 });
+		await expect(pci.locator('output')).toHaveText('0');
+
+		promptReply = id ?? '';
+		await page.getByRole('button', { name: 'Load Session' }).click();
+		// The serialized session restores the response, and the module re-instantiates
+		// with it as its getInstance state — no setter exists on the spec contract.
+		await expect(pci.locator('output')).toHaveText('3');
+	});
+});
