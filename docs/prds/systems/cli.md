@@ -4,7 +4,7 @@
   Status: current
   Type: system
   Packages: @pie-qti/transform-cli
-  Last reviewed: 2026-11-17
+  Last reviewed: 2026-11-26
 -->
 
 **Status:** current  
@@ -18,7 +18,7 @@
 
 ## Summary
 
-`@pie-qti/transform-cli` is a Node.js command-line tool that exposes the PIE-QTI transform engine as a set of shell commands. It covers four use cases: transforming a single QTI XML item to PIE JSON (or vice versa), analyzing the composition of a QTI content package, batch-transforming entire directories or ZIP archives, and discovering the detailed structure of an IMS Content Package. The CLI is built on oclif and extends a shared `BaseCommand` that handles config file loading and plugin registration uniformly across all commands. The primary audiences are CI/CD pipelines automating item-bank migrations, content engineers auditing QTI packages received from vendors, and framework developers iterating on transform logic from the command line.
+`@pie-qti/transform-cli` is a Node.js command-line tool that exposes the PIE-QTI transform engine as a set of shell commands. It covers four use cases: transforming a single QTI XML item to PIE JSON (or vice versa), analyzing the composition of a QTI content package, batch-transforming entire directories or ZIP archives, and discovering the detailed structure of an IMS Content Package. The CLI is built on oclif; the `transform` command extends a shared `BaseCommand` for config file loading and plugin registration, while `analyze-qti`, `batch-transform`, and `discover-qti` extend oclif's `Command` directly. The primary audiences are CI/CD pipelines automating item-bank migrations, content engineers auditing QTI packages received from vendors, and framework developers iterating on transform logic from the command line.
 
 ---
 
@@ -30,7 +30,7 @@ Item-bank migrations — moving thousands of QTI items to PIE format for a new d
 
 ### Item-bank migration use case
 
-Before committing to a migration, a content team needs to understand what interaction types are in a package, how many items will transform without errors, and which items use passage patterns that require manual review. The `analyze` and `discover-qti` commands address this: `analyze` produces an aggregate summary across all packages in a directory (interaction type inventory, passage pattern counts, issues list), while `discover-qti` provides deep structural detail on a single package (manifest resources, per-item dependency graph, media asset inventory).
+Before committing to a migration, a content team needs to understand what interaction types are in a package, how many items will transform without errors, and which items use passage patterns that require manual review. The `analyze-qti` and `discover-qti` commands address this: `analyze-qti` produces an aggregate summary across all packages in a directory (interaction type inventory, passage pattern counts, issues list), while `discover-qti` provides deep structural detail on a single package (manifest resources, per-item dependency graph, media asset inventory).
 
 ### Local developer tooling use case
 
@@ -45,23 +45,23 @@ At `0.1.x` the CLI's command interface, output schemas, and config format are st
 ## Functional requirements
 
 - **FR-1:** The `transform <input>` command must read a single file, transform it using the specified format direction, and write the result either to a file path (via `--output`) or to stdout.
-- **FR-2:** The `transform` command must accept `--format <source>:<target>` (default `qti22:pie`) and validate that the format string contains exactly one `:` separator.
+- **FR-2:** The `transform` command must accept `--format <source>:<target>` (default `qti22:pie`) and validate that both the source and target parts are non-empty around the `:` separator.
 - **FR-3:** When `--pretty` is passed, `transform` must produce indented JSON (two-space indent). Without it, the output must be compact (no whitespace between tokens).
-- **FR-4:** When `--silent` is passed, `transform` must suppress all log output; only the JSON result (or nothing, if `--output` is specified) goes to stdout.
-- **FR-5:** The `analyze <path>` command must accept a directory or a ZIP file, discover all QTI packages within it (recursing into subdirectories to find `imsmanifest.xml`), and print an aggregated summary to stdout. The summary must include: package count, total item count, total passage count, interaction type inventory (with supported/unsupported markers), passage pattern breakdown, and any parse errors encountered.
-- **FR-6:** When `--output <file>` is passed to `analyze`, it must write a detailed Markdown report (one section per package) to the specified file path in addition to printing the summary to stdout.
-- **FR-7:** When `--no-recursive` is passed to `analyze`, it must treat the input path as a single package and not recurse into subdirectories looking for nested packages.
+- **FR-4:** When `--silent` is passed, `transform` must suppress the engine logger and the summary block; the two progress lines (`Reading input from …`, `Transforming from …`) still print, and the JSON result (or nothing, if `--output` is specified) goes to stdout.
+- **FR-5:** The `analyze-qti <path>` command must accept a directory or a ZIP file, discover all QTI packages within it (recursing into subdirectories to find `imsmanifest.xml`), and print an aggregated summary to stdout. The summary must include: package count, total item count, total passage count, interaction type inventory (with supported/unsupported markers), passage pattern breakdown, and any parse errors encountered.
+- **FR-6:** When `--output <file>` is passed to `analyze-qti`, it must write a detailed Markdown report (one section per package) to the specified file path in addition to printing the summary to stdout.
+- **FR-7:** When `--no-recursive` is passed to `analyze-qti`, it must treat the input path as a single package and not recurse into subdirectories looking for nested packages.
 - **FR-8:** The `batch-transform <inputs...>` command must accept one or more paths (directories or ZIP files), discover all QTI packages within them, and transform every `assessmentItem`, `assessmentTest`, and `assessmentPassage`/`assessmentStimulus` found. Input ZIPs must be extracted to a temporary directory before scanning.
-- **FR-9:** `batch-transform` must write transformed items under `<outputDir>/<packageName>/items/`, assessments under `<outputDir>/<packageName>/assessments/`, and passages under `<outputDir>/<packageName>/passages/`.
+- **FR-9:** `batch-transform` must write transformed items under `<outputDir>/<packageName>/items/` and their sidecars under `<outputDir>/<packageName>/sidecars/`, beside `package-evidence.json`, `conversion-trace.json` and `package-transform.json` per package.
 - **FR-10:** When `--generate-report` is set (default true), `batch-transform` must write a `transformation-report.json` file to the output directory containing counts of successful and failed transforms, per-package results, and the list of files that failed with their error messages.
 - **FR-11:** `batch-transform` must continue processing remaining items when a single item transform fails; it must not abort the entire job. Failed items must be recorded in the report rather than causing a non-zero exit code, unless all items fail.
-- **FR-12:** When `--extract-nested-zips` is set (default true), `batch-transform` and `analyze` must recursively extract ZIP files found inside the initial extraction directory.
+- **FR-12:** When `--extract-nested-zips` is set (default true), `batch-transform` must recursively extract ZIP files found inside the initial extraction directory; `analyze-qti` always extracts nested ZIPs and has no flag.
 - **FR-13:** When `--cleanup-temp` is set (default true on both commands), all files extracted to the temporary directory must be deleted after the command completes (whether it succeeds or fails).
 - **FR-14:** `batch-transform` must transform each package through `transformQtiPackagePathToPie`, which preserves passage evidence as package sidecars, written under `<outputDir>/<packageName>/sidecars/`. Item XML is passed to the transform as authored.
-- **FR-15:** When `--copy-media-assets` is set on `batch-transform`, image, audio, and video files found in the input packages must be copied to `<outputDir>/images/`, `<outputDir>/audio/`, and `<outputDir>/video/` respectively. Duplicate filenames (same basename) must be skipped after the first copy.
+- **FR-15:** When `--copy-media-assets` is set on `batch-transform`, asset sidecars from the input packages must be copied under `<outputDir>/<packageName>/sidecars/<kind>/`; `mediaAssets` in the report counts them by MIME type.
 - **FR-16:** The `discover-qti <input>` command must accept a directory or ZIP file, parse its manifest (if present) or fall back to XML scanning, and emit a structured JSON document describing the package: file inventory, manifest summary, per-item interaction types and dependencies, per-passage inventory, per-test item counts, and media asset lists.
 - **FR-17:** When `--output <file>` is passed to `discover-qti`, the JSON must be written to the file; otherwise it must be written to stdout.
-- **FR-18:** All commands must accept `--config <path>` (or the `PIE_QTI_CONFIG` environment variable) and use the specified JSON config to load additional transform plugins and format detectors into the engine before running.
+- **FR-18:** The `transform` command must accept `--config <path>` (or the `PIE_QTI_CONFIG` environment variable) and use the specified JSON config to load additional transform plugins and format detectors into the engine before running.
 - **FR-19:** The CLI binary (`pie-transform`) must print help text for all commands when invoked with `--help` or with no arguments, including flag descriptions and examples.
 
 ---
@@ -72,7 +72,7 @@ At `0.1.x` the CLI's command interface, output schemas, and config format are st
 - **Error handling:** Parse failures on individual XML files must be caught and accumulated, not thrown. The final summary must always be printed, and the temp directory must always be cleaned up, even after errors (the `try/finally` structure in `BatchTransformer.transform()` enforces this). The `transform` command exits non-zero on any error; `batch-transform` exits non-zero only when all items fail.
 - **Security:** The CLI reads files from the local filesystem only. ZIP extraction uses `extractZipToDirSafe` from `@pie-qti/ims-cp-node`, which must prevent path-traversal attacks (entries with `..` components in their paths must be rejected). The CLI does not start any network listeners or make outbound network requests.
 - **Node.js version:** Requires Node.js >=22.0.0 per `engines` in package.json, the floor oclif sets. ESM-only output (the package is `"type": "module"`).
-- **Stability:** At version `1.0.0-beta` (the current `1.0.0-beta.5` prerelease line) the CLI is under active development toward 1.0. Command names, flag names, and output formats are not yet considered stable. Callers in CI pipelines should pin to a specific version and review the changelog on upgrade.
+- **Stability:** At version `1.0.0-beta` (the current `1.0.0-beta.6` prerelease line) the CLI is under active development toward 1.0. Command names, flag names, and output formats are not yet considered stable. Callers in CI pipelines should pin to a specific version and review the changelog on upgrade.
 
 ---
 
@@ -80,7 +80,7 @@ At `0.1.x` the CLI's command interface, output schemas, and config format are st
 
 ### oclif over minimist / yargs / commander
 
-**Decision:** The CLI is built on oclif (`@oclif/core` ^4.0.0).
+**Decision:** The CLI is built on oclif (`@oclif/core` ^5.1.8).
 
 **Rationale:** oclif provides: automatic help generation from static metadata (`description`, `examples`, `flags`, `args`), typed flag parsing with built-in validation (required, default, `allowNo` for boolean flags), an oclif manifest that enables command discovery by scanning `dist/commands` without explicit registration, and a plugin system for future CLI-level extensions. The TypeScript class model (commands as `Command` subclasses) aligns naturally with the `BaseCommand` pattern used for shared config loading. oclif's `--help` output is well-formatted and includes examples without manual formatting.
 
@@ -131,7 +131,7 @@ At `0.1.x` the CLI's command interface, output schemas, and config format are st
 - Always generate a manifest: forces consumers who do not need it to parse and discard it; adds latency.
 - Manifest generation as a separate `package` command: more composable but requires users to run two commands for what is logically one workflow.
 
-**Consequences:** The `--manifest` flag is documented in the README but is not yet implemented in the current `BatchTransform` command (the oclif command delegates to `BatchTransformer` which does not have manifest generation wired). This is a known gap for the `pie:qti22` direction. The flag is reserved in the public interface.
+**Consequences:** The `--manifest` flag is reserved in the public interface but is not yet implemented in the current `BatchTransform` command (and the README does not document it) (the oclif command delegates to `BatchTransformer` which does not have manifest generation wired). This is a known gap for the `pie:qti22` direction. The flag is reserved in the public interface.
 
 ---
 
@@ -155,18 +155,18 @@ The config JSON loaded via `--config` or `PIE_QTI_CONFIG` must satisfy the `Tran
 ```jsonc
 {
   "plugins": {
-    // keyed by sourceFormat, then targetFormat
+    // keyed by sourceFormat, then targetFormat; values are PluginConfig objects
     "qti22": {
-      "pie": "./path/to/custom-plugin.js"
+      "pie": { "module": "./path/to/custom-plugin.js" }
     }
   },
   "formatDetectors": [
-    "./path/to/my-detector.js"
+    { "module": "./path/to/my-detector.js" }
   ]
 }
 ```
 
-Module paths in `plugins` and `formatDetectors` must be resolvable via `import()` from the process's working directory.
+Each `PluginConfig` carries a `module` path plus optional `export` (named export) and `options`; module paths in `plugins` and `formatDetectors` must be resolvable via `import()` from the process's working directory.
 
 ### `BatchTransformResult` (output of `--generate-report`)
 
@@ -198,7 +198,7 @@ interface PackageResult {
 }
 ```
 
-`failedTransforms` counts files that threw during transformation. `errors[].error` is currently hardcoded to `"Transformation failed"` (the actual error message is not propagated from `BatchTransformer`); this is a known gap.
+`failedTransforms` counts files that threw during transformation. `errors[].error` carries the actual propagated message (per-item `message` or the caught error's message); only the single-item `transform` command prefixes failures with `Transformation failed:`.
 
 ### `DiscoveryResult` (output of `discover-qti`)
 
@@ -206,7 +206,7 @@ Emitted as JSON to stdout or `--output`. Defined in `tools/cli/src/commands/disc
 
 ### `AnalysisResult` (internal; summary printed to stdout)
 
-Defined in `tools/cli/src/commands/analyze-qti.ts`. Not serialized to JSON by the `analyze` command (the `--json` flag in the README is not yet implemented in the current oclif command; the command only accepts `--output` for a Markdown report). The stdout summary format is plain text, not machine-parseable.
+Defined in `tools/cli/src/commands/analyze-qti.ts`. Not serialized to JSON by the `analyze-qti` command (there is no `--json` flag; the command only accepts `--output` for a Markdown report, and the README documents neither flag). The stdout summary format is plain text, not machine-parseable.
 
 ---
 
@@ -451,8 +451,8 @@ Notes: The discover-qti command uses openContentPackage which manages its own te
 
 - [ ] **`analyze` --json flag**: The README documents `--json` as a flag on `analyze` that outputs machine-readable JSON. The actual oclif command only defines `--output` (for Markdown) and `--recursive`/`--cleanupTemp`. Should `--json` be implemented to emit the `AnalysisResult` as structured JSON to stdout, enabling pipeline use? This would align `analyze` with `discover-qti`'s JSON-first output model.
 - [ ] **`batch-transform` does not use BaseCommand**: `BatchTransform` extends oclif `Command` directly rather than `BaseCommand`, so it does not support `--config` or `PIE_QTI_CONFIG`. The `BatchTransformer` class hardcodes `QtiToPiePlugin` and does not accept a `TransformEngine` instance. Should `batch-transform` be migrated to `BaseCommand` so that config-driven plugins apply to batch operations?
-- [ ] **Error detail in BatchTransformResult**: `errors[].error` is currently hardcoded to `"Transformation failed"` rather than the actual exception message. This makes the report unhelpful for diagnosing which items failed and why. Should the caught error message be propagated?
-- [ ] **`maxParallel` not applied**: `BatchTransformer` accepts `maxParallel` but the inner transformation loop is sequential (`for...of`). For large packages this is a bottleneck. Should a `p-limit` or equivalent be introduced before the 1.0 release?
+- [x] **Error detail in BatchTransformResult** — resolved: per-item failures carry the item's `message` (or `Failed to transform …`), caught errors carry `error.message`, and only the single-item `transform` command prefixes with `Transformation failed:`.
+- [x] **`maxParallel` not applied** — resolved: packages are processed in chunks of `maxParallel` (default 10) with each chunk's packages transformed concurrently (`Promise.all` over the chunk, `tools/cli/src/commands/batch-transform.ts`), as the Performance requirement describes.
 - [ ] **`pie:qti22` direction in transform command**: The `transform` command's fallback path only handles `qti22:pie`. If a user passes `--format pie:qti22`, the fallback throws `"Unsupported transformation"`. The `createEngine()` path would need a `PieToQtiPlugin` registered. Is `pie:qti22` in the single-item `transform` command a supported use case?
 - [ ] **Global install timeline**: What are the criteria for cutting a 1.0 release and publishing for global install? Likely blockers: stable config schema, `pie:qti22` direction support, `--json` on `analyze`, error detail in batch report.
 

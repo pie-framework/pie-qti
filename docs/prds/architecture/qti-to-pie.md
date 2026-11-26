@@ -4,7 +4,7 @@
   Status: current
   Type: architecture
   Packages: @pie-qti/to-pie
-  Last reviewed: 2026-05-15
+  Last reviewed: 2026-11-26
 -->
 
 **Status:** current
@@ -90,7 +90,7 @@ QTI `associateInteraction` models arbitrary many-to-many pairings: any source co
   - `assessmentPassage` / `assessmentStimulus` (top-level) → PIE `passage`
   - `assessmentTest` → PIE assessment structure
   - A scoped set of interaction types co-occurring in one `itemBody` (see "Composite items" below) → one PIE item carrying multiple models
-- **Deliberately omitted:** `drawingInteraction`, `uploadInteraction`, `mediaInteraction`, `endAttemptInteraction` (dropped with a `QTI_INTERACTION_DROPPED` warning rather than failing the item), `positionObjectInteraction`, `graphicOrderInteraction`, `graphicAssociateInteraction` — not yet implemented; throws `Unsupported interaction type`.
+- **Deliberately omitted:** `endAttemptInteraction` (dropped with a `QTI_INTERACTION_DROPPED` warning rather than failing the item); `drawingInteraction`, `uploadInteraction`, `mediaInteraction`, `positionObjectInteraction`, `graphicOrderInteraction`, `graphicAssociateInteraction` — no generator yet, and the item fails with `Unsupported interaction type`, `positionObjectInteraction`, `graphicOrderInteraction`, `graphicAssociateInteraction` — not yet implemented; throws `Unsupported interaction type`.
 - **Known divergences:**
   - Inline `<stimulus>` elements inside `itemBody` are treated as inline content, not standalone passages. Only top-level `<assessmentPassage>` or `<assessmentStimulus>` root elements produce a PIE `passage` item.
   - EBSR detection requires textual evidence, not interaction count alone: exactly two `<choiceInteraction>` elements is necessary but not sufficient — the item's identifier, title, or either interaction's `responseIdentifier` must also mention "EBSR"/"evidence-based" or a Part A/Part B pairing. Two unrelated `choiceInteraction`s with no such evidence compose as two independent `multiple-choice` models instead (see "Composite items" below).
@@ -389,7 +389,7 @@ AC-E5: Inline stimulus is not treated as standalone passage
 
 - [ ] The scoped composite set (`choiceInteraction`, `orderInteraction`, `sliderInteraction`, `textEntryInteraction`, `inlineChoiceInteraction`) is narrower than full interaction support — `matchInteraction` and `hotspotInteraction` convert fine standalone but are refused in a composite. Growing the set means implementing `promptBoundaryStart`-aware `*Interaction(s)` variants for each addition, plus a `validateCompositeUnitCompatibility` update; there is no tracked backlog of which combinations real content actually needs.
 - [ ] The plugin's `version` field is hardcoded as `'1.0.0'`. It should be derived from `package.json` at build time to ensure the version embedded in `qtiSource.metadata.generator.version` stays accurate.
-- [ ] `AcmeSliderTransformer` in `demo-vendor-extensions` references an undefined variable `baseId` (line 96 of the file), producing a runtime reference to the module-level `const baseId = undefined`. This is a bug in the demo code; it should reference the extracted item ID.
+- [ ] `AcmeSliderTransformer` in `demo-vendor-extensions` uses `pie_id: baseId || itemId` (line 95), where the module-level `const baseId = undefined` (line 160) makes it fall back to `itemId` — the extracted item identifier; the leftover `baseId` constant should be removed, producing a runtime reference to the module-level `const baseId = undefined`. This is a bug in the demo code; it should reference the extracted item ID.
 - [ ] Confidence threshold (0.6) is hardcoded in `detectVendor`. Should it be configurable per plugin instance? Low-threshold vendor plugins that intentionally match on weak signals cannot currently lower this floor.
 - [ ] Asset resolvers and CSS class extractors are stored on the plugin but never invoked by the plugin itself — only by vendor transformers that call back via `plugin.getAssetResolvers()`. This means vendor transformers must receive a reference to the plugin instance to use these hooks. Consider making these hooks part of `TransformContext` instead so vendor transformers receive them through the standard context parameter.
 

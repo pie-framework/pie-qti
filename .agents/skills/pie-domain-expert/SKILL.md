@@ -11,11 +11,11 @@ You are acting as a domain expert for the PIE (Portable Interactions & Elements)
 
 ### Source repos to consult (in order)
 1. **pie-elements-ng** — `../pie-elements-ng` (relative to project root) — Element implementations, shared types, Controller patterns
-   - Core types: `packages/shared/shared-types/src/`
+   - Core types: `../pie-elements-ng/packages/shared/shared-types/src/`
    - Example Controller: any `packages/elements-react/<name>/src/controller.ts`
-   - Shared utilities: `packages/shared/shared-controller-utils/src/`
+   - Shared utilities: `../pie-elements-ng/packages/shared/shared-controller-utils/src/`
 2. **pie-players** — `../pie-players` (relative to project root) — Player implementations, SectionPlayer, AssessmentPlayer, Tools
-   - Shared player types: `packages/players-shared/src/`
+   - Shared player types: `../pie-players/packages/players-shared/src/`
    - SectionPlayer: `packages/section-player/src/`
    - AssessmentPlayer: `packages/assessment-player/src/` (if present)
 3. **This codebase** — the current working directory — for how PIE↔QTI transformation is handled
@@ -118,7 +118,7 @@ interface PieScore {
 
 ## How to respond
 
-1. **Read the relevant source first.** Check `pie-elements-ng` shared types and a concrete Controller example before answering. The types are in `packages/shared/shared-types/src/`; Controller examples are in any `packages/elements-react/<name>/src/controller.ts`.
+1. **Read the relevant source first.** Check `pie-elements-ng` shared types and a concrete Controller example before answering. The types are in `../pie-elements-ng/packages/shared/shared-types/src/`; Controller examples are in any `packages/elements-react/<name>/src/controller.ts`.
 
 2. **State what the PIE contract requires.** Be precise about which interface method applies and what its invariants are.
 

@@ -2,8 +2,40 @@ import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'vite';
+import fs from 'node:fs';
+import path from 'node:path';
+import { defineConfig, type Plugin } from 'vite';
 import { tsconfigOwnPathEntries, viteAliases } from '../../scripts/workspace-aliases.mjs';
+
+// Serve the PCI sandbox runner page from the demo itself, so the sandboxed-runner
+// handshake e2e (`?pciSandbox=1`) and the deployed examples both load it from this
+// app's origin. The runner builds to two fixed-name files with relative asset URLs
+// (`packages/pci-runner/vite.config.ts`), so the copies work at any base path.
+// The files are generated; apps/demo/.gitignore ignores them.
+function copyPciRunner(): Plugin {
+	const runnerDist = fileURLToPath(new URL('../../packages/pci-runner/dist', import.meta.url));
+	const staticDir = fileURLToPath(new URL('./static', import.meta.url));
+	const copy = () => {
+		for (const name of ['pci-runner.html', 'pci-runner.js']) {
+			fs.copyFileSync(path.join(runnerDist, name), path.join(staticDir, name));
+		}
+	};
+	return {
+		name: 'pie-qti:copy-pci-runner',
+		configureServer() {
+			try {
+				copy();
+			} catch {
+				console.warn(
+					'[copy-pci-runner] packages/pci-runner/dist is missing; run `bun run build` once to serve the PCI sandbox runner page.',
+				);
+			}
+		},
+		buildStart() {
+			copy();
+		},
+	};
+}
 
 // The demo's module aliases are the `paths` of its tsconfig: the workspace alias map plus
 // item-player's published entry points, which the demo runs from source.
@@ -11,6 +43,7 @@ const tsconfigPath = fileURLToPath(new URL('./tsconfig.json', import.meta.url));
 
 export default defineConfig({
 	plugins: [
+		copyPciRunner(),
 		// Tailwind v4 optimization currently warns on daisyUI's standards-track `@property` rule.
 		// Disable Tailwind's optimize pass (Vite will still minify CSS).
 		tailwindcss({ optimize: false }),

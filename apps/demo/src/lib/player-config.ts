@@ -54,10 +54,26 @@ export function getSecurityConfig(): PlayerSecurityConfig {
  *
  * Authored module paths resolve against the app's base URL, and the resolver imports only from
  * `static/pci/`, the directory the demo ships its PCI modules in. Returns undefined during SSR.
+ *
+ * `?pciSandbox=1` runs the same modules inside the sandboxed runner frame
+ * (`static/pci-runner.html`, copied from `@pie-qti/pci-runner` by the demo's vite config)
+ * instead of the page realm: the demo's lever for exercising the postMessage
+ * handshake in dev and the e2e suite.
  */
 export function getPciConfig(): PciConfiguration | undefined {
 	const baseUrl = getAssetBaseUrl();
 	if (!baseUrl) return undefined;
+	if (
+		typeof window !== 'undefined' &&
+		new URLSearchParams(window.location.search).get('pciSandbox') === '1'
+	) {
+		return {
+			sandbox: {
+				runnerUrl: new URL('pci-runner.html', baseUrl).href,
+				handshakeTimeoutMs: 20_000,
+			},
+		};
+	}
 	return {
 		baseUrl,
 		moduleResolver: createAllowlistPciModuleResolver({

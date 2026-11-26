@@ -48,7 +48,8 @@ Renaming a publishable package counts as adding one: the new name needs its own 
 Nothing in CI catches a missing record. The credential preflight has no credential to check in
 OIDC mode, and asking npm which packages have records costs an OTP each, so no runner can
 query it. Sibling repo `pie-players` closes this gap with a committed ledger of confirmed
-claims (`scripts/trusted-publishers.json`, asserted by `scripts/check-trusted-publishers.mjs`
+claims (`pie-players/scripts/trusted-publishers.json`, asserted by
+`pie-players/scripts/check-trusted-publishers.mjs`
 before the version bump); porting that here is worthwhile if this repo gains packages with any
 regularity.
 

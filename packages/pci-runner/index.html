@@ -7,13 +7,14 @@
 		<!--
 			Defense in depth for the sandboxed runner page. The frame is already
 			opaque-origin via the host's sandbox="allow-scripts" attribute; this CSP
-			additionally refuses plug-ins, nested frames, and http: scripts. PCI
-			content may load scripts, styles, images, and data from any https origin,
-			so the allowances are permissive by design.
+			additionally refuses plug-ins, nested frames, and http: scripts (except
+			loopback dev servers, so the demo's dev/e2e runs can host the page over
+			plain http). PCI content may load scripts, styles, images, and data from
+			any https origin, so the allowances are permissive by design.
 		-->
 		<meta
 			http-equiv="Content-Security-Policy"
-			content="default-src 'none'; script-src https:; style-src 'unsafe-inline' https:; img-src https: http: data: blob:; media-src https: http: data: blob:; connect-src https: http:; font-src https: data:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+			content="default-src 'none'; script-src https: http://localhost:* http://127.0.0.1:*; style-src 'unsafe-inline' https:; img-src https: http: data: blob:; media-src https: http: data: blob:; connect-src https: http:; font-src https: data:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
 		/>
 		<title>PCI runner</title>
 		<style>
@@ -29,7 +30,8 @@
 				min-width: 0;
 			}
 		</style>
-		<script type="module" src="/src/main.ts"></script>
+		<!-- Deferred like a module script: the bundle expects #pci-runner-mount to exist. -->
+		<script src="./pci-runner.js" defer></script>
 	</head>
 	<body>
 		<div id="pci-runner-mount"></div>

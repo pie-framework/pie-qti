@@ -114,7 +114,7 @@ Only suggest official package execution as a private-project follow-up, never as
 - If a gap is found, check `docs/SPEC-GAPS-PLAN.md` for a closed-gap outcome or a recorded
   deliberate decision that explains the current behavior, and reference it by gap ID.
 - After completing the check, offer to update the private conformance project's
-  `docs/CERTIFICATION_PROGRESS.md` with the findings when the result affects
+  `pie-qti-conformance/docs/CERTIFICATION_PROGRESS.md` with the findings when the result affects
   official certification readiness.
 
 ## Additional resources

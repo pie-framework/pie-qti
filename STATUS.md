@@ -52,11 +52,15 @@ QTI 3.0 naming infrastructure and broad standard interaction delivery are implem
   JSON, `getState()` restore, AMD loading with resolution configs, clean-room
   conformance fixtures) plus the opt-in sandboxed engine — `PciConfiguration.sandbox`
   runs modules in a hardened cross-origin frame (`@pie-qti/pci-runner` is the
-  deployable runner page). No project-hosted runner exists yet: the Pages deployment
-  at `qti.pie-framework.org` publishes the docs and examples only. The sandbox
-  bridge is verified at jsdom level; a real-browser handshake against a deployed
-  runner is still open. Page-realm execution still requires an explicit host resolver;
-  browser-level evidence attaches to the next published candidate — see
+  deployable runner page). The demo ships the clean-room tally-counter PCI with
+  browser e2e coverage in both realms: the page realm through the host resolver,
+  and the sandboxed realm through a locally served runner page
+  (`?pciSandbox=1`), including a submitted-session restore that re-instantiates
+  the module with its saved state. The Pages deployment ships the runner page
+  with the examples from the next promotion; a dedicated cookieless runner
+  origin, an official-candidate browser run and a genuinely third-party-authored
+  PCI remain open. Page-realm execution still requires an explicit host resolver;
+  official-package evidence attaches to the next published candidate — see
   [`docs/plans/pci-runtime-and-sandbox-2026-08.md`](docs/plans/pci-runtime-and-sandbox-2026-08.md).
 - Dynamic assessment-structure semantics are implemented: preconditions, section/testPart
   branch rules, and sequence-indexed clone materialization for selection with replacement

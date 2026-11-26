@@ -88,7 +88,7 @@ git push origin feature/my-new-feature
 
 - PR must have at least one approval
 - All CI checks must pass (lint, tests, build)
-- Squash and merge is preferred for feature branches
+- Merge with a merge commit (matches develop's history; this is also how local doc/fix branches land)
 - Delete branch after merge
 
 ### 4. Preparing a Release
@@ -172,6 +172,11 @@ bun run changeset
 ```
 
 See [docs/development/publish-verification.md](../docs/development/publish-verification.md).
+
+> Note: `.changeset/config.json` keeps `baseBranch: "master"` even though contributors author
+> changesets on `develop`. The custom release flow (`release:with-version`, the Release workflow)
+> drives versioning directly, so the stock base-branch accumulation is intentionally bypassed;
+> treat the config value as release plumbing, not a branch-model statement.
 
 ## CI/CD Behavior
 

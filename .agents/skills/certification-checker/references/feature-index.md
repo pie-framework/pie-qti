@@ -135,30 +135,30 @@ All paths contain a `README.md` with acceptance criteria split by capability (EX
 | Q8 graphicGapMatchInteraction | `packages/item-player/src/interactions/graphic-gap-match/extractor.ts` | `packages/default-components/src/plugins/graphic-gap-match/` |
 | Q10 hotspotInteraction | `packages/item-player/src/interactions/hotspot/extractor.ts` | `packages/default-components/src/plugins/hotspot/` |
 | Q11 hottextInteraction | `packages/item-player/src/interactions/hottext/extractor.ts` | `packages/default-components/src/plugins/hottext/` |
-| Q12 inlineChoiceInteraction | `packages/item-player/src/interactions/inline-choice/extractor.ts` | `packages/default-components/src/plugins/inline-choice/` |
+| Q12 inlineChoiceInteraction | `packages/item-player/src/interactions/inline-choice/extractor.ts` | `packages/item-player/src/interactions/inline-choice/` (inline renderer in item-body flow) |
 | Q13 matchInteraction | `packages/item-player/src/interactions/match/extractor.ts` | `packages/default-components/src/plugins/match/` |
 | Q15 orderInteraction | `packages/item-player/src/interactions/order/extractor.ts` | `packages/default-components/src/plugins/order/` |
 | Q19 sliderInteraction | `packages/item-player/src/interactions/slider/extractor.ts` | `packages/default-components/src/plugins/slider/` |
-| Q20 textEntryInteraction | `packages/item-player/src/interactions/text-entry/extractor.ts` | `packages/default-components/src/plugins/text-entry/` |
+| Q20 textEntryInteraction | `packages/item-player/src/interactions/text-entry/extractor.ts` | `packages/item-player/src/interactions/text-entry/` (inline renderer in item-body flow) |
 | I17 composite | `packages/item-player/src/extraction/` (multi-interaction support in item body) | — |
 
 ### Test/assessment features → assessment player
 
 | Feature | Location |
 |---------|----------|
-| T4/T7 test structure | `packages/assessment-player/src/` |
-| T9 outcomeProcessing | `packages/assessment-player/src/scoring/` |
-| T14 state persistence | `packages/assessment-player/src/state/` |
-| S3/S4 selection/ordering | `packages/assessment-player/src/selection/` |
-| T2 time limits | `packages/assessment-player/src/timer/` |
-| T5 itemSessionControl | `packages/assessment-player/src/session/` |
+| T4/T7 test structure | `packages/assessment-player/src/integration/` (test parse) + `packages/assessment-player/src/core/` (delivery) |
+| T9 outcomeProcessing | `packages/assessment-player/src/integration/ReferenceBackendAdapter.ts` + `packages/qti-processing/src/ast/` and `exec/` |
+| T14 state persistence | `packages/assessment-player/src/core/` (save/resume) + `packages/item-player/src/core/` (item session serialization) |
+| S3/S4 selection/ordering | `packages/assessment-player/src/integration/` (draw at session start) |
+| T2 time limits | `packages/assessment-player/src/core/TimeManager.ts` |
+| T5 itemSessionControl | `packages/assessment-player/src/integration/` (cascade, max attempts) + `packages/item-player/src/core/Player.ts` (per-item controls) |
 
 ### Response processing → operators
 
 | Feature | Location |
 |---------|----------|
 | I9a full response processing | `packages/qti-processing/src/eval/` |
-| I9b fixed templates | `packages/qti-processing/src/templates/` |
+| I9b fixed templates | `packages/item-player/src/core/responseProcessingTemplates.ts` |
 
 ### QTI 3.0 / accessibility features
 

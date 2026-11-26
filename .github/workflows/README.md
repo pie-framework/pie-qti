@@ -20,7 +20,7 @@ Runs on every push to `master` and `develop`, and on pull requests targeting tho
 
 1. **Lint & Typecheck** - Runs Biome linting, Svelte checks, and TypeScript type checking
 2. **Translation Coverage** - Verifies locale coverage and fails on hard-coded learner-visible strings (`bun run check:i18n`)
-3. **Doc Links** - Verifies every relative link and heading anchor across all markdown resolves (`bun run check:doc-links`), and that the `.claude/skills` copy matches `.agents/skills` (`bun run check:skills-sync`)
+3. **Doc Links** - Verifies every relative link, heading anchor, and repo path named in inline code across all markdown resolves (`bun run check:doc-links`), and that the `.claude/skills` copy matches `.agents/skills` (`bun run check:skills-sync`)
 4. **Unit Tests** - Runs package test suites through `bun run test`, plus the repository script
    guards in `scripts/*.test.mjs` (release-workflow and certification-runner invariants) via
    `bun run test:scripts`

@@ -339,9 +339,11 @@ comment. `serializeAssessmentResult` writes a hand-built report; values are XML-
 identifiers are validated against the target schema's NCName type.
 
 Not covered: `choiceSequence` (the player does not record presentation order), QTI 3.0 `support`
-elements and `scoreStatus` / `answeredStatus`. Generated documents were validated against the
-official 2.2 and 3.0 result XSDs by hand, once; that validation is not automated in-tree and belongs
-in the private runner (or a scripted `xmllint` gate) before anything relies on it as a gate.
+elements and `scoreStatus` / `answeredStatus`. An in-tree xmllint schema gate
+(`packages/assessment-player/tests/assessment-result-xsd.test.ts`, on the shared results fixture)
+validates both versions' output when the official result schemas are vendored under its
+`tests/schemas/results/`; they ship with the 1EdTech spec packages rather than this public repo, so
+until they are dropped in the XSD dimension is validated by hand or in the private runner.
 Evidence: `packages/assessment-player/tests/assessment-result-xml.test.ts`.
 
 #### G-27: Compliance checks without an XSD engine
@@ -400,8 +402,12 @@ fixtures in `packages/item-player/tests/conformance/pci/`, which drive registrat
 PIE-projection reconsideration was re-closed on 2026-10-18 with its record in
 [`plans/pci-runtime-and-sandbox-2026-08.md`](plans/pci-runtime-and-sandbox-2026-08.md).
 
-Outstanding: browser-level evidence in the private runner (it waits for a published candidate) and
-third-party content as the same-reading check. The 2026-08-17 intake measurement (zero
+Outstanding: official-candidate browser evidence in the private runner (it waits for a published
+candidate) and a genuinely third-party-authored PCI as the same-reading check. The demo's
+clean-room tally-counter modules (`apps/demo/static/pci/`) stand in for that check with browser e2e
+coverage in both realms — the page realm through the host resolver, and the sandboxed realm through
+a locally served runner page (`?pciSandbox=1`), including a submitted-session restore that
+re-instantiates the module with its saved state. The 2026-08-17 intake measurement (zero
 `portableCustomInteraction` content, no QTI 3.0 packages) stands as data; the completeness goal
 supersedes it as the driver.
 
@@ -542,7 +548,6 @@ not a defect in the behavior shipped today:
   elements do.
 - Graphic-associate label wrapping under narrow viewports and text-spacing overrides needs
   polish (`packages/default-components/src/plugins/graphic-associate/`).
-- PCI has no demo fixture in `apps/demo`; the browser-level review did not exercise it.
 - Non-English `item.submitError` strings lack native-speaker review
   (`packages/i18n/src/locales/`).
 - Deferred internal polish: component splits beyond the shared-module extraction
@@ -560,8 +565,9 @@ Accepted limits recorded with the closed gaps above:
   `answeredStatus` (G-26); attributes, content models and value spaces still need an XSD validator
   outside the browser player (G-27).
 - Candidate-facing minimum-time affordances remain host work (G-22).
-- PCI browser-level evidence waits for a published candidate, and third-party content has not been
-  run as the same-reading check (G-08).
+- PCI official-candidate browser evidence waits for a published candidate, and a genuinely
+  third-party-authored PCI remains unrun; the demo's clean-room modules cover both realms in
+  browser e2e (G-08).
 
 ---
 
