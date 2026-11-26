@@ -17,6 +17,69 @@ const IGNORED_DIRS = new Set([
 
 const MD_LINK = /\[[^\]]*\]\(([^)]+)\)/g;
 
+// Inline-code spans that name a repo path get an existence check. Only root-relative paths
+// under these prefixes are considered; anything with placeholders, globs or whitespace is
+// prose, not a path claim.
+const PATH_PREFIXES = [
+	"packages/",
+	"apps/",
+	"tools/",
+	"docs/",
+	"scripts/",
+	".github/",
+	".agents/",
+	".claude/",
+	".changeset/",
+];
+// Spans known to be non-paths despite matching a prefix: `docs/specs/` is a deliberate
+// negative statement ("do not assume this exists"), `docs/short-description` is a branch-name
+// example, and `packages/...` is a placeholder.
+const PATH_ALLOWLIST = new Set(["docs/specs/", "docs/short-description"]);
+
+function codeSpansOutsideFences(content) {
+	const spans = [];
+	let inFence = false;
+	for (const line of content.split("\n")) {
+		if (/^\s*(```|~~~)/.test(line)) {
+			inFence = !inFence;
+			continue;
+		}
+		if (inFence) continue;
+		for (const match of line.matchAll(/`([^`]+)`/g)) {
+			spans.push(match[1]);
+		}
+	}
+	return spans;
+}
+
+function checkRepoPathSpan(span, broken, file, relativeFile) {
+	if (PATH_ALLOWLIST.has(span)) return;
+	if (!PATH_PREFIXES.some((prefix) => span === prefix || span.startsWith(prefix))) return;
+	if (/[\s<*?()…]/.test(span) || span.includes("...")) return;
+	// `path/file.ts:42` (or `:42-44`) is a path with a line reference.
+	const cleaned = span.replace(/:\d+(-\d+)?$/, "");
+	// Package docs use package-relative spans (`scripts/x.ts` inside packages/i18n); repo
+	// docs use root-relative ones. Accept either: resolve against the nearest enclosing
+	// package roots and the repo root.
+	for (const root of packageRootsFor(file)) {
+		if (fs.existsSync(path.normalize(path.join(root, cleaned)))) return;
+	}
+	broken.push(`${relativeFile} -> \`${span}\` (code-span path does not exist)`);
+}
+
+const packageRootCache = new Map();
+function packageRootsFor(file) {
+	if (packageRootCache.has(file)) return packageRootCache.get(file);
+	const roots = [ROOT];
+	let dir = path.dirname(file);
+	while (dir.startsWith(ROOT) && dir !== ROOT) {
+		if (fs.existsSync(path.join(dir, "package.json"))) roots.unshift(dir);
+		dir = path.dirname(dir);
+	}
+	packageRootCache.set(file, roots);
+	return roots;
+}
+
 function* walkMarkdown(dir) {
 	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
 		if (IGNORED_DIRS.has(entry.name)) continue;
@@ -61,8 +124,13 @@ function anchorsFor(targetFile) {
 	return anchorCache.get(targetFile);
 }
 
-for (const file of walkMarkdown(ROOT)) {
+	for (const file of walkMarkdown(ROOT)) {
+	// Published release history is immutable; stale paths inside it stay as written.
+	if (file.includes(`${path.sep}CHANGELOG.md`) || file.includes(`.changeset${path.sep}pre${path.sep}`)) {
+		continue;
+	}
 	const content = fs.readFileSync(file, "utf8");
+	const relativeFile = path.relative(ROOT, file);
 	for (const match of content.matchAll(MD_LINK)) {
 		const target = match[1].trim();
 		if (/^(https?:|mailto:)/.test(target)) continue;
@@ -76,22 +144,25 @@ for (const file of walkMarkdown(ROOT)) {
 			targetFile = path.normalize(path.join(path.dirname(file), relative));
 			// Directory links (e.g. `../packages/to-pie`) are valid on GitHub.
 			if (!fs.existsSync(targetFile)) {
-				broken.push(`${path.relative(ROOT, file)} -> ${target}`);
+				broken.push(`${relativeFile} -> ${target}`);
 				continue;
 			}
 		}
 		if (fragment && !anchorsFor(targetFile).has(fragment)) {
-			broken.push(`${path.relative(ROOT, file)} -> ${target} (missing anchor)`);
+			broken.push(`${relativeFile} -> ${target} (missing anchor)`);
 		}
+	}
+	for (const span of codeSpansOutsideFences(content)) {
+		checkRepoPathSpan(span, broken, file, relativeFile);
 	}
 }
 
 if (broken.length > 0) {
-	console.error(`check-doc-links: ${broken.length} broken link(s):`);
+	console.error(`check-doc-links: ${broken.length} broken link(s) or path(s):`);
 	for (const entry of broken) {
 		console.error(`  ${entry}`);
 	}
 	process.exitCode = 1;
 } else {
-	console.log("check-doc-links: OK - all markdown relative links and anchors resolve.");
+	console.log("check-doc-links: OK - links, anchors, and code-span repo paths all resolve.");
 }
