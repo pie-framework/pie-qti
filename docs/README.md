@@ -1,6 +1,19 @@
-# PIE Transform Documentation
+# PIE-QTI Documentation
 
-This directory contains the **active** documentation for the PIE QTI / transform monorepo.
+This directory contains the **active** documentation for the PIE-QTI players and the PIE ↔ QTI
+transform framework.
+
+## Start here
+
+| For | Read |
+|-----|------|
+| Project status, verification signals and non-goals | [`../STATUS.md`](../STATUS.md) |
+| Overall system architecture | [ARCHITECTURE.md](./ARCHITECTURE.md) |
+| Why a feature works the way it does | [prds/INVENTORY.md](./prds/INVENTORY.md) |
+| What is deliberate, and what remains open against the spec | [SPEC-GAPS-PLAN.md](./SPEC-GAPS-PLAN.md) |
+| Domain vocabulary and aliases to avoid | [`../CONTEXT.md`](../CONTEXT.md) |
+| Certification scope and the evidence boundary | [certification/README.md](./certification/README.md) |
+| How to contribute, branch and release | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) and [`../.github/BRANCHING_STRATEGY.md`](../.github/BRANCHING_STRATEGY.md) |
 
 ## Current Documents
 
@@ -66,7 +79,7 @@ Architecture and authoring guide for QTI source profiles. Covers:
 - `QTI-3-MIGRATION-GUIDE.md` (QTI 3.0 support and unified architecture)
 - `ARCHITECTURE.md` (overall system architecture)
 - `CONFIGURATION.md` (transform config files, environment variables, plugin loading)
-- `SPEC-GAPS-PLAN.md` (authoritative spec-gap tracker / 1.0 completeness gate)
+- `SPEC-GAPS-PLAN.md` (closed-gap outcomes, the deliberate-decision ledgers and the delivery backlog; the 1.0 completeness gate)
 
 Subdirectories:
 
@@ -114,7 +127,7 @@ The canonical QTI source is 1EdTech. Do not assume a local `docs/specs/` tree ex
 ### When to Update This README
 
 - After adding new documentation
-- When changing document status (draft → active → archived)
+- When a PRD's status changes (`planned`, `draft`, `current`, `needs-update` or `reference`, tracked in [prds/INVENTORY.md](./prds/INVENTORY.md))
 - When reorganizing doc structure
 
 ### When to Archive

@@ -250,7 +250,7 @@ pie-qti-order::part(item) {
   border-radius: 12px;
 }
 
-pie-qti-order::part(handle) {
+pie-qti-order::part(drag-handle) {
   opacity: 0.9;
 }
 ```
