@@ -44,7 +44,7 @@
     "highlight.js": "^11.11.1",
     "lowlight": "^3.3.0",
     "unzipper": "^0.12.3",
-    "xml-formatter": "^3.7.0",
+    "xml-formatter": "^3.7.1",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
