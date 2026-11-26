@@ -1,8 +1,10 @@
 # QTI Compliance Documentation
 
+**Last reviewed:** 2026-11-26
+
 ## Overview
 
-`@pie-qti/pie-to-qti2` generates QTI 2.2.2 items that validate against the official XSD, and QTI 3.0
+`@pie-qti/pie-to-qti2` generates QTI 2.2 items that validate against the official XSD, and QTI 3.0
 items with `targetVersion: '3.0'` (see [QTI 3.0](#qti-30)). The PIE item
 each QTI item came from travels beside it in a sidecar file, so the item document carries no vendor
 elements. This document covers the conformance gate, scoring, content normalization and the round-trip
@@ -10,10 +12,13 @@ mechanism.
 
 ## Conformance Status
 
-Every generator's output, composed multi-interaction items, inline passages, rubrics and standalone
-passage files pass `validateQti(xml, { xsdSeverity: 'error' })` in
-[`schema-gate.test.ts`](../tests/integration/schema-gate.test.ts). The gate runs with the package
-tests, and an export that fails it is a defect.
+Every generator's output, inline passages, rubrics and standalone passage files pass
+`validateQti(xml, { xsdSeverity: 'error' })` in
+[`schema-gate.test.ts`](../tests/integration/schema-gate.test.ts); composed multi-interaction items
+pass the same gate in [`scoring.test.ts`](../tests/integration/scoring.test.ts). The gates run with
+the package tests, and an export that fails them is a defect. The vendored gate schema is the QTI
+2.2 revision (`IMS QTI ASI 2.2.0`, `imsqti_v2p2.xsd`), so "2.2.2" here names the spec line, not the
+vendored file's declared revision.
 
 Known approximations, each valid QTI:
 
@@ -140,8 +145,10 @@ An external passage is a standalone `assessmentItem` with no interaction, identi
 
 Rubric models (`rubric`, `multi-trait-rubric`, `complex-rubric`) become a `<rubricBlock view="scorer">`
 at the end of the interaction item's body: a table of score points for a simple rubric, one table per
-scale for a multi-trait rubric, and the maximum points with any instruction for a rubricless one. The
-rubric's highest score sets the item's `MAXSCORE`. A rubric exported on its own becomes an item with no
+scale for a multi-trait rubric, and the maximum points with any instruction for a rubricless one. On an
+extended-response item — the scorer the rubric grades — the rubric's highest score sets the item's
+`MAXSCORE`; beside any other interaction the block is appended and that interaction's scoring rule
+keeps its own maximum. A rubric exported on its own becomes an item with no
 interaction holding the block.
 
 ## Round-Trip Sidecar

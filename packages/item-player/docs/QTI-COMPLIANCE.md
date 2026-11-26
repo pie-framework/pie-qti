@@ -1,6 +1,6 @@
 # QTI Delivery Coverage
 
-**Last reviewed:** 2026-11-17
+**Last reviewed:** 2026-11-26
 
 This document describes implementation coverage. It is not a claim of full conformance or formal
 1EdTech certification. The player has broad QTI 2.2 and 3.0 coverage and a compatibility path for
@@ -20,7 +20,7 @@ The authoritative implementation backlog is
 - Shared QTI 2.x/3.0 response-processing AST and evaluator with broad operator coverage.
 - Item response state, feedback, adaptive attempts, role filtering, PNP/catalog support, MathML,
   sanitization, URL policy, and optional iframe isolation.
-- Standard interaction renderers in `@pie-qti/default-components`.
+- Standard block interaction renderers in `@pie-qti/default-components`; the inline `textEntryInteraction` and `inlineChoiceInteraction` render in item-body flow from the item player itself (`packages/item-player/src/interactions/text-entry/` and `packages/item-player/src/interactions/inline-choice/`).
 
 Registration or unit extraction does not by itself prove that a schema-valid interaction is
 usable in a browser or scores according to the official template semantics.
@@ -53,7 +53,7 @@ compliance checks G-27; they are not repeated here.
 
 ### QTI 2.1
 
-QTI 2.1 namespace detection and several Common Cartridge filename aliases exist, but the public and
+QTI 2.1 namespace detection and several package filename/identifier patterns (`imsqti_v2p1`, `xmlv2p1`, `qti 2.1`, …) exist in `@pie-qti/ims-cp-core`'s package version detection, but the public and
 private conformance runners do not currently exercise a representative QTI 2.1 delivery corpus.
 Do not treat backward compatibility with the QTI 2.2 vocabulary as complete 2.1 verification.
 

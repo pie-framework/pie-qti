@@ -4,19 +4,19 @@
   Status: current
   Type: system
   Packages: @pie-qti/typeset-katex, @pie-qti/item-player
-  Last reviewed: 2026-04-27
+  Last reviewed: 2026-11-26
 -->
 
 **Status:** current  
 **Type:** system  
 **Packages:** `@pie-qti/typeset-katex`, `@pie-qti/item-player`  
-**Last reviewed:** 2026-04-27
+**Last reviewed:** 2026-11-26
 
 ---
 
 ## Summary
 
-The PIE-QTI math typesetting system renders mathematical expressions inside assessment items without bundling a math engine into the player itself. `@pie-qti/item-player` exposes an optional `typeset?: (element: HTMLElement) => void` hook through its Svelte/web-component rendering surfaces; host applications wire this hook to whichever renderer they choose. `@pie-qti/typeset-katex` provides the recommended default implementation: a KaTeX-based function that scans the DOM for LaTeX delimiters, pre-converts QTI MathML to LaTeX on the fly, lazy-loads KaTeX's auto-render module on demand, and protects `contenteditable` regions from DOM mutation. The hook is optional — items that contain no math impose zero KaTeX cost on the page.
+The PIE-QTI math typesetting system renders mathematical expressions inside assessment items without bundling a math engine into the player itself. `@pie-qti/item-player` exposes an optional `typeset?: (element: HTMLElement) => void` hook through its Svelte/web-component rendering surfaces; host applications wire this hook to whichever renderer they choose. `@pie-qti/typeset-katex` provides the recommended default implementation: a KaTeX-based function that scans the DOM for LaTeX delimiters, keeps authored MathML native (MathML Core) while normalizing it losslessly, lazy-loads KaTeX's auto-render module on demand, and protects `contenteditable` regions from DOM mutation. The hook is optional — items that contain no math impose zero KaTeX cost on the page.
 
 ---
 
@@ -45,11 +45,9 @@ The `typeset` hook resolves both constraints: the player exposes a dependency in
 
 KaTeX renders synchronously and is an order of magnitude faster at initial render than MathJax. For a timed K-12 assessment where dozens of math-heavy items may be displayed in succession, render latency is a user experience concern. `@pie-qti/typeset-katex` therefore uses KaTeX as its implementation, while the hook interface remains renderer-neutral.
 
-### Why MathML must be pre-converted to LaTeX
+### Why authored MathML stays native
 
-KaTeX's `auto-render` extension scans text for LaTeX delimiters. It does not parse HTML MathML element trees. QTI content that uses `<math>` tags would be ignored entirely if rendered directly through KaTeX. The pre-conversion step in `typesetMathInElement` bridges this gap by walking the DOM, finding `<math>` / `<m:math>` elements, recursively converting them to a LaTeX string, replacing the element with a text node wrapped in `\( … \)` or `\[ … \]` delimiters, and then letting KaTeX's auto-render process everything in one pass.
-
-This approach is intentionally minimal. The converter handles the eight MathML element types that appear in the majority of QTI item content; it does not attempt to be a general-purpose MathML→LaTeX translator.
+Modern browsers (Chrome 109+, Safari, Firefox) render MathML Core, and QTI-endorsed `<math>` markup is structurally precise, so converting it would lose information. `typesetMathInElement` therefore never converts MathML to LaTeX: authored MathML stays in the DOM and renders through the browser's MathML Core engine. Two lossless normalizations run instead: namespace-prefixed MathML (`<m:math>`, `<mfrac>`) is re-namespaced into unprefixed MathML so browsers' HTML parsers recognize it, and `<mfenced>` (removed in MathML Core) is expanded into the equivalent `mrow` + `mo` fence markup. KaTeX then handles only the LaTeX-delimiter text around the math, in one pass.
 
 ---
 
@@ -60,15 +58,15 @@ This approach is intentionally minimal. The converter handles the eight MathML e
 - **FR-3:** When `typeset` is provided, the player must call it again whenever item content re-renders due to a response change, state change, or `outcomeValues` update (e.g. feedback visibility toggling).
 - **FR-4:** Calls to `typeset` must be scheduled with `requestAnimationFrame` so that the DOM is fully painted before the function runs; errors thrown by `typeset` must be caught and swallowed (raw text remains; no exception propagates).
 - **FR-5:** `typesetMathInElement` in `@pie-qti/typeset-katex` must scan `innerHTML` for the presence of at least one math signal before loading KaTeX. If no signal is found, the function must return early without loading the KaTeX module.
-- **FR-6:** The math signals checked in the pre-scan must include: `\(`, `\[`, `$$`, `\begin{`, `\frac`, `\sqrt`, `<math`, `<m:math`. Single-dollar `$` must be included only when `enableSingleDollar: true` is passed.
-- **FR-7:** `typesetMathInElement` must convert MathML elements (`<math>`, `<m:math>`, namespace-prefixed variants) to LaTeX-delimited text nodes before invoking KaTeX auto-render. The converter must handle: `math`, `mrow`, `mi`, `mn`, `mo`, `msup`, `msub`, `mfrac`, `msqrt`, `mroot`, `mfenced`.
-- **FR-8:** Unknown MathML element types must fall back to `textContent` — the text is included in the LaTeX string rather than silently dropped. The converter must never throw; errors are caught and the original MathML element is left in place.
-- **FR-9:** MathML elements that already contain a `<semantics>` child (indicating they were already rendered by KaTeX) must be skipped by the converter to prevent double-rendering.
+- **FR-6:** The math signals checked in the pre-scan must include: `\(`, `\[`, `$$`, `\begin{`, `\frac`, `\sqrt`, plus `$` only when `enableSingleDollar: true` is passed. The presence of `<math` alone is not a signal: MathML is not KaTeX's input, so a MathML-only item must not trigger a KaTeX load.
+- **FR-7:** `typesetMathInElement` must normalize namespace-prefixed MathML (`<m:math>`, `<mfrac>`, …) to unprefixed MathML before rendering, so browser MathML Core engines parse it.
+- **FR-8:** `<mfenced>` (removed in MathML Core) must be expanded losslessly into the equivalent `mrow` + `mo` fence markup before rendering.
+- **FR-9:** Authored MathML must never be converted to LaTeX, mutated beyond the two normalizations above, or double-rendered; double-render protection comes from `math` in the ignored-tag list, the `isProtected` check (`.katex` ancestors and `contenteditable` regions), and the `ignoredClasses` option.
 - **FR-10:** `typesetMathInElement` must support the following KaTeX delimiter pairs: `\( … \)` (inline), `\[ … \]` (display), `$$ … $$` (display), and optionally `$ … $` (inline, off by default).
 - **FR-11:** KaTeX's `auto-render` module must be loaded via a dynamic `import()` call, and the resulting `Promise` must be cached at module level so that subsequent calls to `typesetMathInElement` reuse the already-loaded module rather than issuing a new network request.
 - **FR-12:** Elements with `contenteditable="true"` must receive the class `katex-ignore-editor` before KaTeX auto-render runs, and the class must be removed after rendering completes.
 - **FR-13:** KaTeX must be configured with `throwOnError: false` so that malformed LaTeX renders as an error indicator rather than throwing a JavaScript exception that would abort rendering for the surrounding content.
-- **FR-14:** KaTeX must skip the following tag types: `script`, `noscript`, `style`, `textarea`, `pre`, `code`. It must also skip any element with the classes `katex`, `katex-display`, or `katex-ignore-editor`.
+- **FR-14:** KaTeX must skip the following tag types: `script`, `noscript`, `style`, `textarea`, `pre`, `code`, `option`, `math`. It must also skip any element with the classes `katex`, `katex-display`, or `katex-ignore-editor`.
 - **FR-15:** `@pie-qti/typeset-katex` must export a `./css` entry point (`import '@pie-qti/typeset-katex/css'`) that imports KaTeX's compiled CSS. The host app must import this entry point at the document level; the player packages must not import it.
 
 ---
@@ -76,7 +74,7 @@ This approach is intentionally minimal. The converter handles the eight MathML e
 ## Non-functional requirements
 
 - **Accessibility:** KaTeX produces `<math>` MathML with `aria-label` attributes by default for its display output, providing accessible descriptions to screen readers. This behavior must not be suppressed. KaTeX's rendered math must not interfere with the tab order of interactive elements in the item body.
-- **Performance:** KaTeX auto-render must not be loaded until the first item that contains math is rendered. Subsequent items on the same page reuse the cached module; no second network request is issued. The pre-scan (`containsMathDelimiters`) is a string search on `innerHTML` and must complete in under 1 ms for typical item body sizes (< 50 KB).
+- **Performance:** KaTeX auto-render must not be loaded until the first item that contains math is rendered. Subsequent items on the same page reuse the cached module; no second network request is issued. The pre-scan (`containsLatexDelimiters`, module-private) is a string search on `innerHTML` and must complete in under 1 ms for typical item body sizes (< 50 KB).
 - **Cross-platform:** KaTeX renders via HTML+CSS and does not depend on canvas or WebGL. It works on all modern browsers and on iOS Safari. Display math (`\[ … \]`) requires KaTeX CSS at the document level; the player does not attempt to inject this CSS.
 - **Security:** `typesetMathInElement` reads and mutates the DOM of the item body element. It must not read or write outside the passed `root` element. The `katex-ignore-editor` guard prevents mutation of `contenteditable` regions that contain ProseMirror/TipTap internal state.
 - **i18n:** Math notation is language-neutral. KaTeX renders LaTeX symbols regardless of locale. No i18n configuration is required for the typesetting system.
@@ -114,20 +112,18 @@ This approach is intentionally minimal. The converter handles the eight MathML e
 
 ---
 
-### MathML pre-conversion instead of native MathML rendering
+### Native MathML rendering with lossless normalization
 
-**Decision:** Before calling KaTeX auto-render, `typesetMathInElement` walks the DOM to find `<math>` and `<m:math>` elements and recursively converts them to LaTeX-delimited text nodes. The converter handles eight element types; unknown types fall back to `textContent`. The converted text nodes are then processed by KaTeX's standard delimiter scanning.
+**Decision:** `typesetMathInElement` keeps authored MathML in the DOM and renders it with the browser's MathML Core engine. It applies only two lossless normalizations first: prefixed MathML is re-namespaced to unprefixed MathML, and `<mfenced>` is expanded into `mrow` + `mo` fences. KaTeX processes only the LaTeX-delimiter text.
 
-**Rationale:** KaTeX's `auto-render` extension does not parse native MathML. QTI content frequently contains MathML (it is the QTI-endorsed format for structured math). Without pre-conversion, all `<math>` content would be silently ignored by KaTeX. The alternative — using a dedicated MathML→LaTeX library — would add a substantial dependency for what is, in practice, a limited subset of MathML element types that appear in K-12 assessment items. The eight element types handled (`mrow`, `mi`, `mn`, `mo`, `msup`, `msub`, `mfrac`, `msqrt`, `mroot`, `mfenced`) cover the arithmetic, algebra, and fraction notation used in elementary through high school math assessments.
-
-The converter is explicitly documented in the source as intentionally minimal. Host apps that need comprehensive MathML support (nested tables, semantics annotations, custom operators) can replace the entire `typeset` hook with a MathJax-based implementation or a dedicated MathML library.
+**Rationale:** MathML Core is implemented in the browser matrix this framework targets, and authored MathML carries structure (annotations, semantics, nesting) that a LaTeX conversion would drop. The earlier pre-conversion approach silently degraded every MathML construct outside its small handled set; staying native removes that ceiling at zero bundle cost. The `math` element sits in KaTeX's ignored-tag list, so the two systems never fight over the same subtree.
 
 **Alternatives considered:**
 - Use MathJax instead of KaTeX — MathJax v3 handles MathML natively. Rejected for the reference implementation because MathJax's async rendering pipeline and larger bundle size are disadvantageous for the assessment player's synchronous-render-then-typeset flow.
-- Integrate a dedicated MathML→LaTeX library (e.g. `mathml-to-latex`). Rejected because it adds a third-party dependency for a conversion that covers only a small subset of MathML; the bespoke converter handles the QTI MathML subset at near-zero bundle cost.
-- Leave MathML in place and rely on native browser MathML rendering. Rejected because browser MathML support was inconsistent across the browser matrix targeted by this framework and does not apply KaTeX's visual styling.
+- Convert MathML to LaTeX before auto-render — rejected: lossy for anything beyond a small element subset, and redundant now that target browsers render MathML Core.
+- Integrate a dedicated MathML→LaTeX library — rejected for the same lossiness, plus a third-party dependency.
 
-**Consequences:** MathML that uses element types outside the converter's handled set will degrade: the unknown element's `textContent` is inserted literally into the LaTeX string. For example, `<menclose notation="box">x</menclose>` would produce `x` in the LaTeX string rather than a boxed expression. This is a graceful degradation (the math is readable as plain text) rather than an error. The converter boundary is the public contract: hosts that require `menclose`, `mtable`, or advanced MathML must provide their own `typeset` implementation.
+**Consequences:** Items containing legacy constructs that MathML Core dropped (beyond `mfenced`, which the normalizer handles) depend on browser-level fallbacks or a host-provided `typeset` implementation. The public contract stays the `typeset` hook: hosts needing a different math pipeline replace it wholesale.
 
 ---
 
@@ -195,22 +191,13 @@ export interface TypesetMathOptions {
 | `$$ … $$` | display | yes |
 | `$ … $` | inline | no (opt-in via `enableSingleDollar`) |
 
-### MathML converter element support
+### MathML normalization support
 
-| MathML element | LaTeX output | Notes |
+| MathML input | Normalization | Notes |
 |---------------|-------------|-------|
-| `math`, `m:math` | root; delegates to children | Wraps output in `\( … \)` (inline) or `\[ … \]` (display) based on `display` attribute |
-| `mrow` | children joined with space | |
-| `mi` | `textContent` | Identifiers (variables) |
-| `mn` | `textContent` | Numbers |
-| `mo` | `textContent` | Operators |
-| `msup` | `{base}^{exp}` | Two children required |
-| `msub` | `{base}_{sub}` | Two children required |
-| `mfrac` | `\frac{num}{den}` | Two children required |
-| `msqrt` | `\sqrt{content}` | |
-| `mroot` | `\sqrt[index]{base}` | Two children required |
-| `mfenced` | `open content close` | `open`/`close` attributes default to `(` / `)` |
-| All others | `textContent` fallback | Logged as a conversion gap; content preserved as plaintext |
+| `<m:math>`, `<m:frac>`, … (prefixed) | Re-namespaced to unprefixed MathML | The HTML parser only recognizes unprefixed MathML |
+| `<mfenced open="[" close="]">` | Expanded to `mrow` + `mo` fences | `mfenced` was removed in MathML Core; defaults `(` / `)` |
+| All other authored MathML | Left untouched | Rendered by the browser's MathML Core engine |
 
 ### CSS loading contract
 
@@ -220,7 +207,7 @@ KaTeX requires its compiled CSS for correct layout. It must be loaded at the doc
 import '@pie-qti/typeset-katex/css';
 ```
 
-This import must appear in the host application's entry point (or equivalent global CSS bundle). It must not appear inside Shadow DOM components. The item player's `ShadowBaseStyles.svelte` explicitly omits this import to avoid runtime `@import` 404s in nested routes and to avoid duplicating a large CSS file inside shadow roots.
+This import must appear in the host application's entry point (or equivalent global CSS bundle). It must not appear inside Shadow DOM components. `packages/default-components/src/shared/components/ShadowBaseStyles.svelte` explicitly omits this import to avoid runtime `@import` 404s in nested routes and to avoid duplicating a large CSS file inside shadow roots.
 
 ---
 
@@ -264,33 +251,32 @@ AC-3b: Single-dollar $ … $ is rendered when enableSingleDollar is true
   Notes: "$5" will also be affected; caller accepts this trade-off
 ```
 
-**AC-4: MathML fraction converts and renders**
+**AC-4: Authored MathML stays native**
 ```
-AC-4: <mfrac> converts to \frac{}{} and renders via KaTeX
+AC-4: <math> content renders through the browser's MathML engine
   Given: An item body containing:
          <math><mfrac><mn>1</mn><mn>2</mn></mfrac></math>
     and typesetMathInElement is wired as the typeset hook
   When: The item body mounts
-  Then: The MathML element is replaced with a KaTeX-rendered fraction "½" (or equivalent typeset form)
-  And: No raw <math> element remains in the DOM
+  Then: The <math> element remains in the DOM (not replaced by KaTeX output)
+  And: The fraction renders through MathML Core (or MathJax polyfill where the host provides one)
 ```
 
-**AC-5: MathML superscript converts and renders**
+**AC-5: Prefixed MathML is normalized and renders**
 ```
-AC-5: <msup> converts to {base}^{exp} LaTeX
-  Given: An item body containing:
-         <math><msup><mi>x</mi><mn>2</mn></msup></math>
+AC-5: <m:math> prefixed markup renders like unprefixed MathML
+  Given: An item body containing <m:math><m:mi>x</m:mi></m:math> (prefixed MathML)
   When: typesetMathInElement runs
-  Then: The expression renders as "x²" in KaTeX typeset output
+  Then: The markup is re-namespaced to unprefixed MathML and renders as math
 ```
 
-**AC-6: MathML display attribute controls block vs inline rendering**
+**AC-6: mfenced is expanded losslessly**
 ```
-AC-6: <math display="block"> renders as display math
-  Given: <math display="block"><mfrac><mn>a</mn><mn>b</mn></mfrac></math>
-  When: typesetMathInElement converts and renders
-  Then: The LaTeX text node is wrapped with \[ … \] (not \( … \))
-  And: KaTeX renders it as a display block
+AC-6: <mfenced> renders its fences under MathML Core
+  Given: <math><mfenced open="[" close="]"><mn>1</mn><mn>2</mn></mfenced></math>
+  When: typesetMathInElement runs
+  Then: The element is expanded to mrow + mo fence markup with the authored open/close characters
+  And: The fences render in the browser's MathML output
 ```
 
 **AC-7: No KaTeX load when item has no math**
@@ -395,23 +381,22 @@ AC-P2: No 404 or duplicate CSS load for KaTeX inside shadow DOM components
 
 ### Edge cases
 
-**AC-E1: MathML with unknown element types degrades to text**
+**AC-E1: MathML outside the normalizer's scope is left untouched**
 ```
-AC-E1: Unsupported MathML elements render their text content rather than throwing
+AC-E1: MathML constructs the normalizer does not handle pass through unchanged
   Given: An item body containing <math><menclose notation="box"><mn>5</mn></menclose></math>
   When: typesetMathInElement runs
-  Then: The converter replaces the element with LaTeX text containing "5"
-  And: KaTeX renders \(5\) as typeset math (without the box decoration)
+  Then: The element is left in the DOM untouched (no conversion, no data loss)
+  And: Rendering depends on the browser's MathML Core support for menclose
   And: No exception is thrown
 ```
 
-**AC-E2: Already-KaTeX-rendered <math> elements are skipped by MathML converter**
+**AC-E2: KaTeX output is never re-processed**
 ```
-AC-E2: Converter skips <math> elements that contain <semantics> (KaTeX output)
-  Given: An item body where a previous typeset call has already rendered a <math> element
-         (the KaTeX output includes <math><semantics>…</semantics></math>)
+AC-E2: A second typeset pass does not re-render KaTeX output
+  Given: An item body where a previous typeset call has rendered LaTeX into .katex nodes
   When: typesetMathInElement is called a second time
-  Then: The converter does not attempt to re-convert the already-rendered <math> element
+  Then: The .katex subtree is protected (ignored classes and the isProtected check)
   And: The expression is not double-converted
 ```
 
@@ -463,16 +448,16 @@ AC-E6: Converter error does not corrupt the item body
 
 ## Open questions
 
-- [ ] **MathML coverage for high school and AP-level content:** The current converter handles eight element types sufficient for elementary and middle school math. High school assessments may use `<mtable>` (matrices), `<munder>` / `<mover>` (limits, summation notation), `<mstyle>`, and `<mspace>`. These fall back to text content today. A decision is needed on whether to extend the built-in converter or document that AP-level math requires a MathJax-based `typeset` implementation.
+- [x] **MathML coverage for high school and AP-level content** — resolved 2026-11 by the native-MathML decision: authored MathML of any complexity stays in the DOM and renders through MathML Core, so there is no converter to run out of element types. Hosts targeting engines without MathML Core provide a MathJax-based `typeset` implementation.
 - [ ] **SSR / server-side typesetting path:** `typesetMathInElement` is a browser-only function (it uses `document`, `MutationObserver`, `requestAnimationFrame`). The `typesetAction` Svelte action already guards against non-browser environments. A server-side math rendering path (e.g. using KaTeX's server-side API to produce HTML in the item body before delivery) would remove the need for any client-side typesetting. This would be a host-app concern, but it should be documented as a supported deployment pattern and the player's hook interface should be verified to remain a no-op in SSR scenarios.
 - [ ] **Single-dollar default-off and QTI content catalogs:** Some QTI content authoring tools export items with single-dollar delimiters as their only math notation. In these catalogs, `enableSingleDollar` must be `true`, but the item player has no way to detect this from the QTI XML. A per-catalog configuration or definition-level `typesetOptions` field would reduce the chance that hosts forget to set `enableSingleDollar` when needed.
-- [ ] **`typeset` on modal feedback content:** `ModalFeedbackDisplay.svelte` also accepts a `typeset` prop and passes it to its content container. The typeset action there relies on MutationObserver to pick up newly visible feedback. This path has not been systematically tested for the MathML conversion flow; if modal feedback content can contain MathML, the converter must run correctly on that subtree.
+- [ ] **`typeset` on modal feedback content:** `ModalFeedbackDisplay.svelte` also accepts a `typeset` prop and passes it to its content container. The typeset action there relies on MutationObserver to pick up newly visible feedback. This path has not been systematically tested for the MathML normalization flow; if modal feedback content can contain prefixed MathML or mfenced, the normalizer must run correctly on that subtree.
 
 ---
 
 ## Related
 
-- Implementation: `packages/typeset-katex/src/index.ts` — `typesetMathInElement`, `convertMathMLToLatex`, `containsMathDelimiters`
+- Implementation: `packages/typeset-katex/src/index.ts` — `typesetMathInElement`, `TypesetMathOptions` (the only exports; the LaTeX pre-scan and the MathML normalizer are module-private)
 - Implementation: `packages/item-player/src/components/actions/typesetAction.ts` — Svelte action that wires the hook to the DOM lifecycle
 - Implementation: `packages/item-player/src/components/ItemBody.svelte` — `use:typesetAction` binding and `typeset` prop threading
 - Implementation: `packages/item-player/src/components/ItemPlayer.svelte` — top-level `typeset` prop surface

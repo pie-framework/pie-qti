@@ -1,13 +1,13 @@
 # PRD: Theming System
 
 <!--
-  Status: needs-update
+  Status: current
   Type: system
   Packages: @pie-qti/default-components, @pie-qti/player-elements, @pie-qti/theme, @pie-qti/theme-daisyui
   Last reviewed: 2026-11-26
 -->
 
-**Status:** needs-update  
+**Status:** current  
 **Type:** system  
 **Packages:** `@pie-qti/default-components`, `@pie-qti/player-elements`, `@pie-qti/theme`, `@pie-qti/theme-daisyui`  
 **Last reviewed:** 2026-11-26
@@ -17,8 +17,6 @@
 ## Summary
 
 The PIE-QTI theming system enables interaction web components — which render inside Shadow DOM — to participate in host-page theming without requiring the host to inject CSS into each shadow root. The mechanism has three layers: canonical `--pie-qti-*` CSS custom properties carry palette and surface colors, `@pie-qti/theme-daisyui/bridge.css` maps DaisyUI `--color-*` variables into that QTI token contract, and `ShadowBaseStyles.svelte` provides a frozen set of DaisyUI-compatible class definitions (`.btn`, `.badge`, `.card`, etc.) bound to those QTI tokens. A `::part()` API exposes named structural elements for host overrides that cannot be expressed via custom properties alone.
-
-**Needs update:** the part-name requirements and the RTL question were reconciled with the code on 2026-11-26. The "Player-level apps" paragraph under Background still describes the players as SvelteKit applications and has not been rewritten (see Open questions).
 
 ---
 
@@ -61,9 +59,16 @@ CSS custom properties cover palette (color, border-radius, font-size tokens) but
 
 Part names are **public API**. Renaming a part is a breaking change for any host that targets it with `::part()`. This constraint is documented in the extension points table.
 
-### Player-level apps (assessment-player, item-player)
+### The players versus the host application
 
-The assessment player and item player applications are not web components. They are SvelteKit applications that load DaisyUI and Tailwind normally: the `<html>` element carries `data-theme="..."`, and all Tailwind utilities and DaisyUI component classes are available throughout the app. Theming for these apps is conventional and does not require the CSS variable bridge. App-level Tailwind configurations (e.g. `apps/demo/tailwind.config.ts`) customize primary and secondary palette values for brand alignment while inheriting all other DaisyUI theme defaults.
+The players ship as Svelte libraries, not web components: `@pie-qti/item-player` and
+`@pie-qti/assessment-player` render Svelte components (the item body, the assessment shell), and
+`@pie-qti/player-elements` wraps them as the published custom elements. The shell and its chrome
+render in light DOM inside the host document (they mount no shadow roots), so they are styled by
+the host's stylesheets conventionally; the interaction components use the token bridge and
+`ShadowBaseStyles` described above. `apps/demo` is a SvelteKit application and the reference host:
+it loads DaisyUI and Tailwind normally (`<html data-theme="...">`), and its `tailwind.config.ts`
+customizes brand tokens while inheriting the other DaisyUI theme defaults.
 
 ---
 
@@ -390,7 +395,6 @@ AC-E5: color-mix fallback expressions produce valid rendered colors
 ## Open questions
 
 - [x] **RTL support** — resolved 2026-10-24: direction is an inherited CSS property, so the `dir` attribute the player sets on the item-body root reaches interaction components inside their shadow roots with no per-component wiring, and no `ml-*` or `mr-*` utility classes remain in `@pie-qti/default-components`. The host page's own chrome is left to the host. Details: `docs/prds/systems/i18n.md` (FR-16 and the RTL matrix).
-- [ ] **Player-level apps paragraph**: "Player-level apps (assessment-player, item-player)" under Background still describes the players as SvelteKit applications that load DaisyUI and Tailwind directly. The players ship as Svelte packages behind the `@pie-qti/player-elements` custom elements, with `apps/demo` as the SvelteKit host; rewrite that paragraph against the current package layout.
 - [ ] **Automated drift detection for ShadowBaseStyles**: There is no CI check that verifies every DaisyUI class used in component templates also has a definition in `ShadowBaseStyles.svelte`. A linting rule or build-time scanner would prevent silent regressions when components add new class names.
 - [ ] **ShadowBaseStyles bundle size gate**: No automated check enforces the 8 KB size budget stated in the non-functional requirements. A bundle size CI step targeting `ShadowBaseStyles` would make violations visible before merge.
 - [ ] **Theming contract for custom interaction plugins**: The `pie-qti-custom` element allows third-party plugin components. There is no documented contract for whether custom plugins must also include `<ShadowBaseStyles />` or whether they can rely on a shared instance. This needs a decision before the plugin API is stabilized.
