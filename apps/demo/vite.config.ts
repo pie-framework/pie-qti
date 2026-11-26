@@ -15,24 +15,28 @@ import { tsconfigOwnPathEntries, viteAliases } from '../../scripts/workspace-ali
 function copyPciRunner(): Plugin {
 	const runnerDist = fileURLToPath(new URL('../../packages/pci-runner/dist', import.meta.url));
 	const staticDir = fileURLToPath(new URL('./static', import.meta.url));
-	const copy = () => {
-		for (const name of ['pci-runner.html', 'pci-runner.js']) {
-			fs.copyFileSync(path.join(runnerDist, name), path.join(staticDir, name));
+	const copyPciRunnerFiles = (mode: 'serve' | 'build') => {
+		try {
+			for (const name of ['pci-runner.html', 'pci-runner.js']) {
+				fs.copyFileSync(path.join(runnerDist, name), path.join(staticDir, name));
+			}
+		} catch {
+			console.warn(
+				`[copy-pci-runner] packages/pci-runner/dist is missing; the PCI sandbox runner page will not ${mode === 'build' ? 'ship in this build' : 'be served'}. Run \`bun run build\` once (the demo's @pie-qti/pci-runner dependency orders it into full builds).`,
+			);
 		}
 	};
 	return {
 		name: 'pie-qti:copy-pci-runner',
 		configureServer() {
-			try {
-				copy();
-			} catch {
-				console.warn(
-					'[copy-pci-runner] packages/pci-runner/dist is missing; run `bun run build` once to serve the PCI sandbox runner page.',
-				);
-			}
+			// Warn, don't throw: jobs that boot the dev server without building
+			// packages first (the certification gate) don't exercise the runner
+			// page, and a crash there fails the whole gate for nothing. The
+			// sandboxed e2e is the loud guard — it fails if the page is absent.
+			copyPciRunnerFiles('serve');
 		},
 		buildStart() {
-			copy();
+			copyPciRunnerFiles('build');
 		},
 	};
 }
