@@ -408,41 +408,6 @@ export PIE_QTI_STORAGE_BACKEND=s3  # Ignored
 # embedding application to act on
 ```
 
-## API Changes (Orchestration Update)
-
-The orchestration refactoring introduced the WorkflowHandle pattern for better progress monitoring and control:
-
-### Old API (No Longer Supported)
-
-```typescript
-// Direct result - no progress monitoring
-const result = await engine.transform(xml, options);
-console.log(result.items);
-```
-
-### New API (Current)
-
-```typescript
-// Returns WorkflowHandle for monitoring
-const handle = await engine.transform(xml, options);
-
-// Optional: monitor progress
-const progress = await handle.progress();
-console.log(`${progress?.percentage}% complete`);
-
-// Get result
-const result = await handle.result();
-console.log(result.pieConfig);
-```
-
-**Benefits:**
-
-- Real-time progress tracking
-- Better error handling in batch operations
-- Workflow cancellation support
-- Event monitoring for observability
-- Extensible for custom orchestrator implementations
-
 ## Best Practices
 
 1. **Use config files for shared settings** - Check config files into version control

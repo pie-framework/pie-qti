@@ -48,7 +48,7 @@ Thank you for your interest in contributing to the PIE-QTI project! This documen
 
 This is a monorepo with multiple packages:
 
-- **`packages/item-player/`** - Core item player (21 interaction types)
+- **`packages/item-player/`** - Core item player (22 interaction modules)
 - **`packages/assessment-player/`** - Multi-item assessment player
 - **`packages/default-components/`** - Default web-component renderers for QTI interactions
 - **`packages/qti-common/`** - QTI 2.x / 3.0 version abstraction utilities
@@ -77,7 +77,9 @@ This is a monorepo with multiple packages:
 - Write tests for new features
 - Maintain existing test coverage
 - Run tests with `bun run test`
-- For QTI certification-facing changes, run `bun run test:certification:public`
+- For QTI certification-facing changes, run `bun run test:certification:public`. The pre-push hook
+  runs this gate on every push; for a push that cannot affect QTI delivery (docs only), set
+  `SKIP_QTI_PUBLIC_CERTIFICATION=1`
 - E2E tests: `bun run test:e2e` (Playwright starts the demo server unless `PLAYWRIGHT_REUSE_EXISTING_SERVER=true`)
 
 ### Commits
@@ -100,6 +102,8 @@ lockstep patch-only release flow, and what changeset files are for.
    - Follow code standards
    - Add tests for new functionality
    - Update documentation as needed
+   - Add a changeset (`bun run changeset`) when the change ships in a publishable package, with a
+     `Breaking:` note for a breaking change; docs-only changes need none
 
 3. **Test your changes**
 
@@ -141,7 +145,6 @@ lockstep patch-only release flow, and what changeset files are for.
 
 - Update READMEs in relevant packages
 - Add examples for complex features
-- Document breaking changes in PR description
 
 ## Security
 

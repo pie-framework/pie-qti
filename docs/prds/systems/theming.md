@@ -1,22 +1,24 @@
 # PRD: Theming System
 
 <!--
-  Status: current
+  Status: needs-update
   Type: system
   Packages: @pie-qti/default-components, @pie-qti/player-elements, @pie-qti/theme, @pie-qti/theme-daisyui
-  Last reviewed: 2026-04-27
+  Last reviewed: 2026-11-26
 -->
 
-**Status:** current  
+**Status:** needs-update  
 **Type:** system  
 **Packages:** `@pie-qti/default-components`, `@pie-qti/player-elements`, `@pie-qti/theme`, `@pie-qti/theme-daisyui`  
-**Last reviewed:** 2026-04-27
+**Last reviewed:** 2026-11-26
 
 ---
 
 ## Summary
 
 The PIE-QTI theming system enables interaction web components — which render inside Shadow DOM — to participate in host-page theming without requiring the host to inject CSS into each shadow root. The mechanism has three layers: canonical `--pie-qti-*` CSS custom properties carry palette and surface colors, `@pie-qti/theme-daisyui/bridge.css` maps DaisyUI `--color-*` variables into that QTI token contract, and `ShadowBaseStyles.svelte` provides a frozen set of DaisyUI-compatible class definitions (`.btn`, `.badge`, `.card`, etc.) bound to those QTI tokens. A `::part()` API exposes named structural elements for host overrides that cannot be expressed via custom properties alone.
+
+**Needs update:** the part-name requirements and the RTL question were reconciled with the code on 2026-11-26. The "Player-level apps" paragraph under Background still describes the players as SvelteKit applications and has not been rewritten (see Open questions).
 
 ---
 
@@ -55,7 +57,7 @@ DaisyUI v5 uses the oklch color space throughout. Fallback values in `var(--pie-
 
 ### Why `::part()` is a public API
 
-CSS custom properties cover palette (color, border-radius, font-size tokens) but not structural overrides such as repositioning elements, changing display modes, or applying layout-specific rules to individual parts of a component. The `::part()` pseudo-element lets host stylesheets target specific structural elements in the shadow DOM by name, piercing the encapsulation boundary only for explicitly exposed parts. Part names are declared in the Svelte template via the `part="..."` attribute and follow the QTI element vocabulary (`option`, `label`, `input`, `text`, `prompt`, `root`) to make them predictable across components.
+CSS custom properties cover palette (color, border-radius, font-size tokens) but not structural overrides such as repositioning elements, changing display modes, or applying layout-specific rules to individual parts of a component. The `::part()` pseudo-element lets host stylesheets target specific structural elements in the shadow DOM by name, piercing the encapsulation boundary only for explicitly exposed parts. Part names are declared in the Svelte template via the `part="..."` attribute. Shared names keep one meaning across components (`option`, `label`, `input`, `text`, `prompt`, `root`), and each component adds names for its own structure; the complete sets are catalogued per component.
 
 Part names are **public API**. Renaming a part is a breaking change for any host that targets it with `::part()`. This constraint is documented in the extension points table.
 
@@ -73,8 +75,8 @@ The assessment player and item player applications are not web components. They 
 - **FR-4:** `ShadowBaseStyles.svelte` must provide class definitions for at minimum: `.btn` (all variants and sizes), `.badge` (all variants), `.alert` (all variants), `.card`, `.card-body`, `.divider`, `.select`, `.textarea`, `.radio`, `.checkbox`, `.file-input`, `.label`, `.label-text`, `.form-control`, `.sr-only`, and the Tailwind utilities required by interaction layout.
 - **FR-5:** Every CSS declaration in `ShadowBaseStyles.svelte` that references a color must use a `var(--pie-qti-*, <fallback>)` expression; no color value may be hardcoded without a QTI token fallback.
 - **FR-6:** Every interaction component must expose a `part="root"` on its outermost container element.
-- **FR-7:** Interaction components that render repeated items (choices, associations, gap slots, etc.) must expose `part="option"` on each item's wrapper.
-- **FR-8:** Part names must follow the vocabulary defined in the extension points table; component-specific deviations must be documented as additions, not replacements.
+- **FR-7:** Interaction components that render repeated items (choices, associations, gap slots, draggable items, etc.) must expose a part on each item's wrapper, named as catalogued for that component in `packages/default-components/STYLING.md` (`option` for choice, `item` for order).
+- **FR-8:** Part names must match the component's catalog entry in `packages/default-components/STYLING.md`. A component may add part names; renaming or removing an existing one is a breaking change.
 - **FR-9:** Theme changes (host switches `data-theme`) must be reflected in interaction components without a page reload or any JavaScript intervention — CSS custom property re-evaluation is sufficient.
 - **FR-10:** Apps that use DaisyUI's `tailwind.config.ts` may customize `primary`, `secondary`, and other palette tokens; the framework must not hard-code assumptions about specific hex or oklch values for these tokens.
 
@@ -86,7 +88,7 @@ The assessment player and item player applications are not web components. They 
 - **Performance:** `ShadowBaseStyles.svelte` is included once per component shadow root. The compiled size of `ShadowBaseStyles` must not exceed 8 KB minified. Components should not import DaisyUI's full CSS bundle.
 - **Cross-platform:** CSS custom properties and `::part()` are supported in all Chromium, Firefox, and Safari versions released after 2021. No polyfills are required.
 - **Security:** `ShadowBaseStyles.svelte` does not accept any props and does not render any user-supplied content; it is a pure style component. Host stylesheets that target `::part()` are subject to the host's CSP, not the shadow root's.
-- **i18n:** Theming has no direct i18n surface. RTL layouts that may be required for future ar-SA locale support will need directional overrides; this is an open question (see below).
+- **i18n:** Theming has no direct i18n surface. Writing direction reaches interaction components as an inherited CSS property through the `dir` attribute the player sets (see `docs/prds/systems/i18n.md`); the RTL question below is resolved.
 
 ---
 
@@ -140,13 +142,13 @@ The assessment player and item player applications are not web components. They 
 
 **Decision:** Part names use QTI-vocabulary identifiers (`option`, `label`, `input`, `text`, `prompt`, `root`, `track`, `image`) rather than component-local names.
 
-**Rationale:** Consistent naming across components reduces the learning surface for host authors writing `::part()` overrides. An author who knows that `part="label"` is the `<label>` element in `pie-qti-choice` can correctly infer it is the label in `pie-qti-order`, `pie-qti-associate`, etc. QTI vocabulary is already familiar to integrators of this framework.
+**Rationale:** Consistent naming across components reduces the learning surface for host authors writing `::part()` overrides. A name means the same thing wherever it appears: `prompt` is the interaction's prompt and `text` the visible option or item label in both `pie-qti-choice` and `pie-qti-order`. A component adds names for structure of its own (order's `index` and `drag-handle`, choice's `clear`, `eliminate` and `reveal`) instead of reusing a vocabulary name for a different element. QTI vocabulary is already familiar to integrators of this framework.
 
 **Alternatives considered:**
 - Component-prefixed names (e.g. `part="choice-label"`): no ambiguity, but verbose and not transferable across components.
 - BEM-style names: adds a naming convention layer not used elsewhere in the framework.
 
-**Consequences:** Part names are public API. Any rename constitutes a breaking change and requires a major version bump in `@pie-qti/default-components`. New structural elements may add new part names freely; removing or renaming existing ones is a breaking change.
+**Consequences:** Part names are public API. Removing or renaming an existing one is a breaking change for hosts that target it; while the project is pre-1.0 it is made outright, with a `Breaking:` note in the changeset. New structural elements may add new part names freely.
 
 ---
 
@@ -202,28 +204,11 @@ QTI 3.0's shared CSS vocabulary is styled in two places. `@pie-qti/default-compo
 
 ### `::part()` names by component
 
-The following table lists the part names each component exposes. All components expose `part="root"` on the outermost element.
-
-| Component | Additional parts |
-|-----------|-----------------|
-| `pie-qti-choice` | `option`, `label`, `input`, `text` |
-| `pie-qti-order` | `option`, `label`, `input`, `text`, `button` |
-| `pie-qti-associate` | `option`, `label`, `input`, `helper`, `prompt` |
-| `pie-qti-match` | `option`, `input` |
-| `pie-qti-gap-match` | `choice`, `input`, `content`, `palette` |
-| `pie-qti-extended-text` | `editor`, `correct-answer` |
-| `pie-qti-slider` | `prompt`, `track`, `input`, `min`, `max`, `value`, `value-number` |
-| `pie-qti-hotspot` | `image`, `overlay`, `hotspot`, `prompt` |
-| `pie-qti-graphic-associate` | `image-area`, `overlay`, `pair`, `correct-pair`, `prompt` |
-| `pie-qti-graphic-gap-match` | `image-area`, `overlay`, `placed`, `palette`, `palette-item`, `correct-placed`, `prompt` |
-| `pie-qti-graphic-order` | `image-area`, `panel`, `panel-title`, `stage`, `image`, `overlay`, `confirm`, `prompt` |
-| `pie-qti-hottext` | `prompt` |
-| `pie-qti-select-point` | `stage`, `overlay`, `correct-point` |
-| `pie-qti-position-object` | `canvas-area`, `stage`, `canvas`, `overlay` |
-| `pie-qti-media` | `stage`, `labels`, `icon`, `ended-message`, `ended-icon` |
-| `pie-qti-drawing` | `canvas` |
-| `pie-qti-upload` | `button` |
-| `pie-qti-end-attempt` | `button` |
+Every component exposes `part="root"` on its outermost element. The complete part sets per
+component are catalogued, with the design tokens they respond to, in
+[`packages/default-components/STYLING.md`](../../../packages/default-components/STYLING.md). That
+file is verified against the component sources and is the single source for host-facing part
+names, so the lists are not repeated here.
 
 ### `ShadowBaseStyles.svelte` contract
 
@@ -404,7 +389,8 @@ AC-E5: color-mix fallback expressions produce valid rendered colors
 
 ## Open questions
 
-- [ ] **RTL support for ar-SA**: The theming system currently has no directional layer. Components use `gap-*`, `mr-*`, and `ml-*` classes that are not RTL-aware. When ar-SA locale support is introduced, the theming PRD will need to be updated with a strategy for flipping layout (CSS logical properties, or a `dir="rtl"` attribute cascade).
+- [x] **RTL support** — resolved 2026-10-24: direction is an inherited CSS property, so the `dir` attribute the player sets on the item-body root reaches interaction components inside their shadow roots with no per-component wiring, and no `ml-*` or `mr-*` utility classes remain in `@pie-qti/default-components`. The host page's own chrome is left to the host. Details: `docs/prds/systems/i18n.md` (FR-16 and the RTL matrix).
+- [ ] **Player-level apps paragraph**: "Player-level apps (assessment-player, item-player)" under Background still describes the players as SvelteKit applications that load DaisyUI and Tailwind directly. The players ship as Svelte packages behind the `@pie-qti/player-elements` custom elements, with `apps/demo` as the SvelteKit host; rewrite that paragraph against the current package layout.
 - [ ] **Automated drift detection for ShadowBaseStyles**: There is no CI check that verifies every DaisyUI class used in component templates also has a definition in `ShadowBaseStyles.svelte`. A linting rule or build-time scanner would prevent silent regressions when components add new class names.
 - [ ] **ShadowBaseStyles bundle size gate**: No automated check enforces the 8 KB size budget stated in the non-functional requirements. A bundle size CI step targeting `ShadowBaseStyles` would make violations visible before merge.
 - [ ] **Theming contract for custom interaction plugins**: The `pie-qti-custom` element allows third-party plugin components. There is no documented contract for whether custom plugins must also include `<ShadowBaseStyles />` or whether they can rely on a shared instance. This needs a decision before the plugin API is stabilized.

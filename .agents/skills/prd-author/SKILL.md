@@ -23,11 +23,11 @@ Before drafting, read the relevant source to ground the PRD in what actually exi
 
 **For interaction PRDs:**
 - The Svelte component: `packages/default-components/src/plugins/<name>/<Name>Interaction.svelte`
-- The extractor: `packages/item-player/src/extraction/extractors/<name>Extractor.ts` (note: extractors live in item-player, not default-components)
+- The extractor: `packages/item-player/src/interactions/<name>/extractor.ts` (note: extractors live in item-player, not default-components; their tests are under `packages/item-player/tests/extraction/extractors/`)
 - The existing eval YAML (if any): `docs/evals/default-components/<name>/evals.yaml` — use as seed for acceptance criteria
-- The QTI spec section for this interaction in `docs/QTI_techguide.md` (1539-line comprehensive guide, §3.x covers all interaction types)
+- The QTI spec section for this interaction in `docs/QTI_techguide.md` (§3.1–3.4 cover the interaction types)
 - `docs/QTI-RESPONSE-TRACKING-AND-SCORING.md` — for response variable semantics, scoring templates, and operator behavior
-- `docs/SPEC-GAPS-PLAN.md` — check for any gap items (G-01 through G-15) that affect this interaction; document them explicitly in the PRD's QTI alignment section under "Known gaps"
+- `docs/SPEC-GAPS-PLAN.md` — check the closed-gap outcomes and the deliberate-extension and deliberate-keep ledgers for anything that affects this interaction; carry each divergence into the PRD's QTI alignment section under "Known divergences from spec"
 - Any existing docs in `packages/default-components/` (e.g. position-object has a README with important spec limitation notes)
 - If local docs are insufficient for a spec question, use WebSearch/WebFetch to consult the IMS QTI 2.2 spec or QTI 3.0 spec directly. Search for "IMS QTI 2.2 Assessment Item Information Model" to find the canonical URL. Cross-reference with `../qti3-item-player`, `../qti-components` reference implementations when helpful.
 
@@ -72,7 +72,7 @@ Save the PRD to the correct subdirectory:
 - `docs/prds/architecture/<slug>.md`
 - `docs/prds/systems/<slug>.md`
 
-Update the status in `docs/prds/INVENTORY.md` from `planned` to `draft`.
+Add the PRD to the matching table in `docs/prds/INVENTORY.md` with status `draft` (statuses run `planned` → `draft` → `current` → `needs-update`; `reference` marks intentionally non-product surfaces).
 
 ## Writing standards
 

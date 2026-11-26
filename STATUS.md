@@ -1,6 +1,6 @@
 # PIE QTI Project Status
 
-**Last updated**: 2026-11-17
+**Last updated**: 2026-11-26
 
 This is the short project snapshot. Package READMEs, `docs/`, and the CI
 workflows are the authoritative sources for detailed behavior.
@@ -10,7 +10,7 @@ workflows are the authoritative sources for detailed behavior.
 ### QTI Players
 
 The core player packages are pre-1.0, published on one prerelease version line
-(currently `1.0.0-beta.5`), and have broad clean-room coverage. Every gap in
+(`1.0.0-beta.*`), and have broad clean-room coverage. Every gap in
 `docs/SPEC-GAPS-PLAN.md` is Done, including the blockers the 2026-07
 architecture/conformance review found; its Delivery backlog lists the accepted
 delivery limits. That supports no "all valid QTI" or certification claim:

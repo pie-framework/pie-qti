@@ -1,12 +1,15 @@
-# PIE-QTI Specification Gaps — Implementation Plan
+# PIE-QTI Specification Gaps — Record and Decision Ledger
 
 **Status**: Living document
-**Last reviewed**: 2026-11-17
+**Last reviewed**: 2026-11-26
 **Source analysis**: Comparison of `docs/QTI_techguide.md` against the codebase
 
-This document is the authoritative meta-plan for closing gaps between the QTI specification and the
-PIE-QTI implementation. Each section maps to one or more concrete sub-tasks that can be handed to an
-AI agent or a human engineer. Sections are ordered by priority tier.
+All 27 tracked gaps are closed. This document keeps what still guides decisions: the policy and
+decision ledgers below, the outcome of each closed gap, the Delivery backlog of accepted limits, and
+the gap–file index. It remains the 1.0 completeness gate: every entry must be Done before 1.0 is cut
+(see [`plans/version-1-0-2026-10.md`](plans/version-1-0-2026-10.md)). The original gap write-ups
+(spec context, action lists and test signals) are in git history, at the commit that condensed this
+file.
 
 > **Policy (2026-11-09):** follow the QTI spec wherever it is clear, per version; no legacy code.
 > The project is pre-1.0, so there is no backwards-compatibility surface: no shims, deprecated
@@ -83,7 +86,11 @@ AI agent or a human engineer. Sections are ordered by priority tier.
 
 ## How to use this document
 
-Each gap item follows this schema so it can be turned directly into a sub-task brief:
+- To learn why the player behaves as it does in a spec area, find the gap below and read its
+  outcome. The living description of each interaction is in its PRD
+  ([`prds/INVENTORY.md`](prds/INVENTORY.md)).
+- To record a new spec gap, add an entry in the tier that fits and open its status. An open entry
+  carries these fields so it can be turned directly into a task brief:
 
 ```
 ### <ID>: <Title>
@@ -97,992 +104,417 @@ Action      — concrete steps for an agent/engineer
 Test signal — how to verify the work is done
 ```
 
-When creating a sub-task from an item, copy the **Context**, **Current**, and **Action** fields
-verbatim into the task brief. The agent should also read the **Spec ref** section in
-`docs/QTI_techguide.md` before starting.
+- When a gap is resolved, replace its entry with the outcome form used below: the status line with
+  its date and commit reference, then what shipped, anything that remains open, and the tests that
+  stand as evidence.
+- To record a deliberate divergence or a kept leniency, add it to the matching ledger at the top of
+  this file, with its evidence. That ledger is where a future spec-conformance pass looks first.
 
 ---
 
-## Tier 1 — Cross-version interaction and assessment gaps
+## Closed gaps
+
+### Tier 1 — Cross-version interaction and assessment gaps
 
 These gaps were identified from QTI 2.x-authored content, but several affect the shared delivery
-path used for QTI content after name mapping. QTI 3.0-specific work is tracked separately in Tier 2
-and Tier 3 below.
+path used for QTI content after name mapping.
 
----
+#### G-01: `matchGroup` attribute not extracted for associable-choice interactions
 
-### G-01: `matchGroup` attribute not extracted for associable-choice interactions
+Done (commit e2660fb, 2026-04-29) · Spec ref §3.1.3, §3.1.4, §3.1.5, §3.3.5
 
-Scope       — `packages/item-player/src/interactions/{associate,match,gap-match,graphic-gap-match}/extractor.ts`;
-              corresponding default-components UI components
-Status      — Done (commit e2660fb, 2026-04-29)
-Effort      — M
-Spec ref    — §3.1.3 (associateInteraction), §3.1.4 (matchInteraction), §3.1.5 (gapMatchInteraction),
-              §3.3.5 (graphicGapMatchInteraction)
+The associate, match, gap-match, graphic-gap-match and graphic-associate extractors read `matchGroup`
+into the choice data, and the default components filter every pairing through
+`isMatchGroupCompatible` (`packages/item-player/src/core/matchGroups.ts`), so the delivered UI offers
+exactly the pairs validation accepts. The specification defines `matchGroup` as the identifiers a
+choice may be matched with, while the published example and the default components read the tokens
+as group labels; validation refuses a pair only when neither reading allows it (see
+`docs/QTI_techguide.md` §7.4). Since 2026-11-07 `validateResponses` reports each pair of a restored
+or programmatic response that `matchGroup` forbids as a `match_group` error, reading the authored
+`matchGroup` of both sides, gaps and associable hotspots included.
 
-Context
-The `matchGroup` attribute on `simpleAssociableChoice`, `gapText`, `gapImg`, and `associableHotspot`
-is a space-separated list of identifiers. It restricts which choices may be paired with each other.
-For example, setting `matchGroup="set-a"` on several choices means they can only be matched with
-other choices that also list `"set-a"` in their `matchGroup`. This is used in real item banks to
-prevent nonsensical pairings in large matching pools.
+#### G-02: `label` element on `inlineChoiceInteraction` not extracted
 
-Current
-The associate, match, gap-match, graphic-gap-match and graphic-associate extractors read
-`matchGroup` into the choice data, and the default components filter pairing targets through
-`isCompatibleMatchGroup`. Response validation enforces it too (2026-11-07): `validateResponses`
-reports each pair of a restored or programmatic response that `matchGroup` forbids as a
-`match_group` error, reading the authored `matchGroup` of both sides, gaps and associable hotspots
-included (`packages/item-player/src/core/matchGroups.ts`). The specification defines `matchGroup`
-as the identifiers a choice may be matched with, while the example above and the default
-components read the tokens as group labels; validation refuses a pair only when neither reading
-allows it (see `docs/QTI_techguide.md` §7.4). Done (2026-11-07): the default components now reuse
-`isMatchGroupCompatible` for every pairing — associate and match choices, gap-match gaps
-(`matchGroup` delivered per gap), graphic-gap-match hotspots and graphic-associate hotspots — so
-the delivered UI offers exactly the pairs validation accepts, and a held or dragged label no
-longer makes unrelated labels unavailable.
+Done (already implemented; no code change needed) · Spec ref §3.2.1
 
-Action
-1. Add `matchGroup?: string[]` to the choice type in each affected extractor's data interface.
-2. In each extractor's `extract()` method, read `matchGroup` via `utils.getAttribute(choice, 'matchGroup', '')`, split on whitespace, filter empty strings, and include it on the choice object only when non-empty.
-3. In each corresponding default-components UI, use `matchGroup` to filter the list of valid targets shown to the candidate when a source is selected: only offer targets whose `matchGroup` array is empty (unrestricted) OR shares at least one value with the selected source's `matchGroup`.
-4. Add unit tests in each extractor's test file covering: attribute present, attribute absent, multiple values.
-5. Add eval cases in `docs/evals/default-components/` for the affected interactions.
+`InlineChoiceData.label` carries the optional `<label>` child
+(`packages/item-player/src/interactions/inline-choice/extractor.ts`). `InlineChoice.svelte` in the
+same folder uses it as the placeholder `<option>`, falling back to the data prompt and then to the
+localized `Select...` string when the item has none.
 
-Test signal
-- Extractor tests parse XML with `matchGroup` and produce the correct `string[]`.
-- UI eval: when a choice with `matchGroup="animal"` is selected, only targets listing `"animal"` (or no matchGroup) are activatable.
+#### G-03: `format` attribute on `textEntryInteraction` not extracted
 
----
+Done (commit e2660fb, 2026-04-29) · Spec ref §3.2.2
 
-### G-02: `label` element on `inlineChoiceInteraction` not extracted
+The text-entry extractor reads `format` into `TextEntryData.format`
+(`packages/item-player/src/interactions/text-entry/extractor.ts`).
 
-Scope       — `packages/item-player/src/interactions/inline-choice/extractor.ts`;
-              `packages/default-components/src/plugins/inline-choice/`
-Status      — Done (already implemented; no code change needed)
-Effort      — S
-Spec ref    — §3.2.1
+#### G-04: `patternMask` not enforced as live input constraint
 
-Context
-QTI 2.2 added an optional `<label>` child element to `inlineChoiceInteraction`. Its text content is
-displayed in the dropdown before the candidate makes a selection (a placeholder/prompt). Without it,
-dropdown UIs typically show a blank or the first choice, which can confuse candidates.
+Done (commit e2660fb, 2026-04-29; XSD pattern semantics and response validation for text entry and extended text, 2026-11-09) · Spec ref §3.2.2, §3.2.3
 
-Current
-`InlineChoiceData.label: string | null` exists in `inlineChoiceExtractor.ts`; the extractor reads
-the `<label>` child element; `ItemBody.svelte:290` uses it as the placeholder `<option>` with i18n
-fallback to `'Select...'`.
+`patternMask` is enforced with XSD pattern semantics by response validation
+(`packages/item-player/src/core/processing/responseValidation.ts`) and is honoured by the inline
+text-entry and extended-text renderers.
 
-Action
-1. Add `label?: string` to `InlineChoiceData`.
-2. In `extract()`, after extracting choices, look for a `<label>` child: `utils.getChildrenByTag(element, 'label')`. If found, set `label` to `utils.getTextContent(labelEl)`.
-3. In the inline-choice UI component, use `label` as the `<option value="" disabled>` placeholder when present; fall back to the current behaviour (empty or i18n string) when absent.
-4. Add unit test: XML with `<label>Select one</label>` produces `label: 'Select one'`.
+#### G-05: `testFeedback` visibility only handles boolean outcomes
 
-Test signal
-- Extractor test passes.
-- Demo item with `<label>` shows the placeholder text in the dropdown before selection.
+Done (2026-10-14) · Spec ref §2.1 (Assessment Architecture — testFeedback)
 
----
-
-### G-03: `format` attribute on `textEntryInteraction` not extracted
-
-Scope       — `packages/item-player/src/interactions/text-entry/extractor.ts`;
-              `packages/default-components/src/plugins/text-entry/`
-Status      — Done (commit e2660fb, 2026-04-29)
-Effort      — S
-Spec ref    — §3.2.2
-
-Context
-QTI 2.2 added a `format` attribute to `textEntryInteraction` as a display-format hint. Delivery
-engines may use this to, for example, display a wider input for numeric formats or add units labels.
-The attribute is specified as a plain string hint with no fixed vocabulary.
-
-Current
-`TextEntryData` does not include `format`. The extractor reads `expectedLength`, `patternMask`,
-`placeholderText` but not `format`.
-
-Action
-1. Add `format?: string` to `TextEntryData`.
-2. In `extract()`, read `utils.getAttribute(element, 'format', '')` and include it when non-empty.
-3. In the text-entry UI component, pass `format` as a `data-format` attribute on the `<input>` so host stylesheets and screen readers can act on it, and optionally map a small set of well-known values (e.g. `"plain"`, `"preFormatted"`) to CSS classes.
-4. Add extractor unit test.
-
-Test signal
-- `TextEntryData.format` is populated from the XML attribute.
-- `data-format` attribute appears on the rendered `<input>`.
-
----
-
-### G-04: `patternMask` not enforced as live input constraint
-
-Scope       — `packages/default-components/src/plugins/text-entry/`
-Status      — Done (commit e2660fb, 2026-04-29; XSD pattern semantics and response validation for text entry and extended text, 2026-11-09)
-Effort      — S
-Spec ref    — §3.2.2, §3.2.3
-
-Context
-The spec says `patternMask` on `textEntryInteraction` and `extendedTextInteraction` provides
-client-side input validation (regular expression). The extractor already reads and exposes it, but
-the spec intent is to prevent invalid characters from being entered or submitted.
-
-Current
-`patternMask` is extracted and present in `TextEntryData`. It is not clear the default UI component
-applies it to the `<input>` element as a live constraint.
-
-Action
-1. Check the text-entry Svelte component. If `patternMask` is not wired to `pattern` on the `<input>`, add `pattern={patternMask}` (or equivalent live validation).
-2. Ensure the component does NOT block blur/submit silently — instead surface an accessible validation message (ARIA `aria-describedby` with an error span, visible on invalid state).
-3. Check `extendedTextInteraction` component for the same gap; apply if needed.
-4. Add eval case: item with `patternMask="[0-9]+"`, entering letters should show a validation error.
-
-Test signal
-- Entering a value that doesn't match `patternMask` activates `:invalid` CSS state and shows an accessible error message.
-- Entering a valid value clears the error.
-
----
-
-### G-05: `testFeedback` visibility only handles boolean outcomes
-
-Scope       — `packages/assessment-player/src/core/AssessmentPlayer.ts`; `ReferenceBackendAdapter.ts`
-Status      — Done (2026-10-14)
-Effort      — S
-Spec ref    — §2.1 (Assessment Architecture — testFeedback)
-
-Context
-`testFeedback` has `outcomeIdentifier`, `identifier`, `showHide` and `access`. It shows when the
-outcome named by `outcomeIdentifier` matches `identifier` (inverted by `showHide="hide"`), and it
-belongs to the `assessmentTest` or to a `testPart`. `access="atEnd"` feedback shows at the end of
-the test or part; `access="during"` feedback shows while it runs.
-
-Current
 Visibility uses the shared `isShownByIdentifier` rule: equality for a single outcome, membership for
 a multiple or ordered one, and a NULL outcome matches nothing. `submitResponses`, a resumed
 `initSession` and `finalizeAssessment` return the test-level outcome values as typed
-`TestOutcomeValues`, and the player recomputes feedback on each, notifying `onTestFeedbackChange`
-listeners. The reference backend runs outcome processing for each. Test-level `during` feedback shows
-once outcome processing has run and `atEnd` once the test is finalized; `testPart` feedback is parsed
-onto `SecureTestPart`, its `during` shows while the part is current and its `atEnd` once the
-candidate has moved past the part or the test is finalized. QTI 3 content is unwrapped from
-`qti-content-body`.
+`TestOutcomeValues`, and the player recomputes feedback on each. Test-level `during` feedback shows
+once outcome processing has run and `atEnd` once the test is finalized; `testPart` feedback is
+parsed onto `SecureTestPart` and follows the same timings against the part. QTI 3 content is
+unwrapped from `qti-content-body`. Evidence:
+`packages/assessment-player/tests/test-feedback-outcomes.test.ts`.
 
-Test signal
-- `packages/assessment-player/tests/test-feedback-outcomes.test.ts`: in QTI 2.2 and 3.0, test and
-  part feedback by a single `GRADE` outcome and a multiple `FLAGS` outcome, `showHide="hide"`, both
-  access timings and a resumed session.
+#### G-06: `matchMin` usage constraint not validated at submission time
 
----
+Done (commit e2660fb and a follow-up, 2026-04-29) · Spec ref §3.1.3, §3.1.4, §3.1.5, §3.3.4, §3.3.5
 
-### G-06: `matchMin` usage constraint not validated at submission time
+`Player.validateResponses()` counts each choice's appearances in the response — across choices, gap
+texts, gap images, match sets and associable hotspots — and reports the response incomplete while
+any choice is below its `matchMin`.
 
-Scope       — `packages/item-player/src/utils/responseUtils.ts` or `Player.ts`
-Status      — Done (commit e2660fb + followup, 2026-04-29 — matchMin extracted and validated at runtime)
-Effort      — S
-Spec ref    — §3.1.3, §3.1.4, §3.1.5, §3.3.4, §3.3.5
+#### G-07: STATUS.md and README.md are inconsistent about QTI 3.0 scope
 
-Context
-`matchMin` on `simpleAssociableChoice`, `gapText`, `gapImg`, and `associableHotspot` declares the
-minimum number of times each choice must appear in the response. When `matchMin > 0` for any
-choice, the response is incomplete unless that choice has been used at least `matchMin` times. This
-is a hard constraint on response completeness analogous to `minChoices` on `choiceInteraction`.
+Done (commit e2660fb, 2026-04-29) · Spec ref N/A
 
-Current
-`Player.validateResponses()` counts each choice's appearances in the response, across choices, gap
-texts, gap images, match sets and associable hotspots, and reports the response incomplete while any
-choice is below its `matchMin`.
+`STATUS.md` and `README.md` were aligned on QTI 3.0 scope. Keeping every status surface honest is a
+standing 1.0 acceptance criterion rather than a one-off fix: see "Honest status surfaces" in
+[`plans/version-1-0-2026-10.md`](plans/version-1-0-2026-10.md).
 
-Action
-1. In `Player.validateResponse()` (or wherever `isResponseValid()` is computed), for interactions that carry `matchMin` on choices, iterate each choice and count how many times its identifier appears in the current response. Return invalid if any choice has a count below its `matchMin`.
-2. Expose the specific shortfall through the validation result so UIs can indicate which choices still need to be used.
-3. Add unit tests.
+#### G-16: Lossless `assessmentTest` XML ingestion and one authoritative test model
 
-Test signal
-- `player.validateResponse()` returns invalid when a required choice (`matchMin=1`) has not been used.
-- Returns valid once all `matchMin` constraints are satisfied.
+Done (dynamic structure semantics 2026-10-15; discovery-parser consolidation 2026-10-17, PR #333) · Spec ref QTI assessment-test information model
 
----
-
-### G-07: STATUS.md and README.md are inconsistent about QTI 3.0 scope
-
-Scope       — `STATUS.md`, `README.md`
-Status      — Done (commit e2660fb, 2026-04-29)
-Effort      — S
-Spec ref    — N/A
-
-Context
-`STATUS.md` line 52 lists "QTI 3.0 features" as an intentional non-goal. `README.md` says "QTI 3.0
-infrastructure complete, player enhancements in progress" and the badges show
-"QTI 2.x & 3.0 Supported". This contradiction creates incorrect expectations for consumers and
-AI agents working from the repo.
-
-Current
-Both files exist with conflicting statements. `docs/QTI-3-MIGRATION-GUIDE.md` correctly describes
-the version-agnostic name-mapping layer but does not distinguish between what is done and what is
-planned.
-
-Action
-1. In `STATUS.md`, replace the non-goal line with a more precise statement: name-mapping/version-detection is complete; PCI, PNP, and Catalog are tracked in this plan under Tier 2/3.
-2. In `README.md`, change the QTI 3.0 description to "QTI 3.0 name-mapping complete; PCI/PNP/Catalog in progress" and update the badge to `QTI 2.x & 3.0 (partial)` until the Tier 2 work below is done.
-3. Add a one-line pointer from `STATUS.md` to this document.
-
-Test signal
-- A reader of `STATUS.md` and `README.md` reaches the same understanding of QTI 3.0 scope.
-
----
-
-### G-16: Lossless `assessmentTest` XML ingestion and one authoritative test model
-
-Scope       — `packages/assessment-player/`; `packages/player-elements/src/qti/`
-Status      — Done (dynamic structure semantics 2026-10-15; discovery-parser consolidation 2026-10-17, PR #333)
-Effort      — L
-Spec ref    — QTI assessment-test information model
-
-Context
-Valid test XML can carry per-part navigation/submission modes, nested sections, selection,
-ordering, fixed flags, preconditions, branch rules, item-session controls, time limits, weights,
-outcome declarations/processing, and test feedback. Delivery must preserve these semantics through
-XML ingestion rather than require hosts to preconstruct an internal model.
-
-Current
-`ReferenceBackendAdapter.parseAssessmentTestXml()` now preserves ordered nested sections and
-external section references; per-testPart navigation/submission modes; selection, ordering,
-`required`, and `fixed`; item-ref weights and branch rules; serialized section/item-ref
-preconditions; time limits; outcome processing; and test feedback. The raw-XML custom-element
-reference mode now uses that richer parser instead of converting through its former flattened
-`SecureAssessment` copy.
+`ReferenceBackendAdapter.parseAssessmentTestXml()` preserves ordered nested sections and external
+section references, per-testPart navigation and submission modes, selection, ordering, `required` and
+`fixed`, item-ref weights and branch rules, serialized section and item-ref preconditions, time
+limits, outcome processing and test feedback. The raw-XML custom-element reference mode uses that
+parser instead of converting through a flattened `SecureAssessment` copy.
 
 The backend draws selection and ordering once at session start and stores the drawn assessment, so
 a resume returns the same draw. `withReplacement` repeats are cloned with suffixed identifiers
 (`.2`, `.3`), each with its own item session and result, and an invisible `keepTogether="false"`
 section is mixed into its parent's shuffle. Branch rules run on item refs, sections and test parts
-(item and section rules in linear parts only), with EXIT_SECTION, EXIT_TESTPART and EXIT_TEST.
-Preconditions are evaluated on entering each test part, section and item ref against typed test
-outcomes and the submitted items' variables after `variableMapping`. `itemSessionControl` cascades
-from the test part through every enclosing section to the item ref over the QTI defaults; the
-backend enforces `maxAttempts` and `allowComment`, and the player applies `showFeedback`,
+(item and section rules in linear parts only), with `EXIT_SECTION`, `EXIT_TESTPART` and
+`EXIT_TEST`. Preconditions are evaluated on entering each test part, section and item ref against
+typed test outcomes and the submitted items' variables after `variableMapping`. `itemSessionControl`
+cascades from the test part through every enclosing section to the item ref over the QTI defaults;
+the backend enforces `maxAttempts` and `allowComment`, and the player applies `showFeedback`,
 `showSolution` and `validateResponses` per item and evaluates `templateDefault` before template
 processing. External `assessmentSectionRef` recursion rejects cycles and enforces a configurable
-depth limit (32 by default). A small discovery parser remains in player-elements to resolve
-referenced resources before the authoritative parse.
+depth limit (32 by default).
 
-Action
-Done. Preconditions, section and test-part branch rules, `withReplacement` instances and the
-itemSessionControl cascade landed 2026-10-15 with raw QTI 2.2 and 3.0 delivery tests. The
-player-elements discovery pass was consolidated where practical (2026-10-16): the canonical-name and
-encoded-path scan primitives are single-sourced, the discovery/authoritative boundary and the
-element's itemXmlMap keying contract are documented in code. The discovery parser remains the
-bounded pre-fetch surface and a public standalone utility.
+A small discovery parser remains in `player-elements` as the bounded pre-fetch surface and a public
+standalone utility: it resolves referenced resources before the authoritative parse. The
+canonical-name and encoded-path scan primitives are single-sourced, and the
+discovery/authoritative boundary and the element's `itemXmlMap` keying contract are documented in
+code.
 
-Test signal
-- Tests start from raw QTI 2.1, 2.2, and 3.0 assessment XML and assert selected/ordered runtime
-  instances, dynamic precondition/branch outcomes, independent duplicate ItemSessions, and
-  sequence-indexed results rather than merely checking that XML parsed.
+#### G-17: `positionObjectStage` hierarchy is reversed
 
----
+Done (schema-valid QTI 2.2/3.0 parent-stage extraction, 2026-07-13) · Spec ref QTI positionObjectStage / positionObjectInteraction content model
 
-### G-17: `positionObjectStage` hierarchy is reversed
-
-Scope       — `packages/item-player/src/interactions/position-object/`; fixtures and renderer
-Status      — Done (schema-valid QTI 2.2/3.0 parent-stage extraction, 2026-07-13)
-Effort      — M
-Spec ref    — QTI positionObjectStage / positionObjectInteraction content model
-
-Context
-QTI 2.2 and 3.0 define `positionObjectStage` as the parent containing the background object and one
-or more `positionObjectInteraction` children. Each interaction owns its draggable object.
-
-Current
 The extraction pipeline discovers each `positionObjectInteraction` below its parent
-`positionObjectStage`. The extractor reads the shared background from that parent and the draggable
-`object` from the child interaction. QTI 2.2 and QTI 3.0 fixtures cover multiple interactions under
-one stage and use native HTML `object` elements.
+`positionObjectStage`, reading the shared background from the parent and the draggable `object` from
+the child interaction; QTI 2.2 and 3.0 fixtures cover multiple interactions under one stage.
+Candidate operability, mobile, keyboard and accessibility verification stay in the interaction PRD
+and eval work; they are not implied by extraction coverage.
 
-Action
-Done for the hierarchy gap. Keep candidate-operability, mobile, keyboard, and accessibility
-verification in the interaction PRD/eval work; those are not implied by extraction coverage.
+#### G-18: QTI 3 mapper prefixes HTML/MathML/foreign vocabulary
 
-Test signal
-- A stage with one background and multiple child interactions renders each draggable object and
-  collects/scorers the declared point responses.
+Done (authoritative QTI map plus foreign-vocabulary pass-through, 2026-07-13) · Spec ref QTI 3.0 naming convention and ASI content model
 
----
+`Qti3ElementNameMapper` converts only known QTI vocabulary names; unprefixed HTML, MathML, SVG and
+extension names pass through unchanged, and the non-standard `qti-object`, `qti-param` and
+`qti-composite-interaction` mappings were removed. Add new QTI names explicitly when the supported
+information model expands; do not restore a pattern fallback that invents `qti-` names for foreign
+vocabularies.
 
-### G-18: QTI 3 mapper prefixes HTML/MathML/foreign vocabulary
+#### G-19: Standard response-template aliases do not match canonical XML semantics
 
-Scope       — `packages/qti-common/src/element-mapper/`; graphical/media extractors and fixtures
-Status      — Done (authoritative QTI map plus foreign-vocabulary pass-through, 2026-07-13)
-Effort      — M
-Spec ref    — QTI 3.0 naming convention and ASI content model
+Done for the supported fixed-template URI set (2026-07-13) · Spec ref QTI 2.x standard response-processing templates; Common Cartridge 2 aliases
 
-Context
-QTI-defined elements use `qti-` kebab-case names in 3.0. Embedded HTML (`object`, `img`, `audio`,
-`video`, `source`, and similar), MathML, SVG, and other foreign-vocabulary elements do not gain a
-`qti-` prefix.
-
-Current
-`Qti3ElementNameMapper` now converts only known QTI vocabulary names. Unprefixed HTML, MathML, SVG,
-and extension names pass through unchanged; non-standard `qti-object`, `qti-param`, and
-`qti-composite-interaction` mappings were removed. Regression tests cover native resource elements
-and schema-valid QTI 3 position-object extraction.
-
-Action
-Done for the mapper gap. Add new QTI names explicitly when the supported information model expands;
-do not restore a pattern fallback that invents `qti-` names for foreign vocabularies.
-
-Test signal
-- Valid QTI 3 hotspot, media, drawing, select-point, graphic-* and position-object examples using
-  unprefixed HTML resources retain their source/object data.
-
----
-
-### G-19: Standard response-template aliases do not match canonical XML semantics
-
-Scope       — `packages/item-player/src/core/Player.ts`; response-processing fixtures
-Status      — Done for the supported fixed-template URI set (2026-07-13)
-Effort      — M
-Spec ref    — QTI 2.x standard response-processing templates; Common Cartridge 2 aliases
-
-Context
-Template URIs identify canonical processing programs. Their named variables, constants, mappings,
-and feedback outcomes must behave exactly like the official XML templates.
-
-Current
-Fixed-template execution now follows the canonical `RESPONSE` program rather than aggregating all
+Fixed-template execution follows the canonical `RESPONSE` program rather than aggregating all
 response declarations. `match_correct`, `CC2_match`, `CC2_match_basic`, `map_response`,
-`map_response_point`, and `CC2_map_response` are regression-tested against the corresponding XML
-programs, including `MAXSCORE`, null handling, and Common Cartridge feedback outcomes. A
-`responseProcessing` that is only a reference to any other template fails compilation with
-`UnsupportedResponseProcessingTemplateError` (2026-11-07; it used to warn and score the outcome
-defaults); inline rules still take precedence over a template reference.
+`map_response_point` and `CC2_map_response` are regression-tested against the corresponding XML
+programs, including `MAXSCORE`, null handling and Common Cartridge feedback outcomes. Since
+2026-11-07 a `responseProcessing` that only references any other template fails compilation with
+`UnsupportedResponseProcessingTemplateError` instead of warning and scoring the outcome defaults;
+inline rules still take precedence over a template reference. A newly accepted template URI is added
+together with an XML-program oracle test; URI filename similarity alone does not alias behavior.
 
-Action
-Done for the currently supported names. Any newly accepted template URI must be added together with
-an XML-program oracle test; URI filename similarity alone is not sufficient to alias behavior.
+#### G-20: Linear navigation and modes must be test-part scoped
 
-Test signal
-- Canonical and built-in execution produce identical declaration values for correct, incorrect,
-  null, mapped, and feedback cases.
+Done for current assessment delivery (2026-07-13) · Spec ref QTI testPart navigationMode and submissionMode
 
----
-
-### G-20: Linear navigation and modes must be test-part scoped
-
-Scope       — `packages/assessment-player/src/core/`; integration model and XML parser
-Status      — Done for current assessment delivery (2026-07-13)
-Effort      — L
-Spec ref    — QTI testPart navigationMode and submissionMode
-
-Context
-After advancing in a linear test part, a candidate cannot return to an earlier item. Navigation and
-submission modes belong to each test part, not to the assessment globally.
-
-Current
 The secure model preserves navigation and submission modes on every test part. Linear delivery
 permits only the current item or the immediate next item and does not expose previous navigation;
 nonlinear parts retain free in-part navigation. Test parts are entered sequentially and cannot be
-re-entered after advancing. Individual submission is selected from the active test part.
+re-entered after advancing, and individual submission is selected from the active test part.
+Preconditions and section and test-part branch rules (G-16) change the next eligible target without
+weakening the irreversible linear rule.
 
-Action
-Done for this gap. Preconditions and section/testPart branch rules (G-16) change the next eligible
-target without weakening the irreversible linear rule.
+#### G-21: Record is a cardinality, not a base type
 
-Test signal
-- Previous/back navigation is unavailable after advancing in a linear part, while nonlinear parts
-  remain freely navigable within their permitted scope.
+Done (typed record fields and round-trip coverage, 2026-07-13) · Spec ref QTI variable declarations and record fieldValue semantics
 
----
-
-### G-21: Record is a cardinality, not a base type
-
-Scope       — `packages/qti-processing/src/runtime/`; declaration parsing and text interactions
-Status      — Done (typed record fields and round-trip coverage, 2026-07-13)
-Effort      — L
-Spec ref    — QTI variable declarations and record fieldValue semantics
-
-Context
-`record` is a declaration cardinality whose value is a set of named fields, each with its own base
-type. A record declaration does not use one declaration-level base type.
-
-Current
 Runtime types model `record` as a cardinality with no declaration-level base type. Declaration
-parsing retains each value's `fieldIdentifier` and field-level `baseType`; public response coercion,
-default/correct values, evaluator `fieldValue` over a record variable, equality, and ItemSession
-serialization/restoration preserve the typed fields across QTI 2.2 and QTI 3.0. (The evaluator's
-authored `<record>` constructor was non-QTI and has been removed; a record value reaches
-expressions through its variable.)
+parsing retains each value's `fieldIdentifier` and field-level `baseType`, and public response
+coercion, default and correct values, evaluator `fieldValue` over a record variable, equality, and
+ItemSession serialization and restoration preserve the typed fields across QTI 2.2 and 3.0. The
+evaluator's authored `<record>` constructor was non-QTI and has been removed; a record value reaches
+expressions through its variable. Never introduce a synthetic `record` BaseType; add record-shaped
+operator fixtures as more processing operators are exercised.
 
-Action
-Done for the tracked gap. Continue adding record-shaped operator fixtures as additional processing
-operators are exercised; never introduce a synthetic `record` BaseType.
+#### G-22: Time limits require independent scope clocks and `minTime` enforcement
 
-Test signal
-- A valid record declaration round-trips named typed fields and works with `fieldValue` and
-  response processing without scalar coercion.
+Done (deterministic edge coverage, 2026-10-16; min-time UI affordances remain host work) · Spec ref QTI timeLimits and duration variables
 
----
+The player tracks assessment, testPart, section and item clocks independently, persists them across
+save and resume, uses the shortest active hard maximum, and enforces each applicable `minTime` when
+leaving or submitting a scope. A test-part, section or item limit without late submission closes
+that scope's items when it expires and moves delivery to the next item outside it; only the
+assessment limit ends delivery. The player config accepts a deterministic `now` clock.
 
-### G-22: Time limits require independent scope clocks and `minTime` enforcement
-
-Scope       — `packages/assessment-player/src/core/TimeManager.ts`; assessment delivery model
-Status      — Done (deterministic edge coverage, 2026-10-16; min-time UI affordances remain host work)
-Effort      — L
-Spec ref    — QTI timeLimits and duration variables
-
-Context
-Item, section, test-part, and test time limits/durations are independent scopes. Aggregate scopes
-include navigation time, and minimum limits constrain when the candidate may advance/submit.
-
-Current
-The player now tracks assessment, testPart, section, and item clocks independently, persists them
-across save/resume, uses the shortest active hard maximum, and enforces each applicable `minTime`
-when leaving or submitting a scope. Deterministic clock tests cover independent accumulation,
-pause/resume, maximum selection, and restoration. A test part, section or item limit without late
-submission closes that scope's items when it expires and moves delivery to the next item outside
-it; only the assessment limit ends delivery. The player config accepts a deterministic `now` clock,
-and integration tests exercise item/section minTime gates on navigation and submission, testPart and
-assessment minTime on `submit()`, same-instant parent/child expiry ordering (parent scope first),
-allow-late item limits that keep accepting submissions with expired timing evidence while a hard
-parent limit still closes the scope, and the effective-limit and remaining-time getters.
-
-QTI duration variables are seconds (2026-11-07): the item's built-in `duration` variable, and
-`ITEM.duration` as test-level expressions read it, hold seconds, and Results Reporting output writes
-the test, test-part and section durations in seconds. Clocks and host-facing `duration` / `timing`
+QTI duration variables are seconds (2026-11-07): the item's built-in `duration` variable and
+`ITEM.duration` as a test-level expression hold seconds, and Results Reporting writes the test,
+test-part and section durations in seconds. Clocks and the host-facing `duration` and `timing`
 fields stay in milliseconds. Test-level outcome processing declares the built-in `duration`,
-`TESTPART_ID.duration` and `SECTION_ID.duration` variables from the timing state, converted to
-seconds (`durationSecondsFromMilliseconds` in `@pie-qti/qti-processing`) (2026-11-07).
+`TESTPART_ID.duration` and `SECTION_ID.duration` variables from the timing state
+(`durationSecondsFromMilliseconds` in `@pie-qti/qti-processing`).
 
-Action
-Done for the tracked runtime and evidence gaps. Candidate-facing minimum-time affordances (countdown
-UI for `minTime`) remain host work; the effective-limit getters are the intended data source.
+Candidate-facing minimum-time affordances (a countdown UI for `minTime`) remain host work; the
+effective-limit getters are the intended data source. Evidence:
+`packages/assessment-player/tests/time-limit-edges.test.ts` and
+`packages/assessment-player/tests/outcome-processing-durations.test.ts`.
 
-Test signal
-- `packages/assessment-player/tests/time-limit-edges.test.ts`: deterministic-clock tests exercise
-  item, section, part, and test min/max limits and verify recorded durations (submit timing
-  evidence), expiry ordering, and navigation/submission behavior.
-- `packages/assessment-player/tests/outcome-processing-durations.test.ts`: QTI 2.2 and 3.0 outcome
-  processing reads `duration`, `TESTPART_ID.duration` and `SECTION_ID.duration` in seconds, and
-  `ITEM_ID.duration` from the serialized item session.
+#### G-23: Optional-response and extended-text cardinality semantics
 
----
+Done (QTI 2.2/3.0 response and rendering coverage, 2026-07-13) · Spec ref Interaction response validity; extendedTextInteraction
 
-### G-23: Optional-response and extended-text cardinality semantics
+Response completeness derives from authored minimum constraints rather than the mere presence of a
+ResponseDeclaration, so an optional interaction submits empty successfully. Extended text supports
+`single`, `multiple`, `ordered` and `record`, honors `base`, `stringIdentifier`, `minStrings`,
+`maxStrings` and format, and preserves the exact numeric record fields (`stringValue`, `floatValue`,
+`integerValue`, `leftDigits`, `rightDigits`, `ndp`, `nsf`, `exponent`); its lexical companion
+response is restored to the editor across remounts. Browser accessibility and mobile verification of
+the dynamic multi-string editor count as release evidence only when run; they are not inferred from
+unit tests.
 
-Scope       — `packages/item-player/src/core/Player.ts`;
-              `packages/item-player/src/interactions/extended-text/`;
-              `packages/default-components/src/plugins/extended-text/`
-Status      — Done (QTI 2.2/3.0 response and rendering coverage, 2026-07-13)
-Effort      — M
-Spec ref    — Interaction response validity; extendedTextInteraction
+#### G-24: Resolve external processing fragments
 
-Context
-An interaction is not automatically required merely because it binds a response declaration.
-Defaults such as omitted `minChoices` permit an empty response. Extended text also supports
-multiple response cardinalities and string-count/format constraints.
+Done (package-contained resolver through assessment delivery and XInclude namespace gate, 2026-10-16) · Spec ref QTI responseProcessingFragment / outcomeProcessingFragment and XInclude
 
-Current
-Response completeness now derives from authored minimum constraints rather than the mere presence of
-a ResponseDeclaration. Extended text supports `single`, `multiple`, `ordered`, and `record`, honors
-`base`, `stringIdentifier`, `minStrings`, `maxStrings`, and format, and preserves the exact numeric
-record fields (`stringValue`, `floatValue`, `integerValue`, `leftDigits`, `rightDigits`, `ndp`,
-`nsf`, `exponent`). Its lexical companion response is restored to the editor across remounts.
-
-Action
-Done for the tracked runtime/model gap. Continue browser accessibility and mobile verification for
-the dynamic multi-string editor as release evidence rather than inferring it from unit tests.
-
-Test signal
-- Optional interactions submit empty successfully; required constraints fail accessibly; all valid
-  extended-text cardinalities preserve their declared response shape.
-
----
-
-### G-24: Resolve external processing fragments
-
-Scope       — package/resource resolution; `packages/qti-processing/src/ast/build.ts`
-Status      — Done (package-contained resolver through assessment delivery + XInclude namespace gate, 2026-10-16)
-Effort      — M
-Spec ref    — QTI responseProcessingFragment / outcomeProcessingFragment and XInclude
-
-Context
-QTI permits reusable external processing fragments referenced with `xi:include`. A package-aware
-delivery engine must resolve and parse those resources before executing the program.
-
-Current
-The processing AST and ItemPlayer accept an explicit host-owned resolver for response, template,
-and outcome fragments. They support XInclude fallback and reject missing resolvers, wrong fragment
-modes, cycles, excessive depth, and excessive cumulative XML size. The engine performs no implicit
+The processing AST and ItemPlayer accept an explicit host-owned resolver for response, template and
+outcome fragments. They support XInclude fallback and reject missing resolvers, wrong fragment
+modes, cycles, excessive depth and excessive cumulative XML size; the engine performs no implicit
 network or filesystem reads. Reference-mode assessment parsing preloads each item's external
-fragments (recursively, relative to the referencing document) into the delivery context, and
+fragments, recursively and relative to the referencing document, into the delivery context, and
 `createAssessmentItemDefinition` derives a package-contained resolver from it, so assessment and
-section delivery execute packaged fragments without host wiring; authored `xi:fallback` runs when a
-fragment file is missing. The builder requires the XInclude namespace for `include` and `fallback`
-and fails loudly on foreign vocabulary. Test-scope (`scope: 'test'`) fragments still require a
-host-supplied resolver and fail closed, unchanged.
+section delivery execute packaged fragments without host wiring and an authored `xi:fallback` runs
+when a fragment file is missing. The builder requires the XInclude namespace for `include` and
+`fallback` and fails loudly on foreign vocabulary.
 
-Action
-Done for the tracked gap. Test-level outcome-processing fragments remain host-wired; revisit only if
-packaged test-level fragments become a real content requirement.
+Test-scope (`scope: 'test'`) fragments still require a host-supplied resolver and fail closed;
+revisit only if packaged test-level fragments become a real content requirement. Evidence:
+`packages/assessment-player/tests/processing-fragment-resolver.test.ts` and
+`packages/qti-processing/tests/processing-fragments.test.ts`.
 
-Test signal
-- `packages/assessment-player/tests/processing-fragment-resolver.test.ts`: a packaged item whose
-  fragment chain (including a fragment-relative nested include) scores through `AssessmentPlayer`,
-  and a missing fragment whose authored `xi:fallback` executes.
-- `packages/qti-processing/tests/processing-fragments.test.ts`: foreign-namespace `<include>` and
-  `<fallback>` regressions, resolver never consulted for foreign vocabulary.
+#### G-26: QTI Results Reporting output
 
----
+Done (2026-11-07) · Spec ref QTI 2.2 Results Reporting (`imsqti_result_v2p2`); QTI 3.0 Results Reporting (`imsqti_result_v3p0`)
 
-### G-26: QTI Results Reporting output
-
-Scope       — `packages/assessment-player/src/reporting/`
-Status      — Done (2026-11-07)
-Effort      — M
-Spec ref    — QTI 2.2 Results Reporting (`imsqti_result_v2p2`); QTI 3.0 Results Reporting (`imsqti_result_v3p0`)
-
-Context
-Delivery systems exchange results as a QTI Results Reporting `assessmentResult`: the candidate
-context, a test result with test-level variables, and an item result per item session.
-
-Current
 `toAssessmentResultXml(results, { version: '2.2' | '3.0' })` writes the assessment player's results
-data (delivered test, session state, finalize response) as an `assessmentResult`: context
+data — delivered test, session state and finalize response — as an `assessmentResult`: context
 `sourcedId` and session identifiers; test outcomes typed by the test's declarations and the test,
 test-part and section durations in seconds; and an item result per recorded item with
 `sequenceIndex`, `datestamp`, a derived `sessionStatus`, response, outcome, template and (3.0)
-context variables, the built-in `numAttempts` / `duration` response variables and the candidate
-comment. `serializeAssessmentResult` writes a hand-built report. Values are XML-escaped; identifiers
-the target schema types as NCName are validated.
+context variables, the built-in `numAttempts` and `duration` response variables, and the candidate
+comment. `serializeAssessmentResult` writes a hand-built report; values are XML-escaped and
+identifiers are validated against the target schema's NCName type.
 
-Action
-Done. Not covered: `choiceSequence` (the player does not record presentation order), QTI 3.0
-`support` elements and `scoreStatus` / `answeredStatus`.
+Not covered: `choiceSequence` (the player does not record presentation order), QTI 3.0 `support`
+elements and `scoreStatus` / `answeredStatus`. Generated documents were validated against the
+official 2.2 and 3.0 result XSDs by hand, once; that validation is not automated in-tree and belongs
+in the private runner (or a scripted `xmllint` gate) before anything relies on it as a gate.
+Evidence: `packages/assessment-player/tests/assessment-result-xml.test.ts`.
 
-Test signal
-- `packages/assessment-player/tests/assessment-result-xml.test.ts`: structure, ordering,
-  cardinalities, record fields, escaping, version differences and schema-typed failures.
-  Generated documents were validated against the official 2.2 and 3.0 result XSDs manually,
-  once; that validation is not automated in-tree and belongs in the private runner (or a
-  scripted `xmllint` gate) before anything relies on it as a gate.
+#### G-27: Compliance checks without an XSD engine
 
----
+Done (2026-11-07) · Spec ref QTI 2.2 / 3.0 ASI XSD element vocabulary; interaction–responseDeclaration binding
 
-### G-27: Compliance checks without an XSD engine
-
-Scope       — `packages/item-player/src/core/compliance.ts`; `packages/qti-common/src/version-detection/`
-Status      — Done (2026-11-07)
-Effort      — M
-Spec ref    — QTI 2.2 / 3.0 ASI XSD element vocabulary; interaction–responseDeclaration binding
-
-Context
-`strictQtiCompliance` only compared the item's version with 2.2. Unknown elements, interactions bound
-to undeclared responses, and interactions no extractor handles degraded silently, and version
-detection assumed QTI 2.2 for unversioned roots without saying so.
-
-Current
 Item compilation checks the root's QTI namespace (`detectQtiVersionDetailed` reports basis,
-confidence and warnings), element names against the XSD-verified QTI 2.2 / 3.0 vocabulary
+confidence and warnings), element names against the XSD-verified QTI 2.2 and 3.0 vocabulary
 (`isQtiVocabularyElement`, tested equal to the vendored schemas' element sets), unbound
 `responseIdentifier`s, QTI interactions without one, and response-bound elements no registered
 extractor renders. Findings are warnings by default and errors in strict mode, listed on
 `AssessmentItemDefinition.diagnostics`; strict mode with `rejectUnknownExtensions` throws a
-`QtiComplianceError`.
+`QtiComplianceError`. Attributes, content models and value spaces still need an XSD validator outside
+the browser player. Evidence: `packages/item-player/tests/core/compliance.test.ts`,
+`packages/item-player/tests/extraction/interaction-coverage.test.ts` and
+`packages/qti-common/src/version-detection/__tests__/`.
 
-Action
-Done for element vocabulary and bindings. Attributes, content models and value spaces still need an
-XSD validator outside the browser player.
+### Tier 2 — QTI 3.0 features we committed to support
 
-Test signal
-- `packages/item-player/tests/core/compliance.test.ts`, `tests/extraction/interaction-coverage.test.ts`
-- `packages/qti-common/src/version-detection/__tests__/vocabulary.test.ts`,
-  `detectQtiVersionDetailed.test.ts`
+These are the QTI 3.0 features listed in `docs/QTI-3-MIGRATION-GUIDE.md`. The name-mapping
+infrastructure (element and attribute mappers, version detection) was already in place; the gaps
+below were the application-level work.
 
----
+#### G-08: PCI — Portable Custom Interaction module lifecycle
 
-## Tier 2 — QTI 3.0 features we are committing to support
+Done (phases 1–3 in-repo, 2026-10-16; phase 4 sandboxed realm is opt-in hardening on the same track) · Spec ref §6.1
 
-These are features listed in `docs/QTI-3-MIGRATION-GUIDE.md` and implied by the README as being on
-the roadmap. The name-mapping infrastructure (element and attribute mappers, version detection) is
-already in place. What follows is the application-level work.
-
----
-
-### G-08: PCI — Portable Custom Interaction module lifecycle
-
-Scope       — `packages/item-player/src/interactions/portable-custom/extractor.ts`;
-              `packages/item-player/src/pci/`;
-              `packages/item-player/src/core/Player.ts`;
-              default interaction rendering
-Status      — Done (phases 1–3 in-repo, 2026-10-16: the spec contract runs, modules
-              load through the AMD path, and the clean-room conformance suite in
-              `packages/item-player/tests/conformance/pci/` drives registration,
-              state restore, `ondone` and fallback resolution over real module
-              files. Browser-level evidence attaches to a published candidate per
-              the verification boundary; phase 4 sandboxed realm is opt-in
-              hardening on the same track)
-Effort      — L
-Spec ref    — §6.1
-
-Context
-In QTI 3.0, `<qti-portable-custom-interaction>` carries:
-- `response-identifier` and `custom-interaction-type-identifier` attributes
-- A `<qti-interaction-markup>` child with the initial DOM scaffold
-- A `<qti-interaction-modules>` child listing ES module paths (`primary-path`, `fallback-path`)
-- Static configuration as `data-*` attributes on the element
-
-The player must: (a) load the module at `primary-path` (falling back to `fallback-path`);
-(b) call `module.initialize(domScaffold, config, boundTo)` once the DOM is ready;
-(c) call `module.getResponse()` when collecting the response;
-(d) call `module.setResponse(value)` when restoring state;
-(e) call `module.disable()` / `module.enable()` on role/state changes;
-(f) call `module.destroy()` on unmount.
-
-Current
-The production extraction registry recognizes both QTI 3.0 portable elements and QTI 2.x
+The production extraction registry recognizes both the QTI 3.0 portable elements and QTI 2.x
 `customInteraction` wrappers containing a namespaced PCI payload. The default portable renderer
-mounts sanitized scaffold markup and drives the full `PciHost` lifecycle. Item, section, and
+mounts sanitized scaffold markup and drives the full `PciHost` lifecycle; item, section and
 assessment custom-element delivery propagates a JS-only `pci` configuration to the renderer.
-Execution is disabled unless the embedding host supplies a module resolver; the player never
-imports an authored URL by itself. Ordinary non-PCI `customInteraction` content retains its generic
-fallback renderer. This resolver is a trust-decision boundary, not a JavaScript sandbox: accepted
-PCI code runs with the page's authority.
+Execution is disabled unless the embedding host supplies a module resolver — the player never
+imports an authored URL itself — and the host resolver stays responsible for package-manifest,
+URL/origin and integrity validation. The resolver is a trust-decision boundary, not a JavaScript
+sandbox: accepted PCI code runs with the page's authority. Ordinary non-PCI `customInteraction`
+content keeps its generic fallback renderer.
 
-The `PciModule` interface above was bespoke, and was replaced outright (phase 1, 2026-10-16) with
-the contract QTI 3.0 specifies: modules register against the page's `qtiCustomInteractionContext`
-(`registry.ts`), the host instantiates through `getInstance(dom, configuration, state)` with
-`configuration.onready` / `ondone` and a `status` of `interacting`/`closed`/`solution`/`review`,
-responses cross the boundary as QTI variable JSON (`base`/`list`/`record`), and restore re-seeds
-`getInstance` with `getState()` output — there is no setter, so an authoritative response change
-re-instantiates the module. A PCI authored against the specification runs; one authored against
-the retired `PciModule` does not, and never ran anywhere else.
+The bespoke `PciModule` interface was replaced outright (phase 1, 2026-10-16) with the contract QTI
+3.0 specifies: modules register against the page's `qtiCustomInteractionContext`, the host
+instantiates through `getInstance(dom, configuration, state)` with `configuration.onready` /
+`ondone` and a `status` of `interacting`, `closed`, `solution` or `review`, responses cross the
+boundary as QTI variable JSON, and restore re-seeds `getInstance` with `getState()` output — there
+is no setter, so an authoritative response change re-instantiates the module. The variable JSON
+follows the PCI v1.0 Appendix A binding that QTI 3.0 adopts (`qtiVariableJson.ts`, corrected
+2026-11-08): pair, directedPair and point values are two-element arrays, a duration is an ISO 8601
+string, a file is `{data, mime, name}`, and a record is an array of `{name, base | list}` members.
+Input outside the binding reads as NULL.
 
-The variable JSON follows the PCI v1.0 Appendix A binding that QTI 3.0 adopts, converted by base
-type and cardinality in both directions (`qtiVariableJson.ts`, corrected 2026-11-08): pair,
-directedPair and point values are two-element arrays, a duration is an ISO 8601 string, a file is
-`{data, mime, name}`, and a record is an array of `{name, base | list}` members. A record reaches
-the player in its typed form (each field `{baseType, cardinality, value}`), since a record
-declaration types none of its fields. Before that correction the binding was only right for
-scalar base types: a conformant PCI's pair response `{"base":{"pair":["A","B"]}}` was stored as
-`"A,B"` and scored 0, a spec-shaped record came back keyed by array index, and seeded state carried
-pairs as `"A B"`, records as name-keyed objects and durations as numbers. Input in those earlier
-shapes, or otherwise outside the binding, now reads as NULL.
-
-Action
-Phases 1–3 are done in-repo. Phase 1: the registry global, `getInstance`, `onready`/`ondone`, QTI
-variable JSON, `getState()` restore, and the derived interaction status. Phase 2: the AMD loader
-(`amdLoader.ts`), the RequireJS-shaped resolution config (`resolutionConfig.ts`, probing the
-defined default locations `modules/module_resolution.js` and
+Phase 2 landed the AMD loader (`amdLoader.ts`), the RequireJS-shaped resolution config
+(`resolutionConfig.ts`, probing `modules/module_resolution.js` and
 `modules/fallback_module_resolution.js`), multi-module extraction with per-entry ids, and entry
-selection by the customInteractionTypeIdentifier tail. Phase 3: clean-room conformance fixtures
-(`tests/conformance/pci/`) exercising registration, restore-by-state, `ondone` and fallback
-resolution over real module files. The 2026-08-17 intake measurement (zero
-`portableCustomInteraction` content, no QTI 3.0 packages) stands as data, but the 2026-10-17
-completeness goal supersedes it as the driver. Keep the host resolver responsible for
-package-manifest, URL/origin, and integrity validation; the resolver is a trust decision, not a
-sandbox. Phase 4 (sandboxed execution realm) landed as opt-in hardening on 2026-10-16
-(`PciConfiguration.sandbox`, `@pie-qti/pci-runner`); the PIE-projection reconsideration
-sequenced behind phases 1–3 was re-closed on 2026-10-18 with its record in
+selection by the `customInteractionTypeIdentifier` tail. Phase 3 landed the clean-room conformance
+fixtures in `packages/item-player/tests/conformance/pci/`, which drive registration, state restore,
+`ondone` and fallback resolution over real module files. Phase 4, the opt-in sandboxed realm
+(`PciConfiguration.sandbox`, `@pie-qti/pci-runner`), landed as opt-in hardening on 2026-10-16; the
+PIE-projection reconsideration was re-closed on 2026-10-18 with its record in
 [`plans/pci-runtime-and-sandbox-2026-08.md`](plans/pci-runtime-and-sandbox-2026-08.md).
-Outstanding: browser-level evidence in the private runner (waits for a published candidate)
-and third-party content as the same-reading check.
 
-Test signal
-- A module registering through `qtiCustomInteractionContext` runs unmodified (done, phase 1).
-- `player.getResponses()` delegates PCI values to the module's response read.
-- `player.setResponses({ RESPONSE: value })` offers the value to the module and is
-  declined once the module owns its response; `player.restoreResponses()` re-instantiates
-  the module with the override as its `getInstance` state.
-- Responses cross the host boundary as QTI variable JSON in the PCI v1.0 Appendix A binding
-  (`src/__tests__/qtiVariableJson.test.ts` covers every base type and cardinality in both
-  directions); the player's runtime values stay plain inside.
-- `disable()` is called when the player switches to a non-candidate role, for modules
-  that expose it; conformant modules read their fixed `configuration.status`.
-- `destroy()` is called when the player is torn down.
+Outstanding: browser-level evidence in the private runner (it waits for a published candidate) and
+third-party content as the same-reading check. The 2026-08-17 intake measurement (zero
+`portableCustomInteraction` content, no QTI 3.0 packages) stands as data; the completeness goal
+supersedes it as the driver.
 
----
+#### G-09: PNP — Personal Needs and Preferences profile support
 
-### G-09: PNP — Personal Needs and Preferences profile support
+Done (core profile commit fa8fa97, 2026-04-28; color-scheme rulesets shipped in commit 6c209e27 as `qti-pnp.css`) · Spec ref §6.2
 
-Scope       — `packages/item-player/src/core/Player.ts`;
-              new `packages/item-player/src/pnp/` module;
-              `packages/default-components/src/` (individual component changes);
-              `packages/assessment-player/src/core/AssessmentPlayer.ts`
-Status      — Done (core profile commit fa8fa97, 2026-04-28; color-scheme rulesets shipped in
-              commit 6c209e27 as `qti-pnp.css`)
-Effort      — L
-Spec ref    — §6.2
+PNP support covers the current delivery scope: `AssessmentItemDefinitionConfig.pnp`, the
+`ItemSession` `updatePnp` command, the elimination tool, extended time, and glossary and
+keyword-translation trigger UI. The color scheme is written as `data-qti-colorscheme` on the player
+root, and the rulesets ship as `qti-pnp.css` in `@pie-qti/default-components` (exported as
+`./qti-pnp.css` and copied into the web-component loaders' `default-runtime.css`), styling every
+scheme plus inverted polarity, single-column layout and text appearance, with the scheme tokens
+inheriting into shadow roots. Structured labels and braille routing landed under G-13, and
+package-level catalog discovery under G-15.
 
-Context
-A PNP profile is a structured object (see §6.2 for schema) that is passed to the player at session
-initialisation. It controls:
-- **Color schemes** — 6 named schemes (`default`, `blackwhite`, `whitenav`, `blackcream`,
-  `yellowblue`, `medgray`) applied via CSS custom properties on the root element
-- **Elimination tool** — adds a dismiss button per choice in `choiceInteraction` (and similar)
-- **Extended time** — multiplies all `timeLimits` values by a `multiplier` factor
-- **Glossary on screen** — triggers tooltip/popup rendering for terms linked via `data-catalog-idref`
-  (depends on G-10 for catalog content, but tooltip trigger UI is independent)
-- **Keyword translation** — surfaces `keyword-translation` catalog entries for linked terms
-- **Structured label support** — adds supplementary ARIA markup to interaction prompts
+#### G-10: Catalog system — `qti-catalog` parsing and glossary rendering
 
-Current
-PNP support is implemented for the current delivery scope: `AssessmentItemDefinitionConfig.pnp`,
-the `ItemSession` `updatePnp` command, elimination tool, extended time, and
-glossary/keyword-translation trigger UI are shipped. The color scheme is written as
-`data-qti-colorscheme` on the player root and the rulesets ship: `qti-pnp.css` in
-`@pie-qti/default-components` (exported as `./qti-pnp.css`, copied into the web-component loaders'
-`default-runtime.css`) styles every scheme plus inverted polarity, single-column layout, and text
-appearance, with the scheme tokens inheriting into shadow roots. The specialist features,
-structured labels and braille routing, landed under G-13.
+Done (commit fa8fa97, 2026-04-28) · Spec ref §6.3
 
-Action
-Done for the tracked scope. Structured labels and braille routing are covered by G-13, and
-package-level catalog discovery by G-15.
+Catalog parsing, `player.getCatalogEntry()`, inline glossary and keyword-translation popups, and
+platform-level catalog lookup events are implemented; manifest-level shared catalog discovery landed
+as G-15.
 
-Test signal
-- A definition/session created with `pnp: { display: { colorScheme: 'blackwhite' } }` sets `data-qti-colorscheme="blackwhite"`, and the shipped `qti-pnp.css` rules recolour the theme tokens.
-- `session.dispatch({ action: 'updatePnp', profile: { display: { colorScheme: 'yellowblue' } } })` changes the scheme without re-parsing the item.
-- Elimination tool buttons appear in `choiceInteraction` when `pnp.cognitive.eliminationTool` is true.
-- A 60-second time limit becomes 90 seconds when `extendedTime.multiplier` is 1.5.
+### Tier 3 — QTI 3.0 features on the 1.0 track
 
----
+These were previously deferred without a milestone. Under the completeness goal they were committed
+for 1.0, sequenced after the PCI spec contract, and have landed.
 
-### G-10: Catalog system — `qti-catalog` parsing and glossary rendering
+#### G-11: Full QTI `<outcomeProcessing>` XML interpreter at assessment level
 
-Scope       — `packages/item-player/src/catalog/`;
-              `packages/item-player/src/core/Player.ts`;
-              `packages/default-components/src/` (new `CatalogPopup` component);
-              `packages/item-player/src/pnp/` (integration with G-09)
-Status      — Done (commit fa8fa97, 2026-04-28)
-Effort      — L
-Spec ref    — §6.3
-Depends on  — G-09 (glossary trigger UI is part of PNP; catalog provides the content)
+Done (interpreter 2026-07-13; full test context 2026-10-15) · Spec ref §2.1 (Assessment Architecture), §4.3
 
-Context
-A `<qti-catalog>` element lives at item level, parallel to `<qti-item-body>`. It contains
-`<qti-card>` elements identified by `identifier`. Each card has one or more `<qti-card-entry>`
-children with a `usage` attribute (`glossary-on-screen`, `keyword-translation`, `tts-pronunciation`,
-`illustrated-glossary`, `signing-definition`, `braille-text`) and an `xml:lang` attribute for
-translations. In the item body, `<span data-catalog-idref="cat-id">term</span>` links text to a
-catalog card.
-
-Current
-Catalog parsing, `player.getCatalogEntry()`, inline glossary/keyword-translation popup support, platform-level catalog lookup events, and manifest-level shared catalog discovery (G-15) are implemented.
-
-Action
-Done for G-10 and G-15 (manifest-level shared catalog discovery).
-
-Test signal
-- `player.getCatalogEntry('cat-photosynthesis', 'glossary-on-screen')` returns the correct HTML.
-- `player.getCatalogEntry('cat-photo', 'keyword-translation', 'es')` returns the Spanish translation.
-- With `glossaryOnScreen: true`, clicking the indicator on a linked term opens the popup with correct content.
-- With `glossaryOnScreen: false`, no indicators appear.
-
----
-
-## Tier 3 — QTI 3.0 features on the 1.0 track
-
-These were previously deferred without a milestone; under the
-[completeness goal](plans/version-1-0-2026-10.md) they are committed for 1.0, sequenced after the
-PCI spec contract. They are documented here so sub-tasks can be created directly from them.
-
----
-
-### G-11: Full QTI `<outcomeProcessing>` XML interpreter at assessment level
-
-Scope       — `packages/assessment-player/`; `packages/qti-processing/`
-Status      — Done (interpreter 2026-07-13; full test context 2026-10-15)
-Effort      — L
-Spec ref    — §2.1 (Assessment Architecture), §4.3
-
-Context
-The assessment delivery path must preserve outcome declarations and interpret
-`<outcomeProcessing>` from the `assessmentTest`. The same AST builder and executor used for item
-processing support test-level expressions (`testVariables`, `numberCorrect`, and related
-operators).
-
-Current
 `ReferenceBackendAdapter` parses outcome declarations and outcome-processing XML and executes it
-with a test context. The raw-XML custom element's explicit reference mode now resolves resources and
-delegates its authoritative `SecureAssessment` parse to that adapter, preserving outcome processing
-and test feedback. The test context holds every delivered item, submitted or not: its response,
-outcome, template and built-in variables with their declared base type and cardinality, the
-section path, item-ref categories, weights as a record, declared `normalMinimum`/`normalMaximum`,
-and the presented, responded, correct, incorrect and selected flags. Correctness comes from item
-scoring (every response matches its correct response), so `numberCorrect` needs no `MAXSCORE`.
-Unsubmitted items carry their declared defaults. The computed outcomes drive test feedback (G-05). Production use remains backend-authoritative: an injected backend supplies the
-secure assessment/session model rather than exposing answer-bearing assessment XML in the browser.
+with a test context. The test context holds every delivered item, submitted or not: its response,
+outcome, template and built-in variables with their declared base type and cardinality, the section
+path, item-ref categories, weights as a record, declared `normalMinimum` and `normalMaximum`, and
+the presented, responded, correct, incorrect and selected flags. Correctness comes from item scoring
+(every response matches its correct response), so `numberCorrect` needs no `MAXSCORE`; unsubmitted
+items carry their declared defaults. The computed outcomes drive test feedback (G-05).
 
-Action
-Done for the original data-loss gap. Keep packed-artifact/browser outcome assertions in release
-verification, and track remaining dynamic assessment-structure semantics under G-16 rather than
-conflating them with outcome-processing execution.
+Production use remains backend-authoritative: an injected backend supplies the secure
+assessment/session model rather than exposing answer-bearing assessment XML in the browser. Keep
+packed-artifact and browser outcome assertions in release verification, and track dynamic
+assessment-structure semantics under G-16 rather than conflating them with outcome-processing
+execution. Evidence: `packages/assessment-player/tests/outcome-processing-inputs.test.ts`.
 
-Test signal
-- An assessmentTest XML with `<setOutcomeValue>` using `<testVariables>` produces the correct `SCORE`.
-- `packages/assessment-player/tests/outcome-processing-inputs.test.ts`: the `number*` counts,
-  section and category filters, weighted `testVariables` and normal bounds in QTI 2.2 and 3.0.
-- The four existing template scenarios still pass.
+#### G-12: Composite items (terminology correction)
 
----
+Done (the original gap was based on a non-standard element) · Spec ref QTI assessment-item information model
 
-### G-12: Composite items (terminology correction)
+A composite item is an `assessmentItem` containing more than one interaction, not a distinct
+interaction type; QTI 3.0 defines no `<qti-composite-interaction>` element. The player already
+extracts and renders multiple standard interactions from one item, and the stray
+`qti-composite-interaction` entry was removed from the QTI 3 element mapping with the G-18 mapper
+work (2026-07-13). Do not add an extractor or component for it; keep regression coverage for items
+with multiple independent interactions.
 
-Scope       — Documentation; multi-interaction item regression coverage
-Status      — Done (the original gap was based on a non-standard element)
-Effort      — S
-Spec ref    — QTI assessment-item information model
+#### G-13: PNP — structural label and braille support
 
-Context
-In QTI terminology, a composite item is an `assessmentItem` containing more than one interaction.
-It is not a distinct interaction type. QTI 3.0 does not define a
-`<qti-composite-interaction>` element.
+Done · Spec ref §6.2
 
-Current
-The player already extracts and renders multiple standard interactions from one item. The stray
-non-standard `qti-composite-interaction` entry was removed from the QTI 3 element mapping with the
-G-18 mapper work (2026-07-13); nothing in the codebase references it.
-
-Action
-Done. Do not add an extractor or component for `qti-composite-interaction`. Keep regression
-coverage for items with multiple independent interactions.
-
-Test signal
-- A QTI 2.x and a QTI 3.0 item containing multiple interactions render and collect each declared
-  response independently.
-
----
-
-### G-13: PNP — structural label and braille support
-
-Scope       — `packages/item-player/src/pnp/`;
-              `packages/default-components/src/`
-Status      — Done
-Effort      — M
-Spec ref    — §6.2
-
-Context
-`structuredLabelSupport` in the PNP profile adds additional ARIA markup to interaction prompts
-(supplementary `role="group"` wrappers, visible sub-labels for complex interactions). The
-`braille-text` catalog entry usage serves refreshable braille display devices.
-
-Research outcome (2026-10-16): neither APIP 1.0 nor AfA PNP 3.0 defines a structured-label term —
-verified against the published XSDs — so `structuredLabelSupport` is a player extension anchored
-in WAI-ARIA group labelling. The findings, markup contract and NVDA checklist live in
+Research on 2026-10-16 found that neither APIP 1.0 nor AfA PNP 3.0 defines a structured-label term
+(verified against the published XSDs), so `structuredLabelSupport` is a player extension anchored
+in WAI-ARIA group labelling. The findings, markup contract and NVDA checklist are in
 `packages/item-player/docs/PNP.md`.
 
-Implementation
-1. `pnp.display.structuredLabelSupport` rides the presentation plan to every block interaction.
-   With it, `matchInteraction` announces its answer set as one `role="group"` named by the prompt
-   (without a prompt, an authored accessibility name, else an i18n fallback), and its columns take
-   their visible headings as `aria-labelledby` names. `choiceInteraction` needs no flag: its answer
-   set is always one `role="group"`, named by an authored accessibility name, else the prompt, else
-   an i18n fallback.
-2. An AfA `<braille/>` grant maps to the platform `brailleText` preference (sign-language to
-   `signingDefinition`), and a `braille-text` lookup falls back to APIP's `braille` usage, so
-   QTI 3 and APIP catalogs share one routing path.
-3. `player.getCatalogEntry(idref, 'braille-text')` (G-10) plus the `qti-catalog-lookup` event
-   (G-14) expose the payload; device routing stays host-side, documented in
-   `packages/item-player/docs/PNP.md`.
+`pnp.display.structuredLabelSupport` rides the presentation plan to every block interaction. With
+it, `matchInteraction` announces its answer set as one `role="group"` named by the prompt (without
+a prompt, an authored accessibility name, else an i18n fallback), and its columns take their visible
+headings as `aria-labelledby` names. `choiceInteraction` needs no flag: its answer set is always one
+`role="group"`, named by an authored accessibility name, else the prompt, else an i18n fallback. An
+AfA `<braille/>` grant maps to the platform `brailleText` preference (sign language to
+`signingDefinition`), and a `braille-text` lookup falls back to APIP's `braille` usage, so QTI 3 and
+APIP catalogs share one routing path. `player.getCatalogEntry(idref, 'braille-text')` and the
+`qti-catalog-lookup` event expose the payload; device routing stays host-side.
 
-Test signal
-- With `structuredLabelSupport: true`, the match interaction is one `role="group"` named by its
-  prompt and its columns are named by their headings; the choice group does not depend on the
-  flag.
-- `player.getCatalogEntry(idref, 'braille-text')` finds an APIP item's `braille` entry.
+#### G-14: PNP — sign language and TTS pronunciation routing
 
----
+Done (commit fa8fa97, 2026-04-28; through `qti-catalog-lookup`) · Spec ref §6.2, §6.3
 
-### G-14: PNP — sign language and TTS pronunciation routing
+`signing-definition` and `tts-pronunciation` need platform capabilities — a sign-language video
+player, a TTS engine that accepts phonetic overrides — that are outside the player. The player
+exposes the data and fires events; the host provides the capability. `getCatalogEntry()` returns
+any usage, and with a platform usage active (`tts-pronunciation`, `signing-definition`,
+`braille-text`, `audio-description`, `extended-description`), activating a linked term fires a
+`qti-catalog-lookup` CustomEvent carrying `idref`, `usage`, the entry's content and its language,
+which the host routes to its engine or player. The single event replaced the per-usage events the
+original plan proposed. See `packages/item-player/docs/PNP.md`.
 
-Scope       — `packages/item-player/src/pnp/`;
-              catalog integration (G-10)
-Status      — Done (commit fa8fa97, 2026-04-28; through `qti-catalog-lookup`)
-Effort      — M
-Spec ref    — §6.2, §6.3
+#### G-15: Shared / external catalog files
 
-Context
-`signing-definition` and `tts-pronunciation` catalog entry usages require platform-level
-capabilities (a sign-language video player; a TTS engine that can accept phonetic overrides) that
-are outside the scope of the player itself. The player's role is to expose the data and fire events;
-the host provides the capability.
+Done · Spec ref §6.3 (Shared Catalogs)
 
-Current
-`getCatalogEntry()` returns any usage, `tts-pronunciation` and `signing-definition` included. With
-a platform usage active (`tts-pronunciation`, `signing-definition`, `braille-text`,
-`audio-description`, `extended-description`), activating a linked term fires a `qti-catalog-lookup`
-CustomEvent carrying `idref`, `usage`, the entry's content and its language, which the host routes
-to its TTS engine or sign-language player. The single event replaces the per-usage events the
-original action proposed.
+Large item banks share glossary terms through a standalone `qti-catalog` XML file listed as a
+resource in `imsmanifest.xml`. `loadResolvedManifest` surfaces manifest resources of type
+`imsqti_catalog_xmlv3p0` as `sharedCatalogs`. `createResolvedItemDeliveryContext` accepts
+`packageCatalogSources` (href, xml or both) and lands them in `deliveryContext.catalogSources` with
+scope `package`; the reference backend adapter threads a host-supplied list through every item, and
+`QtiAssessmentPlayerConfig.sharedCatalogs` reaches it from the web component. The item Player merges
+package-scope entries at the bottom, below `catalogXml` and the item's own catalogs, so an
+item-level `qti-catalog-info` wins a shared identifier.
 
-Original action
-1. Extend `getCatalogEntry()` to support `'signing-definition'` and `'tts-pronunciation'` usages (catalog parsing covered by G-10).
-2. When `data-catalog-idref` elements are encountered and a TTS engine is registered, fire a `qti-tts-override` custom event carrying the phonetic hint so the host's TTS engine can intercept it.
-3. For signing, emit a `qti-signing-request` event with the video URL when the candidate activates the signing indicator.
-4. Document the event contract in `packages/item-player/docs/PNP.md`.
+#### G-25: QTI 3.0 writer
 
-Test signal
-- `player.getCatalogEntry('cat-foo', 'tts-pronunciation')` returns the phonetic text.
-- Activating a linked term fires the correct custom event with the right payload.
+Done (PR #302, 2026-10-14) · Spec ref §1.3 (Version Differences Reference)
 
----
-
-### G-15: Shared / external catalog files
-
-Scope       — `packages/item-player/src/core/Player.ts`;
-              `packages/ims-cp-browser/`
-Status      — Done
-Effort      — M
-Spec ref    — §6.3 (Shared Catalogs)
-
-Context
-Large item banks share glossary terms across many items using a single external catalog file
-referenced from the IMS content package manifest, rather than embedding a per-item `<qti-catalog>`.
-The spec allows a standalone `qti-catalog` XML file listed as a resource in `imsmanifest.xml`.
-
-Implementation
-1. `loadResolvedManifest` surfaces manifest resources of type `imsqti_catalog_xmlv3p0` as
-   `sharedCatalogs`.
-2. `createResolvedItemDeliveryContext` accepts `packageCatalogSources` (href, xml, or both) and
-   lands them in `deliveryContext.catalogSources` with scope `package`; the reference backend
-   adapter threads a host-supplied list through every item (the
-   `QtiAssessmentPlayerConfig.sharedCatalogs` knob reaches it from the web component).
-3. The item Player merges package-scope entries at the bottom: below `catalogXml` and the item's
-   own catalogs, so an item-level `qti-catalog-info` wins a shared identifier.
-
-Test signal
-- A package-level entry backs an item that only carries `data-catalog-idref` references; an
-  item-level entry with the same identifier wins.
-
----
-
-### G-25: QTI 3.0 writer
-
-Scope       — `packages/pie-to-qti2/`
-Status      — Done (PR #302, 2026-10-14; `targetVersion: '3.0'` on `PieToQtiPlugin`)
-Effort      — L
-Spec ref    — §1.3 (Version Differences Reference)
-
-Context
 QTI 3.0 import is supported end to end, so a package can enter as QTI 3.0 and leave as QTI 2.2.
-Round-tripping QTI 3.0 content, or exporting to a QTI 3.0-only platform, requires a writer that emits
-`imsqti_v3p0` items, stimuli, tests and manifests with the `qti-` kebab-case vocabulary.
-
-Current
-Before G-25 (historical): every generator emits QTI 2.2 — the namespace and schema location are
-fixed to `imsqti_v2p2` in `types/index.ts`, `utils/qti-builder.ts`, `generators/passage-generator.ts`,
-`generators/passage.ts`, `generators/assessment.ts` and `generators/manifest-generator.ts`. The only
-QTI 3.0 output is the lossless path, which re-emits embedded QTI 3.0 source unchanged and reports
-`qti30`; a PIE item without embedded source, or one edited after import, always exports as QTI 2.2.
-Generators now accept `targetVersion: '3.0'` (default `'2.2'`) per `packages/pie-to-qti2/src/plugin.ts`.
-
-Action (when prioritised)
-1. Decide the surface: a `targetVersion` option on the existing plugin or a separate plugin.
-2. Emit QTI 3.0 through the element and attribute mappers in `@pie-qti/qti-common` (canonical name to
-   `qti-` name), with QTI 3.0 namespaces in items, stimuli, tests and the manifest resource types.
-3. Write `qti-assessment-stimulus` resources for passages and `qti-assessment-stimulus-ref` from items.
-
-Test signal
-- A generated QTI 3.0 package validates against the QTI 3.0 XSD and imports through `to-pie` to the
-  same PIE models as its QTI 2.2 counterpart.
+Round-tripping QTI 3.0 content, or exporting to a QTI 3.0-only platform, needed a writer that emits
+`imsqti_v3p0` items, stimuli, tests and manifests with the `qti-` kebab-case vocabulary. That writer
+is a `targetVersion: '3.0'` option on the existing `PieToQtiPlugin` (default `'2.2'`,
+`packages/pie-to-qti2/src/plugin.ts`); the generators emit through the element and attribute mappers
+in `@pie-qti/qti-common`, including `qti-assessment-stimulus` resources for passages.
 
 ---
 
@@ -1120,6 +552,17 @@ not a defect in the behavior shipped today:
   `data-choices-container-width`, `mediaInteraction@coords`, tabular match
   (`data-first-column-header`).
 
+Accepted limits recorded with the closed gaps above:
+
+- Test-level (`scope: 'test'`) outcome-processing fragments still require a host-supplied resolver
+  (G-24).
+- Results Reporting omits `choiceSequence`, QTI 3.0 `support` elements and `scoreStatus` /
+  `answeredStatus` (G-26); attributes, content models and value spaces still need an XSD validator
+  outside the browser player (G-27).
+- Candidate-facing minimum-time affordances remain host work (G-22).
+- PCI browser-level evidence waits for a published candidate, and third-party content has not been
+  run as the same-reading check (G-08).
+
 ---
 
 ## Reference: gap–file index
@@ -1133,15 +576,15 @@ Quick lookup of which source files are touched by each gap item.
 | `packages/item-player/src/interactions/gap-match/` | G-01 |
 | `packages/item-player/src/interactions/graphic-gap-match/` | G-01 |
 | `packages/item-player/src/interactions/inline-choice/` | G-02 |
-| `packages/item-player/src/interactions/text-entry/` | G-03 |
-| `packages/default-components/src/plugins/text-entry/` | G-04 |
+| `packages/item-player/src/interactions/text-entry/` | G-03, G-04 |
 | `packages/default-components/src/plugins/extended-text/` | G-04, G-23 |
 | `packages/assessment-player/src/core/` | G-05, G-09, G-11, G-16, G-20, G-22 |
 | `packages/assessment-player/src/integration/ReferenceBackendAdapter.ts` | G-11, G-16 |
 | `packages/player-elements/src/qti/` | G-16 |
-| `packages/item-player/src/utils/responseUtils.ts` | G-06 |
+| `packages/item-player/src/core/processing/responseValidation.ts` | G-04, G-06 |
 | `STATUS.md`, `README.md` | G-07 |
 | `packages/item-player/src/interactions/custom/` | G-08 |
+| `packages/item-player/src/interactions/portable-custom/` | G-08 |
 | `packages/item-player/src/pci/` | G-08 |
 | `packages/item-player/src/pnp/` | G-09, G-13, G-14 |
 | `packages/default-components/src/plugins/choice/` | G-09 |
@@ -1161,5 +604,5 @@ Quick lookup of which source files are touched by each gap item.
 
 ---
 
-*This document is the source of truth for spec-gap work. When a gap is resolved, update its
-`Status` field and add a brief note with the PR or commit reference.*
+*This document is the record for spec-gap work. When a gap is resolved, replace its entry with the
+outcome form used above and add the PR or commit reference.*

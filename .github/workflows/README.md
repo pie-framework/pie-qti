@@ -20,7 +20,7 @@ Runs on every push to `master` and `develop`, and on pull requests targeting tho
 
 1. **Lint & Typecheck** - Runs Biome linting, Svelte checks, and TypeScript type checking
 2. **Translation Coverage** - Verifies locale coverage and fails on hard-coded learner-visible strings (`bun run check:i18n`)
-3. **Doc Links** - Verifies every relative link and heading anchor across all markdown resolves (`bun run check:doc-links`)
+3. **Doc Links** - Verifies every relative link and heading anchor across all markdown resolves (`bun run check:doc-links`), and that the `.claude/skills` copy matches `.agents/skills` (`bun run check:skills-sync`)
 4. **Unit Tests** - Runs package test suites through `bun run test`, plus the repository script
    guards in `scripts/*.test.mjs` (release-workflow and certification-runner invariants) via
    `bun run test:scripts`
@@ -98,28 +98,18 @@ have a trusted-publisher record claimed on npmjs.com before their first release;
 
 ### 2. Changesets Workflow
 
-To create a new release:
+All publishable packages release together on one version line, one patch per release. A changeset
+records what changed for the changelog; its semver type describes the change and does not choose
+the published bump. Add it on the branch that carries the change:
 
 ```bash
-# 1. Make your changes and commit them
-git add .
-git commit -m "feat: add new feature"
-
-# 2. Create a changeset describing the change
-bun run changeset
-
-# 3. Select which packages to bump and change type (patch/minor/major)
-# 4. Write a summary of the changes
-# 5. Commit the changeset
+bun run changeset   # select the changed packages, record the type, describe the change
 git add .changeset
 git commit -m "chore: add changeset"
-
-# 6. Push to master
-git push origin master
-
-# 7. The Release workflow will create a PR with version bumps
-# 8. Review and merge the PR to publish to NPM
 ```
+
+The branch model and the release steps are documented in
+[BRANCHING_STRATEGY.md](../BRANCHING_STRATEGY.md).
 
 ## Testing Workflows Locally
 

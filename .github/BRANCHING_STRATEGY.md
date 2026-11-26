@@ -20,8 +20,9 @@ master (production)
 - **`master`** - Production branch
   - Always stable and deployable
   - Protected branch (requires PR approval)
-  - Merges to master trigger automatic releases to NPM
-  - Tagged with semantic versions (v1.0.0, v1.1.0, etc.)
+  - Merges to master trigger the Release workflow (version-bump PR, then publish; see
+    [Releasing to Production](#5-releasing-to-production))
+  - Tagged per release (`v<version>`, for example `v1.0.0-beta.6`)
 
 - **`develop`** - Integration branch
   - Active development happens here
@@ -92,7 +93,8 @@ git push origin feature/my-new-feature
 
 ### 4. Preparing a Release
 
-When develop is ready for release:
+Changesets are normally added on the branch that carries the change. If a change shipped without
+one, add it before promoting `develop`:
 
 ```bash
 # Switch to develop
@@ -103,39 +105,34 @@ git pull origin develop
 bun run changeset
 
 # Follow prompts:
-# 1. Select packages to version
-# 2. Choose bump type (major/minor/patch)
-# 3. Write summary of changes
+# 1. Select the packages that changed
+# 2. Record the semver type that describes your change (major/minor/patch)
+# 3. Write a summary of the changes
 
 # Commit changeset
 git add .changeset
-git commit -m "chore: add changeset for v1.2.0"
+git commit -m "chore: add changeset"
 git push origin develop
 ```
+
+The type you record describes the change for the changelog; it does not choose the published
+version. See [How the published version is chosen](#how-the-published-version-is-chosen).
 
 ### 5. Releasing to Production
 
 ```bash
 # Create PR from develop to master
-# Title: "Release v1.2.0" or "chore: prepare release v1.2.0"
+# Title: "chore(release): promote <what changed> to master"
 # Body: List of changes included in this release
 
 # After PR approval and merge to master:
-# 1. Release workflow automatically runs
-# 2. Versions are bumped based on changesets
-# 3. CHANGELOG.md files are updated
-# 4. Git tags are created
-# 5. Packages are published to NPM
-# 6. GitHub release is created
-# 7. A master -> develop back-merge PR opens; merge it before the next promotion
+# 1. The Release workflow runs and opens a version-bump PR on master
+#    (it adds a temporary patch changeset first when the merge brought none)
+# 2. Merging that PR bumps every publishable package together, updates the
+#    CHANGELOG.md files, publishes to NPM, and creates the git tags and the
+#    GitHub release
+# 3. A master -> develop back-merge PR opens; merge it before the next promotion
 ```
-
-**Lockstep versioning:** all publishable `packages/*` release together in lockstep and the
-automation is patch-only — the release flow auto-generates a temporary patch changeset when
-merges to `master` have none, and `check:fixed-versioning` enforces that the shared version line
-only moves through deliberate version-line preparations (such as the 1.0.0-beta prep). Write
-changesets with the semver type that describes your change; the release machinery normalizes the
-published bump. See [docs/development/publish-verification.md](../docs/development/publish-verification.md).
 
 ## Semantic Versioning
 
@@ -156,7 +153,7 @@ We use [Semantic Versioning 2.0.0](https://semver.org/) vocabulary to describe t
   - Performance improvements
   - Documentation updates
 
-### Choosing Version Bump
+### How the published version is chosen
 
 The changeset type does **not** control the published version bump. All publishable `packages/*`
 release together in lockstep and the release flow is **patch-only**: when merges to `master` have
@@ -174,8 +171,7 @@ bun run changeset
 # the release machinery normalizes the published bump to a patch per release.
 ```
 
-See **Lockstep versioning** under [Releasing to Production](#5-releasing-to-production) and
-[docs/development/publish-verification.md](../docs/development/publish-verification.md).
+See [docs/development/publish-verification.md](../docs/development/publish-verification.md).
 
 ## CI/CD Behavior
 
@@ -202,13 +198,12 @@ See **Lockstep versioning** under [Releasing to Production](#5-releasing-to-prod
 
 ### On Push to Master
 
-✅ Full CI pipeline PLUS:
-- Runs tests one more time
-- Bumps versions based on changesets
-- Updates CHANGELOG.md files
-- Creates git tags
-- Publishes to NPM
-- Creates GitHub releases
+✅ Full CI pipeline PLUS the Release workflow:
+- Runs the publish-readiness checks and the tests
+- Opens a version-bump PR when changesets are pending, or publishes when the merged
+  commit is that version bump
+- Updates CHANGELOG.md files, creates git tags and the GitHub release
+- Opens a `master` -> `develop` back-merge PR after every publish
 
 ## Hotfix Process (Emergency Only)
 
@@ -223,19 +218,17 @@ git checkout -b hotfix/critical-security-fix
 # Fix the issue and test thoroughly
 git commit -m "fix: critical security vulnerability"
 
-# Create changeset (usually patch)
+# Create changeset describing the fix
 bun run changeset
-# Select "patch" for version bump
+# Record the semver type that describes the change; the published bump is normalized
 
 # Push and create PR to master
 git push origin hotfix/critical-security-fix
 
 # After PR is merged to master:
-# 1. Release happens automatically
-# 2. Manually merge hotfix to develop:
-git checkout develop
-git merge master
-git push origin develop
+# 1. The Release workflow opens a version-bump PR; merging it publishes
+# 2. Merge the master -> develop back-merge PR the workflow opens
+#    (it carries the fix, the version bump and the changesets the release consumed)
 ```
 
 ## Changeset Best Practices
@@ -298,15 +291,13 @@ develop → feature/my-feature → PR → develop
 ### Scenario 2: Release to Production
 
 ```bash
-develop (with changesets) → PR → master → auto-release
+develop (with changesets) → PR → master → version-bump PR → publish → back-merge PR → develop
 ```
 
 ### Scenario 3: Critical Hotfix
 
 ```bash
-master → hotfix/critical → PR → master → auto-release
-                                 ↓
-                              develop (manual merge)
+master → hotfix/critical → PR → master → version-bump PR → publish → back-merge PR → develop
 ```
 
 ### Scenario 4: Multiple Developers
@@ -316,7 +307,7 @@ Developer A: develop → feature/feature-a → PR → develop
 Developer B: develop → feature/feature-b → PR → develop
 Developer C: develop → fix/bug-fix → PR → develop
 
-Later: develop → PR → master → release v1.2.0
+Later: develop → PR → master → version-bump PR → publish
 ```
 
 ## Troubleshooting
@@ -355,10 +346,9 @@ git push origin develop
 
 ## Summary
 
-1. **Daily work**: Feature branches → develop
-2. **Release prep**: Add changesets to develop
-3. **Release**: develop → master (triggers auto-release)
-4. **Emergency**: hotfix from master → master → develop
+1. **Daily work**: Feature branches → develop, with a changeset when a publishable package changes
+2. **Release**: develop → master → version-bump PR → publish → back-merge PR → develop
+3. **Emergency**: hotfix from master → master, then the same release path
 
 This workflow ensures:
 - Stable production branch (master)

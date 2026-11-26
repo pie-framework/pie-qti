@@ -2,7 +2,6 @@
 name: api-design-reviewer
 description: Reviews public APIs in framework code for consistency, usability, type safety, breaking changes, and maintainability. Use when designing new APIs, reviewing API changes, or conducting framework code reviews.
 allowed-tools: Read, Glob, Grep, Bash
-model: Codex-sonnet-4-20250514
 ---
 
 # API Design Reviewer
@@ -94,32 +93,23 @@ function registerRenderer<T extends InteractionRenderer>(renderer: T) {}
 
 ### 3. Breaking Changes
 
-**Semantic Versioning**
-- Would this change require a major version bump?
-- Can the change be made backward-compatible?
-- Should deprecated APIs be introduced first?
-- Are there migration paths for breaking changes?
-
-**Deprecation Strategy**
-- Are deprecated APIs marked with `@deprecated` JSDoc tags?
-- Do deprecation notices explain what to use instead?
-- Is there a timeline for removal?
+**This repository is pre-1.0 and has no backwards-compatibility surface** (see "Spec Compliance and No Legacy Code" in `AGENTS.md`), and all publishable packages move on one version line. A public API is therefore changed outright:
+- Is the old API gone, together with its call sites, tests and docs — no `@deprecated` alias, bridging overload, ignored parameter or migration path?
+- Is the break recorded with a `Breaking:` note in the changeset, and is the PRD or guide that documents the API updated?
+- Is the new API the one we would design from scratch? Changing it later costs the same as changing it now, so do not keep a compromise for compatibility's sake.
 
 **Example Issues to Catch:**
 ```typescript
-// ❌ Breaking change without deprecation period
-// OLD: export function render(item: Item, mode: Mode): string
-// NEW: export function render(item: Item, role: QTIRole): string
-
-// ✅ Graceful deprecation path
-/**
- * @deprecated Use `role` parameter instead of `mode`. Will be removed in v3.0.
- */
+// ❌ Compatibility shim: the project's own past API kept alive
+/** @deprecated Use `role` parameter instead of `mode`. Will be removed in v3.0. */
 export function render(item: Item, mode: Mode): string;
 export function render(item: Item, role: QTIRole): string;
 export function render(item: Item, modeOrRole: Mode | QTIRole): string {
   // Support both during transition
 }
+
+// ✅ Changed outright: one signature, every call site updated, `Breaking:` note in the changeset
+export function render(item: Item, role: QTIRole): string;
 ```
 
 ### 4. Usability & Developer Experience
@@ -258,7 +248,7 @@ When conducting an API review:
 1. **Read the public API surface** - Look at exports, type definitions, and main entry points
 2. **Check consistency** - Compare with similar APIs in other packages
 3. **Evaluate types** - Ensure TypeScript types are correct and helpful
-4. **Identify breaking changes** - Flag anything that would break existing code
+4. **Identify breaking changes** - Flag anything that changes a public API, and check that the old API and its call sites were removed together
 5. **Test usability** - Consider the developer experience for common and advanced cases
 6. **Review documentation** - Ensure TSDoc is complete and examples are present
 7. **Check extensibility** - Verify plugin points are well-designed
@@ -274,7 +264,7 @@ Provide feedback in this structure:
 
 ### ⚠️ Issues Found
 For each issue:
-- **Severity**: Critical (breaking) / High (usability) / Medium (consistency) / Low (polish)
+   - **Severity**: Critical (wrong or leaking internals) / High (usability) / Medium (consistency) / Low (polish)
 - **Description**: What's wrong
 - **Example**: Code showing the issue
 - **Recommendation**: Specific fix with code example
@@ -314,13 +304,14 @@ class ChoiceRenderer implements InteractionRenderer<ChoiceData> {
 }
 ```
 
-**Clear Deprecation:**
+**Clean API Replacement (pre-1.0):**
 ```typescript
-/**
- * @deprecated Use `role` parameter instead. The `mode` parameter will be
- * removed in v3.0. See migration guide: https://example.com/migration
- */
+// Before: `mode` conflated the candidate's view with their role
 export function render(item: Item, mode: 'gather' | 'view'): string;
+
+// After: the old signature is gone, every call site is updated, and the
+// changeset carries a `Breaking:` note. No overload bridges the two.
+export function render(item: Item, role: QTIRole): string;
 ```
 
 ## Tool Usage

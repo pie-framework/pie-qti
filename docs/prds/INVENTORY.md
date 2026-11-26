@@ -116,7 +116,7 @@ Cross-cutting concerns that span multiple packages.
 | File | Concern | Status |
 |------|---------|--------|
 | `systems/i18n.md` | Internationalization (locale switching, RTL, pluralization, lazy loading) | current |
-| `systems/theming.md` | Theming and visual customization (DaisyUI, CSS variables, `::part()`) | current |
+| `systems/theming.md` | Theming and visual customization (DaisyUI, CSS variables, `::part()`) | needs-update |
 | `systems/accessibility.md` | Accessibility baseline (WCAG 2.2 AA, assessment-specific patterns) | current |
 | `systems/pnp.md` | QTI 3.0 Personal Needs and Preferences profile (color schemes, elimination tool, extended time, glossary triggers) | current |
 | `systems/catalog.md` | QTI 3.0 Catalog system (glossary, keyword translation, illustrated glossary, platform-level usages) | current |

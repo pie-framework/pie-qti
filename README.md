@@ -79,7 +79,7 @@ Orchestrates multi-item assessments:
 
 The player architecture separates QTI logic from UI rendering:
 
-- **Plugin system** (`QTIPlugin`) — Register custom extractors, components, and lifecycle hooks
+- **Plugin system** (`AssessmentItemDefinitionPlugin`) — Register custom extractors and components when building an item definition
 - **Registries** — Priority-based `ExtractionRegistry` and `ComponentRegistry`
 - **Typesetting hook** — Host-provided math rendering (KaTeX adapter included)
 - **Custom operators** — Support for `<customOperator>` elements
@@ -230,6 +230,7 @@ bun run preview:pages
 
 - **[Architecture Guide](docs/ARCHITECTURE.md)** — System design, package map, extensibility, theming, and security
 - **[PRD Inventory](docs/prds/INVENTORY.md)** — Canonical rationale and acceptance criteria map
+- **[Domain Language](CONTEXT.md)** — Glossary, relationships, and aliases to avoid
 
 ### Players
 
@@ -254,6 +255,7 @@ bun run preview:pages
 
 - **[Custom Generators](packages/pie-to-qti2/CUSTOM-GENERATORS.md)** — Adding PIE model support
 - **[ACME Likert Plugin](packages/acme-likert-plugin/README.md)** — Player extensibility example
+- **[Assessment Player Extensibility](packages/assessment-player/EXTENSIBILITY.md)** — Backend, item-definition, security, and section-host contracts
 
 ---
 

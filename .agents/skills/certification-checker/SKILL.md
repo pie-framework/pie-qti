@@ -87,17 +87,14 @@ When evaluating test-execution criteria (e.g. "import and display correctly"), s
 relevant test command:
 
 ```bash
-# Run unit tests for a specific interaction
-bun test packages/item-player/src/extraction/extractors/<name>Extractor.test.ts
+# Run unit tests for a specific interaction's extractor
+bun test packages/item-player/tests/extraction/extractors/<name>Extractor.test.ts
 
-# Run default-components evals
-bun run eval --filter default-components
+# Run the default-components eval scenarios (docs/evals/ loaded by the Playwright suite)
+bun run test:e2e default-components-evals
 
-# Run assessment-player evals
-bun run eval --filter assessment-player
-
-# Run full test suite
-bun test
+# Run full unit test suite
+bun run test
 ```
 
 For public regression coverage, suggest:
@@ -114,8 +111,8 @@ Only suggest official package execution as a private-project follow-up, never as
 - Be precise about which version (QTI 2.2 vs 3.0) the criteria come from — they differ.
 - When a criterion cannot be verified without a live test run, say so clearly rather than
   guessing. The goal is an honest readiness assessment, not a rubber stamp.
-- If a gap is found, reference the corresponding entry in `docs/SPEC-GAPS-PLAN.md` if one
-  exists (G-01 through G-15 and beyond).
+- If a gap is found, check `docs/SPEC-GAPS-PLAN.md` for a closed-gap outcome or a recorded
+  deliberate decision that explains the current behavior, and reference it by gap ID.
 - After completing the check, offer to update the private conformance project's
   `docs/CERTIFICATION_PROGRESS.md` with the findings when the result affects
   official certification readiness.
@@ -126,4 +123,4 @@ Only suggest official package execution as a private-project follow-up, never as
   and its implementation files in the codebase
 - **`docs/certification/public-coverage-matrix.json`** — public clean-room coverage source of truth
 - **private `pie-qti-conformance/docs/CERTIFICATION_PROGRESS.md`** — official certification progress source of truth
-- **`docs/SPEC-GAPS-PLAN.md`** — existing implementation gap plan
+- **`docs/SPEC-GAPS-PLAN.md`** — closed-gap outcomes, the deliberate-extension and deliberate-keep ledgers, and the delivery backlog

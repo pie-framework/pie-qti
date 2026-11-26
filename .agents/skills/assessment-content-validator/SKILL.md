@@ -112,8 +112,8 @@ This skill performs both **technical validation** and **content quality review**
 
 **Test each interaction type:**
 ```bash
-# Run the item through the player
-bun run dev:example
+# Run the demo app and load the item
+bun run dev:demo
 
 # Check for console errors
 # Try different response patterns:
@@ -483,11 +483,11 @@ If the item has significant issues, provide a corrected version showing:
 ## Testing Commands
 
 ```bash
-# Run example app to test items
-bun run dev:example
+# Run demo app to test items
+bun run dev:demo
 
 # Run E2E tests to verify functionality
-bun --filter @pie-qti/example test:e2e
+bun --filter @pie-qti/app-demo test:e2e
 
 # Validate XML (if xmllint available)
 xmllint --noout --schema qti_v2p2.xsd item.xml

@@ -44,7 +44,7 @@ This project is pre-1.0. There is no backwards-compatibility surface to preserve
 
 - **Follow the QTI spec wherever it is clear, per QTI version.** Do not document a divergence from a clear spec rule as a deliberate choice; fix it. Supporting a behavior an older QTI version defines (2.1 vs 2.2 vs 3.0 differences) is compliance, not legacy. Keep a documented divergence only where the spec is ambiguous or silent, with the reasoning.
 - **No legacy code.** Do not add or keep shims, deprecated aliases, ignored parameters, pure-delegation wrappers, mirror types, or migration paths for this project's own past APIs, formats or behavior. Remove them, with a "Breaking:" note in the changeset.
-- **No non-spec leniency.** Do not read attributes or elements no QTI version defines. Where real-world content needs a tolerance, document the evidence next to the code.
+- **No non-spec leniency.** Do not read attributes or elements no QTI version defines. Where real-world content needs a tolerance, document the evidence next to the code and record the decision in the "Deliberate extensions" or "Deliberate keeps" ledger at the top of `docs/SPEC-GAPS-PLAN.md`.
 
 ## Monorepo Structure
 
@@ -107,6 +107,10 @@ import XmlEditor from '$lib/components/XmlEditor.svelte';
 ```
 
 `XmlEditor` provides syntax highlighting with TipTap and Lowlight, theme-aware display, text selection for copying, and read-only/editable modes. (The component lives in the demo app at `apps/demo/src/lib/components/XmlEditor.svelte`; this rule applies to demo/docs app code, not to published packages.)
+
+## Agent Skills
+
+Project skills live in `.agents/skills/`; `.claude/skills/` is a mirrored copy for tools that only read that path. Edit the `.agents/skills/` file, then copy it over: `bun run check:skills-sync` (run in CI's doc-links job) fails when the two differ.
 
 ## Testing Strategy
 
