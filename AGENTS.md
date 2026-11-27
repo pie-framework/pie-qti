@@ -46,6 +46,24 @@ This project is pre-1.0. There is no backwards-compatibility surface to preserve
 - **No legacy code.** Do not add or keep shims, deprecated aliases, ignored parameters, pure-delegation wrappers, mirror types, or migration paths for this project's own past APIs, formats or behavior. Remove them, with a "Breaking:" note in the changeset.
 - **No non-spec leniency.** Do not read attributes or elements no QTI version defines. Where real-world content needs a tolerance, document the evidence next to the code and record the decision in the "Deliberate extensions" or "Deliberate keeps" ledger at the top of `docs/SPEC-GAPS-PLAN.md`.
 
+## Serious Findings Are Never Out Of Scope
+
+Report a potentially serious finding whenever you see it, whatever the task and whoever wrote the code. "This change did not touch it" is never a reason to stay silent. Serious means:
+
+- Security: script injection through item content (XHTML, MathML, stylesheets, media URLs) or attributes, reaching the DOM unsanitised; a portable custom interaction that escapes its isolation in `pci-runner` or reaches the host page, its storage or its credentials; a content package entry that writes or reads outside its target (`..` or absolute paths), or an archive that exhausts memory, in the `ims-cp-*` packages; delivery that hands the candidate the correct response, mapping or response processing; a secret or credential in the tree, a build output or a log; an exploitable or compromised dependency, or a published package carrying code its source does not.
+- Data integrity: response or outcome processing that scores wrongly, or candidate responses lost or attached to the wrong item.
+- Production stability: a change that breaks the published element or package surface for hosts already running it.
+
+The source does not matter: Upwind, Dependabot, CodeQL, `bun audit`, a failing test, a log line, reading code in passing.
+
+- Report it in the reply, right after the answer: the location (`file:line`, package and version), the evidence, and an honest severity estimate. A suspicion stays a finding; say what would confirm or clear it.
+- Check the "Deliberate extensions" and "Deliberate keeps" ledgers in `docs/SPEC-GAPS-PLAN.md` first and cite the entry when the behaviour is a recorded decision. A decision you cannot find is no reason to drop the finding.
+- Propose the fix: a small one with the current change, after asking; one that is work of its own as a follow-up session with a brief (finding, evidence, what done looks like).
+- This repository is public, so everything pushed to it is published. Describe an unfixed vulnerability only in the session, never in an issue, pull request, commit message, changeset or document here. The fix lands under a neutral description, and disclosure is the user's decision.
+- Never file a ticket, post outward, or rotate, revoke or delete a credential without the user's explicit yes for that action.
+
+**Upwind.** As of 2026-11-27 Upwind does not scan this repository. When the `upwind-server` MCP tools are available and a task touches dependencies, content rendering, PCI isolation, content packages, secrets handling or security review, run `code_scans_search` with `repository_name = pie-qti`, newest first. Once scans exist, search the newest `default_branch` scan's SCA, SAST, IaC and secret domains for critical and high findings, and medium where `is_exploitable` is true. Secret findings carry no severity: read every `category: secret` finding, and treat `pii`, `pci` and `phi` as serious outright. Fetch details with the `*_get_by_id` tools, verify them against the code, and report them as above with the Upwind finding id. The Upwind tools that create or update scan schedules, scopes, threat policies or rules write to a shared security platform: use them only on an explicit request.
+
 ## Monorepo Structure
 
 The repository contains many packages under `packages/`, including assessment and item players, section player, default components, QTI processing, schema/types packages, packaging utilities, themes, storage, and test utilities. When making changes, consider cross-package impacts.
